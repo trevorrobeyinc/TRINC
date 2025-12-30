@@ -238,48 +238,66 @@ module.exports = class ContextualWikiDefinitions extends Plugin {
   }
 
   buildPrompt(term, context, originLink) {
-    return `Role: Create a precise, context-grounded definition for [[${term}]] using ONLY the originating note context. Do not invent sources, citations, or external facts.
+    return `Role: You are a Feynman-style teacher. Your job is to explain [[${term}]] so clearly that someone with no background could understand it. Use simple language, concrete analogies, and build from first principles. Avoid jargon—if you must use a technical term, explain it immediately.
 
-Output rules (strict):
-- Total length: 180–260 words (excluding quotes).
-- Bullets: max 4 per list.
+Use ONLY the originating note context provided below. Do not invent sources, citations, or external facts.
+
+Output rules:
+- Total length: 400–600 words (excluding quotes).
+- Bullets: max 6 per list.
 - Use plain Markdown only. No HTML. No code blocks.
+- Write as if explaining to a curious friend, not a textbook.
 - If context is insufficient, say so and ask for what's missing in 1 sentence.
 
 Output format (exact headings; no extra sections):
 
 ---
 aliases: ["${term}"]
-tags: ["wiki", "auto"]
+tags: ["wiki", "auto", "feynman"]
 origin: "${originLink}"
 generated: true
 confidence: "0-100"
 sense: "one short phrase"
 ---
 
-## Term - The term being defined: [[${term}]]
+## Term - [[${term}]]
+
+## Feynman Summary
+- (Explain this concept as if teaching someone with zero background. Use everyday words. No jargon. 2-3 sentences that capture the essence.)
+
+## Intuitive Analogy
+- (Compare this to something from everyday life—cooking, driving, building with blocks, water flowing, etc. Make it vivid and memorable.)
 
 ## One-Sentence Definition
-- (≤25 words)
+- (Technical definition for reference, ≤30 words)
 
 ## Key Points
-- (3–4 bullets; each ≤12 words)
+- (4–6 bullets; each ≤20 words; the core ideas someone must remember)
+
+## Why This Matters
+- (Real-world importance. What problems does this solve? Why should someone care? 2-3 sentences.)
+
+## Building Blocks
+- (What concepts must you understand first? List 2-4 prerequisites with [[wiki links]] where appropriate.)
 
 ## Example / Use (In this note's domain)
-- (1–2 bullets; concrete)
+- (2–3 concrete examples showing this concept in action)
+
+## Common Misconceptions
+- (2–3 things people often get wrong about this concept. Start each with "It's NOT...")
 
 ## Boundaries (Not to confuse with)
-- (2 bullets; near-misses)
+- (2–3 similar concepts that are NOT the same thing)
 
 ## Related Concepts
-- (3–6 items; prefer [[wiki links]] when appropriate)
+- (4–8 items; use [[wiki links]] for important related ideas)
 
 ## Source Context (From the Note)
 - From: ${originLink}
 > (Quote EXACTLY 1–2 lines copied from the provided context. No paraphrase.)
 
 ## Self-check
-- (One question that tests understanding in this context.)
+- (2 questions that test genuine understanding, not just memorization. Questions should require applying the concept, not just reciting facts.)
 
 Originating note context:
 ${context}`;
@@ -361,14 +379,20 @@ ${context}`;
     const safeContext = context || '';
     return `---
 aliases: ["${term}"]
-tags: ["wiki", "auto"]
+tags: ["wiki", "auto", "feynman"]
 origin: "${originLink}"
 generated: true
 confidence: "0"
 sense: "pending"
 ---
 
-## Term - The term being defined: [[${term}]]
+## Term - [[${term}]]
+
+## Feynman Summary
+- <pending - explain this simply, as if to someone with no background>
+
+## Intuitive Analogy
+- <pending - compare to something from everyday life>
 
 ## One-Sentence Definition
 - <pending>
@@ -376,8 +400,17 @@ sense: "pending"
 ## Key Points
 - <pending>
 
+## Why This Matters
+- <pending - real-world importance>
+
+## Building Blocks
+- <pending - prerequisite concepts>
+
 ## Example / Use (In this note's domain)
 - <pending>
+
+## Common Misconceptions
+- <pending - what people often get wrong>
 
 ## Boundaries (Not to confuse with)
 - <pending>
@@ -390,7 +423,7 @@ sense: "pending"
 > <pending>
 
 ## Self-check
-- <pending>
+- <pending - questions that test genuine understanding>
 
 Originating note context:
 ${safeContext}`;
