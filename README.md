@@ -11,38 +11,63 @@ Automatically creates precise, context-grounded definitions when you follow a ne
 ## Definition template
 The model receives this exact template and must produce output that matches it:
 
-Role: You create precise, context-grounded definitions for a selected [[Wiki Link]] using only the originating note's context and closely related vault context the model already has. Prioritize clarity, correctness, and semantic linkage.
+Role: You are a Feynman-style teacher. Explain the linked term in plain language using only the origin note’s context.
 
-Instructions:
-- Infer the intended meaning of the selected [[Wiki Link]] from the active note's surrounding sentences and headings.
-- When multiple senses exist, pick the one best supported by the note context.
-- Use concise, high-signal prose. Keep formatting clean markdown.
-- Prefer [[wiki links]] for related concepts already present in the vault context.
+Output format (exact headings; no extra sections):
+```
+---
+aliases: ["<Term>"]
+tags: ["wiki", "auto", "feynman"]
+origin: "[[<Origin Note Title>]]"
+generated: true
+confidence: "0-100"
+sense: "one short phrase"
+---
 
-Output strictly in this template:
-## Term - The term being defined: [[<resolved term title>]]
-## One‑Sentence Definition
-- A single, precise sentence that captures the essence in this note’s context.
-## Full Definition (Context‑Aware)
-- 3–5 sentences grounded in the originating note. Clarify scope, key properties, and purpose.
-## Real‑World Applications
-- Short bullets (3–6) showing practical uses relevant to the note’s domain.
-## Related Concepts (Semantic Neighbors)
-- [[Concept A]] — brief relation (how/why it connects)
-- [[Concept B]] — brief relation
-- [[Concept C]] — brief relation
-## Illustration (Analogy or Micro‑Example)
-- A vivid analogy, metaphor, or short scenario that makes the concept intuitive.
-## Boundaries (What It’s Not)
-- Contrast with near‑miss ideas to avoid confusion.
+## Term - [[<Term>]]
+
+## Feynman Summary
+- (2–3 simple sentences, no jargon)
+
+## Intuitive Analogy
+- (Vivid analogy in everyday terms)
+
+## One-Sentence Definition
+- (≤30 words)
+
+## Key Points
+- (4–6 bullets)
+
+## Why This Matters
+- (2–3 sentences)
+
+## Building Blocks
+- (2–4 prerequisites, use [[wiki links]] when possible)
+
+## Example / Use (In this note's domain)
+- (2–3 concrete examples)
+
+## Common Misconceptions
+- (2–3 bullets; start each with "It's NOT...")
+
+## Boundaries (Not to confuse with)
+- (2–3 near-miss concepts)
+
+## Related Concepts
+- (4–8 items; use [[wiki links]])
+
 ## Source Context (From the Note)
-- From: [[<origin note title>]]
-> Quote or paraphrase the 1–3 most relevant lines from the originating note that justify this definition.
+- From: [[<Origin Note Title>]]
+> (Quote EXACTLY 1–2 lines from the origin note)
+
+## Self-check
+- (2 application-style questions)
+```
 
 Guidelines:
-- Keep sections succinct; do not add extra sections.
-- Use the note’s vocabulary; avoid introducing new jargon unless necessary.
-- Maintain [[wiki links]] where useful for future graph connections.
+- Use ONLY the originating note context.
+- Use concise, high-signal prose and plain Markdown only.
+- Keep the section order unchanged.
 
 ## Setup
 1) Enable community plugins in Obsidian.
@@ -50,6 +75,10 @@ Guidelines:
 3) Open Settings → Contextual Wiki Definitions → paste your Copilot believer/plus license key.
    - The license key field is masked by default (password type) for security.
    - Use the "Reveal" button to temporarily show the key if needed.
+
+## Settings
+- **Auto-insert on file open**: When enabled, empty notes opened from a wiki link are automatically filled with a definition.
+- **Require origin link to trigger**: Only generate when the origin note actually contains a wiki link to the new note (prevents generation for unrelated empty notes).
 
 ## Usage
 - Type a wiki link like `[[Your Term]]` in a note, then click it.

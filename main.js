@@ -1,4 +1,5 @@
 const obsidian = require('obsidian');
+const path = require('path');
 const { Plugin, PluginSettingTab, Setting, SuggestModal, Notice } = obsidian;
 // Import requestUrl safely (may not be available in all Obsidian versions)
 let requestUrl;
@@ -60,7 +61,6 @@ module.exports = class ContextualWikiDefinitions extends Plugin {
       this.app.workspace.on('file-open', async (file) => {
         const origin = this.previousFile;
         // SECURITY FIX: Only update previousFile for valid markdown files
-        // This prevents nulling the origin when opening non-md files or null files
         if (file && file.extension === 'md') {
           this.previousFile = file;
         }
@@ -71,11 +71,24 @@ module.exports = class ContextualWikiDefinitions extends Plugin {
         if (file.extension !== 'md') {
           return;
         }
+        if (!this.settings.autoInsertOnFileOpen) {
+          return;
+        }
+
+        const initialStat = file.stat;
+        const isBrandNew = initialStat && initialStat.size === 0;
+        if (isBrandNew) {
+          file = await this._ensureNewWikiLinkNoteInOriginFolder(file, origin);
+          if (file && file.extension === 'md') {
+            this.previousFile = file;
+          }
+        }
 
         // SECURITY FIX: Prevent double generation with in-flight lock
-        if (this._inFlightGenerations.has(file.path)) {          // #endregion
+        if (this._inFlightGenerations.has(file.path)) {
           return;
-        }        this._inFlightGenerations.add(file.path);
+        }
+        this._inFlightGenerations.add(file.path);
 
         // Defer slightly to let other plugins (e.g., Templater) run first
         setTimeout(async () => {
@@ -102,12 +115,20 @@ module.exports = class ContextualWikiDefinitions extends Plugin {
               this._inFlightGenerations.delete(file.path);
               return;
             }
-            this._markProcessed(file.path);
-
             const context = await this.app.vault.read(origin);
+            if (this.settings.requireOriginLinkToTrigger) {
+              const hasOriginLink = this._originHasLinkToTerm(origin, file, context);
+              if (!hasOriginLink) {
+                this._inFlightGenerations.delete(file.path);
+                return;
+              }
+            }
+            this._markProcessed(file.path);
             const term = file.basename;
             const originLink = this._computeOriginLinktext(origin, file);
-            const prompt = this.buildPrompt(term, this._truncateContext(context), originLink);
+            new Notice('Gathering vault context…');
+            const traits = await this.fetchZettelkastenContext(origin);
+            const prompt = this.buildPrompt(term, this._truncateContext(context), originLink, traits);
             new Notice('Generating definition…');
             let definition = await this.queryCopilot(prompt);
             if (definition) {              definition = this._sanitizeOutput(definition);              definition = this._ensureSourceContextFromLine(definition, originLink);              await this.app.vault.modify(file, definition);
@@ -124,7 +145,8 @@ module.exports = class ContextualWikiDefinitions extends Plugin {
                   try {
                     const freshCtx = await this.app.vault.read(origin);
                     const retryOriginLink = this._computeOriginLinktext(origin, file);
-                    const retryPrompt = this.buildPrompt(term, this._truncateContext(freshCtx), retryOriginLink);
+                    const retryTraits = await this.fetchZettelkastenContext(origin);
+                    const retryPrompt = this.buildPrompt(term, this._truncateContext(freshCtx), retryOriginLink, retryTraits);
                     let second = await this.queryCopilot(retryPrompt);
                     if (second) {
                       second = this._sanitizeOutput(second);
@@ -192,7 +214,8 @@ module.exports = class ContextualWikiDefinitions extends Plugin {
             const term = target.basename;
             const originLink = this._computeOriginLinktext(origin, target);
             // BUG FIX: Apply context truncation consistently (same as elsewhere)
-            const prompt = this.buildPrompt(term, this._truncateContext(context), originLink);
+            const traits = await this.fetchZettelkastenContext(origin);
+            const prompt = this.buildPrompt(term, this._truncateContext(context), originLink, traits);
             let definition = await this.queryCopilot(prompt);
             if (definition) {
               definition = this._sanitizeOutput(definition);
@@ -237,69 +260,186 @@ module.exports = class ContextualWikiDefinitions extends Plugin {
     });
   }
 
-  buildPrompt(term, context, originLink) {
-    return `Role: You are a Feynman-style teacher. Your job is to explain [[${term}]] so clearly that someone with no background could understand it. Use simple language, concrete analogies, and build from first principles. Avoid jargon—if you must use a technical term, explain it immediately.
+  async fetchZettelkastenContext(originFile) {
+    const empty = { echoChamber: '', crossDomain: '', semanticLinker: '', serendipity: '', orphanRescue: '' };
+    try {
+      const vz = this.app.plugins?.plugins?.['vault-zettelkasten'];
+      if (!vz?.api || !originFile) return empty;
 
-Use ONLY the originating note context provided below. Do not invent sources, citations, or external facts.
+      const req = { notePath: originFile.path, options: { limit: 8, batchMode: false, writeReport: false } };
 
-Output rules:
-- Total length: 400–600 words (excluding quotes).
-- Bullets: max 6 per list.
-- Use plain Markdown only. No HTML. No code blocks.
-- Write as if explaining to a curious friend, not a textbook.
-- If context is insufficient, say so and ask for what's missing in 1 sentence.
+      const [ec, cd, sl, sr, or] = await Promise.allSettled([
+        vz.api.echoChamber(req),
+        vz.api.crossDomain(req),
+        vz.api.semanticLinker(req),
+        vz.api.serendipity(req),
+        vz.api.orphanRescue(req),
+      ]);
 
-Output format (exact headings; no extra sections):
+      const pick = (r) => (r.status === 'fulfilled' && r.value && r.value.content) ? r.value.content : '';
+      return {
+        echoChamber:    pick(ec),
+        crossDomain:    pick(cd),
+        semanticLinker: pick(sl),
+        serendipity:    pick(sr),
+        orphanRescue:   pick(or),
+      };
+    } catch (e) {
+      console.warn('[ContextualWikiDefinitions] VZ trait fetch failed:', e);
+      return empty;
+    }
+  }
+
+  buildPrompt(term, context, originLink, traits = {}) {
+    const t = {
+      echoChamber:    traits.echoChamber    || '',
+      crossDomain:    traits.crossDomain    || '',
+      semanticLinker: traits.semanticLinker || '',
+      serendipity:    traits.serendipity    || '',
+      orphanRescue:   traits.orphanRescue   || '',
+    };
+
+    return `Role: Feynman-Metaphor Learning Architect
+Task: Convert the linked term into a 12-year-old-level explanation, formatted for Obsidian.
+
+[CORE DIRECTIVE]
+The linked term is: [[${term}]]
+Use ONLY the originating note context AND the optional Vault Zettelkasten trait outputs supplied below. Do not invent sources, citations, or external facts.
+
+Explain it using the Feynman Technique. If you cannot explain it simply, you don't understand it. Jargon is strictly forbidden unless defined immediately in plain English.
+
+🚀 Execution Steps (internal — produce the OUTPUT FORMAT below, not these step labels):
+1. Identify the core concept and abstraction level (Beginner / Intermediate / Advanced).
+2. Apply the "Grandmother Test": one sentence on what it DOES and WHY it exists, pitched to a 12-year-old.
+3. Build a Metaphor Anchor: TWO powerful metaphors from everyday life (cooking, cars, nature, libraries, kitchens, weather). Map technical parts 1:1.
+4. Run the "Gaps Check": where would a beginner usually trip? Correct it before they trip.
+5. Syntax Archaeology (only if the term is code/syntax): break down line-by-line, in plain English.
+6. Teach-Back: a final paragraph that weaves both metaphors into one cohesive story.
+7. Weave any provided Zettelkasten trait outputs into the matching H2 sections. If a trait output is missing or empty, render the section with a single italic line: *(unavailable — Vault Zettelkasten not running, or no signal found)*.
+
+💎 Constraints & Style:
+- No "tech-to-tech" metaphors. Never say "it's like a pointer" or "it's like a database." Use "it's like a library card" or "it's like a kitchen pantry."
+- Mentor tone. Friendly, encouraging, clear.
+- Plain Markdown only. No HTML. No code fences inside the output unless Syntax Archaeology genuinely requires one.
+- 500–800 words total, excluding the source quote.
+- Use [[wiki links]] generously for any concept the reader could explore further.
+
+📦 OUTPUT FORMAT (emit EXACTLY this, replacing every parenthesised guidance line with real content; keep section order; keep emoji headings):
 
 ---
 aliases: ["${term}"]
-tags: ["wiki", "auto", "feynman"]
+tags: ["wiki", "auto", "feynman", "metaphor"]
 origin: "${originLink}"
 generated: true
 confidence: "0-100"
 sense: "one short phrase"
+abstraction_level: "Beginner | Intermediate | Advanced"
+concept_name: "${term}"
 ---
 
-## Term - [[${term}]]
+## 🎯 ${term}: Feynman Breakdown
 
-## Feynman Summary
-- (Explain this concept as if teaching someone with zero background. Use everyday words. No jargon. 2-3 sentences that capture the essence.)
+> [!info] Abstraction level
+> (Beginner / Intermediate / Advanced — and one short sentence saying why)
 
-## Intuitive Analogy
-- (Compare this to something from everyday life—cooking, driving, building with blocks, water flowing, etc. Make it vivid and memorable.)
+## 🧒 Grandmother Test
+(One sentence. What it DOES + WHY it exists. 12-year-old reading level.)
 
-## One-Sentence Definition
-- (Technical definition for reference, ≤30 words)
+## 🪜 Metaphor Anchor
 
-## Key Points
-- (4–6 bullets; each ≤20 words; the core ideas someone must remember)
+### Metaphor 1 — (everyday object/scene)
+(2–3 sentences setting up the metaphor. Then a 1:1 mapping list:)
+- **(technical part)** ↔ **(metaphor part)** — (one-line why)
+- **(technical part)** ↔ **(metaphor part)** — (one-line why)
+- **(technical part)** ↔ **(metaphor part)** — (one-line why)
 
-## Why This Matters
-- (Real-world importance. What problems does this solve? Why should someone care? 2-3 sentences.)
+### Metaphor 2 — (a different everyday object/scene)
+(2–3 sentences. Then a 1:1 mapping list:)
+- **(technical part)** ↔ **(metaphor part)** — (one-line why)
+- **(technical part)** ↔ **(metaphor part)** — (one-line why)
+- **(technical part)** ↔ **(metaphor part)** — (one-line why)
 
-## Building Blocks
-- (What concepts must you understand first? List 2-4 prerequisites with [[wiki links]] where appropriate.)
+## 🪤 Gaps Check (Where Beginners Trip)
+- **The trap:** (the misconception)
+  **The truth:** (the correction in plain English)
+- **The trap:** (...)
+  **The truth:** (...)
 
-## Example / Use (In this note's domain)
-- (2–3 concrete examples showing this concept in action)
+## 🧱 Syntax Archaeology
+(If the term is NOT code, write one italic line: *Not applicable — this is a concept, not syntax.* and stop.
+If it IS code, give a line-by-line breakdown. Each bullet quotes the line in backticks, then a "Human English:" sentence.)
 
-## Common Misconceptions
-- (2–3 things people often get wrong about this concept. Start each with "It's NOT...")
+## 🧶 Teach-Back
+(One cohesive paragraph, 4–7 sentences. Weave BOTH metaphors into one story of how the concept works end-to-end. No bullet points.)
 
-## Boundaries (Not to confuse with)
-- (2–3 similar concepts that are NOT the same thing)
+## 🌱 One-Sentence Definition
+(Technical, ≤30 words.)
 
-## Related Concepts
-- (4–8 items; use [[wiki links]] for important related ideas)
+## 🧩 Building Blocks
+- (2–4 prerequisites with [[wiki links]])
 
-## Source Context (From the Note)
+## 🎬 Example / Use (In this note's domain)
+- (2–3 concrete examples drawn from the originating note)
+
+## 🔗 Linked Concepts in This Vault
+- [[Linked Note]] — (typed relationship)
+- [[Linked Note]] — (typed relationship)
+- [[Linked Note]] — (typed relationship)
+
+## 🌉 Cross-Domain Metaphor Bridges
+- **From [[Distant Note]]:** (one-line bridge)
+- **From [[Distant Note]]:** (one-line bridge)
+
+## ✨ Surprising Connections
+- [[Note]] — (why it's an unexpected match)
+- [[Note]] — (why)
+
+## 🪞 Where This Belief Could Break
+- **Assumption baked in:** (...)
+  **Counter-evidence in the vault:** [[Note]] — (...)
+- **Assumption baked in:** (...)
+  **Counter-evidence in the vault:** [[Note]] — (...)
+
+## 🕯️ Forgotten Notes Worth Re-reading
+- [[Orphan Note]] — (why this orphan is worth pulling back in)
+- [[Orphan Note]] — (why)
+
+## 🪨 Common Misconceptions
+- **It's NOT** (...) — (one line on what it actually is)
+- **It's NOT** (...) — (...)
+
+## 🚧 Boundaries (Not to confuse with)
+- [[Near-miss concept]] — (one-line distinction)
+- [[Near-miss concept]] — (one-line distinction)
+
+## 📖 Source Context (From the Note)
 - From: ${originLink}
-> (Quote EXACTLY 1–2 lines copied from the provided context. No paraphrase.)
+> (Quote EXACTLY 1–2 lines copied from the originating note context — verbatim, no paraphrase.)
 
-## Self-check
-- (2 questions that test genuine understanding, not just memorization. Questions should require applying the concept, not just reciting facts.)
+## 🧪 Self-check
+1. (An application question — not recall.)
+2. (An application question — not recall.)
 
-Originating note context:
+---
+
+VAULT ZETTELKASTEN TRAIT OUTPUTS (use these to populate the matching H2 sections; ignore any sections you have no signal for):
+
+[ECHO_CHAMBER]
+${t.echoChamber || '(unavailable)'}
+
+[CROSS_DOMAIN]
+${t.crossDomain || '(unavailable)'}
+
+[SEMANTIC_LINKER]
+${t.semanticLinker || '(unavailable)'}
+
+[SERENDIPITY]
+${t.serendipity || '(unavailable)'}
+
+[ORPHAN_RESCUE]
+${t.orphanRescue || '(unavailable)'}
+
+ORIGINATING NOTE CONTEXT:
 ${context}`;
   }
 
@@ -323,7 +463,8 @@ ${context}`;
     const term = target.basename;
     const originFile = origin || target;
     const originLink = this._computeOriginLinktext(originFile, target);
-    const prompt = this.buildPrompt(term, this._truncateContext(context), originLink);
+    const traits = await this.fetchZettelkastenContext(originFile);
+    const prompt = this.buildPrompt(term, this._truncateContext(context), originLink, traits);
     new Notice('Generating definition…');
     let definition = await this.queryCopilot(prompt);
     if (definition) {
@@ -429,6 +570,28 @@ Originating note context:
 ${safeContext}`;
   }
 
+  _originHasLinkToTerm(originFile, targetFile, context) {
+    try {
+      const term = targetFile?.basename || '';
+      if (!term) return false;
+      const cache = this.app.metadataCache.getFileCache(originFile);
+      const links = (cache && cache.links) ? cache.links : [];
+      const directMatch = links.some((l) => {
+        const link = (l && l.link) ? l.link : '';
+        const base = link.split('#')[0];
+        return base === term || base.endsWith(`/${term}`);
+      });
+      if (directMatch) return true;
+      const raw = context || '';
+      if (!raw) return false;
+      const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const re = new RegExp(`!?\\[\\[${escaped}(?:[\\]|#]|$)`, 'i');
+      return re.test(raw);
+    } catch (_) {
+      return false;
+    }
+  }
+
   /**
    * NETWORKING: HTTP request wrapper using Obsidian requestUrl with fetch fallback
    * Prefers requestUrl for better Obsidian integration, falls back to fetch if unavailable
@@ -515,35 +678,74 @@ ${safeContext}`;
 
   async queryCopilot(prompt) {
     const licenseKey = this.settings.licenseKey;
-    if (!licenseKey) return null;
+    const customBaseUrl = (this.settings.customApiBaseUrl || '').trim().replace(/\/+$/, '');
+    // FORK: When customBaseUrl is set, license key is optional (local LLMs typically don't need auth).
+    if (!customBaseUrl && !licenseKey) return null;
+    const API_ENDPOINTS = customBaseUrl ? [
+      // FORK: Custom OpenAI-compatible endpoint (Ollama: http://127.0.0.1:11434, LM Studio: http://127.0.0.1:1234, etc.)
+      `${customBaseUrl}/v1/chat/completions`
+    ] : [
+      // Current BreviLabs endpoint
+      'https://models.brevilabs.com/v1/chat/completions',
+      // Legacy endpoint kept as fallback for compatibility
+      'https://api.brevilabs.com/v1/chat/completions'
+    ];
+    let preferredEndpoint = API_ENDPOINTS[0];
     // Helper to call endpoint using our request wrapper
     const call = async ({ model, stream, accept }) => {
-      try {
-        const body = JSON.stringify({
-          model,
-          stream: !!stream,
-          temperature: 0.2,
-          messages: [ { role: 'user', content: prompt } ]
-        });
+      const body = JSON.stringify({
+        model,
+        stream: !!stream,
+        temperature: 0.2,
+        messages: [ { role: 'user', content: prompt } ]
+      });
+      const endpoints = [preferredEndpoint, ...API_ENDPOINTS.filter((e) => e !== preferredEndpoint)];
+      let lastRes = null;
+      let lastErr = null;
 
-        const res = await this._makeRequest('https://api.brevilabs.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': accept || 'application/json',
-            'Authorization': `Bearer ${licenseKey}`,
-          },
-          body: body
-        });
-        return res;
-      } catch (e) {
-        throw e;
+      for (let i = 0; i < endpoints.length; i++) {
+        const endpoint = endpoints[i];
+        const isLast = i === endpoints.length - 1;
+        try {
+          const res = await this._makeRequest(endpoint, {
+            method: 'POST',
+            headers: Object.assign({
+              'Content-Type': 'application/json',
+              'Accept': accept || 'application/json',
+            }, licenseKey ? { 'Authorization': `Bearer ${licenseKey}` } : {}),
+            body: body
+          });
+          lastRes = res;
+
+          // Endpoint-specific fallback for moved routes
+          if (!isLast && (res.status === 404 || res.status === 405 || res.status === 410)) {
+            const errorText = await res.text();
+            const snippet = errorText ? errorText.slice(0, 200) : '';
+            console.warn('Copilot endpoint unavailable, trying fallback', endpoint, res.status, snippet + (errorText && errorText.length > 200 ? '...' : ''));
+            continue;
+          }
+
+          preferredEndpoint = endpoint;
+          return res;
+        } catch (e) {
+          lastErr = e;
+          if (isLast) throw e;
+        }
       }
+
+      if (lastRes) return lastRes;
+      if (lastErr) throw lastErr;
+      throw new Error('Copilot request failed: no endpoint produced a response');
     };
 
+    // FORK: Pick model name based on whether a custom endpoint is configured.
+    const modelName = customBaseUrl
+      ? ((this.settings.customApiModel || '').trim() || 'gpt-4o-mini')
+      : 'copilot-plus-flash';
+
     try {
-      // Attempt 1: JSON, non-stream, flash model
-      let res = await call({ model: 'copilot-plus-flash', stream: false, accept: 'application/json' });
+      // Attempt 1: JSON, non-stream
+      let res = await call({ model: modelName, stream: false, accept: 'application/json' });
       if (!res.ok) {
         // SECURITY: Reduce sensitive logging - only log status + short snippet
         const errorText = await res.text();
@@ -584,9 +786,9 @@ ${safeContext}`;
         }
       }
 
-      // Attempt 2: SSE stream, flash model
+      // Attempt 2: SSE stream
       try {
-        res = await call({ model: 'copilot-plus-flash', stream: true, accept: 'text/event-stream,*/*' });
+        res = await call({ model: modelName, stream: true, accept: 'text/event-stream,*/*' });
         const text2 = await res.text();
         let out2 = '';
         for (const rawLine of text2.split('\n')) {
@@ -632,9 +834,13 @@ ${safeContext}`;
   async loadSettings() {
     const loaded = await this.loadData();    this.settings = Object.assign({
       licenseKey: '',
+      autoInsertOnFileOpen: true,
+      requireOriginLinkToTrigger: true,
       allowCodeBlocks: false, // SECURITY: Default OFF - strip all code blocks
       allowRawHTML: false, // SECURITY: Default OFF - strip HTML tags
-      maxOutputLength: 60000 // SECURITY: Cap output to prevent huge writes
+      maxOutputLength: 60000, // SECURITY: Cap output to prevent huge writes
+      customApiBaseUrl: '', // FORK: When set, replaces Brevilabs endpoints with this OpenAI-compatible base URL
+      customApiModel: ''    // FORK: Model name to send to custom endpoint (e.g. "llama3.2", "gpt-4o-mini"); empty falls back to "gpt-4o-mini"
     }, loaded);  }
 
   async saveSettings() {
@@ -682,6 +888,70 @@ ${safeContext}`;
     const max = 20000; // chars
     if (!text) return '';
     return text.length > max ? text.slice(0, max) : text;
+  }
+
+  async _ensureNewWikiLinkNoteInOriginFolder(file, origin) {
+    if (!file || file.extension !== 'md' || !origin || origin.extension !== 'md') {
+      return file;
+    }
+
+    const originFolder = this._getFolderPath(origin);
+    const currentFolder = this._getFolderPath(file);
+    if (originFolder === currentFolder) {
+      return file;
+    }
+
+    const desiredPath = originFolder
+      ? path.posix.join(originFolder, `${file.basename}.md`)
+      : `${file.basename}.md`;
+    const normalizedDesiredPath = this._normalizeVaultPath(desiredPath);
+    const normalizedCurrentPath = this._normalizeVaultPath(file.path);
+
+    if (!normalizedDesiredPath || !normalizedCurrentPath || normalizedCurrentPath === normalizedDesiredPath) {
+      return file;
+    }
+
+    if (this.app.vault.getAbstractFileByPath(normalizedDesiredPath)) {
+      return file;
+    }
+
+    try {
+      const renamed = await this.app.fileManager.renameFile(file, normalizedDesiredPath);
+      return renamed || file;
+    } catch (err) {
+      console.error('Contextual Wiki Definitions: failed to relocate new wiki link note', err);
+      return file;
+    }
+  }
+
+  _getFolderPath(fileOrPath) {
+    const filePath = typeof fileOrPath === 'string'
+      ? fileOrPath
+      : fileOrPath?.path;
+    const normalized = this._normalizeVaultPath(filePath);
+    if (!normalized) {
+      return '';
+    }
+    const dirname = path.posix.dirname(normalized);
+    if (!dirname || dirname === '.' || dirname === './') {
+      return '';
+    }
+    return dirname;
+  }
+
+  _normalizeVaultPath(filePath) {
+    if (!filePath) return '';
+    const replaced = filePath.replace(/\\/g, '/');
+    let normalized = path.posix.normalize(replaced);
+    if (this.app && this.app.vault && this.app.vault.adapter && typeof this.app.vault.adapter.getBasePath === 'function') {
+      const base = this.app.vault.adapter.getBasePath().replace(/\\/g, '/');
+      const normalizedBase = path.posix.normalize(base);
+      if (normalizedBase && normalized.startsWith(normalizedBase)) {
+        normalized = normalized.slice(normalizedBase.length);
+        if (normalized.startsWith('/')) normalized = normalized.slice(1);
+      }
+    }
+    return normalized.startsWith('./') ? normalized.slice(2) : normalized;
   }
 
   _isRecentlyProcessed(path) {
@@ -734,6 +1004,26 @@ class ContextualDefinitionSettingTab extends PluginSettingTab {
         });
     });
 
+    new Setting(containerEl)
+      .setName('Auto-insert on file open')
+      .setDesc('When enabled, empty notes opened from a wiki link are automatically filled with a definition.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.autoInsertOnFileOpen)
+        .onChange(async (value) => {
+          this.plugin.settings.autoInsertOnFileOpen = value;
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
+      .setName('Require origin link to trigger')
+      .setDesc('Only generate when the origin note actually contains a wiki link to the new note. Prevents generation for unrelated empty notes.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.requireOriginLinkToTrigger)
+        .onChange(async (value) => {
+          this.plugin.settings.requireOriginLinkToTrigger = value;
+          await this.plugin.saveSettings();
+        }));
+
     // SECURITY: Output sanitization settings
     new Setting(containerEl)
       .setName('Allow code blocks in output')
@@ -767,6 +1057,29 @@ class ContextualDefinitionSettingTab extends PluginSettingTab {
             this.plugin.settings.maxOutputLength = num;
             await this.plugin.saveSettings();
           }
+        }));
+
+    // FORK: Custom (local or third-party) OpenAI-compatible endpoint.
+    new Setting(containerEl)
+      .setName('Custom API base URL (fork)')
+      .setDesc('Optional OpenAI-compatible base URL. When set, replaces Brevilabs. Examples: http://127.0.0.1:11434 (Ollama), http://127.0.0.1:1234 (LM Studio), https://api.openai.com (with your own key in License Key field).')
+      .addText(text => text
+        .setPlaceholder('http://127.0.0.1:11434')
+        .setValue(this.plugin.settings.customApiBaseUrl || '')
+        .onChange(async (value) => {
+          this.plugin.settings.customApiBaseUrl = value.trim();
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
+      .setName('Custom API model (fork)')
+      .setDesc('Model name to send when Custom API base URL is set. Examples: llama3.2, gpt-4o-mini, qwen2.5:14b. Default: gpt-4o-mini.')
+      .addText(text => text
+        .setPlaceholder('llama3.2')
+        .setValue(this.plugin.settings.customApiModel || '')
+        .onChange(async (value) => {
+          this.plugin.settings.customApiModel = value.trim();
+          await this.plugin.saveSettings();
         }));
   }
 }
