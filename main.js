@@ -126,14 +126,13 @@ module.exports = class ContextualWikiDefinitions extends Plugin {
             this._markProcessed(file.path);
             const term = file.basename;
             const originLink = this._computeOriginLinktext(origin, file);
-            new Notice('Gathering vault context…');
-            const traits = await this.fetchZettelkastenContext(origin);
-            const prompt = this.buildPrompt(term, this._truncateContext(context), originLink, traits);
+            const prompt = this.buildPrompt(term, this._truncateContext(context), originLink, this._zkPlaceholderTraits());
             new Notice('Generating definition…');
             let definition = await this.queryCopilot(prompt);
             if (definition) {              definition = this._sanitizeOutput(definition);              definition = this._ensureSourceContextFromLine(definition, originLink);              await this.app.vault.modify(file, definition);
               this._attemptCounts.delete(file.path);              this._inFlightGenerations.delete(file.path);
               new Notice('Definition inserted.');
+              this._enrichWithZettelkastenTraitsAsync(file, origin);
             } else {
               // Do not show an error yet; retry once after a short delay
               const key = file.path;
@@ -145,8 +144,7 @@ module.exports = class ContextualWikiDefinitions extends Plugin {
                   try {
                     const freshCtx = await this.app.vault.read(origin);
                     const retryOriginLink = this._computeOriginLinktext(origin, file);
-                    const retryTraits = await this.fetchZettelkastenContext(origin);
-                    const retryPrompt = this.buildPrompt(term, this._truncateContext(freshCtx), retryOriginLink, retryTraits);
+                    const retryPrompt = this.buildPrompt(term, this._truncateContext(freshCtx), retryOriginLink, this._zkPlaceholderTraits());
                     let second = await this.queryCopilot(retryPrompt);
                     if (second) {
                       second = this._sanitizeOutput(second);
@@ -155,6 +153,7 @@ module.exports = class ContextualWikiDefinitions extends Plugin {
                       this._attemptCounts.delete(key);
                       this._inFlightGenerations.delete(file.path);
                       new Notice('Definition inserted.');
+                      this._enrichWithZettelkastenTraitsAsync(file, origin);
                     } else {
                       this._attemptCounts.delete(key); // Clean up on permanent failure
                       this._inFlightGenerations.delete(file.path);
@@ -214,13 +213,13 @@ module.exports = class ContextualWikiDefinitions extends Plugin {
             const term = target.basename;
             const originLink = this._computeOriginLinktext(origin, target);
             // BUG FIX: Apply context truncation consistently (same as elsewhere)
-            const traits = await this.fetchZettelkastenContext(origin);
-            const prompt = this.buildPrompt(term, this._truncateContext(context), originLink, traits);
+            const prompt = this.buildPrompt(term, this._truncateContext(context), originLink, this._zkPlaceholderTraits());
             let definition = await this.queryCopilot(prompt);
             if (definition) {
               definition = this._sanitizeOutput(definition);
               definition = this._ensureSourceContextFromLine(definition, originLink);
               await this.app.vault.modify(target, definition);
+              this._enrichWithZettelkastenTraitsAsync(target, origin);
             } else {
               try {
                 const fallback = this._buildLocalTemplate(term, originLink, this._truncateContext(context));
@@ -260,6 +259,119 @@ module.exports = class ContextualWikiDefinitions extends Plugin {
     });
   }
 
+  /**
+   * Mapping of VZ trait keys → matching H2 section headings in the
+   * Feynman-Metaphor template. Used by the async enrichment path to
+   * locate and replace the placeholder body once a trait resolves.
+   */
+  _zkSectionMap() {
+    return [
+      { key: 'semanticLinker', heading: '🔗 Linked Concepts in This Vault' },
+      { key: 'crossDomain',    heading: '🌉 Cross-Domain Metaphor Bridges' },
+      { key: 'serendipity',    heading: '✨ Surprising Connections' },
+      { key: 'echoChamber',    heading: '🪞 Where This Belief Could Break' },
+      { key: 'orphanRescue',   heading: '🕯️ Forgotten Notes Worth Re-reading' },
+    ];
+  }
+
+  _zkPlaceholder() {
+    return '*(populating in background — refresh the note in ~60s to see populated content)*';
+  }
+
+  /**
+   * Returns a placeholder traits object suitable for passing to buildPrompt.
+   * The LLM will emit the placeholder string verbatim into each trait section;
+   * _enrichWithZettelkastenTraitsAsync replaces those bodies as VZ resolves.
+   */
+  _zkPlaceholderTraits() {
+    const ph = this._zkPlaceholder();
+    return { echoChamber: ph, crossDomain: ph, semanticLinker: ph, serendipity: ph, orphanRescue: ph };
+  }
+
+  /**
+   * Fire-and-forget enrichment. For each VZ trait, race against a 60s
+   * timeout; on success, locate the matching H2 section in the target note
+   * and replace its body with the trait's content. Failures degrade
+   * gracefully — the section keeps its placeholder line, which makes
+   * the failure visible in the rendered note rather than silent.
+   */
+  _enrichWithZettelkastenTraitsAsync(targetFile, originFile) {
+    if (!targetFile || !originFile) return;
+    const vz = this.app.plugins?.plugins?.['vault-zettelkasten'];
+    if (!vz?.api) {
+      // Replace placeholders with the static "(unavailable)" line so users
+      // aren't stuck reading "populating in background" forever.
+      this._replaceAllSectionsWithUnavailable(targetFile);
+      return;
+    }
+
+    const req = { notePath: originFile.path, options: { limit: 8, batchMode: false, writeReport: false } };
+    const calls = {
+      echoChamber:    () => vz.api.echoChamber(req),
+      crossDomain:    () => vz.api.crossDomain(req),
+      semanticLinker: () => vz.api.semanticLinker(req),
+      serendipity:    () => vz.api.serendipity(req),
+      orphanRescue:   () => vz.api.orphanRescue(req),
+    };
+
+    const withTimeout = (p, label, ms = 60000) =>
+      Promise.race([
+        p,
+        new Promise((_, rej) => setTimeout(() => rej(new Error(`${label} timeout after ${ms}ms`)), ms)),
+      ]);
+
+    for (const { key, heading } of this._zkSectionMap()) {
+      withTimeout(calls[key](), key)
+        .then(async (result) => {
+          const body = (result && result.content) ? String(result.content).trim() : '';
+          if (!body) {
+            await this._replaceSectionInNote(targetFile, heading, '*(unavailable — Vault Zettelkasten returned no signal)*');
+            return;
+          }
+          console.log(`[CWD] async ${key}: ${body.length} chars → ${heading}`);
+          await this._replaceSectionInNote(targetFile, heading, body);
+        })
+        .catch(async (err) => {
+          console.warn(`[CWD] async ${key} failed:`, err && err.message ? err.message : err);
+          await this._replaceSectionInNote(targetFile, heading, '*(unavailable — VZ trait timed out or errored)*');
+        });
+    }
+  }
+
+  /**
+   * Read the target file, locate the H2 section whose heading line contains
+   * the given heading text, and replace the body (everything between that H2
+   * and the next H2 / end-of-doc) with newBody. No-op if the heading isn't
+   * found, so we never corrupt the note when the LLM omitted a section.
+   */
+  async _replaceSectionInNote(file, heading, newBody) {
+    try {
+      const content = await this.app.vault.read(file);
+      const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // Match: "## <anything containing heading>\n" then capture-greedy until next "## " or EOF.
+      const re = new RegExp(`(^## [^\\n]*${escaped}[^\\n]*\\n)([\\s\\S]*?)(?=\\n## |\\n---\\n|$)`, 'm');
+      if (!re.test(content)) return;
+      const replaced = content.replace(re, `$1${newBody}\n`);
+      if (replaced !== content) {
+        await this.app.vault.modify(file, replaced);
+      }
+    } catch (e) {
+      console.warn('[CWD] _replaceSectionInNote failed:', e);
+    }
+  }
+
+  async _replaceAllSectionsWithUnavailable(file) {
+    const msg = '*(unavailable — Vault Zettelkasten not running)*';
+    for (const { heading } of this._zkSectionMap()) {
+      await this._replaceSectionInNote(file, heading, msg);
+    }
+  }
+
+  /**
+   * Synchronous trait fetch with per-trait timeout. Kept for callers that
+   * want blocking behavior (the test-API command, debugging). The four
+   * production flows now use _enrichWithZettelkastenTraitsAsync instead.
+   */
   async fetchZettelkastenContext(originFile) {
     const empty = { echoChamber: '', crossDomain: '', semanticLinker: '', serendipity: '', orphanRescue: '' };
     try {
@@ -483,8 +595,7 @@ ${context}`;
     const term = target.basename;
     const originFile = origin || target;
     const originLink = this._computeOriginLinktext(originFile, target);
-    const traits = await this.fetchZettelkastenContext(originFile);
-    const prompt = this.buildPrompt(term, this._truncateContext(context), originLink, traits);
+    const prompt = this.buildPrompt(term, this._truncateContext(context), originLink, this._zkPlaceholderTraits());
     new Notice('Generating definition…');
     let definition = await this.queryCopilot(prompt);
     if (definition) {
@@ -492,6 +603,7 @@ ${context}`;
       definition = this._ensureSourceContextFromLine(definition, originLink);
       await this.app.vault.modify(target, definition);
       new Notice('Definition inserted.');
+      this._enrichWithZettelkastenTraitsAsync(target, originFile);
     } else {
       try {
         const fallback = this._buildLocalTemplate(term, originLink, this._truncateContext(context));
