@@ -264,28 +264,48 @@ module.exports = class ContextualWikiDefinitions extends Plugin {
     const empty = { echoChamber: '', crossDomain: '', semanticLinker: '', serendipity: '', orphanRescue: '' };
     try {
       const vz = this.app.plugins?.plugins?.['vault-zettelkasten'];
-      if (!vz?.api || !originFile) return empty;
+      if (!vz?.api || !originFile) {
+        console.log('[CWD] VZ not available; using empty trait context');
+        return empty;
+      }
 
       const req = { notePath: originFile.path, options: { limit: 8, batchMode: false, writeReport: false } };
+      console.log('[CWD] fetching VZ traits for', originFile.path);
+
+      // Each trait gets its own per-call timeout so a single stuck LLM call
+      // can't block the whole chain. 25s ceiling per trait is generous for
+      // local LM Studio (7B model, multi-call traits) but bounded.
+      const withTimeout = (p, label, ms = 25000) =>
+        Promise.race([
+          p,
+          new Promise((_, rej) => setTimeout(() => rej(new Error(`${label} timeout after ${ms}ms`)), ms)),
+        ]);
 
       const [ec, cd, sl, sr, or] = await Promise.allSettled([
-        vz.api.echoChamber(req),
-        vz.api.crossDomain(req),
-        vz.api.semanticLinker(req),
-        vz.api.serendipity(req),
-        vz.api.orphanRescue(req),
+        withTimeout(vz.api.echoChamber(req),    'echoChamber'),
+        withTimeout(vz.api.crossDomain(req),    'crossDomain'),
+        withTimeout(vz.api.semanticLinker(req), 'semanticLinker'),
+        withTimeout(vz.api.serendipity(req),    'serendipity'),
+        withTimeout(vz.api.orphanRescue(req),   'orphanRescue'),
       ]);
 
-      const pick = (r) => (r.status === 'fulfilled' && r.value && r.value.content) ? r.value.content : '';
+      const pick = (r, name) => {
+        if (r.status === 'fulfilled' && r.value && r.value.content) {
+          console.log(`[CWD] VZ ${name}: ok (${r.value.content.length} chars)`);
+          return r.value.content;
+        }
+        console.log(`[CWD] VZ ${name}: ${r.status === 'rejected' ? r.reason?.message : 'no content'}`);
+        return '';
+      };
       return {
-        echoChamber:    pick(ec),
-        crossDomain:    pick(cd),
-        semanticLinker: pick(sl),
-        serendipity:    pick(sr),
-        orphanRescue:   pick(or),
+        echoChamber:    pick(ec, 'echoChamber'),
+        crossDomain:    pick(cd, 'crossDomain'),
+        semanticLinker: pick(sl, 'semanticLinker'),
+        serendipity:    pick(sr, 'serendipity'),
+        orphanRescue:   pick(or, 'orphanRescue'),
       };
     } catch (e) {
-      console.warn('[ContextualWikiDefinitions] VZ trait fetch failed:', e);
+      console.warn('[CWD] VZ trait fetch failed:', e);
       return empty;
     }
   }
