@@ -1,6 +1,3 @@
-import fs from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
 import { z } from "zod";
 import type { RuntimeContext } from "../context";
 import type { BackendId, ToolResult } from "../../types";
@@ -110,42 +107,14 @@ export async function miyoSearchContextTool(
 }
 
 async function resolveMiyoBaseUrl(): Promise<string> {
+  // Default routes through the in-monorepo HTTPS proxy at :8743
+  // (com.trevorrobey.miyo-tls-proxy launchd unit, see root CLAUDE.md
+  // "Wrapped in HTTPS by in-monorepo proxies"). Do NOT default to
+  // service.json + plaintext — that bypasses the proxy.
   const configured = process.env.MIYO_BASE_URL?.trim();
   if (configured) {
     return configured.replace(/\/+$/, "");
   }
 
-  const servicePath = getServiceConfigPath();
-  const raw = await fs.readFile(servicePath, "utf8");
-  const parsed = JSON.parse(raw) as { host?: string; port?: number };
-  if (!parsed.host || typeof parsed.port !== "number") {
-    throw new Error(
-      `Invalid Miyo service config at ${servicePath}; expected host + port.`
-    );
-  }
-
-  return `http://${parsed.host}:${parsed.port}`;
-}
-
-function getServiceConfigPath(): string {
-  switch (os.platform()) {
-    case "darwin":
-      return path.join(
-        os.homedir(),
-        "Library",
-        "Application Support",
-        "Miyo",
-        "service.json"
-      );
-    case "linux":
-      return path.join(os.homedir(), ".config", "Miyo", "service.json");
-    case "win32": {
-      const localAppData =
-        process.env.LOCALAPPDATA?.trim() ||
-        path.join(os.homedir(), "AppData", "Local");
-      return path.join(localAppData, "Miyo", "service.json");
-    }
-    default:
-      throw new Error("Unsupported platform for Miyo service discovery.");
-  }
+  return "https://127.0.0.1:8743";
 }
