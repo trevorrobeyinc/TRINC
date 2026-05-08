@@ -108,7 +108,7 @@ export class VaultZKSettingTab extends PluginSettingTab {
       .setDesc("Miyo server endpoint")
       .addText((t) =>
         t
-          .setPlaceholder("http://127.0.0.1:8742")
+          .setPlaceholder("https://127.0.0.1:8743")
           .setValue(this.plugin.settings.miyoBaseUrl)
           .onChange(async (v) => {
             this.plugin.settings.miyoBaseUrl = v;
@@ -125,7 +125,7 @@ export class VaultZKSettingTab extends PluginSettingTab {
       .setDesc("Qdrant server endpoint")
       .addText((t) =>
         t
-          .setPlaceholder("http://127.0.0.1:6333")
+          .setPlaceholder("https://127.0.0.1:6433")
           .setValue(this.plugin.settings.qdrantBaseUrl)
           .onChange(async (v) => {
             this.plugin.settings.qdrantBaseUrl = v;

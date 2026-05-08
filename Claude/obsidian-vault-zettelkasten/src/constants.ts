@@ -34,9 +34,9 @@ export const DEFAULT_SETTINGS: VaultZKSettings = {
   llmTemperature: 0.7,
   llmMaxTokens: 2048,
 
-  miyoBaseUrl: "http://127.0.0.1:8742",
+  miyoBaseUrl: "https://127.0.0.1:8743",
 
-  qdrantBaseUrl: "http://127.0.0.1:6333",
+  qdrantBaseUrl: "https://127.0.0.1:6433",
   qdrantCollection: "miyo",
 
   enableOrphanScan: true,

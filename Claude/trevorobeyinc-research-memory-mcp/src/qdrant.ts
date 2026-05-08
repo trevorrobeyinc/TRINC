@@ -7,7 +7,7 @@ import { McpToolError, type PackPayload } from "./types.js";
 import { log } from "./log.js";
 import { MODEL_DIM, MODEL_NAME } from "./embed.js";
 
-const URL = process.env.QDRANT_URL || "http://127.0.0.1:6333";
+const URL = process.env.QDRANT_URL || "https://127.0.0.1:6433";
 const COLLECTION = process.env.QDRANT_COLLECTION || "trevorobeyinc-packs";
 
 export const collectionName = COLLECTION;
