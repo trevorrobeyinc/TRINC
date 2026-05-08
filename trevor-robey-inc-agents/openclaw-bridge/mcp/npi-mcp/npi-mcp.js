@@ -15,6 +15,7 @@
  */
 
 const { createHttpsClient } = require("../../core/https-client.js");
+const timeProvider = require("../../core/time-provider.js");
 const { SCHEMA_BY_TOOL } = require("./npi-schema.js");
 
 function isPlainObject(v) {
@@ -111,7 +112,7 @@ function formatProviderDetail(item) {
     status: basic.status || "",
     enumeration_date: basic.enumeration_date || "",
     last_updated: basic.last_updated_epoch
-      ? new Date(Number(basic.last_updated_epoch)).toISOString()
+      ? (timeProvider.msToIso(basic.last_updated_epoch) || "")
       : (basic.last_updated || ""),
     primary_taxonomy: {
       code: primaryTaxonomy.code || "",

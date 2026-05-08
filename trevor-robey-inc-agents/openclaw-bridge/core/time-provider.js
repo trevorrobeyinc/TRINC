@@ -37,6 +37,13 @@ function nowIso() {
   return new Date(nowMs()).toISOString();
 }
 
+function msToIso(ms) {
+  if (!Number.isFinite(Number(ms))) {
+    return null;
+  }
+  return new Date(Number(ms)).toISOString();
+}
+
 function setDeterministicTime(fixedNowMs, stepMs = 0) {
   const normalizedNow = parseNumber(fixedNowMs, null);
   if (normalizedNow === null) {
@@ -78,6 +85,7 @@ function createTimeProvider(options = {}) {
 module.exports = {
   nowMs,
   nowIso,
+  msToIso,
   setDeterministicTime,
   clearDeterministicTime,
   createTimeProvider,

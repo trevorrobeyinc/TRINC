@@ -14,6 +14,7 @@
 
 const https = require("node:https");
 const http = require("node:http");
+const timeProvider = require("./time-provider.js");
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 const DEFAULT_MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
@@ -30,7 +31,7 @@ function getRateLimiter(hostname, maxPerSecond) {
 
   let bucket = hostBuckets.get(hostname);
   if (!bucket) {
-    bucket = { tokens: maxPerSecond, maxTokens: maxPerSecond, lastRefill: Date.now() };
+    bucket = { tokens: maxPerSecond, maxTokens: maxPerSecond, lastRefill: timeProvider.nowMs() };
     hostBuckets.set(hostname, bucket);
   }
   return bucket;
@@ -39,7 +40,7 @@ function getRateLimiter(hostname, maxPerSecond) {
 function acquireToken(bucket) {
   if (!bucket) return Promise.resolve();
 
-  const now = Date.now();
+  const now = timeProvider.nowMs();
   const elapsed = (now - bucket.lastRefill) / 1000;
   bucket.tokens = Math.min(bucket.maxTokens, bucket.tokens + elapsed * bucket.maxTokens);
   bucket.lastRefill = now;
