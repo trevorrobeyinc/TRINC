@@ -1,0 +1,3 @@
+[submodule "trevor-robey-inc-agents/vendor/tooluniverse"]
+	path = trevor-robey-inc-agents/vendor/tooluniverse
+	url = https://github.com/mims-harvard/ToolUniverse.git

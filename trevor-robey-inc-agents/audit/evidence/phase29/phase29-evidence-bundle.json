@@ -1,0 +1,78 @@
+{
+  "phase": 29,
+  "title": "ToolUniverse Biomedical Research Integration",
+  "generated_at": "2026-03-27T11:23:07.034Z",
+  "startup_integrity": {
+    "healthy": true,
+    "failures": []
+  },
+  "feature_flag": {
+    "ENABLE_TOOLUNIVERSE_MCP": true
+  },
+  "method_registry": [
+    {
+      "key": "RESEARCH_FIND_TOOL",
+      "value": "research_findTool",
+      "registered": true
+    },
+    {
+      "key": "RESEARCH_GET_TOOL_INFO",
+      "value": "research_getToolInfo",
+      "registered": true
+    },
+    {
+      "key": "RESEARCH_EXECUTE_TOOL",
+      "value": "research_executeTool",
+      "registered": true
+    },
+    {
+      "key": "RESEARCH_LIST_TOOLS",
+      "value": "research_listTools",
+      "registered": true
+    },
+    {
+      "key": "RESEARCH_GREP_TOOLS",
+      "value": "research_grepTools",
+      "registered": true
+    }
+  ],
+  "egress_policy": {
+    "tooluniverse-mcp": {
+      "defaultAction": "deny",
+      "allowedHosts": [],
+      "allowedCIDR": [],
+      "rateLimitPerSecond": 2,
+      "allowedMethodsByHost": {}
+    }
+  },
+  "adapter_files": [
+    {
+      "path": "openclaw-bridge/mcp/tooluniverse-mcp/tooluniverse-mcp.js",
+      "exists": true
+    },
+    {
+      "path": "openclaw-bridge/mcp/tooluniverse-mcp/tu-process-manager.js",
+      "exists": true
+    },
+    {
+      "path": "openclaw-bridge/mcp/tooluniverse-mcp/tu-record-normalizer.js",
+      "exists": true
+    },
+    {
+      "path": "openclaw-bridge/mcp/tooluniverse-mcp/tu-schema.js",
+      "exists": true
+    }
+  ],
+  "dataset_schemas_count": 2,
+  "mission_templates_count": 2,
+  "monetization_products_count": 3,
+  "rbac_includes_tooluniverse": true,
+  "submodule_present": true,
+  "boundary_invariants": [
+    "No direct external tool execution from bridge server",
+    "research_executeTool gated by operator role",
+    "tooluniverse-mcp egress policy defaults to deny",
+    "All ToolUniverse-sourced datasets default to review_required license",
+    "Submodule pinned to specific commit"
+  ]
+}

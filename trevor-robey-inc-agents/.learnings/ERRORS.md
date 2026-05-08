@@ -1,0 +1,335 @@
+# Errors Log
+
+## [ERR-20260303-001] npm-cache-checksum volatile metadata drift
+
+**Logged**: 2026-03-03T03:30:00-08:00
+**Priority**: medium
+**Status**: resolved
+**Area**: infra
+
+### Summary
+Cache checksum verification initially failed due volatile npm metadata file drift.
+
+### Error
+```
+Cached file size mismatch: ../.ci/npm-cache/_update-notifier-last-checked
+```
+
+### Context
+- Command: `bash scripts/verify-npm-cache-checksum.sh`
+- Root cause: npm updates `_update-notifier-last-checked` independently of dependency content.
+
+### Suggested Fix
+Exclude volatile npm metadata and `_logs/` from lock manifest and enforce exact checks for deterministic cache files.
+
+### Metadata
+- Reproducible: yes
+- Related Files: scripts/generate-npm-cache-lock.sh, scripts/verify-npm-cache-checksum.sh
+
+### Resolution
+- **Resolved**: 2026-03-03T03:34:00-08:00
+- **Notes**: Added volatile-file exclusions and strict unexpected-file drift detection.
+
+## [ERR-20260303-002] shell invocation mixed with status text
+
+**Logged**: 2026-03-03T14:10:00-08:00
+**Priority**: low
+**Status**: resolved
+**Area**: infra
+
+### Summary
+A shell command failed because I prefixed it with human progress text.
+
+### Error
+```
+zsh:1: command not found: I’m
+```
+
+### Context
+- Command attempted from implementation loop while gathering references.
+- Root cause: mixed natural language with shell input.
+
+### Suggested Fix
+Keep progress updates in assistant commentary only and send pure shell commands to the execution tool.
+
+### Metadata
+- Reproducible: yes
+- Related Files: .learnings/ERRORS.md
+
+### Resolution
+- **Resolved**: 2026-03-03T14:10:00-08:00
+- **Notes**: Split status updates from command payloads.
+
+## [ERR-20260303-003] parallel verification raced on dependency state
+
+**Logged**: 2026-03-03T15:44:08-08:00
+**Priority**: medium
+**Status**: resolved
+**Area**: tests
+
+### Summary
+Running `npm test` and `bash scripts/build-verify.sh` in parallel caused transient module resolution failures.
+
+### Error
+```
+Error: Cannot find module 'zod'
+Error: Cannot find module './helpers/errorUtil'
+```
+
+### Context
+- Command pattern: concurrent execution of test and build verification in the same workspace.
+- Root cause: both commands mutate/read dependency state (`node_modules`/install steps) and are not safe to run concurrently.
+
+### Suggested Fix
+Run dependency-touching verification steps serially; reserve parallel execution for read-only checks.
+
+### Metadata
+- Reproducible: yes
+- Related Files: .learnings/ERRORS.md
+
+### Resolution
+- **Resolved**: 2026-03-03T15:44:08-08:00
+- **Notes**: Switched to serial execution (`build-verify` then `npm test`) and suite passed cleanly.
+
+## [ERR-20260303-004] outcome-schema strict parse rejected hashed records
+
+**Logged**: 2026-03-04T04:40:00Z
+**Priority**: high
+**Status**: resolved
+**Area**: tests
+
+### Summary
+Phase 6 outcome integrity tests failed because semantic validation parsed hashed records with a strict schema that disallowed hash fields.
+
+### Error
+```
+ZodError: Unrecognized key(s) in object: 'outcomeHash', 'prevChainHash', 'chainHash'
+```
+
+### Context
+- Command: `node --test tests/security/state-schema-v6.test.js tests/security/rlhf-outcome-capture.test.js tests/security/rlhf-outcome-integrity.test.js ...`
+- Root cause: `assertOutcomeSemantics()` used `OutcomeRecordWithoutHashesSchema.parse(record)` directly, so full records failed validation before integrity checks.
+
+### Suggested Fix
+Validate semantics on a projected subset (without hash fields) or allow passthrough parsing for full records before semantic checks.
+
+### Metadata
+- Reproducible: yes
+- Related Files: workflows/rlhf-outcomes/outcome-schema.js, workflows/rlhf-outcomes/outcome-validator.js
+
+### Resolution
+- **Resolved**: 2026-03-04T04:42:00Z
+- **Notes**: Updated semantic validation to parse a projected non-hash subset before strict checks; Phase 6 targeted suite now passes.
+
+## [ERR-20260304-005] phase7 normalization dropped required split basis points
+
+**Logged**: 2026-03-04T00:22:00-08:00
+**Priority**: high
+**Status**: resolved
+**Area**: backend
+
+### Summary
+Phase 7 lifecycle tests failed after `approve/start` because runtime normalization removed `splitBasisPoints` from persisted experiment records.
+
+### Error
+```
+ZodError: invalid_type expected object received undefined at path splitBasisPoints
+```
+
+### Context
+- Command: `node --test tests/security/experiment-*.test.js`
+- Root cause: `normalizeExperimentRecord()` in `security/api-governance.js` did not preserve `splitBasisPoints`.
+
+### Suggested Fix
+Add deterministic `splitBasisPoints` normalization with strict sum=10000 fallback and keep it in canonical experiment records.
+
+### Metadata
+- Reproducible: yes
+- Related Files: security/api-governance.js
+
+### Resolution
+- **Resolved**: 2026-03-04T00:24:00-08:00
+- **Notes**: Added `normalizeSplitBasisPoints()` and persisted field in experiment normalization; Phase 7 tests passed.
+
+## [ERR-20260304-006] phase7 policy grep alternation escaped incorrectly
+
+**Logged**: 2026-03-04T00:31:00-08:00
+**Priority**: medium
+**Status**: resolved
+**Area**: tests
+
+### Summary
+`verify-phase7-policy.sh` failed on valid code because regex alternation used escaped `\|` in ripgrep patterns.
+
+### Error
+```
+Missing approval token consumption in workflows/experiment-governance/experiment-manager.js
+Rollout governor missing pre-registration lock verification
+```
+
+### Context
+- Command: `bash scripts/verify-phase7-policy.sh`
+- Root cause: `rg` pattern used `consumeScopedApprovalToken\|consumeApprovalToken` and similar strings, matching literal `|` instead of alternation.
+
+### Suggested Fix
+Use proper alternation syntax (`a|b`) in ripgrep patterns.
+
+### Metadata
+- Reproducible: yes
+- Related Files: scripts/verify-phase7-policy.sh
+
+### Resolution
+- **Resolved**: 2026-03-04T00:33:00-08:00
+- **Notes**: Updated `rg` checks to use valid alternation, verification script now passes.
+
+## [ERR-20260304-007] python binary unavailable in shell automation edits
+
+**Logged**: 2026-03-04T13:05:00-08:00
+**Priority**: low
+**Status**: resolved
+**Area**: infra
+
+### Summary
+A scripted edit step failed because `python` is not installed as `python` in the current shell environment.
+
+### Error
+```
+zsh:1: command not found: python
+```
+
+### Context
+- Command pattern: `python - <<'PY' ... PY`
+- Task: update workflow/build/package files during Phase 8 implementation.
+
+### Suggested Fix
+Use `node` or shell-native tools for deterministic file edits, or call `python3` only when available.
+
+### Metadata
+- Reproducible: yes
+- Related Files: .learnings/ERRORS.md
+
+### Resolution
+- **Resolved**: 2026-03-04T13:05:00-08:00
+- **Notes**: Switched to `node`-based one-shot file edits.
+
+## [ERR-20260304-008] nullish-coalescing precedence syntax error in policy snapshot builder
+
+**Logged**: 2026-03-04T13:08:00-08:00
+**Priority**: medium
+**Status**: resolved
+**Area**: backend
+
+### Summary
+A Phase 8 module load failed due to invalid `??` precedence mixed with `&&` in `buildPolicySnapshotHash()`.
+
+### Error
+```
+SyntaxError: missing ) after argument list
+```
+
+### Context
+- Command: `node -e "require('./workflows/compliance-governance/compliance-validator.js')"`
+- Root cause: expression `policy && policy.minEvidenceFreshnessHours ?? "24"` requires parentheses.
+
+### Suggested Fix
+Wrap logical expression before nullish coalescing, e.g. `String((policy && policy.minEvidenceFreshnessHours) ?? "24")`.
+
+### Metadata
+- Reproducible: yes
+- Related Files: workflows/compliance-governance/compliance-validator.js
+
+### Resolution
+- **Resolved**: 2026-03-04T13:08:00-08:00
+- **Notes**: Corrected operator precedence and revalidated module load.
+
+## [ERR-20260307-009] cline policy gate and README contract drift
+
+**Logged**: 2026-03-07T00:03:05-08:00
+**Priority**: low
+**Status**: resolved
+**Area**: docs
+
+### Summary
+The local Cline supervisor policy gate failed because `README.md` did not contain the required `## Supervisor Model (Cline)` section expected by the repository policy script.
+
+### Error
+```
+ERROR: README missing Supervisor Model (Cline) section
+```
+
+### Context
+- Command: `bash scripts/verify-cline-supervisor-policy.sh`
+- Trigger: validation rerun after moving GitHub workflow manifests out of `.github/workflows`
+- Root cause: repository docs had drifted from the shell policy contract, even though the gate script and tests expected the section to exist.
+
+### Suggested Fix
+Keep README policy headings aligned with shell gate assertions whenever governance documentation is edited.
+
+### Metadata
+- Reproducible: yes
+- Related Files: README.md, scripts/verify-cline-supervisor-policy.sh
+
+### Resolution
+- **Resolved**: 2026-03-07T00:03:05-08:00
+- **Notes**: Added the missing README section and reran the affected policy/test suite successfully.
+
+## [ERR-20260307-010] orphaned variable after workflow-manifest removal
+
+**Logged**: 2026-03-07T02:49:46-08:00
+**Priority**: low
+**Status**: resolved
+**Area**: backend
+
+### Summary
+`phase9` compliance monitor tests failed after removing archived workflow dependencies because `workflowText` was still referenced in the gate aggregation block.
+
+### Error
+```
+ReferenceError: workflowText is not defined
+```
+
+### Context
+- Command: `node --test tests/security/phase9-compliance-monitor.test.js ...`
+- Trigger: refactor to remove `.github/archived-workflows/*.disabled` dependencies.
+- Root cause: one leftover reference in `workflows/governance-automation/compliance-monitor.js`.
+
+### Suggested Fix
+After deleting a dependency path, run a fast symbol check (`rg workflowText`) in edited files before test execution.
+
+### Metadata
+- Reproducible: yes
+- Related Files: workflows/governance-automation/compliance-monitor.js
+
+### Resolution
+- **Resolved**: 2026-03-07T02:49:46-08:00
+- **Notes**: Removed the stale reference and re-ran the targeted policy tests successfully.
+## [ERR-20260311-001] npm phase22 verify blocked by devEngines runtime
+
+**Logged**: 2026-03-11T10:34:00Z
+**Priority**: medium
+**Status**: pending
+**Area**: tests
+
+### Summary
+`npm run phase22:verify` failed in this session because local Node runtime is `v25.3.0` while repo enforces `22.13.1`.
+
+### Error
+```
+npm error code EBADDEVENGINES
+npm error EBADDEVENGINES Invalid devEngines.runtime
+npm error EBADDEVENGINES Invalid semver version "22.13.1" does not match "v25.3.0" for "runtime"
+```
+
+### Context
+- Command: `npm run phase22:verify`
+- Repo runtime gate is intentionally strict (`devEngines.runtime` + `scripts/verify-node-runtime.js`).
+- Current session runtime cannot satisfy the declared policy.
+
+### Suggested Fix
+Run verification commands under Node `22.13.1` (e.g., `nvm use 22.13.1`) before invoking npm scripts.
+
+### Metadata
+- Reproducible: yes
+- Related Files: package.json, scripts/verify-node-runtime.js
+
+---

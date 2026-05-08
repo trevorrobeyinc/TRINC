@@ -1,0 +1,18 @@
+{
+  "name": "raycast-obsidian-stdio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "index.mjs",
+  "bin": {
+    "raycast-obsidian-stdio": "./index.mjs"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "description": "Raycast-flavoured stdio MCP server wrapping the Obsidian CLI directly. Intentionally a sibling fork of obsidian-mcp-stdio so the Raycast surface can diverge (extra tools, alternate defaults) without affecting the Claude path.",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "zod": "^3.25.76"
+  }
+}

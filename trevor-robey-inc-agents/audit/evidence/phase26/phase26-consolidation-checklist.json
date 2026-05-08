@@ -1,0 +1,113 @@
+{
+  "phase": 26,
+  "title": "Bridge Runtime and Execution Router Consolidation",
+  "prerequisite": "Phase 26A (bridge auth, principal resolution, route/lane separation)",
+  "generated_at": "2026-03-23T00:00:00Z",
+  "checks": [
+    {
+      "id": "P26-01",
+      "description": "types.ts defines BridgePrincipalKind, ExecutionOutcome, JobExecutionContext, and JobExecutionResult",
+      "file": "openclaw-bridge/bridge/types.ts",
+      "status": "pass"
+    },
+    {
+      "id": "P26-02",
+      "description": "JobRecord includes optional execution_context and execution_result fields",
+      "file": "openclaw-bridge/bridge/types.ts",
+      "status": "pass"
+    },
+    {
+      "id": "P26-03",
+      "description": "state-store.ts createJob accepts optional JobExecutionContext",
+      "file": "openclaw-bridge/bridge/state-store.ts",
+      "status": "pass"
+    },
+    {
+      "id": "P26-04",
+      "description": "state-store.ts exposes setExecutionResult for deterministic outcome persistence",
+      "file": "openclaw-bridge/bridge/state-store.ts",
+      "status": "pass"
+    },
+    {
+      "id": "P26-05",
+      "description": "server.ts creates execution router and passes to worker",
+      "file": "openclaw-bridge/bridge/server.ts",
+      "status": "pass"
+    },
+    {
+      "id": "P26-06",
+      "description": "server.ts captures principal/role/token_id/source at job creation",
+      "file": "openclaw-bridge/bridge/server.ts",
+      "status": "pass"
+    },
+    {
+      "id": "P26-07",
+      "description": "server.ts still blocks direct external tool execution (TOOL_EXECUTION_BLOCKED)",
+      "file": "openclaw-bridge/bridge/server.ts",
+      "status": "pass"
+    },
+    {
+      "id": "P26-08",
+      "description": "worker.ts routes jobs through execution router via executeViaRouter",
+      "file": "openclaw-bridge/bridge/worker.ts",
+      "status": "pass"
+    },
+    {
+      "id": "P26-09",
+      "description": "worker.ts fails closed when execution router is unavailable",
+      "file": "openclaw-bridge/bridge/worker.ts",
+      "status": "pass"
+    },
+    {
+      "id": "P26-10",
+      "description": "worker.ts fails closed when execution context is missing on the job",
+      "file": "openclaw-bridge/bridge/worker.ts",
+      "status": "pass"
+    },
+    {
+      "id": "P26-11",
+      "description": "worker.ts persists execution result via setExecutionResult",
+      "file": "openclaw-bridge/bridge/worker.ts",
+      "status": "pass"
+    },
+    {
+      "id": "P26-12",
+      "description": "execution-router.ts uses Phase 26 node ID (phase26-bridge-node)",
+      "file": "openclaw-bridge/src/core/execution-router.ts",
+      "status": "pass"
+    },
+    {
+      "id": "P26-13",
+      "description": "execution-router.ts tracks Phase 26 counters (phase26_jobs_routed, phase26_jobs_denied, phase26_jobs_stub)",
+      "file": "openclaw-bridge/src/core/execution-router.ts",
+      "status": "pass"
+    },
+    {
+      "id": "P26-14",
+      "description": "execution-router.ts preserves supervisor execution denial boundary",
+      "file": "openclaw-bridge/src/core/execution-router.ts",
+      "status": "pass"
+    },
+    {
+      "id": "P26-15",
+      "description": "External /jobs API contract is stable (new fields are optional additions)",
+      "file": "openclaw-bridge/bridge/types.ts",
+      "status": "pass"
+    },
+    {
+      "id": "P26-16",
+      "description": "Manual-only external-action boundary is preserved",
+      "file": "openclaw-bridge/bridge/server.ts",
+      "status": "pass"
+    }
+  ],
+  "boundary_invariants": [
+    "No direct external tool execution",
+    "No Sider export/re-entry in Phase 26 scope",
+    "No browser automation",
+    "No login automation",
+    "No background sync",
+    "Supervisor cannot execute tools directly",
+    "Missing execution context produces denied outcome"
+  ]
+}

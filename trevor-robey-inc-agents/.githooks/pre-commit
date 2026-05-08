@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CURRENT_BRANCH="$(git symbolic-ref --quiet --short HEAD || true)"
+
+if [[ "${CURRENT_BRANCH}" != "main" ]]; then
+  exit 0
+fi
+
+if [[ "${OPENCLAW_ALLOW_MAIN_COMMIT:-0}" == "1" ]]; then
+  exit 0
+fi
+
+cat >&2 <<'EOF'
+Committing directly to main is blocked in this repository.
+Start or continue work on a phase branch instead:
+  bash scripts/start-phase-branch.sh <phase-number> <phase-slug>
+
+Emergency-only bypass:
+  OPENCLAW_ALLOW_MAIN_COMMIT=1 git commit ...
+EOF
+
+exit 1

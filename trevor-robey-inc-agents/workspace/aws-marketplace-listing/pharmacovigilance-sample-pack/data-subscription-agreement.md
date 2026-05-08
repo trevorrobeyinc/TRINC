@@ -1,0 +1,63 @@
+# Data Subscription Agreement (DSA)
+## Pharmacovigilance Sample Pack — Free Tier
+
+**Provider**: Trevor Robey Intelligence Network Citations LLC, a California limited liability company (filed at the California Secretary of State 2026-05-06; receipt B20260217250), doing business under the wordmark "Trevor Robey, INC." (where INC = Intelligence Network Citations) ("Provider").
+**Product**: Pharmacovigilance Sample Pack (free tier).
+**Effective date**: Date of subscription acceptance via AWS Data Exchange.
+
+---
+
+## 1. License grant
+
+Subject to your acceptance of this Agreement, Provider grants you ("Subscriber") a non-exclusive, non-transferable, revocable, worldwide license to access and use the contents of the Pharmacovigilance Sample Pack (signal-register.csv and citation-index.csv, collectively the "Sample Data") for internal research, evaluation, and reference purposes only.
+
+## 2. Permitted uses
+
+Subscriber may:
+- Access and view the Sample Data within Subscriber's organization
+- Use the Sample Data to evaluate trevor-robey-inc's citation-traced research methodology before considering paid trevor-robey-inc engagements
+- Quote individual citation identifiers (PMID, NCT, ChEMBL, etc.) in internal Subscriber research notes provided the underlying source databases are independently consulted
+- Federate Sample Data into Subscriber's internal AWS, Snowflake, or other analytics warehouse for internal evaluation use
+
+## 3. Prohibited uses
+
+Subscriber shall not:
+- Redistribute, resell, sublicense, or relicense the Sample Data, in whole or in part, to any third party
+- Repackage the Sample Data into a derivative commercial product
+- Remove, alter, or obscure any provenance, citation, or attribution information embedded in the Sample Data
+- Use the Sample Data as the sole basis for any clinical decision, prescribing decision, regulatory submission, or pharmaceutical or medical professional decision
+- Combine Sample Data with Subscriber's own Protected Health Information ("PHI") in a manner that violates HIPAA, the EU GDPR, or any other applicable privacy regulation; PHI handling remains solely Subscriber's responsibility
+
+## 4. Intellectual property
+
+The Sample Data is the original compiled work of Provider. The underlying citation identifiers reference public-database content owned by their respective sources (NLM, FDA, EMBL-EBI, EMA, MedDRA MSSO, and others); Provider does not relicense or sublicense those upstream sources. Subscriber is responsible for compliance with the licensing terms of any upstream source consulted via the citation identifiers in the Sample Data.
+
+## 5. Data quality and disclaimer
+
+THE SAMPLE DATA IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, OR ACCURACY OF THE INFORMATION OR PERSISTENT AVAILABILITY OF THE UPSTREAM CITATION IDENTIFIERS.
+
+The Sample Data is a research artifact. It is not validated for clinical decision support, pharmaceutical prescribing, regulatory submission, or any other professional medical use. Subscribers using Sample Data in any decision-context are solely responsible for independent verification of every claim against the cited source database and for compliance with all applicable laws, regulations, and professional standards.
+
+## 6. No PHI
+
+The Sample Data contains no Protected Health Information. All citation identifiers reference content in publicly accessible biomedical databases. Subscriber's use of the Sample Data alongside Subscriber's own PHI does not transfer any PHI handling obligation to Provider, and Provider does not act as a HIPAA Business Associate with respect to the Sample Data.
+
+## 7. Term and termination
+
+This license is effective on subscription acceptance and continues until terminated. Either party may terminate at any time. Upon termination, Subscriber shall destroy all copies of the Sample Data and provide written certification of destruction within 30 days. Sections 3, 4, 5, 6, 8, and 9 survive termination.
+
+## 8. Limitation of liability
+
+PROVIDER'S AGGREGATE LIABILITY FOR ANY CLAIM ARISING OUT OF OR RELATING TO THIS AGREEMENT OR THE SAMPLE DATA IS LIMITED TO ZERO US DOLLARS, REFLECTING THE FREE NATURE OF THE SAMPLE PACK. PROVIDER IS NOT LIABLE FOR ANY INDIRECT, SPECIAL, INCIDENTAL, CONSEQUENTIAL, EXEMPLARY, OR PUNITIVE DAMAGES OF ANY KIND.
+
+## 9. Governing law
+
+This Agreement is governed by the laws of the State of California, USA, without regard to conflict-of-laws principles. Disputes shall be resolved in the state or federal courts of California, and Subscriber consents to personal jurisdiction therein.
+
+## 10. Contact
+
+Questions about this Agreement or the Sample Data: trevor@trevorobeyinc.com
+
+---
+
+By subscribing through AWS Data Exchange, Subscriber acknowledges having read this Agreement and agrees to be bound by its terms.

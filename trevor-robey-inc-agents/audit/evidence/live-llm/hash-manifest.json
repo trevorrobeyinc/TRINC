@@ -1,0 +1,62 @@
+{
+  "files": [
+    {
+      "file": "anthropic-2026-03-06T00-55-50-353Z.json",
+      "sha256": "dad39b3c480de7babface918d5d9e5578234a2df2f6849672ad58ca30d3fef7e"
+    },
+    {
+      "file": "anthropic-latest.json",
+      "sha256": "dad39b3c480de7babface918d5d9e5578234a2df2f6849672ad58ca30d3fef7e"
+    },
+    {
+      "file": "hash-manifest.json",
+      "sha256": "2e27b2fa420e4f1a2df3b56a20af7d0644b59bf34da1e6fe97928bca2f9a6886"
+    },
+    {
+      "file": "lm-studio-2026-03-30T13-50-33-047Z.json",
+      "sha256": "49d3292d3d173787b1af0a82f9210d16e406eac173d7f75738b613500f0ba0b8"
+    },
+    {
+      "file": "lm-studio-latest.json",
+      "sha256": "49d3292d3d173787b1af0a82f9210d16e406eac173d7f75738b613500f0ba0b8"
+    },
+    {
+      "file": "local-2026-03-06T00-55-50-256Z.json",
+      "sha256": "6ba98046dfc2173d28ea3a9a7b747edcfea232f120eb4d4e046e7a12759ae946"
+    },
+    {
+      "file": "local-latest.json",
+      "sha256": "6ba98046dfc2173d28ea3a9a7b747edcfea232f120eb4d4e046e7a12759ae946"
+    },
+    {
+      "file": "openai-2026-03-06T00-55-50-353Z.json",
+      "sha256": "61e8f32c831536f871ebba9ab8e82ff7ea29a2408045cba250693a8e399b3455"
+    },
+    {
+      "file": "openai-latest.json",
+      "sha256": "61e8f32c831536f871ebba9ab8e82ff7ea29a2408045cba250693a8e399b3455"
+    },
+    {
+      "file": "openrouter-2026-03-06T00-55-50-353Z.json",
+      "sha256": "a4d11b785aafba6001d64aae0a11904dd9780e6bf9a4dce3fe7d442673b5e883"
+    },
+    {
+      "file": "openrouter-latest.json",
+      "sha256": "a4d11b785aafba6001d64aae0a11904dd9780e6bf9a4dce3fe7d442673b5e883"
+    },
+    {
+      "file": "summary-2026-03-06T00-55-50-256Z.json",
+      "sha256": "a48b04cf7e5738fb04f83e248f4a86315af341d18e0197a287fa0e3e60cdf8fd"
+    },
+    {
+      "file": "summary-2026-03-30T13-50-33-047Z.json",
+      "sha256": "00a264f7cf9cad1dc02f7df9807702f8c2c02ff7875c21a18b45a1601076fd30"
+    },
+    {
+      "file": "summary-latest.json",
+      "sha256": "00a264f7cf9cad1dc02f7df9807702f8c2c02ff7875c21a18b45a1601076fd30"
+    }
+  ],
+  "generated_at": "2026-03-30T13:50:34.005Z",
+  "schema_version": "live-verification-hash-manifest-v1"
+}

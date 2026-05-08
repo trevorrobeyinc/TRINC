@@ -1,0 +1,230 @@
+{
+  "schema_version": "phase20-dataset-schemas-v1",
+  "dataset_types": {
+    "benchmark_eval": {
+      "allow_additional_fields": false,
+      "dataset_type": "benchmark_eval",
+      "fields": {
+        "evaluation_criteria": {
+          "nullable": false,
+          "type": "string"
+        },
+        "expected_answer": {
+          "nullable": false,
+          "type": "string"
+        },
+        "prompt": {
+          "nullable": false,
+          "type": "string"
+        },
+        "row_hash": {
+          "nullable": false,
+          "type": "string"
+        }
+      },
+      "required_fields": [
+        "evaluation_criteria",
+        "expected_answer",
+        "prompt",
+        "row_hash"
+      ],
+      "schema_version": "phase19-benchmark-eval-v1"
+    },
+    "classification": {
+      "allow_additional_fields": false,
+      "dataset_type": "classification",
+      "fields": {
+        "label": {
+          "nullable": false,
+          "type": "string"
+        },
+        "label_rationale": {
+          "nullable": false,
+          "type": "string"
+        },
+        "row_hash": {
+          "nullable": false,
+          "type": "string"
+        },
+        "text": {
+          "nullable": false,
+          "type": "string"
+        }
+      },
+      "required_fields": [
+        "label",
+        "label_rationale",
+        "row_hash",
+        "text"
+      ],
+      "schema_version": "phase19-classification-v1"
+    },
+    "instruction_qa": {
+      "allow_additional_fields": false,
+      "dataset_type": "instruction_qa",
+      "fields": {
+        "answer": {
+          "nullable": false,
+          "type": "string"
+        },
+        "context": {
+          "nullable": false,
+          "type": "string"
+        },
+        "instruction": {
+          "nullable": false,
+          "type": "string"
+        },
+        "row_hash": {
+          "nullable": false,
+          "type": "string"
+        }
+      },
+      "required_fields": [
+        "answer",
+        "context",
+        "instruction",
+        "row_hash"
+      ],
+      "schema_version": "phase19-instruction-qa-v1"
+    },
+    "knowledge_graph": {
+      "allow_additional_fields": false,
+      "dataset_type": "knowledge_graph",
+      "fields": {
+        "context": {
+          "nullable": false,
+          "type": "string"
+        },
+        "object": {
+          "nullable": false,
+          "type": "string"
+        },
+        "predicate": {
+          "nullable": false,
+          "type": "string"
+        },
+        "row_hash": {
+          "nullable": false,
+          "type": "string"
+        },
+        "subject": {
+          "nullable": false,
+          "type": "string"
+        }
+      },
+      "required_fields": [
+        "context",
+        "object",
+        "predicate",
+        "row_hash",
+        "subject"
+      ],
+      "schema_version": "phase19-knowledge-graph-v1"
+    },
+    "retrieval_qa": {
+      "allow_additional_fields": false,
+      "dataset_type": "retrieval_qa",
+      "fields": {
+        "answer": {
+          "nullable": false,
+          "type": "string"
+        },
+        "context": {
+          "nullable": false,
+          "type": "string"
+        },
+        "query": {
+          "nullable": false,
+          "type": "string"
+        },
+        "row_hash": {
+          "nullable": false,
+          "type": "string"
+        }
+      },
+      "required_fields": [
+        "answer",
+        "context",
+        "query",
+        "row_hash"
+      ],
+      "schema_version": "phase19-retrieval-qa-v1"
+    },
+    "molecular_properties": {
+      "allow_additional_fields": false,
+      "dataset_type": "molecular_properties",
+      "fields": {
+        "compound_id": { "nullable": false, "type": "string" },
+        "smiles": { "nullable": false, "type": "string" },
+        "molecular_weight": { "nullable": true, "type": "number" },
+        "logp": { "nullable": true, "type": "number" },
+        "target_proteins": { "nullable": true, "type": "string" },
+        "mechanism_of_action": { "nullable": true, "type": "string" },
+        "source_tool": { "nullable": false, "type": "string" },
+        "row_hash": { "nullable": false, "type": "string" }
+      },
+      "required_fields": ["compound_id", "smiles", "source_tool", "row_hash"],
+      "schema_version": "phase29-molecular-properties-v1"
+    },
+    "clinical_trial_record": {
+      "allow_additional_fields": false,
+      "dataset_type": "clinical_trial_record",
+      "fields": {
+        "nct_id": { "nullable": false, "type": "string" },
+        "condition": { "nullable": false, "type": "string" },
+        "intervention": { "nullable": false, "type": "string" },
+        "phase": { "nullable": true, "type": "string" },
+        "status": { "nullable": true, "type": "string" },
+        "endpoints": { "nullable": true, "type": "string" },
+        "source_tool": { "nullable": false, "type": "string" },
+        "row_hash": { "nullable": false, "type": "string" }
+      },
+      "required_fields": ["nct_id", "condition", "intervention", "source_tool", "row_hash"],
+      "schema_version": "phase29-clinical-trial-record-v1"
+    },
+    "genomic_variant": {
+      "allow_additional_fields": false,
+      "dataset_type": "genomic_variant",
+      "fields": {
+        "variant_id": { "nullable": false, "type": "string" },
+        "gene": { "nullable": false, "type": "string" },
+        "chromosome": { "nullable": true, "type": "string" },
+        "position": { "nullable": true, "type": "string" },
+        "pathogenicity": { "nullable": true, "type": "string" },
+        "source_tool": { "nullable": false, "type": "string" },
+        "row_hash": { "nullable": false, "type": "string" }
+      },
+      "required_fields": ["variant_id", "gene", "source_tool", "row_hash"],
+      "schema_version": "phase29-genomic-variant-v1"
+    },
+    "protein_interaction": {
+      "allow_additional_fields": false,
+      "dataset_type": "protein_interaction",
+      "fields": {
+        "protein_a": { "nullable": false, "type": "string" },
+        "protein_b": { "nullable": false, "type": "string" },
+        "interaction_type": { "nullable": false, "type": "string" },
+        "confidence_score": { "nullable": true, "type": "number" },
+        "source_db": { "nullable": false, "type": "string" },
+        "row_hash": { "nullable": false, "type": "string" }
+      },
+      "required_fields": ["protein_a", "protein_b", "interaction_type", "source_db", "row_hash"],
+      "schema_version": "phase29-protein-interaction-v1"
+    },
+    "pharmacovigilance_signal": {
+      "allow_additional_fields": false,
+      "dataset_type": "pharmacovigilance_signal",
+      "fields": {
+        "drug_name": { "nullable": false, "type": "string" },
+        "adverse_event": { "nullable": false, "type": "string" },
+        "signal_strength": { "nullable": true, "type": "number" },
+        "source": { "nullable": false, "type": "string" },
+        "report_count": { "nullable": true, "type": "number" },
+        "row_hash": { "nullable": false, "type": "string" }
+      },
+      "required_fields": ["drug_name", "adverse_event", "source", "row_hash"],
+      "schema_version": "phase29-pharmacovigilance-signal-v1"
+    }
+  }
+}

@@ -1,0 +1,5 @@
+# Enterprise-subscription band — retired as a public tier 2026-04-30
+
+> **Retired as a public ladder tier on 2026-04-30.** The "Enterprise Subscription" $60K–$120K+ ARR tier is no longer the public offering structure. The 2026 Demand-Validation Report explicitly rejects enterprise SaaS positioning ("Concept 4 — Living Pipeline Intelligence: enters a fight TRI cannot win without proprietary curated data. Recommendation: deprioritise."). Enterprise-scale ongoing portfolio coverage with cloud-data-platform delivery (Snowflake / AWS / BigQuery) is still offered, but as scoped contracts via discovery call rather than a published ARR tier. New lead public ladder: **Investor Pre-Mortem** ($9,950 / $14,950 / $19,950) and **Failed Trial Archaeology** ($14,950). Canonical SKU table: `../OFFERINGS.md`. Original Citeline / Cortellis competitive benchmark lives in the playbook §3.
+
+_Original placeholder: "To be filled in. See playbook section: §3" — file kept for backwards compatibility with prior cross-references._

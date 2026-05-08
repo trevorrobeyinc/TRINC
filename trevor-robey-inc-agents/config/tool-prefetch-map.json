@@ -1,0 +1,47 @@
+{
+  "schema_version": "tool-prefetch-map-v2",
+  "role_mappings": {
+    "scout": [
+      { "action": "executeTool", "tool_name": "PubMed_search_articles",
+        "arguments": { "query": "{{therapeutic_area}} {{indication}} {{compound_name}}", "limit": 8 } },
+      { "action": "executeTool", "tool_name": "search_clinical_trials",
+        "arguments": { "query_term": "{{therapeutic_area}} {{indication}} {{compound_name}}", "condition": "{{indication}}", "pageSize": 8 } },
+      { "action": "executeTool", "tool_name": "OpenTargets_get_drug_id_description_by_name",
+        "arguments": { "drugName": "{{compound_name}}" } }
+    ],
+    "analyst": [
+      { "action": "executeTool", "tool_name": "EuropePMC_search_articles",
+        "arguments": { "query": "{{compound_name}} {{indication}} mechanism", "limit": 6 } },
+      { "action": "executeTool", "tool_name": "FAERS_search_reports_by_drug_and_indication",
+        "arguments": { "medicinalproduct": "{{compound_name}}", "drugindication": "{{indication}}", "limit": 5 } },
+      { "action": "executeTool", "tool_name": "search_clinical_trials",
+        "arguments": { "query_term": "{{compound_name}} {{indication}} endpoints", "intervention": "{{compound_name}}", "pageSize": 6 } }
+    ],
+    "synthesizer": [
+      { "action": "executeTool", "tool_name": "PubMed_search_articles",
+        "arguments": { "query": "{{therapeutic_area}} review {{indication}}", "limit": 5 } }
+    ],
+    "safety_signal_detector": [
+      { "action": "executeTool", "tool_name": "FAERS_search_reports_by_drug_and_indication",
+        "arguments": { "medicinalproduct": "{{compound_name}}", "drugindication": "{{indication}}", "limit": 8 } },
+      { "action": "findTool", "query": "adverse event {{compound_name}} {{drug_class}}" }
+    ],
+    "molecular_profiler": [
+      { "action": "findTool", "query": "compound properties {{compound_name}}" },
+      { "action": "findTool", "query": "bioactivity {{compound_name}}" }
+    ],
+    "literature_reviewer": [
+      { "action": "executeTool", "tool_name": "PubMed_search_articles",
+        "arguments": { "query": "{{indication}} {{drug_class}}", "limit": 10 } },
+      { "action": "executeTool", "tool_name": "EuropePMC_search_articles",
+        "arguments": { "query": "{{indication}} {{drug_class}} {{compound_name}}", "limit": 6 } },
+      { "action": "executeTool", "tool_name": "scrape_target", "optional": true,
+        "arguments": { "target": "elife", "params": { "article_id": "{{elife_article_id}}" } } }
+    ],
+    "competitive_intel_analyst": [
+      { "action": "executeTool", "tool_name": "search_clinical_trials",
+        "arguments": { "query_term": "{{indication}} {{drug_class}}", "condition": "{{indication}}", "pageSize": 10 } },
+      { "action": "findTool", "query": "target {{indication}}" }
+    ]
+  }
+}

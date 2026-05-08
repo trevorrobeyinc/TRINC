@@ -1,0 +1,81 @@
+# ─────────────────────────────────────────────
+# Dependencies
+# ─────────────────────────────────────────────
+node_modules/
+.pnp/
+.pnp.js
+.yarn/
+
+# ─────────────────────────────────────────────
+# Build outputs
+# ─────────────────────────────────────────────
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# ─────────────────────────────────────────────
+# Runtime / state / logs
+# ─────────────────────────────────────────────
+state/
+logs/
+*.log
+*.pid
+.pm2/
+
+# ─────────────────────────────────────────────
+# Secrets & local-only config
+#   (any *.local.json typically holds tokens)
+# ─────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.local.json
+!example*.local.json
+
+# Bridge auth + cert files
+**/obsidian-cli-mcp.local.json
+**/raycast-obsidian-mcp.local.json
+**/*.pem
+**/*.key
+**/*.crt
+
+# Claude Code local settings
+.claude/settings.local.json
+**/.claude/settings.local.json
+
+# ─────────────────────────────────────────────
+# Backup / cleanup artifacts
+# ─────────────────────────────────────────────
+*.bak
+*.bak.*
+*.cleanup.*
+*.orig
+*~
+
+# ─────────────────────────────────────────────
+# Validation / scratch / temp output
+# ─────────────────────────────────────────────
+configs/validation/
+deploy/backups/
+tasks/.cache/
+tmp/
+.tmp/
+
+# ─────────────────────────────────────────────
+# Editor / OS
+# ─────────────────────────────────────────────
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ─────────────────────────────────────────────
+# Test artifacts
+# ─────────────────────────────────────────────
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+# repos/obsidian-copilot-mcp/   # vendored into monorepo 2026-05-07; see repos/obsidian-copilot-mcp/UPSTREAM.md

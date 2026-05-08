@@ -1,0 +1,8 @@
+{
+  "baseline_commit": "712982bd91345d686f4ccb6b4d87b982adeb8938",
+  "generated_without_autonomous_execution": true,
+  "governance_transaction_wrapper_required": true,
+  "operator_approval_token_required": true,
+  "recommendations": [],
+  "schema_version": "phase9-remediation-request-v1"
+}

@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/obsidian-cli-mcp.schema.json",
+  "title": "Obsidian CLI MCP Server Config",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["allowedVaultRoots", "security"],
+  "properties": {
+    "transport": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": { "enum": ["http", "uds", "pipe"] },
+        "host": { "type": "string" },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "udsPath": { "type": "string" },
+        "pipeName": { "type": "string" }
+      }
+    },
+    "obsidianCliBinary": { "type": "string" },
+    "cliStability": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "probeTimeoutMs": { "type": "integer", "minimum": 1000 },
+        "launchTimeoutMs": { "type": "integer", "minimum": 1000 },
+        "readinessPollIntervalMs": { "type": "integer", "minimum": 100 },
+        "requiredVaultNames": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "timeouts": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "openVaultMs": { "type": "integer", "minimum": 1000 },
+        "createNoteMs": { "type": "integer", "minimum": 1000 },
+        "appendNoteMs": { "type": "integer", "minimum": 1000 },
+        "readNoteMs": { "type": "integer", "minimum": 1000 },
+        "searchNotesMs": { "type": "integer", "minimum": 1000 }
+      }
+    },
+    "queue": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "capacity": { "type": "integer", "minimum": 1 },
+        "workerConcurrency": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "allowedVaultRoots": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" }
+    },
+    "security": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authToken"],
+      "properties": {
+        "authToken": { "type": "string", "minLength": 22 },
+        "replayWindowSeconds": { "type": "integer", "minimum": 10, "maximum": 300 },
+        "nonceTtlSeconds": { "type": "integer", "minimum": 10, "maximum": 600 },
+        "rateLimitPerMinute": { "type": "integer", "minimum": 1 },
+        "globalRateLimitPerMinute": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "level": { "enum": ["error", "warn", "info", "debug", "trace"] },
+        "file": { "type": "string" },
+        "slowThresholdMs": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "open_vault": { "type": "integer", "minimum": 1 },
+            "create_note": { "type": "integer", "minimum": 1 },
+            "append_note": { "type": "integer", "minimum": 1 },
+            "read_note": { "type": "integer", "minimum": 1 },
+            "search_notes": { "type": "integer", "minimum": 1 },
+            "execute_command": { "type": "integer", "minimum": 1 }
+          }
+        }
+      }
+    },
+    "readOnlyMode": { "type": "boolean" }
+  }
+}

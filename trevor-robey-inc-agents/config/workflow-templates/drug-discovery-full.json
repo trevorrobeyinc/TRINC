@@ -1,0 +1,62 @@
+{
+  "schema_version": "phase30-workflow-v1",
+  "workflow_template_id": "drug-discovery-full",
+  "name": "Drug Discovery Full Pipeline",
+  "description": "End-to-end drug discovery workflow: compound profiling, ADMET analysis, target-compound mapping via ToolUniverse, quality audit, dataset build, offer packaging, approval, and ZIP export.",
+  "auto_approve": true,
+  "provider_preference": {
+    "primary": "claude-code",
+    "fallback": "lm-studio"
+  },
+  "input_schema": {
+    "required": ["compound_name", "indication"],
+    "properties": {
+      "compound_name": { "type": "string", "description": "Name or identifier of the compound to profile" },
+      "indication": { "type": "string", "description": "Target disease or therapeutic indication" },
+      "input_dir": { "type": "string", "description": "Path to seed documents directory", "default": "workspace/research-input/biomedical/" }
+    }
+  },
+  "pipeline": [
+    {
+      "step_id": "research",
+      "type": "mission",
+      "mission_template_id": "biomedical_drug_discovery",
+      "description_template": "Drug discovery profiling for {{compound_name}} in {{indication}}",
+      "mission_type": "research_to_dataset",
+      "dataset_type": "retrieval_qa"
+    },
+    {
+      "step_id": "quality_check",
+      "type": "quality_audit",
+      "depends_on": ["research"],
+      "confidence_threshold": 0.7,
+      "verification_tools": ["PubChem", "OpenTargets", "ChEMBL", "ADMETai"]
+    },
+    {
+      "step_id": "build_dataset",
+      "type": "dataset",
+      "depends_on": ["quality_check"],
+      "dataset_type": "retrieval_qa",
+      "quality_threshold": 0.6
+    },
+    {
+      "step_id": "package",
+      "type": "offer",
+      "depends_on": ["build_dataset"],
+      "product_line": "drug_discovery_intelligence",
+      "tier": "premium",
+      "targets": ["datarade"]
+    },
+    {
+      "step_id": "approve",
+      "type": "approve",
+      "depends_on": ["package"]
+    },
+    {
+      "step_id": "export",
+      "type": "export",
+      "depends_on": ["approve"],
+      "format": "zip"
+    }
+  ]
+}

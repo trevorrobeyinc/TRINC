@@ -1,0 +1,38 @@
+{
+  "name": "newsletter-publisher-mcp",
+  "phase": 24,
+  "status": "operator_gated",
+  "tools": [
+    {
+      "name": "prepare_publish",
+      "zodSchema": "z.object({ publicationId: z.string().min(1).max(128), title: z.string().min(1).max(200), html: z.string().min(1).max(50000), slug: z.string().min(1).max(128).optional(), tags: z.array(z.string().min(1).max(32)).max(20).optional(), approvalToken: z.string().min(8).max(256) }).strict()"
+    },
+    {
+      "name": "commit_publish",
+      "zodSchema": "z.object({ sequence: z.number().int().min(1), approvalToken: z.string().min(8).max(256) }).strict()"
+    },
+    {
+      "name": "retry_publish",
+      "zodSchema": "z.object({ sequence: z.number().int().min(1), approvalToken: z.string().min(8).max(256) }).strict()"
+    },
+    {
+      "name": "reconcile_publish",
+      "zodSchema": "z.object({ sequence: z.number().int().min(1), approvalToken: z.string().min(8).max(256), action: z.enum([\"confirm_committed\", \"confirm_not_committed\", \"abandon\"]), externalId: z.string().min(1).max(256).optional() }).strict()"
+    }
+  ],
+  "behavior": {
+    "researchExecution": "disabled",
+    "operatorLifecycle": [
+      "prepare",
+      "commit",
+      "retry",
+      "reconcile"
+    ],
+    "approvalScopes": [
+      "mutation.newsletter.prepare",
+      "mutation.commit",
+      "mutation.reconcile"
+    ],
+    "evidenceDir": "audit/evidence/phase24/"
+  }
+}

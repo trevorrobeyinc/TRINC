@@ -1,0 +1,65 @@
+import type { OpenClawSettings } from "./types";
+
+export const VIEW_TYPE_WORKFLOW = "openclaw-workflow-status";
+
+export const PLUGIN_ID = "openclaw-command-center";
+
+export const DEFAULT_SETTINGS: OpenClawSettings = {
+  openclawPath: "/Users/trevorrobey/Code/trevor-robey-inc-agents",
+  zettelkastenServerPath:
+    "/Users/trevorrobey/Code/Claude/Medical-Zettelkasten-MCP/src/server.js",
+  nodePath: "/Users/trevorrobey/.nvm/versions/node/v22.13.1/bin/node",
+  vaultOutputFolder: "OpenClaw",
+  autoGenerateNotes: true,
+  autoRunZettelkasten: true,
+  pollIntervalMs: 2000,
+  workflowTimeoutMs: 1800000,
+  miyoEnabled: true,
+  // Default points at the in-monorepo TLS-terminating proxy (`miyo-tls-proxy`),
+  // NOT Miyo's raw plaintext port (8742). See TrevClaw-Obsidianodus/CLAUDE.md
+  // HTTPS-only invariant.
+  miyoPort: 8743,
+  miyoSimilarityThreshold: 0.5,
+  miyoMaxResults: 10,
+  miyoIndexWaitMs: 15000,
+  miyoIndexPollIntervalMs: 1000,
+  miyoSearchRetries: 3,
+  enableCopilotBridge: true,
+  bridgePort: 8799,
+  bridgeToken: "",
+  vaultZKPreferPlugin: true,
+  // Trevorobeyinc Research Memory MCP — auto-ingest hook (added 2026-04-26).
+  autoIngestToResearchMemory: true,
+  researchMemoryCliPath:
+    "/Users/trevorrobey/Code/Claude/trevorobeyinc-research-memory-mcp/dist/cli.js",
+  researchMemoryDefaultClient: "trevorobeyinc",
+  researchMemoryTimeoutMs: 60000,
+};
+
+export const STEP_TYPE_LABELS: Record<string, string> = {
+  mission: "Research",
+  quality_audit: "Quality Audit",
+  dataset: "Build Dataset",
+  offer: "Package Offer",
+  approve: "Approve Release",
+  export: "Export",
+};
+
+export const STEP_STATUS_ICONS: Record<string, string> = {
+  pending: "\u2022",
+  running: "\u25CB",
+  completed: "\u2713",
+  failed: "\u2717",
+};
+
+/** MCP protocol version for Zettelkasten handshake */
+export const MCP_PROTOCOL_VERSION = "2025-06-18";
+
+/** Zettelkasten tool names used for vault linking */
+export const ZK_LINKING_TOOLS = [
+  "cross_domain_connect",
+  "break_echo_chamber",
+  "link_semantically",
+  "rescue_orphans",
+  "generate_serendipity",
+] as const;

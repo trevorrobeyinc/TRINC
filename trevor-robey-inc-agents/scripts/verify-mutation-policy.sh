@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+MUTATION_CTRL="$ROOT/security/mutation-control.js"
+MCP_SERVICE="$ROOT/openclaw-bridge/mcp/mcp-service.js"
+NEWSLETTER_MCP="$ROOT/openclaw-bridge/mcp/newsletter-mcp.js"
+NOTION_MCP="$ROOT/openclaw-bridge/mcp/notion-mcp.js"
+EGRESS_FILE="$ROOT/openclaw-bridge/execution/egress-policy.js"
+
+fail() {
+  echo "$1" >&2
+  exit 1
+}
+
+has_rg() {
+  command -v rg >/dev/null 2>&1
+}
+
+search_quiet() {
+  local pattern="$1"
+  local file_path="$2"
+  if has_rg; then
+    rg -q -- "$pattern" "$file_path"
+    return
+  fi
+  grep -Eq -- "$pattern" "$file_path"
+}
+
+search_lines() {
+  local pattern="$1"
+  shift
+  if has_rg; then
+    rg -n --glob '!tests/**' -- "$pattern" "$@"
+    return
+  fi
+  grep -RnE --exclude-dir=tests -- "$pattern" "$@"
+}
+
+[[ -f "$MUTATION_CTRL" ]] || fail "Missing mutation control module"
+[[ -f "$MCP_SERVICE" ]] || fail "Missing mcp-service module"
+[[ -f "$NEWSLETTER_MCP" ]] || fail "Missing newsletter mutation MCP"
+[[ -f "$NOTION_MCP" ]] || fail "Missing notion mutation MCP"
+
+search_quiet "preparePublication" "$MUTATION_CTRL" || fail "mutation-control missing preparePublication"
+search_quiet "commitPublication" "$MUTATION_CTRL" || fail "mutation-control missing commitPublication"
+search_quiet "requireKillSwitchOpen" "$MUTATION_CTRL" || fail "mutation-control missing kill-switch enforcement"
+search_quiet "requireMutationEnabled" "$MUTATION_CTRL" || fail "mutation-control missing enabled-state enforcement"
+search_quiet "consumeApprovalToken" "$MUTATION_CTRL" || fail "mutation-control missing operator token consumption"
+search_quiet "applyMutationAccounting" "$MUTATION_CTRL" || fail "mutation-control missing mutation governance accounting"
+search_quiet "verifyMutationLogChain" "$MUTATION_CTRL" || fail "mutation-control missing mutation log chain verification"
+
+search_quiet "assertOperatorRole" "$MCP_SERVICE" || fail "mcp-service missing operator role boundary"
+search_quiet "MCP_METHODS\\.MUTATION_PREPARE_PUBLICATION" "$MCP_SERVICE" || fail "mcp-service missing mutation prepare method contract"
+search_quiet "MCP_METHODS\\.MUTATION_COMMIT_PUBLICATION" "$MCP_SERVICE" || fail "mcp-service missing mutation commit method contract"
+search_quiet "MCP_METHODS\\.MUTATION_RETRY_PUBLICATION" "$MCP_SERVICE" || fail "mcp-service missing mutation retry method contract"
+search_quiet "MCP_METHODS\\.MUTATION_RECONCILE_PUBLICATION" "$MCP_SERVICE" || fail "mcp-service missing mutation reconcile method contract"
+
+search_quiet "extends\\s+BaseMcp" "$NEWSLETTER_MCP" || fail "newsletter-mcp does not extend BaseMcp"
+search_quiet "extends\\s+BaseMcp" "$NOTION_MCP" || fail "notion-mcp does not extend BaseMcp"
+search_quiet "mutationControl\\.preparePublication" "$NEWSLETTER_MCP" || fail "newsletter-mcp missing preparePublication flow"
+search_quiet "mutationControl\\.preparePublication" "$NOTION_MCP" || fail "notion-mcp missing preparePublication flow"
+
+if search_lines "rejectUnauthorized\\s*:\\s*false" "$ROOT/security" "$ROOT/openclaw-bridge" >/dev/null 2>&1; then
+  fail "Found rejectUnauthorized:false in runtime source"
+fi
+
+node - "$EGRESS_FILE" <<'NODE'
+const policy = require(process.argv[2]);
+const map = policy.TOOL_EGRESS_POLICIES || {};
+const checks = [
+  ["newsletter-publisher-mcp", "api.beehiiv.com", ["POST", "PATCH"]],
+  ["notion-sync-mcp", "api.notion.com", ["POST", "PATCH"]]
+];
+for (const [slug, host, methods] of checks) {
+  const entry = map[slug];
+  if (!entry) {
+    process.stderr.write(`Missing egress policy for ${slug}\n`);
+    process.exit(1);
+  }
+  const hosts = Array.isArray(entry.allowedHosts) ? entry.allowedHosts : [];
+  if (!hosts.includes(host)) {
+    process.stderr.write(`Missing host ${host} in ${slug} egress policy\n`);
+    process.exit(1);
+  }
+  const byHost = entry.allowedMethodsByHost && typeof entry.allowedMethodsByHost === "object" ? entry.allowedMethodsByHost : {};
+  const got = Array.isArray(byHost[host]) ? byHost[host].slice().sort() : [];
+  const expected = methods.slice().sort();
+  if (JSON.stringify(got) !== JSON.stringify(expected)) {
+    process.stderr.write(`Method allowlist mismatch for ${slug}/${host}: got=${JSON.stringify(got)} expected=${JSON.stringify(expected)}\n`);
+    process.exit(1);
+  }
+}
+NODE
+
+echo "Mutation policy verification passed"

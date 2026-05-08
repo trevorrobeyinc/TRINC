@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "phase31-scheduled-workflows-v1",
+  "schedules": [
+    {
+      "schedule_id": "weekly-pharma-scan",
+      "workflow_template_id": "pharmacovigilance-report",
+      "cron": "0 6 * * 1",
+      "inputs": { "drug_class": "NSAID" },
+      "enabled": false,
+      "delivery": { "method": "workspace", "path": "workspace/scheduled-output/" }
+    },
+    {
+      "schedule_id": "monthly-clinical-trials",
+      "workflow_template_id": "clinical-trial-landscape",
+      "cron": "0 8 1 * *",
+      "inputs": { "therapeutic_area": "oncology" },
+      "enabled": false,
+      "delivery": { "method": "workspace", "path": "workspace/scheduled-output/" }
+    }
+  ]
+}

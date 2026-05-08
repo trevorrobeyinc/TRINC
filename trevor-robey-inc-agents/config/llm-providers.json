@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "phase14-llm-providers-v1",
+  "providers": {
+    "mock": {
+      "enabled": true,
+      "model": "mock-v1"
+    },
+    "lm-studio": {
+      "enabled": true,
+      "endpoint": "http://localhost:1234/v1/chat/completions",
+      "model": "qwen2.5-coder-7b-instruct",
+      "temperature": 0.7,
+      "maxTokens": 2048
+    },
+    "local": {
+      "enabled": false,
+      "endpoint": "http://localhost:11434/api/generate",
+      "model": "llama3.1"
+    },
+    "openai": {
+      "enabled": false,
+      "endpoint": "https://api.openai.com/v1/responses",
+      "model": "gpt-4.1-mini",
+      "apiKeyEnv": "OPENAI_API_KEY"
+    },
+    "anthropic": {
+      "enabled": false,
+      "endpoint": "https://api.anthropic.com/v1/messages",
+      "model": "claude-3-5-sonnet-latest",
+      "apiKeyEnv": "ANTHROPIC_API_KEY"
+    },
+    "openrouter": {
+      "enabled": false,
+      "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+      "model": "openai/gpt-4o-mini",
+      "apiKeyEnv": "OPENROUTER_API_KEY"
+    },
+    "claude-code": {
+      "enabled": true,
+      "model": "claude-sonnet-4-6",
+      "maxTokens": 8192,
+      "claudeCommand": "claude",
+      "executionTimeoutMs": 600000,
+      "fallbackProvider": "lm-studio"
+    }
+  }
+}

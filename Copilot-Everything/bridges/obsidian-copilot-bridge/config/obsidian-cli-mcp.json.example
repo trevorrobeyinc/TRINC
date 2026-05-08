@@ -1,0 +1,50 @@
+{
+  "transport": {
+    "mode": "http",
+    "host": "127.0.0.1",
+    "port": 8798
+  },
+  "obsidianCliBinary": "obsidian",
+  "cliStability": {
+    "probeTimeoutMs": 20000,
+    "launchTimeoutMs": 20000,
+    "readinessPollIntervalMs": 500,
+    "requiredVaultNames": [
+      "My Digital Garden"
+    ]
+  },
+  "timeouts": {
+    "openVaultMs": 25000,
+    "createNoteMs": 20000,
+    "appendNoteMs": 20000,
+    "readNoteMs": 15000,
+    "searchNotesMs": 20000
+  },
+  "queue": {
+    "capacity": 256,
+    "workerConcurrency": 4
+  },
+  "allowedVaultRoots": [
+    "/Users/trevorrobey/THE Copilot in Obsidian Everything/dev-vault"
+  ],
+  "security": {
+    "authToken": "replace-with-128-bit-random-or-better-token",
+    "replayWindowSeconds": 60,
+    "nonceTtlSeconds": 120,
+    "rateLimitPerMinute": 600,
+    "globalRateLimitPerMinute": 2400
+  },
+  "logging": {
+    "level": "info",
+    "file": "mcp-server/logs/obsidian-mcp.log",
+    "slowThresholdMs": {
+      "open_vault": 5000,
+      "create_note": 3000,
+      "append_note": 3000,
+      "read_note": 1500,
+      "search_notes": 1500,
+      "execute_command": 3000
+    }
+  },
+  "readOnlyMode": false
+}

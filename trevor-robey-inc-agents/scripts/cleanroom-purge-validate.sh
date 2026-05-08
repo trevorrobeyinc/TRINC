@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+has_rg() {
+  command -v rg >/dev/null 2>&1
+}
+
+# Keep single-token checks boundary-aware so identifiers like monetizationMap do not false-positive on nmap.
+BANNED_TOKEN_PATTERN='\b(nmap|metasploit|burp|sqlmap|msfvenom|aircrack|ffuf|nikto|hashcat)\b'
+BANNED_PHRASE_PATTERN='lateral movement|exploit payload|network scanning'
+
+if has_rg; then
+  if rg -n -S -e "$BANNED_TOKEN_PATTERN" -e "$BANNED_PHRASE_PATTERN" "$ROOT/openclaw-bridge" --glob '!**/docs/**' --glob '!**/security/**'; then
+    echo "Forbidden offensive capability identifiers detected in active runtime paths" >&2
+    exit 1
+  fi
+else
+  # Fallback: grep -E (no ripgrep installed)
+  if grep -RnE -e "$BANNED_TOKEN_PATTERN" -e "$BANNED_PHRASE_PATTERN" "$ROOT/openclaw-bridge" --exclude-dir=docs --exclude-dir=security; then
+    echo "Forbidden offensive capability identifiers detected in active runtime paths" >&2
+    exit 1
+  fi
+fi
+
+for forbidden_path in \
+  "$ROOT/openclaw-bridge/containers/nmap" \
+  "$ROOT/openclaw-bridge/containers/sqlmap" \
+  "$ROOT/openclaw-bridge/containers/nikto" \
+  "$ROOT/openclaw-bridge/containers/aircrack" \
+  "$ROOT/openclaw-bridge/containers/msfvenom" \
+  "$ROOT/openclaw-bridge/containers/ffuf" \
+  "$ROOT/openclaw-bridge/containers/hashcat" \
+  "$ROOT/openclaw-bridge/burp-bionic-link" \
+  "$ROOT/openclaw-bridge/burp-bionic-link-legacy"
+do
+  if [[ -e "$forbidden_path" ]]; then
+    echo "Forbidden path present: $forbidden_path" >&2
+    exit 1
+  fi
+done
+
+echo "Clean-room purge validation passed"

@@ -1,0 +1,189 @@
+import { AI } from "@raycast/api";
+import fs from "node:fs/promises";
+
+import { BackendEmulatorService } from "@/api/backend-emulator/backendEmulator.service";
+import { hybridCreateNote } from "@/api/mcp/hybridObsidian.service";
+
+const defaultSummaryFolder = "obsidian-copilot-summaries";
+
+function sanitizeFilename(rawValue: string): string {
+  const invalidCharacterSet = /[<>:"/\\|?*\u0000-\u001F]/g;
+  const sanitized = rawValue.replace(invalidCharacterSet, " ").replace(/\s+/g, " ").trim();
+  return sanitized || "Untitled Summary";
+}
+
+function isCapOrRateLimitError(error: unknown): boolean {
+  const text = String(error).toLowerCase();
+  return (
+    text.includes("429") ||
+    text.includes("rate limit") ||
+    text.includes("quota") ||
+    text.includes("cap reached") ||
+    text.includes("too many requests")
+  );
+}
+
+function buildSummaryPrompt(params: {
+  templateContent: string;
+  sourceTitle: string;
+  sourceText: string;
+  sourcePath?: string;
+  sourceNoteContent?: string;
+}): string {
+  const blocks = [
+    "You are an expert knowledge curator for an Obsidian vault.",
+    "Fill the markdown template by replacing every {{...}} placeholder with concrete values.",
+    "Return only the completed markdown. Do not include commentary or code fences.",
+    `Summary title: ${params.sourceTitle}`,
+    `Template:\n${params.templateContent.trim()}`,
+    `Primary source text:\n${params.sourceText.trim()}`,
+  ];
+
+  if (params.sourceNoteContent && params.sourceNoteContent.trim()) {
+    blocks.push(`Full source note context:\n${params.sourceNoteContent.trim()}`);
+  }
+
+  if (params.sourcePath) {
+    blocks.push(`Source note path: ${params.sourcePath}`);
+  }
+
+  return blocks.join("\n\n");
+}
+
+function buildOutputPath(title: string, outputFolder: string): string {
+  const safeTitle = sanitizeFilename(title);
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  return `${outputFolder}/${safeTitle} summary ${timestamp}.md`;
+}
+
+async function askRaycastAIWithFallback(prompt: string): Promise<{ summaryText: string; usedFallbackModel: boolean }> {
+  try {
+    const content = await AI.ask(prompt, { creativity: "low" });
+    return { summaryText: content.trim(), usedFallbackModel: false };
+  } catch (error) {
+    if (!isCapOrRateLimitError(error)) {
+      throw error;
+    }
+
+    const fallbackContent = await AI.ask(prompt);
+    return { summaryText: fallbackContent.trim(), usedFallbackModel: true };
+  }
+}
+
+export async function runTemplateSummaryFromSource(params: {
+  vaultName: string;
+  vaultPath: string;
+  sourceTitle: string;
+  sourceText: string;
+  sourcePath?: string;
+  sourceNoteContent?: string;
+  templatePath: string;
+  outputFolder?: string;
+}): Promise<{ summaryNotePath: string; summaryText: string; usedFallbackModel: boolean }> {
+  const templateContent = await fs.readFile(params.templatePath, "utf-8");
+  if (!templateContent.trim()) {
+    throw new Error(`Summary template is empty: ${params.templatePath}`);
+  }
+
+  const outputFolder = params.outputFolder?.trim() || defaultSummaryFolder;
+  const prompt = buildSummaryPrompt({
+    templateContent,
+    sourceTitle: params.sourceTitle,
+    sourceText: params.sourceText,
+    sourcePath: params.sourcePath,
+    sourceNoteContent: params.sourceNoteContent,
+  });
+
+  const aiResult = await askRaycastAIWithFallback(prompt);
+  if (!aiResult.summaryText.trim()) {
+    throw new Error("Raycast AI returned an empty summary.");
+  }
+
+  const summaryNotePath = buildOutputPath(params.sourceTitle, outputFolder);
+  await hybridCreateNote({
+    vault: params.vaultName,
+    vaultRoot: params.vaultPath,
+    path: summaryNotePath,
+    content: aiResult.summaryText,
+    overwrite: true,
+    open: true,
+  });
+
+  return {
+    summaryNotePath,
+    summaryText: aiResult.summaryText,
+    usedFallbackModel: aiResult.usedFallbackModel,
+  };
+}
+
+export async function runBackendFirstTemplateSummaryFromSource(params: {
+  vaultName: string;
+  vaultPath: string;
+  sourceTitle: string;
+  sourceText: string;
+  sourcePath?: string;
+  sourceNoteContent?: string;
+  templatePath: string;
+  outputFolder?: string;
+}): Promise<{
+  summaryNotePath: string;
+  summaryText: string;
+  usedFallbackModel: boolean;
+  usedBackend: boolean;
+}> {
+  const templateContent = await fs.readFile(params.templatePath, "utf-8");
+  if (!templateContent.trim()) {
+    throw new Error(`Summary template is empty: ${params.templatePath}`);
+  }
+
+  const outputFolder = params.outputFolder?.trim() || defaultSummaryFolder;
+  const prompt = buildSummaryPrompt({
+    templateContent,
+    sourceTitle: params.sourceTitle,
+    sourceText: params.sourceText,
+    sourcePath: params.sourcePath,
+    sourceNoteContent: params.sourceNoteContent,
+  });
+
+  let summaryText = "";
+  let usedBackend = false;
+  let usedFallbackModel = false;
+
+  try {
+    const backend = new BackendEmulatorService();
+    summaryText = (
+      await backend.runAgentTurn({
+        userMessage: prompt,
+        systemMessage:
+          "You are an expert knowledge curator for an Obsidian vault. Return only completed markdown by filling template placeholders.",
+        includeReasoning: true,
+      })
+    ).trim();
+    usedBackend = true;
+  } catch {
+    const aiResult = await askRaycastAIWithFallback(prompt);
+    summaryText = aiResult.summaryText;
+    usedFallbackModel = aiResult.usedFallbackModel;
+  }
+
+  if (!summaryText.trim()) {
+    throw new Error("No summary text was produced by backend or local fallback.");
+  }
+
+  const summaryNotePath = buildOutputPath(params.sourceTitle, outputFolder);
+  await hybridCreateNote({
+    vault: params.vaultName,
+    vaultRoot: params.vaultPath,
+    path: summaryNotePath,
+    content: summaryText,
+    overwrite: true,
+    open: true,
+  });
+
+  return {
+    summaryNotePath,
+    summaryText,
+    usedFallbackModel,
+    usedBackend,
+  };
+}

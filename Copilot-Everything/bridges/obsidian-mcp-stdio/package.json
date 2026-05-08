@@ -1,0 +1,18 @@
+{
+  "name": "obsidian-mcp-stdio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "index.mjs",
+  "bin": {
+    "obsidian-mcp-stdio": "./index.mjs"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "description": "Lean stdio MCP server that wraps the Obsidian CLI directly. Replaces the claude-adapter + bridge HTTPS pair for the Claude Code / Claude Desktop flows. No HTTP, no auth, no idempotency ledger — just MCP over stdio → child_process exec → Obsidian.",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "zod": "^3.25.76"
+  }
+}

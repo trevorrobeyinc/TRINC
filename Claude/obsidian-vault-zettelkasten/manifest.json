@@ -1,0 +1,10 @@
+{
+  "id": "vault-zettelkasten",
+  "name": "Vault Zettelkasten",
+  "version": "0.1.0",
+  "minAppVersion": "1.4.0",
+  "description": "LLM-powered vault knowledge discovery: serendipity, cross-domain connections, echo chamber detection, semantic linking, orphan rescue, and vault health scoring. Uses Miyo for semantic search and configurable LLM providers.",
+  "author": "Trevor Robey",
+  "authorUrl": "https://trevorrobey.com",
+  "isDesktopOnly": true
+}

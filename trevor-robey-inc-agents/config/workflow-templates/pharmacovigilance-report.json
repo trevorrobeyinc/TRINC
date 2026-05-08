@@ -1,0 +1,62 @@
+{
+  "schema_version": "phase30-workflow-v1",
+  "workflow_template_id": "pharmacovigilance-report",
+  "name": "Pharmacovigilance Safety Report",
+  "description": "Adverse event signal detection, drug interaction analysis, and safety report generation using FAERS, DailyMed, RxNorm, and DrugSafetyAnalyzer via ToolUniverse.",
+  "auto_approve": true,
+  "provider_preference": {
+    "primary": "claude-code",
+    "fallback": "lm-studio"
+  },
+  "input_schema": {
+    "required": ["drug_class"],
+    "properties": {
+      "drug_class": { "type": "string", "description": "Drug class or specific compound for pharmacovigilance scan" },
+      "time_window": { "type": "string", "description": "Reporting period (e.g. '2024-Q4')" },
+      "input_dir": { "type": "string", "description": "Path to seed documents directory", "default": "workspace/research-input/biomedical/" }
+    }
+  },
+  "pipeline": [
+    {
+      "step_id": "research",
+      "type": "mission",
+      "mission_template_id": "pharmacovigilance_scan",
+      "description_template": "Pharmacovigilance scan for {{drug_class}}",
+      "mission_type": "research_to_dataset",
+      "dataset_type": "retrieval_qa"
+    },
+    {
+      "step_id": "quality_check",
+      "type": "quality_audit",
+      "depends_on": ["research"],
+      "confidence_threshold": 0.6,
+      "verification_tools": ["FAERS", "DailyMed", "RxNorm", "DrugSafetyAnalyzer"]
+    },
+    {
+      "step_id": "build_dataset",
+      "type": "dataset",
+      "depends_on": ["quality_check"],
+      "dataset_type": "retrieval_qa",
+      "quality_threshold": 0.5
+    },
+    {
+      "step_id": "package",
+      "type": "offer",
+      "depends_on": ["build_dataset"],
+      "product_line": "biomedical_research_packs",
+      "tier": "standard",
+      "targets": ["datarade"]
+    },
+    {
+      "step_id": "approve",
+      "type": "approve",
+      "depends_on": ["package"]
+    },
+    {
+      "step_id": "export",
+      "type": "export",
+      "depends_on": ["approve"],
+      "format": "zip"
+    }
+  ]
+}

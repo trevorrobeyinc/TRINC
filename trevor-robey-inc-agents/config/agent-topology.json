@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "phase15-agent-topology-v1",
+  "roles": [
+    "orchestrator",
+    "supervisor",
+    "scout",
+    "analyst",
+    "synthesizer",
+    "operator",
+    "literature_reviewer",
+    "safety_signal_detector",
+    "molecular_profiler",
+    "competitive_intel_analyst",
+    "quality_auditor",
+    "report_generator"
+  ],
+  "routing": {
+    "mission_plan": "orchestrator",
+    "summarize": "analyst",
+    "extract": "analyst",
+    "analyze": "analyst",
+    "synthesize": "synthesizer",
+    "freeform": "scout",
+    "verify": "quality_auditor"
+  }
+}

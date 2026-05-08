@@ -1,0 +1,31 @@
+Title: Protein-Protein Interaction Networks in Alzheimer's Disease Pathology
+Domain: Neurodegeneration / Proteomics
+Source Type: Research Seed Document
+
+Background:
+Alzheimer's disease (AD) involves complex protein interaction cascades beyond the canonical amyloid-beta (Aβ) and tau pathways. Recent proteomics studies reveal disrupted interactomes involving neuroinflammation (TREM2, CD33), synaptic maintenance (APOE, CLU), and autophagy (BECN1, ATG5). Understanding these PPI networks is critical for identifying novel therapeutic targets.
+
+Key Research Questions:
+1. What are the primary protein interaction partners of TREM2 in microglial activation?
+2. How does APOE4 alter lipoprotein receptor interactions vs. APOE2/APOE3?
+3. Which kinases (GSK3β, CDK5, DYRK1A) phosphorylate tau at disease-relevant epitopes?
+4. What PPI hubs connect amyloid processing (APP, BACE1, PSEN1) to neuroinflammation?
+
+Target Proteins and Interactions:
+- TREM2-DAP12: Microglial phagocytosis signaling
+- APOE-LDLR family: Lipid transport and Aβ clearance
+- APP-BACE1-PSEN1: Amyloidogenic processing complex
+- Tau-GSK3β: Hyperphosphorylation cascade
+- BECN1-VPS34: Autophagy initiation in neurons
+
+Relevant Databases:
+- STRING (protein interaction scores, experimental evidence)
+- BioGRID (curated PPI data)
+- IntAct (molecular interaction database)
+- UniProt (protein function, domains, variants)
+- AlphaFold (predicted structures for interaction modeling)
+
+Expected Output Types:
+- protein_interaction: PPI pairs with confidence scores, experimental evidence
+- genomic_variant: AD-associated variants affecting protein interactions (GWAS catalog)
+- molecular_properties: Small molecule modulators of key PPIs

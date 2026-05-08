@@ -1,0 +1,31 @@
+Title: Genomic Variant Interpretation in Rare Pediatric Neurological Disorders
+Domain: Clinical Genetics / Rare Disease
+Source Type: Research Seed Document
+
+Background:
+Whole exome/genome sequencing now achieves diagnostic yields of 25-40% in undiagnosed rare disease, but variant interpretation remains the bottleneck. Pediatric neurological disorders — epileptic encephalopathies, leukodystrophies, neuromuscular disorders — involve thousands of candidate genes. Computational tools for variant pathogenicity prediction, splicing impact, and genotype-phenotype correlation are essential for scaling clinical interpretation.
+
+Key Research Questions:
+1. Which VUS (variants of uncertain significance) in SCN1A, KCNQ2, STXBP1 can be reclassified using updated functional data?
+2. How do deep learning splice predictors (SpliceAI, Pangolin) perform on intronic variants in leukodystrophy genes?
+3. What gene panels have the highest diagnostic yield for infantile-onset epileptic encephalopathy?
+4. Which protein domain hotspots (ion channel pores, kinase domains) concentrate pathogenic missense variants?
+
+Target Genes and Conditions:
+- SCN1A (Dravet syndrome): Nav1.1 sodium channel, >1800 known variants
+- KCNQ2 (neonatal epilepsy): Kv7.2 potassium channel, gain/loss of function
+- MECP2 (Rett syndrome): Transcriptional regulator, X-linked
+- PMM2 (CDG-Ia): Phosphomannomutase 2, glycosylation disorder
+- LMNA (Emery-Dreifuss MD): Lamin A/C, nuclear envelope
+
+Relevant Databases and Tools:
+- ClinVar (variant classifications, submitter concordance)
+- gnomAD (population allele frequencies)
+- OMIM (gene-disease relationships)
+- SpliceAI (splice variant prediction)
+- AlphaMissense (pathogenicity prediction)
+
+Expected Output Types:
+- genomic_variant: Variant records with gene, HGVS, classification, evidence level
+- protein_interaction: Variant impact on protein complex assembly
+- clinical_trial_record: Gene therapy trials for target conditions

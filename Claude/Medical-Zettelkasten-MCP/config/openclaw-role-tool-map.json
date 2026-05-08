@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "openclaw-role-tool-map-v1",
+  "description": "Maps OpenClaw agent roles to recommended Medical Zettelkasten MCP tools",
+  "role_mappings": {
+    "scout": ["analyze_network", "detect_clusters"],
+    "analyst": ["find_gaps", "break_echo_chamber", "link_semantically"],
+    "literature_reviewer": ["full_zettelkasten_analysis"],
+    "molecular_profiler": ["cross_domain_connect", "rescue_orphans"],
+    "safety_signal_detector": ["break_echo_chamber", "find_gaps"],
+    "competitive_intel_analyst": ["measure_diversity", "detect_clusters"],
+    "synthesizer": ["full_zettelkasten_analysis"],
+    "quality_auditor": ["measure_diversity"]
+  }
+}

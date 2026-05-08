@@ -1,0 +1,62 @@
+{
+  "schema_version": "phase30-workflow-v1",
+  "workflow_template_id": "rare-disease-brief",
+  "name": "Rare Disease Landscape Brief",
+  "description": "Orphan drug mapping, genetic disease profiling, and rare disease intelligence using Monarch, OMIM, OrphaNet, and GDC via ToolUniverse.",
+  "auto_approve": true,
+  "provider_preference": {
+    "primary": "claude-code",
+    "fallback": "lm-studio"
+  },
+  "input_schema": {
+    "required": ["disease_name"],
+    "properties": {
+      "disease_name": { "type": "string", "description": "Rare disease name or OMIM ID" },
+      "focus_area": { "type": "string", "description": "Specific focus (e.g. 'orphan drug pipeline', 'genetic basis')" },
+      "input_dir": { "type": "string", "description": "Path to seed documents directory", "default": "workspace/research-input/biomedical/" }
+    }
+  },
+  "pipeline": [
+    {
+      "step_id": "research",
+      "type": "mission",
+      "mission_template_id": "rare_disease_landscape",
+      "description_template": "Rare disease landscape for {{disease_name}}",
+      "mission_type": "research_to_dataset",
+      "dataset_type": "retrieval_qa"
+    },
+    {
+      "step_id": "quality_check",
+      "type": "quality_audit",
+      "depends_on": ["research"],
+      "confidence_threshold": 0.6,
+      "verification_tools": ["Monarch", "OMIM", "OrphaNet", "GDC"]
+    },
+    {
+      "step_id": "build_dataset",
+      "type": "dataset",
+      "depends_on": ["quality_check"],
+      "dataset_type": "retrieval_qa",
+      "quality_threshold": 0.5
+    },
+    {
+      "step_id": "package",
+      "type": "offer",
+      "depends_on": ["build_dataset"],
+      "product_line": "biomedical_research_packs",
+      "tier": "standard",
+      "targets": ["datarade"]
+    },
+    {
+      "step_id": "approve",
+      "type": "approve",
+      "depends_on": ["package"]
+    },
+    {
+      "step_id": "export",
+      "type": "export",
+      "depends_on": ["approve"],
+      "format": "zip"
+    }
+  ]
+}

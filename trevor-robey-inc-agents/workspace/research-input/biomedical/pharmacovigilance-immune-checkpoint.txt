@@ -1,0 +1,31 @@
+Title: Pharmacovigilance Signals for Immune Checkpoint Inhibitors
+Domain: Immuno-oncology / Drug Safety
+Source Type: Research Seed Document
+
+Background:
+Immune checkpoint inhibitors (ICIs) — pembrolizumab, nivolumab, atezolizumab, ipilimumab — have transformed oncology but carry unique immune-related adverse events (irAEs). Post-marketing surveillance reveals emerging safety signals including myocarditis (0.1-1.1%), hepatitis, colitis, pneumonitis, and rare neurological toxicities. Combination ICI therapy amplifies these risks.
+
+Key Research Questions:
+1. What irAEs show disproportionate reporting in FAERS for anti-PD-1 vs anti-CTLA-4 agents?
+2. Which biomarkers predict severe irAE risk (pre-existing autoantibodies, HLA subtypes, TMB)?
+3. How do combination regimens (nivolumab + ipilimumab) alter the irAE spectrum vs monotherapy?
+4. What is the time-to-onset distribution for cardiac irAEs across ICI classes?
+
+Drugs Under Surveillance:
+- Pembrolizumab (Keytruda): Anti-PD-1, broadest indication portfolio
+- Nivolumab (Opdivo): Anti-PD-1, combination regimens
+- Atezolizumab (Tecentriq): Anti-PD-L1, lung/bladder
+- Ipilimumab (Yervey): Anti-CTLA-4, highest irAE rate as monotherapy
+- Durvalumab (Imfinzi): Anti-PD-L1, stage III NSCLC
+
+Signal Detection Sources:
+- FDA FAERS (adverse event reports, PRR/ROR calculations)
+- EudraVigilance (EU pharmacovigilance database)
+- VigiBase (WHO global ICSR database)
+- Published case series and meta-analyses (PubMed)
+- CTCAE grading criteria for irAE severity classification
+
+Expected Output Types:
+- pharmacovigilance_signal: Disproportionality signals (PRR, ROR, IC) for ICI-irAE pairs
+- clinical_trial_record: Active safety monitoring trials for ICI combinations
+- molecular_properties: Biomarker profiles predictive of irAE susceptibility

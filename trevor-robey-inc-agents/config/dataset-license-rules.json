@@ -1,0 +1,103 @@
+{
+  "default_unknown_state": "blocked",
+  "domain_rules": {
+    "approved.example": {
+      "reason_code": "PHASE20_LICENSE_DOMAIN_ALLOWED",
+      "state": "allowed"
+    },
+    "blocked.example": {
+      "reason_code": "PHASE20_LICENSE_DOMAIN_BLOCKED",
+      "state": "blocked"
+    },
+    "restricted.example": {
+      "reason_code": "PHASE20_LICENSE_DOMAIN_REVIEW_REQUIRED",
+      "state": "review_required"
+    },
+    "elifesciences.org": {
+      "reason_code": "SCRAPE_DOMAIN_ALLOWED_OPEN_ACCESS",
+      "state": "allowed"
+    },
+    "journals.plos.org": {
+      "reason_code": "SCRAPE_DOMAIN_ALLOWED_OPEN_ACCESS",
+      "state": "allowed"
+    },
+    "frontiersin.org": {
+      "reason_code": "SCRAPE_DOMAIN_ALLOWED_OPEN_ACCESS",
+      "state": "allowed"
+    },
+    "f1000research.com": {
+      "reason_code": "SCRAPE_DOMAIN_ALLOWED_OPEN_ACCESS",
+      "state": "allowed"
+    },
+    "biorxiv.org": {
+      "reason_code": "SCRAPE_DOMAIN_ALLOWED_PREPRINT",
+      "state": "allowed"
+    },
+    "medrxiv.org": {
+      "reason_code": "SCRAPE_DOMAIN_ALLOWED_PREPRINT",
+      "state": "allowed"
+    },
+    "fda.gov": {
+      "reason_code": "SCRAPE_DOMAIN_ALLOWED_PUBLIC_DOMAIN",
+      "state": "allowed"
+    },
+    "ema.europa.eu": {
+      "reason_code": "SCRAPE_DOMAIN_ALLOWED_PUBLIC_DOMAIN",
+      "state": "allowed"
+    },
+    "who.int": {
+      "reason_code": "SCRAPE_DOMAIN_ALLOWED_PUBLIC_DOMAIN",
+      "state": "allowed"
+    },
+    "asco.org": {
+      "reason_code": "SCRAPE_DOMAIN_REVIEW_TOS_PER_SOCIETY",
+      "state": "review_required"
+    },
+    "aacr.org": {
+      "reason_code": "SCRAPE_DOMAIN_REVIEW_TOS_PER_SOCIETY",
+      "state": "review_required"
+    },
+    "hematology.org": {
+      "reason_code": "SCRAPE_DOMAIN_REVIEW_TOS_PER_SOCIETY",
+      "state": "review_required"
+    }
+  },
+  "license_rules": {
+    "all-rights-reserved": {
+      "reason_code": "PHASE20_LICENSE_IDENTIFIER_BLOCKED",
+      "state": "blocked"
+    },
+    "cc-by-4.0": {
+      "reason_code": "PHASE20_LICENSE_IDENTIFIER_ALLOWED",
+      "state": "allowed"
+    },
+    "cc0-1.0": {
+      "reason_code": "PHASE20_LICENSE_IDENTIFIER_ALLOWED",
+      "state": "allowed"
+    },
+    "custom-review": {
+      "reason_code": "PHASE20_LICENSE_IDENTIFIER_REVIEW_REQUIRED",
+      "state": "review_required"
+    }
+  },
+  "reason_codes": {
+    "default_unknown": "PHASE20_LICENSE_UNKNOWN_BLOCKED",
+    "explicit_allowed": "PHASE20_LICENSE_METADATA_ALLOWED",
+    "explicit_blocked": "PHASE20_LICENSE_METADATA_BLOCKED",
+    "explicit_review_required": "PHASE20_LICENSE_METADATA_REVIEW_REQUIRED",
+    "rights_allowed": "PHASE20_LICENSE_RIGHTS_ALLOWED",
+    "rights_blocked": "PHASE20_LICENSE_RIGHTS_BLOCKED",
+    "source_override": "PHASE20_LICENSE_SOURCE_OVERRIDE"
+  },
+  "schema_version": "phase20-dataset-license-rules-v1",
+  "source_overrides": {
+    "tooluniverse": {
+      "state": "review_required",
+      "reason_code": "PHASE29_TOOLUNIVERSE_SOURCE_REVIEW"
+    },
+    "scrape-sidecar:elife": {
+      "state": "allowed",
+      "reason_code": "SCRAPE_SIDECAR_ELIFE_CC_BY_4_0"
+    }
+  }
+}

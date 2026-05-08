@@ -1,0 +1,34 @@
+{
+  "baseline_ci_run": "22710324173",
+  "baseline_commit": "712982bd91345d686f4ccb6b4d87b982adeb8938",
+  "files": [
+    {
+      "file": "compliance-scan-results.json",
+      "sha256": "3a294f9bd13130271b810ae61552eccf7320140bfbd180dd00205638ee12135b"
+    },
+    {
+      "file": "drift-detection-results.json",
+      "sha256": "ec74bfef8d0e5554c31869c0af85d5dca45db7e76add823a810605051f643c3c"
+    },
+    {
+      "file": "override-ledger-sample.json",
+      "sha256": "784e6335d8ea654d37755cad0ced88c185d0b073e1a7387b5ca853bc9bde4e39"
+    },
+    {
+      "file": "phase-completeness-status.json",
+      "sha256": "643e7ec08e1c08b19951033b64d9d19b98d9a24f48d78f0109547b59e5bcf7b9"
+    },
+    {
+      "file": "phase9-baseline-contracts.json",
+      "sha256": "6508e8356c4087b9cebc34d762e32006644dbbc932fe04e259f124592fa0ecad"
+    },
+    {
+      "file": "phase9-policy-gate-results.json",
+      "sha256": "a5987dbb095347bb64a9f0670b69a2e28860e157a2786051ef3d2f5a73ac0613"
+    },
+    {
+      "file": "remediation-recommendations.json",
+      "sha256": "098d9b8ff14458acdcc1fb8cfb41020f48123fc622fb42b3b0ebd09bfc6f74d9"
+    }
+  ]
+}

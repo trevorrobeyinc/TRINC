@@ -1,0 +1,48 @@
+# Architectural Blueprint (Implemented Scaffold)
+
+This repository now contains the implemented architecture baseline for trevor-robey-inc-agents (renamed from `OpenClaw-Research-Agents` on 2026-04-27 — see [TREVOR_ROBEY_INC_AGENTS_DOSSIER.md](TREVOR_ROBEY_INC_AGENTS_DOSSIER.md) for the current product story) through Phase 23, plus the Phase 26A, Phase 27, and Phase 28 monetization-adjacent milestones.
+
+Planned post-Phase 22 expansion work is tracked in `future openclaw research agents phases to be implemented.` at the repository root.
+The current dependency-ordered lock is PR 1 docs/roadmap, PR 2 Phase 26A minimal prerequisite slice, PR 3 Phase 27 integration, and PR 4 Phase 28 direct-delivery.
+Phase 24 is constrained to operator-gated Notion/newsletter sync briefing artifacts and does not expand research-search, browser, or session surfaces.
+Phase 25 formalizes local-only credential brokering plus approval-scoped delegated connector sessions without introducing external secret managers, OAuth, or login automation.
+
+Core outcomes:
+- Clean-room derivative controls recorded.
+- Research-only control-plane skeleton initialized.
+- Offensive/security execution identities removed from active runtime surfaces.
+- Deterministic state file, file-based comms, and memory hydration scaffolding created.
+- Container policy files rewritten for research-only tool identities.
+- MCP replacement contracts scaffolded with strict validation expectations and stub gating.
+- Preflight payload validation checks implemented to catch oversized/abusive outbound requests early.
+- Comprehensive workload integrity controls enforced (SBOM, digest matching, runtime policy scanning).
+- Internal RLHF workflow automation explicitly bounded to deterministic draft generation, compliance linting, and manual packaging.
+- Deterministic Outcome Intelligence integrated for operator-entered feedback loops, trajectory scoring, calibration, and portfolio planning.
+- Internal Experiment Governance enables deterministic assignment, internal-only analysis, and pre-registration locked decision ledgers without external autonomous side-effects.
+- Deterministic internal compliance governance allows configuration of runtime attestation, evidence bundled generation, and operator-governed release gating.
+- Governance automation adds continuous read-only monitor workflows, policy drift detection, and guaranteed Immutable operator override ledgers.
+- Operational Resilience integrates deterministic observability, advisory alerting, operator-gated runbook orchestration, and incident escalation controls.
+- Recovery Assurance capabilities added including fail-closed checkpoints, strict human-gated restore pipelines, and read-only continuity drill automation.
+- Deterministic Supply Chain Security enables internal SBOM generation, dependency integrity verification, and operator-gated dependency patching bounds.
+- Deterministic Access Control and Identity Governance enforces local-only canonical RBAC policies, operator-gated token lifecycle, and fail-closed permission boundaries.
+- Core Research Agent Engine (Phase 14) implements supervisor-gated research tasks, deterministic mock LLM execution, and writes deterministic output artifacts.
+- Multi-Agent Topology (Phase 15) integrates deterministic lane queues, communication buses, and multi-actor interaction logging.
+- MCP Research Ingestion (Phase 16) normalizes external knowledge ingestion via structured, strict local integration pathways.
+- Runtime Hardening and Resume Orchestration (Phase 17) guarantees deterministic persistent state resumption across execution boundaries and component failures.
+- Live LLM & MCP Verification tools execute continuous endpoint probing and track live operational states in deterministic audit maps.
+- Agent Spawner & Mission Orchestrator (Phase 18) introduces dynamic mission planning, spawn orchestration, and localized blackboard management while strictly isolating capabilities away from live autonomous execution.
+- Deterministic Dataset Foundation & Monetization Packaging (Phase 19) structures raw inputs into staged dataset builds and local deterministically-packaged release bundles ensuring compliant preparation offline.
+- Commercialization Gatekeeping & Dataset Provenance (Phase 20) evaluates license compatibility, enforces dataset quality scoring, purges duplicates, and constructs verifiable provenance trackers ahead of monetization packaging.
+- Deterministic Publisher Adapter Boundary (Phase 21) manages deterministic offline generation of final platform-specific submission packs through validated schemas avoiding live network submission.
+- Post-Export Manual Evidence Ledger (Phase 22) enforces an authoritative append-only cryptographic ledger and strict operator outcome recording for external deployments.
+- Portfolio Intelligence and Commercialization Decision Support (Phase 23) deterministically aggregates approved release state with Phase 22 submission evidence and Phase 28 delivery evidence to produce read-only operator reports under `audit/evidence/phase23/`.
+- Phase 24 Operator Sync and Briefing keeps newsletter/notion research surfaces disabled while attaching deterministic local operator briefing artifacts to governed `prepare`, `commit`, `retry`, and `reconcile` mutation flows.
+- Phase 25 Credential Broker and Delegated Session Governance keeps brokered secrets in memory only, issues approval-scoped delegated connector sessions, and invalidates those sessions when the underlying approval token is revoked or expires.
+- GitHub Actions CI enforcement integrates test verification and governance execution directly into pull requests on the main branch.
+- Audit, threat-model, and governance documentation scaffolded for formal review.
+
+See:
+- `audit/`
+- `openclaw-bridge/docs/`
+- `openclaw-bridge/security/`
+- `workspace/`

@@ -1,0 +1,450 @@
+"use strict";
+
+const fs = require("node:fs");
+const path = require("node:path");
+
+const { canonicalize, safeString } = require("../../workflows/governance-automation/common.js");
+const { validateTaskDefinition } = require("./task-definition-schema.js");
+const { enrichWithWikiLinks } = require("./wiki-link-enricher.js");
+
+const SYNTHESIZER_TASK_ID_PATTERN = /synth|report_generator|integrator/i;
+
+function isPlainObject(value) {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function makeError(code, message, details) {
+  const error = new Error(String(message || "Agent engine error"));
+  error.code = String(code || "PHASE14_AGENT_ENGINE_ERROR");
+  if (typeof details !== "undefined") {
+    error.details = details;
+  }
+  return error;
+}
+
+function normalizeIso(value) {
+  const text = safeString(value);
+  if (!text || !Number.isFinite(Date.parse(text))) {
+    return "1970-01-01T00:00:00.000Z";
+  }
+  return text;
+}
+
+function readFileText(filePath) {
+  return fs.readFileSync(filePath, "utf8");
+}
+
+function walkDirFiles(dirPath) {
+  const out = [];
+  const stack = [dirPath];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    const entries = fs.readdirSync(current, { withFileTypes: true });
+    for (const entry of entries) {
+      const abs = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(abs);
+        continue;
+      }
+      if (entry.isFile()) {
+        out.push(abs);
+      }
+    }
+  }
+  out.sort((left, right) => left.localeCompare(right));
+  return out;
+}
+
+function loadInputs(inputs) {
+  const normalized = Array.isArray(inputs) ? inputs : [];
+  const loaded = [];
+  for (const input of normalized) {
+    const inputPath = path.resolve(safeString(input.path || input));
+    if (!inputPath || !fs.existsSync(inputPath)) {
+      continue;
+    }
+    const stat = fs.statSync(inputPath);
+    if (stat.isDirectory()) {
+      const files = walkDirFiles(inputPath);
+      for (const filePath of files) {
+        loaded.push({
+          path: filePath,
+          rel: path.relative(process.cwd(), filePath).split(path.sep).join("/"),
+          content: readFileText(filePath)
+        });
+      }
+      continue;
+    }
+
+    loaded.push({
+      path: inputPath,
+      rel: path.relative(process.cwd(), inputPath).split(path.sep).join("/"),
+      content: readFileText(inputPath)
+    });
+  }
+
+  loaded.sort((left, right) => left.rel.localeCompare(right.rel));
+  return loaded;
+}
+
+function buildPrompt(taskDefinition, inputDocs, context = {}) {
+  const systemPrefix = safeString(context.systemPrefix);
+  const roleInstruction = systemPrefix
+    ? systemPrefix
+    : "You are a local-first research agent.";
+
+  const headerParts = [
+    roleInstruction,
+    "",
+    `Task Type: ${taskDefinition.type}`,
+    `Task Description: ${taskDefinition.description}`,
+    `Output Format: ${taskDefinition.output_format}`,
+    `Constraints: ${JSON.stringify(taskDefinition.constraints || {})}`,
+    "",
+    "CITATION REQUIREMENTS: For every factual claim, include specific database identifiers inline. Use: PubChem CID (e.g. CID: 2244), PMID (e.g. PMID: 12345678), NCT numbers (e.g. NCT01234567), ChEMBL IDs (e.g. CHEMBL25), ENSG IDs (e.g. ENSG00000157764), DrugBank IDs (e.g. DrugBank: DB00945), UniProt accessions (e.g. UniProt: P04637), DOIs (e.g. doi: 10.1000/example). Aim for at least one verifiable identifier per substantive paragraph. This output will be automatically audited for verifiable citations.",
+    ""
+  ];
+
+  // Detect if any input docs are from ToolUniverse (live data)
+  const hasLiveData = inputDocs.some((doc) =>
+    doc.path && doc.path.startsWith("tooluniverse://")
+  );
+  if (hasLiveData) {
+    headerParts.push(
+      "LIVE DATABASE CONTEXT: The input documents below marked 'tooluniverse://' " +
+      "contain LIVE DATA retrieved from biomedical databases via ToolUniverse. " +
+      "PRIORITIZE this live data over your training knowledge. Cite the specific " +
+      "database source for every claim derived from live data. Do not fabricate " +
+      "data points beyond what the live results provide."
+    );
+    headerParts.push("");
+  }
+
+  headerParts.push("Input Documents:");
+
+  const header = headerParts.join("\n");
+
+  const docs = inputDocs.map((doc, index) => [
+    `--- DOC ${index + 1}: ${doc.rel} ---`,
+    doc.content
+  ].join("\n"));
+
+  return `${header}\n${docs.join("\n")}`.trim();
+}
+
+function buildOrchestratedTaskDefinition(taskEnvelope = {}, defaults = {}) {
+  return canonicalize({
+    task_id: safeString(taskEnvelope.task_id || taskEnvelope.taskId),
+    type: safeString(taskEnvelope.type) || safeString(defaults.defaultTaskType) || "freeform",
+    description: safeString(taskEnvelope.description) || safeString(defaults.defaultDescription) || "Mission subtask",
+    inputs: Array.isArray(taskEnvelope.inputs) ? canonicalize(taskEnvelope.inputs) : [],
+    output_format: safeString(taskEnvelope.output_format || taskEnvelope.outputFormat) || safeString(defaults.defaultOutputFormat) || "markdown",
+    constraints: canonicalize({
+      ...(isPlainObject(taskEnvelope.constraints) ? taskEnvelope.constraints : {}),
+      mission_id: safeString(taskEnvelope.mission_id || taskEnvelope.missionId),
+      agent_id: safeString(taskEnvelope.agent_id || taskEnvelope.agentId),
+      subtask_id: safeString(taskEnvelope.subtask_id || taskEnvelope.subtaskId)
+    }),
+    created_at: normalizeIso(taskEnvelope.created_at || taskEnvelope.createdAt || defaults.createdAt)
+  });
+}
+
+function createAgentEngine(options = {}) {
+  const logger = isPlainObject(options.logger) ? options.logger : { info() {}, warn() {}, error() {} };
+  const timeProvider = options.timeProvider && typeof options.timeProvider.nowIso === "function"
+    ? options.timeProvider
+    : { nowIso: () => "1970-01-01T00:00:00.000Z" };
+  const config = isPlainObject(options.config) ? options.config : {};
+
+  const governanceBridge = options.governanceBridge;
+  const llmAdapter = options.llmAdapter;
+  const outputManager = options.outputManager;
+
+  if (!governanceBridge || typeof governanceBridge.requestTaskApproval !== "function") {
+    throw makeError("PHASE14_AGENT_ENGINE_CONFIG_INVALID", "governanceBridge.requestTaskApproval is required");
+  }
+  if (!llmAdapter || typeof llmAdapter.complete !== "function") {
+    throw makeError("PHASE14_AGENT_ENGINE_CONFIG_INVALID", "llmAdapter.complete is required");
+  }
+  if (!outputManager || typeof outputManager.saveOutput !== "function") {
+    throw makeError("PHASE14_AGENT_ENGINE_CONFIG_INVALID", "outputManager.saveOutput is required");
+  }
+
+  const taskState = new Map();
+
+  function setStatus(taskId, status, details = {}) {
+    const existing = taskState.get(taskId) || {};
+    const next = canonicalize({
+      ...existing,
+      task_id: taskId,
+      status,
+      updated_at: normalizeIso(timeProvider.nowIso()),
+      ...details
+    });
+    taskState.set(taskId, next);
+    return next;
+  }
+
+  async function executeTask(taskDefinition, context = {}) {
+    let normalizedTask;
+    try {
+      normalizedTask = validateTaskDefinition(taskDefinition);
+    } catch (error) {
+      throw error;
+    }
+
+    const taskId = safeString(normalizedTask.task_id);
+    const startedAt = normalizeIso(timeProvider.nowIso());
+    setStatus(taskId, "pending", { task_definition: normalizedTask, started_at: startedAt });
+
+    if (!context.supervisorDecision || context.supervisorDecision.approved !== true) {
+      setStatus(taskId, "rejected", { reason: "SUPERVISOR_APPROVAL_REQUIRED" });
+      throw makeError("SUPERVISOR_APPROVAL_REQUIRED", "Task execution requires a supervisor approval receipt", { task_id: taskId });
+    }
+
+    setStatus(taskId, "supervisor_approved", {
+      supervisor_decision: canonicalize(context.supervisorDecision)
+    });
+
+    const approval = await governanceBridge.requestTaskApproval(normalizedTask, context);
+    if (!approval || approval.approved !== true) {
+      const rejection = setStatus(taskId, "rejected", {
+        reason: safeString(approval && approval.reason) || "governance_rejected"
+      });
+
+      await outputManager.saveOutput(taskId, `Task rejected: ${rejection.reason}`, {
+        status: "rejected",
+        type: normalizedTask.type,
+        output_format: normalizedTask.output_format,
+        provider: safeString(context.provider) || "mock",
+        model: safeString(context.model) || "mock-v1",
+        started_at: startedAt,
+        completed_at: normalizeIso(timeProvider.nowIso()),
+        task_definition: normalizedTask,
+        error_code: "PHASE14_TASK_REJECTED",
+        error_message: rejection.reason
+      });
+
+      await governanceBridge.recordTaskExecution(taskId, {
+        status: "rejected",
+        reason: rejection.reason
+      }, context);
+
+      return canonicalize({ ok: false, task_id: taskId, status: "rejected", reason: rejection.reason });
+    }
+
+    setStatus(taskId, "governance_approved", {
+      governance_decision: canonicalize(approval)
+    });
+
+    try {
+      setStatus(taskId, "executing");
+      const inputDocs = loadInputs(normalizedTask.inputs);
+
+      // WS1: Inject live ToolUniverse data before prompt construction
+      if (context.toolPrefetch && typeof context.toolPrefetch.prefetchForRole === "function") {
+        const roleName = safeString(context.agentRole);
+        if (roleName) {
+          try {
+            const toolDocs = await context.toolPrefetch.prefetchForRole(
+              roleName, context.workflowInputs || {}
+            );
+            inputDocs.push(...toolDocs);
+            if (toolDocs.length > 0) {
+              logger.info({
+                event: "tool_prefetch_injected",
+                role: roleName,
+                tool_doc_count: toolDocs.length
+              });
+            }
+          } catch (prefetchError) {
+            logger.warn({
+              event: "tool_prefetch_failed",
+              role: roleName,
+              error: safeString(prefetchError && prefetchError.message)
+            });
+          }
+        }
+      }
+
+      const prompt = buildPrompt(normalizedTask, inputDocs, context);
+
+      const completion = await llmAdapter.complete(prompt, {
+        taskId,
+        model: safeString(context.model),
+        maxTokens: Number(config.maxTokensPerRequest || 0)
+      });
+
+      let outputText = completion.text;
+      let wikiLinks = null;
+      const isSynthesizerTask = SYNTHESIZER_TASK_ID_PATTERN.test(taskId)
+        || SYNTHESIZER_TASK_ID_PATTERN.test(safeString(context.agentRole));
+      const outputFormatForEnrich = safeString(normalizedTask.output_format) || "markdown";
+      if (isSynthesizerTask && outputFormatForEnrich === "markdown") {
+        try {
+          const enriched = enrichWithWikiLinks(completion.text, {
+            workflowInputs: context.workflowInputs || {}
+          });
+          outputText = enriched.markdown;
+          wikiLinks = enriched.links;
+          logger.info({
+            event: "wiki_link_enrichment_applied",
+            task_id: taskId,
+            link_count: Array.isArray(wikiLinks) ? wikiLinks.length : 0
+          });
+        } catch (enrichError) {
+          logger.warn({
+            event: "wiki_link_enrichment_failed",
+            task_id: taskId,
+            error: safeString(enrichError && enrichError.message)
+          });
+        }
+      }
+
+      const completedAt = normalizeIso(timeProvider.nowIso());
+      const outputWrite = outputManager.saveOutput(taskId, outputText, {
+        status: "completed",
+        type: normalizedTask.type,
+        output_format: normalizedTask.output_format,
+        provider: completion.provider,
+        model: completion.model,
+        started_at: startedAt,
+        completed_at: completedAt,
+        duration_ms: Number(completion.durationMs || 0),
+        token_count: Number(completion.tokenCount || 0),
+        task_definition: normalizedTask,
+        provider_info: llmAdapter.getProviderInfo()
+      });
+
+      const rlhfResult = await governanceBridge.generateRLHFEntry(taskId, {
+        prompt,
+        response: completion.text,
+        provider: completion.provider,
+        model: completion.model,
+        tokenCount: completion.tokenCount,
+        durationMs: completion.durationMs
+      }, {
+        ...context,
+        taskOutputDir: outputWrite.task_dir
+      });
+
+      outputManager.saveOutput(taskId, outputText, {
+        status: "completed",
+        type: normalizedTask.type,
+        output_format: normalizedTask.output_format,
+        provider: completion.provider,
+        model: completion.model,
+        started_at: startedAt,
+        completed_at: completedAt,
+        duration_ms: Number(completion.durationMs || 0),
+        token_count: Number(completion.tokenCount || 0),
+        task_definition: normalizedTask,
+        provider_info: llmAdapter.getProviderInfo(),
+        rlhf_local_mirror_path: safeString(rlhfResult.local_mirror_path)
+      });
+
+      if (Array.isArray(wikiLinks) && wikiLinks.length > 0
+          && typeof outputManager.saveSidecar === "function") {
+        try {
+          outputManager.saveSidecar(taskId, "wiki-links.json", {
+            schema_version: "wiki-links-v1",
+            task_id: taskId,
+            generated_at: completedAt,
+            links: wikiLinks
+          });
+        } catch (sidecarError) {
+          logger.warn({
+            event: "wiki_link_sidecar_failed",
+            task_id: taskId,
+            error: safeString(sidecarError && sidecarError.message)
+          });
+        }
+      }
+
+      const result = canonicalize({
+        ok: true,
+        task_id: taskId,
+        status: "completed",
+        output_path: outputWrite.output_path,
+        metadata_path: outputWrite.metadata_path,
+        manifest_path: outputWrite.manifest_path,
+        token_count: Number(completion.tokenCount || 0),
+        provider: completion.provider,
+        model: completion.model
+      });
+
+      await governanceBridge.recordTaskExecution(taskId, result, context);
+      setStatus(taskId, "completed", { completed_at: completedAt, result });
+
+      logger.info({ event: "phase14_task_completed", task_id: taskId });
+      return result;
+    } catch (error) {
+      const failedAt = normalizeIso(timeProvider.nowIso());
+      const failure = canonicalize({
+        status: "failed",
+        error_code: safeString(error && error.code) || "PHASE14_TASK_FAILED",
+        error_message: safeString(error && error.message) || "Task execution failed"
+      });
+
+      outputManager.saveOutput(taskId, `Task failed: ${failure.error_message}`, {
+        status: "failed",
+        type: normalizedTask.type,
+        output_format: normalizedTask.output_format,
+        provider: safeString(context.provider) || "mock",
+        model: safeString(context.model) || "mock-v1",
+        started_at: startedAt,
+        completed_at: failedAt,
+        task_definition: normalizedTask,
+        error_code: failure.error_code,
+        error_message: failure.error_message
+      });
+
+      await governanceBridge.recordTaskExecution(taskId, failure, context);
+      setStatus(taskId, "failed", { completed_at: failedAt, ...failure });
+      throw error;
+    }
+  }
+
+  function getTaskStatus(taskId) {
+    const normalizedTaskId = safeString(taskId);
+    if (!normalizedTaskId) {
+      return null;
+    }
+    if (taskState.has(normalizedTaskId)) {
+      return canonicalize(taskState.get(normalizedTaskId));
+    }
+    const outputs = outputManager.listOutputs();
+    const match = outputs.find((entry) => entry.task_id === normalizedTaskId);
+    return match ? canonicalize(match) : null;
+  }
+
+  function listCompletedTasks() {
+    return canonicalize(outputManager.listOutputs().filter((entry) => entry.status === "completed"));
+  }
+
+  function getTaskOutput(taskId) {
+    return outputManager.getOutput(taskId);
+  }
+
+  async function executeOrchestratedTask(taskEnvelope = {}, context = {}) {
+    const taskDefinition = buildOrchestratedTaskDefinition(taskEnvelope, {
+      defaultTaskType: safeString(context.defaultTaskType) || "freeform",
+      defaultDescription: safeString(taskEnvelope.description) || "Mission subtask",
+      defaultOutputFormat: safeString(taskEnvelope.output_format || taskEnvelope.outputFormat) || "markdown",
+      createdAt: safeString(taskEnvelope.created_at || taskEnvelope.createdAt)
+    });
+    return executeTask(taskDefinition, context);
+  }
+
+  return Object.freeze({
+    executeTask,
+    executeOrchestratedTask,
+    getTaskStatus,
+    listCompletedTasks,
+    getTaskOutput
+  });
+}
+
+module.exports = {
+  createAgentEngine
+};

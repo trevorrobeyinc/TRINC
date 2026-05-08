@@ -1,0 +1,31 @@
+Title: Drug Repurposing Opportunities for Glioblastoma Multiforme
+Domain: Neuro-oncology / Drug Discovery
+Source Type: Research Seed Document
+
+Background:
+Glioblastoma multiforme (GBM) remains the most aggressive primary brain tumor with a median survival of 15 months despite standard-of-care treatment (temozolomide + radiation). The blood-brain barrier limits therapeutic options, making drug repurposing an attractive strategy to identify existing compounds with CNS penetration and anti-tumor activity.
+
+Key Research Questions:
+1. Which FDA-approved drugs show in-vitro activity against GBM cell lines (U87, T98G, U251)?
+2. What molecular targets (EGFR, PDGFRA, IDH1, MGMT, TERT) are druggable with existing compounds?
+3. Which repurposed drugs have progressed to clinical trials for GBM (ClinicalTrials.gov)?
+4. What ADMET properties predict BBB penetration for candidate compounds?
+
+Notable Candidates Under Investigation:
+- Chloroquine/Hydroxychloroquine: Autophagy inhibition, multiple Phase II trials
+- Metformin: AMPK activation, anti-proliferative effects, NCT02780024
+- Disulfiram: ALDH inhibition + copper chelation, NCT03363659
+- Mebendazole: Tubulin binding, preclinical GBM models show IC50 < 1μM
+- Valproic acid: HDAC inhibition, radiosensitization, NCT00302159
+
+Relevant Databases:
+- DrugBank (compound profiles, targets, ADMET)
+- ChEMBL (bioactivity data, IC50/EC50 values)
+- ClinicalTrials.gov (active GBM trials with repurposed drugs)
+- PubChem (molecular properties, bioassay data)
+- COSMIC (somatic mutation profiles in GBM)
+
+Expected Output Types:
+- molecular_properties: Compound profiles with SMILES, MW, LogP, PSA, BBB permeability
+- clinical_trial_record: Active/completed trials for repurposed drugs in GBM
+- pharmacovigilance_signal: Safety signals for candidate drugs in CNS context

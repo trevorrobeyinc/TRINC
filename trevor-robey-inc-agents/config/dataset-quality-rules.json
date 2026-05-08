@@ -1,0 +1,290 @@
+{
+  "schema_version": "phase20-dataset-quality-rules-v1",
+  "dataset_types": {
+    "benchmark_eval": {
+      "completeness_required_fields": [
+        "evaluation_criteria",
+        "expected_answer",
+        "prompt"
+      ],
+      "dedupe": {
+        "mode": "hook_only",
+        "semantic_threshold": 0.95
+      },
+      "min_lengths": {
+        "evaluation_criteria": 16,
+        "expected_answer": 8,
+        "prompt": 8
+      },
+      "min_row_count": 1,
+      "non_empty_fields": [
+        "evaluation_criteria",
+        "expected_answer",
+        "prompt"
+      ],
+      "scoring": {
+        "build_min_score": 75,
+        "build_weights": {
+          "citation_coverage": 25,
+          "completeness": 30,
+          "confidence": 25,
+          "source_diversity": 20
+        },
+        "min_build_source_diversity": 1,
+        "min_row_source_diversity": 1,
+        "row_min_score": 70,
+        "row_weights": {
+          "citation_coverage": 25,
+          "completeness": 35,
+          "confidence": 20,
+          "source_diversity": 20
+        }
+      },
+      "unique_by": "row_hash"
+    },
+    "classification": {
+      "completeness_required_fields": [
+        "label",
+        "label_rationale",
+        "text"
+      ],
+      "dedupe": {
+        "mode": "hook_only",
+        "semantic_threshold": 0.97
+      },
+      "min_lengths": {
+        "label": 2,
+        "label_rationale": 8,
+        "text": 8
+      },
+      "min_row_count": 1,
+      "non_empty_fields": [
+        "label",
+        "label_rationale",
+        "text"
+      ],
+      "scoring": {
+        "build_min_score": 75,
+        "build_weights": {
+          "citation_coverage": 25,
+          "completeness": 30,
+          "confidence": 25,
+          "source_diversity": 20
+        },
+        "min_build_source_diversity": 1,
+        "min_row_source_diversity": 1,
+        "row_min_score": 70,
+        "row_weights": {
+          "citation_coverage": 25,
+          "completeness": 35,
+          "confidence": 20,
+          "source_diversity": 20
+        }
+      },
+      "unique_by": "row_hash"
+    },
+    "instruction_qa": {
+      "completeness_required_fields": [
+        "answer",
+        "context",
+        "instruction"
+      ],
+      "dedupe": {
+        "mode": "hook_only",
+        "semantic_threshold": 0.98
+      },
+      "min_lengths": {
+        "answer": 8,
+        "instruction": 8
+      },
+      "min_row_count": 1,
+      "non_empty_fields": [
+        "answer",
+        "context",
+        "instruction"
+      ],
+      "scoring": {
+        "build_min_score": 78,
+        "build_weights": {
+          "citation_coverage": 25,
+          "completeness": 30,
+          "confidence": 25,
+          "source_diversity": 20
+        },
+        "min_build_source_diversity": 1,
+        "min_row_source_diversity": 1,
+        "row_min_score": 72,
+        "row_weights": {
+          "citation_coverage": 25,
+          "completeness": 35,
+          "confidence": 20,
+          "source_diversity": 20
+        }
+      },
+      "unique_by": "row_hash"
+    },
+    "knowledge_graph": {
+      "completeness_required_fields": [
+        "context",
+        "object",
+        "predicate",
+        "subject"
+      ],
+      "dedupe": {
+        "mode": "hook_only",
+        "semantic_threshold": 0.97
+      },
+      "min_lengths": {
+        "object": 2,
+        "predicate": 2,
+        "subject": 2
+      },
+      "min_row_count": 1,
+      "non_empty_fields": [
+        "context",
+        "object",
+        "predicate",
+        "subject"
+      ],
+      "scoring": {
+        "build_min_score": 75,
+        "build_weights": {
+          "citation_coverage": 25,
+          "completeness": 30,
+          "confidence": 25,
+          "source_diversity": 20
+        },
+        "min_build_source_diversity": 1,
+        "min_row_source_diversity": 1,
+        "row_min_score": 70,
+        "row_weights": {
+          "citation_coverage": 25,
+          "completeness": 35,
+          "confidence": 20,
+          "source_diversity": 20
+        }
+      },
+      "unique_by": "row_hash"
+    },
+    "retrieval_qa": {
+      "completeness_required_fields": [
+        "answer",
+        "context",
+        "query"
+      ],
+      "dedupe": {
+        "mode": "hook_only",
+        "semantic_threshold": 0.98
+      },
+      "min_lengths": {
+        "answer": 8,
+        "query": 8
+      },
+      "min_row_count": 1,
+      "non_empty_fields": [
+        "answer",
+        "context",
+        "query"
+      ],
+      "scoring": {
+        "build_min_score": 78,
+        "build_weights": {
+          "citation_coverage": 25,
+          "completeness": 30,
+          "confidence": 25,
+          "source_diversity": 20
+        },
+        "min_build_source_diversity": 1,
+        "min_row_source_diversity": 1,
+        "row_min_score": 72,
+        "row_weights": {
+          "citation_coverage": 25,
+          "completeness": 35,
+          "confidence": 20,
+          "source_diversity": 20
+        }
+      },
+      "unique_by": "row_hash"
+    },
+    "molecular_properties": {
+      "completeness_required_fields": ["compound_id", "smiles", "source_tool"],
+      "dedupe": { "mode": "hook_only", "semantic_threshold": 0.95 },
+      "min_lengths": { "compound_id": 2, "smiles": 4, "source_tool": 2 },
+      "min_row_count": 1,
+      "non_empty_fields": ["compound_id", "smiles", "source_tool"],
+      "scoring": {
+        "build_min_score": 75,
+        "build_weights": { "citation_coverage": 20, "completeness": 35, "confidence": 25, "source_diversity": 20 },
+        "min_build_source_diversity": 1,
+        "min_row_source_diversity": 1,
+        "row_min_score": 70,
+        "row_weights": { "citation_coverage": 20, "completeness": 40, "confidence": 20, "source_diversity": 20 }
+      },
+      "unique_by": "row_hash"
+    },
+    "clinical_trial_record": {
+      "completeness_required_fields": ["nct_id", "condition", "intervention", "source_tool"],
+      "dedupe": { "mode": "hook_only", "semantic_threshold": 0.95 },
+      "min_lengths": { "nct_id": 4, "condition": 3, "intervention": 3, "source_tool": 2 },
+      "min_row_count": 1,
+      "non_empty_fields": ["nct_id", "condition", "intervention", "source_tool"],
+      "scoring": {
+        "build_min_score": 75,
+        "build_weights": { "citation_coverage": 20, "completeness": 35, "confidence": 25, "source_diversity": 20 },
+        "min_build_source_diversity": 1,
+        "min_row_source_diversity": 1,
+        "row_min_score": 70,
+        "row_weights": { "citation_coverage": 20, "completeness": 40, "confidence": 20, "source_diversity": 20 }
+      },
+      "unique_by": "row_hash"
+    },
+    "genomic_variant": {
+      "completeness_required_fields": ["variant_id", "gene", "source_tool"],
+      "dedupe": { "mode": "hook_only", "semantic_threshold": 0.95 },
+      "min_lengths": { "variant_id": 2, "gene": 2, "source_tool": 2 },
+      "min_row_count": 1,
+      "non_empty_fields": ["variant_id", "gene", "source_tool"],
+      "scoring": {
+        "build_min_score": 75,
+        "build_weights": { "citation_coverage": 20, "completeness": 35, "confidence": 25, "source_diversity": 20 },
+        "min_build_source_diversity": 1,
+        "min_row_source_diversity": 1,
+        "row_min_score": 70,
+        "row_weights": { "citation_coverage": 20, "completeness": 40, "confidence": 20, "source_diversity": 20 }
+      },
+      "unique_by": "row_hash"
+    },
+    "protein_interaction": {
+      "completeness_required_fields": ["protein_a", "protein_b", "interaction_type", "source_db"],
+      "dedupe": { "mode": "hook_only", "semantic_threshold": 0.97 },
+      "min_lengths": { "protein_a": 2, "protein_b": 2, "interaction_type": 3, "source_db": 2 },
+      "min_row_count": 1,
+      "non_empty_fields": ["protein_a", "protein_b", "interaction_type", "source_db"],
+      "scoring": {
+        "build_min_score": 75,
+        "build_weights": { "citation_coverage": 20, "completeness": 35, "confidence": 25, "source_diversity": 20 },
+        "min_build_source_diversity": 1,
+        "min_row_source_diversity": 1,
+        "row_min_score": 70,
+        "row_weights": { "citation_coverage": 20, "completeness": 40, "confidence": 20, "source_diversity": 20 }
+      },
+      "unique_by": "row_hash"
+    },
+    "pharmacovigilance_signal": {
+      "completeness_required_fields": ["drug_name", "adverse_event", "source"],
+      "dedupe": { "mode": "hook_only", "semantic_threshold": 0.95 },
+      "min_lengths": { "drug_name": 2, "adverse_event": 4, "source": 2 },
+      "min_row_count": 1,
+      "non_empty_fields": ["drug_name", "adverse_event", "source"],
+      "scoring": {
+        "build_min_score": 75,
+        "build_weights": { "citation_coverage": 20, "completeness": 35, "confidence": 25, "source_diversity": 20 },
+        "min_build_source_diversity": 1,
+        "min_row_source_diversity": 1,
+        "row_min_score": 70,
+        "row_weights": { "citation_coverage": 20, "completeness": 40, "confidence": 20, "source_diversity": 20 }
+      },
+      "unique_by": "row_hash"
+    }
+  }
+}

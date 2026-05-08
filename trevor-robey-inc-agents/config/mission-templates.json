@@ -1,0 +1,704 @@
+{
+  "schemaVersion": "phase18-mission-templates-v1",
+  "templates": {
+    "academic_trend_scan": {
+      "id": "academic_trend_scan",
+      "enabled": true,
+      "safety_class": "research_only",
+      "spawned_roles": [
+        "scout",
+        "analyst",
+        "synthesizer"
+      ],
+      "steps": [
+        {
+          "role": "scout",
+          "action_type": "collect_sources",
+          "task_type": "extract",
+          "description": "Collect and normalize source material for the mission",
+          "input_strategy": "mission_inputs"
+        },
+        {
+          "role": "analyst",
+          "action_type": "analyze_documents",
+          "task_type": "analyze",
+          "description": "Analyze the collected source material",
+          "input_strategy": "mission_and_dependency_outputs",
+          "depends_on": [
+            1
+          ]
+        },
+        {
+          "role": "synthesizer",
+          "action_type": "synthesize_output",
+          "task_type": "synthesize",
+          "description": "Synthesize the mission deliverable",
+          "input_strategy": "dependency_outputs",
+          "depends_on": [
+            2
+          ]
+        }
+      ]
+    },
+    "ai-trainer-eval": {
+      "id": "ai-trainer-eval",
+      "enabled": true,
+      "safety_class": "draft_artifact",
+      "spawned_roles": [
+        "scout",
+        "analyst",
+        "synthesizer"
+      ],
+      "steps": [
+        {
+          "role": "scout",
+          "action_type": "collect_sources",
+          "task_type": "extract",
+          "description": "Collect source material for the evaluation artifact",
+          "input_strategy": "mission_inputs"
+        },
+        {
+          "role": "analyst",
+          "action_type": "analyze_documents",
+          "task_type": "analyze",
+          "description": "Extract evaluator-relevant facts and reasoning gaps",
+          "input_strategy": "mission_and_dependency_outputs",
+          "depends_on": [
+            1
+          ]
+        },
+        {
+          "role": "synthesizer",
+          "action_type": "synthesize_output",
+          "task_type": "synthesize",
+          "description": "Draft the evaluation package",
+          "input_strategy": "dependency_outputs",
+          "depends_on": [
+            2
+          ]
+        }
+      ]
+    },
+    "raas-diligence": {
+      "id": "raas-diligence",
+      "enabled": true,
+      "safety_class": "draft_artifact",
+      "spawned_roles": [
+        "scout",
+        "analyst",
+        "synthesizer"
+      ],
+      "steps": [
+        {
+          "role": "scout",
+          "action_type": "collect_sources",
+          "task_type": "extract",
+          "description": "Collect diligence source material",
+          "input_strategy": "mission_inputs"
+        },
+        {
+          "role": "analyst",
+          "action_type": "analyze_documents",
+          "task_type": "analyze",
+          "description": "Run the diligence analysis",
+          "input_strategy": "mission_and_dependency_outputs",
+          "depends_on": [
+            1
+          ]
+        },
+        {
+          "role": "synthesizer",
+          "action_type": "synthesize_output",
+          "task_type": "synthesize",
+          "description": "Draft the diligence memo",
+          "input_strategy": "dependency_outputs",
+          "depends_on": [
+            2
+          ]
+        }
+      ]
+    },
+    "newsletter-digest": {
+      "id": "newsletter-digest",
+      "enabled": true,
+      "safety_class": "draft_artifact",
+      "spawned_roles": [
+        "scout",
+        "analyst",
+        "synthesizer"
+      ],
+      "steps": [
+        {
+          "role": "scout",
+          "action_type": "collect_sources",
+          "task_type": "extract",
+          "description": "Collect newsletter source material",
+          "input_strategy": "mission_inputs"
+        },
+        {
+          "role": "analyst",
+          "action_type": "analyze_documents",
+          "task_type": "analyze",
+          "description": "Analyze themes and anomalies for the digest",
+          "input_strategy": "mission_and_dependency_outputs",
+          "depends_on": [
+            1
+          ]
+        },
+        {
+          "role": "synthesizer",
+          "action_type": "synthesize_output",
+          "task_type": "synthesize",
+          "description": "Draft the newsletter artifact",
+          "input_strategy": "dependency_outputs",
+          "depends_on": [
+            2
+          ]
+        }
+      ]
+    },
+    "research_pack": {
+      "id": "research_pack",
+      "enabled": true,
+      "safety_class": "draft_artifact",
+      "spawned_roles": [
+        "scout",
+        "analyst",
+        "synthesizer"
+      ],
+      "steps": [
+        {
+          "role": "scout",
+          "action_type": "discover_sources",
+          "task_type": "extract",
+          "description": "Discover research sources for a productized research pack",
+          "input_strategy": "mission_inputs"
+        },
+        {
+          "role": "analyst",
+          "action_type": "analyze_documents",
+          "task_type": "analyze",
+          "description": "Analyze research findings for the packaged deliverable",
+          "input_strategy": "mission_and_dependency_outputs",
+          "depends_on": [
+            1
+          ]
+        },
+        {
+          "role": "synthesizer",
+          "action_type": "synthesize_output",
+          "task_type": "synthesize",
+          "description": "Synthesize the research pack source artifact",
+          "input_strategy": "dependency_outputs",
+          "depends_on": [
+            2
+          ]
+        }
+      ]
+    },
+    "dataset_sample": {
+      "id": "dataset_sample",
+      "enabled": true,
+      "safety_class": "draft_artifact",
+      "spawned_roles": [
+        "scout",
+        "analyst",
+        "synthesizer"
+      ],
+      "steps": [
+        {
+          "role": "scout",
+          "action_type": "discover_sources",
+          "task_type": "extract",
+          "description": "Discover source material for dataset generation",
+          "input_strategy": "mission_inputs"
+        },
+        {
+          "role": "analyst",
+          "action_type": "extract_structured",
+          "task_type": "analyze",
+          "description": "Extract structured findings to support a staged dataset build",
+          "input_strategy": "mission_and_dependency_outputs",
+          "depends_on": [
+            1
+          ]
+        },
+        {
+          "role": "synthesizer",
+          "action_type": "synthesize_output",
+          "task_type": "synthesize",
+          "description": "Synthesize the dataset-ready mission source artifact",
+          "input_strategy": "dependency_outputs",
+          "depends_on": [
+            2
+          ]
+        }
+      ]
+    },
+    "subscription_refresh": {
+      "id": "subscription_refresh",
+      "enabled": true,
+      "safety_class": "draft_artifact",
+      "spawned_roles": [
+        "scout",
+        "analyst",
+        "synthesizer"
+      ],
+      "steps": [
+        {
+          "role": "scout",
+          "action_type": "discover_sources",
+          "task_type": "extract",
+          "description": "Discover updated sources for a recurring intelligence refresh",
+          "input_strategy": "mission_inputs"
+        },
+        {
+          "role": "analyst",
+          "action_type": "analyze_documents",
+          "task_type": "analyze",
+          "description": "Analyze deltas and updates for the refresh cycle",
+          "input_strategy": "mission_and_dependency_outputs",
+          "depends_on": [
+            1
+          ]
+        },
+        {
+          "role": "synthesizer",
+          "action_type": "synthesize_output",
+          "task_type": "synthesize",
+          "description": "Synthesize the refreshed subscription artifact",
+          "input_strategy": "dependency_outputs",
+          "depends_on": [
+            2
+          ]
+        }
+      ]
+    },
+    "publish_newsletter": {
+      "id": "publish_newsletter",
+      "enabled": false,
+      "safety_class": "external_action",
+      "spawned_roles": [
+        "operator"
+      ],
+      "steps": []
+    },
+    "submit_eval_pack": {
+      "id": "submit_eval_pack",
+      "enabled": false,
+      "safety_class": "external_action",
+      "spawned_roles": [
+        "operator"
+      ],
+      "steps": []
+    },
+    "send_operator_payload": {
+      "id": "send_operator_payload",
+      "enabled": false,
+      "safety_class": "external_action",
+      "spawned_roles": [
+        "operator"
+      ],
+      "steps": []
+    },
+    "biomedical_drug_discovery": {
+      "id": "biomedical_drug_discovery",
+      "enabled": true,
+      "safety_class": "research_only",
+      "spawned_roles": ["scout", "analyst", "synthesizer"],
+      "steps": [
+        {
+          "role": "scout",
+          "action_type": "discover_tools",
+          "task_type": "extract",
+          "description": "Discover drug discovery tools via ToolUniverse (targets, compounds, ADMET)",
+          "input_strategy": "mission_inputs",
+          "provider": "tooluniverse"
+        },
+        {
+          "role": "analyst",
+          "action_type": "execute_tools",
+          "task_type": "analyze",
+          "description": "Execute molecular and target tools to gather pharmacological data",
+          "input_strategy": "mission_and_dependency_outputs",
+          "depends_on": [1],
+          "provider": "tooluniverse"
+        },
+        {
+          "role": "synthesizer",
+          "action_type": "synthesize_output",
+          "task_type": "synthesize",
+          "description": "Synthesize findings into a drug discovery research pack",
+          "input_strategy": "dependency_outputs",
+          "depends_on": [2]
+        }
+      ]
+    },
+    "biomedical_target_identification": {
+      "id": "biomedical_target_identification",
+      "enabled": true,
+      "safety_class": "research_only",
+      "spawned_roles": ["scout", "analyst", "synthesizer"],
+      "steps": [
+        {
+          "role": "scout",
+          "action_type": "discover_tools",
+          "task_type": "extract",
+          "description": "Discover target identification tools (OpenTargets, UniProt, STRING)",
+          "input_strategy": "mission_inputs",
+          "provider": "tooluniverse"
+        },
+        {
+          "role": "analyst",
+          "action_type": "execute_tools",
+          "task_type": "analyze",
+          "description": "Execute target validation and pathway analysis tools",
+          "input_strategy": "mission_and_dependency_outputs",
+          "depends_on": [1],
+          "provider": "tooluniverse"
+        },
+        {
+          "role": "synthesizer",
+          "action_type": "synthesize_output",
+          "task_type": "synthesize",
+          "description": "Synthesize target identification report",
+          "input_strategy": "dependency_outputs",
+          "depends_on": [2]
+        }
+      ]
+    },
+    "clinical_trial_intelligence": {
+      "id": "clinical_trial_intelligence",
+      "enabled": true,
+      "safety_class": "research_only",
+      "spawned_roles": ["scout", "analyst", "synthesizer"],
+      "steps": [
+        {
+          "role": "scout",
+          "action_type": "discover_tools",
+          "task_type": "extract",
+          "description": "Discover clinical trial tools (ClinicalTrials.gov, PubMed, Europe PMC)",
+          "input_strategy": "mission_inputs",
+          "provider": "tooluniverse"
+        },
+        {
+          "role": "analyst",
+          "action_type": "execute_tools",
+          "task_type": "analyze",
+          "description": "Execute trial analysis tools for endpoint and competitor tracking",
+          "input_strategy": "mission_and_dependency_outputs",
+          "depends_on": [1],
+          "provider": "tooluniverse"
+        },
+        {
+          "role": "synthesizer",
+          "action_type": "synthesize_output",
+          "task_type": "synthesize",
+          "description": "Synthesize clinical trial landscape report",
+          "input_strategy": "dependency_outputs",
+          "depends_on": [2]
+        }
+      ]
+    },
+    "pharmacovigilance_scan": {
+      "id": "pharmacovigilance_scan",
+      "enabled": true,
+      "safety_class": "research_only",
+      "spawned_roles": ["scout", "analyst", "synthesizer"],
+      "steps": [
+        {
+          "role": "scout",
+          "action_type": "discover_tools",
+          "task_type": "extract",
+          "description": "Discover pharmacovigilance tools (OpenFDA, DailyMed, RxNorm)",
+          "input_strategy": "mission_inputs",
+          "provider": "tooluniverse"
+        },
+        {
+          "role": "analyst",
+          "action_type": "execute_tools",
+          "task_type": "analyze",
+          "description": "Execute adverse event and drug interaction analysis tools",
+          "input_strategy": "mission_and_dependency_outputs",
+          "depends_on": [1],
+          "provider": "tooluniverse"
+        },
+        {
+          "role": "synthesizer",
+          "action_type": "synthesize_output",
+          "task_type": "synthesize",
+          "description": "Synthesize pharmacovigilance signal report",
+          "input_strategy": "dependency_outputs",
+          "depends_on": [2]
+        }
+      ]
+    },
+    "genomic_variant_analysis": {
+      "id": "genomic_variant_analysis",
+      "enabled": true,
+      "safety_class": "research_only",
+      "spawned_roles": ["scout", "analyst", "synthesizer"],
+      "steps": [
+        {
+          "role": "scout",
+          "action_type": "discover_tools",
+          "task_type": "extract",
+          "description": "Discover genomics tools (ClinVar, dbSNP, GnomAD, OMIM)",
+          "input_strategy": "mission_inputs",
+          "provider": "tooluniverse"
+        },
+        {
+          "role": "analyst",
+          "action_type": "execute_tools",
+          "task_type": "analyze",
+          "description": "Execute variant annotation and pathogenicity prediction tools",
+          "input_strategy": "mission_and_dependency_outputs",
+          "depends_on": [1],
+          "provider": "tooluniverse"
+        },
+        {
+          "role": "synthesizer",
+          "action_type": "synthesize_output",
+          "task_type": "synthesize",
+          "description": "Synthesize genomic variant analysis report",
+          "input_strategy": "dependency_outputs",
+          "depends_on": [2]
+        }
+      ]
+    },
+    "rare_disease_landscape": {
+      "id": "rare_disease_landscape",
+      "enabled": true,
+      "safety_class": "research_only",
+      "spawned_roles": ["scout", "analyst", "synthesizer"],
+      "steps": [
+        {
+          "role": "scout",
+          "action_type": "discover_tools",
+          "task_type": "extract",
+          "description": "Discover rare disease tools (Monarch Initiative, OMIM, OrphaNet)",
+          "input_strategy": "mission_inputs",
+          "provider": "tooluniverse"
+        },
+        {
+          "role": "analyst",
+          "action_type": "execute_tools",
+          "task_type": "analyze",
+          "description": "Execute orphan drug landscape and genetic mapping tools",
+          "input_strategy": "mission_and_dependency_outputs",
+          "depends_on": [1],
+          "provider": "tooluniverse"
+        },
+        {
+          "role": "synthesizer",
+          "action_type": "synthesize_output",
+          "task_type": "synthesize",
+          "description": "Synthesize rare disease landscape research pack",
+          "input_strategy": "dependency_outputs",
+          "depends_on": [2]
+        }
+      ]
+    },
+    "drug_repurposing_deep": {
+      "id": "drug_repurposing_deep",
+      "enabled": true,
+      "safety_class": "research_only",
+      "spawned_roles": ["literature_reviewer", "molecular_profiler", "safety_signal_detector", "synthesizer"],
+      "steps": [
+        {
+          "role": "literature_reviewer",
+          "action_type": "collect_sources",
+          "task_type": "extract",
+          "description": "Systematic literature review of repurposing candidates with citation traversal",
+          "input_strategy": "mission_inputs",
+          "provider": "tooluniverse"
+        },
+        {
+          "role": "molecular_profiler",
+          "action_type": "execute_tools",
+          "task_type": "analyze",
+          "description": "Compile molecular properties, ADMET profiles, and target-compound mappings",
+          "input_strategy": "mission_and_dependency_outputs",
+          "depends_on": [1],
+          "provider": "tooluniverse"
+        },
+        {
+          "role": "safety_signal_detector",
+          "action_type": "execute_tools",
+          "task_type": "analyze",
+          "description": "Detect adverse event signals and drug interaction risks for candidates",
+          "input_strategy": "mission_and_dependency_outputs",
+          "depends_on": [2],
+          "provider": "tooluniverse"
+        },
+        {
+          "role": "synthesizer",
+          "action_type": "synthesize_output",
+          "task_type": "synthesize",
+          "description": "Synthesize deep drug repurposing intelligence report",
+          "input_strategy": "dependency_outputs",
+          "depends_on": [3]
+        }
+      ]
+    },
+    "pharmacovigilance_enterprise": {
+      "id": "pharmacovigilance_enterprise",
+      "enabled": true,
+      "safety_class": "research_only",
+      "spawned_roles": ["safety_signal_detector", "literature_reviewer", "quality_auditor", "report_generator"],
+      "steps": [
+        {
+          "role": "safety_signal_detector",
+          "action_type": "execute_tools",
+          "task_type": "analyze",
+          "description": "Detect disproportionality signals (PRR/ROR) from FAERS and safety databases",
+          "input_strategy": "mission_inputs",
+          "provider": "tooluniverse"
+        },
+        {
+          "role": "literature_reviewer",
+          "action_type": "collect_sources",
+          "task_type": "extract",
+          "description": "Cross-reference safety signals against published literature",
+          "input_strategy": "mission_and_dependency_outputs",
+          "depends_on": [1],
+          "provider": "tooluniverse"
+        },
+        {
+          "role": "quality_auditor",
+          "action_type": "analyze_documents",
+          "task_type": "analyze",
+          "description": "Verify all safety claims against source databases and score confidence",
+          "input_strategy": "dependency_outputs",
+          "depends_on": [2],
+          "provider": "tooluniverse"
+        },
+        {
+          "role": "report_generator",
+          "action_type": "synthesize_output",
+          "task_type": "synthesize",
+          "description": "Generate enterprise pharmacovigilance safety report",
+          "input_strategy": "dependency_outputs",
+          "depends_on": [3]
+        }
+      ]
+    },
+    "competitive_landscape": {
+      "id": "competitive_landscape",
+      "enabled": true,
+      "safety_class": "research_only",
+      "spawned_roles": ["competitive_intel_analyst", "literature_reviewer", "synthesizer"],
+      "steps": [
+        {
+          "role": "competitive_intel_analyst",
+          "action_type": "execute_tools",
+          "task_type": "analyze",
+          "description": "Map pipeline landscape, trial phases, enrollment trends, and competitor positioning",
+          "input_strategy": "mission_inputs",
+          "provider": "tooluniverse"
+        },
+        {
+          "role": "literature_reviewer",
+          "action_type": "collect_sources",
+          "task_type": "extract",
+          "description": "Gather supporting literature on key competitors and regulatory milestones",
+          "input_strategy": "mission_and_dependency_outputs",
+          "depends_on": [1],
+          "provider": "tooluniverse"
+        },
+        {
+          "role": "synthesizer",
+          "action_type": "synthesize_output",
+          "task_type": "synthesize",
+          "description": "Synthesize competitive landscape intelligence report",
+          "input_strategy": "dependency_outputs",
+          "depends_on": [2]
+        }
+      ]
+    },
+    "target_validation_deep": {
+      "id": "target_validation_deep",
+      "enabled": true,
+      "safety_class": "research_only",
+      "spawned_roles": ["molecular_profiler", "literature_reviewer", "quality_auditor", "synthesizer"],
+      "steps": [
+        {
+          "role": "molecular_profiler",
+          "action_type": "execute_tools",
+          "task_type": "analyze",
+          "description": "Profile target protein: expression, pathways, PPI networks, druggability",
+          "input_strategy": "mission_inputs",
+          "provider": "tooluniverse"
+        },
+        {
+          "role": "literature_reviewer",
+          "action_type": "collect_sources",
+          "task_type": "extract",
+          "description": "Systematic review of target validation evidence in literature",
+          "input_strategy": "mission_and_dependency_outputs",
+          "depends_on": [1],
+          "provider": "tooluniverse"
+        },
+        {
+          "role": "quality_auditor",
+          "action_type": "analyze_documents",
+          "task_type": "analyze",
+          "description": "Verify target claims against UniProt, OpenTargets, and HPA data",
+          "input_strategy": "dependency_outputs",
+          "depends_on": [2],
+          "provider": "tooluniverse"
+        },
+        {
+          "role": "synthesizer",
+          "action_type": "synthesize_output",
+          "task_type": "synthesize",
+          "description": "Synthesize deep target validation intelligence report",
+          "input_strategy": "dependency_outputs",
+          "depends_on": [3]
+        }
+      ]
+    },
+    "regulatory_safety_profile": {
+      "id": "regulatory_safety_profile",
+      "enabled": true,
+      "safety_class": "research_only",
+      "spawned_roles": ["safety_signal_detector", "literature_reviewer", "quality_auditor", "report_generator"],
+      "steps": [
+        {
+          "role": "safety_signal_detector",
+          "action_type": "execute_tools",
+          "task_type": "analyze",
+          "description": "Comprehensive safety signal analysis for regulatory submission",
+          "input_strategy": "mission_inputs",
+          "provider": "tooluniverse"
+        },
+        {
+          "role": "literature_reviewer",
+          "action_type": "collect_sources",
+          "task_type": "extract",
+          "description": "Literature evidence for safety profile, including post-market surveillance",
+          "input_strategy": "mission_and_dependency_outputs",
+          "depends_on": [1],
+          "provider": "tooluniverse"
+        },
+        {
+          "role": "quality_auditor",
+          "action_type": "analyze_documents",
+          "task_type": "analyze",
+          "description": "Audit all safety claims for regulatory-grade accuracy and completeness",
+          "input_strategy": "dependency_outputs",
+          "depends_on": [2],
+          "provider": "tooluniverse"
+        },
+        {
+          "role": "report_generator",
+          "action_type": "synthesize_output",
+          "task_type": "synthesize",
+          "description": "Generate regulatory safety profile report formatted for submission",
+          "input_strategy": "dependency_outputs",
+          "depends_on": [3]
+        }
+      ]
+    }
+  }
+}

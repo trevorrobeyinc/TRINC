@@ -1,0 +1,62 @@
+{
+  "schema_version": "phase30-workflow-v1",
+  "workflow_template_id": "clinical-trial-landscape",
+  "name": "Clinical Trial Landscape Intelligence",
+  "description": "Trial landscape mapping, endpoint analysis, and competitor tracking using ClinicalTrials.gov, EuropePMC, and PubMed via ToolUniverse.",
+  "auto_approve": true,
+  "provider_preference": {
+    "primary": "claude-code",
+    "fallback": "lm-studio"
+  },
+  "input_schema": {
+    "required": ["therapeutic_area"],
+    "properties": {
+      "therapeutic_area": { "type": "string", "description": "Therapeutic area or indication to map" },
+      "phase_filter": { "type": "string", "description": "Clinical trial phase filter (e.g. 'Phase 3')" },
+      "input_dir": { "type": "string", "description": "Path to seed documents directory", "default": "workspace/research-input/biomedical/" }
+    }
+  },
+  "pipeline": [
+    {
+      "step_id": "research",
+      "type": "mission",
+      "mission_template_id": "clinical_trial_intelligence",
+      "description_template": "Clinical trial landscape for {{therapeutic_area}}",
+      "mission_type": "research_to_dataset",
+      "dataset_type": "retrieval_qa"
+    },
+    {
+      "step_id": "quality_check",
+      "type": "quality_audit",
+      "depends_on": ["research"],
+      "confidence_threshold": 0.6,
+      "verification_tools": ["ClinicalTrials.gov", "EuropePMC", "PubMed"]
+    },
+    {
+      "step_id": "build_dataset",
+      "type": "dataset",
+      "depends_on": ["quality_check"],
+      "dataset_type": "retrieval_qa",
+      "quality_threshold": 0.5
+    },
+    {
+      "step_id": "package",
+      "type": "offer",
+      "depends_on": ["build_dataset"],
+      "product_line": "biomedical_research_packs",
+      "tier": "standard",
+      "targets": ["datarade"]
+    },
+    {
+      "step_id": "approve",
+      "type": "approve",
+      "depends_on": ["package"]
+    },
+    {
+      "step_id": "export",
+      "type": "export",
+      "depends_on": ["approve"],
+      "format": "zip"
+    }
+  ]
+}

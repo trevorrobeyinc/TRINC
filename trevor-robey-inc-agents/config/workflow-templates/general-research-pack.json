@@ -1,0 +1,54 @@
+{
+  "schema_version": "phase30-workflow-v1",
+  "workflow_template_id": "general-research-pack",
+  "name": "General Research Pack",
+  "description": "General-purpose research workflow for any topic: mission execution, dataset build, offer packaging, approval, and ZIP export. LLM-only (no ToolUniverse).",
+  "auto_approve": true,
+  "provider_preference": {
+    "primary": "claude-code",
+    "fallback": "lm-studio"
+  },
+  "input_schema": {
+    "required": ["topic"],
+    "properties": {
+      "topic": { "type": "string", "description": "Research topic or question" },
+      "input_dir": { "type": "string", "description": "Path to seed documents directory", "default": "workspace/research-input/sample/" }
+    }
+  },
+  "pipeline": [
+    {
+      "step_id": "research",
+      "type": "mission",
+      "mission_template_id": "research_pack",
+      "description_template": "Research pack: {{topic}}",
+      "mission_type": "research_to_dataset",
+      "dataset_type": "retrieval_qa"
+    },
+    {
+      "step_id": "build_dataset",
+      "type": "dataset",
+      "depends_on": ["research"],
+      "dataset_type": "retrieval_qa",
+      "quality_threshold": 0.3
+    },
+    {
+      "step_id": "package",
+      "type": "offer",
+      "depends_on": ["build_dataset"],
+      "product_line": "research_packs",
+      "tier": "standard",
+      "targets": ["datarade"]
+    },
+    {
+      "step_id": "approve",
+      "type": "approve",
+      "depends_on": ["package"]
+    },
+    {
+      "step_id": "export",
+      "type": "export",
+      "depends_on": ["approve"],
+      "format": "zip"
+    }
+  ]
+}

@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>OpenClaw Pharmacovigilance Sample</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      white-space: pre-wrap;
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">OpenClaw Pharmacovigilance Sample</h1>
+</header>
+<h1 id="openclaw-pharmacovigilance-intelligence-sample-output">OpenClaw
+Pharmacovigilance Intelligence – Sample Output</h1>
+<p><strong>Immune Checkpoint Inhibitor Adverse Event Signal
+Synthesis</strong></p>
+<hr />
+<h2 id="what-this-is">What This Is</h2>
+<p>An autonomous multi-agent pharmacovigilance engine that synthesizes
+adverse event signals from FDA registries, peer-reviewed literature, and
+pharmacological databases into a prioritized, citation-backed signal
+register.</p>
+<p><strong>41 verified citations | 7 identifier types | 3 agent sections
+| 48 pages</strong></p>
+<h2 id="methodology">Methodology</h2>
+<ul>
+<li><strong>Scout</strong>: Systematic scan of OpenFDA AEMS (formerly
+AEMS, migrated to daily real-time updates Mar 11, 2026), DailyMed SPL,
+and RxNorm with cross-reference normalization</li>
+<li><strong>Analyst</strong>: Quantitative signal analysis with AEMS
+disproportionality metrics (ROR, PRR) and drug interaction
+profiling</li>
+<li><strong>Synthesizer</strong>: Cross-validated signal hierarchy with
+confidence tiers and clinical action items</li>
+</ul>
+<p>Every claim maps to a verifiable identifier. Claims without citations
+are excluded.</p>
+<h2 id="top-3-critical-signals">Top 3 Critical Signals</h2>
+<p><strong>C-1: ICI Combination Myocarditis</strong> Nivolumab (RxNorm:
+1597876) + ipilimumab (RxNorm: 950399) – fatality rate ~46% in fulminant
+cases, AEMS ROR ~4.5x monotherapy baseline, median onset 34 days.
+Mechanism: dual PD-1/CTLA-4 blockade drives autoreactive T-cell
+expansion against cardiac troponin epitopes. PMID: 30232222 | doi:
+10.1056/NEJMoa1716078</p>
+<p><strong>C-2: Valproic Acid Myelosuppression with
+Temozolomide</strong> Valproic acid (RxNorm: 11118) + TMZ (RxNorm:
+10396) – Grade 3-4 thrombocytopenia 18% vs 8% TMZ alone. CYP2C9
+(UniProt: P11712) inhibition increases TMZ exposure. NCT00302159 | PMID:
+20823420</p>
+<p><strong>C-3: Chloroquine QTc Prolongation in GBM Patients</strong>
+Chloroquine (RxNorm: 2393; PubChem CID: 2719) – additive hERG block
+(UniProt: Q12809) plus dexamethasone-induced hypokalemia creates
+torsades risk.</p>
+<p>[+4 additional high/moderate priority signals in full report]</p>
+<hr />
+<h2 id="verification">Verification</h2>
+<p>Every identifier is independently verifiable:</p>
+<table>
+<colgroup>
+<col style="width: 37%" />
+<col style="width: 30%" />
+<col style="width: 32%" />
+</colgroup>
+<thead>
+<tr>
+<th>Citation Type</th>
+<th>Identifier</th>
+<th>Verification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PMID</td>
+<td>30232222</td>
+<td>pubmed.ncbi.nlm.nih.gov/30232222 – ICI myocarditis systematic
+review, JACC 2018</td>
+</tr>
+<tr>
+<td>PMID</td>
+<td>28552849</td>
+<td>pubmed.ncbi.nlm.nih.gov/28552849 – ICI irAE disproportionality
+analysis</td>
+</tr>
+<tr>
+<td>NCT</td>
+<td>NCT00302159</td>
+<td>clinicaltrials.gov – Valproic acid + TMZ in GBM</td>
+</tr>
+<tr>
+<td>RxNorm</td>
+<td>1597876</td>
+<td>rxnav.nlm.nih.gov/REST/rxcui/1597876 – Nivolumab pharmacology</td>
+</tr>
+<tr>
+<td>DOI</td>
+<td>10.1056/NEJMoa1716078</td>
+<td>doi.org/10.1056/NEJMoa1716078 – NEJM ICI cardiac events</td>
+</tr>
+</tbody>
+</table>
+<p>Check any identifier above in its source database. It resolves.</p>
+<h2 id="additional-intelligence-products">Additional Intelligence
+Products</h2>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 48%" />
+<col style="width: 30%" />
+</colgroup>
+<thead>
+<tr>
+<th>Product</th>
+<th>Citations per Report</th>
+<th>Data Sources</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Drug Discovery Intelligence Pack</td>
+<td>200+</td>
+<td>PubChem, ChEMBL, RxNorm, UniProt</td>
+</tr>
+<tr>
+<td>Clinical Trial Landscape Analysis</td>
+<td>180+</td>
+<td>ClinicalTrials.gov, PubMed, WHO ICTRP</td>
+</tr>
+<tr>
+<td>Target Validation Dossier</td>
+<td>289+</td>
+<td>OpenTargets, UniProt, HPA, ChEMBL</td>
+</tr>
+<tr>
+<td>Rare Disease Research Brief</td>
+<td>150+</td>
+<td>GARD, Orphanet, PubMed, ClinicalTrials.gov</td>
+</tr>
+</tbody>
+</table>
+<h2 id="pricing">Pricing</h2>
+<table>
+<colgroup>
+<col style="width: 39%" />
+<col style="width: 25%" />
+<col style="width: 35%" />
+</colgroup>
+<thead>
+<tr>
+<th>Engagement</th>
+<th>Price</th>
+<th>Delivery</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Investor Pre-Mortem (PRIMARY)</strong></td>
+<td>$9,950 anchor / $14,950 standard / $19,950 custom (+ KOL primary)</td>
+<td>Per-asset risk dossier; 5–10 business days; refund-backed citation-audit SLA</td>
+</tr>
+<tr>
+<td><strong>Failed Trial Archaeology (FLANKING)</strong></td>
+<td>$14,950</td>
+<td>Phase 2/3 termination post-mortem; NCT-indexed failure pattern matrix</td>
+</tr>
+<tr>
+<td>Pharmacovigilance Pack (tactical)</td>
+<td>$2,500 – $4,950 per report</td>
+<td>Existing marketplace tier; 72-hour secure email delivery</td>
+</tr>
+<tr>
+<td>Conference Synthesis Brief</td>
+<td>$4,950 / conference</td>
+<td>500+ ASCO/ESMO/AACR abstracts; 24–48hr</td>
+</tr>
+<tr>
+<td>Plain-Language Patient Brief</td>
+<td>$2,500</td>
+<td>EU CTR 536/2014 PLS at 8th-grade literacy</td>
+</tr>
+</tbody>
+</table>
+<h2 id="next-steps">Next Steps</h2>
+<p>Request the full 48-page sample deliverable or initiate a custom
+intelligence mission on a topic relevant to your pipeline.</p>
+<p><strong>Contact</strong>: trevor@trevorrobey.com
+<strong>Web</strong>: https://trevorrobeyinc.github.io</p>
+<hr />
+<p><em>Produced using AI-assisted research synthesis with human
+editorial oversight. All citations independently verifiable.</em>
+<em>Trevor Robey Inc. (powered by OpenClaw)</em></p>
+<hr />
+<h2 id="source-license-register">Source License Register</h2>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Source</th>
+<th>License</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AEMS (formerly FAERS)</td>
+<td>US Government work — public domain</td>
+<td>Daily real-time updates since Aug 2025; migration completed Mar 11,
+2026.</td>
+</tr>
+<tr>
+<td>ClinicalTrials.gov</td>
+<td>US Government work — public domain</td>
+<td>NLM attribution preserved.</td>
+</tr>
+<tr>
+<td>PubMed</td>
+<td>Citation metadata + abstracts free</td>
+<td>Full-text quoting limited to PMC Open Access Subset.</td>
+</tr>
+<tr>
+<td>PubChem</td>
+<td>Public domain</td>
+<td>NIH/NLM attribution preserved.</td>
+</tr>
+<tr>
+<td>ChEMBL</td>
+<td>CC BY-SA 3.0</td>
+<td>Derived analyses with version cited (e.g., ChEMBL_36, Sept 2025).
+Raw rows not redistributed.</td>
+</tr>
+<tr>
+<td>RxNorm</td>
+<td>Public domain (US federal data)</td>
+<td>Drug identifiers via RxNav (rxnav.nlm.nih.gov).</td>
+</tr>
+<tr>
+<td>OpenFDA</td>
+<td>Public domain (FDA)</td>
+<td>Application/SPL identifiers.</td>
+</tr>
+<tr>
+<td>UniProt</td>
+<td>CC BY 4.0</td>
+<td>Attribution string included.</td>
+</tr>
+<tr>
+<td>DrugBank</td>
+<td>NOT INCLUDED</td>
+<td>Excluded under DrugBank commercial-use ToS. Commercial DrugBank pack
+available under separate license — contact trevor@trevorrobey.com.</td>
+</tr>
+</tbody>
+</table>
+
+<div style="font-size:11px;color:#888;text-align:center;padding:16px;border-top:1px solid #333;margin-top:24px;font-style:italic">
+  Trevor Robey, INC. is the wordmark of <strong>Trevor Robey Intelligence Network Citations LLC</strong>, a California limited liability company (filed 2026-05-06). INC = Intelligence Network Citations.
+</div>
+</body>
+</html>

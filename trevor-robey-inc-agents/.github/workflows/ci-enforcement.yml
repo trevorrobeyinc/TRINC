@@ -1,0 +1,83 @@
+name: trevor-robey-inc-agents-CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  policy-and-tests:
+    name: policy-and-tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: true
+      - name: Setup Node.js 22.13.1
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+      - name: Install policy tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ripgrep
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+      - name: Run secret scan (regex)
+        run: npm run secrets:verify
+      - name: Run Phase 20 verification
+        run: npm run phase20:verify
+      - name: Run Phase 21 verification
+        run: npm run phase21:verify
+      - name: Run Phase 22 verification
+        run: npm run phase22:verify
+      - name: Run Phase 23 verification
+        run: npm run phase23:verify
+      - name: Run Phase 24 verification
+        run: npm run phase24:verify
+      - name: Run Phase 25 verification
+        run: npm run phase25:verify
+      - name: Run Phase 26A verification
+        run: npm run phase26:verify
+      - name: Run Phase 28 verification
+        run: npm run phase28:verify
+      - name: Run Phase 29 verification
+        run: npm run phase29:verify
+      - name: Run Phase 30 verification
+        run: npm run phase30:verify
+      - name: Run Phase 31 verification
+        run: npm run phase31:verify
+      - name: Run monetization verification
+        run: npm run monetization:verify
+      - name: Run policy and test gates
+        run: npm run phase2:gates
+
+  deterministic-build-verify:
+    name: deterministic-build-verify
+    runs-on: ubuntu-latest
+    needs:
+      - policy-and-tests
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: true
+      - name: Setup Node.js 22.13.1
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+      - name: Install policy tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ripgrep
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+      - name: Run deterministic build verification
+        run: npm run build:verify
