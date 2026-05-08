@@ -8,7 +8,7 @@ GitHub: [trevoralexanderrobey/TrevClaw-Obsidianodus](https://github.com/trevoral
 
 | Path | Role | Deep Dive |
 |------|------|-----------|
-| `Claude/` | Central hub: Medical Zettelkasten MCP, Command Center plugin, Trevor Robey Inc Research Memory MCP, Qdrant TLS proxy, Obsidian-bridge launcher | `Claude/CLAUDE.md` |
+| `Claude/` | Central hub: Medical Zettelkasten MCP, Command Center plugin, Trevor Robey Inc Research Memory MCP, Obsidian-bridge launcher, vault-zettelkasten plugin | `Claude/CLAUDE.md` |
 | `Copilot-Everything/` | Obsidian integration: plugin fork (vendored at `repos/obsidian-copilot-mcp/`), MCP bridge (:8798), Miyo TLS proxy (:8743) | `Copilot-Everything/CLAUDE.md` |
 | `trevor-robey-inc-agents/` | Citation-traced biomedical due diligence engine (powered by OpenClaw). Six workflow templates feed concrete commercial offerings: Investor Pre-Mortem (primary, $9,950–$19,950) and Failed Trial Archaeology (flanking, $14,950) drive premium revenue; Conference Synthesis Brief, Trial Design Benchmark Pack, Cross-Silo Connector Report, Plain-Language Patient Brief, and Pharmacovigilance Pack serve tactical demand. Role-routed LLM providers (Claude Code primary, LM Studio fallback, mock for CI), ToolUniverse subprocess (~2,116 tools, pinned at v1.1.10), eight project MCP servers. Runs as on-demand subprocess via `node scripts/run-workflow.js` — no persistent gateway. | `trevor-robey-inc-agents/CLAUDE.md` |
 | `trevor-robey-inc/` | Brand canon, LLC formation paperwork, six-SKU offering ladder, launch playbook, REVENUE_PLAYBOOK, NOTICE, dossier | `trevor-robey-inc/README.md` |
@@ -192,3 +192,4 @@ Every network-facing TCP listener owned by code in this monorepo MUST be HTTPS. 
 - 3 stale context-handoff `.md` files (one-time AI-to-AI session handoff payloads).
 - `trevor-robey-inc-agents/docs/ei-integration-analysis-2026-04-23.md` — historical OCRA↔TrevGraph-Studio analysis memo, predates rebrand, no code mutations occurred.
 - `trevor-robey-inc-agents/openclaw-bridge/mcp/adisinsight-mcp.bak.cleanup.1777186681/` and 2 other `*.bak` files.
+- `Claude/qdrant-tls-proxy/` — second-pass deletion 2026-05-08. The proxy was built but never wired in: both clients (`trevorobeyinc-research-memory-mcp` and `obsidian-vault-zettelkasten` plugin) hardcode `http://127.0.0.1:6333` and bypass the proxy. Per the loopback-HTTP carve-out below, Qdrant on `:6333` plaintext stays accepted (loopback-only bind, third-party app we don't own) — no defense-in-depth wrap needed, unlike Miyo. If we ever want to revisit, the next step is a `pf` rule restricting `:6333` inbound to specific UIDs.
