@@ -1,6 +1,58 @@
 # Revenue Playbook — Trevor Robey Inc Agents
 
-Last updated: 2026-04-27
+Last updated: 2026-05-07
+
+---
+
+## 0a. Legal entity status (as of 2026-05-07)
+
+| | |
+|---|---|
+| **Legal name** | Trevor Robey Intelligence Network Citations LLC |
+| **Brand wordmark** | Trevor Robey, INC. (INC = Intelligence Network Citations) |
+| **State of formation** | California — limited liability company |
+| **Filing date** | 2026-05-06 (bizfileOnline; receipt B20260217250) |
+| **CA SOS approval status** | **Pending** — 2-3 business day standard processing window |
+| **Member structure** | Member-managed; sole member: Trevor Robey |
+| **Registered agent** | Trevor Robey (individual) |
+| **Principal office** | 8161 Oahu Dr, Fair Oaks, CA 95628-3745 |
+| **Domain** | trevorobeyinc.com |
+| **Customer-facing email** | trevor@trevorobeyinc.com |
+| **Customer-facing disclosure** | *"Trevor Robey, INC. is the wordmark of Trevor Robey Intelligence Network Citations LLC, a California limited liability company."* |
+
+Compliance posture: the wordmark "Trevor Robey, INC." is paired with the disclosure above on every customer-facing surface (website, marketplace listings, MSAs, SOWs, NDAs, invoices, AWS Data Exchange seller profile, Datarade vendor profile, plugin UI strings). This satisfies Cal. Bus. & Prof. Code §17910.5(a) (fictitious-business-name disclosure) and avoids Cal. Corp. Code §17701.08(e) which bars "Inc." inside an LLC's legal name.
+
+Filing record: [`../trevor-robey-inc/00-business-formation/llc/certificate-of-formation.md`](../trevor-robey-inc/00-business-formation/llc/certificate-of-formation.md).
+
+Dependent updates that fire on CA SOS approval: SOS Entity Number → AWS Marketplace seller profile → Datarade vendor profile → bank verification (Mercury) → tax interview (W-9 + AWS) → MSA/SOW/NDA legal-entity blanks. See [`../trevor-robey-inc/00-business-formation/llc/certificate-of-formation.md` §"Surfaces affected by formation"](../trevor-robey-inc/00-business-formation/llc/certificate-of-formation.md) for the full list.
+
+---
+
+## 0b. Repo topology (as of 2026-05-07)
+
+This repo is a **member of the TrevClaw-Obsidianodus monorepo** at [`https://github.com/trevoralexanderrobey/TrevClaw-Obsidianodus`](https://github.com/trevoralexanderrobey/TrevClaw-Obsidianodus). The previous standalone GitHub remote `https://github.com/trevoralexanderrobey/trevor-robey-inc-agents` is the rollback anchor (tag `pre-monorepo-consolidation-2026-05-07` at SHA `8e782a0`); archive pending. All run paths below are relative to the monorepo root (`/Users/trevorrobey/TrevClaw-Obsidianodus/trevor-robey-inc-agents/`); legacy absolute paths under `/Users/trevorrobey/Code/trevor-robey-inc-agents/` are preserved via back-symlink during the transition.
+
+ToolUniverse is a pinned submodule at [`vendor/tooluniverse/`](vendor/tooluniverse) (SHA `3833b0e`, v1.1.10).
+
+---
+
+## 0c. AWS Data Exchange — listing progress (as of 2026-05-07)
+
+**Status**: standards-compliant listing draft complete; awaiting AWS Data Exchange Provider Qualification approval. Scheduled go-live target: Week 3 (May 11–15).
+
+| Item | State |
+|---|---|
+| Listing artifacts | ✅ Drafted — [`workspace/aws-marketplace-listing/pharmacovigilance-sample-pack/`](workspace/aws-marketplace-listing/pharmacovigilance-sample-pack/) |
+| Pre-flight integrity checks | ✅ Pass (citation traceability, ASCII compliance, character limits, PHI absence, NOTICE alignment) |
+| AWS DX Provider Qualification | ⏳ Pending — Support case in flight (7-business-day SLA) |
+| Public seller profile verification | ⏳ Pending — independent 2-3 business day review |
+| LLC SOS approval (gates seller-profile entity description) | ⏳ Pending — see §0a |
+| Bundle archive | ✅ `workspace/aws-marketplace-listing/pharmacovigilance-sample-pack/listing-and-dsa.zip` |
+| Upload sequence (8 steps, ~15 min UI work when both approvals land) | Documented in [`MANIFEST.md`](workspace/aws-marketplace-listing/pharmacovigilance-sample-pack/MANIFEST.md#upload-sequence-when-dx-qualification-approval-arrives) |
+
+**First listing tier**: free Pharmacovigilance Signal Synthesis Sample Pack (10 ICI-class adverse-event signals, 29 verified-identifier rows). Paid Investor Pre-Mortem and Failed Trial Archaeology dossiers list separately after the free tier publishes and validates the seller profile.
+
+Working doc: [`../trevor-robey-inc/05-launch-plan/week-3-may11-may15/aws-listing-go-live.md`](../trevor-robey-inc/05-launch-plan/week-3-may11-may15/aws-listing-go-live.md).
 
 ---
 

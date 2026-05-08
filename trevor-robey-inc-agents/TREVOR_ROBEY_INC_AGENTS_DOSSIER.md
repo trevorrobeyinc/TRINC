@@ -4,6 +4,24 @@ This is the canonical repo-root handoff for humans and Claude.
 
 It is intentionally synthesized rather than transcript-dumped. The goal is to explain what this project is, what is actually implemented, what is still pending, and how Claude should continue from the real current state of the codebase.
 
+---
+
+## What changed since this dossier was last fully refreshed (delta as of 2026-05-07)
+
+1. **Legal entity formed.** Brand wordmark **"Trevor Robey, INC."** is now backed by **Trevor Robey Intelligence Network Citations LLC**, a California limited liability company filed at bizfileOnline 2026-05-06 (receipt B20260217250). CA SOS approval is pending the standard 2–3 business-day window. Customer-facing materials pair the wordmark with the disclosure: *"Trevor Robey, INC. is the wordmark of Trevor Robey Intelligence Network Citations LLC, a California limited liability company."* Filing record: [`../trevor-robey-inc/00-business-formation/llc/certificate-of-formation.md`](../trevor-robey-inc/00-business-formation/llc/certificate-of-formation.md). Compliance pattern explained in [`REVENUE_PLAYBOOK.md` §0a](REVENUE_PLAYBOOK.md).
+
+2. **Repo topology — single monorepo.** This codebase is no longer a standalone GitHub repo. As of 2026-05-07 it lives as a top-level directory inside the monorepo at [`https://github.com/trevoralexanderrobey/TrevClaw-Obsidianodus`](https://github.com/trevoralexanderrobey/TrevClaw-Obsidianodus) (private). The previous standalone remote `https://github.com/trevoralexanderrobey/trevor-robey-inc-agents` is the rollback anchor (tag `pre-monorepo-consolidation-2026-05-07` at SHA `8e782a0`); the repo is being archived. The three sister sub-trees (`Claude/`, `Copilot-Everything/`, `trevor-robey-inc/`) are now siblings of `trevor-robey-inc-agents/` inside the monorepo. Submodule `vendor/tooluniverse/` is pinned at SHA `3833b0e` (v1.1.10).
+
+3. **AWS Data Exchange listing — staged, awaiting approvals.** Standards-compliant listing draft for the free Pharmacovigilance Sample Pack is complete in [`workspace/aws-marketplace-listing/pharmacovigilance-sample-pack/`](workspace/aws-marketplace-listing/pharmacovigilance-sample-pack/) (manifest: [`MANIFEST.md`](workspace/aws-marketplace-listing/pharmacovigilance-sample-pack/MANIFEST.md)). Pre-flight integrity checks pass. Two approvals gate go-live: (a) AWS Data Exchange Provider Qualification (Support case in flight, 7-business-day SLA), and (b) public seller profile verification (independent 2–3 business-day review). Target go-live: Week 3 (May 11–15). Scheduled play-by-play: [`../trevor-robey-inc/05-launch-plan/week-3-may11-may15/aws-listing-go-live.md`](../trevor-robey-inc/05-launch-plan/week-3-may11-may15/aws-listing-go-live.md). Free-tier publishes first; paid Investor Pre-Mortem and Failed Trial Archaeology dossiers list separately after the seller profile validates.
+
+4. **HTTPS-only invariant — Miyo carve-out closed.** Miyo's plaintext :8742 is now wrapped by an in-monorepo TLS proxy at [`../Copilot-Everything/scripts/miyo-tls-proxy.mjs`](../Copilot-Everything/scripts/miyo-tls-proxy.mjs) listening on `https://127.0.0.1:8743`, owned by launchd unit `com.trevorrobey.miyo-tls-proxy`. All consumers now point at `:8743`. See root `CLAUDE.md` "HTTPS-only invariant" section.
+
+5. **InfraNodus / TrevNodus fully removed.** No local clone, no webview handoff, no MCP server, no `graph-sync/` hydrator package. The biomedical workflow's post-run analysis is handled by the Medical Zettelkasten MCP under `Claude/Medical-Zettelkasten-MCP/`; visualization is on-demand via Obsidian's native Graph view.
+
+For the unchanged technical baseline (Phase system, scripts, MCP servers, governance), continue below.
+
+---
+
 ## Source Of Truth Order
 
 When sources disagree, use them in this order:

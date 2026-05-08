@@ -69,11 +69,11 @@ These paths are referenced by other systems in the monorepo. Files were **copied
 
 | Original (do not move) | Used by |
 |---|---|
-| `/Users/trevorrobey/openclaw-landing-deploy/index.html` | Cloudflare Worker `shy-grass-fccd` deploys trevorobeyinc.com from here |
-| `/Users/trevorrobey/openclaw-landing-deploy/assets/openclaw-pharmacovigilance-teaser.html` | Same Cloudflare deploy |
-| `/Users/trevorrobey/trevor-robey-inc-agents/workspace/collateral/` | Command Center plugin (powered by OpenClaw) reads from here. Path was `/Users/trevorrobey/OpenClaw-Research-Agents/workspace/collateral/` before the 2026-04-27 repo rename. |
+| `/Users/trevorrobey/openclaw-landing-deploy/index.html` | Cloudflare Worker `shy-grass-fccd` deploys trevorobeyinc.com from here. (External to monorepo — not consolidated.) |
+| `/Users/trevorrobey/openclaw-landing-deploy/assets/openclaw-pharmacovigilance-teaser.html` | Same Cloudflare deploy. |
+| `trevor-robey-inc-agents/workspace/collateral/` (this monorepo) | Command Center plugin (powered by OpenClaw) reads from here. Path migrated from `/Users/trevorrobey/Code/trevor-robey-inc-agents/workspace/collateral/` during the 2026-05-07 monorepo consolidation. |
 
-Edits to brand/landing copy should happen at the `trevor-robey-inc-agents/workspace/collateral/` path; copy back into `01-brand-system/` here to keep the canonical brand kit in this folder current.
+Edits to brand/landing copy should happen at `trevor-robey-inc-agents/workspace/collateral/` (now relative to this monorepo root); copy back into `01-brand-system/` here to keep the canonical brand kit in this folder current.
 
 ---
 

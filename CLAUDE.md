@@ -1,14 +1,29 @@
 # TrevClaw-Obsidianodus
 
-Meta-workspace unifying three project directories for the biomedical research intelligence stack.
+Single-repo monorepo for the **Trevor Robey, INC.** biomedical research intelligence stack. As of 2026-05-07 this is the canonical source of truth — three previously separate sub-trees (`Claude/`, `Copilot-Everything/`, `trevor-robey-inc-agents/`) plus the brand canon at `trevor-robey-inc/` are all first-class members of this repo.
 
-## Workspace Map
+GitHub: [trevoralexanderrobey/TrevClaw-Obsidianodus](https://github.com/trevoralexanderrobey/TrevClaw-Obsidianodus) (private).
 
-| Symlink | Target | Role | Deep Dive |
-|---------|--------|------|-----------|
-| `Claude/` | `/Users/trevorrobey/Code/Claude` | Central hub: Medical Zettelkasten MCP, Command Center plugin | `Claude/CLAUDE.md` |
-| `Copilot-Everything/` | `/Users/trevorrobey/Code/THE Copilot in Obsidian Everything` | Obsidian integration: plugin fork, MCP bridge (:8798), Miyo | `Copilot-Everything/CLAUDE.md` |
-| `trevor-robey-inc-agents/` | `/Users/trevorrobey/Code/trevor-robey-inc-agents` | Citation-traced biomedical due diligence engine (powered by OpenClaw). Six workflow templates feed concrete commercial offerings: Investor Pre-Mortem (primary, $9,950–$19,950) and Failed Trial Archaeology (flanking, $14,950) drive premium revenue; Conference Synthesis Brief, Trial Design Benchmark Pack, Cross-Silo Connector Report, Plain-Language Patient Brief, and Pharmacovigilance Pack serve tactical demand. Role-routed LLM providers (Claude Code primary, LM Studio fallback, mock for CI), ToolUniverse subprocess (~2,116 tools), eight project MCP servers. Runs as on-demand subprocess via `node scripts/run-workflow.js` — no persistent gateway. | `trevor-robey-inc-agents/CLAUDE.md` |
+## Repo Topology
+
+| Path | Role | Deep Dive |
+|------|------|-----------|
+| `Claude/` | Central hub: Medical Zettelkasten MCP, Command Center plugin, Trevor Robey Inc Research Memory MCP, Qdrant TLS proxy, Obsidian-bridge launcher | `Claude/CLAUDE.md` |
+| `Copilot-Everything/` | Obsidian integration: plugin fork (vendored at `repos/obsidian-copilot-mcp/`), MCP bridge (:8798), Miyo TLS proxy (:8743) | `Copilot-Everything/CLAUDE.md` |
+| `trevor-robey-inc-agents/` | Citation-traced biomedical due diligence engine (powered by OpenClaw). Six workflow templates feed concrete commercial offerings: Investor Pre-Mortem (primary, $9,950–$19,950) and Failed Trial Archaeology (flanking, $14,950) drive premium revenue; Conference Synthesis Brief, Trial Design Benchmark Pack, Cross-Silo Connector Report, Plain-Language Patient Brief, and Pharmacovigilance Pack serve tactical demand. Role-routed LLM providers (Claude Code primary, LM Studio fallback, mock for CI), ToolUniverse subprocess (~2,116 tools, pinned at v1.1.10), eight project MCP servers. Runs as on-demand subprocess via `node scripts/run-workflow.js` — no persistent gateway. | `trevor-robey-inc-agents/CLAUDE.md` |
+| `trevor-robey-inc/` | Brand canon, LLC formation paperwork, six-SKU offering ladder, launch playbook, REVENUE_PLAYBOOK, NOTICE, dossier | `trevor-robey-inc/README.md` |
+
+### Submodule
+
+- `trevor-robey-inc-agents/vendor/tooluniverse` → [mims-harvard/ToolUniverse](https://github.com/mims-harvard/ToolUniverse) pinned at SHA `3833b0e` (v1.1.10, Apache-2.0)
+
+### Vendored fork (no submodule)
+
+- `Copilot-Everything/repos/obsidian-copilot-mcp/` → SHA `df61538` of [logancyang/obsidian-copilot](https://github.com/logancyang/obsidian-copilot) on branch `codex/post-validated-mcp-baseline` — see `Copilot-Everything/repos/obsidian-copilot-mcp/UPSTREAM.md` for re-sync instructions.
+
+### Predecessor repos
+
+- `https://github.com/trevoralexanderrobey/trevor-robey-inc-agents` was archived 2026-05-07 with rollback tag `pre-monorepo-consolidation-2026-05-07` pointing at SHA `8e782a0` (the last pre-consolidation HEAD before the snapshot commit).
 
 ## Multi-Operator Topology
 
@@ -53,7 +68,7 @@ Biomedical Workflow Observability Stack (optional, Docker Compose)
 | 9090 | Prometheus (optional) | HTTP | trevor-robey-inc-agents | Docker Compose |
 | 3001 | Grafana (optional) | HTTP | trevor-robey-inc-agents | Docker Compose |
 
-> **:8798 vs :8799 disambiguation**: `:8798` is the **canonical** Obsidian MCP bridge — every operator (Claude Desktop, Cowork, the Command Center plugin) reads/writes the vault through it. As of 2026-05-03, ownership migrated from PM2 to the `obsidian-bridge-launcher` Obsidian plugin (Code/Claude/obsidian-bridge-launcher), which spawns the bridge as a child process tied to Obsidian's lifecycle: bridge dies when Obsidian quits. `:8799` is the **additive** Command Center bridge owned by the Obsidian plugin lifecycle — it exposes biomedical-workflow tools to the plugin's own UI and only exists while Obsidian is running. Different scopes (canonical vault access vs. workflow tools), but both now share Obsidian's lifecycle. Trade-off: vault is unreachable to Claude Desktop / Cowork / Raycast when Obsidian is closed (acceptable for "Obsidian is always open" workflows).
+> **:8798 vs :8799 disambiguation**: `:8798` is the **canonical** Obsidian MCP bridge — every operator (Claude Desktop, Cowork, the Command Center plugin) reads/writes the vault through it. As of 2026-05-03, ownership migrated from PM2 to the `obsidian-bridge-launcher` Obsidian plugin (`Claude/obsidian-bridge-launcher/`), which spawns the bridge as a child process tied to Obsidian's lifecycle: bridge dies when Obsidian quits. `:8799` is the **additive** Command Center bridge owned by the Obsidian plugin lifecycle — it exposes biomedical-workflow tools to the plugin's own UI and only exists while Obsidian is running. Different scopes (canonical vault access vs. workflow tools), but both now share Obsidian's lifecycle. Trade-off: vault is unreachable to Claude Desktop / Cowork / Raycast when Obsidian is closed (acceptable for "Obsidian is always open" workflows).
 
 ## TLS Configuration
 
@@ -80,7 +95,7 @@ curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.
 lsof -nP -iTCP:8742 -sTCP:LISTEN | grep -i miyo   # plaintext Miyo upstream (proxy backs onto this)
 curl http://127.0.0.1:6333/collections/miyo
 # Biomedical workflow runtime check (no persistent service — verify the subprocess path is wired):
-cd /Users/trevorrobey/Code/trevor-robey-inc-agents && bash scripts/verify-phase29-policy.sh | tail -1
+cd /Users/trevorrobey/TrevClaw-Obsidianodus/trevor-robey-inc-agents && bash scripts/verify-phase29-policy.sh | tail -1
 ```
 
 ## Key Integration Points
@@ -143,6 +158,8 @@ Logs: `~/.pm2/logs/` (PM2-managed mcp-bridge). Per-workflow biomedical-pipeline 
 - Port assignments are coordinated here; do not reassign without updating this file.
 - The MCP bridge at :8798 is the canonical vault access point. Do not create alternative vault bridges.
 - Session artifacts go to `.archive/` directories, not workspace roots.
+- **Single-repo invariant (2026-05-07)**: this monorepo at [`trevoralexanderrobey/TrevClaw-Obsidianodus`](https://github.com/trevoralexanderrobey/TrevClaw-Obsidianodus) is the single source of truth. Do NOT re-create separate sub-repos for `Claude/`, `Copilot-Everything/`, or `trevor-robey-inc-agents/` — they live here. The retired GitHub remote `https://github.com/trevoralexanderrobey/trevor-robey-inc-agents` is the rollback anchor (tag `pre-monorepo-consolidation-2026-05-07` at SHA `8e782a0`).
+- **Submodule discipline**: only `trevor-robey-inc-agents/vendor/tooluniverse` is a submodule (third-party Apache-2.0). Do not introduce new submodules without an explicit upstream-tracking justification; vendor instead and document with an `UPSTREAM.md`.
 
 ## HTTPS-only invariant (non-negotiable, monorepo-wide)
 
