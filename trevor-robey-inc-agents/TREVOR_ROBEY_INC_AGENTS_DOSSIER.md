@@ -143,6 +143,7 @@ flowchart TD
 | **Mock provider** | Test / CI | Active | Deterministic; required for offline `npm test`. |
 | **Ollama** | Local LLM slot | Disabled | Configured but not enabled in `config/llm-providers.json`. |
 | **ToolUniverse** (subprocess) | Biomedical tool surface | Active | ~2,116 tools, Apache-2.0, Harvard MIMS / Zitnik Lab; vendored at `vendor/tooluniverse/`; Phase 29 verified. |
+| **Scholar Gateway (Semantic Scholar)** | First-class literature lane | Active | `SemanticScholar_search_papers` is wired into the role prefetch map for `scout`, `analyst`, `literature_reviewer`, and `competitive_intel_analyst` — runs alongside PubMed/EuropePMC for every literature-aware role, not as a fallback. Complementary in-process JS MCP at `openclaw-bridge/mcp/semantic-scholar-mcp.js`; full vendored toolset (7 tools: search_papers, get_paper, get_pdf_snippets, get_recommendations, get_author, search_authors, etc.) at `vendor/tooluniverse/src/tooluniverse/tools/SemanticScholar_*.py`. Smoke tests under `audit/evidence/mcp-live/semantic-scholar-*.json`. See `config/tool-prefetch-map.json` for current wiring. |
 | **Project MCP servers** | Domain tool surface | Active | 8 servers under `openclaw-bridge/mcp/`: `chembl-mcp`, `clinicaltrials-gov-mcp`, `pubmed-mcp`, `huggingface-mcp` (metadata only), `npi-mcp`, `icd10-mcp`, `owkin-mcp`, `gdrive-mcp`. |
 
 No HuggingFace model weights are downloaded or run. The `huggingface-mcp` server queries Hub metadata only. Qwen2.5-7B-Instruct and OpenBioLLM-Llama3-8B were named in earlier planning but are not part of this stack.
