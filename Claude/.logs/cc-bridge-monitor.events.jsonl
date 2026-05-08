@@ -17440,3 +17440,4 @@
 {"timestamp":"2026-05-07T18:17:40Z","level":"error","event":"bridge_unreachable","detail":"Obsidian running but :8799 not responding"}
 {"timestamp":"2026-05-07T19:54:55Z","level":"info","event":"obsidian_not_running","detail":"skipping bridge check"}
 {"timestamp":"2026-05-08T00:32:27Z","level":"error","event":"bridge_unreachable","detail":"Obsidian running but :8799 not responding"}
+{"timestamp":"2026-05-08T05:49:12Z","level":"info","event":"obsidian_not_running","detail":"skipping bridge check"}
