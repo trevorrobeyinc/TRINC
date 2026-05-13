@@ -86,8 +86,8 @@ Future MCP servers that wrap Anthropic CLIs and run under a non-default bundle c
 ### Metadata
 - Source: error
 - Related Files:
-  - `/Users/trevorrobey/TrevClaw-Obsidianodus/Copilot-Everything/bridges/claude-cli-bridge/index.mjs`
+  - `/Users/trevorrobey/TrevClaw-Obsidianodus/Claude/claude-cli-bridge/index.mjs`
   - `/Users/trevorrobey/Library/Application Support/Claude/claude_desktop_config.json`
 - Tags: macos, keychain, code-signing, oauth, claude-cli, bundle-identifier, mcp
 - See Also: LRN-20260513-001 (heartbeat fix from same session), LRN-20260513-002 (permission-mode gating)
-- Promoted to: `/Users/trevorrobey/TrevClaw-Obsidianodus/Copilot-Everything/CLAUDE.md` § "Claude CLI bridge (outbound delegation)" → "Auth" subsection
+- Promoted to: `/Users/trevorrobey/TrevClaw-Obsidianodus/Claude/CLAUDE.md` § "Outbound `claude` CLI bridge — `claude-cli-bridge/`" → "Auth" subsection
