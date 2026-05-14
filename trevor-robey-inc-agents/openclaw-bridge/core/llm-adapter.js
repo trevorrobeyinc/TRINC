@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const { canonicalize, safeString, sha256 } = require("../../workflows/governance-automation/common.js");
+const { throwWithDiagnostic } = require("./tls-diagnostic.js");
 
 function isPlainObject(value) {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
@@ -73,18 +74,31 @@ function buildMockResponse(prompt, model) {
 }
 
 async function callLocalOllama(prompt, providerConfig) {
-  const endpoint = safeString(providerConfig.endpoint) || "http://localhost:11434/api/generate";
+  // HTTPS-only invariant: default is the in-monorepo TLS proxy at :11435, NOT
+  // the plaintext upstream :11434. If the call fails, surface a structured
+  // diagnostic via tls-diagnostic.js — NEVER fall back to http://.
+  const endpoint = safeString(providerConfig.endpoint) || "https://127.0.0.1:11435/api/generate";
   const model = safeString(providerConfig.model) || "llama3.1";
 
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      model,
-      prompt: String(prompt || ""),
-      stream: false
-    })
-  });
+  let response;
+  try {
+    response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        model,
+        prompt: String(prompt || ""),
+        stream: false
+      })
+    });
+  } catch (err) {
+    throwWithDiagnostic("ollama", {
+      proxyPort: 11435,
+      upstreamPort: 11434,
+      launchdLabel: "com.trevorrobey.ollama-tls-proxy",
+      error: err,
+    });
+  }
 
   if (!response.ok) {
     throw makeError("PHASE14_LLM_LOCAL_HTTP_ERROR", `Local provider request failed (${response.status})`);
@@ -173,7 +187,10 @@ async function callAnthropic(prompt, providerConfig) {
 }
 
 async function callLmStudio(prompt, providerConfig) {
-  const endpoint = safeString(providerConfig.endpoint) || "http://localhost:1234/v1/chat/completions";
+  // HTTPS-only invariant: default is the in-monorepo TLS proxy at :1235, NOT
+  // the plaintext upstream :1234. If the call fails, surface a structured
+  // diagnostic via tls-diagnostic.js — NEVER fall back to http://.
+  const endpoint = safeString(providerConfig.endpoint) || "https://127.0.0.1:1235/v1/chat/completions";
   const model = safeString(providerConfig.model) || "qwen2.5-coder-7b-instruct";
 
   const requestBody = {
@@ -183,11 +200,21 @@ async function callLmStudio(prompt, providerConfig) {
     max_tokens: Number(providerConfig.maxTokens || 2048)
   };
 
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(requestBody)
-  });
+  let response;
+  try {
+    response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(requestBody)
+    });
+  } catch (err) {
+    throwWithDiagnostic("lm-studio", {
+      proxyPort: 1235,
+      upstreamPort: 1234,
+      launchdLabel: "com.trevorrobey.lm-studio-tls-proxy",
+      error: err,
+    });
+  }
 
   if (!response.ok) {
     let errorBody = "";

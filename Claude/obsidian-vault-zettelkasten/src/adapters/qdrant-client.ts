@@ -1,12 +1,16 @@
 import { requestUrl } from "obsidian";
 
 /**
- * Direct Qdrant HTTP client for scrolling chunk payloads.
+ * Direct Qdrant HTTPS client for scrolling chunk payloads.
+ * Targets the in-monorepo TLS proxy at :6433 (launchd unit
+ * com.trevorrobey.qdrant-tls-proxy), which terminates TLS and forwards
+ * to Qdrant's plaintext upstream on :6333. Do NOT point this at :6333
+ * directly — that violates the HTTPS-only invariant.
  * Bypasses Miyo to retrieve indexed chunk_text for a given file.
  */
 export class QdrantClient {
   constructor(
-    private baseUrl: string = "http://127.0.0.1:6333",
+    private baseUrl: string = "https://127.0.0.1:6433",
     private collection: string = "miyo"
   ) {}
 

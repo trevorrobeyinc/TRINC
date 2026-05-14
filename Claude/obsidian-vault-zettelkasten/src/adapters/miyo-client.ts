@@ -11,11 +11,15 @@ export interface MiyoSearchResult {
 }
 
 /**
- * HTTP client for Miyo semantic search at :8742.
+ * HTTPS client for Miyo semantic search.
+ * Targets the in-monorepo TLS proxy at :8743 (launchd unit
+ * com.trevorrobey.miyo-tls-proxy), which terminates TLS and forwards
+ * to Miyo's plaintext upstream on :8742. Do NOT point this at :8742
+ * directly — that violates the HTTPS-only invariant.
  * Uses Obsidian's requestUrl for Electron compatibility.
  */
 export class MiyoClient {
-  constructor(private baseUrl: string = "http://127.0.0.1:8742") {}
+  constructor(private baseUrl: string = "https://127.0.0.1:8743") {}
 
   updateBaseUrl(url: string): void {
     this.baseUrl = url;
