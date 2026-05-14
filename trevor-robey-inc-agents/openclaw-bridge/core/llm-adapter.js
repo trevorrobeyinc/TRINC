@@ -74,9 +74,10 @@ function buildMockResponse(prompt, model) {
 }
 
 async function callLocalOllama(prompt, providerConfig) {
-  // HTTPS-only invariant: default is the in-monorepo TLS proxy at :11435, NOT
-  // the plaintext upstream :11434. If the call fails, surface a structured
-  // diagnostic via tls-diagnostic.js — NEVER fall back to http://.
+  // HTTPS-only invariant: default is the in-monorepo TLS proxy at :11435,
+  // which terminates TLS and forwards to Ollama's plaintext upstream. If
+  // the call fails, surface a structured diagnostic via tls-diagnostic.js —
+  // NEVER fall back to http://.
   const endpoint = safeString(providerConfig.endpoint) || "https://127.0.0.1:11435/api/generate";
   const model = safeString(providerConfig.model) || "llama3.1";
 
@@ -187,9 +188,10 @@ async function callAnthropic(prompt, providerConfig) {
 }
 
 async function callLmStudio(prompt, providerConfig) {
-  // HTTPS-only invariant: default is the in-monorepo TLS proxy at :1235, NOT
-  // the plaintext upstream :1234. If the call fails, surface a structured
-  // diagnostic via tls-diagnostic.js — NEVER fall back to http://.
+  // HTTPS-only invariant: default is the in-monorepo TLS proxy at :1235,
+  // which terminates TLS and forwards to LM Studio's plaintext upstream. If
+  // the call fails, surface a structured diagnostic via tls-diagnostic.js —
+  // NEVER fall back to http://.
   const endpoint = safeString(providerConfig.endpoint) || "https://127.0.0.1:1235/v1/chat/completions";
   const model = safeString(providerConfig.model) || "qwen2.5-coder-7b-instruct";
 

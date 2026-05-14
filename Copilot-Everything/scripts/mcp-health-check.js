@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 const fs = require("fs");
-const http = require("http");
+const https = require("https");
 const crypto = require("crypto");
 
 const configPath =
@@ -12,7 +12,7 @@ const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
 const body = JSON.stringify({ tool: "obsidian_health", args: {} });
 const bodySha = crypto.createHash("sha256").update(body).digest("hex");
 
-const req = http.request(
+const req = https.request(
   {
     hostname: config.transport.host,
     port: config.transport.port,

@@ -52,8 +52,9 @@ export interface MiyoIndexedFileEntry {
  * HTTPS client for the Miyo semantic search backend.
  *
  * Talks to the in-monorepo TLS-terminating proxy at `https://127.0.0.1:8743`,
- * which forwards to Miyo's plaintext loopback service on :8742. Default port
- * is 8743 (the proxy), not 8742 (Miyo itself).
+ * which forwards to Miyo's plaintext loopback upstream. Default port is 8743
+ * (the HTTPS proxy); never point this client at Miyo's plaintext upstream
+ * directly — that would violate the HTTPS-only invariant.
  *
  * API:
  *   GET  /v0/health → status, indexed_files, embedding_model

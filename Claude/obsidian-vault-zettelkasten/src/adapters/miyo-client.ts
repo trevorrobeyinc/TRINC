@@ -14,8 +14,9 @@ export interface MiyoSearchResult {
  * HTTPS client for Miyo semantic search.
  * Targets the in-monorepo TLS proxy at :8743 (launchd unit
  * com.trevorrobey.miyo-tls-proxy), which terminates TLS and forwards
- * to Miyo's plaintext upstream on :8742. Do NOT point this at :8742
- * directly — that violates the HTTPS-only invariant.
+ * to Miyo's plaintext upstream. Always point this at the :8743 HTTPS
+ * proxy; routing it at Miyo's plaintext upstream directly violates the
+ * HTTPS-only invariant.
  * Uses Obsidian's requestUrl for Electron compatibility.
  */
 export class MiyoClient {

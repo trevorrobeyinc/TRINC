@@ -129,7 +129,7 @@ export class OpenClawSettingTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName("Miyo port")
       .setDesc(
-        "HTTPS port for the Miyo TLS proxy (default 8743). Miyo itself listens on plaintext :8742 — point this at the proxy, not Miyo, per the monorepo HTTPS-only invariant."
+        "HTTPS port for the Miyo TLS proxy (default 8743). Always point this at the HTTPS proxy port, not Miyo's plaintext upstream — per the monorepo HTTPS-only invariant."
       )
       .addText((text) =>
         text
