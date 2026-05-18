@@ -16,14 +16,10 @@ fi
 uv sync --extra dev
 
 if ! .venv/bin/playwright --version >/dev/null 2>&1; then
-  .venv/bin/playwright install firefox
-fi
-
-if ! .venv/bin/python -c "import camoufox" >/dev/null 2>&1; then
-  echo "camoufox import failed; reinstall step needed" >&2
+  echo "playwright CLI not found; reinstall step needed" >&2
   exit 3
 fi
 
-.venv/bin/python -m camoufox fetch || true
+.venv/bin/playwright install firefox chromium
 
 exec .venv/bin/python -m app.main

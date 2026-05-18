@@ -10,7 +10,7 @@ Use this instead:
 
 - `direct_plugin_mcp` in the official plugin
 - shared HTTP MCP server at `https://127.0.0.1:8798`
-- native Miyo HTTP at `http://127.0.0.1:8742`
+- native Miyo via HTTPS proxy at `https://127.0.0.1:8743` (upstream `http://127.0.0.1:8742`)
 
 The emulator content in this document is retained as historical compatibility evidence and rollback context only. For the live official-plugin runtime, see `/Users/trevorrobey/THE Copilot in Obsidian Everything/docs/OFFICIAL_DIRECT_MCP_MIYO_RUNTIME.md`.
 

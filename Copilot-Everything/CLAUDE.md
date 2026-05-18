@@ -9,9 +9,12 @@ Three active layers (backend-emulator retired 2026-04-11, deleted from monorepo 
 | Component | Location | Port | Role |
 |---|---|---|---|
 | Obsidian plugin fork | `repos/obsidian-copilot-mcp` | — | Plugin runtime with `direct_plugin_mcp` mode |
-| Shared MCP bridge | `bridges/obsidian-copilot-bridge` | 8798 | CLI-backed note/command operations with replay protection (HTTPS/TLS) |
+| Shared MCP bridge | `bridges/obsidian-copilot-bridge` | 8798 | Canonical multi-operator daemon. RestApiBackend (Local REST API plugin :27124) is preferred; CLI subprocess is fallback. HTTPS/TLS with HMAC replay-guard. As of 2026-05-09: InprocPluginBackend + Advanced URI parity tools removed; backend priority is `restApi → cli`. |
+| Consolidated stdio adapter | `bridges/obsidian-stdio-adapter` | — | Single stdio MCP adapter that tunnels Claude/Raycast stdio consumers to :8798. Replaces claude-adapter, obsidian-mcp-stdio, raycast-obsidian-stdio (deletion of those pending). Two profiles via `OBSIDIAN_STDIO_PROFILE`: `claude` (default) and `raycast` (adds `raycast_daily_open`). |
 | Miyo (via TLS proxy) | `scripts/miyo-tls-proxy.mjs` → external Miyo app | 8743 → 8742 | Semantic search via in-monorepo HTTPS proxy at :8743 forwarding to plaintext :8742. Index endpoints deprecated in v4. |
-| Qdrant | external | 6333 | Local vector DB (collection `miyo`). Fallback chunk retrieval for ZK service. |
+| Qdrant (via TLS proxy) | `scripts/qdrant-tls-proxy.mjs` → Miyo-bundled Qdrant | 6433 → 6333 | Local vector DB (collection `miyo`) via in-monorepo HTTPS proxy at :6433 forwarding to plaintext :6333. Fallback chunk retrieval for ZK service. |
+| LM Studio (via TLS proxy) | `scripts/lm-studio-tls-proxy.mjs` → external LM Studio app | 1235 → 1234 | Local OpenAI-compatible inference via in-monorepo HTTPS proxy at :1235 forwarding to plaintext :1234. |
+| Ollama (via TLS proxy) | `scripts/ollama-tls-proxy.mjs` → external Ollama daemon | 11435 → 11434 | Local Ollama inference via in-monorepo HTTPS proxy at :11435 forwarding to plaintext :11434. |
 
 > The retired backend emulator on :8789 (`/v1/self-host/*`, `/v0/*` exact-self-host orchestration) and its `exact_backend_emulator` plugin runtime mode are gone. ZettelkastenService now runs in-process inside the `vault-zettelkasten` Obsidian plugin (Claude/obsidian-vault-zettelkasten/). The Raycast extension's `src/api/backend-emulator/` client was deleted with the emulator.
 
@@ -44,16 +47,18 @@ Current nuance:
 ## Service Health Checks
 
 ```bash
-curl http://127.0.0.1:8789/healthz
 curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:8798/healthz
-curl http://127.0.0.1:8742/health
-curl http://127.0.0.1:6333/collections/miyo
+curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:8743/v0/health   # Miyo via TLS proxy
+curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:6433/collections/miyo   # Qdrant via TLS proxy
+# Backend emulator (:8789) was retired 2026-04-11; ZettelkastenService runs in-process inside the vault-zettelkasten plugin.
 ```
 
 - Backend emulator (8789) — HTTP
 - MCP bridge (8798) — HTTPS (TLS via mkcert cert at `~/.local/share/mkcert/localhost.pem`)
-- Miyo (8742) — HTTP (third-party app, cannot modify)
-- Qdrant (6333) — HTTP
+- Miyo (8742) — HTTP (third-party upstream; reach via HTTPS proxy on :8743)
+- Qdrant (6333) — HTTP (third-party upstream; reach via HTTPS proxy on :6433)
+- LM Studio (1234) — HTTP (third-party upstream; reach via HTTPS proxy on :1235)
+- Ollama (11434) — HTTP (third-party upstream; reach via HTTPS proxy on :11435)
 
 ## Obsidian CLI
 
@@ -160,20 +165,54 @@ TLS is configured in `bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.lo
 - CA root: `/Users/trevorrobey/Library/Application Support/mkcert/rootCA.pem` (installed in macOS System Keychain)
 - `NODE_EXTRA_CA_CERTS` must be set in the process environment so Node.js trusts the mkcert CA (configured in launch scripts and inherited by the Obsidian plugin host)
 
-## Claude Integration (bridge adapter)
+## Claude / Raycast Integration (bridge adapter)
 
-Claude Desktop and Claude Code connect to the workspace via a thin stdio MCP adapter at
-`bridges/obsidian-copilot-bridge/claude-adapter/`. It speaks standard
-MCP JSON-RPC on stdin/stdout and forwards every tool call to the real bridge at
-`https://127.0.0.1:8798` with full auth and replay protection.
+Claude Desktop, Claude Code, and Raycast (via stdio profile) connect to the workspace
+via the consolidated stdio MCP adapter at `bridges/obsidian-stdio-adapter/`. It speaks
+standard MCP JSON-RPC on stdin/stdout and forwards every tool call to the canonical
+bridge at `https://127.0.0.1:8798` with full auth and replay protection.
 
 The adapter reads bridge config from
 `bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json`
 and auto-injects vault defaults so Claude does not need to specify them on every call.
 
+Profiles (set via `OBSIDIAN_STDIO_PROFILE`): `claude` (default — exposes the seven
+canonical `obsidian_*` tools) and `raycast` (adds `raycast_daily_open`, mapped locally
+to `obsidian_execute_command id="daily-notes"`).
+
 Exposed tools: `obsidian_open_vault`, `obsidian_create_note`, `obsidian_append_note`,
 `obsidian_read_note`, `obsidian_search_notes`, `obsidian_execute_command`,
-`obsidian_health`, `miyo_search_context`.
+`obsidian_health`, `miyo_search_context`,
+`obsidian_dev_console_logs`, `obsidian_dev_console_errors`,
+`obsidian_dev_console_eval` (gated; see Dev console section below).
+
+### Dev console tools (renderer-side, no CDP)
+
+The bridge exposes three tools for inspecting Obsidian's renderer state without
+Chrome DevTools Protocol — replacing the retired `obsidian-devtools` chrome-devtools-mcp
+path on plain-HTTP `:8315`:
+
+| Tool | Capability | Always available? |
+|------|------------|--------------------|
+| `obsidian_dev_console_logs` | Recent `console.{log,info,warn,error,debug}` ring buffer | yes (read-only) |
+| `obsidian_dev_console_errors` | Recent `window.error` + `unhandledrejection` ring buffer | yes (read-only) |
+| `obsidian_dev_console_eval` | Run caller-supplied JS in renderer scope, return JSON-safe result | gated (default OFF) |
+
+**Wire**: bridge child process ↔ launcher plugin via fd-3 line-delimited JSON-RPC.
+The launcher (`Claude/obsidian-bridge-launcher/`) spawns the bridge with
+`stdio: ["ignore","pipe","pipe","pipe"]` and `BRIDGE_IPC_FD=3`; the bridge's
+`src/server/launcherIpc.ts` opens fd 3 as a `net.Socket` and the launcher's
+`src/launcherIpcServer.ts` services requests in renderer scope. Console capture
+hooks `window.console.*` + `window.error` + `unhandledrejection` at plugin
+onload (see `Claude/obsidian-bridge-launcher/src/consoleCapture.ts`); ring
+buffer sizes are settable in the plugin's settings tab.
+
+**Eval gate**: `obsidian_dev_console_eval` is OFF by default. To enable, open
+the `Obsidian Bridge Launcher` plugin settings tab → Dev console section →
+toggle "Enable dev console eval tool". The bridge tool will return
+`LAUNCHER_IPC_UNAVAILABLE` if the bridge was started outside the launcher
+(e.g. via `bash scripts/bridge-start.sh`), and `obsidian_dev_console_eval`
+returns a structured error if the gate is off.
 
 The adapter is a transport shim only — it has no independent logic.
 The bridge must be running (`pm2 start` or `scripts/bridge-start.sh`) before tool calls succeed.
@@ -182,13 +221,15 @@ The bridge must be running (`pm2 start` or `scripts/bridge-start.sh`) before too
 - Backend emulator (8789) — companion orchestration service, not an MCP server
 - Miyo (8742) — companion retrieval service, accessed through the bridge's `miyo_search_context` tool
 
+> **Outbound `claude` CLI bridge lives in `Claude/claude-cli-bridge/`** — see `Claude/CLAUDE.md` for that bridge's tools, recursion guard, and auth path. Conceptually it's a Claude-tooling sibling of `Medical-Zettelkasten-MCP` and `trevorobeyinc-research-memory-mcp`, not an Obsidian-stack adapter.
+
 ## Multi-Operator Context
 
 This workspace's MCP bridge at port **8798** is the canonical Obsidian vault access point for all operators in the biomedical research stack:
 
 | Operator | How it connects | Purpose |
 |----------|----------------|---------|
-| Claude Desktop | claude-adapter stdio → HTTPS :8798 | Vault CRUD, command execution |
+| Claude Desktop | obsidian-stdio-adapter stdio → HTTPS :8798 | Vault CRUD, command execution |
 | OpenClaw Command Center | HTTPS :8798 (or direct Vault API when in-plugin) | Vault operations for workflow notes |
 
 The bridge **must be running** before other operators can access the vault. Start via the `obsidian-bridge-launcher` Obsidian plugin (auto-spawns on Obsidian startup), or for manual / dev work: `bash scripts/bridge-start.sh`. Callers must have `NODE_EXTRA_CA_CERTS` set to the mkcert root CA for TLS verification.

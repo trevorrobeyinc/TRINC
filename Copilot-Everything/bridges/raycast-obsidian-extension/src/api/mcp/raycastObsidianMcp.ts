@@ -22,7 +22,9 @@ interface RaycastObsidianMcpConfigFile {
   };
 }
 
-const DEFAULT_ENDPOINT = "https://127.0.0.1:18799";
+// Retargeted 2026-05-09 from the retired raycast-obsidian-mcp daemon (:18799) to
+// the canonical multi-operator obsidian-copilot-bridge daemon (:8798).
+const DEFAULT_ENDPOINT = "https://127.0.0.1:8798";
 const DEFAULT_TIMEOUT_MS = 20_000;
 
 function bodyHash(body: string): string {

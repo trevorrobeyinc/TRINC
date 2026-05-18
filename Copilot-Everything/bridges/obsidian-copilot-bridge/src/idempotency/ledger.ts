@@ -19,6 +19,7 @@ type SQLiteDatabase = {
     run: (...args: unknown[]) => unknown;
     get: (...args: unknown[]) => unknown;
   };
+  close?: () => void;
 };
 
 function openDatabase(filename: string): SQLiteDatabase {
@@ -42,6 +43,7 @@ function openDatabase(filename: string): SQLiteDatabase {
 
 export class IdempotencyLedger {
   private readonly db: SQLiteDatabase;
+  private closed = false;
 
   constructor(filePath: string) {
     const resolved = path.resolve(filePath);
@@ -108,5 +110,17 @@ export class IdempotencyLedger {
     this.db
       .prepare("UPDATE idempotency_ledger SET state=?, response_json=?, updated_at=? WHERE operation=? AND key=?")
       .run(state, responseJson ?? null, updatedAt, operation, key);
+  }
+
+  close(): void {
+    if (this.closed) {
+      return;
+    }
+    this.closed = true;
+    try {
+      this.db.close?.();
+    } catch {
+      // best-effort close during shutdown — never throw
+    }
   }
 }

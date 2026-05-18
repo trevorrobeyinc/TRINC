@@ -1,1 +1,1 @@
-"""Browser engine wrappers — Camoufox (Firefox engine) and SeleniumBase (Chromium)."""
+"""Browser engine wrappers — Playwright Firefox and Playwright Chromium, isolated per fetch."""

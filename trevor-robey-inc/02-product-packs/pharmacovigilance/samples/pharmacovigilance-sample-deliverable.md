@@ -14,7 +14,7 @@
 **Verified Citations**: 41
 **Quality Confidence**: 1.0
 
-**Contact**: trevor@trevorrobey.com
+**Contact**: trevor@trevorobeyinc.com
 **Web**: https://trevorrobeyinc.github.io
 
 ---
@@ -53,7 +53,7 @@ This report is produced through a deterministic multi-agent research pipeline wh
 - Append-only evidence ledger with SHA-256 chain-hashed integrity verification
 - Automated quality auditing with cross-reference validation before release
 
-> *This is a redacted sample. Full deliverables include 48+ pages of analysis with 200+ verified citations. Contact: trevor@trevorrobey.com*
+> *This is a redacted sample. Full deliverables include 48+ pages of analysis with 200+ verified citations. Contact: trevor@trevorobeyinc.com*
 
 ---
 
@@ -82,7 +82,7 @@ This report consolidates pharmacovigilance signals across two compound cohorts -
 | 5 (Moderate) | Pembrolizumab pneumonitis | 1547545 | PRR 6.4 (95% CI: 4.8-8.5) | DailyMed SPL verification |
 | [+2 additional signals in full report] | | | | |
 
-> *This is a redacted sample. Full deliverables include 48+ pages of analysis with 200+ verified citations. Contact: trevor@trevorrobey.com*
+> *This is a redacted sample. Full deliverables include 48+ pages of analysis with 200+ verified citations. Contact: trevor@trevorobeyinc.com*
 
 ---
 
@@ -122,7 +122,7 @@ This report consolidates pharmacovigilance signals across two compound cohorts -
 
 [Full report includes 4 additional detailed signal analyses: VPA myelosuppression, disulfiram CYP2E1, chloroquine QTc, pembrolizumab pneumonitis, metformin lactic acidosis, and mebendazole hepatotoxicity]
 
-> *This is a redacted sample. Full deliverables include 48+ pages of analysis with 200+ verified citations. Contact: trevor@trevorrobey.com*
+> *This is a redacted sample. Full deliverables include 48+ pages of analysis with 200+ verified citations. Contact: trevor@trevorobeyinc.com*
 
 ---
 
@@ -144,7 +144,7 @@ This report consolidates pharmacovigilance signals across two compound cohorts -
 
 Every identifier in this report is independently verifiable in its source database. For example: PMID: 30232222 resolves to the ICI-associated myocarditis systematic review in the Journal of the American College of Cardiology (2018).
 
-> *This is a redacted sample. Full deliverables include 48+ pages of analysis with 200+ verified citations. Contact: trevor@trevorrobey.com*
+> *This is a redacted sample. Full deliverables include 48+ pages of analysis with 200+ verified citations. Contact: trevor@trevorobeyinc.com*
 
 ---
 
@@ -169,7 +169,7 @@ Every identifier in this report is independently verifiable in its source databa
 
 Full deliverable contains 42 citation rows across 7 identifier types with source task attribution and context snippets.
 
-> *This is a redacted sample. Full deliverables include 48+ pages of analysis with 200+ verified citations. Contact: trevor@trevorrobey.com*
+> *This is a redacted sample. Full deliverables include 48+ pages of analysis with 200+ verified citations. Contact: trevor@trevorobeyinc.com*
 
 ---
 
@@ -211,7 +211,7 @@ Dynamic data masking enforced on EVIDENCE_SCORE and PRIMARY_PMID_ARRAY for non-e
 | Structured JSON API | POST /api/v1/research | Custom enterprise engagement |
 | JSONL export | Webhook delivery | Custom enterprise engagement |
 
-> *This is a redacted sample. Full deliverables include 48+ pages of analysis with 200+ verified citations. Contact: trevor@trevorrobey.com*
+> *This is a redacted sample. Full deliverables include 48+ pages of analysis with 200+ verified citations. Contact: trevor@trevorobeyinc.com*
 
 ---
 
@@ -264,12 +264,12 @@ For ongoing portfolio coverage with cloud-data-platform delivery:
 
 ---
 
-**Contact**: trevor@trevorrobey.com
+**Contact**: trevor@trevorobeyinc.com
 **Web**: https://trevorrobeyinc.github.io
 
 *This report was produced using AI-assisted research synthesis with human editorial oversight. All citations are independently verifiable in their respective source databases.*
 
-*This is a redacted sample. Full deliverables include 48+ pages of original analysis, complete citation indices, evidence provenance appendices, and chain-hashed integrity verification. Contact trevor@trevorrobey.com to request the full deliverable or initiate a custom intelligence mission.*
+*This is a redacted sample. Full deliverables include 48+ pages of original analysis, complete citation indices, evidence provenance appendices, and chain-hashed integrity verification. Contact trevor@trevorobeyinc.com to request the full deliverable or initiate a custom intelligence mission.*
 
 ---
 
@@ -285,7 +285,7 @@ For ongoing portfolio coverage with cloud-data-platform delivery:
 | RxNorm | Public domain (US federal data) | Drug identifiers via RxNav (rxnav.nlm.nih.gov). |
 | OpenFDA | Public domain (FDA) | Application/SPL identifiers. |
 | UniProt | CC BY 4.0 | Attribution string included. |
-| DrugBank | NOT INCLUDED | Excluded under DrugBank commercial-use ToS. Commercial DrugBank pack available under separate license — contact trevor@trevorrobey.com. |
+| DrugBank | NOT INCLUDED | Excluded under DrugBank commercial-use ToS. Commercial DrugBank pack available under separate license — contact trevor@trevorobeyinc.com. |
 
 
 ---

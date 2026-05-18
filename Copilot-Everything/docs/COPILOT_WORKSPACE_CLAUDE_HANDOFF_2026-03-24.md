@@ -94,16 +94,16 @@ Exact self-host plugin mode and advanced compatibility flows
 | Shared MCP bridge | Stable tool execution layer | `bridges/obsidian-copilot-bridge` | CLI-backed, signed HTTP transport, replay protection |
 | Obsidian plugin fork | Plugin runtime and self-host mode selector | `repos/obsidian-copilot-mcp` | Exposes `direct_plugin_mcp` and `exact_backend_emulator` |
 | Raycast workspace fork | Workflow and command surface | `bridges/raycast-obsidian-extension` | Uses bridge and backend emulator depending on flow |
-| Miyo runtime | Retrieval/index/search layer | external service at `http://127.0.0.1:8742` | Used by official plugin runtime and compatibility paths |
+| Miyo runtime | Retrieval/index/search layer | external service via HTTPS proxy at `https://127.0.0.1:8743` (upstream `http://127.0.0.1:8742`) | Used by official plugin runtime and compatibility paths |
 
 ### Service endpoints
 
 | Service | Endpoint |
 | --- | --- |
-| Backend emulator | `https://127.0.0.1:8789` |
+| Backend emulator | RETIRED 2026-04-11 (was `https://127.0.0.1:8789`); ZettelkastenService now runs in-process inside the vault-zettelkasten plugin |
 | Shared MCP bridge | `https://127.0.0.1:8798` |
-| Native Miyo | `http://127.0.0.1:8742` |
-| Ollama when used locally | `http://127.0.0.1:11434` |
+| Native Miyo via TLS proxy | `https://127.0.0.1:8743` (upstream `http://127.0.0.1:8742`) |
+| Ollama when used locally via TLS proxy | `https://127.0.0.1:11435` (upstream `http://127.0.0.1:11434`) |
 
 ### Runtime mode split that Claude must preserve
 

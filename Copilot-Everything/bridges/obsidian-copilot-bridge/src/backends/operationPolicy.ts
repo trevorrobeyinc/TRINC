@@ -4,7 +4,6 @@ import type { BackendId, Operation } from "../types";
 const policies: Record<Operation, SelectionPolicy> = {
   open_vault: {
     operation: "open_vault",
-    requiredBackend: "cli",
     preferLowerLatency: false,
     requirePostWriteVerification: false,
     requireIdempotencyDurability: false,

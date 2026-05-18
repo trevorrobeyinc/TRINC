@@ -133,7 +133,7 @@ curl -sS https://trevorobeyinc.com | grep -c "IBM+Plex"     # must be 1
 - **AWS Data Exchange seller profile**: same — inverted wordmark, https://trevorobeyinc.com canonical URL.
 - **HuggingFace org page**: avatar = inverted square favicon; banner = primary wordmark variant on dark.
 - **LinkedIn banner / company page**: primary wordmark with accent underline, 1584×396 banner sized.
-- **Email signature**: primary monogram (height 32px) + wordmark + trevor@trevorrobey.com + https://trevorobeyinc.com.
+- **Email signature**: primary monogram (height 32px) + wordmark + trevor@trevorobeyinc.com + https://trevorobeyinc.com.
 - **Cold email + 2-page sample teaser**: header uses the wordmark with accent underline.
 - **Datarade / marketplace listing PDF deliverable**: cover page primary wordmark, citation tables in `data-mono` token.
 

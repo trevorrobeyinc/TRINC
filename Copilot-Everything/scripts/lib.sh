@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-WORKSPACE_ROOT="/Users/trevorrobey/Code/THE Copilot in Obsidian Everything"
+WORKSPACE_ROOT="/Users/trevorrobey/TrevClaw-Obsidianodus/Copilot-Everything"
 PRODUCTION_VAULT="/Volumes/ExtraCurricular/My Digital Garden"
 DEV_VAULT="$WORKSPACE_ROOT/dev-vault"
 PLUGIN_REPO="$WORKSPACE_ROOT/repos/obsidian-copilot-mcp"

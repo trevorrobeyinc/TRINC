@@ -34,9 +34,22 @@ export class StructuredLogger {
     };
 
     const line = `${JSON.stringify(entry)}\n`;
-    fs.appendFileSync(this.filePath, line);
+    try {
+      fs.appendFileSync(this.filePath, line);
+    } catch (err) {
+      try {
+        process.stderr.write(`[logger] appendFileSync failed for ${this.filePath}: ${(err as Error).message}\n`);
+        process.stderr.write(line);
+      } catch {
+        // last-resort: never throw out of log()
+      }
+    }
     if (levelRank[level] <= levelRank.info) {
-      process.stdout.write(line);
+      try {
+        process.stdout.write(line);
+      } catch {
+        // never throw out of log()
+      }
     }
   }
 

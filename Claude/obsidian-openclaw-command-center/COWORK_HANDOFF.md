@@ -7,8 +7,8 @@ End-to-end test checklist for the OpenClaw Command Center Obsidian plugin. Run t
 | Service | Expected State | Verify |
 |---------|---------------|--------|
 | Node.js 22.13.1 | Installed via nvm | `~/.nvm/versions/node/v22.13.1/bin/node --version` |
-| Miyo (port 8742) | Running | `curl http://localhost:8742/v0/health` |
-| Qdrant (port 6333) | Running (Miyo backend) | `curl http://localhost:6333/` |
+| Miyo (via TLS proxy :8743 → upstream :8742) | Running | `curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:8743/v0/health` |
+| Qdrant (via TLS proxy :6433 → upstream :6333) | Running (Miyo backend) | `curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:6433/` |
 | OpenClaw repo | Present at `/Users/trevorrobey/OpenClaw-Research-Agents` | `ls /Users/trevorrobey/OpenClaw-Research-Agents/scripts/run-workflow.js` |
 | Zettelkasten MCP | Present at `/Users/trevorrobey/Claude/Medical-Zettelkasten-MCP/src/server.js` | `ls` the path |
 
@@ -256,7 +256,7 @@ The plugin includes an HTTP bridge server at `src/bridge/mcp-bridge-server.ts` t
 - An **Enable on startup** toggle to control auto-start behavior
 
 **Key difference from the standalone bridge** (`openclaw-bridge/obsidian-mcp-bridge.js`):
-- Uses direct Obsidian API instead of filesystem reads and `obsidian://advanced-uri` subprocess calls
+- Uses direct Obsidian API instead of filesystem reads. Advanced URI URL-scheme calls have been fully retired (2026-05-09) in favor of the Obsidian Local REST API plugin (https://127.0.0.1:27124) for any external/out-of-process callers; in-process plugin code uses the Obsidian API directly.
 - `obsidian_execute_command` calls `app.commands.executeCommandById()` directly — no `execSync(open ...)` needed
 - `obsidian_read_note` calls `app.vault.read()` — no filesystem access needed
 - Auto-starts and auto-stops with the plugin lifecycle

@@ -39,7 +39,7 @@ function transform(workflowOutput, options = {}) {
     citation_count: citationCount,
     quality_score: workflowOutput.qualityScore || null,
     provider: "Trevor Robey Inc.",
-    contact: "trevor@trevorrobey.com",
+    contact: "trevor@trevorobeyinc.com",
     website: "https://trevorrobeyinc.github.io"
   };
 
@@ -71,7 +71,7 @@ function transform(workflowOutput, options = {}) {
     `- Enterprise Subscription: $60,000 - $120,000+ ARR`,
     "",
     `## Contact`,
-    "Trevor Robey | trevor@trevorrobey.com | https://trevorrobeyinc.github.io",
+    "Trevor Robey | trevor@trevorobeyinc.com | https://trevorrobeyinc.github.io",
     "",
     WATERMARK
   ].join("\n");

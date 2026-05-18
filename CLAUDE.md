@@ -31,9 +31,9 @@ Three independent operators share this stack. None is subordinate to the others.
 
 ```
 Claude Desktop (heavy-lift code/file operator)
-  ├── [MCP stdio] → claude-code CLI
+  ├── [MCP stdio] → claude-code CLI                                 (INBOUND  — `claude mcp serve` exposes Claude Code's tools)
+  ├── [MCP stdio] → claude-cli-bridge adapter                       (OUTBOUND — spawns isolated `claude -p` subprocess; recursion-isolated via --strict-mcp-config; Claude/claude-cli-bridge/)
   ├── [MCP stdio] → obsidian-bridge adapter → [HTTPS :8798] → Canonical MCP Bridge
-  ├── [MCP stdio] → chrome-devtools
   └── [MCP stdio] → filesystem server
 
 Command Center plugin (workflow dispatch + monitoring, Obsidian plugin at obsidian-openclaw-command-center/)
@@ -62,8 +62,10 @@ Biomedical Workflow Observability Stack (optional, Docker Compose)
 | 8742 | Miyo Semantic Search (plaintext upstream — only the proxy at :8743 should reach it) | HTTP | external | External process (`/Applications/Miyo.app`) |
 | 6433 | Qdrant TLS proxy (HTTPS terminator → :6333) | HTTPS | Copilot-Everything | launchd `com.trevorrobey.qdrant-tls-proxy` |
 | 6333 | Qdrant Vector DB (plaintext upstream — only the proxy at :6433 should reach it) | HTTP | external | External process (Miyo bundles Qdrant child) |
-| 1234 | LM Studio (fallback LLM provider; qwen2.5-coder-7b-instruct) | HTTP | external | LM Studio app |
-| 11434 | Ollama (LLM provider slot — currently DISABLED in config/llm-providers.json) | HTTP | external | Ollama app |
+| 1235 | LM Studio TLS proxy (HTTPS terminator → :1234) | HTTPS | Copilot-Everything | launchd `com.trevorrobey.lm-studio-tls-proxy` |
+| 1234 | LM Studio (plaintext upstream — only the proxy at :1235 should reach it) | HTTP | external | LM Studio app |
+| 11435 | Ollama TLS proxy (HTTPS terminator → :11434) | HTTPS | Copilot-Everything | launchd `com.trevorrobey.ollama-tls-proxy` |
+| 11434 | Ollama (plaintext upstream — only the proxy at :11435 should reach it; provider slot currently DISABLED in config/llm-providers.json) | HTTP | external | Ollama app |
 | 11480 | Traefik scout proxy (optional) | HTTP | trevor-robey-inc-agents | Docker Compose |
 | 11481 | Traefik analyst proxy (optional) | HTTP | trevor-robey-inc-agents | Docker Compose |
 | 9090 | Prometheus (optional) | HTTP | trevor-robey-inc-agents | Docker Compose |
@@ -121,7 +123,7 @@ Authoritative narrative lives in `trevor-robey-inc-agents/{NOTICE.md,TREVOR_ROBE
 | Provider | Role | Status |
 |---|---|---|
 | Claude Code CLI (`claude-sonnet-4-6`) | Primary | Active; default for all production tiers |
-| LM Studio (`qwen2.5-coder-7b-instruct`, alt `mistral-nemo-12b`) | Fallback | Active on `localhost:1234` |
+| LM Studio (`qwen2.5-coder-7b-instruct`, alt `mistral-nemo-12b`) | Fallback | Active on `https://127.0.0.1:1235` (TLS proxy → upstream :1234) |
 | Mock provider | CI / deterministic tests | Active |
 | Ollama | — | Configured, **disabled** |
 
@@ -162,6 +164,25 @@ Logs: `~/.pm2/logs/` (PM2-managed mcp-bridge). Per-workflow biomedical-pipeline 
 - **Single-repo invariant (2026-05-07)**: this monorepo at [`trevoralexanderrobey/TrevClaw-Obsidianodus`](https://github.com/trevoralexanderrobey/TrevClaw-Obsidianodus) is the single source of truth. Do NOT re-create separate sub-repos for `Claude/`, `Copilot-Everything/`, or `trevor-robey-inc-agents/` — they live here. The retired GitHub remote `https://github.com/trevoralexanderrobey/trevor-robey-inc-agents` is the rollback anchor (tag `pre-monorepo-consolidation-2026-05-07` at SHA `8e782a0`).
 - **Submodule discipline**: only `trevor-robey-inc-agents/vendor/tooluniverse` is a submodule (third-party Apache-2.0). Do not introduce new submodules without an explicit upstream-tracking justification; vendor instead and document with an `UPSTREAM.md`.
 
+## Security Orchestration
+
+Security of this stack is handled by the global `security-orchestration` skill
+(the "security triad" reflex — see `~/.claude/CLAUDE.md`). Any security-related
+work here engages **Kismet WIDS MCP + CrowdStrike Falcon MCP/API + the
+Kismet→Falcon bridge** as one coordinated unit, with stack-specialized depth
+from `~/.claude/skills/security-orchestration/references/trevclaw-stack-profile.md`.
+
+- **Read-only recon first**, then cross-correlate, then **strict propose-only**:
+  every console-mutating Falcon/Kismet action is surfaced for an explicitly
+  typed, per-item authorization before apply. "Go" never authorizes a mutation.
+- The first hardening any review should produce is the one already named in the
+  HTTPS-only section below as not-yet-implemented: restrict loopback
+  :8742/:6333/:1234/:11434 to the proxy UIDs (Falcon `firewall` module is a
+  candidate vehicle).
+- Never weaken Falcon Custom-IOA rule 1. The Kismet asymmetric gate loosens only
+  via the `kismet-mcp-safety` skill. The bridge stays `dry_run=true` until
+  explicitly flipped. Infra-security only — no PHI is hosted or processed.
+
 ## HTTPS-only invariant (non-negotiable, monorepo-wide)
 
 Every network-facing TCP listener owned by code in this monorepo MUST be HTTPS. There are zero permitted plaintext-fallback paths — no env-var escape hatches, no "try TLS then degrade to http", no `tls ? https : http` ternaries, no silent `null`-on-cert-read returns.
@@ -175,20 +196,22 @@ Every network-facing TCP listener owned by code in this monorepo MUST be HTTPS. 
 
 **Canonical HTTPS-required pattern** (copy this when writing a new bridge): see [Copilot-Everything/bridges/obsidian-copilot-bridge/src/server/httpTransport.ts](Copilot-Everything/bridges/obsidian-copilot-bridge/src/server/httpTransport.ts) — it throws if `transport.tls` is unset, reads the mkcert pair, calls `https.createServer`, and asserts `instanceof https.Server` post-construction.
 
-**Per-package guards:** `npm run lint:transport` exists in `Copilot-Everything/bridges/obsidian-copilot-bridge`, `Copilot-Everything/bridges/raycast-obsidian-mcp`, and `Claude/obsidian-openclaw-command-center`. Run it before any commit that touches a bridge file.
+**Per-package guards:** `npm run lint:transport` exists in `Copilot-Everything/bridges/obsidian-copilot-bridge` and `Claude/obsidian-openclaw-command-center`. Run it before any commit that touches a bridge file. (The `bridges/raycast-obsidian-mcp` package was deleted 2026-05-09 in the bridge consolidation.)
 
 **Monorepo-wide guard:** `bash scripts/lint-transport-monorepo.sh --strict` walks all source files across the three workspaces and exits non-zero on any forbidden pattern. Run as part of pre-commit / CI.
 
-**Out of scope** (the user has explicitly accepted these as plain HTTP loopback): third-party services bound to 127.0.0.1 that this repo does not own — LM Studio :1234, Ollama :11434. Do not "fix" them by introducing a TLS-terminating proxy unless the user asks; they're not foot-guns, they're the only thing those external apps speak.
+**Out of scope** (the only remaining plain HTTP carve-out): MCP browser-automation tools (Playwright MCP `--isolated` and Claude in Chrome are the two surviving browser surfaces as of 2026-05-12 per `~/.local/share/browser-tools/CONTEXT-HANDOFF-browser-mcp-downsize.md`; claude-preview, computer-use, etc.) that talk to local browser instances over plaintext loopback. No other plaintext loopback is acceptable. The LM Studio and Ollama plaintext upstreams (:1234, :11434) were pulled OUT of this carve-out on 2026-05-11 — see the HTTPS proxy table below.
 
-**Wrapped in HTTPS by in-monorepo proxies:** Miyo (2026-05-07) and Qdrant (2026-05-08). Both are third-party loopback services that the operator opted out of the plaintext carve-out for, citing the same defense-in-depth concerns: advancing localhost-targeting attack classes (DNS rebinding, browser-based localhost probing, malicious npm postinstall scripts). Both are wrapped using the same canonical pattern — a single `.mjs` file at the workspace `scripts/` level, owned by a dedicated launchd unit, throwing on cert load failure with no plaintext fallback path:
+**Wrapped in HTTPS by in-monorepo proxies:** Miyo (2026-05-07), Qdrant (2026-05-08), LM Studio (2026-05-11), Ollama (2026-05-11). All four are third-party loopback services that the operator pulled OUT of the plaintext carve-out, citing the same defense-in-depth concerns: advancing localhost-targeting attack classes (DNS rebinding, browser-based localhost probing, malicious npm postinstall scripts). All four are wrapped using the same canonical pattern — a single `.mjs` file at the `Copilot-Everything/scripts/` level, owned by a dedicated launchd unit, throwing on cert load failure with no plaintext fallback path:
 
 | Service | Plaintext upstream | HTTPS proxy | Proxy script | launchd unit |
 |---|---|---|---|---|
 | Miyo (`/Applications/Miyo.app` bundled Node server, code-signed) | `http://127.0.0.1:8742` | `https://127.0.0.1:8743` | [`Copilot-Everything/scripts/miyo-tls-proxy.mjs`](Copilot-Everything/scripts/miyo-tls-proxy.mjs) | `com.trevorrobey.miyo-tls-proxy` |
 | Qdrant (Miyo-bundled child process, no TLS config exposed) | `http://127.0.0.1:6333` | `https://127.0.0.1:6433` | [`Copilot-Everything/scripts/qdrant-tls-proxy.mjs`](Copilot-Everything/scripts/qdrant-tls-proxy.mjs) | `com.trevorrobey.qdrant-tls-proxy` |
+| LM Studio (`/Applications/LM Studio.app`, OpenAI-compatible server, no TLS config exposed) | `http://127.0.0.1:1234` | `https://127.0.0.1:1235` | [`Copilot-Everything/scripts/lm-studio-tls-proxy.mjs`](Copilot-Everything/scripts/lm-studio-tls-proxy.mjs) | `com.trevorrobey.lm-studio-tls-proxy` |
+| Ollama (`brew services ollama` or `/Applications/Ollama.app`, no TLS config exposed) | `http://127.0.0.1:11434` | `https://127.0.0.1:11435` | [`Copilot-Everything/scripts/ollama-tls-proxy.mjs`](Copilot-Everything/scripts/ollama-tls-proxy.mjs) | `com.trevorrobey.ollama-tls-proxy` |
 
-All monorepo consumers (Copilot plugin's `MiyoServiceDiscovery`, Command Center's `miyo-client.ts`, `trevorobeyinc-research-memory-mcp/src/qdrant.ts`, `obsidian-vault-zettelkasten/src/{constants,settings}.ts`) now point at the HTTPS proxies. The plaintext upstream ports keep listening (we can't make Miyo or its bundled Qdrant stop), but the documented architecture no longer routes through them. The next hardening step (not yet implemented) is `pf` rules restricting :8742 and :6333 inbound to the proxy UIDs only.
+All monorepo consumers (Copilot plugin's `MiyoServiceDiscovery`, Command Center's `miyo-client.ts`, `trevorobeyinc-research-memory-mcp/src/qdrant.ts`, `obsidian-vault-zettelkasten/src/{constants,settings,adapters/{miyo-client,qdrant-client,model-gateway}}.ts`, `trevor-robey-inc-agents/config/llm-providers.json`) now point at the HTTPS proxies. The plaintext upstream ports keep listening (we can't make Miyo, Qdrant, LM Studio, or Ollama stop), but the documented architecture no longer routes through them. The next hardening step (not yet implemented) is `pf` rules restricting :8742, :6333, :1234, and :11434 inbound to the proxy UIDs only.
 
 Predecessor of qdrant-tls-proxy: a separate subproject at `Claude/qdrant-tls-proxy/` (with its own package.json + PM2 ownership) was deleted 2026-05-08 — wrong pattern, never wired in. The single-file launchd pattern above replaces it.
 
@@ -203,3 +226,16 @@ Predecessor of qdrant-tls-proxy: a separate subproject at `Claude/qdrant-tls-pro
 - `trevor-robey-inc-agents/docs/ei-integration-analysis-2026-04-23.md` — historical OCRA↔TrevGraph-Studio analysis memo, predates rebrand, no code mutations occurred.
 - `trevor-robey-inc-agents/openclaw-bridge/mcp/adisinsight-mcp.bak.cleanup.1777186681/` and 2 other `*.bak` files.
 - `Claude/qdrant-tls-proxy/` — second-pass deletion 2026-05-08, then **replaced 2026-05-08** by the canonical-pattern proxy at `Copilot-Everything/scripts/qdrant-tls-proxy.mjs` owned by launchd unit `com.trevorrobey.qdrant-tls-proxy`. The deleted subproject was the wrong pattern (own package.json + PM2 ownership, never wired in by any client). The replacement matches `miyo-tls-proxy.mjs` (single .mjs file, launchd-owned, throws on cert failure). Both clients now point at `https://127.0.0.1:6433`. See "Wrapped in HTTPS by in-monorepo proxies" above.
+- `obsidian-devtools` MCP path retired 2026-05-08 — Claude Desktop's `obsidian-devtools` chrome-devtools-mcp entry (CDP on plain-HTTP `:8315`), `~/Library/LaunchAgents/com.trevorrobey.obsidian-debug.plist`, and `~/bin/launch-obsidian.sh` are all deleted. Replaced by three in-bridge tools that go through the canonical HTTPS bridge on `:8798` instead of CDP: `obsidian_dev_console_logs`, `obsidian_dev_console_errors` (read-only ring buffers, always on), and `obsidian_dev_console_eval` (gated by the `devConsoleEvalEnabled` setting on the obsidian-bridge-launcher plugin, default OFF). Wire: bridge child process ↔ launcher plugin via a new fd-3 line-delimited JSON-RPC channel (`stdio: ["ignore","pipe","pipe","pipe"]` + `BRIDGE_IPC_FD=3`); launcher captures `console.{log,info,warn,error,debug}` + `window.error` + `unhandledrejection` into ring buffers at plugin onload. The retired homebrew CDP path should not be reintroduced.
+- `chrome-devtools-mcp` fully retired 2026-05-12 — process tree killed; caches, profile clone, npx cache, and `chrome-devtools-headless` entry in `claude_desktop_config.json` deleted; the `~/Code/chrome-devtools-mcp/` clone removed; **Playwright MCP (`--isolated`) + Claude in Chrome** are now the only two browser-control surfaces. The scrape-sidecar at `trevor-robey-inc-agents/scrape-sidecar/` was migrated off `seleniumbase` + `camoufox[geoip]` onto Playwright Firefox + Chromium (isolated profile per fetch) on the same day. See `~/.local/share/browser-tools/CONTEXT-HANDOFF-browser-mcp-downsize.md` for the full purge inventory and the new global `~/.claude/CLAUDE.md` "Browser MCP Strategy and Context Persistence" rule.
+
+## Browser Session History
+
+> Per the global `~/.claude/CLAUDE.md` "Browser MCP Strategy and Context Persistence" rule, every Claude Code session that calls a browser MCP non-trivially appends a structured summary block below. Newest entries at the top. The two surviving browser surfaces are **Playwright MCP (`--isolated`)** and **Claude in Chrome**. See the global rule for the entry format, importance filter, and timing.
+
+_No entries yet — populate from the next browser-using session._
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+<!-- SPECKIT END -->

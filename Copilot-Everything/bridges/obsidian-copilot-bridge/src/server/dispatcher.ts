@@ -15,14 +15,10 @@ import { executeCommandTool } from "./tools/executeCommand";
 import { miyoSearchContextTool } from "./tools/miyoSearchContext";
 import { researchPublishTool } from "./tools/researchPublish";
 import {
-  aduriOpenTool,
-  aduriWriteTool,
-  aduriFrontmatterGetTool,
-  aduriFrontmatterSetTool,
-  aduriFileExistsTool,
-  aduriWorkspaceTool,
-  aduriSearchReplaceTool,
-} from "./tools/aduri";
+  devConsoleLogsTool,
+  devConsoleErrorsTool,
+  devConsoleEvalTool,
+} from "./tools/devConsole";
 
 const requestSchema = z.object({
   tool: z.string().min(1),
@@ -30,7 +26,7 @@ const requestSchema = z.object({
     .enum(["open_vault", "create_note", "append_note", "read_note", "search_notes", "execute_command"])
     .optional(),
   input: z.unknown().optional(),
-  backendHint: z.literal("cli").optional(),
+  backendHint: z.literal("restApi").optional(),
   epochId: z.number().int().optional(),
 });
 
@@ -51,14 +47,11 @@ const handlers: Record<string, ToolHandler> = {
   obsidian_execute_command: executeCommandTool,
   miyo_search_context: miyoSearchContextTool,
   research_publish: researchPublishTool,
-  // Advanced URI parity tools — see src/server/tools/aduri.ts.
-  obsidian_aduri_open: aduriOpenTool,
-  obsidian_aduri_write: aduriWriteTool,
-  obsidian_aduri_frontmatter_get: aduriFrontmatterGetTool,
-  obsidian_aduri_frontmatter_set: aduriFrontmatterSetTool,
-  obsidian_aduri_file_exists: aduriFileExistsTool,
-  obsidian_aduri_workspace: aduriWorkspaceTool,
-  obsidian_aduri_search_replace: aduriSearchReplaceTool,
+  // Renderer-side dev console / debugging — backed by launcher IPC, NOT CDP.
+  // Replaces the retired `obsidian-devtools` chrome-devtools-mcp path on :8315.
+  obsidian_dev_console_logs: devConsoleLogsTool,
+  obsidian_dev_console_errors: devConsoleErrorsTool,
+  obsidian_dev_console_eval: devConsoleEvalTool,
 };
 
 function laneForOperation(operation: Operation | undefined): "interactive" | "mutating" {

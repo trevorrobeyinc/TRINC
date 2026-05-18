@@ -63,10 +63,11 @@ export class MCPClient {
         ? `http://${discoveredConfig.transport.host}:${discoveredConfig.transport.port}`
         : "";
     this.transport = prefs.mcpTransport || "http";
-    // Default points at the Raycast-flavoured MCP server (raycast-obsidian-mcp on :18799),
-    // not the retired obsidian-copilot-bridge on :8798. Users can override via the Raycast
-    // mcpHttpEndpoint preference if they want a different endpoint.
-    this.endpoint = (prefs.mcpHttpEndpoint || discoveredEndpoint || "https://127.0.0.1:18799").replace(/\/$/, "");
+    // Default points at the canonical multi-operator obsidian-copilot-bridge on :8798.
+    // The legacy raycast-flavoured raycast-obsidian-mcp on :18799 is being retired as part
+    // of the bridge consolidation. Users can override via the Raycast mcpHttpEndpoint
+    // preference if they want a different endpoint.
+    this.endpoint = (prefs.mcpHttpEndpoint || discoveredEndpoint || "https://127.0.0.1:8798").replace(/\/$/, "");
     this.token = prefs.mcpAuthToken?.trim() || discoveredConfig?.security?.authToken?.trim() || "";
     this.timeoutMs = Number.parseInt(prefs.mcpRequestTimeoutMs || "20000", 10) || 20_000;
   }

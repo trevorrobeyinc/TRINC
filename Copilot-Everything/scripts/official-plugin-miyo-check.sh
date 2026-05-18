@@ -61,7 +61,11 @@ fs.writeFileSync(outputPath, pdf, "utf8");
 NODE
 
 node "$SCRIPT_DIR/mcp-health-check.js" >"$MCP_HEALTH_FILE"
-miyo search --json --url "http://127.0.0.1:8742" "wireless networking" >"$MIYO_SEARCH_FILE"
+# HTTPS-only invariant: target the in-monorepo Miyo TLS proxy on :8743.
+if ! miyo search --json --url "https://127.0.0.1:8743" "wireless networking" >"$MIYO_SEARCH_FILE"; then
+  tls_diagnose 8743 8742 com.trevorrobey.miyo-tls-proxy "MIYO_SEARCH_FAILED" >&2
+  exit 1
+fi
 obsidian "vault=$TARGET_VAULT_NAME" dev:debug on >/dev/null 2>&1 || true
 obsidian "vault=$TARGET_VAULT_NAME" dev:console clear >/dev/null 2>&1 || true
 
@@ -164,7 +168,10 @@ jq -e '.ok == true and .status == "completed"' "$RUNTIME_FILE" >/dev/null || die
 jq -e '.backendMode == "self_host"' "$RUNTIME_FILE" >/dev/null || die "backendMode is not self_host."
 jq -e '.selfHostExecutionMode == "direct_plugin_mcp"' "$RUNTIME_FILE" >/dev/null || die "selfHostExecutionMode is not direct_plugin_mcp."
 jq -e '(.selfHostUrl == "" or .selfHostUrl == null) and .selfHostAdapterBaseUrl == ""' "$RUNTIME_FILE" >/dev/null || die "Emulator coupling is still configured."
-jq -e '.baseUrl == "http://127.0.0.1:8742"' "$RUNTIME_FILE" >/dev/null || die "Miyo base URL is not the native service."
+if ! jq -e '.baseUrl == "https://127.0.0.1:8743"' "$RUNTIME_FILE" >/dev/null; then
+  tls_diagnose 8743 8742 com.trevorrobey.miyo-tls-proxy "RUNTIME_BASEURL_NOT_HTTPS_PROXY" >&2
+  die "Miyo base URL is not the HTTPS proxy (:8743). The plugin runtime is mis-configured — see diagnostic above."
+fi
 jq -e '.responses.health == true' "$RUNTIME_FILE" >/dev/null || die "Official plugin Miyo health check failed."
 jq -e '.responses.searchCount > 0' "$RUNTIME_FILE" >/dev/null || die "Official plugin search response missing results."
 jq -e '.responses.parseDocText | strings and length > 0' "$RUNTIME_FILE" >/dev/null || die "Official plugin parse-doc response missing text."

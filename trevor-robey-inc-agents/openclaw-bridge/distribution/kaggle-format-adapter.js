@@ -68,7 +68,7 @@ function transform(workflowOutput, options = {}) {
     "CC-BY-NC-4.0",
     "",
     "## Contact",
-    "Trevor Robey | trevor@trevorrobey.com | https://trevorrobeyinc.github.io"
+    "Trevor Robey | trevor@trevorobeyinc.com | https://trevorrobeyinc.github.io"
   ].join("\n");
 
   const findings = extractFindings(workflowOutput.report);

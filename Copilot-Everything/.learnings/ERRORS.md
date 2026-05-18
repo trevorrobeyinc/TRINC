@@ -1,3 +1,122 @@
+## [ERR-20260509-001] obsidian_sigsegv_on_v8_async_cleanup_one_off
+
+**Logged**: 2026-05-09T14:41:00-07:00
+**Resolved**: 2026-05-09T15:17:00-07:00
+**Priority**: medium
+**Status**: resolved
+**Resolution**: Obsidian upgraded 1.12.4 → 1.12.7 (Electron v39.8.3) + IdempotencyLedger.close() wired into bridge shutdown to drain `node:sqlite` cleanly before SIGTERM
+**Area**: frontend
+
+### Summary
+Obsidian (1.12.4, build 0.14.8) SIGSEGV'd on its main thread during V8/Node async-resource cleanup at 03:59:03 PDT. Crash was a one-off — did not recur on a clean manual relaunch with all 14 community plugins enabled and both bridge children spawned.
+
+### Error
+```
+Exception: EXC_BAD_ACCESS (SIGSEGV)
+Subtype: KERN_INVALID_ADDRESS at 0x0000000000000000
+faultingThread: 0 (CrBrowserMain, com.apple.main-thread, triggered=true)
+procName: Obsidian pid: 69094 parentProc: node parentPid: 68725
+responsiblePid: 68725 (node)
+```
+
+Faulting thread (frames 0–22, the meaningful prefix):
+```
+[ 0] Electron Framework: v8::Symbol::GetIterator
+[ 1] Electron Framework: uv_get_constrained_memory
+[ 2] Electron Framework: uv_get_constrained_memory
+[ 3] Electron Framework: node::AsyncWrap::~AsyncWrap
+[ 4] Electron Framework: node::AsyncWrap::~AsyncWrap
+[ 5] Electron Framework: node::AsyncWrap::~AsyncWrap
+[ 6] Electron Framework: node::AsyncWrap::~AsyncWrap
+[ 7] img=8 (V8 JIT — blank name+path, NOT plugin-attributable)  +0x15f450398
+[ 8] img=8 (V8 JIT)                                              +0x15f44e3cc
+[ 9] img=8 (V8 JIT)                                              +0x15f56a2d8
+[10] img=8 (V8 JIT)                                              +0x15f47d18c
+[11] img=8 (V8 JIT)                                              +0x15f44b2b4
+[12] Electron Framework: v8::Function::NewInstanceWithSideEffectType
+[13] Electron Framework: v8::MicrotasksScope::~MicrotasksScope
+[14] Electron Framework: v8::MicrotasksScope::~MicrotasksScope
+[15] Electron Framework: v8::Isolate::SetIdle
+[16] Electron Framework: node::InternalCallbackScope::Close
+[17] Electron Framework: node::CallbackScope::~CallbackScope
+[18] Electron Framework: node::sqlite::UserDefinedFunction::xDestroy   ← signature root
+[19] Electron Framework: node::AsyncWrap::~AsyncWrap
+[20] Electron Framework: node::AsyncWrap::~AsyncWrap
+[21] Electron Framework: node::AsyncWrap::~AsyncWrap
+[22] Electron Framework: node::inspector::InspectorSocket::Shutdown
+```
+
+Crash report: `/Users/trevorrobey/Library/Logs/DiagnosticReports/Obsidian-2026-05-09-035903.ips`
+
+### Context
+- User reported "on startup, obsidian starts and stops" symptom on 2026-05-09.
+- Obsidian was launched as a child of `node` PID 68725 — i.e., spawned by a Node parent rather than directly by launchd. Possible parents: the `raycast-obsidian-mcp` bridge's `runtimeSupport.ts` LaunchServices launch path, or a Raycast extension command.
+- **Correction to first-pass analysis**: an earlier diagnostic snapshot claimed `contextual-wiki-definitions` was the binary at `imageIndex 8`. Reading the `.ips` directly disproves that — `usedImages[8]` has blank `name` and blank `path`, which is V8 JIT-compiled JavaScript code that no longer maps to a loaded image at the time of report generation. Frames 7–11 are JIT'd JS callbacks, not plugin binary frames; we cannot attribute them to a specific plugin from this crash report alone.
+- The actual symbolicated cluster around the JIT (frames 13–22) is a Node.js teardown signature: `MicrotasksScope` destruction, `InternalCallbackScope::Close`, `node::sqlite::UserDefinedFunction::xDestroy`, multiple `AsyncWrap` destructors, `InspectorSocket::Shutdown`. This is consistent with a Node context being torn down (Obsidian shutting down or a Node-using plugin unloading) while a SQLite UDF callback was still outstanding — a use-after-free or null-deref during cleanup, not a plugin onload bug.
+- A grep across all 14 enabled community plugins for `require('node:sqlite')`, `Database(`, `prepare(`, `registerFunction` showed only `copilot/main.js` matching `prepare(` (1 hit, likely unrelated to SQLite). No plugin in the active set is a clear `node::sqlite` UDF user, so the failing UDF was almost certainly Obsidian's own internal SQLite (vault index) machinery, not plugin code.
+
+### Bisect (Phase C-2, 2026-05-09 14:51–14:54 PDT)
+- Backed up `community-plugins.json`, removed three primes (`contextual-wiki-definitions`, `obsidian-bridge-launcher`, `vault-zettelkasten`), relaunched Obsidian. 60s soak with 11 plugins: stable, no crash, no warnings. `:8798` correctly absent (its launcher plugin was disabled).
+- Restored original 14-plugin config. 60s soak with full stack: Obsidian PID 24813 alive; bridge child PID 24822 listening on `:8798`; Command Center on `:8799`; raycast-mcp (LaunchAgent) on `:18799`; `https://127.0.0.1:8798/healthz` ok; no new crash report.
+- **Conclusion**: short-soak bisect did not trigger a recurrence in either configuration, which is expected for a single-occurrence crash 11 hours stale. The bisect rules out gross instability with the current plugin set, but cannot pinpoint a culprit because the trigger is not reproducible on demand. No plugin was identified as the cause.
+
+### Suggested Fix
+- No code change to chase given the unreproducible single occurrence. The Node-teardown signature points at Obsidian's internal SQLite or a Node-resource-using plugin's cleanup, not an onload regression in plugin code.
+- If recurrences appear with the same crash signature (`node::sqlite::UserDefinedFunction::xDestroy` in the stack), capture multiple `.ips` files and look for which plugin's main.js is loaded near the JIT frame range. A per-plugin enable/disable schedule over multiple days (one-prime-out at a time) would be a stronger bisect than a 60s soak.
+- If a node-parent launch path keeps showing up in future crashes, instrument `bridges/raycast-obsidian-mcp/src/cli/runtimeSupport.ts` to log when it invokes `/usr/bin/open -a Obsidian` so we can correlate parent=node crashes back to the raycast launch path.
+- Watch the Obsidian release notes for SQLite-related fixes; this signature has been reported upstream against Electron + Node 22.x with `node:sqlite` UDFs that hold JS callbacks.
+
+### Metadata
+- Reproducible: no (single occurrence; bisect did not trigger over short soak)
+- Related Files: `Copilot-Everything/bridges/raycast-obsidian-mcp/src/cli/runtimeSupport.ts`, `/Volumes/ExtraCurricular/My Digital Garden/.obsidian/plugins/{obsidian-bridge-launcher,vault-zettelkasten,contextual-wiki-definitions}/`, `/Volumes/ExtraCurricular/My Digital Garden/.obsidian/community-plugins.json`
+- Tags: obsidian, sigsegv, electron, node-sqlite, async-wrap-teardown
+- See Also: ERR-20260509-002
+
+---
+
+## [ERR-20260509-002] raycast_bridge_logger_stale_path_at_shutdown
+
+**Logged**: 2026-05-09T14:41:00-07:00
+**Resolved**: 2026-05-09T15:17:00-07:00
+**Priority**: medium
+**Status**: resolved
+**Resolution**: `appendFileSync` in `src/observability/logger.ts` now wrapped in try/catch in BOTH bridges (raycast-obsidian-mcp + obsidian-copilot-bridge), with stderr fallback. Shutdown logger can no longer escalate ENOENT into an unhandled exception. Stale residual dir at `/Users/trevorrobey/THE Copilot in Obsidian Everything/` left in place; Tier-3 cleanup deferred until verified no remaining process references it.
+**Area**: backend
+
+### Summary
+On SIGTERM the `raycast-obsidian-mcp` bridge tries to append a final log line and fails with ENOENT because some bridge instances have an absolute log path baked in that points to the **stale** `/Users/trevorrobey/THE Copilot in Obsidian Everything/...` location (no `Code/` prefix, not the current TrevClaw-Obsidianodus path). The shutdown error is non-fatal but pollutes stderr and trips any monitor that watches the err log.
+
+### Error
+```
+Error: ENOENT: no such file or directory, open
+  '/Users/trevorrobey/THE Copilot in Obsidian Everything/bridges/raycast-obsidian-mcp/logs/raycast-obsidian-mcp-18799.log'
+    at StructuredLogger.log (.../dist/observability/logger.js:35:27)
+    at StructuredLogger.info (.../dist/observability/logger.js:47:14)
+    at shutdown (.../dist/index.js:69:16)
+```
+
+### Context
+- Three locations exist:
+  1. Real:    `/Users/trevorrobey/TrevClaw-Obsidianodus/Copilot-Everything/bridges/raycast-obsidian-mcp/`
+  2. Symlink: `/Users/trevorrobey/Code/THE Copilot in Obsidian Everything/` → (1)
+  3. **Stale residual**: `/Users/trevorrobey/THE Copilot in Obsidian Everything/` (only contains `bridges/obsidian-copilot-bridge/logs/`)
+- Current `config/raycast-obsidian-mcp.local.json` has `logging.file = "/Users/trevorrobey/Code/THE Copilot in Obsidian Everything/bridges/raycast-obsidian-mcp/logs/raycast-obsidian-mcp-18799.log"` (the symlink path, fine for current PID).
+- Older bridge processes had the no-`Code/` path baked in; their shutdown handlers still reference it.
+- LaunchAgent plist `WorkingDirectory` is the symlink path, so new processes follow it correctly via `path.resolve(process.cwd(), "logs/...")` in `src/config/loader.ts:59`.
+
+### Suggested Fix
+1. Delete the stale residual directory `/Users/trevorrobey/THE Copilot in Obsidian Everything/` (verify nothing else depends on it first).
+2. In `bridges/raycast-obsidian-mcp/src/observability/logger.ts`, wrap `appendFileSync` in a try/catch on shutdown so a missing log dir cannot escape an `unhandledException`. The shutdown path should never crash on a side-effect log write.
+3. Drop the absolute `logging.file` from `config/raycast-obsidian-mcp.local.json` — it's redundant given the loader's `path.resolve(process.cwd(), "logs/...")` default, and a relative default makes the bridge portable across the symlink/canonical path split.
+
+### Metadata
+- Reproducible: yes (every `launchctl bootout` triggers it via SIGTERM)
+- Related Files: `Copilot-Everything/bridges/raycast-obsidian-mcp/src/observability/logger.ts`, `Copilot-Everything/bridges/raycast-obsidian-mcp/src/config/loader.ts`, `Copilot-Everything/bridges/raycast-obsidian-mcp/config/raycast-obsidian-mcp.local.json`
+- Tags: bridge, logging, monorepo-consolidation
+- See Also: ERR-20260509-001
+
+---
+
 ## [ERR-20260321-005] helper_app_compile_command_policy_rejection
 
 **Logged**: 2026-03-21T02:31:00-07:00

@@ -6,6 +6,7 @@ import { Metrics } from "../observability/metrics";
 import type { BoundedScheduler } from "./queue";
 import type { BackendId } from "../types";
 import type { EventBus } from "./eventBus";
+import type { LauncherIpcClient } from "./launcherIpc";
 
 export interface RuntimeContext {
   config: ServerConfig;
@@ -18,6 +19,7 @@ export interface RuntimeContext {
   withWriteLock: <T>(key: string, task: () => Promise<T>) => Promise<T>;
   readPins: ReadAfterWritePins;
   eventBus: EventBus;
+  launcherIpc: LauncherIpcClient | null;
 }
 
 export function createWriteLocker(): <T>(key: string, task: () => Promise<T>) => Promise<T> {

@@ -19,7 +19,7 @@ AWS Data Exchange is the enterprise delivery channel. Premium/Enterprise clients
 2. Select "Register as a data provider"
 3. Complete business information:
    - Legal entity: Trevor Robey Intelligence Network Citations LLC (wordmark: "Trevor Robey, INC."; INC = Intelligence Network Citations)
-   - Contact: trevor@trevorrobey.com
+   - Contact: trevor@trevorobeyinc.com
    - Categories: Healthcare, Life Sciences, Financial Services (for hedge fund clients)
 4. Submit W-9 and banking details
 5. Wait for approval (2-4 weeks typical)

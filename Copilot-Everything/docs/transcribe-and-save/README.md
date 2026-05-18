@@ -289,7 +289,7 @@ Map the **last** stage that appeared in the log to the fix:
 
 | Last stage | Diagnosis | Fix |
 |------------|-----------|-----|
-| `bridge_gate:healthz_ok` then nothing | bridge auth or TLS issue from Raycast's process | Confirm `/Users/trevorrobey/Code/THE Copilot in Obsidian Everything/bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json` is readable; reload Raycast extension. |
+| `bridge_gate:healthz_ok` then nothing | bridge auth or TLS issue from Raycast's process | Confirm `/Users/trevorrobey/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json` is readable; reload Raycast extension. |
 | `bridge_gate:planner_routing_check` with `missing` non-empty | Obsidian CLI is disabled OR vault not registered | Settings → General → Advanced → enable "Command-line interface" → restart Obsidian. |
 | `bridge_gate:planner_failed` with `did not return within 8000ms` | bridge hung mid-call | Restart Obsidian (kills + respawns the bridge child via the launcher plugin). |
 | `downie_dispatch:start` then nothing for >5s and no `:fallback_open_a` | spawn never returned (rare) | Quit and relaunch Raycast. |
@@ -345,7 +345,7 @@ separate terminal and leave it running — it hot-rebuilds on save.
 ## References
 
 - Original implementation plan: `/Users/trevorrobey/.claude/plans/between-ports-8789-floating-micali.md`
-- Bridge architecture context: `/Users/trevorrobey/Code/THE Copilot in Obsidian Everything/CLAUDE.md`
+- Bridge architecture context: `/Users/trevorrobey/TrevClaw-Obsidianodus/Copilot-Everything/CLAUDE.md`
 - Bridge launcher plugin: `/Volumes/ExtraCurricular/My Digital Garden/.obsidian/plugins/obsidian-bridge-launcher/manifest.json`
 - Copilot Summarize template: `/Volumes/ExtraCurricular/My Digital Garden/copilot/copilot-custom-prompts/Summarize.md`
-- Bridge config (auth token + TLS paths): `/Users/trevorrobey/Code/THE Copilot in Obsidian Everything/bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json`
+- Bridge config (auth token + TLS paths): `/Users/trevorrobey/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json`

@@ -14,7 +14,7 @@ createScrapeMcp().scrape_target(input)
 scrapeSidecarRequest()  ── HTTPS (mkcert) ──▶ scrape-sidecar :8842
         │                                            │
         ▼                                            ▼
-Zod-validated output                       Camoufox / SeleniumBase
+Zod-validated output                       Playwright Firefox / Chromium
                                                      │
                                                      ▼
                                         Open-access biomedical page

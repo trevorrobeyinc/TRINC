@@ -53,7 +53,7 @@ export class BridgeLauncherSettingTab extends PluginSettingTab {
       .addText((text) =>
         text
           .setPlaceholder(
-            "/Users/trevorrobey/Code/THE Copilot in Obsidian Everything/bridges/obsidian-copilot-bridge"
+            "/Users/trevorrobey/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge"
           )
           .setValue(this.plugin.settings.bridgePackagePath)
           .onChange(async (value) => {
@@ -141,6 +141,59 @@ export class BridgeLauncherSettingTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.staleProcessKillEnabled = value;
             await this.plugin.saveSettings();
+          })
+      );
+
+    // --- Dev console (renderer-side, replaces the retired CDP path) ---
+    containerEl.createEl("h3", { text: "Dev console" });
+    containerEl.createEl("p", {
+      text:
+        "The bridge exposes obsidian_dev_console_logs and obsidian_dev_console_errors " +
+        "(read-only) via the launcher IPC channel. obsidian_dev_console_eval is " +
+        "additionally available when explicitly enabled below — it executes caller-" +
+        "supplied JS in renderer scope, which is powerful and should stay off unless " +
+        "you actively need it.",
+    });
+
+    new Setting(containerEl)
+      .setName("Enable dev console eval tool")
+      .setDesc("Allow obsidian_dev_console_eval to run JavaScript in renderer scope. Default OFF.")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.devConsoleEvalEnabled)
+          .onChange(async (value) => {
+            this.plugin.settings.devConsoleEvalEnabled = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Console log buffer size")
+      .setDesc("Number of recent console.{log,info,warn,debug,error} entries kept in the ring buffer.")
+      .addText((text) =>
+        text
+          .setValue(String(this.plugin.settings.consoleBufferSize))
+          .onChange(async (value) => {
+            const n = parseInt(value, 10);
+            if (Number.isFinite(n) && n > 0 && n <= 10_000) {
+              this.plugin.settings.consoleBufferSize = n;
+              await this.plugin.saveSettings();
+            }
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Error buffer size")
+      .setDesc("Number of recent uncaught errors / unhandled rejections kept.")
+      .addText((text) =>
+        text
+          .setValue(String(this.plugin.settings.consoleErrorsBufferSize))
+          .onChange(async (value) => {
+            const n = parseInt(value, 10);
+            if (Number.isFinite(n) && n > 0 && n <= 10_000) {
+              this.plugin.settings.consoleErrorsBufferSize = n;
+              await this.plugin.saveSettings();
+            }
           })
       );
   }

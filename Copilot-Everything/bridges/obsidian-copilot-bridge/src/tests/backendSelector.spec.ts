@@ -2,17 +2,18 @@ import { describe, expect, it } from "vitest";
 import { BackendSelector } from "../backends/backendSelector";
 import type { Backend } from "../backends/backend";
 
-function backend(available: boolean, ops: Array<"open_vault" | "read_note" | "search_notes">): Backend {
+function restApiBackend(available: boolean, ops: Array<"open_vault" | "read_note" | "search_notes" | "create_note" | "append_note" | "execute_command">, constraints: string[] = []): Backend {
   return {
-    id: "cli",
+    id: "restApi",
     async probe() {
       return {
-        backend: "cli",
+        backend: "restApi",
         available,
         supportedOps: ops,
-        reliabilityScore: 0.97,
-        p95MsByOp: { read_note: 120 },
-        constraints: [],
+        reliabilityScore: available ? 0.99 : 0,
+        p95MsByOp: { read_note: 150 },
+        constraints,
+        lastErrorAt: available ? undefined : new Date().toISOString(),
       } as never;
     },
     async execute() {
@@ -21,84 +22,41 @@ function backend(available: boolean, ops: Array<"open_vault" | "read_note" | "se
   } as Backend;
 }
 
-describe("BackendSelector", () => {
-  it("routes supported operations to cli when available", async () => {
+describe("BackendSelector (REST-only)", () => {
+  it("requires a restApi backend to be registered", () => {
+    expect(() => new BackendSelector({} as never)).toThrow(/restApi backend is required/);
+  });
+
+  it("routes supported operations to restApi when available", async () => {
     const selector = new BackendSelector({
-      cli: backend(true, ["open_vault", "read_note", "search_notes"]),
+      restApi: restApiBackend(true, ["open_vault", "read_note", "search_notes"]),
     });
 
     const snapshot = await selector.refresh(true);
-    expect(snapshot.operationMap.open_vault).toBe("cli");
-    expect(snapshot.operationMap.read_note).toBe("cli");
+    expect(snapshot.operationMap.open_vault).toBe("restApi");
+    expect(snapshot.operationMap.read_note).toBe("restApi");
+    expect(snapshot.reasons.read_note).toBe("restApi_selected_via_priority");
   });
 
-  it("supports selecting the cli backend explicitly", async () => {
+  it("returns null routes with reason 'no_backend_available' when restApi is unavailable", async () => {
     const selector = new BackendSelector({
-      cli: backend(true, ["open_vault", "read_note", "search_notes"]),
-    });
-    await selector.refresh(true);
-    const selected = await selector.selectSpecific("read_note", "cli");
-    expect(selected.id).toBe("cli");
-  });
-
-  it("reports null routes when cli is unavailable", async () => {
-    const selector = new BackendSelector({
-      cli: backend(false, []),
+      restApi: restApiBackend(false, [], ["probe_failed:ECONNREFUSED 127.0.0.1:27124"]),
     });
 
     const snapshot = await selector.refresh(true);
     expect(snapshot.operationMap.read_note).toBeNull();
-    // Reason changed when plugin backend was added: "no_backend_available"
-    // covers both "no plugin registered + cli down" and "plugin unavailable + cli down".
     expect(snapshot.reasons.read_note).toBe("no_backend_available");
+    // Capability is still surfaced for downstream diagnostics (obsidian_health uses this).
+    expect(snapshot.capabilities.restApi?.available).toBe(false);
+    expect(snapshot.capabilities.restApi?.constraints[0]).toMatch(/ECONNREFUSED/);
   });
 
-  it("prefers plugin backend over cli when both are available", async () => {
-    const cliBackend = backend(true, ["open_vault", "read_note", "search_notes"]);
-    const pluginBackend: Backend = {
-      id: "plugin",
-      async probe() {
-        return {
-          backend: "plugin",
-          available: true,
-          supportedOps: ["open_vault", "read_note", "search_notes", "create_note", "append_note", "execute_command"],
-          reliabilityScore: 1,
-          p95MsByOp: {},
-          constraints: ["test plugin backend"],
-        } as never;
-      },
-      async execute() {
-        throw new Error("not used");
-      },
-    } as Backend;
-
-    const selector = new BackendSelector({ cli: cliBackend, plugin: pluginBackend }, { preferPlugin: true });
-    const snapshot = await selector.refresh(true);
-    expect(snapshot.operationMap.read_note).toBe("plugin");
-    expect(snapshot.reasons.read_note).toBe("plugin_preferred_hmac_uds");
-  });
-
-  it("falls back to cli when plugin is registered but unavailable", async () => {
-    const cliBackend = backend(true, ["open_vault", "read_note", "search_notes"]);
-    const pluginBackend: Backend = {
-      id: "plugin",
-      async probe() {
-        return {
-          backend: "plugin",
-          available: false,
-          supportedOps: [],
-          reliabilityScore: 0,
-          p95MsByOp: {},
-          constraints: ["plugin offline"],
-        } as never;
-      },
-      async execute() {
-        throw new Error("not used");
-      },
-    } as Backend;
-
-    const selector = new BackendSelector({ cli: cliBackend, plugin: pluginBackend });
-    const snapshot = await selector.refresh(true);
-    expect(snapshot.operationMap.read_note).toBe("cli");
+  it("supports selecting restApi backend explicitly", async () => {
+    const selector = new BackendSelector({
+      restApi: restApiBackend(true, ["read_note"]),
+    });
+    await selector.refresh(true);
+    const selected = await selector.selectSpecific("read_note", "restApi");
+    expect(selected.id).toBe("restApi");
   });
 });

@@ -1,12 +1,12 @@
-import { Action, ActionPanel, closeMainWindow, getPreferenceValues, List, open, popToRoot } from "@raycast/api";
+import { Action, ActionPanel, closeMainWindow, getPreferenceValues, List, popToRoot } from "@raycast/api";
 import { useEffect, useState } from "react";
-import AdvancedURIPluginNotInstalled from "./components/Notifications/AdvancedURIPluginNotInstalled";
+import LocalRestApiPluginNotInstalled from "./components/Notifications/LocalRestApiPluginNotInstalled";
 import { NoVaultFoundMessage } from "./components/Notifications/NoVaultFoundMessage";
 import { DailyNoteAppendPreferences } from "./utils/preferences";
 import { useObsidianVaults, useVaultPluginCheck } from "./utils/hooks";
 import { clearCache } from "./api/cache/cache.service";
 import { applyTemplates } from "./api/templating/templating.service";
-import { Obsidian, ObsidianTargetType } from "@/obsidian";
+import { appendDailyNote } from "./utils/restApiClient";
 
 interface DailyNoteAppendArgs {
   text: string;
@@ -15,10 +15,10 @@ interface DailyNoteAppendArgs {
 export default function DailyNoteAppend(props: { arguments: DailyNoteAppendArgs }) {
   const { vaults, ready } = useObsidianVaults();
   const { text } = props.arguments;
-  const { appendTemplate, heading, vaultName, prepend, silent } = getPreferenceValues<DailyNoteAppendPreferences>();
+  const { appendTemplate, heading, vaultName, prepend } = getPreferenceValues<DailyNoteAppendPreferences>();
   const { vaultsWithPlugin } = useVaultPluginCheck({
     vaults: vaults,
-    communityPlugins: ["obsidian-advanced-uri"],
+    communityPlugins: ["obsidian-local-rest-api"],
     corePlugins: ["daily-notes"],
   });
   const [content, setContent] = useState("");
@@ -32,31 +32,21 @@ export default function DailyNoteAppend(props: { arguments: DailyNoteAppendArgs 
     getContent();
   }, []);
 
-  // Handle automatic append for single vault or specified vault
   useEffect(() => {
     if (!ready || !content || isAppending) return;
     if (vaults.length === 0 || vaultsWithPlugin.length === 0) return;
 
     const selectedVault = vaultName && vaults.find((vault) => vault.name === vaultName);
 
-    // If there's a configured vault, or only one vault, use that
     if (selectedVault || vaultsWithPlugin.length === 1) {
-      const vaultToUse = selectedVault || vaultsWithPlugin[0];
       setIsAppending(true);
-
-      const target = Obsidian.getTarget({
-        type: ObsidianTargetType.DailyNoteAppend,
-        vault: vaultToUse,
-        text: content,
-        heading: heading,
-        prepend: prepend,
-        silent: silent,
-      });
-
-      open(target);
-      clearCache();
-      popToRoot();
-      closeMainWindow();
+      const run = async () => {
+        await appendDailyNote(content, { heading, prepend });
+        clearCache();
+        popToRoot();
+        closeMainWindow();
+      };
+      run();
     }
   }, [ready, content, vaults, vaultsWithPlugin, vaultName]);
 
@@ -67,13 +57,12 @@ export default function DailyNoteAppend(props: { arguments: DailyNoteAppendArgs 
   }
 
   if (vaultsWithPlugin.length === 0) {
-    return <AdvancedURIPluginNotInstalled />;
+    return <LocalRestApiPluginNotInstalled />;
   }
   if (vaultName && !vaultsWithPlugin.some((v) => v.name === vaultName)) {
-    return <AdvancedURIPluginNotInstalled vaultName={vaultName} />;
+    return <LocalRestApiPluginNotInstalled vaultName={vaultName} />;
   }
 
-  // Only show the vault selection list if we have multiple vaults and no specific vault configured
   if (!vaultName && vaultsWithPlugin.length > 1) {
     return (
       <List>
@@ -83,17 +72,10 @@ export default function DailyNoteAppend(props: { arguments: DailyNoteAppendArgs 
             key={vault.key}
             actions={
               <ActionPanel>
-                <Action.Open
+                <Action
                   title="Append to Daily Note"
-                  target={Obsidian.getTarget({
-                    type: ObsidianTargetType.DailyNoteAppend,
-                    vault: vault,
-                    text: content,
-                    heading: heading,
-                    prepend: prepend,
-                    silent: silent,
-                  })}
-                  onOpen={() => {
+                  onAction={async () => {
+                    await appendDailyNote(content, { heading, prepend });
                     clearCache();
                     popToRoot();
                     closeMainWindow();
@@ -107,6 +89,5 @@ export default function DailyNoteAppend(props: { arguments: DailyNoteAppendArgs 
     );
   }
 
-  // For single vault or configured vault, show a loading state until the automatic append happens
   return <List isLoading={true}></List>;
 }

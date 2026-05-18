@@ -27,7 +27,7 @@ if ! pgrep -x "Obsidian" > /dev/null 2>&1; then
 fi
 
 # Check CC bridge
-if response=$(curl -s -m 3 http://127.0.0.1:8799/health 2>&1); then
+if response=$(curl -s -m 3 --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:8799/health 2>&1); then
   if echo "$response" | grep -q '"ok"' 2>/dev/null || echo "$response" | grep -q '"status"' 2>/dev/null; then
     current_state="bridge_healthy"
     if [ "$last_state" != "$current_state" ]; then

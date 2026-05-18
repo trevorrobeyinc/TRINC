@@ -156,7 +156,7 @@ The quality auditor uses a citation density formula: `min(1.0, (verified_citatio
 Templates can also be submitted via the Phase 31 REST API:
 
 ```bash
-curl -X POST http://localhost:4100/api/v1/research \
+curl -X POST --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:4100/api/v1/research \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{"template_id": "general-research-pack", "inputs": {"topic": "AI governance"}}'

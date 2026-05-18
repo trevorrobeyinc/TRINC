@@ -30,7 +30,7 @@ npm run mcp     # start stdio MCP server
 
 | Var | Default | Purpose |
 |---|---|---|
-| `QDRANT_URL` | `http://127.0.0.1:6333` | Qdrant REST endpoint |
+| `QDRANT_URL` | `https://127.0.0.1:6433` | Qdrant REST endpoint via TLS proxy (upstream `http://127.0.0.1:6333`) |
 | `QDRANT_COLLECTION` | `trevorobeyinc-packs` | Target collection |
 | `EMBED_MODEL` | `Xenova/nomic-embed-text-v1` | HuggingFace model id (Xenova-quantized ONNX) |
 | `LOG_FILE` | `~/Claude/.logs/research-memory.log` | JSON line log |
@@ -45,7 +45,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` → `mc
   "command": "/Users/trevorrobey/.nvm/versions/node/v22.13.1/bin/node",
   "args": ["/Users/trevorrobey/Claude/trevorobeyinc-research-memory-mcp/dist/index.js"],
   "env": {
-    "QDRANT_URL": "http://127.0.0.1:6333",
+    "QDRANT_URL": "https://127.0.0.1:6433",
     "QDRANT_COLLECTION": "trevorobeyinc-packs",
     "EMBED_MODEL": "Xenova/nomic-embed-text-v1",
     "LOG_FILE": "/Users/trevorrobey/Claude/.logs/research-memory.log"

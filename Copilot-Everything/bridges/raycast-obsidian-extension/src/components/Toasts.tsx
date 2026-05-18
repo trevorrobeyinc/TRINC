@@ -30,9 +30,9 @@ export function fileWriteErrorToast(path: string, filename: string) {
   });
 }
 
-export function vaultsWithoutAdvancedURIToast(vaultsWithoutPlugin: ObsidianVault[]) {
+export function vaultsWithoutLocalRestApiToast(vaultsWithoutPlugin: ObsidianVault[]) {
   showToast({
-    title: "Vaults without Advanced URI plugin:",
+    title: "Vaults without Local REST API plugin:",
     message: vaultsWithoutPlugin.map((vault: ObsidianVault) => vault.name).join(", "),
     style: Toast.Style.Failure,
   });

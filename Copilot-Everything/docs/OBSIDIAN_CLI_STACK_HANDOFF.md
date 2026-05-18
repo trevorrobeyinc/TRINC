@@ -51,10 +51,12 @@ Important nuance:
 
 ## Main services and ports
 
-- Backend Emulator: `https://127.0.0.1:8789`
+- Backend Emulator: RETIRED 2026-04-11 (was `https://127.0.0.1:8789`); ZettelkastenService now in-process inside vault-zettelkasten plugin
 - MCP Bridge: `https://127.0.0.1:8798`
-- Native Miyo backend: `http://127.0.0.1:8742`
-- Ollama, when used locally: `http://127.0.0.1:11434`
+- Native Miyo via TLS proxy: `https://127.0.0.1:8743` (upstream `http://127.0.0.1:8742`)
+- Ollama via TLS proxy: `https://127.0.0.1:11435` (upstream `http://127.0.0.1:11434`)
+- LM Studio via TLS proxy: `https://127.0.0.1:1235` (upstream `http://127.0.0.1:1234`)
+- Qdrant via TLS proxy: `https://127.0.0.1:6433` (upstream `http://127.0.0.1:6333`)
 
 The workspace PM2/service definitions live under:
 
@@ -233,7 +235,8 @@ Important nuance:
 ## Claude Desktop and Claude Code integration
 
 Claude connects to the workspace through a stdio MCP adapter at
-`bridges/obsidian-copilot-bridge/claude-adapter/index.mjs`.
+`bridges/obsidian-stdio-adapter/index.mjs` (consolidated 2026-05-09; replaces the
+former `bridges/obsidian-copilot-bridge/claude-adapter/index.mjs`).
 
 The adapter is a transport shim. It translates standard MCP JSON-RPC (stdin/stdout)
 into the bridge's custom HTTP protocol (`POST /mcp/tool` with auth and replay headers).

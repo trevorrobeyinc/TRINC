@@ -20,4 +20,4 @@ export OBSIDIAN_MCP_CONFIG="$MCP_CONFIG_PATH"
 
 cd "$BRIDGE_REPO"
 npm run build >/dev/null
-exec node dist/index.js --transport=http
+exec node dist/index.js --transport=https

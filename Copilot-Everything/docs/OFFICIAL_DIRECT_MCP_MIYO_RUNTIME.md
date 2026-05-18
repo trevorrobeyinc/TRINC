@@ -9,7 +9,7 @@ The official Obsidian `copilot` plugin in `My Digital Garden` now targets this r
 - hosted/Copilot model for chat and agent behavior
 - `direct_plugin_mcp` inside the official plugin
 - shared HTTP MCP server at `https://127.0.0.1:8798` for tool execution
-- native Miyo HTTP backend at `http://127.0.0.1:8742` for semantic retrieval
+- native Miyo via HTTPS proxy at `https://127.0.0.1:8743` (upstream `http://127.0.0.1:8742`) for semantic retrieval
 
 The emulator is not part of the intended runtime architecture for the official plugin. If it remains installed locally, treat it as rollback-only.
 
@@ -65,7 +65,7 @@ Run a full force reindex through the official plugin against the Miyo backend:
 
 ## Notes
 
-- Miyo service discovery uses the local `service.json` file and falls back to `http://127.0.0.1:8742`.
+- Miyo service discovery uses the local `service.json` file and falls back to `https://127.0.0.1:8743` (TLS proxy; upstream `http://127.0.0.1:8742`).
 - The shared MCP server is now write-capable for the official plugin, with `prompt_on_writes` as the guardrail.
 - When `enableAutonomousAgent` is on, the official plugin also needs the runtime MCP tool ids in `autonomousAgentEnabledToolIds`; configuring `mcp.servers[]` alone is not enough for hosted agent turns to use those tools.
 - Ollama remains a separate follow-up validation; it is not required for the hosted/Copilot direct-MCP cutover.

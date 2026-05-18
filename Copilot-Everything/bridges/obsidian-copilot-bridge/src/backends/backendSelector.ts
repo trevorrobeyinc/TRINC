@@ -23,25 +23,27 @@ export interface RoutingSnapshot {
 
 export interface BackendSelectorOptions {
   refreshIntervalMs?: number;
-  // When true (default), prefer the in-process plugin backend over the CLI when
-  // the plugin is available for an operation. Set false to keep CLI as primary
-  // even if the plugin is loaded — useful for forcing legacy behavior or
-  // testing. Reads from config.dispatch.preferPluginBackend at startup.
-  preferPlugin?: boolean;
+  // Order in which backends are tried for each operation. As of 2026-05-09 the
+  // daemon is REST-only — `["restApi"]` is the only sensible value. The option
+  // is preserved for forward compatibility (e.g., adding a new backend type later)
+  // and for tests that want to exercise the priority-chain mechanism.
+  preferredOrder?: BackendId[];
 }
+
+const DEFAULT_PREFERRED_ORDER: BackendId[] = ["restApi"];
 
 export class BackendSelector {
   private readonly backends: Partial<Record<BackendId, Backend>>;
   private snapshot: RoutingSnapshot;
   private readonly refreshIntervalMs: number;
-  private readonly preferPlugin: boolean;
+  private readonly preferredOrder: BackendId[];
 
   constructor(
     backends: Partial<Record<BackendId, Backend>>,
     optionsOrRefreshInterval: BackendSelectorOptions | number = 60_000
   ) {
-    if (!backends.cli) {
-      throw new Error("BackendSelector: cli backend is required");
+    if (!backends.restApi) {
+      throw new Error("BackendSelector: restApi backend is required (REST-only since 2026-05-09)");
     }
     this.backends = backends;
     const opts: BackendSelectorOptions =
@@ -49,7 +51,7 @@ export class BackendSelector {
         ? { refreshIntervalMs: optionsOrRefreshInterval }
         : optionsOrRefreshInterval;
     this.refreshIntervalMs = opts.refreshIntervalMs ?? 60_000;
-    this.preferPlugin = opts.preferPlugin !== false;
+    this.preferredOrder = opts.preferredOrder ?? DEFAULT_PREFERRED_ORDER;
     this.snapshot = {
       epochId: Date.now(),
       refreshedAt: 0,
@@ -70,7 +72,7 @@ export class BackendSelector {
         execute_command: "uninitialized",
       },
       capabilities: {
-        cli: { backend: "cli", available: false, supportedOps: [], reliabilityScore: 0, p95MsByOp: {}, constraints: [] },
+        restApi: { backend: "restApi", available: false, supportedOps: [], reliabilityScore: 0, p95MsByOp: {}, constraints: [] },
       },
     };
   }
@@ -81,37 +83,34 @@ export class BackendSelector {
       return this.snapshot;
     }
 
-    const cliCapabilities = await this.backends.cli!.probe();
-    const pluginCapabilities = this.backends.plugin ? await this.backends.plugin.probe() : null;
+    const capsByBackend: Partial<Record<BackendId, BackendCapabilities>> = {};
+    for (const id of this.preferredOrder) {
+      const backend = this.backends[id];
+      if (backend) {
+        capsByBackend[id] = await backend.probe();
+      }
+    }
+    // Always probe restApi even if it's not first in priority — required by constructor invariant.
+    if (!capsByBackend.restApi) {
+      capsByBackend.restApi = await this.backends.restApi!.probe();
+    }
 
     const operationMap = { ...this.snapshot.operationMap };
     const reasons = { ...this.snapshot.reasons };
-    const capsByBackend: Partial<Record<BackendId, BackendCapabilities>> = {
-      cli: cliCapabilities,
-    };
-    if (pluginCapabilities) {
-      capsByBackend.plugin = pluginCapabilities;
-    }
 
     for (const operation of ALL_OPERATIONS) {
-      const pluginCan =
-        !!pluginCapabilities && pluginCapabilities.available && pluginCapabilities.supportedOps.includes(operation);
-      const cliCan = cliCapabilities.available && cliCapabilities.supportedOps.includes(operation);
-
-      if (pluginCan && this.preferPlugin) {
-        operationMap[operation] = "plugin";
-        reasons[operation] = "plugin_preferred_hmac_uds";
-      } else if (cliCan) {
-        operationMap[operation] = "cli";
-        reasons[operation] = pluginCan ? "cli_forced_pluginPref_off" : "cli_fallback";
-      } else if (pluginCan) {
-        // CLI unavailable but plugin available — use plugin even if pref is off.
-        operationMap[operation] = "plugin";
-        reasons[operation] = "plugin_only_cli_unavailable";
-      } else {
-        operationMap[operation] = null;
-        reasons[operation] = "no_backend_available";
+      let chosen: BackendId | null = null;
+      let reason = "no_backend_available";
+      for (const id of this.preferredOrder) {
+        const cap = capsByBackend[id];
+        if (cap?.available && cap.supportedOps.includes(operation)) {
+          chosen = id;
+          reason = `${id}_selected_via_priority`;
+          break;
+        }
       }
+      operationMap[operation] = chosen;
+      reasons[operation] = reason;
     }
 
     this.snapshot = {
@@ -137,10 +136,21 @@ export class BackendSelector {
 
     const routedBackendId = snapshot.operationMap[operation];
     if (!routedBackendId) {
-      throw new AppError(ERROR_CODES.NO_CAPABLE_BACKEND, `No backend can serve operation ${operation}.`, true, {
-        operation,
-        requestId: randomUUID(),
-      });
+      const restApiCap = snapshot.capabilities.restApi;
+      throw new AppError(
+        ERROR_CODES.NO_CAPABLE_BACKEND,
+        `Cannot serve operation '${operation}': REST API backend unavailable. Call obsidian_health for a structured diagnostic.`,
+        true,
+        {
+          operation,
+          requestId: randomUUID(),
+          backend: "restApi",
+          available: restApiCap?.available ?? false,
+          reason: restApiCap?.constraints ?? ["unknown"],
+          lastErrorAt: restApiCap?.lastErrorAt,
+          probeDiagnostics: restApiCap?.diagnostics ?? null,
+        }
+      );
     }
 
     if (backendHint && backendHint !== routedBackendId) {

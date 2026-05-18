@@ -224,7 +224,7 @@ function createHttpsClient(options = {}) {
  * @param {object} options
  * @param {string} options.target            - Connector ID, e.g. "elife"
  * @param {object} [options.params={}]       - Connector-specific params
- * @param {string} [options.preferEngine]    - "camoufox" | "seleniumbase-uc" | "seleniumbase-cdp"
+ * @param {string} [options.preferEngine]    - "playwright-firefox" | "playwright-chromium"
  * @param {boolean} [options.bypassCache=false]
  * @param {string} [options.host="127.0.0.1"]
  * @param {number} [options.port=8842]

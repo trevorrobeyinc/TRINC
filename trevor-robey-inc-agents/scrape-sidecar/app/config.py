@@ -56,7 +56,7 @@ def load_config() -> SidecarConfig:
         ssl_certfile=certfile,
         ssl_keyfile=keyfile,
         cache_dir=cache_dir,
-        default_engine=os.environ.get("SCRAPE_SIDECAR_DEFAULT_ENGINE", "camoufox"),
+        default_engine=os.environ.get("SCRAPE_SIDECAR_DEFAULT_ENGINE", "playwright-firefox"),
         user_agent=os.environ.get(
             "SCRAPE_SIDECAR_USER_AGENT",
             "trevor-robey-inc-scrape-sidecar/0.1 (+https://trevorobeyinc.com)",

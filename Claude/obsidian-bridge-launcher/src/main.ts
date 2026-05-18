@@ -1,14 +1,18 @@
 import { Notice, Plugin } from "obsidian";
 import { spawn, type ChildProcess, execSync } from "child_process";
 import { existsSync } from "fs";
-import { DEFAULT_SETTINGS, PLUGIN_ID } from "./constants";
+import { BRIDGE_IPC_FD, DEFAULT_SETTINGS, PLUGIN_ID } from "./constants";
 import type { BridgeLauncherSettings, BridgeStatus } from "./types";
 import { BridgeLauncherSettingTab } from "./settings";
+import { ConsoleCapture } from "./consoleCapture";
+import { attachLauncherIpcServer } from "./launcherIpcServer";
 
 export default class BridgeLauncherPlugin extends Plugin {
   settings!: BridgeLauncherSettings;
   child: ChildProcess | null = null;
   status: BridgeStatus = "stopped";
+  capture: ConsoleCapture | null = null;
+  private detachIpcServer: (() => void) | null = null;
   private statusBarEl: HTMLElement | null = null;
   private startedAt: number | null = null;
   private syncCleanup = (): void => {
@@ -26,6 +30,16 @@ export default class BridgeLauncherPlugin extends Plugin {
 
   async onload(): Promise<void> {
     await this.loadSettings();
+
+    // Install renderer console capture BEFORE anything else this plugin
+    // touches, so the ring buffers are warm by the time the bridge fires
+    // its first dev-console tool.
+    this.capture = new ConsoleCapture(
+      this.settings.consoleBufferSize,
+      this.settings.consoleErrorsBufferSize
+    );
+    this.capture.install();
+
     this.statusBarEl = this.addStatusBarItem();
     this.setStatus("stopped");
     this.addSettingTab(new BridgeLauncherSettingTab(this.app, this));
@@ -58,6 +72,14 @@ export default class BridgeLauncherPlugin extends Plugin {
     if (this.beforeUnloadHandler) {
       window.removeEventListener("beforeunload", this.beforeUnloadHandler);
       this.beforeUnloadHandler = null;
+    }
+    if (this.detachIpcServer) {
+      this.detachIpcServer();
+      this.detachIpcServer = null;
+    }
+    if (this.capture) {
+      this.capture.uninstall();
+      this.capture = null;
     }
     await this.stopBridge();
   }
@@ -171,7 +193,7 @@ export default class BridgeLauncherPlugin extends Plugin {
     try {
       this.child = spawn(
         this.settings.nodePath,
-        ["dist/index.js", "--transport=http"],
+        ["dist/index.js", "--transport=https"],
         {
           cwd: this.settings.bridgePackagePath,
           env: {
@@ -179,8 +201,11 @@ export default class BridgeLauncherPlugin extends Plugin {
             NODE_ENV: "production",
             NODE_EXTRA_CA_CERTS: this.settings.caCertPath,
             OBSIDIAN_MCP_CONFIG: this.settings.mcpConfigPath,
+            BRIDGE_IPC_FD: String(BRIDGE_IPC_FD),
           },
-          stdio: ["ignore", "pipe", "pipe"],
+          // fd 3 is a bidirectional pipe used as a JSON-RPC channel for
+          // dev-console tools. Replaces the retired CDP path on :8315.
+          stdio: ["ignore", "pipe", "pipe", "pipe"],
         }
       );
     } catch (err) {
@@ -193,6 +218,14 @@ export default class BridgeLauncherPlugin extends Plugin {
     this.startedAt = Date.now();
     const pid = this.child.pid;
 
+    if (this.capture) {
+      this.detachIpcServer = attachLauncherIpcServer(this.child, {
+        app: this.app,
+        capture: this.capture,
+        evalEnabled: () => this.settings.devConsoleEvalEnabled,
+      });
+    }
+
     this.child.stdout?.on("data", (chunk) => {
       console.log(`[bridge-launcher] ${chunk.toString().trimEnd()}`);
     });
@@ -202,6 +235,10 @@ export default class BridgeLauncherPlugin extends Plugin {
     this.child.on("exit", (code, signal) => {
       const detail = `exit code=${code} signal=${signal ?? ""}`;
       console.log(`[bridge-launcher] bridge exited: ${detail}`);
+      if (this.detachIpcServer) {
+        this.detachIpcServer();
+        this.detachIpcServer = null;
+      }
       if (this.status === "running") {
         new Notice(`Bridge exited unexpectedly (${detail})`, 8000);
         this.setStatus("exited", detail);

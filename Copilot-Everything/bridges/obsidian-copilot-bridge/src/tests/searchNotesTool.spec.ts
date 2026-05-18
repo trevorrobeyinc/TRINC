@@ -26,11 +26,11 @@ describe("searchNotesTool", () => {
       meta: {
         requestId: "req-1",
         durationMs: 0,
-        backendUsed: "cli",
+        backendUsed: "restApi",
       },
     }));
 
-    const result = await searchNotesTool({} as never, "req-1", 1, "cli", {
+    const result = await searchNotesTool({} as never, "req-1", 1, "restApi", {
       vault: "My Digital Garden",
       query: "missing phrase",
     });
@@ -52,11 +52,11 @@ describe("searchNotesTool", () => {
       meta: {
         requestId: "req-2",
         durationMs: 0,
-        backendUsed: "cli",
+        backendUsed: "restApi",
       },
     }));
 
-    const result = await searchNotesTool({} as never, "req-2", 1, "cli", {
+    const result = await searchNotesTool({} as never, "req-2", 1, "restApi", {
       vault: "My Digital Garden",
       query: "missing phrase",
     });

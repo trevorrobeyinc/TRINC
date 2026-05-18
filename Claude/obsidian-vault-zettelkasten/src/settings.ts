@@ -31,10 +31,10 @@ export class VaultZKSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Base URL")
-      .setDesc("API endpoint (e.g. http://127.0.0.1:1234/v1)")
+      .setDesc("API endpoint (e.g. https://127.0.0.1:1235/v1 — LM Studio via TLS proxy)")
       .addText((t) =>
         t
-          .setPlaceholder("http://127.0.0.1:1234/v1")
+          .setPlaceholder("https://127.0.0.1:1235/v1")
           .setValue(this.plugin.settings.llmBaseUrl)
           .onChange(async (v) => {
             this.plugin.settings.llmBaseUrl = v;

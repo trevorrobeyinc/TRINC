@@ -1,6 +1,18 @@
 # HMAC Plugin Backend — End-to-End Authentication for All Obsidian Workflows
 
-Last updated: 2026-05-06 (Advanced URI parity surface added).
+> **STATUS — RETIRED 2026-05-09.** This document describes the `InprocPluginBackend`
+> + `claude-mcp-inproc` plugin + `aduri.ts` parity tools, all of which were removed
+> in the bridge consolidation. The replacement is the **Obsidian Local REST API
+> plugin** (https://obsidian.md/plugins?id=obsidian-local-rest-api), which provides
+> end-to-end auth via API key over HTTPS to port 27124 — same security goal,
+> standard transport. The bridge daemon now defaults to a single backend tier:
+> `RestApiBackend` only. CLI subprocess remains in code as an explicit
+> `OBSIDIAN_TRANSPORT=cli` opt-in for headless scenarios.
+>
+> This file is preserved as historical record. See `~/.claude/plans/warm-strolling-walrus.md`
+> for the consolidation plan.
+
+Last updated: 2026-05-06 (Advanced URI parity surface added). Retired 2026-05-09.
 
 ## Problem
 

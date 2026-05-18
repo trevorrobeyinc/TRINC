@@ -1,0 +1,660 @@
+{
+  "schema_version": "connector-registry-v1",
+  "generated": "2026-05-10",
+  "source_of_truth": "this file; tool-prefetch-map.json defers to this for binding intent. When the two diverge, this file declares intent and tool-prefetch-map.json reflects current subprocess wiring.",
+  "role_keys_authority": "config/role-prompts.json (and tool-prefetch-map.json role_mappings); bound_roles entries MUST match those keys verbatim",
+  "workflow_template_authority": "config/workflow-templates/*.json (phase30-workflow-v1); bound_workflow_steps entries MUST reference real (template_id, step_id) tuples",
+  "execution_surfaces": {
+    "subprocess-mcp": "Project MCP under openclaw-bridge/mcp/<slug>-mcp/. Reachable from run-workflow.js subprocess. Default path for new biomedical connectors.",
+    "tooluniverse-tool": "Tool exposed via vendor/tooluniverse SMCP. Reachable from subprocess via tool-prefetch. ~2,116 tools available.",
+    "claude-host-mcp": "Authenticated at Claude-host level (claude.ai / Claude Code session). NOT reachable from subprocess. Either build a subprocess adapter, or accept chat-supervisory use only."
+  },
+  "connectors": {
+    "chembl": {
+      "tool_prefix": "openclaw-bridge/mcp/chembl-mcp/",
+      "execution_surface": "subprocess-mcp",
+      "auth": "none",
+      "tools": ["chembl_compound_search", "chembl_target_search", "chembl_bioactivity"],
+      "purpose": "Compound, target, and bioactivity data for molecular profiling and target validation",
+      "bound_roles": ["analyst", "molecular_profiler", "competitive_intel_analyst"],
+      "bound_workflow_steps": [
+        { "workflow_template_id": "drug-discovery-full", "step_id": "research" },
+        { "workflow_template_id": "drug-discovery-full", "step_id": "quality_check" },
+        { "workflow_template_id": "target-validation-pack", "step_id": "research" },
+        { "workflow_template_id": "pharmacovigilance-report", "step_id": "research" }
+      ],
+      "business_value": "load-bearing",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "openclaw-bridge/mcp/chembl-mcp/",
+      "health_check": "chembl_compound_search('aspirin') returns CHEMBL25 with PubChem CID 2244"
+    },
+    "clinicaltrials-gov": {
+      "tool_prefix": "openclaw-bridge/mcp/clinicaltrials-mcp/",
+      "execution_surface": "subprocess-mcp",
+      "auth": "none",
+      "tools": ["search_clinical_trials", "get_trial_by_nct"],
+      "purpose": "Public ClinicalTrials.gov API for trial discovery, eligibility, and status tracking",
+      "bound_roles": ["scout", "analyst", "competitive_intel_analyst"],
+      "bound_workflow_steps": [
+        { "workflow_template_id": "drug-discovery-full", "step_id": "research" },
+        { "workflow_template_id": "clinical-trial-landscape", "step_id": "research" },
+        { "workflow_template_id": "rare-disease-brief", "step_id": "research" }
+      ],
+      "business_value": "load-bearing",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "openclaw-bridge/mcp/clinicaltrials-mcp/",
+      "health_check": "search_clinical_trials({query_term: 'NSCLC pembrolizumab', pageSize: 1}) returns at least one NCT id"
+    },
+    "pubmed": {
+      "tool_prefix": "openclaw-bridge/mcp/pubmed-mcp/",
+      "execution_surface": "subprocess-mcp",
+      "auth": "optional: NCBI_API_KEY (3x faster)",
+      "tools": ["PubMed_search_articles", "PubMed_get_article_metadata"],
+      "purpose": "Peer-reviewed literature discovery with PMID provenance",
+      "bound_roles": ["scout", "synthesizer", "safety_signal_detector", "literature_reviewer", "competitive_intel_analyst"],
+      "bound_workflow_steps": [
+        { "workflow_template_id": "drug-discovery-full", "step_id": "research" },
+        { "workflow_template_id": "pharmacovigilance-report", "step_id": "research" },
+        { "workflow_template_id": "target-validation-pack", "step_id": "research" },
+        { "workflow_template_id": "rare-disease-brief", "step_id": "research" },
+        { "workflow_template_id": "clinical-trial-landscape", "step_id": "research" },
+        { "workflow_template_id": "general-research-pack", "step_id": "research" }
+      ],
+      "business_value": "load-bearing",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "openclaw-bridge/mcp/pubmed-mcp/",
+      "health_check": "PubMed_search_articles({query: 'pembrolizumab NSCLC', limit: 1}) returns a PMID"
+    },
+    "europepmc": {
+      "tool_prefix": "vendor/tooluniverse/EuropePMC_*",
+      "execution_surface": "tooluniverse-tool",
+      "auth": "none",
+      "tools": ["EuropePMC_search_articles"],
+      "purpose": "Europe PMC literature retrieval — broader open-access coverage than PubMed (preprints, life-sciences gray literature)",
+      "bound_roles": ["analyst", "literature_reviewer"],
+      "bound_workflow_steps": [
+        { "workflow_template_id": "drug-discovery-full", "step_id": "research" },
+        { "workflow_template_id": "general-research-pack", "step_id": "research" }
+      ],
+      "business_value": "high",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "vendor/tooluniverse (already integrated via tool-prefetch.js)",
+      "health_check": "EuropePMC_search_articles({query: 'KRAS G12C', limit: 1}) returns at least one article id"
+    },
+    "faers-tooluniverse": {
+      "tool_prefix": "vendor/tooluniverse/FAERS_*",
+      "execution_surface": "tooluniverse-tool",
+      "auth": "optional: FDA_API_KEY (6x faster)",
+      "tools": ["FAERS_search_reports_by_drug_and_indication"],
+      "purpose": "FDA Adverse Event Reporting System — load-bearing for Pharmacovigilance Pack disproportionality analysis (PRR/ROR signal detection)",
+      "bound_roles": ["analyst", "safety_signal_detector"],
+      "bound_workflow_steps": [
+        { "workflow_template_id": "pharmacovigilance-report", "step_id": "research" },
+        { "workflow_template_id": "drug-discovery-full", "step_id": "research" }
+      ],
+      "business_value": "load-bearing",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "vendor/tooluniverse (already integrated via tool-prefetch.js)",
+      "health_check": "FAERS_search_reports_by_drug_and_indication({medicinalproduct: 'pembrolizumab', drugindication: 'NSCLC', limit: 1}) returns at least one case"
+    },
+    "opentargets-tooluniverse": {
+      "tool_prefix": "vendor/tooluniverse/OpenTargets_*",
+      "execution_surface": "tooluniverse-tool",
+      "auth": "none",
+      "tools": ["OpenTargets_get_drug_id_description_by_name"],
+      "purpose": "Open Targets drug-id resolution via ToolUniverse — subprocess-reachable companion to the richer claude-host open-targets-graphql connector",
+      "bound_roles": ["scout"],
+      "bound_workflow_steps": [
+        { "workflow_template_id": "drug-discovery-full", "step_id": "research" },
+        { "workflow_template_id": "target-validation-pack", "step_id": "research" }
+      ],
+      "business_value": "high",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "vendor/tooluniverse (already integrated via tool-prefetch.js)",
+      "health_check": "OpenTargets_get_drug_id_description_by_name({drugName: 'pembrolizumab'}) returns CHEMBL3137343 or equivalent"
+    },
+    "scholar-gateway-semantic-scholar": {
+      "tool_prefix": "vendor/tooluniverse/SemanticScholar_*",
+      "execution_surface": "tooluniverse-tool",
+      "auth": "optional: SEMANTIC_SCHOLAR_API_KEY (100x faster)",
+      "tools": ["SemanticScholar_search_papers", "SemanticScholar_get_paper_details", "SemanticScholar_get_paper_citations", "SemanticScholar_get_paper_references"],
+      "purpose": "First-class peer-reviewed literature lane with citation context — never demote to fallback (see Scholar Gateway rule in CLAUDE.md)",
+      "bound_roles": ["scout", "analyst", "literature_reviewer", "competitive_intel_analyst"],
+      "bound_workflow_steps": [
+        { "workflow_template_id": "drug-discovery-full", "step_id": "research" },
+        { "workflow_template_id": "pharmacovigilance-report", "step_id": "research" },
+        { "workflow_template_id": "target-validation-pack", "step_id": "research" },
+        { "workflow_template_id": "rare-disease-brief", "step_id": "research" },
+        { "workflow_template_id": "clinical-trial-landscape", "step_id": "research" },
+        { "workflow_template_id": "general-research-pack", "step_id": "research" }
+      ],
+      "business_value": "load-bearing",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "vendor/tooluniverse (already integrated via tool-prefetch.js)",
+      "health_check": "SemanticScholar_search_papers({query: 'KRAS G12C inhibitor', limit: 1}) returns paperId + abstract"
+    },
+    "arxiv": {
+      "tool_prefix": "openclaw-bridge/mcp/arxiv-mcp.js",
+      "execution_surface": "subprocess-mcp",
+      "auth": "none",
+      "tools": ["arxiv_search", "arxiv_get_paper"],
+      "purpose": "Preprint discovery for computational biology, bioinformatics, ML/AI in drug discovery",
+      "bound_roles": ["literature_reviewer", "molecular_profiler"],
+      "bound_workflow_steps": [
+        { "workflow_template_id": "target-validation-pack", "step_id": "research" },
+        { "workflow_template_id": "general-research-pack", "step_id": "research" }
+      ],
+      "business_value": "high",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "openclaw-bridge/mcp/arxiv-mcp.js (single-file adapter)",
+      "health_check": "arxiv_search({query: 'foundation model genomics', limit: 1}) returns arxiv id"
+    },
+    "huggingface-metadata": {
+      "tool_prefix": "openclaw-bridge/mcp/huggingface-mcp/",
+      "execution_surface": "subprocess-mcp",
+      "auth": "optional: HF_TOKEN",
+      "tools": ["hf_metadata_lookup", "hf_dataset_search"],
+      "purpose": "Hugging Face Hub metadata (datasets, model cards) — METADATA ONLY, no weight downloads",
+      "bound_roles": ["literature_reviewer", "competitive_intel_analyst"],
+      "bound_workflow_steps": [
+        { "workflow_template_id": "general-research-pack", "step_id": "research" }
+      ],
+      "business_value": "medium",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "openclaw-bridge/mcp/huggingface-mcp/",
+      "health_check": "hf_metadata_lookup('openai/whisper-large-v3') returns model card metadata"
+    },
+    "npi-registry": {
+      "tool_prefix": "openclaw-bridge/mcp/npi-mcp/",
+      "execution_surface": "subprocess-mcp",
+      "auth": "none",
+      "tools": ["npi_lookup", "npi_search"],
+      "purpose": "NPI Registry lookup for HCP / investigator identity verification (citation-traced KOL identification)",
+      "bound_roles": ["competitive_intel_analyst", "report_generator"],
+      "bound_workflow_steps": [
+        { "workflow_template_id": "clinical-trial-landscape", "step_id": "research" }
+      ],
+      "business_value": "medium",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "openclaw-bridge/mcp/npi-mcp/",
+      "health_check": "npi_lookup with a known NPI number returns provider record"
+    },
+    "icd10": {
+      "tool_prefix": "openclaw-bridge/mcp/icd10-mcp/",
+      "execution_surface": "subprocess-mcp",
+      "auth": "none",
+      "tools": ["icd10_lookup", "icd10_search"],
+      "purpose": "ICD-10 code lookup for indication mapping in Patient Brief deliverables",
+      "bound_roles": ["report_generator"],
+      "bound_workflow_steps": [
+        { "workflow_template_id": "rare-disease-brief", "step_id": "research" }
+      ],
+      "business_value": "medium",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "openclaw-bridge/mcp/icd10-mcp/",
+      "health_check": "icd10_lookup('C34.9') returns 'malignant neoplasm of bronchus or lung, unspecified'"
+    },
+    "owkin": {
+      "tool_prefix": "openclaw-bridge/mcp/owkin-mcp/",
+      "execution_surface": "subprocess-mcp",
+      "auth": "vendor-issued",
+      "tools": ["owkin_pathology_query"],
+      "purpose": "Owkin pathology platform integration for digital-pathology biomarker context",
+      "bound_roles": ["molecular_profiler"],
+      "bound_workflow_steps": [
+        { "workflow_template_id": "target-validation-pack", "step_id": "research" }
+      ],
+      "business_value": "medium",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "openclaw-bridge/mcp/owkin-mcp/",
+      "health_check": "owkin_pathology_query reachability ping"
+    },
+    "gdrive-subprocess": {
+      "tool_prefix": "openclaw-bridge/mcp/gdrive-mcp/",
+      "execution_surface": "subprocess-mcp",
+      "auth": "oauth-handshake-completed",
+      "tools": ["gdrive_read_file", "gdrive_list_files"],
+      "purpose": "Google Drive read access for delivery-pack staging and seed-document ingestion",
+      "bound_roles": ["report_generator"],
+      "bound_workflow_steps": [
+        { "workflow_template_id": "drug-discovery-full", "step_id": "export" },
+        { "workflow_template_id": "pharmacovigilance-report", "step_id": "export" }
+      ],
+      "business_value": "high",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "openclaw-bridge/mcp/gdrive-mcp/",
+      "health_check": "gdrive_list_files of a known folder id returns metadata"
+    },
+    "scrape": {
+      "tool_prefix": "openclaw-bridge/mcp/scrape-mcp/",
+      "execution_surface": "subprocess-mcp",
+      "auth": "none",
+      "tools": ["scrape_target"],
+      "purpose": "Targeted scraping adapter for whitelisted hosts (elife, etc.) when API access is unavailable",
+      "bound_roles": ["literature_reviewer"],
+      "bound_workflow_steps": [
+        { "workflow_template_id": "general-research-pack", "step_id": "research" }
+      ],
+      "business_value": "low",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "openclaw-bridge/mcp/scrape-mcp/",
+      "health_check": "scrape_target({target: 'elife', params: {article_id: '12345'}}) returns parsed structure"
+    },
+    "newsletter-publisher": {
+      "tool_prefix": "openclaw-bridge/mcp/newsletter-publisher-mcp/",
+      "execution_surface": "subprocess-mcp",
+      "auth": "vendor-issued",
+      "tools": ["newsletter_publish_draft"],
+      "purpose": "Newsletter publisher adapter for marketing-pack distribution (manual-confirm gated)",
+      "bound_roles": [],
+      "bound_workflow_steps": [],
+      "business_value": "low",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "openclaw-bridge/mcp/newsletter-publisher-mcp/",
+      "health_check": "newsletter_publish_draft dry-run returns staged-draft id"
+    },
+    "notion-sync": {
+      "tool_prefix": "openclaw-bridge/mcp/notion-sync-mcp/",
+      "execution_surface": "subprocess-mcp",
+      "auth": "oauth-handshake-completed",
+      "tools": ["notion_sync_page"],
+      "purpose": "Notion page sync for internal-CRM and prospect-tracking handoff",
+      "bound_roles": [],
+      "bound_workflow_steps": [],
+      "business_value": "low",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "openclaw-bridge/mcp/notion-sync-mcp/",
+      "health_check": "notion_sync_page dry-run returns page-stub id"
+    },
+    "synthesize-bio": {
+      "tool_prefix": "mcp__c61b22f1-bde2-44d1-8e91-8e2fe4082ba6__",
+      "execution_surface": "claude-host-mcp",
+      "auth": "oauth-handshake-completed (API key NOT required for connector — only required if a subprocess adapter is built; key page: https://app.synthesize.bio/account/api-keys)",
+      "tools": ["analyze_gene_expression", "annotate_genes", "get_analysis_results", "get_counts_data_url", "resolve_sample_metadata"],
+      "purpose": "Generative genomics (GEM-1) — predicts gene expression for in-silico cohorts; the ONLY generative-rather-than-retrieval lane in the stack. Underwrites the rare-disease cohort-expansion section of Investor Pre-Mortem and the synthetic-control-arm section of Trial Design Benchmark Pack.",
+      "bound_roles": ["analyst", "molecular_profiler", "competitive_intel_analyst"],
+      "bound_workflow_steps": [
+        { "workflow_template_id": "rare-disease-brief", "step_id": "research" },
+        { "workflow_template_id": "target-validation-pack", "step_id": "research" },
+        { "workflow_template_id": "drug-discovery-full", "step_id": "research" }
+      ],
+      "business_value": "load-bearing",
+      "adapter_status": "missing",
+      "adapter_priority": "high",
+      "suggested_adapter_path": "openclaw-bridge/mcp/synthesize-bio-mcp/ (follow chembl-mcp/ scaffold: index.js + schema.js + tool-descriptions.js)",
+      "health_check": "annotate_genes(['ENSG00000141510']) returns TP53/p53 symbol"
+    },
+    "tavily": {
+      "tool_prefix": "mcp__11a574c2-a267-4a04-863c-78ae1342fc0d__",
+      "execution_surface": "claude-host-mcp",
+      "auth": "api-key-env:TAVILY_API_KEY (key provisioned at Claude-host level)",
+      "tools": ["tavily_search", "tavily_extract", "tavily_crawl", "tavily_map", "tavily_research"],
+      "purpose": "AI-optimized open-web search and extraction past Claude training cutoff. Required for the no-hallucinations gate — every claim that references an external product/company/URL/process is verified through Tavily before being asserted.",
+      "bound_roles": ["scout", "quality_auditor", "report_generator"],
+      "bound_workflow_steps": [
+        { "workflow_template_id": "drug-discovery-full", "step_id": "quality_check" },
+        { "workflow_template_id": "pharmacovigilance-report", "step_id": "quality_check" },
+        { "workflow_template_id": "target-validation-pack", "step_id": "quality_check" },
+        { "workflow_template_id": "rare-disease-brief", "step_id": "quality_check" },
+        { "workflow_template_id": "clinical-trial-landscape", "step_id": "quality_check" },
+        { "workflow_template_id": "general-research-pack", "step_id": "quality_check" }
+      ],
+      "business_value": "load-bearing",
+      "adapter_status": "missing",
+      "adapter_priority": "high",
+      "suggested_adapter_path": "openclaw-bridge/mcp/tavily-mcp/",
+      "health_check": "tavily_search({query: 'FDA approval pembrolizumab 2024', max_results: 1}) returns at least one result with URL"
+    },
+    "open-targets-graphql": {
+      "tool_prefix": "mcp__deb8af66-16fd-4ea2-a9ad-8a2f7add60b7__",
+      "execution_surface": "claude-host-mcp",
+      "auth": "none (public GraphQL endpoint)",
+      "tools": ["query_open_targets_graphql", "batch_query_open_targets_graphql", "search_entities", "get_open_targets_graphql_schema", "get_type_dependencies"],
+      "purpose": "Target-disease association evidence with GraphQL flexibility — load-bearing for Target Validation Pack and Cross-Silo Connector Report. Existing tool-prefetch-map.json references OpenTargets_get_drug_id_description_by_name (ToolUniverse) — this richer GraphQL adapter would replace/complement it.",
+      "bound_roles": ["scout", "molecular_profiler", "competitive_intel_analyst"],
+      "bound_workflow_steps": [
+        { "workflow_template_id": "target-validation-pack", "step_id": "research" },
+        { "workflow_template_id": "drug-discovery-full", "step_id": "research" }
+      ],
+      "business_value": "load-bearing",
+      "adapter_status": "missing",
+      "adapter_priority": "high",
+      "suggested_adapter_path": "openclaw-bridge/mcp/open-targets-graphql-mcp/",
+      "health_check": "search_entities({query: 'TP53'}) returns ENSG00000141510"
+    },
+    "pubmed-fulltext": {
+      "tool_prefix": "mcp__6cb39404-df07-4b18-8c1e-84348b5903de__",
+      "execution_surface": "claude-host-mcp",
+      "auth": "none",
+      "tools": ["search_articles", "get_full_text_article", "get_article_metadata", "find_related_articles", "convert_article_ids", "lookup_article_by_citation", "get_copyright_status"],
+      "purpose": "PubMed Central full-text retrieval (richer than subprocess pubmed-mcp which is metadata-first). Required for citation-density quality formula on Failed Trial Archaeology and Investor Pre-Mortem.",
+      "bound_roles": ["literature_reviewer", "synthesizer"],
+      "bound_workflow_steps": [
+        { "workflow_template_id": "drug-discovery-full", "step_id": "quality_check" },
+        { "workflow_template_id": "general-research-pack", "step_id": "research" }
+      ],
+      "business_value": "high",
+      "adapter_status": "missing",
+      "adapter_priority": "medium",
+      "suggested_adapter_path": "openclaw-bridge/mcp/pubmed-fulltext-mcp/",
+      "health_check": "search_articles({query: 'KRAS G12C', limit: 1}) returns PMID with full-text URL"
+    },
+    "drug-search-admet": {
+      "tool_prefix": "mcp__efb88440-c38c-4fba-aeb7-f3270490e9dc__",
+      "execution_surface": "claude-host-mcp",
+      "auth": "vendor-issued",
+      "tools": ["compound_search", "drug_search", "target_search", "get_admet", "get_bioactivity", "get_mechanism"],
+      "purpose": "ADMET predictions + mechanism-of-action lookup — load-bearing for Trial Design Benchmark Pack physicochemical sections. Complements ChEMBL bioactivity with predicted vs. measured.",
+      "bound_roles": ["molecular_profiler"],
+      "bound_workflow_steps": [
+        { "workflow_template_id": "drug-discovery-full", "step_id": "research" },
+        { "workflow_template_id": "target-validation-pack", "step_id": "research" }
+      ],
+      "business_value": "high",
+      "adapter_status": "missing",
+      "adapter_priority": "medium",
+      "suggested_adapter_path": "openclaw-bridge/mcp/drug-admet-mcp/",
+      "health_check": "compound_search('imatinib') returns PubChem CID 5291"
+    },
+    "clinicaltrials-enriched": {
+      "tool_prefix": "mcp__e1fbcace-eff5-41e6-95c2-69e2dedf64b3__",
+      "execution_surface": "claude-host-mcp",
+      "auth": "none",
+      "tools": ["search_trials", "get_trial_details", "analyze_endpoints", "search_by_eligibility", "search_by_sponsor", "search_investigators"],
+      "purpose": "ClinicalTrials.gov enrichment with endpoint analysis, eligibility filtering, sponsor + investigator search — replaces basic clinicaltrials-mcp lookup for Trial Design Benchmark Pack and Failed Trial Archaeology.",
+      "bound_roles": ["competitive_intel_analyst", "report_generator"],
+      "bound_workflow_steps": [
+        { "workflow_template_id": "clinical-trial-landscape", "step_id": "research" }
+      ],
+      "business_value": "high",
+      "adapter_status": "missing",
+      "adapter_priority": "medium",
+      "suggested_adapter_path": "openclaw-bridge/mcp/clinicaltrials-enriched-mcp/",
+      "health_check": "analyze_endpoints with a known NCT id returns endpoint breakdown"
+    },
+    "biorxiv-medrxiv": {
+      "tool_prefix": "mcp__d3109d6a-2eec-4d76-b38b-e7e707fff0e7__",
+      "execution_surface": "claude-host-mcp",
+      "auth": "none",
+      "tools": ["search_preprints", "get_preprint", "search_published_preprints", "search_by_funder", "get_categories", "get_content_statistics", "get_usage_statistics"],
+      "purpose": "bioRxiv/medRxiv preprint discovery — critical for Conference Synthesis Brief deliverables where peer-reviewed publication is months away. Load-bearing for early-signal detection in Failed Trial Archaeology.",
+      "bound_roles": ["literature_reviewer", "competitive_intel_analyst"],
+      "bound_workflow_steps": [
+        { "workflow_template_id": "general-research-pack", "step_id": "research" }
+      ],
+      "business_value": "high",
+      "adapter_status": "missing",
+      "adapter_priority": "medium",
+      "suggested_adapter_path": "openclaw-bridge/mcp/biorxiv-medrxiv-mcp/",
+      "health_check": "search_preprints({query: 'KRAS G12C', limit: 1}) returns DOI"
+    },
+    "research-memory": {
+      "tool_prefix": "mcp__trevorobeyinc-research-memory__",
+      "execution_surface": "claude-host-mcp",
+      "auth": "qdrant-tls-proxy at https://127.0.0.1:6433 (mkcert-signed, see HTTPS-only invariant)",
+      "tools": ["pack_ingest", "pack_search", "pack_list", "pack_get_section", "pack_diff", "pack_related"],
+      "purpose": "Persistent Qdrant-backed research-pack memory. Lets the synthesizer/report_generator pull priors from previous workflow runs (similar indications, prior KOL findings) instead of re-discovering them. Cross-workflow continuity.",
+      "bound_roles": ["synthesizer", "report_generator"],
+      "bound_workflow_steps": [
+        { "workflow_template_id": "drug-discovery-full", "step_id": "build_dataset" },
+        { "workflow_template_id": "pharmacovigilance-report", "step_id": "build_dataset" },
+        { "workflow_template_id": "target-validation-pack", "step_id": "build_dataset" },
+        { "workflow_template_id": "rare-disease-brief", "step_id": "build_dataset" },
+        { "workflow_template_id": "clinical-trial-landscape", "step_id": "build_dataset" },
+        { "workflow_template_id": "general-research-pack", "step_id": "build_dataset" }
+      ],
+      "business_value": "high",
+      "adapter_status": "missing",
+      "adapter_priority": "medium",
+      "suggested_adapter_path": "openclaw-bridge/mcp/research-memory-mcp/ (uses existing qdrant-tls-proxy on :6433 — see HTTPS-only invariant in root CLAUDE.md)",
+      "health_check": "pack_list returns at least one pack id from prior workflow runs"
+    },
+    "obsidian-bridge": {
+      "tool_prefix": "mcp__obsidian-bridge__",
+      "execution_surface": "claude-host-mcp",
+      "auth": "canonical bridge at https://127.0.0.1:8798 (mkcert-signed)",
+      "tools": ["obsidian_create_note", "obsidian_append_note", "obsidian_read_note", "obsidian_search_notes", "obsidian_open_vault", "obsidian_execute_command", "obsidian_health"],
+      "purpose": "Vault read/write for delivery-pack note generation and post-workflow Zettelkasten analysis handoff. The Command Center plugin already invokes these on workflow completion — registry binding documents intent so subprocess adapter (if built) maintains parity.",
+      "bound_roles": ["report_generator"],
+      "bound_workflow_steps": [
+        { "workflow_template_id": "drug-discovery-full", "step_id": "export" },
+        { "workflow_template_id": "pharmacovigilance-report", "step_id": "export" },
+        { "workflow_template_id": "target-validation-pack", "step_id": "export" },
+        { "workflow_template_id": "rare-disease-brief", "step_id": "export" },
+        { "workflow_template_id": "clinical-trial-landscape", "step_id": "export" },
+        { "workflow_template_id": "general-research-pack", "step_id": "export" }
+      ],
+      "business_value": "high",
+      "adapter_status": "missing",
+      "adapter_priority": "medium",
+      "suggested_adapter_path": "openclaw-bridge/mcp/obsidian-bridge-mcp/ (would proxy to the canonical bridge on :8798 — DO NOT create a parallel vault listener; see HTTPS-only invariant)",
+      "health_check": "obsidian_health returns ok"
+    },
+    "sequential-thinking": {
+      "tool_prefix": "mcp__sequential-thinking__",
+      "execution_surface": "claude-host-mcp",
+      "auth": "none (local stdio MCP server)",
+      "tools": ["sequentialthinking"],
+      "purpose": "Reasoning chain logger for the operator (this session). Not a research-data connector — used only when the operator drives Claude through a multi-step decision. Excluded from subprocess routing.",
+      "bound_roles": [],
+      "bound_workflow_steps": [],
+      "business_value": "chat-supervisory-only",
+      "adapter_status": "missing",
+      "adapter_priority": "low",
+      "suggested_adapter_path": "n/a — chat-supervisory only; no subprocess use case",
+      "health_check": "n/a"
+    },
+    "context7-library-docs": {
+      "tool_prefix": "mcp__context7__",
+      "execution_surface": "claude-host-mcp",
+      "auth": "none",
+      "tools": ["resolve-library-id", "query-docs"],
+      "purpose": "Library/framework documentation lookup for development tasks. Not a biomedical data connector. Excluded from workflow subprocess.",
+      "bound_roles": [],
+      "bound_workflow_steps": [],
+      "business_value": "chat-supervisory-only",
+      "adapter_status": "missing",
+      "adapter_priority": "low",
+      "suggested_adapter_path": "n/a — chat-supervisory only",
+      "health_check": "n/a"
+    },
+    "github": {
+      "tool_prefix": "mcp__github__",
+      "execution_surface": "claude-host-mcp",
+      "auth": "oauth-handshake-completed",
+      "tools": ["search_repositories", "search_code", "get_file_contents", "list_issues", "create_pull_request"],
+      "purpose": "GitHub repo + issue management for the operator. Not a workflow-step data source.",
+      "bound_roles": [],
+      "bound_workflow_steps": [],
+      "business_value": "chat-supervisory-only",
+      "adapter_status": "missing",
+      "adapter_priority": "low",
+      "suggested_adapter_path": "n/a — chat-supervisory only",
+      "health_check": "n/a"
+    },
+    "gmail": {
+      "tool_prefix": "mcp__ef0bc6fb-ada9-4068-8666-760f1ec94e4f__",
+      "execution_surface": "claude-host-mcp",
+      "auth": "oauth-handshake-completed",
+      "tools": ["create_draft", "list_drafts", "search_threads", "get_thread", "create_label", "list_labels"],
+      "purpose": "Gmail draft creation for outbound (manual-confirm gated). Operator-only — manual-only external action invariant prevents subprocess use.",
+      "bound_roles": [],
+      "bound_workflow_steps": [],
+      "business_value": "chat-supervisory-only",
+      "adapter_status": "missing",
+      "adapter_priority": "low",
+      "suggested_adapter_path": "n/a — manual-only external action; no subprocess adapter ever",
+      "health_check": "n/a"
+    },
+    "filesystem-sandboxed": {
+      "tool_prefix": "mcp__filesystem__",
+      "execution_surface": "claude-host-mcp",
+      "auth": "none (local stdio)",
+      "tools": ["read_file", "write_file", "list_directory", "search_files"],
+      "purpose": "Sandboxed FS access for the operator. Not a biomedical data connector.",
+      "bound_roles": [],
+      "bound_workflow_steps": [],
+      "business_value": "chat-supervisory-only",
+      "adapter_status": "missing",
+      "adapter_priority": "low",
+      "suggested_adapter_path": "n/a — chat-supervisory only",
+      "health_check": "n/a"
+    },
+    "scheduled-tasks": {
+      "tool_prefix": "mcp__scheduled-tasks__",
+      "execution_surface": "claude-host-mcp",
+      "auth": "none",
+      "tools": ["create_scheduled_task", "list_scheduled_tasks", "update_scheduled_task"],
+      "purpose": "Cron-like scheduling at the Claude-host level. The subprocess already has scheduled-workflows.json + config/scheduled-workflows.json; the two are not the same lane.",
+      "bound_roles": [],
+      "bound_workflow_steps": [],
+      "business_value": "chat-supervisory-only",
+      "adapter_status": "missing",
+      "adapter_priority": "low",
+      "suggested_adapter_path": "n/a — chat-supervisory only; subprocess scheduling lives at config/scheduled-workflows.json",
+      "health_check": "n/a"
+    },
+    "mcp-registry": {
+      "tool_prefix": "mcp__mcp-registry__",
+      "execution_surface": "claude-host-mcp",
+      "auth": "none",
+      "tools": ["search_mcp_registry", "list_connectors", "suggest_connectors"],
+      "purpose": "Connector discovery at the Claude-host level. Use to find new MCP servers to onboard. Excluded from subprocess.",
+      "bound_roles": [],
+      "bound_workflow_steps": [],
+      "business_value": "chat-supervisory-only",
+      "adapter_status": "missing",
+      "adapter_priority": "low",
+      "suggested_adapter_path": "n/a — chat-supervisory only",
+      "health_check": "n/a"
+    },
+    "icd10-host-enriched": {
+      "tool_prefix": "mcp__7872ec95-e09c-4db8-acea-cc0706e2201f__",
+      "execution_surface": "claude-host-mcp",
+      "auth": "none",
+      "tools": ["lookup_code", "search_codes", "get_hierarchy", "get_by_body_system", "get_by_category", "validate_code"],
+      "purpose": "Richer ICD-10 lookup (hierarchy, body system, category) than subprocess icd10-mcp. Useful for the operator when authoring Patient Brief copy.",
+      "bound_roles": ["report_generator"],
+      "bound_workflow_steps": [
+        { "workflow_template_id": "rare-disease-brief", "step_id": "research" }
+      ],
+      "business_value": "medium",
+      "adapter_status": "missing",
+      "adapter_priority": "low",
+      "suggested_adapter_path": "openclaw-bridge/mcp/icd10-enriched-mcp/ (or extend existing icd10-mcp)",
+      "health_check": "get_hierarchy('C34') returns lung-cancer subcategories"
+    },
+    "npi-host-validate": {
+      "tool_prefix": "mcp__1af02170-f82f-45b6-8765-8c0c3e7cde8d__",
+      "execution_surface": "claude-host-mcp",
+      "auth": "none",
+      "tools": ["npi_lookup", "npi_search", "npi_validate"],
+      "purpose": "NPI Registry with explicit validate endpoint. Replaces subprocess npi-mcp for KOL verification phase.",
+      "bound_roles": ["competitive_intel_analyst"],
+      "bound_workflow_steps": [
+        { "workflow_template_id": "clinical-trial-landscape", "step_id": "research" }
+      ],
+      "business_value": "medium",
+      "adapter_status": "missing",
+      "adapter_priority": "low",
+      "suggested_adapter_path": "openclaw-bridge/mcp/npi-mcp/ (extend existing adapter with validate)",
+      "health_check": "npi_validate of a known NPI returns valid=true"
+    },
+    "huggingface-host-rich": {
+      "tool_prefix": "mcp__8f9ee7eb-f037-4a08-9908-87bc7dc9fe80__",
+      "execution_surface": "claude-host-mcp",
+      "auth": "optional: HF_TOKEN",
+      "tools": ["hub_repo_search", "hub_repo_details", "paper_search", "space_search", "hf_doc_search", "hf_doc_fetch", "hf_hub_query", "dynamic_space", "hf_whoami"],
+      "purpose": "Hugging Face Hub deep search including papers and spaces. Richer than subprocess huggingface-metadata-only. STILL METADATA-ONLY by repo policy — no model weight downloads.",
+      "bound_roles": ["literature_reviewer"],
+      "bound_workflow_steps": [
+        { "workflow_template_id": "general-research-pack", "step_id": "research" }
+      ],
+      "business_value": "medium",
+      "adapter_status": "missing",
+      "adapter_priority": "low",
+      "suggested_adapter_path": "openclaw-bridge/mcp/huggingface-mcp/ (extend existing adapter)",
+      "health_check": "paper_search({query: 'AlphaFold', limit: 1}) returns paper id"
+    },
+    "tooluniverse-host": {
+      "tool_prefix": "mcp__ToolUniverse__",
+      "execution_surface": "claude-host-mcp",
+      "auth": "none",
+      "tools": ["find_tools", "list_tools", "get_tool_info", "execute_tool", "grep_tools"],
+      "purpose": "Host-level ToolUniverse meta-tools for discovering biomedical tools mid-conversation. The subprocess workflow already integrates ToolUniverse via tool-prefetch.js — this host-level view is duplicate and exists only for operator exploration.",
+      "bound_roles": [],
+      "bound_workflow_steps": [],
+      "business_value": "chat-supervisory-only",
+      "adapter_status": "duplicate-of-subprocess-tooluniverse",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "n/a — subprocess already integrates ToolUniverse via vendor/tooluniverse",
+      "health_check": "n/a"
+    },
+    "semantic-search-host": {
+      "tool_prefix": "mcp__7bb47381-3b1a-467f-954e-d2b748f13b93__",
+      "execution_surface": "claude-host-mcp",
+      "auth": "vendor-issued",
+      "tools": ["semanticSearch"],
+      "purpose": "Generic semantic search connector. Underspecified at host level — needs investigation before binding.",
+      "bound_roles": [],
+      "bound_workflow_steps": [],
+      "business_value": "unknown",
+      "adapter_status": "needs-investigation",
+      "adapter_priority": "low",
+      "suggested_adapter_path": "n/a — identify vendor first",
+      "health_check": "n/a"
+    },
+    "gdrive-host": {
+      "tool_prefix": "mcp__0840a1ec-a0e0-4c6b-b013-360df7265035__",
+      "execution_surface": "claude-host-mcp",
+      "auth": "oauth-handshake-completed",
+      "tools": ["read_file_content", "create_file", "copy_file", "search_files", "list_recent_files", "get_file_metadata", "get_file_permissions", "download_file_content"],
+      "purpose": "Google Drive file management at the Claude-host level. Richer than subprocess gdrive-mcp. Operator-side.",
+      "bound_roles": [],
+      "bound_workflow_steps": [],
+      "business_value": "chat-supervisory-only",
+      "adapter_status": "subprocess-equivalent-exists",
+      "adapter_priority": "low",
+      "suggested_adapter_path": "subprocess gdrive-mcp/ already exists; extend if richer ops needed",
+      "health_check": "n/a"
+    }
+  },
+  "excluded_infrastructure": {
+    "rationale": "Connectors that are not biomedical-research-relevant by category. Listed here so audit script knows to ignore them rather than flag as drift.",
+    "tool_prefixes": [
+      "mcp__plugin_playwright_playwright__",
+      "mcp__Claude_in_Chrome__",
+      "mcp__Claude_Preview__",
+      "mcp__computer-use__",
+      "mcp__btt__",
+      "mcp__Desktop_Commander__",
+      "mcp__pdf-viewer__",
+      "mcp__e0f5f089-eff5-41e6-95c2-69e2dedf64b3__",
+      "mcp__ccd_session_mgmt__",
+      "mcp__ccd_directory__",
+      "mcp__plugin_data_amplitude__",
+      "mcp__plugin_data_amplitude-eu__",
+      "mcp__plugin_data_atlassian__",
+      "mcp__plugin_data_bigquery__",
+      "mcp__plugin_data_definite__",
+      "mcp__plugin_data_hex__",
+      "mcp__claude-code__"
+    ]
+  }
+}

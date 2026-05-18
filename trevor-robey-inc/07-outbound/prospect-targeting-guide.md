@@ -234,4 +234,4 @@ Screen share the sample deliverable:
 - **Never say "AI-generated content."** Say "autonomous research synthesis" or "multi-agent intelligence engine."
 - **Demonstrate, don't claim.** Always be ready to click a PMID live in a call.
 - **New offering ladder (2026-04-30)** in outbound materials. **Investor Pre-Mortem** primary ($9,950 anchor / $14,950 standard / $19,950 custom) — biotech investors and pharma BD. **Failed Trial Archaeology** flanking ($14,950) — pharma R&D CI and biotech VC diligence. **Tactical SKUs** ($4,950 Conference Synthesis Brief, $4,950 Trial Design Benchmark Pack, $9,950–$24,950 Cross-Silo Connector Report, $2,500 Plain-Language Patient Brief). **Pharmacovigilance Pack** retained as tactical SKU ($2,500–$4,950, existing marketplace tier). Lead with the SKU matched to the prospect persona. The retired four-tier ARR ladder ($2.5K / $4.95K / $15K / $60K+) is no longer the public offering structure.
-- **Contact**: trevor@trevorrobey.com — personal founder email is appropriate for founder-led outbound.
+- **Contact**: trevor@trevorobeyinc.com — personal founder email is appropriate for founder-led outbound.

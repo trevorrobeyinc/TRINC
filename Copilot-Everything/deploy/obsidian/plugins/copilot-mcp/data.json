@@ -298,7 +298,7 @@
     {
       "name": "qwen2.5-coder:7b",
       "provider": "ollama",
-      "baseUrl": "http://localhost:11434",
+      "baseUrl": "https://127.0.0.1:11435",
       "enabled": true,
       "isBuiltIn": false,
       "stream": true,
@@ -309,7 +309,7 @@
     {
       "name": "llama3-groq-tool-use:latest",
       "provider": "ollama",
-      "baseUrl": "http://localhost:11434",
+      "baseUrl": "https://127.0.0.1:11435",
       "enabled": true,
       "isBuiltIn": false,
       "stream": false,
@@ -444,7 +444,7 @@
     "enabled": true
   },
   "selfHostAdapter": {
-    "baseUrl": "http://127.0.0.1:8789",
+    "baseUrl": "https://127.0.0.1:8798",
     "apiKey": "copilot-mcp-dev-self-host-key",
     "enableMiyoBackend": false,
     "runtimeLane": "fork_dev"
@@ -452,7 +452,7 @@
   "enableMiyo": false,
   "selfHostModeValidatedAt": null,
   "selfHostValidationCount": 0,
-  "selfHostUrl": "http://127.0.0.1:8789",
+  "selfHostUrl": "https://127.0.0.1:8798",
   "selfHostApiKey": "copilot-mcp-dev-self-host-key",
   "miyoServerUrl": "",
   "selfHostSearchProvider": "firecrawl",

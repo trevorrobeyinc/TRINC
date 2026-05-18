@@ -119,7 +119,7 @@ The bridge works with the Copilot plugin's MCP configuration. Add this to your C
 ```json
 {
   "obsidian-bridge": {
-    "url": "http://127.0.0.1:8798"
+    "url": "https://127.0.0.1:8798"
   }
 }
 ```

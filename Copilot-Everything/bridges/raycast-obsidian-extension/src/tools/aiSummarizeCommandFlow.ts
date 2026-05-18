@@ -2,17 +2,12 @@ import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { open } from "@raycast/api";
-import { existsSync } from "node:fs";
 import { getRefreshPromptRegistryCommandCandidates, getSummarizeCommandCandidates } from "@/api/copilot/commandIds";
 import { hybridReadNote } from "@/api/mcp/hybridObsidian.service";
 import { getVaultsFromPreferencesOrObsidianJson } from "@/obsidian/internal/obsidian";
+import { executeCommand } from "../utils/restApiClient";
 
 const execFileAsync = promisify(execFile);
-const OBSIDIAN_BINARY_CANDIDATES = [
-  "/Applications/Obsidian.app/Contents/MacOS/obsidian",
-  "/opt/homebrew/bin/obsidian",
-  "/usr/local/bin/obsidian",
-];
 
 export interface ResolvedVault {
   name: string;
@@ -28,24 +23,17 @@ export async function resolvePrimaryVault(): Promise<ResolvedVault> {
   return vaults[0];
 }
 
-function resolveObsidianBinary(): string {
-  const binary = OBSIDIAN_BINARY_CANDIDATES.find((candidate) => existsSync(candidate));
-  if (!binary) {
-    throw new Error("Obsidian CLI binary was not found.");
-  }
-  return binary;
+// Trigger an Obsidian command via the Local REST API plugin's /commands/{id}/ endpoint.
+// REST API operates on Obsidian's currently focused vault — the caller is responsible for
+// having brought the desired vault to the front (see restoreObsidianFocus below).
+async function triggerObsidianCommand(commandId: string): Promise<void> {
+  await executeCommand(commandId);
 }
 
-async function runObsidianCliCommand(vaultName: string, commandId: string): Promise<void> {
-  await execFileAsync(resolveObsidianBinary(), [`vault=${vaultName}`, "command", `id=${commandId}`], {
-    timeout: 20_000,
-  });
-}
-
-export async function triggerSummarizePrompt(vaultName: string): Promise<string> {
+export async function triggerSummarizePrompt(_vaultName: string): Promise<string> {
   for (const commandId of getSummarizeCommandCandidates()) {
     try {
-      await runObsidianCliCommand(vaultName, commandId);
+      await triggerObsidianCommand(commandId);
       return commandId;
     } catch {
       // Try next known summarize command id.
@@ -66,7 +54,7 @@ async function triggerSummarizePromptWithRefreshFallback(vault: ResolvedVault): 
 
   for (const commandId of getRefreshPromptRegistryCommandCandidates()) {
     try {
-      await runObsidianCliCommand(vault.name, commandId);
+      await triggerObsidianCommand(commandId);
       break;
     } catch {
       // Try next known refresh command id.
@@ -77,10 +65,10 @@ async function triggerSummarizePromptWithRefreshFallback(vault: ResolvedVault): 
 
 async function restoreObsidianFocus(vaultName: string, activationDelayMs: number): Promise<void> {
   const activationScript = 'tell application "Obsidian" to activate';
-
   try {
     await execFileAsync("/usr/bin/osascript", ["-e", activationScript]);
   } catch {
+    // obsidian://open is Obsidian's built-in URL handler (not Advanced URI) — safe and unauth.
     await open(`obsidian://open?vault=${encodeURIComponent(vaultName)}`);
   }
   await new Promise((resolve) => setTimeout(resolve, activationDelayMs));

@@ -24,7 +24,7 @@ npm --prefix mcp-server ci
 
 ```bash
 npm --prefix mcp-server run build
-npm --prefix mcp-server run start:http
+npm --prefix mcp-server run start:https
 ```
 
 Default secure transport is UDS on macOS/Linux and named pipe on Windows when `transport.mode` is omitted.
@@ -63,7 +63,7 @@ The bridge-backed lane remains the current stable note/command execution contrac
 
 ## Transports
 
-- HTTP: `--transport=http`
+- HTTPS: `--transport=https` (preferred; `--transport=http` accepted as a legacy alias — the network transport is HTTPS-only either way, see `src/server/httpTransport.ts`)
 - Unix domain socket: `--transport=uds`
 - Windows named pipe: `--transport=pipe`
 

@@ -1,1 +1,0 @@
-../../obsidian-copilot-bridge/claude-adapter/index.mjs

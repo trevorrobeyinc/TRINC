@@ -129,7 +129,7 @@ Request body:
     "key": "llama3-groq-tool-use:latest|ollama",
     "name": "llama3-groq-tool-use:latest",
     "provider": "ollama",
-    "baseUrl": "http://127.0.0.1:11434",
+    "baseUrl": "https://127.0.0.1:11435",
     "apiKey": "optional",
     "temperature": 0.1,
     "maxTokens": 6000,

@@ -33,7 +33,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 class ScrapeRequest(BaseModel):
     target: str = Field(..., description="Connector ID, e.g. 'elife'")
     params: dict[str, Any] = Field(default_factory=dict)
-    prefer_engine: str | None = Field(default=None, description="camoufox | seleniumbase-uc | seleniumbase-cdp")
+    prefer_engine: str | None = Field(default=None, description="playwright-firefox | playwright-chromium")
     bypass_cache: bool = False
 
 

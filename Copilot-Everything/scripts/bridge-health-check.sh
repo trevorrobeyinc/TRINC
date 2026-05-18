@@ -21,8 +21,8 @@ BRIDGE_SERVER_DIR="$BRIDGE_REPO"
 TARGET_PID="${1:-}"
 if [[ -z "$TARGET_PID" ]]; then
   TARGET_PID="$(ps -ax -o pid=,command= \
-    | rg "node dist/index.js --transport=http" \
-    | rg -v "rg node dist/index.js --transport=http" \
+    | rg "node dist/index.js --transport=https?\b" \
+    | rg -v "rg node dist/index.js --transport=" \
     | awk 'NR==1 { print $1 }')"
 fi
 [[ -n "$TARGET_PID" ]] || die "Could not find running bridge process. Start bridge first."

@@ -90,7 +90,7 @@ export class ModelGateway {
   }
 
   private getOpenAIEndpoint(model: ResolvedModelConfig): string {
-    const defaultBase = model.provider === "lm-studio" ? "http://127.0.0.1:1234/v1" : "https://api.openai.com/v1";
+    const defaultBase = model.provider === "lm-studio" ? "https://127.0.0.1:1235/v1" : "https://api.openai.com/v1";
     const raw = model.baseUrl?.trim() || defaultBase;
     const normalized = raw.replace(/\/+$/, "");
     if (normalized.endsWith("/chat/completions")) return normalized;
@@ -101,7 +101,7 @@ export class ModelGateway {
   // ── Ollama ────────────────────────────────────────────────────────
 
   private async generateOllama(request: TextGenerationRequest): Promise<TextGenerationResult> {
-    const baseUrl = (request.model.baseUrl?.trim() || "http://127.0.0.1:11434").replace(/\/+$/, "");
+    const baseUrl = (request.model.baseUrl?.trim() || "https://127.0.0.1:11435").replace(/\/+$/, "");
     const endpoint = `${baseUrl}/api/chat`;
 
     const headers: Record<string, string> = { "Content-Type": "application/json" };

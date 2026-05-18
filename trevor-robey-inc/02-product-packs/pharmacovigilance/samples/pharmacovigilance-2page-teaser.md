@@ -74,7 +74,7 @@ Check any identifier above in its source database. It resolves.
 
 Request the full 48-page sample deliverable or initiate a custom intelligence mission on a topic relevant to your pipeline.
 
-**Contact**: trevor@trevorrobey.com
+**Contact**: trevor@trevorobeyinc.com
 **Web**: https://trevorrobeyinc.github.io
 
 ---
@@ -96,7 +96,7 @@ Request the full 48-page sample deliverable or initiate a custom intelligence mi
 | RxNorm | Public domain (US federal data) | Drug identifiers via RxNav (rxnav.nlm.nih.gov). |
 | OpenFDA | Public domain (FDA) | Application/SPL identifiers. |
 | UniProt | CC BY 4.0 | Attribution string included. |
-| DrugBank | NOT INCLUDED | Excluded under DrugBank commercial-use ToS. Commercial DrugBank pack available under separate license — contact trevor@trevorrobey.com. |
+| DrugBank | NOT INCLUDED | Excluded under DrugBank commercial-use ToS. Commercial DrugBank pack available under separate license — contact trevor@trevorobeyinc.com. |
 
 
 ---

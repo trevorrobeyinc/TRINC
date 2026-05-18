@@ -72,6 +72,7 @@
     "phase23:report": "node scripts/generate-phase23-report.js --confirm",
     "verify:live-llm": "node scripts/run-live-llm-verification.js",
     "verify:live-mcp": "node scripts/run-live-mcp-verification.js",
+    "audit:connectors": "node scripts/audit-connector-coverage.js",
     "lifecycle:verify": "bash scripts/verify-no-lifecycle-hooks.sh",
     "globals:lint": "bash scripts/lint-restricted-globals.sh",
     "build:verify": "node scripts/verify-node-runtime.js && bash scripts/build-verify.sh",

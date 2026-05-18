@@ -2,6 +2,7 @@ import { MenuBarExtra, open } from "@raycast/api";
 import { Obsidian, ObsidianTargetType, ObsidianVault } from "@/obsidian";
 import { ObsidianIcon } from "./utils/constants";
 import { useObsidianVaults, useVaultPluginCheck, useNotes } from "./utils/hooks";
+import { executeCommand } from "./utils/restApiClient";
 
 function BookmarkedNotesList(props: { vault: ObsidianVault }) {
   const { notes, loading } = useNotes(props.vault, true);
@@ -50,7 +51,7 @@ function BookmarkedNotesVaultSelection(props: { vaults: ObsidianVault[] }) {
 function DailyNoteVaultSelection(props: { vaults: ObsidianVault[] }) {
   const { vaultsWithPlugin } = useVaultPluginCheck({
     vaults: props.vaults,
-    communityPlugins: ["obsidian-advanced-uri"],
+    communityPlugins: ["obsidian-local-rest-api"],
     corePlugins: ["daily-notes"],
   });
   return (
@@ -60,7 +61,12 @@ function DailyNoteVaultSelection(props: { vaults: ObsidianVault[] }) {
           title={vault.name}
           key={vault.path + "Daily Note"}
           tooltip="Open Daily Note"
-          onAction={() => open(Obsidian.getTarget({ type: ObsidianTargetType.DailyNote, vault: vault }))}
+          // REST API operates on Obsidian's currently focused vault. The pre-migration URL scheme
+          // would switch vaults first; the REST equivalent does not. Multi-vault users see the
+          // daily note open in whichever vault Obsidian has focused.
+          onAction={async () => {
+            await executeCommand("daily-notes:goto-today");
+          }}
         />
       ))}
     </MenuBarExtra.Submenu>

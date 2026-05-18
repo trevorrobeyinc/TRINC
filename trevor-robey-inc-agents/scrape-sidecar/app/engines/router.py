@@ -6,8 +6,7 @@ import logging
 from dataclasses import dataclass
 
 from .base import FetchResult
-from .camoufox_engine import CamoufoxEngine
-from .seleniumbase_engine import SeleniumBaseCDPEngine, SeleniumBaseUCEngine
+from .playwright_engine import PlaywrightChromiumEngine, PlaywrightFirefoxEngine
 
 
 logger = logging.getLogger(__name__)
@@ -20,13 +19,12 @@ class RoutedFetch:
 
 
 class EngineRouter:
-    def __init__(self, default_engine: str = "camoufox") -> None:
+    def __init__(self, default_engine: str = "playwright-firefox") -> None:
         self._engines = {
-            "camoufox": CamoufoxEngine(),
-            "seleniumbase-uc": SeleniumBaseUCEngine(),
-            "seleniumbase-cdp": SeleniumBaseCDPEngine(),
+            "playwright-firefox": PlaywrightFirefoxEngine(),
+            "playwright-chromium": PlaywrightChromiumEngine(),
         }
-        self._fallthrough_order = ["camoufox", "seleniumbase-uc", "seleniumbase-cdp"]
+        self._fallthrough_order = ["playwright-firefox", "playwright-chromium"]
         if default_engine not in self._engines:
             raise ValueError(f"unknown default engine: {default_engine}")
         order = [default_engine] + [e for e in self._fallthrough_order if e != default_engine]

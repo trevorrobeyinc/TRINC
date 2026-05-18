@@ -5,10 +5,10 @@
       "args": ["/Users/trevorrobey/Code/Claude/Medical-Zettelkasten-MCP/src/server.js"],
       "cwd": "/Users/trevorrobey/Code/Claude/Medical-Zettelkasten-MCP"
     },
-    "obsidian-copilot-bridge": {
+    "obsidian-bridge": {
       "command": "/Users/trevorrobey/.nvm/versions/node/v22.13.1/bin/node",
       "args": [
-        "/Users/trevorrobey/Code/THE Copilot in Obsidian Everything/bridges/obsidian-copilot-bridge/claude-adapter/index.mjs"
+        "/Users/trevorrobey/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-stdio-adapter/index.mjs"
       ],
       "env": {
         "NODE_EXTRA_CA_CERTS": "/Users/trevorrobey/Library/Application Support/mkcert/rootCA.pem"

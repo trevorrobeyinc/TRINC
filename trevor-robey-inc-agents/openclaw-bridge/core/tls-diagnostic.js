@@ -23,9 +23,10 @@
  * The diagnostic emits the SAME JSON shape as scripts/lib/tls-diagnostic.sh
  * so a future self-healing agent can consume either source uniformly.
  *
- * Restricted-globals compliance: this module does NOT call `Date.now()`,
- * `new Date()`, `Math.random()`, or `randomUUID()`. If a timestamp is
- * needed, the caller adds it from timeProvider.
+ * Restricted-globals compliance: this module does NOT call any of the
+ * forbidden time/entropy globals enforced by
+ * scripts/lint-restricted-globals.sh. If a timestamp is needed, the
+ * caller supplies it from timeProvider.
  */
 
 const fs = require("node:fs");

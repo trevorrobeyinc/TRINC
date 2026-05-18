@@ -28,8 +28,8 @@ Explicitly not treated as current-production scope:
 | CORE-01 | Backend emulator health | `GET https://127.0.0.1:8789/healthz` | `ok=true`, `status=ready`, `bridgeOk=true` |
 | CORE-02 | MCP bridge health | `GET https://127.0.0.1:8798/healthz` | `ok=true`, `status=ready` |
 | CORE-03 | Bridge CLI probe alignment | `scripts/bridge-health-check.sh` | bridge health and direct CLI probe agree |
-| CORE-04 | Ollama model inventory | `GET http://127.0.0.1:11434/api/tags` | expected local models returned |
-| CORE-05 | Ollama generation | `POST http://127.0.0.1:11434/api/generate` | non-empty response from `llama3.1:8b` |
+| CORE-04 | Ollama model inventory | `GET https://127.0.0.1:11435/api/tags` (via TLS proxy) | expected local models returned |
+| CORE-05 | Ollama generation | `POST https://127.0.0.1:11435/api/generate` (via TLS proxy) | non-empty response from `llama3.1:8b` |
 | CORE-06 | Direct Miyo health | detected service base URL | health endpoint responds if service file is present |
 | CORE-07 | Current-stack CLI stability gate | `scripts/cli-stability-gate.sh` | backend/bridge health, CLI probe parity, vault registration, readiness diagnostics, and live six-op validation all pass |
 | BACKEND-01 | Backend contract tests | `scripts/backend-contract-test.sh` | contract and compat alias unit tests pass |

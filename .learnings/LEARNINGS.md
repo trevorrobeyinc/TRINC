@@ -83,3 +83,45 @@ None — change is shipped. If the Miyo app updates and changes its bundled serv
 - Related Files: TrevClaw-Obsidianodus/CLAUDE.md, Copilot-Everything/scripts/miyo-tls-proxy.mjs, ~/Library/LaunchAgents/com.trevorrobey.miyo-tls-proxy.plist, Copilot-Everything/repos/obsidian-copilot-mcp/src/miyo/MiyoServiceDiscovery.ts, Claude/obsidian-openclaw-command-center/src/copilot-integration/miyo-client.ts
 - Tags: https-invariant, miyo, defense-in-depth, dns-rebinding, mkcert, launchd
 - See Also: TrevClaw-Obsidianodus/CLAUDE.md "HTTPS-only invariant" section
+
+## [LRN-20260510-001] correction
+
+**Logged**: 2026-05-10T03:35:00Z
+**Priority**: high
+**Status**: resolved
+**Area**: workflow
+
+### Summary
+When user says "remove X" or "replace X with Y", they mean delete X entirely — not preserve X behind an opt-in flag.
+
+### Details
+Twice in the obsidian-bridge consolidation, I half-removed things by gating them behind opt-in env vars or preferredOrder lists instead of deleting. User corrected: (1) "you can remove advanced URI then because REST API will take over" → I left aduri.ts in tree as opt-in, was told to delete; (2) "replace the cli fallback with an error message" → I kept CliBackend behind OBSIDIAN_TRANSPORT=cli opt-in, was told to delete the backend AND build a real diagnostic tool.
+
+### Suggested Action
+When the user issues a removal/replacement directive in this codebase, the deletion is total. Do not preserve the old code as a "safety net" or "future opt-in" unless the user explicitly requests that pattern. Default behavior: delete the file, delete the type literal, delete the tests, delete the dependent helpers.
+
+### Metadata
+- Source: user_feedback
+- Related Files: src/backends/cliBackend.ts (deleted), src/server/tools/aduri.ts (deleted)
+- Tags: bridge-consolidation, removal-semantics, scope-creep
+
+## [LRN-20260510-002] knowledge_gap
+
+**Logged**: 2026-05-10T10:45:00Z
+**Priority**: high
+**Status**: resolved
+**Area**: backend
+
+### Summary
+Node does NOT auto-load `.env` / `.env.local` files. Daemons spawned by another process (e.g., obsidian-bridge-launcher Obsidian plugin) need an explicit env loader before any module reads `process.env`.
+
+### Details
+The bridge daemon at port 8798 has its API key sealed in `bridges/obsidian-copilot-bridge/.env.local` (mode 0600, gitignored). I assumed Node would source this automatically. It does not. When the obsidian-bridge-launcher plugin spawned the daemon, `process.env.OBSIDIAN_REST_API_KEY` was undefined and `RestApiBackend.probe()` failed with `config_invalid`. The new `obsidian_health` diagnostic tool flagged this exact case ("config" category, OBSIDIAN_REST_API_KEY missing) — proving its value.
+
+### Suggested Action
+Any time a daemon is spawned by another process (Obsidian plugin, launchd, PM2, systemd) and depends on a `.env`-style file, EXPLICITLY load it from disk inside the daemon's main entry point — don't rely on the parent's environment. Use a small no-dep loader (see `src/config/envLocal.ts`) to avoid the dotenv dependency. Load BEFORE any module that reads `process.env` at module-load time.
+
+### Metadata
+- Source: tool_result
+- Related Files: src/config/envLocal.ts (created), src/index.ts (loadEnvLocal called at top)
+- Tags: env-loading, spawn-environment, secrets, dotenv-pitfall

@@ -14,7 +14,7 @@ Paste-ready blocks mapped to Datarade's intake form. Each `##` heading correspon
 | Company (legal) | Trevor Robey Intelligence Network Citations LLC |
 | Brand / trading name | Trevor Robey, INC. (powered by OpenClaw) — *INC = Intelligence Network Citations* |
 | Website | https://trevorobeyinc.com |
-| Primary contact | Trevor Robey · trevor@trevorrobey.com |
+| Primary contact | Trevor Robey · trevor@trevorobeyinc.com |
 | Country | United States |
 | Year founded | 2025 |
 | Company size | Solo founder / specialist provider |
@@ -82,7 +82,7 @@ One-off, custom, and subscription billing supported. Off-platform fulfillment �
 
 ## Sample availability
 
-- **Public 2-page teaser** (no NDA) — Pharmacovigilance Signal Synthesis on Immune Checkpoint Inhibitors. Available on request via the trevorobeyinc.com landing page CTA or by direct email to trevor@trevorrobey.com.
+- **Public 2-page teaser** (no NDA) — Pharmacovigilance Signal Synthesis on Immune Checkpoint Inhibitors. Available on request via the trevorobeyinc.com landing page CTA or by direct email to trevor@trevorobeyinc.com.
 - **Full 48-page redacted sample deliverable** — same topic, full structure, available post-NDA (Common Paper Mutual NDA template, 3-day signature turnaround typical).
 - Both samples reflect the production output format including the Source License Register and Reproducibility Manifest appendices.
 
@@ -118,7 +118,7 @@ Proactive disclosure of every source database used and its license terms.
 | UniProt | CC BY 4.0 | ✅ Included with attribution string |
 | ChEMBL | CC BY-SA 3.0 | ✅ Included as derived analyses with version cited (e.g., ChEMBL_36, Sept 2025); raw rows not redistributed |
 | OpenTargets, GARD, Orphanet, HPA | Open-license, public | ✅ Included |
-| **DrugBank** | Commercial-license-required | ❌ **NOT INCLUDED**. Commercial DrugBank-licensed pack available under separate engagement — contact trevor@trevorrobey.com. |
+| **DrugBank** | Commercial-license-required | ❌ **NOT INCLUDED**. Commercial DrugBank-licensed pack available under separate engagement — contact trevor@trevorobeyinc.com. |
 | EudraVigilance (public reports) | Public reports only — no licensed extracts | ✅ Public-portion only |
 
 This register ships in every deliverable as an appendix.

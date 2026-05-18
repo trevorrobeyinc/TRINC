@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "deny": [
+      "Write(/Users/trevorrobey/self-evolving/**)",
+      "Edit(/Users/trevorrobey/self-evolving/**)",
+      "Write(~/self-evolving/**)",
+      "Edit(~/self-evolving/**)"
+    ]
+  }
+}

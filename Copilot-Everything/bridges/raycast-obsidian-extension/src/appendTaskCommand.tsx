@@ -1,14 +1,14 @@
-import { Action, ActionPanel, closeMainWindow, getPreferenceValues, List, open, popToRoot } from "@raycast/api";
+import { Action, ActionPanel, closeMainWindow, getPreferenceValues, List, popToRoot } from "@raycast/api";
 import { useEffect, useState } from "react";
-import AdvancedURIPluginNotInstalled from "./components/Notifications/AdvancedURIPluginNotInstalled";
+import LocalRestApiPluginNotInstalled from "./components/Notifications/LocalRestApiPluginNotInstalled";
 import { NoPathProvided } from "./components/Notifications/NoPathProvided";
 import { NoVaultFoundMessage } from "./components/Notifications/NoVaultFoundMessage";
-import { vaultsWithoutAdvancedURIToast } from "./components/Toasts";
+import { vaultsWithoutLocalRestApiToast } from "./components/Toasts";
 import { AppendTaskPreferences } from "./utils/preferences";
 import { useObsidianVaults, useVaultPluginCheck } from "./utils/hooks";
 import { clearCache } from "./api/cache/cache.service";
 import { applyTemplates } from "./api/templating/templating.service";
-import { Obsidian, ObsidianTargetType } from "@/obsidian";
+import { appendNote } from "./utils/restApiClient";
 
 interface appendTaskArgs {
   text: string;
@@ -21,14 +21,14 @@ export default function AppendTask(props: { arguments: appendTaskArgs }) {
   const { dueDate } = props.arguments;
   const dateContent = dueDate ? " 📅 " + dueDate : "";
 
-  const { appendTemplate, heading, notePath, noteTag, vaultName, silent, creationDate } =
+  const { appendTemplate, heading, notePath, noteTag, vaultName, creationDate } =
     getPreferenceValues<AppendTaskPreferences>();
   const { vaultsWithPlugin, vaultsWithoutPlugin } = useVaultPluginCheck({
     vaults: vaults,
-    communityPlugins: ["obsidian-advanced-uri"],
+    communityPlugins: ["obsidian-local-rest-api"],
   });
   const [content, setContent] = useState<string | null>(null);
-  const [shouldOpenObsidian, setShouldOpenObsidian] = useState(false);
+  const [shouldAppend, setShouldAppend] = useState(false);
 
   useEffect(() => {
     async function getContent() {
@@ -40,46 +40,23 @@ export default function AppendTask(props: { arguments: appendTaskArgs }) {
   }, [appendTemplate, text]);
 
   useEffect(() => {
-    if (!shouldOpenObsidian || !ready || content === null || !notePath) {
+    if (!shouldAppend || !ready || content === null || !notePath) {
       return;
     }
 
-    const openObsidian = async () => {
-      const selectedVault = vaultName && vaults.find((vault) => vault.name === vaultName);
-      const vaultToUse = selectedVault || vaultsWithPlugin[0];
+    const runAppend = async () => {
       const tag = noteTag ? noteTag + " " : "";
       const creationDateString = creationDate ? " ➕ " + new Date().toLocaleDateString("en-CA") : "";
-
       const notePathExpanded = await applyTemplates(notePath);
-      const target = Obsidian.getTarget({
-        type: ObsidianTargetType.AppendTask,
-        path: notePathExpanded,
-        vault: vaultToUse,
-        text: "- [ ] " + tag + content + dateContent + creationDateString,
-        heading: heading,
-        silent: silent,
-      });
-      open(target);
+      const taskMarkdown = "- [ ] " + tag + content + dateContent + creationDateString;
+      await appendNote(notePathExpanded, taskMarkdown, heading ? { heading } : {});
       clearCache();
       popToRoot();
       closeMainWindow();
     };
 
-    openObsidian();
-  }, [
-    shouldOpenObsidian,
-    ready,
-    content,
-    vaultName,
-    vaults,
-    vaultsWithPlugin,
-    notePath,
-    noteTag,
-    creationDate,
-    dateContent,
-    heading,
-    silent,
-  ]);
+    runAppend();
+  }, [shouldAppend, ready, content, vaultName, vaults, vaultsWithPlugin, notePath, noteTag, creationDate, dateContent, heading]);
 
   if (!ready || content === null) {
     return <List isLoading={true} />;
@@ -90,46 +67,39 @@ export default function AppendTask(props: { arguments: appendTaskArgs }) {
   }
 
   if (vaultsWithoutPlugin.length > 0) {
-    vaultsWithoutAdvancedURIToast(vaultsWithoutPlugin);
+    vaultsWithoutLocalRestApiToast(vaultsWithoutPlugin);
   }
 
   if (vaultsWithPlugin.length === 0) {
-    return <AdvancedURIPluginNotInstalled />;
+    return <LocalRestApiPluginNotInstalled />;
   }
 
   if (vaultName) {
-    // Fail if selected vault doesn't have plugin
     if (!vaultsWithPlugin.some((v) => v.name === vaultName)) {
-      return <AdvancedURIPluginNotInstalled vaultName={vaultName} />;
+      return <LocalRestApiPluginNotInstalled vaultName={vaultName} />;
     }
   }
 
   if (!notePath) {
-    // Fail if selected vault doesn't have plugin
     return <NoPathProvided />;
   }
 
-  // en-CA uses the same format as the iso string without the time ex: 2025-09-25
   const creationDateString = creationDate ? " ➕ " + new Date().toLocaleDateString("en-CA") : "";
   const tag = noteTag ? noteTag + " " : "";
 
   const selectedVault = vaultName && vaults.find((vault) => vault.name === vaultName);
-  // If there's a configured vault or only one vault, use that
   if (selectedVault || vaultsWithPlugin.length === 1) {
-    // Render a loading state while the user selects a vault
     if (vaults.length > 1 && !selectedVault) {
       return <List isLoading={true} />;
     }
 
-    // Trigger the useEffect to open Obsidian
-    if (!shouldOpenObsidian) {
-      setShouldOpenObsidian(true);
+    if (!shouldAppend) {
+      setShouldAppend(true);
     }
 
     return <List isLoading={true} />;
   }
 
-  // Otherwise, let the user select a vault
   return (
     <List isLoading={false}>
       {vaultsWithPlugin.map((vault) => (
@@ -138,15 +108,15 @@ export default function AppendTask(props: { arguments: appendTaskArgs }) {
           title={vault.name}
           actions={
             <ActionPanel>
-              <Action.Open
+              <Action
                 title="Append Task"
-                target={Obsidian.getTarget({
-                  type: ObsidianTargetType.AppendTask,
-                  path: notePath,
-                  vault: vault,
-                  text: "- [ ] " + tag + content + dateContent + creationDateString,
-                  heading: heading,
-                })}
+                onAction={async () => {
+                  const taskMarkdown = "- [ ] " + tag + content + dateContent + creationDateString;
+                  await appendNote(notePath, taskMarkdown, heading ? { heading } : {});
+                  clearCache();
+                  popToRoot();
+                  closeMainWindow();
+                }}
               />
             </ActionPanel>
           }

@@ -25,7 +25,7 @@ function transform(workflowOutput, options = {}) {
     format: "CSV + Markdown + JSON",
     license: "CC-BY-NC-4.0",
     provider: "Trevor Robey Inc.",
-    contact: "trevor@trevorrobey.com",
+    contact: "trevor@trevorobeyinc.com",
     website: "https://trevorrobeyinc.github.io"
   };
 

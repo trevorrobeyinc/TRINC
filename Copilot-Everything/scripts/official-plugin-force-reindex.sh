@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib.sh"
+source "$SCRIPT_DIR/lib/tls-diagnostic.sh"
 
 require_command jq
 require_command obsidian
@@ -36,9 +37,14 @@ obsidian "vault=$TARGET_VAULT_NAME" eval "code=(() => {
 SOURCE_ID="$(jq -r '.sourceId // empty' "$SOURCE_INFO_FILE")"
 [[ -n "$SOURCE_ID" && "$SOURCE_ID" != "null" ]] || SOURCE_ID="$TARGET_VAULT_NAME"
 SOURCE_URI="$(jq -nr --arg value "$SOURCE_ID" '$value | @uri')"
-MIYO_STATS_URL="http://127.0.0.1:8742/v0/index/stats?vault=$SOURCE_URI"
+# HTTPS-only invariant: target the in-monorepo Miyo TLS proxy on :8743, NOT
+# the plaintext upstream :8742. On failure, emit a structured diagnostic.
+MIYO_STATS_URL="https://127.0.0.1:8743/v0/index/stats?vault=$SOURCE_URI"
 
-curl -sS "$MIYO_STATS_URL" >"$BEFORE_FILE"
+if ! curl --cacert "$MKCERT_CA" -fsS "$MIYO_STATS_URL" >"$BEFORE_FILE"; then
+  tls_diagnose 8743 8742 com.trevorrobey.miyo-tls-proxy "MIYO_STATS_BEFORE_FAILED" >&2
+  exit 1
+fi
 obsidian "vault=$TARGET_VAULT_NAME" dev:debug on >/dev/null 2>&1 || true
 obsidian "vault=$TARGET_VAULT_NAME" dev:console clear >/dev/null 2>&1 || true
 
@@ -111,8 +117,14 @@ for _attempt in {1..1200}; do
   sleep 2
 done
 
-curl -sS "$MIYO_STATS_URL" >"$AFTER_FILE"
-miyo search --json --url "http://127.0.0.1:8742" "wireless networking" >"$SEARCH_FILE"
+if ! curl --cacert "$MKCERT_CA" -fsS "$MIYO_STATS_URL" >"$AFTER_FILE"; then
+  tls_diagnose 8743 8742 com.trevorrobey.miyo-tls-proxy "MIYO_STATS_AFTER_FAILED" >&2
+  exit 1
+fi
+if ! miyo search --json --url "https://127.0.0.1:8743" "wireless networking" >"$SEARCH_FILE"; then
+  tls_diagnose 8743 8742 com.trevorrobey.miyo-tls-proxy "MIYO_SEARCH_FAILED" >&2
+  exit 1
+fi
 obsidian "vault=$TARGET_VAULT_NAME" dev:console limit=400 >"$CONSOLE_FILE"
 
 jq -e '.status == "completed" and .ok == true' "$STATUS_FILE" >/dev/null || die "Official plugin reindex run did not complete successfully."

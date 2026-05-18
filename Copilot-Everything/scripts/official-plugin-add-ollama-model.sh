@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib.sh"
+source "$SCRIPT_DIR/lib/tls-diagnostic.sh"
 
 require_command obsidian
 require_command jq
@@ -10,7 +11,9 @@ require_command curl
 
 MODEL_NAME=""
 TARGET_VAULT_NAME="$(vault_name "$PRODUCTION_VAULT")"
-TARGET_BASE_URL="http://localhost:11434"
+# HTTPS-only invariant: target the in-monorepo Ollama TLS proxy on :11435, NOT
+# the plaintext upstream :11434. tls_diagnose surfaces root-cause if unreachable.
+TARGET_BASE_URL="https://127.0.0.1:11435"
 SET_AS_DEFAULT="false"
 TARGET_PLUGIN_ID="$OFFICIAL_PLUGIN_ID"
 DATA_FILE="$OFFICIAL_PLUGIN_DIR/data.json"

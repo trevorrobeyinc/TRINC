@@ -9,7 +9,7 @@ The official `copilot` slot in `My Digital Garden` is now running through:
 - hosted/Copilot model
 - `direct_plugin_mcp`
 - shared HTTP MCP server at `https://127.0.0.1:8798`
-- native Miyo HTTP backend at `http://127.0.0.1:8742`
+- native Miyo via HTTPS proxy at `https://127.0.0.1:8743` (upstream `http://127.0.0.1:8742`)
 
 The emulator is out of the normal official-plugin path.
 

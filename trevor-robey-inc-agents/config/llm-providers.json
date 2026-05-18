@@ -7,14 +7,14 @@
     },
     "lm-studio": {
       "enabled": true,
-      "endpoint": "http://localhost:1234/v1/chat/completions",
+      "endpoint": "https://127.0.0.1:1235/v1/chat/completions",
       "model": "qwen2.5-coder-7b-instruct",
       "temperature": 0.7,
       "maxTokens": 2048
     },
     "local": {
       "enabled": false,
-      "endpoint": "http://localhost:11434/api/generate",
+      "endpoint": "https://127.0.0.1:11435/api/generate",
       "model": "llama3.1"
     },
     "openai": {

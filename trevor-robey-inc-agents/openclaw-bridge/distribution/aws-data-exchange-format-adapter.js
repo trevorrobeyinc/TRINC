@@ -31,7 +31,7 @@ function transform(workflowOutput, options = {}) {
     "- Enterprise Subscription: $60,000 - $120,000+ ARR",
     "",
     "## Provider",
-    "Trevor Robey Inc. | trevor@trevorrobey.com | https://trevorrobeyinc.github.io"
+    "Trevor Robey Inc. | trevor@trevorobeyinc.com | https://trevorrobeyinc.github.io"
   ].join("\n");
 
   const revisionMetadata = {

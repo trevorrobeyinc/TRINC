@@ -9,7 +9,7 @@ The 8 project MCP servers + ToolUniverse cover API-accessible biomedical sources
 - Public regulatory dashboards (FDA, EMA, WHO) with no programmatic API
 - Conference abstract sites (ASCO, AACR, ASH) — web-only
 
-This sidecar fills those gaps using SeleniumBase (Chromium with stealth modes) and Camoufox (Firefox at the engine level, for non-Chromium fingerprinting).
+This sidecar fills those gaps using Playwright with two bundled browsers: Firefox (default — preserves non-Chromium fingerprint diversity) and Chromium (fall-through). Each fetch launches a fresh browser with no persistent profile, matching the global "Playwright MCP --isolated" posture in `~/.claude/CLAUDE.md` "Browser MCP Strategy and Context Persistence". The retired Camoufox + SeleniumBase engines (archived 2026-05-11 with the browser-MCP toolkit downsize) are no longer used.
 
 ## Posture
 
@@ -32,7 +32,7 @@ bash scripts/start-sidecar.sh
 
 `brew install uv` - installs the Python package manager used to create the sidecar's venv.
 `cd scrape-sidecar` - enter the sidecar project folder.
-`bash scripts/start-sidecar.sh` - creates the venv, installs Python deps, downloads Camoufox's Firefox bundle and Playwright Firefox on first run, then boots the sidecar with mkcert TLS.
+`bash scripts/start-sidecar.sh` - creates the venv, installs Python deps, downloads the Playwright Firefox + Chromium binaries on first run, then boots the sidecar with mkcert TLS.
 
 After that one-time bootstrap, you don't run this script by hand again — `scripts/run-research-task.js` and `scripts/run-workflow.js` auto-start the sidecar via `openclaw-bridge/core/scrape-sidecar-lifecycle.js`.
 
@@ -61,7 +61,7 @@ POST /scrape
 {
   "target": "elife",
   "params": { "article_id": "83456" },
-  "prefer_engine": "camoufox",
+  "prefer_engine": "playwright-firefox",
   "bypass_cache": false
 }
 ```
@@ -76,12 +76,12 @@ POST /scrape
     "data_source": "elife",
     "citation_hash": "<sha256>",
     "license": "cc-by-4.0",
-    "engine": "camoufox",
-    "engines_tried": ["camoufox"],
+    "engine": "playwright-firefox",
+    "engines_tried": ["playwright-firefox"],
     "payload": { "title": "...", "doi": "...", "abstract": "...", "authors": [...], "figures": [...], "supplementary_links": [...] }
   },
   "cache_hit": false,
-  "engines_tried": ["camoufox"]
+  "engines_tried": ["playwright-firefox"]
 }
 ```
 

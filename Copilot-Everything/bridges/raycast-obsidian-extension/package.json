@@ -72,51 +72,6 @@
       "description": "Hide links for copying and viewing notes"
     },
     {
-      "name": "backendEmulatorUrl",
-      "title": "[DEPRECATED] Backend Emulator URL",
-      "description": "DEPRECATED 2026-04-30. The Copilot Backend Emulator at :8789 was retired Phase D 2026-04-11 and no longer accepts connections. This preference is preserved only to avoid breaking the schema imported by existing extension code; any flow that reads this preference will silently fail. Migrate dependent flows onto the MCP bridge / raycast-obsidian-mcp before removing.",
-      "type": "textfield",
-      "default": "http://127.0.0.1:8789",
-      "required": false
-    },
-    {
-      "name": "backendEmulatorApiKey",
-      "title": "Backend Emulator API Key",
-      "description": "Auth token for backend emulator routes.",
-      "type": "password",
-      "required": false
-    },
-    {
-      "name": "backendRequestTimeoutMs",
-      "title": "Backend Request Timeout (ms)",
-      "description": "Timeout for backend emulator calls.",
-      "type": "textfield",
-      "default": "30000",
-      "required": false
-    },
-    {
-      "name": "backendRuntimeLane",
-      "title": "Backend Runtime Lane",
-      "description": "Lane metadata sent to backend self-host routes.",
-      "type": "dropdown",
-      "default": "raycast",
-      "data": [
-        {
-          "title": "Raycast",
-          "value": "raycast"
-        },
-        {
-          "title": "Fork Dev",
-          "value": "fork_dev"
-        },
-        {
-          "title": "Production Official",
-          "value": "production_official"
-        }
-      ],
-      "required": false
-    },
-    {
       "name": "mcpEnabled",
       "title": "CLI MCP Mode",
       "label": "Enable CLI-backed MCP routing",
@@ -150,9 +105,9 @@
     {
       "name": "mcpHttpEndpoint",
       "title": "MCP HTTP Endpoint",
-      "description": "Base URL for MCP server when using HTTP transport. Defaults to the Raycast-flavoured raycast-obsidian-mcp on :18799 (the obsidian-copilot-bridge on :8798 is being retired).",
+      "description": "Base URL for the canonical Obsidian MCP bridge over HTTPS. Defaults to the multi-operator obsidian-copilot-bridge daemon on :8798.",
       "type": "textfield",
-      "default": "https://127.0.0.1:18799",
+      "default": "https://127.0.0.1:8798",
       "required": false
     },
     {
@@ -160,7 +115,7 @@
       "title": "MCP Config Path",
       "description": "Optional path to the local MCP config file for auto-discovering the auth token.",
       "type": "textfield",
-      "default": "/Users/trevorrobey/THE Copilot in Obsidian Everything/bridges/raycast-obsidian-extension/mcp-server/config/obsidian-cli-mcp.local.json",
+      "default": "/Users/trevorrobey/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json",
       "required": false
     },
     {
@@ -334,6 +289,21 @@
       "type": "checkbox",
       "default": false,
       "required": false
+    },
+    {
+      "name": "obsidianRestApiKey",
+      "title": "Obsidian Local REST API Key",
+      "type": "password",
+      "required": true,
+      "description": "API key from the Obsidian Local REST API community plugin's settings tab."
+    },
+    {
+      "name": "obsidianRestApiBaseUrl",
+      "title": "Obsidian Local REST API Base URL",
+      "type": "textfield",
+      "required": false,
+      "default": "https://127.0.0.1:27124",
+      "description": "Base URL of the Local REST API plugin's HTTPS listener. Default is fine unless you reconfigured the plugin."
     }
   ],
   "commands": [
@@ -531,13 +501,6 @@
       "title": "Open Vault",
       "subtitle": "Obsidian",
       "description": "Open a vault in Obsidian.",
-      "mode": "view"
-    },
-    {
-      "name": "openWorkspaceCommand",
-      "title": "Open Workspace",
-      "subtitle": "Obsidian",
-      "description": "Open a workspace in Obsidian.",
       "mode": "view"
     },
     {
@@ -1072,23 +1035,23 @@
           "title": "Raycast-Obsidian MCP Endpoint",
           "type": "textfield",
           "required": false,
-          "default": "https://127.0.0.1:18799",
-          "description": "Standalone raycast-obsidian-mcp server URL. Used only by Transcribe & Save; the live obsidian-bridge is untouched."
+          "default": "https://127.0.0.1:8798",
+          "description": "Obsidian MCP bridge URL. Defaults to the canonical multi-operator obsidian-copilot-bridge daemon on :8798. (The legacy standalone raycast-obsidian-mcp daemon at :18799 was retired 2026-05-09; this preference now points at the consolidated bridge.)"
         },
         {
           "name": "raycastObsidianMcpAuthToken",
           "title": "Raycast-Obsidian MCP Auth Token",
           "type": "password",
           "required": false,
-          "description": "Auth token for the standalone raycast-obsidian-mcp server. If empty, the client reads it from the server's local config file."
+          "description": "Auth token for the canonical obsidian-copilot-bridge daemon. If empty, the client reads it from the bridge's local config file."
         },
         {
           "name": "raycastObsidianMcpConfigPath",
           "title": "Raycast-Obsidian MCP Config Path",
           "type": "textfield",
           "required": false,
-          "default": "/Users/trevorrobey/THE Copilot in Obsidian Everything/bridges/raycast-obsidian-mcp/config/raycast-obsidian-mcp.local.json",
-          "description": "Path to the standalone server's config file (used to auto-discover endpoint + auth token)."
+          "default": "/Users/trevorrobey/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json",
+          "description": "Path to the canonical bridge's config file (used to auto-discover endpoint + auth token)."
         },
         {
           "name": "raycastObsidianMcpRequestTimeoutMs",
@@ -1096,7 +1059,7 @@
           "type": "textfield",
           "required": false,
           "default": "20000",
-          "description": "HTTPS request timeout for the standalone server."
+          "description": "HTTPS request timeout for the canonical bridge."
         }
       ]
     },
@@ -1301,6 +1264,7 @@
     "luxon": "^3.4.4",
     "minisearch": "^7.1.2",
     "pako": "^2.1.0",
+    "undici": "^7.25.0",
     "uuid": "^8.3.2",
     "yaml": "^2.1.1"
   },

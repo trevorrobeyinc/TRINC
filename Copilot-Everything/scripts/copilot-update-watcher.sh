@@ -31,7 +31,7 @@
 set -euo pipefail
 
 # Absolute paths — launchd has no cwd and minimal PATH.
-WORKSPACE="/Users/trevorrobey/Code/THE Copilot in Obsidian Everything"
+WORKSPACE="/Users/trevorrobey/TrevClaw-Obsidianodus/Copilot-Everything"
 SYNC_SCRIPT="$WORKSPACE/scripts/sync-copilot-fork.sh"
 DEPLOY_MANIFEST="/Volumes/ExtraCurricular/My Digital Garden/.obsidian/plugins/copilot/manifest.json"
 EVENT_LOG="$WORKSPACE/logs/copilot-update-watcher.log"

@@ -1,0 +1,47 @@
+{
+  "name": "@trevoralexanderrobey/obsidian-bridge-adapter",
+  "version": "0.1.0",
+  "description": "Stdio MCP adapter that tunnels to a canonical Obsidian bridge daemon (HTTPS + HMAC + replay-guard). Lets any MCP client (Claude Code, Claude Desktop, Qwen Chat, Raycast) talk to one Obsidian bridge instead of running its own — keeping vault access auth-protected and the operator topology unified.",
+  "type": "module",
+  "main": "index.mjs",
+  "bin": {
+    "obsidian-bridge-adapter": "./index.mjs"
+  },
+  "scripts": {
+    "start": "node index.mjs",
+    "start:raycast": "OBSIDIAN_STDIO_PROFILE=raycast node index.mjs"
+  },
+  "files": [
+    "index.mjs",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "obsidian",
+    "obsidian-bridge",
+    "obsidian-local-rest-api",
+    "stdio",
+    "adapter",
+    "bridge",
+    "mcp-server"
+  ],
+  "license": "MIT",
+  "author": "Trevor Robey <trevor@trevorobeyinc.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/trevoralexanderrobey/TrevClaw-Obsidianodus.git",
+    "directory": "Copilot-Everything/bridges/obsidian-stdio-adapter"
+  },
+  "homepage": "https://github.com/trevoralexanderrobey/TrevClaw-Obsidianodus#readme",
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1"
+  }
+}

@@ -10,7 +10,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "probe:miyo": "node dist/cli/miyoMcpProbe.js",
-    "start:http": "node dist/index.js --transport=http",
+    "start:https": "node dist/index.js --transport=https",
     "start:uds": "node dist/index.js --transport=uds",
     "start:pipe": "node dist/index.js --transport=pipe",
     "dev": "tsc -w -p tsconfig.json",

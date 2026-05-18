@@ -23,7 +23,7 @@ const ScrapeTargetInputSchema = z
     target: z.string().min(1).max(64),
     params: z.record(z.unknown()).default({}),
     prefer_engine: z
-      .enum(["camoufox", "seleniumbase-uc", "seleniumbase-cdp"])
+      .enum(["playwright-firefox", "playwright-chromium"])
       .nullable()
       .optional(),
     bypass_cache: z.boolean().default(false)
@@ -84,7 +84,7 @@ function createScrapeMcp(options = {}) {
             params: { type: "object", description: "Connector-specific params" },
             prefer_engine: {
               type: ["string", "null"],
-              enum: ["camoufox", "seleniumbase-uc", "seleniumbase-cdp", null]
+              enum: ["playwright-firefox", "playwright-chromium", null]
             },
             bypass_cache: { type: "boolean", default: false }
           }

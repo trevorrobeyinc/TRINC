@@ -1,4 +1,6 @@
-export type BackendId = "cli" | "plugin";
+// As of 2026-05-09 the daemon is REST-only. CliBackend was removed entirely;
+// failures surface via the obsidian_health diagnostic tool instead of silent fallback.
+export type BackendId = "restApi";
 
 export type Operation =
   | "open_vault"

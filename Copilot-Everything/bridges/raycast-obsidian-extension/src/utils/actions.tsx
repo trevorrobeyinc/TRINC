@@ -21,6 +21,7 @@ import { Note, NoteWithContent, Obsidian, ObsidianTargetType, ObsidianVault, Vau
 import { getCodeBlocks } from "./utils";
 import { useVaultPluginCheck } from "./hooks";
 import { appendSelectedTextTo } from "@/api/append-note";
+import { openFile } from "./restApiClient";
 
 const logger = new Logger("Actions");
 
@@ -278,16 +279,13 @@ export function OpenNoteInObsidianNewPaneAction(props: { note: Note; vault: Obsi
   const { note, vault } = props;
 
   return (
-    <Action.Open
+    <Action
       title="Open in New Obsidian Tab"
-      target={
-        "obsidian://advanced-uri?vault=" +
-        encodeURIComponent(vault.name) +
-        "&filepath=" +
-        encodeURIComponent(note.path.replace(vault.path, "")) +
-        "&newpane=true"
-      }
       icon={ObsidianIcon}
+      onAction={async () => {
+        const relPath = note.path.replace(vault.path, "").replace(/^\//, "");
+        await openFile(relPath, true);
+      }}
     />
   );
 }
@@ -418,7 +416,7 @@ export function OpenNoteActions(props: { note: NoteWithContent; vault: ObsidianV
   const { note, vault, showQuickLook = true } = props;
   const { primaryAction } = getPreferenceValues<SearchNotePreferences>();
 
-  const { vaultsWithPlugin } = useVaultPluginCheck({ vaults: [vault], communityPlugins: ["obsidian-advanced-uri"] });
+  const { vaultsWithPlugin } = useVaultPluginCheck({ vaults: [vault], communityPlugins: ["obsidian-local-rest-api"] });
 
   const quicklook = <QuickLookAction note={note} vault={vault} />;
   const openInDefaultApp = <OpenInDefaultAppAction note={note} vault={vault} />;

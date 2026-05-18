@@ -4,7 +4,7 @@ Date: 2026-03-19
 
 ## Current Runtime Note
 
-The current target runtime for the official `copilot` plugin uses native Miyo HTTP at `http://127.0.0.1:8742` together with `direct_plugin_mcp` and the shared HTTP MCP server at `https://127.0.0.1:8798`.
+The current target runtime for the official `copilot` plugin uses native Miyo via HTTPS proxy at `https://127.0.0.1:8743` (upstream `http://127.0.0.1:8742`) together with `direct_plugin_mcp` and the shared HTTPS MCP server at `https://127.0.0.1:8798`.
 
 Any emulator references in this document should be read as historical compatibility or rollback detail, not as the normal runtime path for the official plugin.
 

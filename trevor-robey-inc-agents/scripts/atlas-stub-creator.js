@@ -1,6 +1,28 @@
 #!/usr/bin/env node
 "use strict";
 
+/**
+ * atlas-stub-creator — DEBUG/FALLBACK TOOL ONLY.
+ *
+ * The CANONICAL path for materializing atlas stub notes is via the bridge's
+ * `research_publish` MCP tool — see scripts/publish-to-vault.js. That path
+ * goes:
+ *   publish-to-vault.js → HTTPS :8798 → research_publish tool →
+ *   RestApiBackend → Local REST API plugin :27124 → vault.
+ *
+ * THIS script writes stubs directly to the filesystem (`fs.writeFileSync`)
+ * without going through the bridge or the REST API plugin. It exists for:
+ *   - Batch backfills when Obsidian is closed and the REST API plugin is
+ *     therefore unreachable.
+ *   - Manual debugging / one-off stub generation outside the workflow.
+ *   - CI scenarios that need to materialize stubs without spinning up a
+ *     full Obsidian instance.
+ *
+ * For production workflow output, prefer publish-to-vault.js. As of 2026-05-09
+ * the daemon is REST-only with no silent CLI fallback — every other vault
+ * write path in the project goes through the REST API plugin.
+ */
+
 const fs = require("node:fs");
 const path = require("node:path");
 

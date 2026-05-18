@@ -42,16 +42,16 @@ Spawns Medical Zettelkasten MCP server on-demand (`/Users/trevorrobey/Claude/Med
 
 ### Miyo
 
-Queries Miyo semantic search at `:8742` for related vault notes during workflow processing.
+Queries Miyo semantic search via TLS proxy at `https://127.0.0.1:8743` (upstream `http://127.0.0.1:8742`) for related vault notes during workflow processing.
 
 ## Integration Points
 
 | System | Transport | URL/Port | Purpose |
 |--------|-----------|----------|---------|
 | OpenClaw Agents | subprocess | child_process.spawn() | Workflow execution |
-| Obsidian MCP Bridge (canonical) | HTTP | :8798 | Vault operations |
+| Obsidian MCP Bridge (canonical) | HTTPS | :8798 | Vault operations |
 | Medical Zettelkasten MCP | stdio (subprocess) | N/A | Graph analysis |
-| Miyo | HTTP | :8742 | Semantic search |
+| Miyo (via TLS proxy) | HTTPS | :8743 → upstream :8742 | Semantic search |
 
 ## Key Files
 

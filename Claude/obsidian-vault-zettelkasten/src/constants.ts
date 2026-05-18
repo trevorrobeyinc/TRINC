@@ -28,7 +28,7 @@ export interface VaultZKSettings {
 
 export const DEFAULT_SETTINGS: VaultZKSettings = {
   llmProvider: "lm-studio",
-  llmBaseUrl: "http://127.0.0.1:1234/v1",
+  llmBaseUrl: "https://127.0.0.1:1235/v1",
   llmModelName: "qwen2.5-coder-7b-instruct",
   llmApiKey: "",
   llmTemperature: 0.7,

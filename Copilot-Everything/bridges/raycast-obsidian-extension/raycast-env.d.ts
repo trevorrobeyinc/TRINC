@@ -20,19 +20,11 @@ type ExtensionPreferences = {
   "removeLatex"?: boolean,
   /** undefined - Hide links for copying and viewing notes */
   "removeLinks"?: boolean,
-  /** [DEPRECATED] Backend Emulator URL - DEPRECATED 2026-04-30. The Copilot Backend Emulator at :8789 was retired Phase D 2026-04-11 and no longer accepts connections. This preference is preserved only to avoid breaking the schema imported by existing extension code; any flow that reads this preference will silently fail. Migrate dependent flows onto the MCP bridge / raycast-obsidian-mcp before removing. */
-  "backendEmulatorUrl": string,
-  /** Backend Emulator API Key - Auth token for backend emulator routes. */
-  "backendEmulatorApiKey"?: string,
-  /** Backend Request Timeout (ms) - Timeout for backend emulator calls. */
-  "backendRequestTimeoutMs": string,
-  /** Backend Runtime Lane - Lane metadata sent to backend self-host routes. */
-  "backendRuntimeLane": "raycast" | "fork_dev" | "production_official",
   /** CLI MCP Mode - Use the shared MCP bridge for CLI-backed note and command operations. */
   "mcpEnabled": boolean,
   /** MCP Transport - Preferred transport for MCP server connection. */
   "mcpTransport": "http" | "uds" | "pipe",
-  /** MCP HTTP Endpoint - Base URL for MCP server when using HTTP transport. Defaults to the Raycast-flavoured raycast-obsidian-mcp on :18799 (the obsidian-copilot-bridge on :8798 is being retired). */
+  /** MCP HTTP Endpoint - Base URL for the canonical Obsidian MCP bridge over HTTPS. Defaults to the multi-operator obsidian-copilot-bridge daemon on :8798. */
   "mcpHttpEndpoint": string,
   /** MCP Config Path - Optional path to the local MCP config file for auto-discovering the auth token. */
   "mcpConfigPath": string,
@@ -65,7 +57,11 @@ type ExtensionPreferences = {
   /** PDF OCR Max Pages - Optional OCR page limit. Use 0 for all pages. */
   "pdfOcrMaxPages": string,
   /** Cleanup Source Video - When enabled, the generated note links to YouTube instead of embedding the local video file. */
-  "cleanupSourceVideo": boolean
+  "cleanupSourceVideo": boolean,
+  /** Obsidian Local REST API Key - API key from the Obsidian Local REST API community plugin's settings tab. */
+  "obsidianRestApiKey": string,
+  /** Obsidian Local REST API Base URL - Base URL of the Local REST API plugin's HTTPS listener. Default is fine unless you reconfigured the plugin. */
+  "obsidianRestApiBaseUrl": string
 }
 
 /** Preferences accessible in all the extension's commands */
@@ -106,8 +102,6 @@ declare namespace Preferences {
 }
   /** Preferences accessible in the `openVaultCommand` command */
   export type OpenVaultCommand = ExtensionPreferences & {}
-  /** Preferences accessible in the `openWorkspaceCommand` command */
-  export type OpenWorkspaceCommand = ExtensionPreferences & {}
   /** Preferences accessible in the `dailyNoteAppendCommand` command */
   export type DailyNoteAppendCommand = ExtensionPreferences & {
   /** Template for Daily Note Append action - Specify a template for Daily Note Append action (e.g. '- {content}') */
@@ -226,13 +220,13 @@ declare namespace Preferences {
   export type AiSummarizeCommand = ExtensionPreferences & {}
   /** Preferences accessible in the `videoTranscribeCommand` command */
   export type VideoTranscribeCommand = ExtensionPreferences & {
-  /** Raycast-Obsidian MCP Endpoint - Standalone raycast-obsidian-mcp server URL. Used only by Transcribe & Save; the live obsidian-bridge is untouched. */
+  /** Raycast-Obsidian MCP Endpoint - Obsidian MCP bridge URL. Defaults to the canonical multi-operator obsidian-copilot-bridge daemon on :8798. (The legacy standalone raycast-obsidian-mcp daemon at :18799 was retired 2026-05-09; this preference now points at the consolidated bridge.) */
   "raycastObsidianMcpEndpoint": string,
-  /** Raycast-Obsidian MCP Auth Token - Auth token for the standalone raycast-obsidian-mcp server. If empty, the client reads it from the server's local config file. */
+  /** Raycast-Obsidian MCP Auth Token - Auth token for the canonical obsidian-copilot-bridge daemon. If empty, the client reads it from the bridge's local config file. */
   "raycastObsidianMcpAuthToken"?: string,
-  /** Raycast-Obsidian MCP Config Path - Path to the standalone server's config file (used to auto-discover endpoint + auth token). */
+  /** Raycast-Obsidian MCP Config Path - Path to the canonical bridge's config file (used to auto-discover endpoint + auth token). */
   "raycastObsidianMcpConfigPath": string,
-  /** Raycast-Obsidian MCP Request Timeout (ms) - HTTPS request timeout for the standalone server. */
+  /** Raycast-Obsidian MCP Request Timeout (ms) - HTTPS request timeout for the canonical bridge. */
   "raycastObsidianMcpRequestTimeoutMs": string
 }
   /** Preferences accessible in the `pdfSummarizeCommand` command */
@@ -258,8 +252,6 @@ declare namespace Arguments {
 }
   /** Arguments passed to the `openVaultCommand` command */
   export type OpenVaultCommand = {}
-  /** Arguments passed to the `openWorkspaceCommand` command */
-  export type OpenWorkspaceCommand = {}
   /** Arguments passed to the `dailyNoteAppendCommand` command */
   export type DailyNoteAppendCommand = {
   /** Take out the trash */

@@ -216,7 +216,7 @@ Biomedical Workflow Observability Stack (optional Docker Compose sidecar)
 | OpenClaw Agents | ToolUniverse | stdio MCP | 2,116 biomedical tools |
 | OpenClaw Agents | bioRxiv API | HTTPS (local module) | Preprint search (4 tools) |
 | OpenClaw Agents | Zettelkasten MCP | stdio | Optional in-workflow analysis |
-| Claude Desktop | Obsidian Bridge | MCP stdio -> HTTPS :8798 | Vault CRUD via claude-adapter |
+| Claude Desktop | Obsidian Bridge | MCP stdio -> HTTPS :8798 | Vault CRUD via obsidian-stdio-adapter |
 | Backend Emulator | Miyo | HTTP :8742 | Semantic search |
 | Backend Emulator | Qdrant | HTTP :6333 | Fallback chunk retrieval |
 | Traefik (opt.) | Ollama / LM Studio | HTTP :11480/:11481 | Failover proxy |
