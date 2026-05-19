@@ -4,7 +4,7 @@
 # Repo-wide regression guard for the "HTTPS-only or nothing" invariant.
 #
 # Greps every TypeScript / JavaScript source file across all three workspaces
-# (Claude/, Copilot-Everything/, trevor-robey-inc-agents/) for foot-gun shapes
+# (Claude/, Copilot-Everything/, "Trevor Robey Intelligence Network Citations/") for foot-gun shapes
 # that historically introduced unencrypted TCP listeners, env-gated plaintext
 # fallbacks, or plaintext outbound calls. v2.0.0 of Principle I expanded the
 # scope from inbound listeners only to listeners AND outbound connections.
@@ -106,7 +106,7 @@ LEGITIMATE_OUTBOUND_PLAINTEXT=(
 
 cd "$ROOT" || { echo "cannot cd to $ROOT" >&2; exit 2; }
 
-# Walk Claude/, Copilot-Everything/, trevor-robey-inc-agents/ source files.
+# Walk Claude/, Copilot-Everything/, "Trevor Robey Intelligence Network Citations/" source files.
 # Skip node_modules, dist, build, vendor, archive, audit/evidence, workspace
 # runtime state, test directories, and test files by filename suffix.
 # bash 3.2 compatible (macOS ships bash 3.2).
@@ -114,7 +114,7 @@ CANDIDATES=()
 while IFS= read -r line; do
   [ -n "$line" ] && CANDIDATES+=("$line")
 done < <(find \
-    Claude/ Copilot-Everything/ trevor-robey-inc-agents/ \
+    Claude/ Copilot-Everything/ "Trevor Robey Intelligence Network Citations/" \
     -type f \
     \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.mjs' -o -name '*.cjs' \) \
     -not -path '*/node_modules/*' \

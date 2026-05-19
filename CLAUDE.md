@@ -6,12 +6,27 @@ GitHub: [trevoralexanderrobey/TrevClaw-Obsidianodus](https://github.com/trevoral
 
 ## Repo Topology
 
+> **Folder consolidation (2026-05-19).** The two former sibling folders
+> `trevor-robey-inc/` (brand canon) and `trevor-robey-inc-agents/` (engine) were
+> **flat-merged** into a single directory named with the official business name:
+> **`Trevor Robey Intelligence Network Citations/`**. History was preserved via
+> `git mv` (1,195 tracked renames). The git submodule path auto-updated in
+> `.gitmodules`; `~/Code/trevor-robey-inc-agents` was re-pointed (symlink) to the
+> merged folder so the Command Center plugin still resolves
+> `scripts/run-workflow.js`; `scripts/lint-transport-monorepo.sh` walk-root was
+> updated to the new (space-containing, quoted) path. The brand folder's
+> `README.md` was renamed `README.brand.md` to resolve the only filename
+> collision. Rollback anchor: tag `pre-flat-merge-2026-05-19` (= `main` @
+> `20ea572`). Older references below to `trevor-robey-inc/` and
+> `trevor-robey-inc-agents/` in *historical* sections (deletion log, predecessor
+> repos, single-repo invariant) are retained as accurate descriptions of past
+> state and intentionally not rewritten.
+
 | Path | Role | Deep Dive |
 |------|------|-----------|
 | `Claude/` | Central hub: Medical Zettelkasten MCP, Command Center plugin, Trevor Robey Inc Research Memory MCP, Obsidian-bridge launcher, vault-zettelkasten plugin | `Claude/CLAUDE.md` |
 | `Copilot-Everything/` | Obsidian integration: plugin fork (vendored at `repos/obsidian-copilot-mcp/`), MCP bridge (:8798), Miyo TLS proxy (:8743) | `Copilot-Everything/CLAUDE.md` |
-| `trevor-robey-inc-agents/` | Citation-traced biomedical due diligence engine (powered by OpenClaw). Six workflow templates feed concrete commercial offerings: Investor Pre-Mortem (primary, $9,950–$19,950) and Failed Trial Archaeology (flanking, $14,950) drive premium revenue; Conference Synthesis Brief, Trial Design Benchmark Pack, Cross-Silo Connector Report, Plain-Language Patient Brief, and Pharmacovigilance Pack serve tactical demand. Role-routed LLM providers (Claude Code primary, LM Studio fallback, mock for CI), ToolUniverse subprocess (~2,116 tools, pinned at v1.1.10), eight project MCP servers. Runs as on-demand subprocess via `node scripts/run-workflow.js` — no persistent gateway. | `trevor-robey-inc-agents/CLAUDE.md` |
-| `trevor-robey-inc/` | Brand canon, LLC formation paperwork, six-SKU offering ladder, launch playbook, REVENUE_PLAYBOOK, NOTICE, dossier | `trevor-robey-inc/README.md` |
+| `Trevor Robey Intelligence Network Citations/` | **Single merged business folder.** Contains BOTH (a) the citation-traced biomedical due-diligence **engine** (powered by OpenClaw; six workflow templates → Investor Pre-Mortem $9,950–$19,950, Failed Trial Archaeology $14,950, tactical SKUs; role-routed LLM providers, ToolUniverse subprocess ~2,116 tools v1.1.10 at `vendor/tooluniverse`, eight project MCP servers, `node scripts/run-workflow.js`) AND (b) the **brand canon** (LLC formation paperwork, six-SKU offering ladder, `trevor-robey-inc Commercial Launch Playbook.md`, `OFFERINGS.md`, `REVENUE_PLAYBOOK.md`, `NOTICE.md`, dossier). Engine deep-dive: `Trevor Robey Intelligence Network Citations/CLAUDE.md`; brand entry: `README.brand.md`. | `Trevor Robey Intelligence Network Citations/CLAUDE.md` |
 
 ### Submodule
 
