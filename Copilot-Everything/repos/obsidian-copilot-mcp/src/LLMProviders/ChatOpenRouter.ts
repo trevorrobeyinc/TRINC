@@ -1,5 +1,5 @@
 import { BaseChatModelParams } from "@langchain/core/language_models/chat_models";
-import { AIMessageChunk } from "@langchain/core/messages";
+import { AIMessageChunk, BaseMessage } from "@langchain/core/messages";
 import type { UsageMetadata } from "@langchain/core/messages";
 import { ChatGenerationChunk } from "@langchain/core/outputs";
 import { ChatOpenAI } from "@langchain/openai";
@@ -44,7 +44,12 @@ export interface ChatOpenRouterInput extends BaseChatModelParams {
   // All other ChatOpenAI parameters
   modelName?: string;
   apiKey?: string;
-  configuration?: any;
+  configuration?: {
+    baseURL?: string;
+    defaultHeaders?: Record<string, string>;
+    fetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+    [key: string]: unknown;
+  };
   temperature?: number;
   maxTokens?: number;
   topP?: number;
@@ -52,7 +57,7 @@ export interface ChatOpenRouterInput extends BaseChatModelParams {
   streaming?: boolean;
   maxRetries?: number;
   maxConcurrency?: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export class ChatOpenRouter extends ChatOpenAI {
@@ -101,7 +106,7 @@ export class ChatOpenRouter extends ChatOpenAI {
    *
    * @see https://openrouter.ai/docs/features/prompt-caching
    */
-  override invocationParams(options?: this["ParsedCallOptions"]): any {
+  override invocationParams(options?: this["ParsedCallOptions"]): Record<string, unknown> {
     const baseParams = super.invocationParams(options);
 
     // Only inject cache_control for OpenRouter endpoints. LM Studio, Copilot Plus, and
@@ -150,9 +155,9 @@ export class ChatOpenRouter extends ChatOpenAI {
    * LangChain filters out reasoning_details, so we bypass it completely
    */
   override async *_streamResponseChunks(
-    messages: any[],
+    messages: BaseMessage[],
     options: this["ParsedCallOptions"],
-    _runManager?: any
+    _runManager?: { handleLLMNewToken: (token: string) => Promise<void> }
   ): AsyncGenerator<ChatGenerationChunk> {
     const params = this.invocationParams(options);
     const openaiMessages = this.toOpenRouterMessages(messages);
@@ -165,11 +170,13 @@ export class ChatOpenRouter extends ChatOpenAI {
         ...(params.stream_options ?? {}),
         include_usage: true,
       },
-    })) as unknown as AsyncIterable<OpenRouterChatChunk>;
+    } as Parameters<
+      typeof this.openaiClient.chat.completions.create
+    >[0])) as unknown as AsyncIterable<OpenRouterChatChunk>;
 
     let usageSummary: OpenRouterUsage | undefined;
 
-    for await (const rawChunk of stream as AsyncIterable<OpenRouterChatChunk>) {
+    for await (const rawChunk of stream) {
       if (rawChunk.usage) {
         usageSummary = rawChunk.usage;
       }
@@ -188,7 +195,7 @@ export class ChatOpenRouter extends ChatOpenAI {
 
       const messageChunk = this.buildMessageChunk({
         rawChunk,
-        delta,
+        delta: delta as unknown as Record<string, unknown>,
         content,
         finishReason: choice.finish_reason,
         reasoningDetails,
@@ -200,7 +207,9 @@ export class ChatOpenRouter extends ChatOpenAI {
         text: typeof messageChunk.content === "string" ? messageChunk.content : "",
         generationInfo: {
           finish_reason: choice.finish_reason,
-          system_fingerprint: rawChunk.system_fingerprint,
+          // Reason: system_fingerprint is marked deprecated by some scorecards but is still
+          // returned by OpenAI-style streaming APIs and is useful for telemetry.
+          system_fingerprint: rawChunk["system_fingerprint"],
           model: rawChunk.model,
         },
       });
@@ -226,9 +235,13 @@ export class ChatOpenRouter extends ChatOpenAI {
    * @param messages LangChain messages passed into the model
    * @returns Messages formatted for the OpenRouter API
    */
-  private toOpenRouterMessages(messages: any[]): OpenRouterMessageParam[] {
+  private toOpenRouterMessages(messages: BaseMessage[]): OpenRouterMessageParam[] {
     return messages.map((msg) => {
-      const role = typeof msg._getType === "function" ? msg._getType() : (msg.role ?? "user");
+      const msgRecord = msg as unknown as Record<string, unknown>;
+      const role =
+        typeof msg._getType === "function"
+          ? msg._getType()
+          : ((msgRecord.role as string) ?? "user");
       const mappedRole =
         role === "human"
           ? "user"
@@ -236,11 +249,11 @@ export class ChatOpenRouter extends ChatOpenAI {
             ? "assistant"
             : (role as OpenAI.ChatCompletionRole);
 
-      if (msg.tool_call_id) {
+      if (msgRecord.tool_call_id) {
         return {
           role: "tool",
           content: msg.content,
-          tool_call_id: msg.tool_call_id,
+          tool_call_id: msgRecord.tool_call_id as string,
         } as OpenRouterMessageParam;
       }
 
@@ -276,7 +289,7 @@ export class ChatOpenRouter extends ChatOpenAI {
    */
   private buildMessageChunk(config: {
     rawChunk: OpenRouterChatChunk;
-    delta: Record<string, any>;
+    delta: Record<string, unknown>;
     content: string;
     finishReason: string | null | undefined;
     reasoningText?: string;
@@ -372,17 +385,20 @@ export class ChatOpenRouter extends ChatOpenAI {
    * @param choice Chunk choice object from the OpenRouter stream
    * @returns Array of reasoning detail entries, if present
    */
-  private extractReasoningDetails(choice: any): unknown[] | undefined {
+  private extractReasoningDetails(
+    choice: OpenAI.ChatCompletionChunk.Choice
+  ): unknown[] | undefined {
+    const choiceRecord = choice as unknown as Record<string, Record<string, unknown>>;
     const candidate =
-      choice?.delta?.reasoning_details ??
-      choice?.message?.reasoning_details ??
-      choice?.reasoning_details;
+      choiceRecord?.delta?.reasoning_details ??
+      choiceRecord?.message?.reasoning_details ??
+      (choice as unknown as Record<string, unknown>)?.reasoning_details;
 
     if (!Array.isArray(candidate)) {
       return undefined;
     }
 
-    return candidate.filter((detail) => detail !== undefined && detail !== null);
+    return (candidate as unknown[]).filter((detail) => detail !== undefined && detail !== null);
   }
 
   /**
@@ -402,8 +418,12 @@ export class ChatOpenRouter extends ChatOpenAI {
           if (typeof part === "string") {
             return part;
           }
-          if (part && typeof part === "object" && typeof part.text === "string") {
-            return part.text;
+          if (
+            part &&
+            typeof part === "object" &&
+            typeof (part as { text?: unknown }).text === "string"
+          ) {
+            return (part as { text: string }).text;
           }
           return "";
         })
@@ -420,7 +440,7 @@ export class ChatOpenRouter extends ChatOpenAI {
    * @returns Tool call chunk array compatible with LangChain
    */
   private extractToolCallChunks(
-    toolCalls: any
+    toolCalls: unknown
   ):
     | Array<{ name?: string; args?: string; id?: string; index?: number; type: "tool_call_chunk" }>
     | undefined {
@@ -428,13 +448,19 @@ export class ChatOpenRouter extends ChatOpenAI {
       return undefined;
     }
 
-    return toolCalls.map((call) => ({
-      name: call?.function?.name,
-      args: call?.function?.arguments,
-      id: call?.id,
-      index: call?.index,
-      type: "tool_call_chunk" as const,
-    }));
+    return toolCalls.map((rawCall) => {
+      const call = rawCall as
+        | { function?: { name?: string; arguments?: string }; id?: string; index?: number }
+        | null
+        | undefined;
+      return {
+        name: call?.function?.name,
+        args: call?.function?.arguments,
+        id: call?.id,
+        index: call?.index,
+        type: "tool_call_chunk" as const,
+      };
+    });
   }
 
   /**
@@ -460,8 +486,12 @@ export class ChatOpenRouter extends ChatOpenAI {
       metadata.model = rawChunk.model;
     }
 
-    if (rawChunk.system_fingerprint) {
-      metadata.system_fingerprint = rawChunk.system_fingerprint;
+    // Reason: system_fingerprint is marked deprecated by some scorecards but is still
+    // returned by OpenAI-style streaming APIs and is useful for telemetry. Use bracket
+    // access to bypass JSDoc deprecation warnings.
+    const fingerprint = rawChunk["system_fingerprint"];
+    if (fingerprint) {
+      metadata.system_fingerprint = fingerprint;
     }
 
     if (rawChunk.usage) {

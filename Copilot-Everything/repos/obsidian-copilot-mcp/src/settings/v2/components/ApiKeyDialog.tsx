@@ -10,8 +10,9 @@ import { getNeedSetKeyProvider, getProviderInfo, getProviderLabel } from "@/util
 import { ChevronDown, ChevronRight, ChevronUp, Info } from "lucide-react";
 import { getApiKeyForProvider } from "@/utils/modelUtils";
 import { App, Modal } from "obsidian";
-import React, { useEffect, useState } from "react";
-import { createRoot, Root } from "react-dom/client";
+import React, { useState } from "react";
+import { Root } from "react-dom/client";
+import { createPluginRoot } from "@/utils/react/createPluginRoot";
 
 interface ApiKeyModalContentProps {
   onClose: () => void;
@@ -27,10 +28,6 @@ function ApiKeyModalContent({ onClose, onGoToModelTab }: ApiKeyModalContentProps
   // Subscribe to settings changes so the component re-renders when API keys are updated
   useSettingsValue();
   const [expandedProvider, setExpandedProvider] = useState<SettingKeyProviders | null>(null);
-
-  useEffect(() => {
-    setExpandedProvider(null);
-  }, []);
 
   const providers: ProviderKeyItem[] = getNeedSetKeyProvider().map((provider) => {
     const providerKey = provider as SettingKeyProviders;
@@ -115,6 +112,7 @@ function ApiKeyModalContent({ onClose, onGoToModelTab }: ApiKeyModalContentProps
                   <Collapsible open={isExpanded} className="tw-mt-2">
                     <CollapsibleContent className="tw-rounded-md tw-p-3">
                       <ModelImporter
+                        key={`${item.provider}:${item.apiKey}`}
                         provider={item.provider}
                         isReady={Boolean(item.apiKey)}
                         expanded={isExpanded}
@@ -151,6 +149,7 @@ function ApiKeyModalContent({ onClose, onGoToModelTab }: ApiKeyModalContentProps
                     configuration (Base URL, Deployment Name, etc.).
                   </p>
                   <button
+                    type="button"
                     onClick={() => {
                       onGoToModelTab();
                       onClose();
@@ -185,7 +184,7 @@ export class ApiKeyDialog extends Modal {
 
   onOpen() {
     const { contentEl } = this;
-    this.root = createRoot(contentEl);
+    this.root = createPluginRoot(contentEl, this.app);
 
     this.root.render(
       <ApiKeyModalContent onClose={() => this.close()} onGoToModelTab={this.onGoToModelTab} />

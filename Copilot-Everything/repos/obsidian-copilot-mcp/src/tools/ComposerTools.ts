@@ -38,7 +38,8 @@ async function getFile(file_path: string): Promise<TFile> {
 
     return file;
   } catch (error) {
-    throw new Error(`Failed to get or create file "${file_path}": ${error.message}`);
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to get or create file "${file_path}": ${message}`);
   }
 }
 
@@ -57,12 +58,12 @@ async function show_preview(
 
   if (file && (!activeFile || activeFile.path !== file_path)) {
     // If target file is not the active file, open the target file in the current leaf
-    await app.workspace.getLeaf().openFile(file as TFile);
+    await app.workspace.getLeaf().openFile(file);
   }
 
   let originalContent = "";
   if (file) {
-    originalContent = await app.vault.read(file as TFile);
+    originalContent = await app.vault.read(file);
   }
   const changes = diffTrimmedLines(originalContent, content, {
     newlineIsToken: true,
@@ -71,7 +72,7 @@ async function show_preview(
   return new Promise((resolve) => {
     // Open the Apply View in a new leaf with the processed content and the callback
     const leaf = app.workspace.getLeaf(true);
-    leaf.setViewState({
+    void leaf.setViewState({
       type: APPLY_VIEW_TYPE,
       active: true,
       state: {
@@ -178,10 +179,11 @@ const writeFileTool = createLangChainTool({
           message:
             "File changes applied without preview. Do not retry or attempt alternative approaches to modify this file in response to the current user request.",
         };
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
         return {
           result: "failed" as ApplyViewResult,
-          message: `Error writing to file without preview: ${error?.message || error}`,
+          message: `Error writing to file without preview: ${message}`,
         };
       }
     }

@@ -1,27 +1,25 @@
 import { CustomModel } from "@/aiParams";
 import { type CopilotSettings } from "@/settings/model";
 import { v4 as uuidv4 } from "uuid";
-import { ChainType } from "./chainFactory";
+import { ChainType } from "./chainType";
 import { PromptSortStrategy } from "./types";
 
 export const BREVILABS_API_BASE_URL = "https://api.brevilabs.com/v1";
 export const BREVILABS_MODELS_BASE_URL = "https://models.brevilabs.com/v1";
-export const PLUGIN_ID = "copilot-mcp";
-export const PLUGIN_NAME = "Copilot MCP";
-export const COMMAND_NAMESPACE = PLUGIN_ID;
-export const CHAT_VIEWTYPE = `${PLUGIN_ID}-chat-view`;
+export const CHAT_VIEWTYPE = "copilot-chat-view";
 export const USER_SENDER = "user";
 export const AI_SENDER = "ai";
 
 // Default folder names
-export const COPILOT_FOLDER_ROOT = PLUGIN_ID;
-export const DEFAULT_CHAT_HISTORY_FOLDER = `${COPILOT_FOLDER_ROOT}/copilot-conversations`;
-export const DEFAULT_CUSTOM_PROMPTS_FOLDER = `${COPILOT_FOLDER_ROOT}/copilot-custom-prompts`;
-export const DEFAULT_MEMORY_FOLDER = `${COPILOT_FOLDER_ROOT}/memory`;
-export const DEFAULT_SYSTEM_PROMPTS_FOLDER = `${COPILOT_FOLDER_ROOT}/system-prompts`;
-export const DEFAULT_CONVERTED_DOC_OUTPUT_FOLDER = "";
+export const COPILOT_FOLDER_ROOT = "copilot";
+const DEFAULT_CHAT_HISTORY_FOLDER = `${COPILOT_FOLDER_ROOT}/copilot-conversations`;
+const DEFAULT_CUSTOM_PROMPTS_FOLDER = `${COPILOT_FOLDER_ROOT}/copilot-custom-prompts`;
+const DEFAULT_MEMORY_FOLDER = `${COPILOT_FOLDER_ROOT}/memory`;
+const DEFAULT_SYSTEM_PROMPTS_FOLDER = `${COPILOT_FOLDER_ROOT}/system-prompts`;
+const DEFAULT_PROJECTS_FOLDER = `${COPILOT_FOLDER_ROOT}/projects`;
+const DEFAULT_CONVERTED_DOC_OUTPUT_FOLDER = "";
 export const DEFAULT_QA_EXCLUSIONS_SETTING = COPILOT_FOLDER_ROOT;
-export const DEFAULT_SYSTEM_PROMPT = `You are ${PLUGIN_NAME}, a helpful assistant that integrates AI into Obsidian note-taking.
+export const DEFAULT_SYSTEM_PROMPT = `You are Obsidian Copilot, a helpful assistant that integrates AI to Obsidian note-taking.
   1. Never mention that you do not have access to something. Always rely on the user provided context.
   2. Always answer to the best of your knowledge. If you are unsure about something, say so and ask the user to provide more context.
   3. If the user mentions "note", it most likely means an Obsidian note in the vault, not the generic meaning of a note.
@@ -112,20 +110,17 @@ export const VARIABLE_NOTE_TAG = "variable_note";
 export const EMBEDDED_PDF_TAG = "embedded_pdf";
 export const EMBEDDED_NOTE_TAG = "embedded_note";
 export const DATAVIEW_BLOCK_TAG = "dataview_block";
-export const VAULT_NOTE_TAG = "vault_note";
 export const RETRIEVED_DOCUMENT_TAG = "retrieved_document";
 export const WEB_TAB_CONTEXT_TAG = "web_tab_context";
 export const ACTIVE_WEB_TAB_CONTEXT_TAG = "active_web_tab";
 export const YOUTUBE_VIDEO_CONTEXT_TAG = "youtube_video_context";
 /** Marker text used as placeholder for active web tab in serialized content */
 export const ACTIVE_WEB_TAB_MARKER = "{activeWebTab}";
-export const EMPTY_INDEX_ERROR_MESSAGE =
-  "Copilot index does not exist. Please index your vault first!\n\n1. Set a working embedding model in QA settings. If it's not a local model, don't forget to set the API key. \n\n2. Click 'Refresh Index for Vault' and wait for indexing to complete. If you encounter the rate limiting error, please turn your request per second down in QA setting.";
 export const CHUNK_SIZE = 6000;
 export const TEXT_WEIGHT = 0.4;
 export const MAX_CHARS_FOR_LOCAL_SEARCH_CONTEXT = 448000;
 export const LLM_TIMEOUT_MS = 30000; // 30 seconds timeout for LLM operations
-export const DEFAULT_MAX_SOURCE_CHUNKS = 30; // Default max chunks for search results (with diverse top-K)
+const DEFAULT_MAX_SOURCE_CHUNKS = 30; // Default max chunks for search results (with diverse top-K)
 export const AGENT_LOOP_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes timeout for agent loop
 export const AGENT_MAX_ITERATIONS_LIMIT = 16; // Maximum allowed value for agent iterations setting
 export const LOADING_MESSAGES = {
@@ -176,21 +171,19 @@ export const DEFAULT_OLLAMA_NUM_CTX = 131072;
 
 export enum ChatModels {
   COPILOT_PLUS_FLASH = "copilot-plus-flash",
-  GPT_5_4 = "gpt-5.4",
-  GPT_5_mini = "gpt-5-mini",
-  GPT_5_nano = "gpt-5-nano",
+  GPT_5_5 = "gpt-5.5",
+  GPT_5_4_mini = "gpt-5.4-mini",
   GPT_41 = "gpt-4.1",
   GPT_41_mini = "gpt-4.1-mini",
-  GPT_41_nano = "gpt-4.1-nano",
-  O4_mini = "o4-mini",
   GEMINI_3_PRO_PREVIEW = "gemini-3.1-pro-preview",
   GEMINI_3_FLASH_PREVIEW = "gemini-3-flash-preview",
-  GEMINI_3_FLASH_LITE_PREVIEW = "gemini-3.1-flash-lite-preview",
+  GEMINI_3_FLASH_LITE = "gemini-3.1-flash-lite",
   GEMINI_PRO = "gemini-2.5-pro",
   GEMINI_FLASH = "gemini-2.5-flash",
-  CLAUDE_OPUS_4_6 = "claude-opus-4-6",
+  CLAUDE_OPUS_4_7 = "claude-opus-4-7",
   CLAUDE_SONNET_4_6 = "claude-sonnet-4-6",
-  GROK_4_1_FAST = "grok-4-1-fast",
+  CLAUDE_HAIKU_4_5 = "claude-haiku-4-5",
+  GROK_4_3 = "grok-4.3",
   GROQ_LLAMA_8b = "llama3-8b-8192",
   COMMAND_R = "command-r",
   MISTRAL_TINY = "mistral-tiny-latest",
@@ -200,9 +193,9 @@ export enum ChatModels {
   OPENROUTER_GEMINI_3_PRO_PREVIEW = "google/gemini-3.1-pro-preview",
   OPENROUTER_GEMINI_2_5_FLASH = "google/gemini-2.5-flash",
   OPENROUTER_GEMINI_2_5_PRO = "google/gemini-2.5-pro",
-  OPENROUTER_GPT_5_4 = "openai/gpt-5.4",
-  OPENROUTER_GPT_5_MINI = "openai/gpt-5-mini",
-  OPENROUTER_GROK_4_1_FAST = "x-ai/grok-4.1-fast",
+  OPENROUTER_GPT_5_5 = "openai/gpt-5.5",
+  OPENROUTER_GPT_5_4_MINI = "openai/gpt-5.4-mini",
+  OPENROUTER_GROK_4_3 = "x-ai/grok-4.3",
   SILICONFLOW_DEEPSEEK_V3 = "deepseek-ai/DeepSeek-V3",
   SILICONFLOW_DEEPSEEK_R1 = "deepseek-ai/DeepSeek-R1",
 }
@@ -262,7 +255,7 @@ export const BUILTIN_CHAT_MODELS: CustomModel[] = [
     capabilities: [ModelCapability.VISION],
   },
   {
-    name: ChatModels.GPT_5_4,
+    name: ChatModels.GPT_5_5,
     provider: ChatModelProviders.OPENAI,
     enabled: true,
     isBuiltIn: true,
@@ -270,7 +263,7 @@ export const BUILTIN_CHAT_MODELS: CustomModel[] = [
     capabilities: [ModelCapability.VISION],
   },
   {
-    name: ChatModels.GPT_5_mini,
+    name: ChatModels.GPT_5_4_mini,
     provider: ChatModelProviders.OPENAI,
     enabled: true,
     isBuiltIn: true,
@@ -285,7 +278,7 @@ export const BUILTIN_CHAT_MODELS: CustomModel[] = [
     capabilities: [ModelCapability.VISION, ModelCapability.REASONING],
   },
   {
-    name: ChatModels.GEMINI_3_FLASH_LITE_PREVIEW,
+    name: ChatModels.GEMINI_3_FLASH_LITE,
     provider: ChatModelProviders.GOOGLE,
     enabled: true,
     isBuiltIn: true,
@@ -325,7 +318,7 @@ export const BUILTIN_CHAT_MODELS: CustomModel[] = [
     capabilities: [ModelCapability.VISION],
   },
   {
-    name: ChatModels.OPENROUTER_GPT_5_4,
+    name: ChatModels.OPENROUTER_GPT_5_5,
     provider: ChatModelProviders.OPENROUTERAI,
     enabled: false,
     isBuiltIn: true,
@@ -334,7 +327,7 @@ export const BUILTIN_CHAT_MODELS: CustomModel[] = [
     capabilities: [ModelCapability.VISION],
   },
   {
-    name: ChatModels.OPENROUTER_GPT_5_MINI,
+    name: ChatModels.OPENROUTER_GPT_5_4_MINI,
     provider: ChatModelProviders.OPENROUTERAI,
     enabled: false,
     isBuiltIn: true,
@@ -343,7 +336,7 @@ export const BUILTIN_CHAT_MODELS: CustomModel[] = [
     capabilities: [ModelCapability.VISION],
   },
   {
-    name: ChatModels.GROK_4_1_FAST,
+    name: ChatModels.GROK_4_3,
     provider: ChatModelProviders.XAI,
     enabled: false,
     isBuiltIn: true,
@@ -352,7 +345,7 @@ export const BUILTIN_CHAT_MODELS: CustomModel[] = [
     capabilities: [ModelCapability.VISION],
   },
   {
-    name: ChatModels.OPENROUTER_GROK_4_1_FAST,
+    name: ChatModels.OPENROUTER_GROK_4_3,
     provider: ChatModelProviders.OPENROUTERAI,
     enabled: false,
     isBuiltIn: true,
@@ -379,7 +372,14 @@ export const BUILTIN_CHAT_MODELS: CustomModel[] = [
     capabilities: [ModelCapability.VISION],
   },
   {
-    name: ChatModels.CLAUDE_OPUS_4_6,
+    name: ChatModels.CLAUDE_OPUS_4_7,
+    provider: ChatModelProviders.ANTHROPIC,
+    enabled: false,
+    isBuiltIn: true,
+    capabilities: [ModelCapability.VISION, ModelCapability.REASONING],
+  },
+  {
+    name: ChatModels.CLAUDE_HAIKU_4_5,
     provider: ChatModelProviders.ANTHROPIC,
     enabled: false,
     isBuiltIn: true,
@@ -452,7 +452,6 @@ export enum EmbeddingModelProviders {
 }
 
 export enum EmbeddingModels {
-  OPENAI_EMBEDDING_ADA_V2 = "text-embedding-ada-002",
   OPENAI_EMBEDDING_SMALL = "text-embedding-3-small",
   OPENAI_EMBEDDING_LARGE = "text-embedding-3-large",
   AZURE_OPENAI = "azure-openai",
@@ -605,7 +604,7 @@ export const ProviderInfo: Record<Provider, ProviderMetadata> = {
     curlBaseURL: "https://openrouter.ai/api/v1",
     keyManagementURL: "https://openrouter.ai/keys",
     listModelURL: "https://openrouter.ai/api/v1/models",
-    testModel: ChatModels.OPENROUTER_GPT_5_MINI,
+    testModel: ChatModels.OPENROUTER_GPT_5_4_MINI,
   },
   [ChatModelProviders.GOOGLE]: {
     label: "Gemini",
@@ -629,7 +628,7 @@ export const ProviderInfo: Record<Provider, ProviderMetadata> = {
     curlBaseURL: "https://api.openai.com/v1",
     keyManagementURL: "https://platform.openai.com/api-keys",
     listModelURL: "https://api.openai.com/v1/models",
-    testModel: ChatModels.GPT_5_4,
+    testModel: ChatModels.GPT_5_5,
   },
   [ChatModelProviders.XAI]: {
     label: "XAI",
@@ -637,7 +636,7 @@ export const ProviderInfo: Record<Provider, ProviderMetadata> = {
     curlBaseURL: "https://api.x.ai/v1",
     keyManagementURL: "https://console.x.ai",
     listModelURL: "https://api.x.ai/v1/models",
-    testModel: ChatModels.GROK_4_1_FAST,
+    testModel: ChatModels.GROK_4_3,
   },
   [ChatModelProviders.AZURE_OPENAI]: {
     label: "Azure",
@@ -656,8 +655,8 @@ export const ProviderInfo: Record<Provider, ProviderMetadata> = {
   },
   [ChatModelProviders.COHEREAI]: {
     label: "Cohere",
-    host: "https://api.cohere.com",
-    curlBaseURL: "https://api.cohere.com/v1",
+    host: "https://api.cohere.ai/compatibility/v1",
+    curlBaseURL: "https://api.cohere.ai/compatibility/v1",
     keyManagementURL: "https://dashboard.cohere.ai/api-keys",
     listModelURL: "https://api.cohere.com/v1/models",
     testModel: ChatModels.COMMAND_R,
@@ -792,7 +791,6 @@ export const COMMAND_IDS = {
   LOAD_COPILOT_CHAT_CONVERSATION: "load-copilot-chat-conversation",
   NEW_CHAT: "new-chat",
   OPEN_COPILOT_CHAT_WINDOW: "chat-open-window",
-  REMOVE_FILES_FROM_COPILOT_INDEX: "remove-files-from-copilot-index",
   SEARCH_ORAMA_DB: "copilot-search-orama-db",
   TOGGLE_COPILOT_CHAT_WINDOW: "chat-toggle-window",
   ADD_SELECTION_TO_CHAT_CONTEXT: "add-selection-to-chat-context",
@@ -821,7 +819,6 @@ export const COMMAND_NAMES: Record<CommandId, string> = {
   [COMMAND_IDS.LOAD_COPILOT_CHAT_CONVERSATION]: "Load Copilot chat conversation",
   [COMMAND_IDS.NEW_CHAT]: "New Copilot Chat",
   [COMMAND_IDS.OPEN_COPILOT_CHAT_WINDOW]: "Open Copilot Chat Window",
-  [COMMAND_IDS.REMOVE_FILES_FROM_COPILOT_INDEX]: "Remove files from Copilot index (debug)",
   [COMMAND_IDS.SEARCH_ORAMA_DB]: "Search semantic index (debug)",
   [COMMAND_IDS.TOGGLE_COPILOT_CHAT_WINDOW]: "Toggle Copilot Chat Window",
   [COMMAND_IDS.ADD_SELECTION_TO_CHAT_CONTEXT]: "Add selection to chat context",
@@ -924,7 +921,7 @@ export const DEFAULT_SETTINGS: CopilotSettings = {
   openAIEmbeddingProxyBaseUrl: "",
   stream: true,
   defaultSaveFolder: DEFAULT_CHAT_HISTORY_FOLDER,
-  defaultConversationTag: "copilot-mcp-conversation",
+  defaultConversationTag: "copilot-conversation",
   autosaveChat: true,
   generateAIChatTitleOnSave: true,
   autoAddActiveContentToContext: true,
@@ -938,7 +935,6 @@ export const DEFAULT_SETTINGS: CopilotSettings = {
   chatNoteContextTags: [],
   enableIndexSync: true,
   debug: false,
-  enableEncryption: false,
   maxSourceChunks: DEFAULT_MAX_SOURCE_CHUNKS,
   enableInlineCitations: true,
   groqApiKey: "",
@@ -955,6 +951,7 @@ export const DEFAULT_SETTINGS: CopilotSettings = {
   promptSortStrategy: PromptSortStrategy.TIMESTAMP,
   chatHistorySortStrategy: "recent",
   projectListSortStrategy: "recent",
+  projectsFolder: DEFAULT_PROJECTS_FOLDER,
   defaultConversationNoteName: "{$topic}@{$date}_{$time}",
   /** @deprecated */
   inlineEditCommands: [],
@@ -965,17 +962,6 @@ export const DEFAULT_SETTINGS: CopilotSettings = {
   enableCustomPromptTemplating: true,
   enableSemanticSearchV3: false,
   enableSelfHostMode: false,
-  backendMode: "hosted",
-  hostedAdapter: {
-    enabled: true,
-  },
-  selfHostAdapter: {
-    baseUrl: "",
-    apiKey: "",
-    enableMiyoBackend: false,
-    runtimeLane: "fork_dev",
-  },
-  selfHostExecutionMode: "direct_obsidian_vaultzk",
   enableMiyo: false,
   miyoSearchAll: false,
   selfHostModeValidatedAt: null,
@@ -1016,6 +1002,11 @@ export const DEFAULT_SETTINGS: CopilotSettings = {
   defaultSystemPromptTitle: "",
   autoCompactThreshold: 128000,
   convertedDocOutputFolder: DEFAULT_CONVERTED_DOC_OUTPUT_FOLDER,
+  // MCP defaults (forked addition).
+  // The default server points at the canonical TrevClaw-Obsidianodus
+  // obsidian-copilot-bridge (HTTPS, mkcert-signed) at :8798, NOT at the dev
+  // placeholder :8787. See TrevClaw-Obsidianodus/CLAUDE.md for the bridge
+  // contract and HTTPS-only invariant.
   mcp: {
     enabled: false,
     confirmationPolicy: "allow_without_prompt",
@@ -1025,25 +1016,33 @@ export const DEFAULT_SETTINGS: CopilotSettings = {
     servers: [
       {
         id: "local-obsidian-mcp",
-        displayName: "Local Obsidian MCP",
-        enabled: false,
+        displayName: "TrevClaw Obsidian MCP Bridge",
+        enabled: true,
         transport: "http",
-        httpEndpoint: "http://127.0.0.1:8787",
+        httpEndpoint: "https://127.0.0.1:8798",
         authToken: "",
         timeoutMs: 20000,
-        vaultName: "dev-vault",
-        vaultRoot: "/Users/trevorrobey/THE Copilot in Obsidian Everything/dev-vault",
+        vaultName: "My Digital Garden",
+        vaultRoot: "/Volumes/ExtraCurricular/My Digital Garden",
         backendHint: "cli",
-        enabledToolNames: ["obsidian_health"],
+        enabledToolNames: [
+          "obsidian_health",
+          "obsidian_open_vault",
+          "obsidian_create_note",
+          "obsidian_append_note",
+          "obsidian_read_note",
+          "obsidian_search_notes",
+          "obsidian_execute_command",
+        ],
       },
     ],
   },
 };
 
 export const EVENT_NAMES = {
-  CHAT_IS_VISIBLE: `${PLUGIN_ID}:chat-is-visible`,
-  ACTIVE_LEAF_CHANGE: `${PLUGIN_ID}:active-leaf-change`,
-  ABORT_STREAM: `${PLUGIN_ID}:abort-stream`,
+  CHAT_IS_VISIBLE: "chat-is-visible",
+  ACTIVE_LEAF_CHANGE: "active-leaf-change",
+  ABORT_STREAM: "abort-stream",
 };
 
 export enum ABORT_REASON {

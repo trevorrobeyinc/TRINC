@@ -9,9 +9,8 @@ import {
 } from "@/commands/customCommandUtils";
 import { Editor, Plugin, TFile, Vault } from "obsidian";
 import { CustomCommandChatModal } from "@/commands/CustomCommandChatModal";
-import debounce from "lodash.debounce";
+import { debounce } from "@/utils/debounce";
 import { CustomCommand } from "@/commands/type";
-import { shouldAutoReplaceActiveNote } from "@/commands/commandBehavior";
 import {
   deleteCachedCommand,
   getCachedCustomCommands,
@@ -39,8 +38,9 @@ export class CustomCommandRegister {
 
   /**
    * Register all custom commands found in the custom commands folder.
+   * Synchronous: iterates cached commands and registers each.
    */
-  private async registerCommands() {
+  private registerCommands() {
     const commands = getCachedCustomCommands();
     commands.forEach((command) => {
       this.registerCommand(command);
@@ -107,7 +107,7 @@ export class CustomCommandRegister {
       return;
     }
     const commandId = getCommandId(file.basename);
-    (this.plugin as any).removeCommand(commandId);
+    (this.plugin as unknown as { removeCommand: (id: string) => void }).removeCommand(commandId);
     deleteCachedCommand(file.basename);
   };
 
@@ -119,7 +119,9 @@ export class CustomCommandRegister {
     const oldFilename = oldPath.split("/").pop()?.replace(/\.md$/, "");
     if (oldFilename) {
       const oldCommandId = getCommandId(oldFilename);
-      (this.plugin as any).removeCommand(oldCommandId);
+      (this.plugin as unknown as { removeCommand: (id: string) => void }).removeCommand(
+        oldCommandId
+      );
       deleteCachedCommand(oldFilename);
     }
     // Register the new command if it's still a custom command file
@@ -133,21 +135,18 @@ export class CustomCommandRegister {
 
   private registerCommand(customCommand: CustomCommand) {
     const commandId = getCommandId(customCommand.title);
-    (this.plugin as any).removeCommand(commandId);
+    (this.plugin as unknown as { removeCommand: (id: string) => void }).removeCommand(commandId);
     this.plugin.addCommand({
       id: commandId,
       name: customCommand.title,
       editorCallback: (editor: Editor) => {
-        const selectedText = editor.getSelection();
-        const autoReplaceActiveNote = shouldAutoReplaceActiveNote(customCommand, selectedText);
-
         new CustomCommandChatModal(this.plugin.app, {
-          selectedText: autoReplaceActiveNote ? editor.getValue() : selectedText,
+          selectedText: editor.getSelection(),
           command: customCommand,
-          selectionMode: autoReplaceActiveNote ? "full-note" : "current-selection",
-          behaviorConfig: autoReplaceActiveNote ? { autoReplaceOnComplete: true } : undefined,
         }).open();
-        CustomCommandManager.getInstance().recordUsage(customCommand);
+        void CustomCommandManager.getInstance()
+          .recordUsage(customCommand)
+          .catch((err) => logError("recordUsage failed", err));
       },
     });
   }

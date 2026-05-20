@@ -487,99 +487,38 @@ Base file YAML reference (for creating new .base files with writeFile):
 export function initializeBuiltinTools(vault?: Vault): void {
   const registry = ToolRegistry.getInstance();
   const settings = getSettings();
-  const definitions: ToolDefinition[] = BUILTIN_TOOLS.map((definition) => ({
-    ...definition,
-    metadata: {
-      ...definition.metadata,
-      providerId: "builtin",
-    },
-  }));
 
-  if (vault) {
-    definitions.push({
-      tool: createGetFileTreeTool(vault.getRoot()),
-      metadata: {
-        id: "getFileTree",
-        providerId: "builtin",
-        displayName: "File Tree",
-        description: "Browse vault file structure",
-        category: "file",
-        isAlwaysEnabled: true,
-        requiresVault: true,
-        isBackground: true,
-        customPromptInstructions: `For getFileTree:
-- Use to browse the vault's file structure including paths of notes and folders
-- Always call this tool to explore the exact path of notes or folders when you are not given the exact path.
-- DO NOT use this tool to look up note contents or metadata - use localSearch or readNote instead.
-- No parameters needed
+  // Only reinitialize if tools have changed or vault/memory status has changed
+  const hasFileTree = registry.getToolMetadata("getFileTree") !== undefined;
+  const shouldHaveFileTree = vault !== undefined;
+  const hasUpdateMemoryTool = registry.getToolMetadata("updateMemory") !== undefined;
+  const shouldHaveMemoryTool = settings.enableSavedMemory;
 
-Example queries that should use getFileTree:
-- "Create a new note in the projects folder" -> call getFileTree to get the exact folder path
-- "Create a new note using the quick note template" -> call getFileTree to look up the template path
-- "How many files are in the projects folder" -> call getFileTree to list all files`,
-      },
-    });
+  if (
+    registry.getAllTools().length === 0 ||
+    hasFileTree !== shouldHaveFileTree ||
+    hasUpdateMemoryTool !== shouldHaveMemoryTool
+  ) {
+    // Clear any existing tools
+    registry.clear();
 
-    definitions.push({
-      tool: createGetTagListTool(),
-      metadata: {
-        id: "getTagList",
-        providerId: "builtin",
-        displayName: "Tag List",
-        description: "List vault tags with occurrence statistics",
-        category: "file",
-        isAlwaysEnabled: true,
-        requiresVault: true,
-        isBackground: true,
-        customPromptInstructions: `For getTagList:
-- Use to inspect existing tags before suggesting new ones or reorganizing notes.
-- Omit parameters to include both frontmatter and inline tags.
-- Set includeInline to false when you only need frontmatter-defined tags.
-- Use maxEntries to limit output for very large vaults.
+    // Register all built-in tools
+    registry.registerAll(BUILTIN_TOOLS);
 
-Examples:
-- Default (all tags): call with no parameters
-- Frontmatter only: includeInline: false`,
-      },
-    });
+    // Register vault-dependent tools if vault is available
+    if (vault) {
+      registerFileTreeTool(vault);
+      registerTagListTool();
+    }
+
+    // Register memory tool if saved memory is enabled
+    if (settings.enableSavedMemory) {
+      registerMemoryTool();
+    }
+
+    // Register desktop-only CLI tools (invisible on mobile)
+    if (isDesktopRuntime()) {
+      registerCliTools();
+    }
   }
-
-  if (settings.enableSavedMemory) {
-    definitions.push({
-      tool: updateMemoryTool,
-      metadata: {
-        id: "updateMemory",
-        providerId: "builtin",
-        displayName: "Update Memory",
-        description:
-          "Save information to user memory when the user explicitly asks to remember something or update the memory",
-        category: "memory",
-        copilotCommands: ["@memory"],
-        isAlwaysEnabled: true,
-        customPromptInstructions: `For updateMemory:
-- Use this tool to update the memory when the user explicitly asks to update the memory
-- DO NOT use for general information - only for personal facts, preferences, or specific things the user wants stored
-
-Example: statement: "I'm studying Japanese and I'm preparing for JLPT N3"`,
-      },
-    });
-  }
-
-  if (isDesktopRuntime()) {
-    registerCliTools();
-    const cliTools = registry
-      .getAllTools()
-      .filter((definition) => definition.metadata.providerId !== "builtin" && definition.metadata.category === "cli")
-      .map((definition) => ({
-        ...definition,
-        metadata: {
-          ...definition.metadata,
-          providerId: "builtin",
-        },
-      }));
-    cliTools.forEach((definition) => registry.unregister(definition.metadata.id));
-    definitions.push(...cliTools);
-  }
-
-  registry.replaceByProvider("builtin", definitions);
 }

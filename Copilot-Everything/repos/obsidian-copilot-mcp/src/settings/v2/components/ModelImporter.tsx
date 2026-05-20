@@ -45,14 +45,26 @@ function renderVerificationMessage(message: string): React.ReactNode {
       const match = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
       if (match) {
         return (
-          <a key={j} href={match[2]} target="_blank" rel="noopener noreferrer" className="tw-underline">
+          <a
+            // eslint-disable-next-line @eslint-react/no-array-index-key -- static one-shot render of a parsed markdown paragraph; nodes are not reordered
+            key={j}
+            href={match[2]}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="tw-underline"
+          >
             {match[1]}
           </a>
         );
       }
       return part;
     });
-    return <p key={i} className={i > 0 ? "tw-mt-1" : ""}>{nodes}</p>;
+    return (
+      // eslint-disable-next-line @eslint-react/no-array-index-key -- static one-shot render of parsed markdown paragraphs; paragraphs are not reordered
+      <p key={i} className={i > 0 ? "tw-mt-1" : ""}>
+        {nodes}
+      </p>
+    );
   });
 }
 
@@ -106,19 +118,10 @@ export function ModelImporter({
     }
   }, [provider, isReady]);
 
-  // Reset cached models when provider or credentials change
-  // This ensures the model list is refreshed after re-authentication or API key rotation
-  useEffect(() => {
-    setModels(null);
-    setSelectedModel(null);
-    setError(null);
-    setVerificationMessage(null);
-  }, [provider, credentialVersion]);
-
   // Auto-load models when expanded and ready
   useEffect(() => {
     if (expanded && isReady && models === null && !loading && !error) {
-      loadModels();
+      void loadModels();
     }
   }, [expanded, isReady, models, loading, error, loadModels]);
 
@@ -206,7 +209,7 @@ export function ModelImporter({
               }}
               onClick={() => {
                 if (models === null && !loading) {
-                  loadModels();
+                  void loadModels();
                 }
               }}
               value={selectedModel?.id || ""}

@@ -123,7 +123,7 @@ Format:
         this.config.timeout,
         "Query expansion"
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof TimeoutError) {
         logInfo(`QueryExpander: Timeout reached for "${query}"`);
         return this.fallbackExpansion(query);
@@ -189,11 +189,18 @@ Format:
    * @param response - The LLM response object or string
    * @returns The extracted text content or null if empty
    */
-  private extractContent(response: any): string | null {
+  private extractContent(response: unknown): string | null {
     // Elegant extraction with nullish coalescing
+    const typed = response as { content?: unknown; text?: unknown } | null | undefined;
+    const extracted = typed?.content ?? typed?.text ?? "";
     return typeof response === "string"
       ? response
-      : String(response?.content ?? response?.text ?? "").trim() || null;
+      : (typeof extracted === "string"
+          ? extracted
+          : typeof extracted === "number"
+            ? String(extracted)
+            : ""
+        ).trim() || null;
   }
 
   /**
@@ -476,7 +483,7 @@ Format:
   private cacheResult(query: string, expanded: ExpandedQuery): void {
     // Map maintains insertion order for simple LRU
     if (this.cache.size >= this.config.cacheSize) {
-      const firstKey = this.cache.keys().next().value;
+      const firstKey: string | undefined = this.cache.keys().next().value;
       if (firstKey) {
         this.cache.delete(firstKey);
       }

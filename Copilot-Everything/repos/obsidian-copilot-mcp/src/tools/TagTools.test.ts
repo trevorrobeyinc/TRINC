@@ -1,10 +1,38 @@
 import { ToolManager } from "@/tools/toolManager";
 import { createGetTagListTool, enforceSizeLimit } from "./TagTools";
 
-describe("TagTools", () => {
-  const originalApp = (globalThis as any).app;
+interface TagEntry {
+  tag: string;
+  occurrences: number;
+  frontmatterOccurrences: number;
+  inlineOccurrences: number;
+}
 
-  const parsePayload = (result: string) => {
+interface TagPayload {
+  totalUniqueTags: number;
+  returnedTagCount: number;
+  totalOccurrences: number;
+  truncated: boolean;
+  includedSources: Array<"frontmatter" | "inline">;
+  tags: TagEntry[];
+}
+
+interface MockApp {
+  metadataCache: {
+    getTags: jest.Mock;
+    getFrontmatterTags: jest.Mock;
+  };
+}
+
+const getMockApp = (): MockApp => (window as unknown as { app: MockApp }).app;
+const setMockApp = (value: MockApp | undefined): void => {
+  (window as unknown as { app: MockApp | undefined }).app = value;
+};
+
+describe("TagTools", () => {
+  const originalApp = getMockApp();
+
+  const parsePayload = (result: string): TagPayload => {
     const startIndex = result.indexOf('{"');
     const endIndex = result.lastIndexOf("}");
 
@@ -13,16 +41,15 @@ describe("TagTools", () => {
 
     const jsonSegment = result.slice(startIndex, endIndex + 1);
     try {
-      return JSON.parse(jsonSegment);
+      return JSON.parse(jsonSegment) as TagPayload;
     } catch (error) {
-      // eslint-disable-next-line no-console -- helpful context when assertions fail
       console.error("Failed to parse tag tool payload:", jsonSegment);
       throw error;
     }
   };
 
   beforeEach(() => {
-    (globalThis as any).app = {
+    setMockApp({
       metadataCache: {
         getTags: jest.fn().mockReturnValue({
           "#project": 5,
@@ -34,22 +61,22 @@ describe("TagTools", () => {
           "#daily": 2,
         }),
       },
-    };
+    });
   });
 
   afterEach(() => {
-    (globalThis as any).app = originalApp;
+    setMockApp(originalApp);
     jest.clearAllMocks();
   });
 
   it("returns combined tag statistics by default", async () => {
     const tool = createGetTagListTool();
-    const result = await ToolManager.callTool(tool, {});
+    const result = (await ToolManager.callTool(tool, {})) as string;
 
     const payload = parsePayload(result);
 
-    expect((globalThis as any).app.metadataCache.getTags).toHaveBeenCalled();
-    expect((globalThis as any).app.metadataCache.getFrontmatterTags).toHaveBeenCalled();
+    expect(getMockApp().metadataCache.getTags).toHaveBeenCalled();
+    expect(getMockApp().metadataCache.getFrontmatterTags).toHaveBeenCalled();
     expect(payload.totalUniqueTags).toBe(3);
     expect(payload.returnedTagCount).toBe(3);
     expect(payload.totalOccurrences).toBe(10);
@@ -79,12 +106,12 @@ describe("TagTools", () => {
 
   it("supports frontmatter-only mode", async () => {
     const tool = createGetTagListTool();
-    const result = await ToolManager.callTool(tool, { includeInline: false });
+    const result = (await ToolManager.callTool(tool, { includeInline: false })) as string;
 
     const payload = parsePayload(result);
 
-    expect((globalThis as any).app.metadataCache.getTags).not.toHaveBeenCalled();
-    expect((globalThis as any).app.metadataCache.getFrontmatterTags).toHaveBeenCalled();
+    expect(getMockApp().metadataCache.getTags).not.toHaveBeenCalled();
+    expect(getMockApp().metadataCache.getFrontmatterTags).toHaveBeenCalled();
     expect(payload.totalUniqueTags).toBe(2);
     expect(payload.includedSources).toEqual(["frontmatter"]);
     expect(payload.tags).toEqual([
@@ -105,7 +132,7 @@ describe("TagTools", () => {
 
   it("limits entries when maxEntries is provided", async () => {
     const tool = createGetTagListTool();
-    const result = await ToolManager.callTool(tool, { maxEntries: 2 });
+    const result = (await ToolManager.callTool(tool, { maxEntries: 2 })) as string;
 
     const payload = parsePayload(result);
 
@@ -118,11 +145,11 @@ describe("TagTools", () => {
   });
 
   it("handles empty vault gracefully", async () => {
-    (globalThis as any).app.metadataCache.getTags.mockReturnValue({});
-    (globalThis as any).app.metadataCache.getFrontmatterTags.mockReturnValue({});
+    getMockApp().metadataCache.getTags.mockReturnValue({});
+    getMockApp().metadataCache.getFrontmatterTags.mockReturnValue({});
 
     const tool = createGetTagListTool();
-    const result = await ToolManager.callTool(tool, {});
+    const result = (await ToolManager.callTool(tool, {})) as string;
 
     const payload = parsePayload(result);
 
@@ -132,17 +159,17 @@ describe("TagTools", () => {
   });
 
   it("normalizes malformed tags correctly", async () => {
-    (globalThis as any).app.metadataCache.getTags.mockReturnValue({
+    getMockApp().metadataCache.getTags.mockReturnValue({
       project: 5,
       "##Weird/Tag": 4,
     });
-    (globalThis as any).app.metadataCache.getFrontmatterTags.mockReturnValue({
+    getMockApp().metadataCache.getFrontmatterTags.mockReturnValue({
       "  #Project ": 3,
       "##Weird/Tag": 1,
     });
 
     const tool = createGetTagListTool();
-    const result = await ToolManager.callTool(tool, {});
+    const result = (await ToolManager.callTool(tool, {})) as string;
 
     const payload = parsePayload(result);
 
@@ -163,15 +190,15 @@ describe("TagTools", () => {
   });
 
   it("falls back when inline counts omit frontmatter occurrences", async () => {
-    (globalThis as any).app.metadataCache.getTags.mockReturnValue({
+    getMockApp().metadataCache.getTags.mockReturnValue({
       "#project": 1,
     });
-    (globalThis as any).app.metadataCache.getFrontmatterTags.mockReturnValue({
+    getMockApp().metadataCache.getFrontmatterTags.mockReturnValue({
       "#project": 3,
     });
 
     const tool = createGetTagListTool();
-    const result = await ToolManager.callTool(tool, {});
+    const result = (await ToolManager.callTool(tool, {})) as string;
 
     const payload = parsePayload(result);
 

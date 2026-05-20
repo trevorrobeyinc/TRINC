@@ -20,15 +20,16 @@ export class ToolManager {
    * Call a tool with the given arguments.
    * Throws on error so caller can handle with proper context (args, tool name).
    */
-  static async callTool(tool: any, args: any): Promise<any> {
+  static async callTool(tool: unknown, args: unknown): Promise<unknown> {
     if (!tool) {
       throw new Error("Tool is undefined");
     }
 
-    const result = await tool.call(args);
+    const typedTool = tool as { call: (args: unknown) => Promise<unknown>; name: string };
+    const result = await typedTool.call(args);
 
     if (result === undefined || result === null) {
-      logWarn(`[ToolCall] Tool "${tool.name}" returned null/undefined`);
+      logWarn(`[ToolCall] Tool "${typedTool.name}" returned null/undefined`);
       return null;
     }
 

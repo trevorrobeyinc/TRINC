@@ -65,7 +65,7 @@ Here's a summary.`;
 
       const result = compactAssistantOutput(output, { verbatimThreshold: 1000 });
       expect(Array.isArray(result)).toBe(true);
-      const resultArray = result as any[];
+      const resultArray = result as Array<{ text: string; type: string }>;
       expect(resultArray[0].text.length).toBeLessThan(textItem.text.length);
       expect(resultArray[1]).toEqual(imageItem); // Image unchanged
     });
@@ -109,7 +109,7 @@ Done.`;
 
     it("should return non-string/non-array content unchanged", () => {
       const output = { some: "object" };
-      expect(compactAssistantOutput(output as any)).toBe(output);
+      expect(compactAssistantOutput(output as unknown as string)).toBe(output);
     });
 
     it("should handle readNote JSON with nested braces in content", () => {

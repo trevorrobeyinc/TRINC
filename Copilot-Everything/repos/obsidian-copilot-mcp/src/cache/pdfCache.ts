@@ -1,6 +1,6 @@
 import { Pdf4llmResponse } from "@/LLMProviders/brevilabsClient";
 import { logError, logInfo } from "@/logger";
-import { MD5 } from "crypto-js";
+import { md5 } from "@/utils/hash";
 import { TFile } from "obsidian";
 
 export class PDFCache {
@@ -26,7 +26,7 @@ export class PDFCache {
   private getCacheKey(file: TFile): string {
     // Use file path, size and mtime for a unique but efficient cache key
     const metadata = `${file.path}:${file.stat.size}:${file.stat.mtime}`;
-    const key = MD5(metadata).toString();
+    const key = md5(metadata);
     logInfo("Generated cache key for PDF:", { path: file.path, key });
     return key;
   }
@@ -43,7 +43,7 @@ export class PDFCache {
       if (await app.vault.adapter.exists(cachePath)) {
         logInfo("Cache hit for PDF:", file.path);
         const cacheContent = await app.vault.adapter.read(cachePath);
-        return JSON.parse(cacheContent);
+        return JSON.parse(cacheContent) as Pdf4llmResponse;
       }
       logInfo("Cache miss for PDF:", file.path);
       return null;

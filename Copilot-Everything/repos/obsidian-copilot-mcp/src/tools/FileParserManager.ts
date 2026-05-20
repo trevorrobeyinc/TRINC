@@ -1,5 +1,5 @@
+import { BrevilabsClient } from "@/LLMProviders/brevilabsClient";
 import { ProjectConfig } from "@/aiParams";
-import type { BackendAdapter } from "@/backend/BackendAdapter";
 import { PDFCache } from "@/cache/pdfCache";
 import { ProjectContextCache } from "@/cache/projectContextCache";
 import { logError, logInfo, logWarn } from "@/logger";
@@ -76,7 +76,7 @@ class SelfHostPdfParser {
   }
 }
 
-export class MarkdownParser implements FileParser {
+class MarkdownParser implements FileParser {
   supportedExtensions = ["md", "base"];
 
   async parseFile(file: TFile, vault: Vault): Promise<string> {
@@ -84,14 +84,14 @@ export class MarkdownParser implements FileParser {
   }
 }
 
-export class PDFParser implements FileParser {
+class PDFParser implements FileParser {
   supportedExtensions = ["pdf"];
-  private backendAdapter: BackendAdapter;
+  private brevilabsClient: BrevilabsClient;
   private pdfCache: PDFCache;
   private selfHostPdfParser: SelfHostPdfParser;
 
-  constructor(backendAdapter: BackendAdapter) {
-    this.backendAdapter = backendAdapter;
+  constructor(brevilabsClient: BrevilabsClient) {
+    this.brevilabsClient = brevilabsClient;
     this.pdfCache = PDFCache.getInstance();
     this.selfHostPdfParser = new SelfHostPdfParser();
   }
@@ -128,17 +128,10 @@ export class PDFParser implements FileParser {
         }
       }
 
-      if (isSelfHostModeValid()) {
-        return `[Error: Self-host mode is selected for ${file.basename}, but PDF parsing is not configured. Enable Miyo to parse PDFs without falling back to hosted mode.]`;
-      }
-
       // If not in cache, read the file and call the API
       const binaryContent = await vault.readBinary(file);
       logInfo("Calling pdf4llm API for:", file.path);
-      if (!this.backendAdapter.pdf4llm) {
-        return `[Error: PDF parsing is not supported by the selected backend for ${file.basename}.]`;
-      }
-      const pdf4llmResponse = await this.backendAdapter.pdf4llm(binaryContent);
+      const pdf4llmResponse = await this.brevilabsClient.pdf4llm(binaryContent);
       await this.pdfCache.set(file, pdf4llmResponse);
       await saveConvertedDocOutput(file, pdf4llmResponse.response, vault);
       return pdf4llmResponse.response;
@@ -154,7 +147,7 @@ export class PDFParser implements FileParser {
   }
 }
 
-export class CanvasParser implements FileParser {
+class CanvasParser implements FileParser {
   supportedExtensions = ["canvas"];
 
   async parseFile(file: TFile, vault: Vault): Promise<string> {
@@ -172,114 +165,125 @@ export class CanvasParser implements FileParser {
   }
 }
 
+/**
+ * All file extensions supported by Docs4LLMParser.
+ * Extracted as a module-level constant so FileParserManager.getProjectSupportedExtensions()
+ * can read the list statically without constructing a full Docs4LLMParser instance.
+ *
+ * Reason: The static method needs these extensions at UI layer (before any real API client exists),
+ * so we can't safely construct Docs4LLMParser just to read a property.
+ */
+const DOCS4LLM_SUPPORTED_EXTENSIONS: readonly string[] = [
+  // Base types
+  "pdf",
+
+  // Documents and presentations
+  "602",
+  "abw",
+  "cgm",
+  "cwk",
+  "doc",
+  "docx",
+  "docm",
+  "dot",
+  "dotm",
+  "hwp",
+  "key",
+  "lwp",
+  "mw",
+  "mcw",
+  "pages",
+  "pbd",
+  "ppt",
+  "pptm",
+  "pptx",
+  "pot",
+  "potm",
+  "potx",
+  "rtf",
+  "sda",
+  "sdd",
+  "sdp",
+  "sdw",
+  "sgl",
+  "sti",
+  "sxi",
+  "sxw",
+  "stw",
+  "sxg",
+  "txt",
+  "uof",
+  "uop",
+  "uot",
+  "vor",
+  "wpd",
+  "wps",
+  "xml",
+  "zabw",
+  "epub",
+
+  // Images
+  "jpg",
+  "jpeg",
+  "png",
+  "gif",
+  "bmp",
+  "svg",
+  "tiff",
+  "webp",
+  "web",
+  "htm",
+  "html",
+
+  // Spreadsheets
+  "xlsx",
+  "xls",
+  "xlsm",
+  "xlsb",
+  "xlw",
+  "csv",
+  "dif",
+  "sylk",
+  "slk",
+  "prn",
+  "numbers",
+  "et",
+  "ods",
+  "fods",
+  "uos1",
+  "uos2",
+  "dbf",
+  "wk1",
+  "wk2",
+  "wk3",
+  "wk4",
+  "wks",
+  "123",
+  "wq1",
+  "wq2",
+  "wb1",
+  "wb2",
+  "wb3",
+  "qpw",
+  "xlr",
+  "eth",
+  "tsv",
+
+  // Audio (limited to 20MB)
+  "mp3",
+  "mp4",
+  "mpeg",
+  "mpga",
+  "m4a",
+  "wav",
+  "webm",
+];
+
 export class Docs4LLMParser implements FileParser {
-  // Support various document and media file types
-  supportedExtensions = [
-    // Base types
-    "pdf",
-
-    // Documents and presentations
-    "602",
-    "abw",
-    "cgm",
-    "cwk",
-    "doc",
-    "docx",
-    "docm",
-    "dot",
-    "dotm",
-    "hwp",
-    "key",
-    "lwp",
-    "mw",
-    "mcw",
-    "pages",
-    "pbd",
-    "ppt",
-    "pptm",
-    "pptx",
-    "pot",
-    "potm",
-    "potx",
-    "rtf",
-    "sda",
-    "sdd",
-    "sdp",
-    "sdw",
-    "sgl",
-    "sti",
-    "sxi",
-    "sxw",
-    "stw",
-    "sxg",
-    "txt",
-    "uof",
-    "uop",
-    "uot",
-    "vor",
-    "wpd",
-    "wps",
-    "xml",
-    "zabw",
-    "epub",
-
-    // Images
-    "jpg",
-    "jpeg",
-    "png",
-    "gif",
-    "bmp",
-    "svg",
-    "tiff",
-    "webp",
-    "web",
-    "htm",
-    "html",
-
-    // Spreadsheets
-    "xlsx",
-    "xls",
-    "xlsm",
-    "xlsb",
-    "xlw",
-    "csv",
-    "dif",
-    "sylk",
-    "slk",
-    "prn",
-    "numbers",
-    "et",
-    "ods",
-    "fods",
-    "uos1",
-    "uos2",
-    "dbf",
-    "wk1",
-    "wk2",
-    "wk3",
-    "wk4",
-    "wks",
-    "123",
-    "wq1",
-    "wq2",
-    "wb1",
-    "wb2",
-    "wb3",
-    "qpw",
-    "xlr",
-    "eth",
-    "tsv",
-
-    // Audio (limited to 20MB)
-    "mp3",
-    "mp4",
-    "mpeg",
-    "mpga",
-    "m4a",
-    "wav",
-    "webm",
-  ];
-  private backendAdapter: BackendAdapter;
+  // Reason: Reference the shared constant so getProjectSupportedExtensions() stays in sync
+  // with the actual parser registrations without duplicating the list.
+  supportedExtensions = [...DOCS4LLM_SUPPORTED_EXTENSIONS];
+  private brevilabsClient: BrevilabsClient;
   private projectContextCache: ProjectContextCache;
   private selfHostPdfParser: SelfHostPdfParser;
   private currentProject: ProjectConfig | null;
@@ -289,8 +293,8 @@ export class Docs4LLMParser implements FileParser {
     Docs4LLMParser.lastRateLimitNoticeTime = 0;
   }
 
-  constructor(backendAdapter: BackendAdapter, project: ProjectConfig | null = null) {
-    this.backendAdapter = backendAdapter;
+  constructor(brevilabsClient: BrevilabsClient, project: ProjectConfig | null = null) {
+    this.brevilabsClient = brevilabsClient;
     this.projectContextCache = ProjectContextCache.getInstance();
     this.selfHostPdfParser = new SelfHostPdfParser();
     this.currentProject = project;
@@ -349,21 +353,12 @@ export class Docs4LLMParser implements FileParser {
         }
       }
 
-      if (isSelfHostModeValid()) {
-        throw new Error(
-          `Self-host mode is selected, but ${file.extension.toUpperCase()} conversion is not supported by the current self-host adapter.`
-        );
-      }
-
       const binaryContent = await vault.readBinary(file);
 
       logInfo(
         `[Docs4LLMParser] Project ${this.currentProject.name}: Calling docs4llm API for: ${file.path}`
       );
-      if (!this.backendAdapter.docs4llm) {
-        throw new Error("Document conversion is not supported by the selected backend.");
-      }
-      const docs4llmResponse = await this.backendAdapter.docs4llm(binaryContent, file.extension);
+      const docs4llmResponse = await this.brevilabsClient.docs4llm(binaryContent, file.extension);
 
       if (!docs4llmResponse || !docs4llmResponse.response) {
         throw new Error("Empty response from docs4llm API");
@@ -376,8 +371,9 @@ export class Docs4LLMParser implements FileParser {
       } else if (Array.isArray(docs4llmResponse.response)) {
         // Handle array of documents from docs4llm
         const markdownParts: string[] = [];
-        for (const doc of docs4llmResponse.response) {
-          if (doc.content) {
+        for (const rawDoc of docs4llmResponse.response) {
+          const doc = rawDoc as { content?: { md?: string; text?: string } } | null | undefined;
+          if (doc?.content) {
             // Prioritize markdown content, then fallback to text content
             if (doc.content.md) {
               markdownParts.push(doc.content.md);
@@ -389,18 +385,19 @@ export class Docs4LLMParser implements FileParser {
         content = markdownParts.join("\n\n");
       } else if (typeof docs4llmResponse.response === "object") {
         // Handle single object response (backward compatibility)
-        if (docs4llmResponse.response.md) {
-          content = docs4llmResponse.response.md;
-        } else if (docs4llmResponse.response.text) {
-          content = docs4llmResponse.response.text;
-        } else if (docs4llmResponse.response.content) {
-          content = docs4llmResponse.response.content;
+        const resp = docs4llmResponse.response as Record<string, unknown>;
+        if (resp.md) {
+          content = resp.md as string;
+        } else if (resp.text) {
+          content = resp.text as string;
+        } else if (resp.content) {
+          content = resp.content as string;
         } else {
           // If no markdown/text/content field, stringify the entire response
           content = JSON.stringify(docs4llmResponse.response, null, 2);
         }
       } else {
-        content = String(docs4llmResponse.response);
+        content = JSON.stringify(docs4llmResponse.response);
       }
 
       // Cache the converted content
@@ -426,7 +423,7 @@ export class Docs4LLMParser implements FileParser {
     }
   }
 
-  private showRateLimitNotice(error: any): void {
+  private showRateLimitNotice(error: unknown): void {
     const now = Date.now();
 
     // Only show one rate limit notice per minute to avoid spam
@@ -464,8 +461,36 @@ class DocxParser implements FileParser {
 export class FileParserManager {
   private parsers: Map<string, FileParser> = new Map();
 
+  /**
+   * Returns the set of file extensions supported in project mode (isProjectMode=true).
+   *
+   * Reason: The UI status panel needs to distinguish between "pending" (will be processed)
+   * and "unsupported" (will never be processed) for non-markdown files. This method
+   * exposes the exact extension set used when constructing a project-mode FileParserManager,
+   * without requiring a full instantiation with real BrevilabsClient/Vault dependencies.
+   *
+   * Project mode registers: MarkdownParser + Docs4LLMParser + CanvasParser
+   * (PDFParser is skipped because Docs4LLMParser already handles PDFs in project mode)
+   */
+  public static getProjectSupportedExtensions(): Set<string> {
+    const extensions = new Set<string>();
+
+    // MarkdownParser: ["md"]
+    extensions.add("md");
+
+    // Docs4LLMParser: all document/image/spreadsheet/audio types (read from shared constant)
+    for (const ext of DOCS4LLM_SUPPORTED_EXTENSIONS) {
+      extensions.add(ext);
+    }
+
+    // CanvasParser: ["canvas"]
+    extensions.add("canvas");
+
+    return extensions;
+  }
+
   constructor(
-    backendAdapter: BackendAdapter,
+    brevilabsClient: BrevilabsClient,
     _vault: Vault,
     isProjectMode: boolean = false,
     project: ProjectConfig | null = null
@@ -474,11 +499,11 @@ export class FileParserManager {
     this.registerParser(new MarkdownParser());
 
     // In project mode, use Docs4LLMParser for all supported files including PDFs
-    this.registerParser(new Docs4LLMParser(backendAdapter, project));
+    this.registerParser(new Docs4LLMParser(brevilabsClient, project));
 
     // Only register PDFParser when not in project mode
     if (!isProjectMode) {
-      this.registerParser(new PDFParser(backendAdapter));
+      this.registerParser(new PDFParser(brevilabsClient));
     }
 
     this.registerParser(new CanvasParser());

@@ -98,7 +98,7 @@ export default class VectorStoreManager {
           ) {
             retries--;
             if (retries > 0) {
-              await new Promise((resolve) => setTimeout(resolve, 100));
+              await new Promise((resolve) => window.setTimeout(resolve, 100));
               continue;
             }
           }
@@ -276,6 +276,7 @@ export default class VectorStoreManager {
     this.indexBackend.onunload();
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Orama<any> is the correct API type
   public async getDb(): Promise<Orama<any>> {
     await this.waitForInitialization();
     const db = this.oramaBackend.getDb();

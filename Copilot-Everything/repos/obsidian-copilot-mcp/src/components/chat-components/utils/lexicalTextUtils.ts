@@ -49,7 +49,7 @@ export interface PillData {
 /**
  * Generic function to create pill nodes based on type and data
  */
-export function $createPillNode(pillData: PillData) {
+function $createPillNode(pillData: PillData) {
   const { type, title, data } = pillData;
 
   switch (type) {
@@ -74,8 +74,7 @@ export function $createPillNode(pillData: PillData) {
     case "webTabs":
       // WebTabContext has url, title, faviconUrl
       if (data && typeof data === "object" && "url" in data) {
-        const webTab = data as WebTabContext;
-        return $createWebTabPillNode(webTab.url, webTab.title, webTab.faviconUrl);
+        return $createWebTabPillNode(data.url, data.title, data.faviconUrl);
       }
       break;
     case "activeWebTab":
@@ -649,7 +648,7 @@ export function $replaceTextRangeWithPills(
 
   if (anchorNode.getType() !== "text") return;
 
-  const textNode = anchorNode as any; // TextNode
+  const textNode = anchorNode as TextNode;
   const textContent = textNode.getTextContent();
 
   // Parse the new text for pills

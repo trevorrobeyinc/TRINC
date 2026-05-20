@@ -41,7 +41,7 @@ jest.mock("obsidian", () => ({
   })),
   Notice: jest.fn().mockImplementation(function (message) {
     this.message = message;
-    this.noticeEl = document.createElement("div");
+    this.noticeEl = window.document.createElement("div");
     this.hide = jest.fn();
   }),
   Platform: {
@@ -74,15 +74,6 @@ import { AutonomousAgentChainRunner } from "@/LLMProviders/chainRunner";
 import { jest } from "@jest/globals";
 import * as dotenv from "dotenv";
 
-// Add global fetch polyfill for Node.js environments
-import fetch, { Headers, Request, Response } from "node-fetch";
-if (!globalThis.fetch) {
-  globalThis.fetch = fetch as any;
-  globalThis.Headers = Headers as any;
-  globalThis.Request = Request as any;
-  globalThis.Response = Response as any;
-}
-
 // Add TextDecoderStream polyfill for Node.js environments
 import "web-streams-polyfill/dist/polyfill.js";
 
@@ -94,19 +85,6 @@ Array.prototype.contains = Array.prototype.includes;
 
 // Increase test timeout to 120 seconds for real LLM calls
 jest.setTimeout(120000);
-
-// Mock only the essential dependencies
-jest.mock("@/chainFactory", () => ({
-  ChainType: {
-    LLM_CHAIN: "llm_chain",
-    VAULT_QA_CHAIN: "vault_qa",
-    COPILOT_PLUS_CHAIN: "copilot_plus",
-    PROJECT_CHAIN: "project",
-  },
-  default: jest.fn().mockImplementation(() => ({
-    instances: new Map(),
-  })),
-}));
 
 // Mock Obsidian - essential for tool initialization
 jest.mock("obsidian", () => ({
@@ -196,11 +174,8 @@ describe("Agent Prompt Integration Test - Direct Model Testing", () => {
   beforeAll(async () => {
     // Skip tests if no API key is available
     if (!process.env.GEMINI_API_KEY) {
-      console.log("Skipping Agent Prompt tests - GEMINI_API_KEY not found");
       return;
     }
-
-    console.log("🚀 Starting Agent Prompt tests with real Gemini 2.5 Flash");
 
     try {
       // Import the necessary classes

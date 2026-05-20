@@ -7,16 +7,17 @@ import {
 } from "@/components/command-ui/constants";
 import { SelectionHighlight } from "@/editor/selectionHighlight";
 import { createHighlightReplaceGuard, type ReplaceGuard } from "@/editor/replaceGuard";
-import { logError, logWarn } from "@/logger";
+import { logError } from "@/logger";
 import { cleanMessageForCopy, findCustomModel, insertIntoEditor } from "@/utils";
 import { computeVerticalPlacement } from "@/utils/panelPlacement";
 import { computeSelectionAnchors } from "@/utils/selectionAnchors";
 import type { EditorView } from "@codemirror/view";
 import { PenLine } from "lucide-react";
-import { App, Component, MarkdownRenderer, Notice, MarkdownView } from "obsidian";
+import { App, Component, MarkdownRenderer, Notice, MarkdownView, Scope } from "obsidian";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { preprocessAIResponse } from "@/utils/markdownPreprocess";
-import { createRoot, Root } from "react-dom/client";
+import { Root } from "react-dom/client";
+import { createPluginRoot } from "@/utils/react/createPluginRoot";
 import { CustomCommand } from "@/commands/type";
 import { useSettingsValue, updateSetting } from "@/settings/model";
 import {
@@ -35,7 +36,6 @@ import { ABORT_REASON } from "@/constants";
  * - 'custom-command': Changes only affect current session (respects command-level config)
  */
 export type ModelSelectionScope = "quick-command" | "custom-command";
-export type CommandSelectionMode = "current-selection" | "full-note";
 
 /**
  * Configuration for modal behavior.
@@ -44,8 +44,6 @@ export type CommandSelectionMode = "current-selection" | "full-note";
 export interface ModalBehaviorConfig {
   /** Whether to auto-execute the command on open (menu mode: true, quick mode: false) */
   autoExecuteOnOpen: boolean;
-  /** Whether to immediately replace the target content after the first response completes */
-  autoReplaceOnComplete?: boolean;
   /** Whether to hide ContentArea when state is idle */
   hideContentAreaOnIdle: boolean;
   /** Transform function for first submit (e.g., append note context placeholders) */
@@ -73,7 +71,6 @@ function resolveBehaviorConfig(
 ): ModalBehaviorConfig {
   const defaults: ModalBehaviorConfig = {
     autoExecuteOnOpen: true,
-    autoReplaceOnComplete: false,
     hideContentAreaOnIdle: false,
     commandLabel: command.title,
     commandIcon: <PenLine className="tw-size-4 tw-text-muted" />,
@@ -187,12 +184,12 @@ function CustomCommandChatModalContent({
     return command.modelKey || globalModelKey;
   }, [modelSelectionScope, settings.quickCommandModelKey, command.modelKey, globalModelKey]);
 
-  const [selectedModelKey, setSelectedModelKey] = useState(initialModelKey);
+  const [userSelectedModelKey, setUserSelectedModelKey] = useState(initialModelKey);
 
   // Handle model change with scope-aware persistence
   const handleModelChange = useCallback(
     (newModelKey: string) => {
-      setSelectedModelKey(newModelKey);
+      setUserSelectedModelKey(newModelKey);
       // Only persist for quick-command scope (shared with Quick Ask)
       if (modelSelectionScope === "quick-command") {
         updateSetting("quickCommandModelKey", newModelKey);
@@ -213,16 +210,13 @@ function CustomCommandChatModalContent({
     updateSetting("quickCommandIncludeNoteContext", checked);
   }, []);
 
-  // Track if we've already shown the fallback notice to avoid repeated notices
-  const didShowFallbackNoticeRef = useRef(false);
-
   // Safely resolve the selected model with fallback to first enabled model
   const resolvedModel = useMemo((): CustomModel | null => {
     try {
-      const model = findCustomModel(selectedModelKey, settings.activeModels);
+      const model = findCustomModel(userSelectedModelKey, settings.activeModels);
       // Treat disabled models as invalid selections (ModelSelector won't present them)
       if (!model.enabled) {
-        throw new Error(`Selected model is disabled: ${selectedModelKey}`);
+        throw new Error(`Selected model is disabled: ${userSelectedModelKey}`);
       }
       return model;
     } catch {
@@ -230,7 +224,7 @@ function CustomCommandChatModalContent({
       // Avoid side effects during render; notify/log in the effect below.
       return settings.activeModels.find((m) => m.enabled) ?? null;
     }
-  }, [selectedModelKey, settings.activeModels]);
+  }, [userSelectedModelKey, settings.activeModels]);
 
   // Compute the key for the resolved model
   const resolvedModelKey = useMemo(() => {
@@ -238,23 +232,8 @@ function CustomCommandChatModalContent({
     return `${resolvedModel.name}|${resolvedModel.provider}`;
   }, [resolvedModel]);
 
-  // Update selectedModelKey if we had to fall back to a different model
-  useEffect(() => {
-    if (!resolvedModelKey) return;
-    if (resolvedModelKey === selectedModelKey) return;
-
-    // Always keep UI selection consistent with the resolved model
-    setSelectedModelKey(resolvedModelKey);
-
-    // Notify only once per modal lifecycle
-    if (didShowFallbackNoticeRef.current) return;
-    didShowFallbackNoticeRef.current = true;
-    logWarn("Selected model is no longer available. Falling back to a default model.", {
-      selectedModelKey,
-      resolvedModelKey,
-    });
-    new Notice("Selected model is no longer available. Falling back to a default model.");
-  }, [resolvedModelKey, selectedModelKey]);
+  // Effective model key for the UI — falls back to user selection when resolution fails.
+  const effectiveModelKey = resolvedModelKey ?? userSelectedModelKey;
 
   // Use shared streaming hook
   const {
@@ -281,12 +260,15 @@ function CustomCommandChatModalContent({
   // Track the last input prompt for saving context on stop
   const lastInputPromptRef = useRef<string>("");
 
-  // Sync editedText with finalText when finalText changes
-  useEffect(() => {
+  // Sync editedText with finalText when finalText changes. Render-phase tracker
+  // preserves user edits made after the last finalText change until the next change.
+  const [prevFinalText, setPrevFinalText] = useState(finalText);
+  if (prevFinalText !== finalText) {
+    setPrevFinalText(finalText);
     if (finalText) {
       setEditedText(finalText);
     }
-  }, [finalText]);
+  }
 
   // Compute content state for MenuCommandModal
   const contentState: ContentState = useMemo(() => {
@@ -324,11 +306,6 @@ function CustomCommandChatModalContent({
         });
 
         if (!cancelled && result) {
-          if (behavior.autoReplaceOnComplete) {
-            onReplace(result);
-            lastInputPromptRef.current = "";
-            return;
-          }
           setFinalText(result);
           lastInputPromptRef.current = "";
         }
@@ -341,21 +318,13 @@ function CustomCommandChatModalContent({
       }
     }
 
-    generateInitialResponse();
+    void generateInitialResponse();
 
     return () => {
       cancelled = true;
       stopStreaming(ABORT_REASON.UNMOUNT);
     };
-  }, [
-    behavior.autoExecuteOnOpen,
-    behavior.autoReplaceOnComplete,
-    command.content,
-    onReplace,
-    originalText,
-    runTurn,
-    stopStreaming,
-  ]);
+  }, [behavior.autoExecuteOnOpen, command.content, originalText, runTurn, stopStreaming]);
 
   const handleFollowUpSubmit = async () => {
     if (!followUpValue.trim()) return;
@@ -470,7 +439,7 @@ function CustomCommandChatModalContent({
       followUpValue={followUpValue}
       onFollowUpChange={setFollowUpValue}
       onFollowUpSubmit={handleFollowUpSubmit}
-      selectedModel={selectedModelKey}
+      selectedModel={effectiveModelKey}
       onSelectModel={handleModelChange}
       onStop={handleStop}
       onCopy={handleCopy}
@@ -503,6 +472,7 @@ export class CustomCommandChatModal {
   private container: HTMLElement | null = null;
   private highlightView: EditorView | null = null;
   private replaceGuard: ReplaceGuard | null = null;
+  private scope: Scope | null = null;
 
   constructor(
     private app: App,
@@ -510,7 +480,6 @@ export class CustomCommandChatModal {
       selectedText: string;
       command: CustomCommand;
       systemPrompt?: string;
-      selectionMode?: CommandSelectionMode;
       behaviorConfig?: Partial<ModalBehaviorConfig>;
     }
   ) {}
@@ -522,7 +491,7 @@ export class CustomCommandChatModal {
    * the modal is positioned relative to the correct window.
    */
   private resolveWindow(view?: MarkdownView | null): Window {
-    return view?.containerEl?.ownerDocument?.defaultView ?? window;
+    return view?.containerEl?.win ?? window;
   }
 
   /**
@@ -531,7 +500,7 @@ export class CustomCommandChatModal {
    * appended to the document that owns the triggering view.
    */
   private resolveDocument(view?: MarkdownView | null): Document {
-    return view?.containerEl?.ownerDocument ?? document;
+    return view?.containerEl?.doc ?? activeDocument;
   }
 
   /**
@@ -664,6 +633,14 @@ export class CustomCommandChatModal {
   }
 
   open() {
+    // Reason: Push a Scope so user-bound global Cmd/Ctrl+Enter hotkeys don't fire
+    // while this modal is open. The Scope handlers return true to consume the event;
+    // the React onKeyDown inside MenuCommandModal does the actual Replace/Insert.
+    this.scope = new Scope();
+    this.scope.register(["Mod"], "Enter", () => true);
+    this.scope.register(["Mod", "Shift"], "Enter", () => true);
+    this.app.keymap.pushScope(this.scope);
+
     // Reason: Capture activeView once at open time to ensure document/window/editor
     // all reference the same view. Avoids subtle inconsistencies if the user switches
     // tabs between resolveDocument() and the selection snapshot below.
@@ -671,10 +648,10 @@ export class CustomCommandChatModal {
 
     const doc = this.resolveDocument(activeView);
     this.container = doc.createElement("div");
-    this.container.className = "copilot-mcp-menu-command-modal-container";
+    this.container.className = "copilot-menu-command-modal-container";
     doc.body.appendChild(this.container);
 
-    this.root = createRoot(this.container);
+    this.root = createPluginRoot(this.container, this.app);
 
     // Capture ReplaceGuard (replaces captureReplaceSnapshot)
     const { selectedText, command, systemPrompt, behaviorConfig } = this.configs;
@@ -682,18 +659,12 @@ export class CustomCommandChatModal {
 
     if (activeView?.editor?.cm) {
       const view = activeView.editor.cm;
-      const selectionMode = this.configs.selectionMode ?? "current-selection";
       const selection = view.state.selection.main;
       const filePath = activeView.file?.path ?? null;
-      const selectionFrom = selectionMode === "full-note" ? 0 : selection.from;
-      const selectionTo = selectionMode === "full-note" ? view.state.doc.length : selection.to;
-      selectedTextSnapshot =
-        selectionMode === "full-note"
-          ? view.state.doc.toString()
-          : view.state.doc.sliceString(selectionFrom, selectionTo);
+      selectedTextSnapshot = view.state.doc.sliceString(selection.from, selection.to);
 
       // Show persistent selection highlight
-      SelectionHighlight.show(view, selectionFrom, selectionTo);
+      SelectionHighlight.show(view, selection.from, selection.to);
       this.highlightView = view;
 
       // Create ReplaceGuard
@@ -714,7 +685,7 @@ export class CustomCommandChatModal {
     const { anchorBottom, ...initialPosition } = this.getInitialPosition(activeView);
 
     const handleInsert = (message: string) => {
-      insertIntoEditor(message);
+      void insertIntoEditor(message);
       this.close();
     };
 
@@ -756,6 +727,10 @@ export class CustomCommandChatModal {
   }
 
   close() {
+    if (this.scope) {
+      this.app.keymap.popScope(this.scope);
+      this.scope = null;
+    }
     // Hide selection highlight
     if (this.highlightView) {
       SelectionHighlight.hide(this.highlightView);

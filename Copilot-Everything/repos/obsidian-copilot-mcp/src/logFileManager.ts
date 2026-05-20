@@ -2,13 +2,13 @@ import { err2String } from "@/errorFormat";
 import { TFile } from "obsidian";
 import { ensureFolderExists } from "@/utils";
 import { getSettings } from "@/settings/model";
-import { COPILOT_FOLDER_ROOT } from "@/constants";
+import { isSensitiveKey } from "@/encryptionService";
 
 type LogLevel = "INFO" | "WARN" | "ERROR";
 
 /**
  * Manages a rolling log file that keeps the last N entries and works on desktop and mobile.
- * - Writes to <vault>/copilot-mcp/copilot-log.md
+ * - Writes to <vault>/copilot/copilot-log.md
  * - Maintains an in-memory ring buffer of the last 500 entries
  * - Debounced flush to reduce I/O; single-line entries to preserve accurate line limits
  */
@@ -29,7 +29,7 @@ class LogFileManager {
   }
 
   getLogPath(): string {
-    return `${COPILOT_FOLDER_ROOT}/copilot-log.md`;
+    return "copilot/copilot-log.md"; // under copilot/
   }
 
   /** Ensure the log manager is initialized. Always starts with an empty buffer. */
@@ -181,12 +181,10 @@ class LogFileManager {
       const obj = value as Record<string, unknown>;
 
       for (const [key, val] of Object.entries(obj)) {
-        // Skip API keys, license keys, and infrastructure identifiers
+        // Skip sensitive fields (API keys, tokens, secrets, passwords, license keys)
+        // and infrastructure identifiers that may leak deployment details
         if (
-          /apiKey$/i.test(key) ||
-          /licenseKey$/i.test(key) ||
-          /_api_key$/i.test(key) ||
-          /_license_key$/i.test(key) ||
+          isSensitiveKey(key) ||
           /orgId$/i.test(key) ||
           /instanceName$/i.test(key) ||
           /deploymentName$/i.test(key) ||
@@ -242,7 +240,8 @@ class LogFileManager {
     }
 
     // Original buffer unchanged; open the file
-    const file = app.vault.getAbstractFileByPath(path) as TFile | null;
+    const abstract = app.vault.getAbstractFileByPath(path);
+    const file = abstract instanceof TFile ? abstract : null;
     try {
       if (file) {
         const leaf = app.workspace.getLeaf(true);

@@ -337,3 +337,48 @@ When a bridge depends on the Obsidian CLI for write/read parity, validate the ac
 - Tags: obsidian-cli, mcp-bridge, create-note, append-note, read-note, compatibility
 
 ---
+
+## [LRN-20260519-001] technical
+
+**Logged**: 2026-05-19T17:40:00Z
+**Priority**: high
+**Status**: pending
+**Area**: copilot-fork
+
+### Summary
+Refreshing the vendored Copilot fork (`repos/obsidian-copilot-mcp/`) from a stale v3.2.8 baseline to v3.3.2 is achievable with a **wipe-and-reapply** pattern in well under an hour when the scope is held to "MCP-only." Everything else in the prior fork (`src/backend/`, `SelfHostEmulatorChainRunner.ts`, encryption migration in main.ts, ghost-chat cleanup) was either (a) talking to a retired service (`:8789` backend-emulator) or (b) made obsolete by upstream evolution (encryption removed in v3.3.1) — dropping it removed ~80% of conflict surface.
+
+### Reusable pattern: MCP-only refresh (12 steps)
+
+1. `git tag --no-sign pre-copilot-fork-refresh-YYYY-MM-DD <HEAD>` (rollback anchor; `--no-sign` because `tag.gpgsign=true` globally).
+2. Snapshot vault's currently-deployed copilot files to `Copilot-Everything/repos/.upstream-vNNN-vault-snapshot/` (main.js, manifest.json, styles.css, data.json) — enables 30-second plugin-only rollback.
+3. `git clone --depth 200 https://github.com/logancyang/obsidian-copilot.git /tmp/copilot-vNEW-baseline && git -C ... checkout <new-tag>`.
+4. **Stage** fork's MCP-specific files to `/tmp/fork-mcp-stage/`: `src/mcp/`, `src/settings/v2/components/{McpSettings,ContainerContext}.tsx`.
+5. Wipe the fork dir (including hidden dotfiles) and `cp -R /tmp/copilot-vNEW-baseline/. <fork-dir>/`, then `rm -rf <fork-dir>/.git`.
+6. Restore staged files.
+7. Apply 8 surgical patches: MiyoServiceDiscovery URL → HTTPS proxy; main.ts (5 insertions: imports, field, settings-handler, onload, onunload); constants.ts (MCP defaults block with `httpEndpoint: "https://127.0.0.1:8798"`); model.ts (mcp field + McpSettings import); SettingsMainV2.tsx (4 lines: import, TAB_IDS, icons, components); SettingsPage.tsx (ContainerContext.Provider wrapper); ToolRegistry.ts (providerId field + removeByProvider/replaceByProvider methods — **commonly missed!**); manifest.json (version → `<new>-mcp.N`, fork description).
+8. `npm install --no-audit --no-fund` (~13s).
+9. `npm run build` (`tsc -noEmit -skipLibCheck && esbuild production`).
+10. From monorepo root: `bash scripts/lint-transport-monorepo.sh --strict` (must exit 0).
+11. Deploy: `cp main.js manifest.json styles.css "/Volumes/ExtraCurricular/My Digital Garden/.obsidian/plugins/copilot/"`.
+12. User must manually toggle Copilot off/on in Obsidian Settings → Community plugins. (Cannot script: Obsidian holds an exclusive lock on the running plugin.)
+
+### Critical gotcha: ToolRegistry methods
+
+When importing only `src/mcp/`, the build will fail with:
+```
+src/mcp/McpToolProvider.ts(196,16): error TS2339: Property 'removeByProvider' does not exist on type 'ToolRegistry'.
+src/mcp/McpToolProvider.ts(203,14): error TS2339: Property 'replaceByProvider' does not exist on type 'ToolRegistry'.
+```
+
+This is **not** in `src/mcp/` — it lives in `src/tools/ToolRegistry.ts`. The fork added a `providerId?: string` field to `ToolMetadata` and two methods (`removeByProvider`, `replaceByProvider`) — both are small (~15 lines total) but essential for MCP tool registration. Always grep the prior fork (`git show <rollback-tag>:.../ToolRegistry.ts`) for these symbols before wiping.
+
+### Why the wipe-and-reapply pattern beats a manual diff/merge
+
+Upstream v3.2.8 → v3.3.2 was 51 commits, touching many files. A line-by-line diff/merge would mean adjudicating dozens of conflicts that have nothing to do with MCP (encryption removal, KeychainService introduction, ProjectRegister addition, chainType vs chainFactory rename, etc.). Wiping and re-applying only the MCP-specific patches means we inherit ALL of upstream's evolution for free and only need to confirm that the 8 patch insertion points still exist in their analogous form (which they do — settings module structure has been stable since v3.x).
+
+### Rollback recipe
+
+- Plugin-only (~30s): stop Obsidian, copy 3 files from `Copilot-Everything/repos/.upstream-vNNN-vault-snapshot/` back to vault's `.obsidian/plugins/copilot/`, restart.
+- Full repo: `git reset --hard pre-copilot-fork-refresh-YYYY-MM-DD`.
+

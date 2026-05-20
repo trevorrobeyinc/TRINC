@@ -1,15 +1,15 @@
 import React from "react";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import { $getRoot } from "lexical";
+import { $getRoot, LexicalNode } from "lexical";
 
 /**
  * Configuration for a specific pill type
  */
 export interface PillSyncConfig<T> {
   /** Function to check if a node is of this pill type */
-  isPillNode: (node: any) => boolean;
+  isPillNode: (node: LexicalNode) => boolean;
   /** Function to extract data from the pill node */
-  extractData: (node: any) => T;
+  extractData: (node: LexicalNode) => T;
   /** Function to create a unique identity key for deduplication and removal detection */
   getKey?: (item: T) => string;
   /**
@@ -64,15 +64,16 @@ export function GenericPillSyncPlugin<T>({
         /**
          * Recursively traverse the editor tree to find pill nodes
          */
-        function traverse(node: any): void {
+        function traverse(node: LexicalNode): void {
           if (isPillNode(node)) {
             const data = extractData(node);
             items.push(data);
           }
 
           // Only traverse children if the node has the getChildren method
-          if (typeof node.getChildren === "function") {
-            const children = node.getChildren();
+          const maybeContainer = node as LexicalNode & { getChildren?: () => LexicalNode[] };
+          if (typeof maybeContainer.getChildren === "function") {
+            const children = maybeContainer.getChildren();
             for (const child of children) {
               traverse(child);
             }

@@ -1,3 +1,4 @@
+import { BrevilabsClient } from "@/LLMProviders/brevilabsClient";
 import ProjectManager from "@/LLMProviders/projectManager";
 import {
   CustomModel,
@@ -5,7 +6,6 @@ import {
   setSelectedTextContexts,
   getSelectedTextContexts,
 } from "@/aiParams";
-import { BackendSelector } from "@/backend/BackendSelector";
 import { NoteSelectedTextContext, SelectedTextContext } from "@/types/message";
 import { registerCommands } from "@/commands";
 import CopilotView from "@/components/CopilotView";
@@ -17,15 +17,22 @@ import { CustomCommandRegister } from "@/commands/customCommandRegister";
 import { migrateCommands, suggestDefaultCommands } from "@/commands/migrator";
 import { migrateSystemPromptsFromSettings } from "@/system-prompts/migration";
 import { SystemPromptRegister } from "@/system-prompts/systemPromptRegister";
+import { ProjectRegister } from "@/projects/projectRegister";
 import { ABORT_REASON, CHAT_VIEWTYPE, DEFAULT_OPEN_AREA, EVENT_NAMES } from "@/constants";
 import { ChatManager } from "@/core/ChatManager";
 import { MessageRepository } from "@/core/MessageRepository";
-import { decryptStoredSettings, encryptAllKeys } from "@/encryptionService";
-import { logInfo, logWarn } from "@/logger";
+import { logError, logInfo, logWarn } from "@/logger";
 import { logFileManager } from "@/logFileManager";
+import { KeychainService } from "@/services/keychainService";
+import {
+  persistSettings,
+  loadSettingsWithKeychain,
+  flushPersistence,
+  resetPersistenceState,
+} from "@/services/settingsPersistence";
+import { UserMemoryManager } from "@/memory/UserMemoryManager";
 import { McpEventBridge } from "@/mcp/McpEventBridge";
 import { McpToolProvider } from "@/mcp/McpToolProvider";
-import { UserMemoryManager } from "@/memory/UserMemoryManager";
 import { clearRecordedPromptPayload } from "@/LLMProviders/chainRunner/utils/promptPayloadRecorder";
 import { checkIsPlusUser, refreshSelfHostModeValidation } from "@/plusUtils";
 import {
@@ -38,7 +45,6 @@ import { CopilotSettingTab } from "@/settings/SettingsPage";
 import {
   getModelKeyFromModel,
   getSettings,
-  sanitizeSettings,
   setSettings,
   subscribeToSettingsChange,
 } from "@/settings/model";
@@ -67,48 +73,73 @@ import {
   extractChatDate,
   extractChatLastAccessedAtMs,
   extractChatTitle,
+  filterChatHistoryFiles,
 } from "@/utils/chatHistoryUtils";
 import { RecentUsageManager } from "@/utils/recentUsageManager";
-import { listMarkdownFiles, patchFrontmatter, resolveFileByPath } from "@/utils/vaultAdapterUtils";
+import {
+  listMarkdownFiles,
+  patchFrontmatter,
+  resolveFileByPath,
+  trashFile,
+} from "@/utils/vaultAdapterUtils";
 import { v4 as uuidv4 } from "uuid";
 
 // Removed unused FileTrackingState interface
-const OFFICIAL_PLUGIN_ID = "copilot";
-const OFFICIAL_GHOST_CHAT_VIEWTYPE = ["copilot", "mcp", "chat", "view"].join("-");
 
 export default class CopilotPlugin extends Plugin {
   // Plugin components
   projectManager: ProjectManager;
+  brevilabsClient: BrevilabsClient;
   userMessageHistory: string[] = [];
   vectorStoreManager: VectorStoreManager;
   fileParserManager: FileParserManager;
   customCommandRegister: CustomCommandRegister;
   systemPromptRegister: SystemPromptRegister;
+  projectRegister: ProjectRegister;
   settingsUnsubscriber?: () => void;
   chatUIState: ChatUIState;
-  mcpEventBridge?: McpEventBridge;
   userMemoryManager: UserMemoryManager;
   quickAskController: QuickAskController;
   chatSelectionHighlightController: ChatSelectionHighlightController;
   private selectionDebounceTimer?: number;
   private selectionChangeHandler?: () => void;
+  private selectionListenerDocument?: Document;
   private lastSelectionSignature?: string;
   private webSelectionTracker?: WebSelectionTracker;
   private readonly chatHistoryLastAccessedAtManager = new RecentUsageManager<string>();
-
+  mcpEventBridge?: McpEventBridge;
   async onload(): Promise<void> {
+    // Reason: clear stale module-level persistence state + KeychainService
+    // singleton left over from a previous plugin lifecycle in the same
+    // process (disable→enable, dev hot reload, "Open another vault" without
+    // restart). Doing this at the START of onload (instead of at the end of
+    // onunload) avoids a race: onunload is fire-and-forget from Obsidian's
+    // perspective, so its `await flushPersistence()` continuation can fire
+    // AFTER the next onload has already initialized — and would then null
+    // out the new instance, breaking saves until another full reload.
+    resetPersistenceState();
+    KeychainService.resetInstance();
+    KeychainService.getInstance(this.app);
     await this.loadSettings();
-    this.settingsUnsubscriber = subscribeToSettingsChange(async (prev, next) => {
-      if (next.enableEncryption) {
-        await this.saveData(await encryptAllKeys(next));
-      } else {
-        await this.saveData(next);
-      }
-      registerCommands(this, prev, next);
-      initializeBuiltinTools(this.app.vault);
-      McpToolProvider.syncFromSettings(next.mcp);
-      // Restart the SSE bridge if MCP config changed (endpoint/token/enable).
-      this.mcpEventBridge?.restart();
+    this.settingsUnsubscriber = subscribeToSettingsChange((prev, next) => {
+      void (async () => {
+        try {
+          await persistSettings(next, (data) => this.saveData(data), prev);
+        } catch (error) {
+          // Reason: Do NOT rollback memory state on persist failure.
+          // The writeQueue serializes I/O, so a later setSettings() may already
+          // be queued. Rolling back memory would create a split where memory is S0
+          // but disk ends up at S2 when the later write succeeds.
+          // Instead, just notify the user — the in-memory state remains current,
+          // and the next successful persist will reconcile disk with memory.
+          logError("Failed to persist settings.", error);
+          new Notice("Copilot failed to save settings. Check logs and try again.");
+        }
+        registerCommands(this, prev, next);
+        McpToolProvider.syncFromSettings(next.mcp);
+        // Restart the SSE bridge if MCP config changed (endpoint/token/enable).
+        this.mcpEventBridge?.restart();
+      })();
     });
     this.addSettingTab(new CopilotSettingTab(this.app, this));
 
@@ -116,12 +147,15 @@ export default class CopilotPlugin extends Plugin {
 
     // Initialize built-in tools with vault access
     initializeBuiltinTools(this.app.vault);
+
+    // Sync MCP tool registrations from settings (forked addition)
     McpToolProvider.syncFromSettings(getSettings().mcp);
 
-    // Initialize backend adapters
-    BackendSelector.setPluginVersion(this.manifest.version);
-    checkIsPlusUser();
-    refreshSelfHostModeValidation();
+    // Initialize BrevilabsClient
+    this.brevilabsClient = BrevilabsClient.getInstance();
+    this.brevilabsClient.setPluginVersion(this.manifest.version);
+    void checkIsPlusUser();
+    void refreshSelfHostModeValidation();
 
     // Initialize ProjectManager
     this.projectManager = ProjectManager.getInstance(this.app, this);
@@ -135,10 +169,7 @@ export default class CopilotPlugin extends Plugin {
     vaultDataManager.initialize();
 
     // Initialize FileParserManager early with other core services
-    this.fileParserManager = new FileParserManager(
-      BackendSelector.getSelectedAdapter(),
-      this.app.vault
-    );
+    this.fileParserManager = new FileParserManager(this.brevilabsClient, this.app.vault);
 
     // Initialize ChatUIState with new architecture
     const messageRepo = new MessageRepository();
@@ -176,7 +207,7 @@ export default class CopilotPlugin extends Plugin {
     this.initActiveLeafChangeHandler();
 
     this.addRibbonIcon("message-square", "Open Copilot Chat", (evt: MouseEvent) => {
-      this.activateView();
+      void this.activateView();
     });
 
     registerCommands(this, undefined, getSettings());
@@ -214,15 +245,26 @@ export default class CopilotPlugin extends Plugin {
 
     this.customCommandRegister = new CustomCommandRegister(this, this.app.vault);
     this.systemPromptRegister = new SystemPromptRegister(this, this.app.vault);
+    this.projectRegister = new ProjectRegister(this.app);
 
     this.app.workspace.onLayoutReady(() => {
-      void this.cleanupGhostChatLeaves();
+      // Reason: projects must initialize after vault file tree is indexed (onLayoutReady),
+      // not in onload(). Otherwise getAbstractFileByPath() returns null for non-hidden
+      // folders and the adapter fallback creates synthetic TFiles that crash vault.read().
+      // This matches the system-prompts initialization pattern.
+      this.projectRegister.initialize().catch((error) => {
+        logError("[Projects] ProjectRegister initialization failed", error);
+        new Notice("Failed to load projects. Check console for details.");
+      });
 
       // Initialize custom commands
-      this.customCommandRegister.initialize().then(migrateCommands).then(suggestDefaultCommands);
+      void this.customCommandRegister
+        .initialize()
+        .then(migrateCommands)
+        .then(suggestDefaultCommands);
 
       // Initialize system prompts (independent from custom commands)
-      this.systemPromptRegister
+      void this.systemPromptRegister
         .initialize()
         .then(() => migrateSystemPromptsFromSettings(this.app.vault));
     });
@@ -239,6 +281,17 @@ export default class CopilotPlugin extends Plugin {
   }
 
   async onunload() {
+    // Stop SSE bridge first to release the long-lived HTTPS connection.
+    this.mcpEventBridge?.stop();
+
+    // Best-effort flush of pending keychain/data.json writes.
+    // Reason: onunload() is void in Obsidian's type system, but awaiting here
+    // is no worse than fire-and-forget, and consistent with the log flush below.
+    // (Module-level state + KeychainService singleton reset happen at the
+    // START of the next onload, not here — see comment in onload above for
+    // the late-write race that motivated the move.)
+    await flushPersistence();
+
     // Clear all persistent selection highlights before unload
     // This prevents "stuck" highlights after hot reload (dev environment)
     this.clearAllPersistentSelectionHighlights();
@@ -256,8 +309,8 @@ export default class CopilotPlugin extends Plugin {
 
     this.customCommandRegister.cleanup();
     this.systemPromptRegister.cleanup();
+    this.projectRegister.cleanup();
     this.settingsUnsubscriber?.();
-    this.mcpEventBridge?.stop();
 
     // Cleanup selection handler
     this.cleanupSelectionHandler();
@@ -275,38 +328,6 @@ export default class CopilotPlugin extends Plugin {
     // Best-effort flush of log file
     await logFileManager.flush();
     logInfo("Copilot plugin unloaded");
-  }
-
-  private async cleanupGhostChatLeaves(): Promise<void> {
-    if (this.manifest.id !== OFFICIAL_PLUGIN_ID) {
-      return;
-    }
-
-    // Skip cleanup if the ghost view type is the same as our own chat view type,
-    // otherwise we destroy our own persisted chat leaves on every reload.
-    if (OFFICIAL_GHOST_CHAT_VIEWTYPE === CHAT_VIEWTYPE) {
-      return;
-    }
-
-    const workspace = this.app.workspace as typeof this.app.workspace & {
-      requestSaveLayout?: () => void;
-      saveLayout?: () => Promise<void> | void;
-    };
-    const ghostLeaves = this.app.workspace.getLeavesOfType(OFFICIAL_GHOST_CHAT_VIEWTYPE);
-    if (ghostLeaves.length === 0) {
-      return;
-    }
-
-    ghostLeaves.forEach((leaf) => leaf.detach());
-
-    if (typeof workspace.requestSaveLayout === "function") {
-      workspace.requestSaveLayout();
-      return;
-    }
-
-    if (typeof workspace.saveLayout === "function") {
-      await workspace.saveLayout();
-    }
   }
 
   /**
@@ -349,7 +370,7 @@ export default class CopilotPlugin extends Plugin {
     eventSubtype?: string,
     checkSelectedText = true
   ) {
-    const selectedText = await editor.getSelection();
+    const selectedText = editor.getSelection();
 
     const isChatWindowActive = this.app.workspace.getLeavesOfType(CHAT_VIEWTYPE).length > 0;
 
@@ -358,7 +379,7 @@ export default class CopilotPlugin extends Plugin {
     }
 
     // Without the timeout, the view is not yet active
-    setTimeout(() => {
+    window.setTimeout(() => {
       const activeCopilotView = this.app.workspace
         .getLeavesOfType(CHAT_VIEWTYPE)
         .find((leaf) => leaf.view instanceof CopilotView)?.view as CopilotView;
@@ -370,7 +391,7 @@ export default class CopilotPlugin extends Plugin {
   }
 
   processSelection(editor: Editor, eventType: string, eventSubtype?: string) {
-    this.processText(editor, eventType, eventSubtype);
+    void this.processText(editor, eventType, eventSubtype);
   }
 
   emitChatIsVisible() {
@@ -414,8 +435,10 @@ export default class CopilotPlugin extends Plugin {
       }, 500);
     };
 
-    // Register the DOM selection change event
-    document.addEventListener("selectionchange", this.selectionChangeHandler);
+    // Capture the document at registration so removal targets the same one
+    // (activeDocument can change if the user focuses a popout window).
+    this.selectionListenerDocument = activeDocument;
+    this.selectionListenerDocument.addEventListener("selectionchange", this.selectionChangeHandler);
   }
 
   /**
@@ -425,9 +448,13 @@ export default class CopilotPlugin extends Plugin {
     if (this.selectionDebounceTimer) {
       window.clearTimeout(this.selectionDebounceTimer);
     }
-    if (this.selectionChangeHandler) {
-      document.removeEventListener("selectionchange", this.selectionChangeHandler);
+    if (this.selectionChangeHandler && this.selectionListenerDocument) {
+      this.selectionListenerDocument.removeEventListener(
+        "selectionchange",
+        this.selectionChangeHandler
+      );
     }
+    this.selectionListenerDocument = undefined;
   }
 
   /**
@@ -597,15 +624,15 @@ export default class CopilotPlugin extends Plugin {
 
   processCustomPrompt(eventType: string, customPrompt: string) {
     const editor = this.getCurrentEditorOrDummy();
-    this.processText(editor, eventType, customPrompt, false);
+    void this.processText(editor, eventType, customPrompt, false);
   }
 
   toggleView() {
     const leaves = this.app.workspace.getLeavesOfType(CHAT_VIEWTYPE);
     if (leaves.length > 0) {
-      this.deactivateView();
+      void this.deactivateView();
     } else {
-      this.activateView();
+      void this.activateView();
     }
   }
 
@@ -627,7 +654,7 @@ export default class CopilotPlugin extends Plugin {
       this.app.workspace.revealLeaf(leaves[0]);
     }
     // Small delay to ensure React component is ready to receive the focus event
-    setTimeout(() => {
+    window.setTimeout(() => {
       this.emitChatIsVisible();
     }, 50);
   }
@@ -637,17 +664,9 @@ export default class CopilotPlugin extends Plugin {
   }
 
   async loadSettings() {
-    const savedSettings = await this.loadData();
-    const sanitizedSettings = sanitizeSettings(savedSettings);
-    const decryptedSettings = await decryptStoredSettings(sanitizedSettings);
-    setSettings(decryptedSettings);
-
-    if (decryptedSettings.enableEncryption) {
-      const encryptedSettings = await encryptAllKeys(decryptedSettings);
-      if (JSON.stringify(savedSettings || {}) !== JSON.stringify(encryptedSettings)) {
-        await this.saveData(encryptedSettings);
-      }
-    }
+    const rawData = (await this.loadData()) as unknown;
+    const settings = await loadSettingsWithKeychain(rawData, (d) => this.saveData(d));
+    setSettings(settings);
   }
 
   mergeActiveModels(
@@ -686,7 +705,7 @@ export default class CopilotPlugin extends Plugin {
       this.app,
       chatFiles,
       this.chatHistoryLastAccessedAtManager,
-      this.loadChatHistory.bind(this)
+      this.loadChatHistory.bind(this) as (file: TFile) => void
     ).open();
   }
 
@@ -694,22 +713,11 @@ export default class CopilotPlugin extends Plugin {
     const folderFiles = await listMarkdownFiles(this.app, getSettings().defaultSaveFolder);
     if (folderFiles.length === 0) return [];
 
-    // Get current project ID if in a project
     const currentProject = getCurrentProject();
-    const currentProjectId = currentProject?.id;
 
-    if (currentProjectId) {
-      // In project mode: return only files with this project's ID prefix
-      const projectPrefix = `${currentProjectId}__`;
-      return folderFiles.filter((file) => file.basename.startsWith(projectPrefix));
-    } else {
-      // In non-project mode: return only files without any project ID prefix
-      // This assumes project IDs always use the format projectId__ as prefix
-      return folderFiles.filter((file) => {
-        // Check if the filename has any projectId__ prefix pattern
-        return !file.basename.match(/^[a-zA-Z0-9-]+__/);
-      });
-    }
+    // Reason: pass all files to filterChatHistoryFiles which checks frontmatter projectId.
+    // A prefix prefilter would miss renamed or legacy files that still have correct frontmatter.
+    return filterChatHistoryFiles(this.app, folderFiles, currentProject?.id);
   }
 
   async getChatHistoryItems(): Promise<ChatHistoryItem[]> {
@@ -763,20 +771,23 @@ export default class CopilotPlugin extends Plugin {
         this.app.fileManager?.processFrontMatter &&
         this.app.vault.getAbstractFileByPath(file.path) != null
       ) {
-        await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-          // Monotonic protection: ensure we never write an older timestamp
-          const existingValue = Number(frontmatter.lastAccessedAt);
-          const existingAtMs =
-            Number.isFinite(existingValue) && existingValue > 0 ? existingValue : 0;
+        await this.app.fileManager.processFrontMatter(
+          file,
+          (frontmatter: Record<string, unknown>) => {
+            // Monotonic protection: ensure we never write an older timestamp
+            const existingValue = Number(frontmatter.lastAccessedAt);
+            const existingAtMs =
+              Number.isFinite(existingValue) && existingValue > 0 ? existingValue : 0;
 
-          persistedAtMs = Math.max(existingAtMs, timestampToPersist);
+            persistedAtMs = Math.max(existingAtMs, timestampToPersist);
 
-          if (existingAtMs === persistedAtMs) {
-            return;
+            if (existingAtMs === persistedAtMs) {
+              return;
+            }
+
+            frontmatter.lastAccessedAt = persistedAtMs;
           }
-
-          frontmatter.lastAccessedAt = persistedAtMs;
-        });
+        );
       } else {
         await patchFrontmatter(this.app, file.path, { lastAccessedAt: persistedAtMs });
       }
@@ -804,7 +815,7 @@ export default class CopilotPlugin extends Plugin {
     const existingView = this.app.workspace.getLeavesOfType(CHAT_VIEWTYPE)[0];
     if (!existingView) {
       // Only activate the view if it's not already open
-      this.activateView();
+      await this.activateView();
     }
 
     // Load messages using ChatUIState (which now uses ChatPersistenceManager internally)
@@ -846,9 +857,12 @@ export default class CopilotPlugin extends Plugin {
   async updateChatTitle(fileId: string, newTitle: string): Promise<void> {
     const file = this.app.vault.getAbstractFileByPath(fileId);
     if (file instanceof TFile) {
-      await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-        frontmatter.topic = newTitle;
-      });
+      await this.app.fileManager.processFrontMatter(
+        file,
+        (frontmatter: Record<string, unknown>) => {
+          frontmatter.topic = newTitle;
+        }
+      );
 
       // Wait for metadata cache to update with improved error handling
       // This ensures that subsequent calls to extractChatTitle will get the updated data
@@ -856,7 +870,7 @@ export default class CopilotPlugin extends Plugin {
         const handler = (updatedFile: TFile) => {
           if (updatedFile.path === fileId) {
             this.app.metadataCache.off("changed", handler);
-            clearTimeout(timeoutId);
+            window.clearTimeout(timeoutId);
             resolve();
           }
         };
@@ -864,7 +878,7 @@ export default class CopilotPlugin extends Plugin {
         this.app.metadataCache.on("changed", handler);
 
         // Fallback timeout with shorter duration and better error handling
-        const timeoutId = setTimeout(() => {
+        const timeoutId = window.setTimeout(() => {
           this.app.metadataCache.off("changed", handler);
           // Don't reject, just resolve - the frontmatter update might have worked
           // even if we didn't catch the event
@@ -884,7 +898,7 @@ export default class CopilotPlugin extends Plugin {
   async deleteChatHistory(fileId: string): Promise<void> {
     const file = this.app.vault.getAbstractFileByPath(fileId);
     if (file instanceof TFile) {
-      await this.app.vault.delete(file);
+      await trashFile(this.app, file);
       new Notice("Chat deleted.");
     } else if (await this.app.vault.adapter.exists(fileId)) {
       await this.app.vault.adapter.remove(fileId);
@@ -945,7 +959,11 @@ export default class CopilotPlugin extends Plugin {
     await this.handleNewChat();
   }
 
-  async customSearchDB(query: string, salientTerms: string[], textWeight: number): Promise<any[]> {
+  async customSearchDB(
+    query: string,
+    salientTerms: string[],
+    textWeight: number
+  ): Promise<{ content: string; metadata: Record<string, unknown> }[]> {
     const settings = getSettings();
 
     // Run FilterRetriever for guaranteed title/tag matches

@@ -12,8 +12,8 @@ jest.mock("obsidian", () => {
     }
 
     // Add instanceof compatibility
-    static [Symbol.hasInstance](instance: any) {
-      return (
+    static [Symbol.hasInstance](instance: unknown): boolean {
+      return Boolean(
         instance && typeof instance === "object" && "path" in instance && "basename" in instance
       );
     }
@@ -30,32 +30,54 @@ jest.mock("@/logger", () => ({
   logError: jest.fn(),
 }));
 
-import { TFile } from "obsidian";
+import { App, TFile } from "obsidian";
 import { ChunkManager, ChunkOptions } from "./chunks";
+import { mockTFile } from "@/__tests__/mockObsidian";
+
+type ChunkManagerInternal = {
+  cache: Map<string, unknown>;
+  maxCacheBytes: number;
+  generateChunkId: (path: string, index: number) => string;
+};
+
+const asChunkInternal = (m: ChunkManager): ChunkManagerInternal =>
+  m as unknown as ChunkManagerInternal;
+
+interface MockApp {
+  vault: {
+    getAbstractFileByPath: jest.Mock;
+    cachedRead: jest.Mock;
+  };
+  metadataCache: {
+    getFileCache: jest.Mock;
+  };
+}
 
 describe("ChunkManager", () => {
   let chunkManager: ChunkManager;
-  let mockApp: any;
+  let mockApp: MockApp;
   // Cache mock files to ensure consistent mtime across calls
-  let mockFileCache: Map<string, any>;
+  let mockFileCache: Map<string, TFile>;
 
   beforeEach(() => {
     mockFileCache = new Map();
     mockApp = {
       vault: {
-        getAbstractFileByPath: jest.fn((path) => {
+        getAbstractFileByPath: jest.fn((path: string) => {
           if (!path || path.startsWith("missing")) return null;
           // Return cached file to ensure consistent mtime
           if (mockFileCache.has(path)) {
             return mockFileCache.get(path);
           }
-          const file = new (TFile as any)(path);
-          // Ensure the file passes instanceof TFile checks
-          Object.setPrototypeOf(file, (TFile as any).prototype);
+          const file = mockTFile({
+            path,
+            basename: path.replace(".md", ""),
+            stat: { mtime: Date.now(), ctime: 0, size: 0 },
+          });
           mockFileCache.set(path, file);
           return file;
         }),
-        cachedRead: jest.fn((file) => {
+        cachedRead: jest.fn((file: TFile) => {
           const contents: Record<string, string> = {
             "short.md": "This is a short note with minimal content.",
             "medium.md":
@@ -63,7 +85,7 @@ describe("ChunkManager", () => {
             "long.md":
               "# Large Document\n\nThis is a very long document that will need chunking.\n\n## Chapter 1: Introduction\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.\n\n## Chapter 2: Main Content\n\nSed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.\n\n### Subsection 2.1\n\nAt vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentibus voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga.\n\n## Chapter 3: Conclusion\n\nEt harum quidem rerum facilis est et expedita distinctio. Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus, omnis voluptas assumenda est, omnis dolor repellendus.",
             "code.md":
-              "# Code Examples\n\n```javascript\nfunction example() {\n  console.log('This code block should not be split');\n  return 'value';\n}\n```\n\n## Another Section\n\nSome text after the code block.\n\n```python\ndef another_function():\n    print('Another code block')\n    return True\n```\n\nMore content here.",
+              "# Code Examples\n\n```javascript\nfunction example() {\n  const x = 'This code block should not be split';\n  return x;\n}\n```\n\n## Another Section\n\nSome text after the code block.\n\n```python\ndef another_function():\n    x = 'Another code block'\n    return True\n```\n\nMore content here.",
             "frontmatter.md":
               "---\ntitle: Test Document\nauthor: John Doe\ntags: [test, chunk]\n---\n\n# Document with Frontmatter\n\nThis document has YAML frontmatter that should be excluded from chunks.\n\n## Content Section\n\nThe actual content starts here and should be chunked properly.",
             "chinese.md":
@@ -73,8 +95,8 @@ describe("ChunkManager", () => {
         }),
       },
       metadataCache: {
-        getFileCache: jest.fn((file) => {
-          const headingsByFile: Record<string, any> = {
+        getFileCache: jest.fn((file: TFile) => {
+          const headingsByFile: Record<string, unknown> = {
             "medium.md": {
               headings: [
                 { heading: "Introduction", level: 1, position: { start: { offset: 0 } } },
@@ -138,7 +160,7 @@ describe("ChunkManager", () => {
       },
     };
 
-    chunkManager = new ChunkManager(mockApp);
+    chunkManager = new ChunkManager(mockApp as unknown as App);
   });
 
   afterEach(() => {
@@ -486,8 +508,8 @@ describe("ChunkManager", () => {
   describe("cache behavior", () => {
     it("should evict cache when memory limit is exceeded", async () => {
       // Mock a manager with very small cache limit
-      const smallCacheManager = new ChunkManager(mockApp);
-      (smallCacheManager as any).maxCacheBytes = 1000; // 1KB limit
+      const smallCacheManager = new ChunkManager(mockApp as unknown as App);
+      asChunkInternal(smallCacheManager).maxCacheBytes = 1000; // 1KB limit
 
       // Add multiple large documents
       await smallCacheManager.getChunks(["long.md"], {
@@ -503,7 +525,7 @@ describe("ChunkManager", () => {
       });
 
       // Cache should not grow indefinitely - check cache size doesn't exceed notes added
-      const cacheSize = (smallCacheManager as any).cache.size;
+      const cacheSize = asChunkInternal(smallCacheManager).cache.size;
       expect(cacheSize).toBeLessThanOrEqual(3); // Should not cache more than a few notes due to memory limits
     });
 
@@ -712,8 +734,8 @@ describe("ChunkManager", () => {
       ];
 
       for (const testCase of testCases) {
-        const manager = new ChunkManager(mockApp);
-        const generatedId = (manager as any).generateChunkId("test.md", testCase.index);
+        const manager = new ChunkManager(mockApp as unknown as App);
+        const generatedId = asChunkInternal(manager).generateChunkId("test.md", testCase.index);
         expect(generatedId).toBe(`test.md#${testCase.expected}`);
       }
     });

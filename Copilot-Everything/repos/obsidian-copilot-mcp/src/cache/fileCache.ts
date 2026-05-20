@@ -1,5 +1,5 @@
 import { logError, logInfo } from "@/logger";
-import { MD5 } from "crypto-js";
+import { md5 } from "@/utils/hash";
 import { TFile } from "obsidian";
 
 export interface FileCacheEntry<T> {
@@ -8,7 +8,7 @@ export interface FileCacheEntry<T> {
 }
 
 export class FileCache<T> {
-  private static instance: FileCache<any>;
+  private static instance: FileCache<unknown>;
   private cacheDir: string;
   private memoryCache: Map<string, FileCacheEntry<T>> = new Map();
 
@@ -33,7 +33,7 @@ export class FileCache<T> {
   getCacheKey(file: TFile, additionalContext?: string): string {
     // Use file path, size and mtime for a unique but efficient cache key
     const metadata = `${file.path}:${file.stat.size}:${file.stat.mtime}${additionalContext ? `:${additionalContext}` : ""}`;
-    return MD5(metadata).toString();
+    return md5(metadata);
   }
 
   private getCachePath(cacheKey: string): string {

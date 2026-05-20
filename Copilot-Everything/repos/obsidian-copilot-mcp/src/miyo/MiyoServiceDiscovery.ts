@@ -12,7 +12,7 @@ export interface MiyoServiceConfig {
   pid: number;
 }
 
-type NodeRequire = (id: string) => any;
+type NodeRequire = (id: string) => unknown;
 type ServiceConfigReadResult = MiyoServiceConfig | "missing" | null;
 
 /**
@@ -217,7 +217,7 @@ export class MiyoServiceDiscovery {
    * @returns Node require function or null when unavailable.
    */
   private getNodeRequire(): NodeRequire | null {
-    const maybeRequire = (globalThis as { require?: NodeRequire } | undefined)?.require;
+    const maybeRequire = (window as unknown as { require?: NodeRequire } | undefined)?.require;
     if (typeof maybeRequire === "function") {
       return maybeRequire;
     }

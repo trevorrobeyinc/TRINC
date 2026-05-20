@@ -1,4 +1,4 @@
-import { NoteIdRank } from "../interfaces";
+import { NoteIdRank, SearchExplanation } from "../interfaces";
 
 /**
  * Configuration for score normalization
@@ -30,10 +30,10 @@ export class ScoreNormalizer {
    * Update explanation with normalized scores
    */
   private updateExplanation(
-    explanation: any | undefined,
+    explanation: SearchExplanation | undefined,
     originalScore: number,
     normalizedScore: number
-  ): any | undefined {
+  ): SearchExplanation | undefined {
     if (!explanation) return undefined;
 
     return {

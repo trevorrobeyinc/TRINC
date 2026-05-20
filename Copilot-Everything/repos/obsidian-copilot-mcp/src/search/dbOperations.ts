@@ -8,7 +8,7 @@ import { areEmbeddingModelsSame } from "@/utils";
 import { Embeddings } from "@langchain/core/embeddings";
 import { create, insert, Orama, remove, removeMultiple, search } from "@orama/orama";
 import { Mutex } from "async-mutex";
-import { MD5 } from "crypto-js";
+import { md5 } from "@/utils/hash";
 import { App, Notice, Platform } from "obsidian";
 import { ChunkedStorage } from "./chunkedStorage";
 import { getMatchingPatterns, getVectorLength, shouldIndexFile } from "./searchUtils";
@@ -28,10 +28,11 @@ export interface OramaDocument {
   tags: string[];
   extension: string;
   nchars: number;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
 export class DBOperations {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Orama<any> is the correct API type
   private oramaDb: Orama<any> | undefined;
   private chunkedStorage: ChunkedStorage | undefined;
   private isInitialized = false;
@@ -44,28 +45,34 @@ export class DBOperations {
 
   constructor(private app: App) {
     // Subscribe to settings changes
-    subscribeToSettingsChange(async () => {
-      const settings = getSettings();
+    subscribeToSettingsChange(() => {
+      void (async () => {
+        try {
+          const settings = getSettings();
 
-      // Handle mobile index loading setting change
-      if (Platform.isMobile && settings.disableIndexOnMobile) {
-        this.isIndexLoaded = false;
-        this.oramaDb = undefined;
-      } else if (Platform.isMobile && !settings.disableIndexOnMobile && !this.oramaDb) {
-        // Re-initialize DB if mobile setting is enabled
-        await this.initializeDB(await EmbeddingsManager.getInstance().getEmbeddingsAPI());
-      }
+          // Handle mobile index loading setting change
+          if (Platform.isMobile && settings.disableIndexOnMobile) {
+            this.isIndexLoaded = false;
+            this.oramaDb = undefined;
+          } else if (Platform.isMobile && !settings.disableIndexOnMobile && !this.oramaDb) {
+            // Re-initialize DB if mobile setting is enabled
+            await this.initializeDB(await EmbeddingsManager.getInstance().getEmbeddingsAPI());
+          }
 
-      // Handle index sync setting change
-      const newPath = await this.getDbPath();
+          // Handle index sync setting change
+          const newPath = await this.getDbPath();
 
-      if (this.dbPath && newPath !== this.dbPath) {
-        logInfo("Path change detected, reinitializing database...");
-        this.dbPath = newPath;
-        await this.initializeChunkedStorage();
-        await this.initializeDB(await EmbeddingsManager.getInstance().getEmbeddingsAPI());
-        logInfo("Database reinitialized with new path:", newPath);
-      }
+          if (this.dbPath && newPath !== this.dbPath) {
+            logInfo("Path change detected, reinitializing database...");
+            this.dbPath = newPath;
+            await this.initializeChunkedStorage();
+            await this.initializeDB(await EmbeddingsManager.getInstance().getEmbeddingsAPI());
+            logInfo("Database reinitialized with new path:", newPath);
+          }
+        } catch (error) {
+          logError("DBOperations settings change handler failed", error);
+        }
+      })();
     });
   }
 
@@ -78,6 +85,7 @@ export class DBOperations {
     this.isInitialized = true;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Orama<any> is the correct API type
   async initializeDB(embeddingInstance: Embeddings | undefined): Promise<Orama<any> | undefined> {
     try {
       if (!this.isInitialized) {
@@ -161,7 +169,7 @@ export class DBOperations {
       await this.chunkedStorage?.clearStorage();
 
       // Wait a moment to ensure file system operations complete
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await new Promise((resolve) => window.setTimeout(resolve, 100));
 
       // Create new database instance
       this.oramaDb = await this.createNewDb(embeddingInstance);
@@ -203,6 +211,7 @@ export class DBOperations {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Orama<any> is the correct API type
   public getDb(): Orama<any> | undefined {
     if (!this.oramaDb) {
       console.warn("Database not initialized. Some features may be limited.");
@@ -220,7 +229,7 @@ export class DBOperations {
 
   public onunload() {
     if (this.hasUnsavedChanges) {
-      this.saveDB();
+      void this.saveDB().catch((err) => logError("saveDB on unload failed", err));
     }
   }
 
@@ -240,7 +249,7 @@ export class DBOperations {
       // If vaultRoot is just "/", treat it as empty
       const effectiveRoot = vaultRoot === "/" ? "" : vaultRoot;
       const prefix = effectiveRoot === "" || effectiveRoot.startsWith("/") ? "" : "/";
-      baseDir = `${prefix}${effectiveRoot}/.copilot-mcp-index`;
+      baseDir = `${prefix}${effectiveRoot}/.copilot-index`;
 
       // Ensure the directory exists
       if (!(await this.app.vault.adapter.exists(baseDir))) {
@@ -254,13 +263,14 @@ export class DBOperations {
 
   private getVaultIdentifier(): string {
     const vaultName = this.app.vault.getName();
-    return MD5(vaultName).toString();
+    return md5(vaultName);
   }
 
   public markUnsavedChanges() {
     this.hasUnsavedChanges = true;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Orama<any> is the correct API type
   private async createNewDb(embeddingInstance: Embeddings | undefined): Promise<Orama<any>> {
     if (!embeddingInstance) {
       throw new CustomError("Embedding instance not found.");
@@ -275,7 +285,7 @@ export class DBOperations {
 
     const schema = this.createDynamicSchema(vectorLength);
 
-    const db = await create({
+    const db = create({
       schema,
       components: {
         tokenizer: {
@@ -292,17 +302,19 @@ export class DBOperations {
     return db;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Orama<any> is the correct API type
   public static async getDocsByPath(db: Orama<any>, path: string) {
     if (!db) throw new Error("DB not initialized");
     if (!path) return;
     // Use getAllDocuments + JS filter for reliable path matching (handles Unicode/Chinese correctly)
     const allDocs = await DBOperations.getAllDocuments(db);
-    const filtered = allDocs.filter((doc: any) => doc.path === path);
+    const filtered = allDocs.filter((doc) => (doc as { path?: string }).path === path);
     // Return in same format as before (hits with document and score)
-    return filtered.map((doc: any) => ({ document: doc, score: 1 }));
+    return filtered.map((doc) => ({ document: doc, score: 1 }));
   }
 
   public static async getDocsByEmbedding(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Orama<any> is the correct API type
     db: Orama<any>,
     embedding: number[],
     options: {
@@ -320,6 +332,7 @@ export class DBOperations {
     return result.hits;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Orama<any> is the correct API type
   public static async getLatestFileMtime(db: Orama<any> | undefined): Promise<number> {
     if (!db) throw new Error("DB not initialized");
 
@@ -334,7 +347,7 @@ export class DBOperations {
       });
 
       if (result.hits.length > 0) {
-        const latestDoc = result.hits[0].document as any;
+        const latestDoc = result.hits[0].document as unknown as { mtime: number };
         return latestDoc.mtime;
       }
 
@@ -362,7 +375,7 @@ export class DBOperations {
     };
   }
 
-  async upsert(docToSave: any): Promise<any | undefined> {
+  async upsert(docToSave: OramaDocument): Promise<unknown> {
     if (!this.oramaDb) throw new Error("DB not initialized");
     const db = this.oramaDb;
 
@@ -371,13 +384,13 @@ export class DBOperations {
       try {
         // Calculate partition first
         const partition = this.chunkedStorage?.assignDocumentToPartition(
-          docToSave.id,
+          String(docToSave.id),
           getSettings().numPartitions
         );
 
         // Check if document exists
         const existingDoc = await search(db, {
-          term: docToSave.id,
+          term: String(docToSave.id),
           properties: ["id"],
           limit: 1,
         });
@@ -388,16 +401,16 @@ export class DBOperations {
 
         // Insert into the assigned partition
         try {
-          await insert(db, docToSave);
+          await insert(db, docToSave as Parameters<typeof insert>[1]);
           logInfo(
-            `${existingDoc.hits.length > 0 ? "Updated" : "Inserted"} document ${docToSave.id} in partition ${partition}`
+            `${existingDoc.hits.length > 0 ? "Updated" : "Inserted"} document ${String(docToSave.id)} in partition ${partition}`
           );
 
           this.markUnsavedChanges();
           return docToSave;
         } catch (insertErr) {
           logError(
-            `Failed to ${existingDoc.hits.length > 0 ? "update" : "insert"} document ${docToSave.id}:`,
+            `Failed to ${existingDoc.hits.length > 0 ? "update" : "insert"} document ${String(docToSave.id)}:`,
             insertErr
           );
           // If we removed an existing document but failed to insert the new one,
@@ -412,7 +425,7 @@ export class DBOperations {
           return undefined;
         }
       } catch (err) {
-        logError(`Error upserting document ${docToSave.id}:`, err);
+        logError(`Error upserting document ${String(docToSave.id)}:`, err);
         return undefined;
       }
     });
@@ -432,7 +445,7 @@ export class DBOperations {
       });
 
       if (result.hits.length > 0) {
-        const latestDoc = result.hits[0].document as any;
+        const latestDoc = result.hits[0].document as unknown as { mtime: number };
         return latestDoc.mtime;
       }
 
@@ -496,8 +509,8 @@ export class DBOperations {
         oramaDocSample !== null &&
         "document" in oramaDocSample
       ) {
-        const document = oramaDocSample.document as { embeddingModel?: string };
-        prevEmbeddingModel = document.embeddingModel;
+        const doc = oramaDocSample.document as { embeddingModel?: string };
+        prevEmbeddingModel = doc.embeddingModel;
       }
     }
 
@@ -523,13 +536,14 @@ export class DBOperations {
     return false;
   }
 
-  public static async getAllDocuments(db: Orama<any>): Promise<any[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Orama<any> is the correct API type
+  public static async getAllDocuments(db: Orama<any>): Promise<OramaDocument[]> {
     const result = await search(db, {
       term: "",
       limit: 100000,
       includeVectors: true,
     });
-    return result.hits.map((hit) => hit.document);
+    return result.hits.map((hit) => hit.document as unknown as OramaDocument);
   }
 
   public async garbageCollect(): Promise<number> {
@@ -572,8 +586,8 @@ export class DBOperations {
       // 1) Files that no longer exist
       // 2) Files that exist but are excluded by current settings (or internal exclusions)
       const docsToRemove = docs.filter(
-        (doc) => !filePaths.has(doc.path) || !allowedPaths.has(doc.path)
-      );
+        (doc: { path: string }) => !filePaths.has(doc.path) || !allowedPaths.has(doc.path)
+      ) as { path: string; id: string }[];
 
       if (docsToRemove.length === 0) {
         return 0;
@@ -581,7 +595,7 @@ export class DBOperations {
 
       logInfo(
         "Copilot index: Docs to remove during garbage collection:",
-        Array.from(new Set(docsToRemove.map((doc) => doc.path))).join(", ")
+        Array.from(new Set(docsToRemove.map((doc): string => doc.path))).join(", ")
       );
 
       if (docsToRemove.length === 1) {
@@ -589,7 +603,7 @@ export class DBOperations {
       } else {
         await removeMultiple(
           this.oramaDb,
-          docsToRemove.map((hit) => hit.id),
+          docsToRemove.map((hit): string => hit.id),
           500
         );
       }
@@ -613,7 +627,7 @@ export class DBOperations {
 
       // Use a Set to get unique file paths since multiple chunks can belong to the same file
       const uniquePaths = new Set<string>();
-      docs.forEach((doc) => {
+      docs.forEach((doc: { path: string }) => {
         uniquePaths.add(doc.path);
       });
 
@@ -668,28 +682,17 @@ export class DBOperations {
     });
   }
 
-  async getDocsJsonByPaths(paths: string[]): Promise<Record<string, any[]>> {
+  async getDocsJsonByPaths(paths: string[]): Promise<Record<string, OramaDocument[]>> {
     if (!this.oramaDb) {
       throw new CustomError("Semantic index database not found.");
     }
 
-    const result: Record<string, any[]> = {};
+    const result: Record<string, OramaDocument[]> = {};
 
     for (const path of paths) {
       const docs = await DBOperations.getDocsByPath(this.oramaDb, path);
       if (docs && docs.length > 0) {
-        result[path] = docs.map((hit) => ({
-          id: hit.document.id,
-          title: hit.document.title,
-          path: hit.document.path,
-          content: hit.document.content,
-          metadata: hit.document.metadata,
-          embedding: hit.document.embedding,
-          embeddingModel: hit.document.embeddingModel,
-          tags: hit.document.tags,
-          extension: hit.document.extension,
-          nchars: hit.document.nchars,
-        }));
+        result[path] = docs.map((hit) => hit.document);
       }
     }
 
@@ -786,7 +789,7 @@ export class DBOperations {
         }
       }
 
-      setTimeout(resolve, 0);
+      window.setTimeout(resolve, 0);
     });
   }
 }

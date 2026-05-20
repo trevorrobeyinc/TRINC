@@ -21,6 +21,7 @@ import {
   updateCachedCommands,
 } from "./state";
 import { ensureFolderExists } from "@/utils";
+import { trashFile } from "@/utils/vaultAdapterUtils";
 
 export class CustomCommandManager {
   private static instance: CustomCommandManager;
@@ -56,20 +57,25 @@ export class CustomCommandManager {
       // Ensure nested folders are created cross-platform
       await ensureFolderExists(folderPath);
 
-      let commandFile = app.vault.getAbstractFileByPath(filePath) as TFile;
-      if (!commandFile || !(commandFile instanceof TFile)) {
-        commandFile = await app.vault.create(filePath, command.content);
+      const existingFile = app.vault.getAbstractFileByPath(filePath);
+      let commandFile: TFile;
+      if (existingFile instanceof TFile) {
+        await app.vault.modify(existingFile, command.content);
+        commandFile = existingFile;
       } else {
-        await app.vault.modify(commandFile, command.content);
+        commandFile = await app.vault.create(filePath, command.content);
       }
 
-      await app.fileManager.processFrontMatter(commandFile, (frontmatter) => {
-        frontmatter[COPILOT_COMMAND_CONTEXT_MENU_ENABLED] = command.showInContextMenu;
-        frontmatter[COPILOT_COMMAND_SLASH_ENABLED] = command.showInSlashMenu;
-        frontmatter[COPILOT_COMMAND_CONTEXT_MENU_ORDER] = command.order;
-        frontmatter[COPILOT_COMMAND_MODEL_KEY] = command.modelKey;
-        frontmatter[COPILOT_COMMAND_LAST_USED] = command.lastUsedMs;
-      });
+      await app.fileManager.processFrontMatter(
+        commandFile,
+        (frontmatter: Record<string, unknown>) => {
+          frontmatter[COPILOT_COMMAND_CONTEXT_MENU_ENABLED] = command.showInContextMenu;
+          frontmatter[COPILOT_COMMAND_SLASH_ENABLED] = command.showInSlashMenu;
+          frontmatter[COPILOT_COMMAND_CONTEXT_MENU_ORDER] = command.order;
+          frontmatter[COPILOT_COMMAND_MODEL_KEY] = command.modelKey;
+          frontmatter[COPILOT_COMMAND_LAST_USED] = command.lastUsedMs;
+        }
+      );
 
       if (!mergedOptions.skipStoreUpdate) {
         updateCachedCommand(command, command.title);
@@ -80,7 +86,7 @@ export class CustomCommandManager {
   }
 
   async recordUsage(command: CustomCommand) {
-    this.updateCommand({ ...command, lastUsedMs: Date.now() }, command.title);
+    await this.updateCommand({ ...command, lastUsedMs: Date.now() }, command.title);
   }
 
   async updateCommand(command: CustomCommand, prevCommandTitle: string, skipStoreUpdate = false) {
@@ -123,13 +129,16 @@ export class CustomCommandManager {
 
       if (commandFile instanceof TFile) {
         await app.vault.modify(commandFile, command.content);
-        await app.fileManager.processFrontMatter(commandFile, (frontmatter) => {
-          frontmatter[COPILOT_COMMAND_CONTEXT_MENU_ENABLED] = command.showInContextMenu;
-          frontmatter[COPILOT_COMMAND_SLASH_ENABLED] = command.showInSlashMenu;
-          frontmatter[COPILOT_COMMAND_CONTEXT_MENU_ORDER] = command.order;
-          frontmatter[COPILOT_COMMAND_MODEL_KEY] = command.modelKey;
-          frontmatter[COPILOT_COMMAND_LAST_USED] = command.lastUsedMs;
-        });
+        await app.fileManager.processFrontMatter(
+          commandFile,
+          (frontmatter: Record<string, unknown>) => {
+            frontmatter[COPILOT_COMMAND_CONTEXT_MENU_ENABLED] = command.showInContextMenu;
+            frontmatter[COPILOT_COMMAND_SLASH_ENABLED] = command.showInSlashMenu;
+            frontmatter[COPILOT_COMMAND_CONTEXT_MENU_ORDER] = command.order;
+            frontmatter[COPILOT_COMMAND_MODEL_KEY] = command.modelKey;
+            frontmatter[COPILOT_COMMAND_LAST_USED] = command.lastUsedMs;
+          }
+        );
       }
     } finally {
       removePendingFileWrite(filePath);
@@ -163,7 +172,7 @@ export class CustomCommandManager {
       deleteCachedCommand(command.title);
       const file = app.vault.getAbstractFileByPath(filePath);
       if (file instanceof TFile) {
-        await app.vault.delete(file);
+        await trashFile(app, file);
       }
     } finally {
       removePendingFileWrite(filePath);

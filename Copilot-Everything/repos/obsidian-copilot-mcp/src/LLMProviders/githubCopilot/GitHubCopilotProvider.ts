@@ -68,8 +68,8 @@ export interface CopilotAuthState {
  * - Token management (access token + copilot token)
  * - Model listing
  *
- * Chat completions are handled by GitHubCopilotChatModel (extends ChatOpenAICompletions),
- * which uses this provider for token lifecycle via buildCopilotRequestHeaders/getValidCopilotToken.
+ * Chat requests are handled by GitHubCopilotChatModel / GitHubCopilotResponsesModel,
+ * which use this provider for token lifecycle via buildCopilotRequestHeaders/getValidCopilotToken.
  *
  * WARNING: This uses GitHub Copilot's internal API which is not officially
  * supported for third-party applications. Use at your own risk.
@@ -651,7 +651,7 @@ export class GitHubCopilotProvider {
    */
   private delay(ms: number, signal?: AbortSignal): Promise<void> {
     if (!signal) {
-      return new Promise((resolve) => setTimeout(resolve, ms));
+      return new Promise((resolve) => window.setTimeout(resolve, ms));
     }
 
     if (signal.aborted) {
@@ -660,11 +660,11 @@ export class GitHubCopilotProvider {
 
     return new Promise((resolve, reject) => {
       const onAbort = () => {
-        clearTimeout(timeoutId);
+        window.clearTimeout(timeoutId);
         reject(new AuthCancelledError());
       };
 
-      const timeoutId = setTimeout(() => {
+      const timeoutId = window.setTimeout(() => {
         signal.removeEventListener("abort", onAbort);
         resolve();
       }, ms);

@@ -1,27 +1,22 @@
 import { ConfirmModal } from "@/components/modals/ConfirmModal";
+import { useApp } from "@/context";
 import { Badge } from "@/components/ui/badge";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { SettingItem } from "@/components/ui/setting-item";
 import { DEFAULT_SETTINGS } from "@/constants";
 import { MiyoClient } from "@/miyo/MiyoClient";
 import { getMiyoCustomUrl, getMiyoFolderName } from "@/miyo/miyoUtils";
-import { validateSelfHostMode } from "@/plusUtils";
+import { useIsSelfHostEligible, validateSelfHostMode } from "@/plusUtils";
 import { updateSetting, useSettingsValue } from "@/settings/model";
 import { Notice } from "obsidian";
 import React, { useState } from "react";
 import { ToolSettingsSection } from "./ToolSettingsSection";
 
 export const CopilotPlusSettings: React.FC = () => {
+  const app = useApp();
   const settings = useSettingsValue();
   const [isValidatingSelfHost, setIsValidatingSelfHost] = useState(false);
-  const selfHostSelected = settings.backendMode === "self_host";
-
-  const updateSelfHostAdapter = (patch: Partial<typeof settings.selfHostAdapter>) => {
-    updateSetting("selfHostAdapter", {
-      ...settings.selfHostAdapter,
-      ...patch,
-    });
-  };
+  const isSelfHostEligible = useIsSelfHostEligible();
 
   /**
    * Toggle self-host mode and handle validation requirements.
@@ -37,10 +32,8 @@ export const CopilotPlusSettings: React.FC = () => {
         // Validation failed - Notice already shown by validateSelfHostMode
         return;
       }
-      updateSetting("backendMode", "self_host");
       updateSetting("enableSelfHostMode", true);
     } else {
-      updateSetting("backendMode", "hosted");
       updateSetting("enableSelfHostMode", false);
       updateSetting("enableMiyo", false);
     }
@@ -79,7 +72,6 @@ export const CopilotPlusSettings: React.FC = () => {
       }
 
       updateSetting("enableMiyo", enabled);
-      updateSelfHostAdapter({ enableMiyoBackend: enabled });
 
       if (enabled && !settings.enableSemanticSearchV3) {
         updateSetting("enableSemanticSearchV3", true);
@@ -106,7 +98,7 @@ export const CopilotPlusSettings: React.FC = () => {
       <section className="tw-flex tw-flex-col tw-gap-4">
         <div className="tw-flex tw-items-center tw-py-4">
           <Badge variant="secondary" className="tw-text-accent">
-            Hosted Optional
+            Plus Required
           </Badge>
         </div>
         <div className="tw-flex tw-flex-col tw-gap-4">
@@ -138,7 +130,7 @@ export const CopilotPlusSettings: React.FC = () => {
             onChange={(value) => {
               updateSetting("convertedDocOutputFolder", value);
             }}
-            placeholder="e.g. copilot-mcp/converteddocs"
+            placeholder="e.g. copilot/converteddocs"
           />
 
           <div className="tw-pt-4 tw-text-xl tw-font-semibold">Memory (experimental)</div>
@@ -151,7 +143,7 @@ export const CopilotPlusSettings: React.FC = () => {
             onChange={(value) => {
               updateSetting("memoryFolderName", value);
             }}
-            placeholder="copilot-mcp/memory"
+            placeholder="copilot/memory"
           />
 
           <SettingItem
@@ -187,145 +179,154 @@ export const CopilotPlusSettings: React.FC = () => {
             }}
           />
 
-          <>
-            <div className="tw-flex tw-items-center tw-gap-1.5 tw-pt-4 tw-text-xl tw-font-semibold">
-              Backend Mode
-              <HelpTooltip content="Hosted mode stays isolated behind the Brevilabs adapter. Self-host mode never silently falls back to hosted mode." />
-            </div>
+          {isSelfHostEligible && (
+            <>
+              <div className="tw-flex tw-items-center tw-gap-1.5 tw-pt-4 tw-text-xl tw-font-semibold">
+                Self-Host Mode
+                <HelpTooltip content="Lifetime license required" />
+              </div>
 
-            <SettingItem
-              type="select"
-              title="Backend Mode"
-              description="Choose whether the plugin uses the isolated hosted adapter or your own self-hosted backend/services."
-              value={settings.backendMode}
-              onChange={(value) => {
-                const isSelfHost = value === "self_host";
-                updateSetting("backendMode", isSelfHost ? "self_host" : "hosted");
-                updateSetting("enableSelfHostMode", isSelfHost);
-                if (!isSelfHost) {
-                  updateSetting("enableMiyo", false);
-                  updateSelfHostAdapter({ enableMiyoBackend: false });
-                }
-              }}
-              options={[
-                { label: "Hosted adapter", value: "hosted" },
-                { label: "Self-host adapter", value: "self_host" },
-              ]}
-            />
-
-            <SettingItem
-              type="switch"
-              title="Self-Host Mode Toggle"
-              description="Convenience toggle kept for compatibility. This now maps directly to backend mode instead of Brevilabs plan validation."
-              checked={selfHostSelected}
-              onCheckedChange={handleSelfHostModeToggle}
-              disabled={isValidatingSelfHost}
-            />
-
-            {selfHostSelected && (
-              <>
-                <SettingItem
-                  type="text"
-                  title="Self-Host Base URL"
-                  description="Base URL for your own backend/services. This is the first-class self-host backend path and does not fall back to hosted mode."
-                  value={settings.selfHostAdapter.baseUrl || settings.selfHostUrl || ""}
-                  onChange={(value) => {
-                    updateSelfHostAdapter({ baseUrl: value });
-                    updateSetting("selfHostUrl", value);
-                  }}
-                  placeholder="http://127.0.0.1:3000"
-                />
-
-                <SettingItem
-                  type="password"
-                  title="Self-Host API Key"
-                  description="Optional API key for your own backend/services."
-                  value={settings.selfHostAdapter.apiKey || settings.selfHostApiKey || ""}
-                  onChange={(value) => {
-                    updateSelfHostAdapter({ apiKey: value });
-                    updateSetting("selfHostApiKey", value);
-                  }}
-                  placeholder="Optional"
-                />
-
-                <SettingItem
-                  type="select"
-                  title="Runtime Lane"
-                  description="Select lane metadata sent to the backend. Streaming is only honored for the fork dev lane; production and Raycast lanes are buffered."
-                  value={settings.selfHostAdapter.runtimeLane}
-                  onChange={(value) =>
-                    updateSelfHostAdapter({
-                      runtimeLane: value as "production_official" | "fork_dev" | "raycast",
-                    })
-                  }
-                  options={[
-                    { label: "Fork Dev", value: "fork_dev" },
-                    { label: "Production Official", value: "production_official" },
-                    { label: "Raycast", value: "raycast" },
-                  ]}
-                />
-
-                <SettingItem
-                  type="text"
-                  title="Remote Miyo Server URL (Optional)"
-                  description="Leave blank when accessing Miyo locally. Set this only when Miyo is running on a remote machine — it will override the local service discovery."
-                  value={settings.miyoServerUrl || ""}
-                  onChange={(value) => updateSetting("miyoServerUrl", value)}
-                />
-
-                <SettingItem
-                  type="switch"
-                  title="Enable Miyo"
-                  description="Use Miyo as your local search, PDF parsing, and context hub. Copilot will send the current vault folder name to Miyo and can request scans, but folder registration is managed in Miyo."
-                  checked={settings.enableMiyo}
-                  onCheckedChange={handleMiyoSearchToggle}
-                  disabled={isValidatingSelfHost}
-                />
-
-                {settings.enableMiyo && (
-                  <>
-                    <SettingItem
-                      type="switch"
-                      title="Search everything in Miyo"
-                      description="When enabled, Miyo searches all indexed content across all folders. When disabled, searches are limited to the current vault folder only."
-                      checked={settings.miyoSearchAll}
-                      onCheckedChange={(checked) => updateSetting("miyoSearchAll", checked)}
+              <SettingItem
+                type="switch"
+                title="Enable Self-Host Mode"
+                description={
+                  <div className="tw-flex tw-items-center tw-gap-1.5">
+                    <span className="tw-leading-none">
+                      Use your own infrastructure for LLMs, embeddings and local document
+                      understanding with our desktop app Miyo.
+                    </span>
+                    <HelpTooltip
+                      content={
+                        <div className="tw-flex tw-max-w-96 tw-flex-col tw-gap-2 tw-py-4">
+                          <div className="tw-text-sm tw-font-medium tw-text-accent">
+                            Self-Host Mode (Believer/Supporter only)
+                          </div>
+                          <div className="tw-text-xs tw-text-muted">
+                            Connect to your own self-hosted backend (e.g., Miyo) for complete
+                            control over your AI infrastructure. This allows offline usage and
+                            custom model deployments.
+                          </div>
+                          <div className="tw-text-xs tw-text-muted">
+                            Requires re-validation every 15 days when online.
+                          </div>
+                        </div>
+                      }
                     />
+                  </div>
+                }
+                checked={settings.enableSelfHostMode}
+                onCheckedChange={(checked) => void handleSelfHostModeToggle(checked)}
+                disabled={isValidatingSelfHost}
+              />
 
-                    {!settings.miyoSearchAll && (
-                      <div className="tw-text-xs tw-text-muted">
-                        Folder identifier sent to Miyo:{" "}
-                        <span className="tw-font-medium tw-text-normal">
-                          {getMiyoFolderName(app)}
+              {settings.enableSelfHostMode && (
+                <>
+                  <SettingItem
+                    type="text"
+                    title="Remote Miyo Server URL (Optional)"
+                    description="Leave blank when accessing Miyo locally. Set this only when Miyo is running on a remote machine — it will override the local service discovery."
+                    value={settings.miyoServerUrl || ""}
+                    onChange={(value) => updateSetting("miyoServerUrl", value)}
+                  />
+
+                  <SettingItem
+                    type="switch"
+                    title="Enable Miyo"
+                    description="Use Miyo as your local search, PDF parsing, and context hub. Copilot will send the current vault folder name to Miyo and can request scans, but folder registration is managed in Miyo."
+                    checked={settings.enableMiyo}
+                    onCheckedChange={(checked) => void handleMiyoSearchToggle(checked)}
+                    disabled={isValidatingSelfHost}
+                  />
+
+                  {settings.enableMiyo && (
+                    <>
+                      <SettingItem
+                        type="switch"
+                        title="Search everything in Miyo"
+                        description="When enabled, Miyo searches all indexed content across all folders. When disabled, searches are limited to the current vault folder only."
+                        checked={settings.miyoSearchAll}
+                        onCheckedChange={(checked) => updateSetting("miyoSearchAll", checked)}
+                      />
+
+                      {!settings.miyoSearchAll && (
+                        <div className="tw-text-xs tw-text-muted">
+                          Folder identifier sent to Miyo:{" "}
+                          <span className="tw-font-medium tw-text-normal">
+                            {getMiyoFolderName(app)}
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  <SettingItem
+                    type="select"
+                    title="Web Search Provider"
+                    description="Choose which service to use for self-host web search."
+                    value={settings.selfHostSearchProvider}
+                    onChange={(value) =>
+                      updateSetting("selfHostSearchProvider", value as "firecrawl" | "perplexity")
+                    }
+                    options={[
+                      { label: "Firecrawl (default)", value: "firecrawl" },
+                      { label: "Perplexity Sonar", value: "perplexity" },
+                    ]}
+                  />
+
+                  {settings.selfHostSearchProvider === "firecrawl" && (
+                    <SettingItem
+                      type="password"
+                      title="Firecrawl API Key"
+                      description={
+                        <span>
+                          API key for web search via Firecrawl.{" "}
+                          <a
+                            href="https://firecrawl.link/logan-yang"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="tw-text-accent"
+                          >
+                            Sign up &rarr;
+                          </a>
                         </span>
-                      </div>
-                    )}
-                  </>
-                )}
+                      }
+                      value={settings.firecrawlApiKey}
+                      onChange={(value) => updateSetting("firecrawlApiKey", value)}
+                      placeholder="fc-..."
+                    />
+                  )}
 
-                <SettingItem
-                  type="select"
-                  title="Web Search Provider"
-                  description="Choose which service to use for self-host web search."
-                  value={settings.selfHostSearchProvider}
-                  onChange={(value) =>
-                    updateSetting("selfHostSearchProvider", value as "firecrawl" | "perplexity")
-                  }
-                  options={[
-                    { label: "Firecrawl (default)", value: "firecrawl" },
-                    { label: "Perplexity Sonar", value: "perplexity" },
-                  ]}
-                />
+                  {settings.selfHostSearchProvider === "perplexity" && (
+                    <SettingItem
+                      type="password"
+                      title="Perplexity API Key"
+                      description={
+                        <span>
+                          API key for web search via Perplexity Sonar.{" "}
+                          <a
+                            href="https://docs.perplexity.ai"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="tw-text-accent"
+                          >
+                            Get API key &rarr;
+                          </a>
+                        </span>
+                      }
+                      value={settings.perplexityApiKey}
+                      onChange={(value) => updateSetting("perplexityApiKey", value)}
+                      placeholder="pplx-..."
+                    />
+                  )}
 
-                {settings.selfHostSearchProvider === "firecrawl" && (
                   <SettingItem
                     type="password"
-                    title="Firecrawl API Key"
+                    title="Supadata API Key"
                     description={
                       <span>
-                        API key for web search via Firecrawl.{" "}
+                        API key for YouTube transcripts via Supadata.{" "}
                         <a
-                          href="https://firecrawl.link/logan-yang"
+                          href="https://supadata.ai/?ref=obcopilot"
                           target="_blank"
                           rel="noopener noreferrer"
                           className="tw-text-accent"
@@ -334,58 +335,14 @@ export const CopilotPlusSettings: React.FC = () => {
                         </a>
                       </span>
                     }
-                    value={settings.firecrawlApiKey}
-                    onChange={(value) => updateSetting("firecrawlApiKey", value)}
-                    placeholder="fc-..."
+                    value={settings.supadataApiKey}
+                    onChange={(value) => updateSetting("supadataApiKey", value)}
+                    placeholder="sd-..."
                   />
-                )}
-
-                {settings.selfHostSearchProvider === "perplexity" && (
-                  <SettingItem
-                    type="password"
-                    title="Perplexity API Key"
-                    description={
-                      <span>
-                        API key for web search via Perplexity Sonar.{" "}
-                        <a
-                          href="https://docs.perplexity.ai"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="tw-text-accent"
-                        >
-                          Get API key &rarr;
-                        </a>
-                      </span>
-                    }
-                    value={settings.perplexityApiKey}
-                    onChange={(value) => updateSetting("perplexityApiKey", value)}
-                    placeholder="pplx-..."
-                  />
-                )}
-
-                <SettingItem
-                  type="password"
-                  title="Supadata API Key"
-                  description={
-                    <span>
-                      API key for YouTube transcripts via Supadata.{" "}
-                      <a
-                        href="https://supadata.ai/?ref=obcopilot"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="tw-text-accent"
-                      >
-                        Sign up &rarr;
-                      </a>
-                    </span>
-                  }
-                  value={settings.supadataApiKey}
-                  onChange={(value) => updateSetting("supadataApiKey", value)}
-                  placeholder="sd-..."
-                />
-              </>
-            )}
-          </>
+                </>
+              )}
+            </>
+          )}
         </div>
       </section>
     </div>

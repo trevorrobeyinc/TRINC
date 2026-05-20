@@ -1,9 +1,10 @@
+import { safeFetchNoThrow } from "@/utils";
 import { OpenAIEmbeddings } from "@langchain/openai";
 
 export class CustomOpenAIEmbeddings extends OpenAIEmbeddings {
-  private customConfig: any;
+  private customConfig: Record<string, unknown>;
 
-  constructor(config: any) {
+  constructor(config: Record<string, unknown>) {
     super(config);
     // Store the config for our custom methods
     this.customConfig = config;
@@ -29,17 +30,20 @@ export class CustomOpenAIEmbeddings extends OpenAIEmbeddings {
     };
 
     // Get the correct baseURL, apiKey, and fetch function from the configuration
-    const baseURL = this.customConfig.configuration?.baseURL || "https://api.openai.com/v1";
+    const configuration = this.customConfig.configuration as
+      | { baseURL?: string; fetch?: typeof fetch }
+      | undefined;
+    const baseURL = configuration?.baseURL || "https://api.openai.com/v1";
     const url = `${baseURL}/embeddings`;
-    const apiKey = this.customConfig.apiKey;
-    const fetchFn = this.customConfig.configuration?.fetch || fetch;
+    const apiKey = this.customConfig.apiKey as string;
+    const fetchFn = configuration?.fetch || safeFetchNoThrow;
 
     const response = await fetchFn(url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
-        ...(this.customConfig.headers || {}),
+        ...((this.customConfig.headers as Record<string, string>) || {}),
       },
       body: JSON.stringify(requestBody),
     });
@@ -51,17 +55,17 @@ export class CustomOpenAIEmbeddings extends OpenAIEmbeddings {
       );
     }
 
-    const responseData = await response.json();
+    const responseData = (await response.json()) as { data?: Array<{ embedding?: unknown }> };
 
     if (!responseData.data || !Array.isArray(responseData.data)) {
       throw new Error("Invalid API response format: missing or invalid data array");
     }
 
-    return responseData.data.map((item: any) => {
+    return responseData.data.map((item) => {
       if (!item.embedding || !Array.isArray(item.embedding)) {
         throw new Error("Invalid API response format: missing or invalid embedding array");
       }
-      return item.embedding;
+      return item.embedding as number[];
     });
   }
 }

@@ -4,9 +4,9 @@ import {
   getSystemPrompt,
   getSystemPromptWithMemory,
 } from "@/system-prompts/systemPromptBuilder";
-import { ChainType } from "@/chainFactory";
+import { ChainType } from "@/chainType";
 import { getChainType, getCurrentProject } from "@/aiParams";
-import { logInfo, logWarn } from "@/logger";
+import { logError, logInfo, logWarn } from "@/logger";
 import { ChatMessage, MessageContext, WebTabContext } from "@/types/message";
 import { processPrompt, type ProcessedPromptResult } from "@/commands/customCommandUtils";
 import { FileParserManager } from "@/tools/FileParserManager";
@@ -18,6 +18,7 @@ import { ContextManager } from "./ContextManager";
 import { MessageRepository } from "./MessageRepository";
 import { ChatPersistenceManager } from "./ChatPersistenceManager";
 import { ACTIVE_WEB_TAB_MARKER, USER_SENDER } from "@/constants";
+import { MessageContent } from "@/imageProcessing/imageProcessor";
 import { TFile, Vault } from "obsidian";
 import { getWebViewerService } from "@/services/webViewerService/webViewerServiceSingleton";
 import {
@@ -416,7 +417,7 @@ export class ChatManager {
     chainType: ChainType,
     includeActiveNote: boolean = false,
     includeActiveWebTab: boolean = false,
-    content?: any[],
+    content?: MessageContent[],
     updateLoadingMessage?: (message: string) => void
   ): Promise<string> {
     try {
@@ -687,8 +688,10 @@ export class ChatManager {
   clearMessages(): void {
     const currentRepo = this.getCurrentMessageRepo();
     currentRepo.clear();
-    // Clear chain memory directly
-    this.chainManager.memoryManager.clearChatMemory();
+    // Clear chain memory directly (fire-and-forget; errors are logged but do not block UI)
+    void this.chainManager.memoryManager
+      .clearChatMemory()
+      .catch((err) => logError("clearChatMemory failed", err));
     logInfo(`[ChatManager] Cleared all messages`);
   }
 

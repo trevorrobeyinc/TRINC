@@ -1,5 +1,5 @@
 import { getSelectedTextContexts } from "@/aiParams";
-import { ChainType } from "@/chainFactory";
+import { ChainType } from "@/chainType";
 import { processPrompt } from "@/commands/customCommandUtils";
 import { LOADING_MESSAGES } from "@/constants";
 import { PromptContextEngine } from "@/context/PromptContextEngine";
@@ -673,7 +673,7 @@ export class ContextManager {
     vault: Vault,
     additionalNotes: TFile[] = []
   ): Promise<TFile[]> {
-    const extractedNotes = await extractNoteFiles(content, vault);
+    const extractedNotes = extractNoteFiles(content, vault);
 
     // Combine and deduplicate
     const allNotes = [...extractedNotes, ...additionalNotes];
@@ -721,7 +721,7 @@ export class ContextManager {
     ].join("|");
     const blockRegex = new RegExp(`<(${allTags})(\\s[^>]*)?>[\\s\\S]*?</\\1>`, "g");
 
-    const result = content.replace(blockRegex, (block, tag) => {
+    const result = content.replace(blockRegex, (block, tag: string) => {
       // Non-recoverable blocks (selected_text, web_selected_text) are turn-scoped
       // and must not persist into L2.
       const blockType = CONTEXT_BLOCK_TYPES.find((bt) => bt.tag === tag);

@@ -9,6 +9,7 @@ import { initializeBuiltinTools } from "@/tools/builtinTools";
 import { ToolRegistry } from "@/tools/ToolRegistry";
 import { StructuredTool } from "@langchain/core/tools";
 import { Runnable } from "@langchain/core/runnables";
+import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { ChatMessage, ResponseMetadata, StreamingResult } from "@/types/message";
 import { err2String, withSuppressedTokenWarnings } from "@/utils";
 import { AIMessage, BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
@@ -28,6 +29,7 @@ import {
   buildToolCallsFromChunks,
   accumulateToolCallChunk,
   ToolCallChunk,
+  type RawToolCallChunk,
 } from "./utils/nativeToolCalling";
 
 import { ensureCiCOrderingWithQuestion } from "./utils/cicPromptUtils";
@@ -56,7 +58,7 @@ type AgentSource = {
   title: string;
   path: string;
   score: number;
-  explanation?: any;
+  explanation?: unknown;
 };
 
 /**
@@ -120,7 +122,7 @@ export class AutonomousAgentChainRunner extends CopilotPlusChainRunner {
 
   // Agent Reasoning Block state
   private reasoningState: AgentReasoningState = createInitialReasoningState();
-  private reasoningTimerInterval: ReturnType<typeof setInterval> | null = null;
+  private reasoningTimerInterval: number | null = null;
   private accumulatedContent = ""; // Track content to include in timer updates
   private allReasoningSteps: Array<{ timestamp: number; summary: string; toolName?: string }> = []; // Full history of all steps
   private abortHandledByTimer = false; // Flag to prevent duplicate interrupted messages
@@ -195,7 +197,7 @@ export class AutonomousAgentChainRunner extends CopilotPlusChainRunner {
     this.addReasoningStep(randomStep);
 
     // Update every 100ms for smooth timer - always includes accumulated content
-    this.reasoningTimerInterval = setInterval(() => {
+    this.reasoningTimerInterval = window.setInterval(() => {
       // Check for abort and show interrupted message immediately
       if (abortController?.signal.aborted && this.reasoningState.status === "reasoning") {
         this.stopReasoningTimer();
@@ -259,7 +261,7 @@ export class AutonomousAgentChainRunner extends CopilotPlusChainRunner {
    */
   private stopReasoningTimer(): void {
     if (this.reasoningTimerInterval) {
-      clearInterval(this.reasoningTimerInterval);
+      window.clearInterval(this.reasoningTimerInterval);
       this.reasoningTimerInterval = null;
     }
     this.reasoningState.status = "collapsed";
@@ -396,7 +398,7 @@ export class AutonomousAgentChainRunner extends CopilotPlusChainRunner {
     if (!isPlusUser) {
       await this.handleError(
         new Error("Invalid license key"),
-        thinkStreamer.processErrorChunk.bind(thinkStreamer)
+        thinkStreamer.processErrorChunk.bind(thinkStreamer) as (message: string) => void
       );
       const errorResponse = thinkStreamer.close().content;
       return this.handleResponse(
@@ -474,11 +476,11 @@ export class AutonomousAgentChainRunner extends CopilotPlusChainRunner {
 
       this.lastDisplayedContent = "";
       return loopResult.finalResponse;
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Always stop the reasoning timer on error
       this.stopReasoningTimer();
 
-      if (error.name === "AbortError" || abortController.signal.aborted) {
+      if ((error as { name?: string }).name === "AbortError" || abortController.signal.aborted) {
         logInfo("Autonomous agent stream aborted by user", {
           reason: abortController.signal.reason,
         });
@@ -508,7 +510,7 @@ export class AutonomousAgentChainRunner extends CopilotPlusChainRunner {
 
         await this.handleError(
           new Error(autonomousAgentErrorMsg + fallbackErrorMsg),
-          thinkStreamer.processErrorChunk.bind(thinkStreamer)
+          thinkStreamer.processErrorChunk.bind(thinkStreamer) as (message: string) => void
         );
 
         const fullAIResponse = thinkStreamer.close().content;
@@ -536,14 +538,18 @@ export class AutonomousAgentChainRunner extends CopilotPlusChainRunner {
    */
   private async prepareAgentConversation(
     userMessage: ChatMessage,
-    chatModel: any,
+    chatModel: BaseChatModel & {
+      modelName?: string;
+      model?: string;
+      bindTools?: (tools: unknown[]) => unknown;
+    },
     _updateLoadingMessage?: (message: string) => void // Unused, kept for potential future use
   ): Promise<AgentRunContext> {
     const messages: BaseMessage[] = [];
     const availableTools = this.getAvailableTools();
 
     // Bind tools to the model for native function calling
-    const modelName = (chatModel as any).modelName || (chatModel as any).model || "unknown";
+    const modelName = chatModel.modelName || chatModel.model || "unknown";
     if (typeof chatModel.bindTools !== "function") {
       throw new Error(
         `Model ${modelName} does not support native tool calling (bindTools not available). ` +
@@ -711,7 +717,8 @@ export class AutonomousAgentChainRunner extends CopilotPlusChainRunner {
         // 2. Model returned only thinking/reasoning content that gets filtered
         let finalContent = content;
         if (!finalContent || finalContent.trim() === "") {
-          const rawToolCallChunks = (aiMessage as any).tool_call_chunks ?? [];
+          const rawToolCallChunks =
+            (aiMessage as { tool_call_chunks?: unknown[] }).tool_call_chunks ?? [];
           logWarn(
             `[Agent] Empty response detected (iteration ${iteration}). ` +
               `Content length: ${content?.length ?? 0}, ` +
@@ -738,7 +745,7 @@ export class AutonomousAgentChainRunner extends CopilotPlusChainRunner {
             : displayedContent;
           updateCurrentAiMessage(currentResponse);
           if (i + STREAM_CHUNK_SIZE < finalContent.length) {
-            await new Promise((resolve) => setTimeout(resolve, STREAM_DELAY_MS));
+            await new Promise((resolve) => window.setTimeout(resolve, STREAM_DELAY_MS));
           }
         }
 
@@ -1023,8 +1030,14 @@ export class AutonomousAgentChainRunner extends CopilotPlusChainRunner {
         })
       );
 
-      for await (const chunk of stream) {
+      for await (const rawChunk of stream) {
         if (abortController.signal.aborted) break;
+
+        const chunk = rawChunk as {
+          response_metadata?: { finish_reason?: string };
+          tool_call_chunks?: unknown;
+          content?: unknown;
+        };
 
         // Check for MALFORMED_FUNCTION_CALL error - throw to trigger fallback
         const finishReason = chunk.response_metadata?.finish_reason;
@@ -1037,7 +1050,7 @@ export class AutonomousAgentChainRunner extends CopilotPlusChainRunner {
         const tcChunks = chunk.tool_call_chunks;
         if (tcChunks && Array.isArray(tcChunks)) {
           for (const tc of tcChunks) {
-            accumulateToolCallChunk(toolCallChunks, tc);
+            accumulateToolCallChunk(toolCallChunks, tc as RawToolCallChunk);
           }
         }
 
@@ -1046,7 +1059,7 @@ export class AutonomousAgentChainRunner extends CopilotPlusChainRunner {
         if (chunkContent) rawContent += chunkContent;
 
         // Process chunk through ThinkBlockStreamer to strip thinking content
-        thinkStreamer.processChunk(chunk);
+        thinkStreamer.processChunk(chunk as Parameters<typeof thinkStreamer.processChunk>[0]);
       }
 
       // Close the streamer to finalize content (handles unclosed think blocks, etc.)
@@ -1081,9 +1094,9 @@ export class AutonomousAgentChainRunner extends CopilotPlusChainRunner {
         aiMessage,
         streamingResult,
       };
-    } catch (error: any) {
-      logError(`Stream error: ${error.message}`);
-      if (error.name === "AbortError" || abortController.signal.aborted) {
+    } catch (error: unknown) {
+      logError(`Stream error: ${(error as Error).message}`);
+      if ((error as { name?: string }).name === "AbortError" || abortController.signal.aborted) {
         const streamingResult = thinkStreamer.close();
         return {
           content: streamingResult.content,

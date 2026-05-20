@@ -1,8 +1,14 @@
-import { BackendSelector } from "@/backend/BackendSelector";
 import { ImageProcessor } from "@/imageProcessing/imageProcessor";
-import { Twitter4llmResponse, Url4llmResponse } from "@/LLMProviders/brevilabsClient";
+import {
+  BrevilabsClient,
+  Twitter4llmResponse,
+  Url4llmResponse,
+} from "@/LLMProviders/brevilabsClient";
+import { selfHostYoutube4llm } from "@/LLMProviders/selfHostServices";
 import { err2String, isTwitterUrl, isYoutubeUrl } from "@/utils";
 import { logError } from "@/logger";
+import { isSelfHostModeValid } from "@/plusUtils";
+import { getSettings } from "@/settings/model";
 
 export interface MentionData {
   type: string;
@@ -14,9 +20,11 @@ export interface MentionData {
 export class Mention {
   private static instance: Mention;
   private mentions: Map<string, MentionData>;
+  private brevilabsClient: BrevilabsClient;
 
   private constructor() {
     this.mentions = new Map();
+    this.brevilabsClient = BrevilabsClient.getInstance();
   }
 
   static getInstance(): Mention {
@@ -43,13 +51,7 @@ export class Mention {
 
   async processUrl(url: string): Promise<Url4llmResponse & { error?: string }> {
     try {
-      const adapter = BackendSelector.getSelectedAdapter();
-      if (!adapter.url4llm) {
-        throw new Error(
-          "URL ingestion is not supported by the selected backend. Self-host mode does not fall back to hosted mode automatically."
-        );
-      }
-      return await adapter.url4llm(url);
+      return await this.brevilabsClient.url4llm(url);
     } catch (error) {
       const msg = err2String(error);
       logError(`Error processing URL ${url}: ${msg}`);
@@ -59,13 +61,10 @@ export class Mention {
 
   async processYoutubeUrl(url: string): Promise<{ transcript: string; error?: string }> {
     try {
-      const adapter = BackendSelector.getSelectedAdapter();
-      if (!adapter.youtube4llm) {
-        throw new Error(
-          "YouTube transcription is not configured for the selected backend."
-        );
-      }
-      const response = await adapter.youtube4llm(url);
+      const response =
+        isSelfHostModeValid() && getSettings().supadataApiKey
+          ? await selfHostYoutube4llm(url)
+          : await this.brevilabsClient.youtube4llm(url);
       return { transcript: response.response.transcript };
     } catch (error) {
       const msg = err2String(error);
@@ -76,13 +75,7 @@ export class Mention {
 
   async processTwitterUrl(url: string): Promise<Twitter4llmResponse & { error?: string }> {
     try {
-      const adapter = BackendSelector.getSelectedAdapter();
-      if (!adapter.twitter4llm) {
-        throw new Error(
-          "Twitter/X ingestion is not supported by the selected backend. Self-host mode does not fall back to hosted mode automatically."
-        );
-      }
-      return await adapter.twitter4llm(url);
+      return await this.brevilabsClient.twitter4llm(url);
     } catch (error) {
       const msg = err2String(error);
       logError(`Error processing Twitter URL ${url}: ${msg}`);

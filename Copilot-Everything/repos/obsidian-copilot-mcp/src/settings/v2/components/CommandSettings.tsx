@@ -46,17 +46,19 @@ import {
 import { generateDefaultCommands } from "@/commands/migrator";
 import { CustomCommand } from "@/commands/type";
 import { ConfirmModal } from "@/components/modals/ConfirmModal";
+import { useApp } from "@/context";
 import { SettingItem } from "@/components/ui/setting-item";
 import { Notice } from "obsidian";
 
 const MobileCommandCard: React.FC<{
   command: CustomCommand;
   commands: CustomCommand[];
-  onUpdate: (newCommand: CustomCommand, prevCommandTitle: string) => void;
-  onRemove: (command: CustomCommand) => void;
-  onCopy: (command: CustomCommand) => void;
+  onUpdate: (newCommand: CustomCommand, prevCommandTitle: string) => void | Promise<void>;
+  onRemove: (command: CustomCommand) => void | Promise<void>;
+  onCopy: (command: CustomCommand) => void | Promise<void>;
   containerRef: React.RefObject<HTMLDivElement>;
 }> = ({ command, commands, onUpdate, onRemove, onCopy, containerRef }) => {
+  const app = useApp();
   const handleEdit = (cmd: CustomCommand) => {
     const modal = new CustomCommandSettingsModal(app, commands, cmd, async (updatedCommand) => {
       await onUpdate(updatedCommand, cmd.title);
@@ -109,7 +111,7 @@ const MobileCommandCard: React.FC<{
         <Checkbox
           checked={command.showInContextMenu}
           onCheckedChange={(checked) => {
-            onUpdate(
+            void onUpdate(
               {
                 ...command,
                 showInContextMenu: checked === true,
@@ -168,10 +170,11 @@ const MobileCommandCard: React.FC<{
 const SortableTableRow: React.FC<{
   command: CustomCommand;
   commands: CustomCommand[];
-  onUpdate: (newCommand: CustomCommand, prevCommandTitle: string) => void;
-  onRemove: (command: CustomCommand) => void;
-  onCopy: (command: CustomCommand) => void;
+  onUpdate: (newCommand: CustomCommand, prevCommandTitle: string) => void | Promise<void>;
+  onRemove: (command: CustomCommand) => void | Promise<void>;
+  onCopy: (command: CustomCommand) => void | Promise<void>;
 }> = ({ command, commands, onUpdate, onRemove, onCopy }) => {
+  const app = useApp();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: command.title,
   });
@@ -182,7 +185,7 @@ const SortableTableRow: React.FC<{
   };
 
   const handleDelete = () => {
-    onRemove(command);
+    void onRemove(command);
   };
 
   return (
@@ -209,7 +212,7 @@ const SortableTableRow: React.FC<{
         <Checkbox
           checked={command.showInContextMenu}
           onCheckedChange={(checked) => {
-            onUpdate(
+            void onUpdate(
               {
                 ...command,
                 showInContextMenu: checked === true,
@@ -285,6 +288,7 @@ const SortableTableRow: React.FC<{
 };
 
 export const CommandSettings: React.FC = () => {
+  const app = useApp();
   const rawCommands = useCustomCommands();
   const commands = useMemo(() => {
     return sortCommandsByOrder([...rawCommands]);
@@ -367,7 +371,11 @@ export const CommandSettings: React.FC = () => {
   // Mobile view rendering
   const renderMobileView = () => (
     <div className="tw-relative md:tw-hidden">
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={(event) => void handleDragEnd(event)}
+      >
         <SortableContext
           items={commands.map((command) => command.title)}
           strategy={verticalListSortingStrategy}
@@ -415,9 +423,11 @@ export const CommandSettings: React.FC = () => {
           value={settings.customPromptsFolder}
           onChange={(value) => {
             updateSetting("customPromptsFolder", value);
-            loadAllCustomCommands();
+            void loadAllCustomCommands().catch((err) =>
+              logError("loadAllCustomCommands failed", err)
+            );
           }}
-          placeholder="copilot-mcp/copilot-custom-prompts"
+          placeholder="copilot/copilot-custom-prompts"
         />
         <SettingItem
           type="switch"
@@ -495,7 +505,7 @@ export const CommandSettings: React.FC = () => {
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
+              onDragEnd={(event) => void handleDragEnd(event)}
             >
               <Table>
                 <TableHeader>

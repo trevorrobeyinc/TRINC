@@ -27,6 +27,38 @@ Copilot for Obsidian is an AI-powered assistant plugin that integrates various L
 - `npm run test:integration` - Run integration tests (requires API keys)
 - Run single test: `npm test -- -t "test name"`
 
+### Obsidian CLI (Live Testing)
+
+The Obsidian desktop app includes a CLI for plugin development. Use the full path:
+
+```bash
+/Applications/Obsidian.app/Contents/MacOS/obsidian <command>
+```
+
+**Plugin reload** (after `npm run build`):
+
+```bash
+/Applications/Obsidian.app/Contents/MacOS/obsidian plugin:reload id=copilot
+```
+
+**Console debugging** (requires attaching debugger first):
+
+```bash
+/Applications/Obsidian.app/Contents/MacOS/obsidian dev:debug on
+/Applications/Obsidian.app/Contents/MacOS/obsidian dev:console limit=30
+/Applications/Obsidian.app/Contents/MacOS/obsidian dev:console level=error limit=10
+/Applications/Obsidian.app/Contents/MacOS/obsidian dev:errors
+```
+
+**Other useful dev commands**:
+
+- `dev:dom selector=<css>` — Query DOM elements
+- `dev:screenshot path=<file>` — Take a screenshot
+- `eval code=<js>` — Execute JS in the app context
+- `plugin:disable id=copilot` / `plugin:enable id=copilot`
+
+Run `obsidian help` for the full command list.
+
 ## High-Level Architecture
 
 ### Core Systems
@@ -191,7 +223,15 @@ For detailed architecture diagrams and documentation, see [`MESSAGE_ARCHITECTURE
   - `logWarn()` for warnings
   - `logError()` for errors
 - Import from logger: `import { logInfo, logWarn, logError } from "@/logger"`
-- These utilities already respect the debug flag internally — never wrap them in `if (getSettings().debug)`
+
+### CSS & Styling
+
+- **NEVER edit `styles.css` directly** - This is a generated file
+- **Source file**: `src/styles/tailwind.css` - Edit this file for custom CSS
+- **Build process**: `npm run build:tailwind` compiles `src/styles/tailwind.css` → `styles.css`
+- **Tailwind classes**: Use Tailwind utility classes in components (see `tailwind.config.js` for available classes)
+- **Custom CSS**: Add custom styles to `src/styles/tailwind.css` after the `@import` statements
+- After editing CSS, always run `npm run build` to regenerate `styles.css`
 
 ## Testing Guidelines
 
@@ -200,6 +240,17 @@ For detailed architecture diagrams and documentation, see [`MESSAGE_ARCHITECTURE
 - Integration tests require API keys in `.env.test`
 - Test files adjacent to implementation (`.test.ts`)
 - Use `@testing-library/react` for component testing
+
+### Avoiding Deep Dependency Chains in Tests
+
+This codebase has deep transitive import chains (e.g. a utility → cache → searchUtils → embeddingManager → brevilabsClient → plusUtils → Modal). Importing any module in this chain from a test requires mocking the entire tree, which is brittle and verbose.
+
+**Rules for new code:**
+
+1. **Pass data, not services** — If a function only needs a string (like `outputFolder`), accept it as a parameter. Don't give it access to the entire settings singleton.
+2. **Singletons at the edges only** — `getSettings()`, `PDFCache.getInstance()`, `BrevilabsClient.getInstance()` should only be called in top-level orchestration (constructors, main entry points). Inner functions receive what they need as parameters.
+3. **Pure logic in leaf modules** — Extract testable logic into small files with minimal imports. The orchestration file (which has heavy imports) calls the leaf function and passes in the dependencies. See `src/tools/convertedDocOutput.ts` as an example.
+4. **Litmus test before writing a function** — "Can I test this by calling it directly with plain arguments?" If the answer is no because of an import, that dependency should be a parameter instead.
 
 ## Development Session Planning
 
@@ -262,9 +313,66 @@ The TODO.md should be:
 - For technical debt and known issues, see [`TECHDEBT.md`](./designdocs/todo/TECHDEBT.md)
 - For current development session planning, see [`TODO.md`](./TODO.md)
 
+## User-Facing Documentation
+
+- **When modifying user-facing behavior** (new features, changed settings, removed functionality), **update the corresponding doc in `docs/`**. The doc filenames match their topics (e.g., `llm-providers.md` for provider changes, `agent-mode-and-tools.md` for tool changes).
+- Docs are written for non-technical users — no source code references, explain behavior and concepts.
+- If a change affects multiple docs, update all of them.
+- If you're unsure which doc to update, check `docs/index.md` for the full list with descriptions.
+
+### AWS Bedrock Usage
+
+**IMPORTANT**: When using AWS Bedrock, always use **cross-region inference profile IDs** for better reliability and availability:
+
+- **Global** (recommended): `global.anthropic.claude-sonnet-4-5-20250929-v1:0`
+  - Routes to any commercial AWS region automatically
+  - Best for reliability and performance
+- **US**: `us.anthropic.claude-sonnet-4-5-20250929-v1:0`
+- **EU**: `eu.anthropic.claude-sonnet-4-5-20250929-v1:0`
+- **APAC**: `apac.anthropic.claude-sonnet-4-5-20250929-v1:0`
+
+❌ **Avoid regional model IDs** (without prefix): `anthropic.claude-sonnet-4-5-20250929-v1:0`
+
+- These only work in specific regions and often fail
+- Not recommended for production use
+
+**References:**
+
+- [AWS Bedrock Cross-Region Inference](https://docs.aws.amazon.com/bedrock/latest/userguide/cross-region-inference.html)
+- [Supported Inference Profiles](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html)
+
 ### Obsidian Plugin Environment
 
 - **Global `app` variable**: In Obsidian plugins, `app` is a globally available variable that provides access to the Obsidian API. It's automatically available in all files without needing to import or declare it.
+
+### Picking the right `document` / `window` (popout-window safety)
+
+Obsidian supports pop-out windows. The plugin loads in the main window but views can live in any window. Picking the wrong `Document` / `Window` produces stale references, off-screen popovers, listeners on the wrong window, or DOM nodes that never render. Use this decision order:
+
+1. **`element.doc` / `element.win`** — preferred. Obsidian augments every `Node` with `.doc: Document` and `.win: Window` that always reflect the element's current owner. Use whenever you have any DOM node in scope (a ref, an event target, a component's container, a `Range`'s `startContainer`).
+   - `containerRef.current?.doc.addEventListener(...)`
+   - `range.startContainer.win.innerWidth`
+   - `editor.getRootElement()?.doc`
+2. **`global activeDocument` / `activeWindow`** — fallback only. These point to whichever window is _focused right now_. Correct semantics for actions that follow user focus (e.g., the AddImageModal file picker; selectionchange registration at plugin load), but wrong when the action belongs to a specific view (a chat in a popout while the user clicks back to the main window).
+3. **`document` / `window` globals** — almost always wrong. They are aliases for the main window even when the user is interacting with a popout. Avoid in new code. If you find yourself reaching for them, it's a sign the surrounding code should be taking a `Document`/`Window` parameter or deriving from a DOM ref.
+4. **`element.ownerDocument`** — works (standard DOM), but prefer `.doc` for consistency with the codebase. They return the same `Document` for any mounted `HTMLElement`. `.doc` is shorter and typed non-nullable.
+
+**Listeners that may outlive a window migration:** capture the `Document` / `Window` at registration and remove on the same one:
+
+```ts
+const doc = containerRef.current?.doc;
+if (!doc) return;
+doc.addEventListener("keydown", handler);
+return () => doc.removeEventListener("keydown", handler);
+```
+
+Do **not** rely on `activeDocument` at registration _and_ removal — it can shift between the two calls if focus moves.
+
+**View migrated to a new window:** for a view that owns React or other long-lived renderers, register `this.containerEl.onWindowMigrated((win) => { ... })` in `onOpen`. The callback fires when Obsidian reparents the element into a different window's document. Tear down and rebuild the renderer there so it captures the new window. Save the returned destroy function and call it in `onClose` to avoid leaks. `CopilotView` is the canonical example — it unmounts and recreates the React root on migration so Lexical re-binds to the popout's window.
+
+**Cross-realm `instanceof`:** popout windows have their own `Element`, `MouseEvent`, etc., so standard `instanceof` checks fail across windows. Use Obsidian's `element.instanceOf(HTMLElement)` and `event.instanceOf(MouseEvent)` when checking type across realms.
+
+**Tests (jsdom):** `jest.setup.js` polyfills `Node.doc` / `Node.win` so plugin code using these properties works under jsdom. Don't add `instanceof` guards that depend on the Obsidian-augmented globals without considering the test environment.
 
 ### Architecture Migration Notes
 
@@ -279,3 +387,4 @@ The TODO.md should be:
   - Non-project chats stored in default repository
   - Backwards compatible - loads existing messages from ProjectManager cache
   - Zero configuration required - works automatically
+- Check @tailwind.config.js to understand what tailwind css classnames are available

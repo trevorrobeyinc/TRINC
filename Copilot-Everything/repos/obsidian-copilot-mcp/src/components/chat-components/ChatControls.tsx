@@ -1,6 +1,6 @@
 import { getCurrentProject, setCurrentProject, setProjectLoading, useChainType } from "@/aiParams";
 import { ProjectContextCache } from "@/cache/projectContextCache";
-import { ChainType } from "@/chainFactory";
+import { ChainType } from "@/chainType";
 import { ConfirmModal } from "@/components/modals/ConfirmModal";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
@@ -13,6 +13,7 @@ import { navigateToPlusPage, useIsPlusUser } from "@/plusUtils";
 import { updateSetting, useSettingsValue } from "@/settings/model";
 import { Docs4LLMParser } from "@/tools/FileParserManager";
 import { isRateLimitError } from "@/utils/rateLimitUtils";
+import { useApp } from "@/context";
 import { DropdownMenu, DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
 import {
   AlertTriangle,
@@ -28,7 +29,7 @@ import {
   Sparkles,
   SquareArrowOutUpRight,
 } from "lucide-react";
-import { Notice } from "obsidian";
+import { App, Notice } from "obsidian";
 import React from "react";
 import {
   ChatHistoryItem,
@@ -37,7 +38,21 @@ import {
 import { TokenCounter } from "./TokenCounter";
 import { ChatSettingsPopover } from "@/components/chat-components/ChatSettingsPopover";
 
-export async function refreshVaultIndex() {
+/** Minimal type for the internal Obsidian app with plugin access. */
+interface CopilotPluginInternal {
+  projectManager?: {
+    getProjectContext: (id: string) => Promise<unknown>;
+    getCurrentChainManager: () => { createChainWithNewModel: () => Promise<void> };
+  };
+}
+
+interface ObsidianAppWithPlugins {
+  plugins: {
+    getPlugin: (id: string) => CopilotPluginInternal | undefined;
+  };
+}
+
+async function refreshVaultIndex() {
   try {
     const { getSettings } = await import("@/settings/model");
     const settings = getSettings();
@@ -58,12 +73,12 @@ export async function refreshVaultIndex() {
       new Notice("Lexical search builds indexes on demand. No manual indexing required.");
     }
   } catch (error) {
-    console.error("Error refreshing vault index:", error);
+    logError("Error refreshing vault index:", error);
     new Notice("Failed to refresh vault index. Check console for details.");
   }
 }
 
-export async function forceReindexVault() {
+async function forceReindexVault() {
   try {
     const { getSettings } = await import("@/settings/model");
     const settings = getSettings();
@@ -84,12 +99,12 @@ export async function forceReindexVault() {
       new Notice("Lexical search builds indexes on demand. No manual indexing required.");
     }
   } catch (error) {
-    console.error("Error force reindexing vault:", error);
+    logError("Error force reindexing vault:", error);
     new Notice("Failed to force reindex vault. Check console for details.");
   }
 }
 
-export async function reloadCurrentProject() {
+export async function reloadCurrentProject(app: App) {
   const currentProject = getCurrentProject();
   if (!currentProject) {
     new Notice("No project is currently selected to reload.");
@@ -108,9 +123,12 @@ export async function reloadCurrentProject() {
     // Then, trigger the full load and processing logic via ProjectManager.
     // getProjectContext will call loadProjectContext if markdownNeedsReload is true (which it is now).
     // loadProjectContext will handle markdown, web, youtube, and other file types (including API calls for new ones).
-    const plugin = (app as any).plugins.getPlugin("copilot");
+    const plugin = (app as unknown as ObsidianAppWithPlugins).plugins.getPlugin("copilot");
     if (plugin && plugin.projectManager) {
       await plugin.projectManager.getProjectContext(currentProject.id);
+      // Reason: chain/model config must be refreshed after context reload so the next
+      // user message uses the updated system prompt and model settings.
+      await plugin.projectManager.getCurrentChainManager().createChainWithNewModel();
       new Notice(`Project context for "${currentProject.name}" reloaded successfully.`);
     } else {
       throw new Error("Copilot plugin or ProjectManager not available.");
@@ -128,7 +146,7 @@ export async function reloadCurrentProject() {
   }
 }
 
-export async function forceRebuildCurrentProjectContext() {
+async function forceRebuildCurrentProjectContext(app: App) {
   const currentProject = getCurrentProject();
   if (!currentProject) {
     new Notice("No project is currently selected to rebuild.");
@@ -155,7 +173,7 @@ export async function forceRebuildCurrentProjectContext() {
         // Step 2: Trigger a full reload from scratch.
         // getProjectContext will call loadProjectContext as the cache is now empty.
         // loadProjectContext will handle markdown, web, youtube, and all other file types.
-        const plugin = (app as any).plugins.getPlugin("copilot");
+        const plugin = (app as unknown as ObsidianAppWithPlugins).plugins.getPlugin("copilot");
         if (plugin && plugin.projectManager) {
           await plugin.projectManager.getProjectContext(currentProject.id);
           new Notice(
@@ -210,6 +228,7 @@ export function ChatControls({
   onOpenSourceFile,
   latestTokenCount,
 }: ChatControlsProps) {
+  const app = useApp();
   const settings = useSettingsValue();
   const [selectedChain, setSelectedChain] = useChainType();
   const isPlusUser = useIsPlusUser();
@@ -252,14 +271,14 @@ export function ChatControls({
           <DropdownMenuContent align="start">
             <DropdownMenuItem
               onSelect={() => {
-                handleModeChange(ChainType.LLM_CHAIN);
+                void handleModeChange(ChainType.LLM_CHAIN);
               }}
             >
               chat (free)
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={() => {
-                handleModeChange(ChainType.VAULT_QA_CHAIN);
+                void handleModeChange(ChainType.VAULT_QA_CHAIN);
               }}
             >
               vault QA (free)
@@ -267,7 +286,7 @@ export function ChatControls({
             {isPlusUser ? (
               <DropdownMenuItem
                 onSelect={() => {
-                  handleModeChange(ChainType.COPILOT_PLUS_CHAIN);
+                  void handleModeChange(ChainType.COPILOT_PLUS_CHAIN);
                 }}
               >
                 <div className="tw-flex tw-items-center tw-gap-1">
@@ -291,7 +310,7 @@ export function ChatControls({
               <DropdownMenuItem
                 className="tw-flex tw-items-center tw-gap-1"
                 onSelect={() => {
-                  handleModeChange(ChainType.PROJECT_CHAIN);
+                  void handleModeChange(ChainType.PROJECT_CHAIN);
                 }}
               >
                 <LibraryBig className="tw-size-4" />
@@ -327,7 +346,12 @@ export function ChatControls({
         {!settings.autosaveChat && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost2" size="icon" title="Save Chat as Note" onClick={onSaveAsNote}>
+              <Button
+                variant="ghost2"
+                size="icon"
+                title="Save Chat as Note"
+                onClick={() => void onSaveAsNote()}
+              >
                 <Download className="tw-size-4" />
               </Button>
             </TooltipTrigger>
@@ -401,14 +425,14 @@ export function ChatControls({
               <>
                 <DropdownMenuItem
                   className="tw-flex tw-items-center tw-gap-2"
-                  onSelect={() => reloadCurrentProject()}
+                  onSelect={() => void reloadCurrentProject(app)}
                 >
                   <RefreshCw className="tw-size-4" />
                   Reload Current Project
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="tw-flex tw-items-center tw-gap-2"
-                  onSelect={() => forceRebuildCurrentProjectContext()}
+                  onSelect={() => void forceRebuildCurrentProjectContext(app)}
                 >
                   <AlertTriangle className="tw-size-4" />
                   Force Rebuild Context
@@ -418,7 +442,7 @@ export function ChatControls({
               <>
                 <DropdownMenuItem
                   className="tw-flex tw-items-center tw-gap-2"
-                  onSelect={() => refreshVaultIndex()}
+                  onSelect={() => void refreshVaultIndex()}
                 >
                   <RefreshCw className="tw-size-4" />
                   Refresh Vault Index

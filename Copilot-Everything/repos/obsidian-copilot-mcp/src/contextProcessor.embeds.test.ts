@@ -1,25 +1,19 @@
-jest.mock("@/chainFactory", () => ({
-  ChainType: {
-    LLM_CHAIN: "llm_chain",
-    COPILOT_PLUS_CHAIN: "copilot_plus",
-    PROJECT_CHAIN: "project_chain",
-  },
-}));
-
 import { ContextProcessor } from "@/contextProcessor";
+import type { FileParserManager } from "@/tools/FileParserManager";
 import { EMBEDDED_NOTE_TAG } from "@/constants";
-import { ChainType } from "@/chainFactory";
+import { ChainType } from "@/chainType";
 import { TFile, Vault } from "obsidian";
 
-type FileCacheMap = Record<string, any>;
+type FileCacheMap = Record<string, unknown>;
 type FileContentMap = Record<string, string>;
 
-const createMockFile = (path: string): TFile => new (TFile as any)(path);
+const createMockFile = (path: string): TFile =>
+  new (TFile as unknown as new (path: string) => TFile)(path);
 
 describe("ContextProcessor - Embedded Notes", () => {
   let contextProcessor: ContextProcessor;
   let vault: Vault;
-  let fileParserManager: any;
+  let fileParserManager: unknown;
   let fileCaches: FileCacheMap;
   let fileContents: FileContentMap;
   let fileIndex: Map<string, TFile>;
@@ -39,7 +33,7 @@ describe("ContextProcessor - Embedded Notes", () => {
       getFileCache: jest.fn((file: TFile) => fileCaches[file.path] ?? {}),
     };
 
-    (global as any).app = {
+    (window as unknown as Record<string, unknown>).app = {
       metadataCache: metadataCacheMock,
     };
 
@@ -49,7 +43,7 @@ describe("ContextProcessor - Embedded Notes", () => {
       },
     } as unknown as Vault;
 
-    (vault as any).getAbstractFileByPath = jest.fn();
+    (vault as Vault & Record<string, unknown>).getAbstractFileByPath = jest.fn();
 
     fileParserManager = {
       supportsExtension: jest.fn(
@@ -65,7 +59,7 @@ describe("ContextProcessor - Embedded Notes", () => {
     };
   });
 
-  const registerFile = (file: TFile, content: string, cache: any = {}): void => {
+  const registerFile = (file: TFile, content: string, cache: unknown = {}): void => {
     fileIndex.set(file.path, file);
     fileContents[file.path] = content;
     fileCaches[file.path] = cache;
@@ -80,7 +74,7 @@ describe("ContextProcessor - Embedded Notes", () => {
 
     const result = await contextProcessor.processContextNotes(
       new Set(),
-      fileParserManager,
+      fileParserManager as FileParserManager,
       vault,
       [source],
       false,
@@ -115,7 +109,7 @@ describe("ContextProcessor - Embedded Notes", () => {
 
     const result = await contextProcessor.processContextNotes(
       new Set(),
-      fileParserManager,
+      fileParserManager as FileParserManager,
       vault,
       [source],
       false,
@@ -149,7 +143,7 @@ describe("ContextProcessor - Embedded Notes", () => {
 
     const result = await contextProcessor.processContextNotes(
       new Set(),
-      fileParserManager,
+      fileParserManager as FileParserManager,
       vault,
       [source],
       false,
@@ -171,7 +165,7 @@ describe("ContextProcessor - Embedded Notes", () => {
 
     const result = await contextProcessor.processContextNotes(
       new Set(),
-      fileParserManager,
+      fileParserManager as FileParserManager,
       vault,
       [source],
       false,
@@ -190,7 +184,7 @@ describe("ContextProcessor - Embedded Notes", () => {
 
     const result = await contextProcessor.processContextNotes(
       new Set(),
-      fileParserManager,
+      fileParserManager as FileParserManager,
       vault,
       [source],
       false,

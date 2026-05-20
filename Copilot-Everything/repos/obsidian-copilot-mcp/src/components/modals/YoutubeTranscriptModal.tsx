@@ -1,11 +1,12 @@
-import { BackendSelector } from "@/backend/BackendSelector";
+import { BrevilabsClient } from "@/LLMProviders/brevilabsClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { logError } from "@/logger";
 import { formatYoutubeUrl, insertIntoEditor, validateYoutubeUrl } from "@/utils";
+import { createPluginRoot } from "@/utils/react/createPluginRoot";
 import { App, Modal, Notice } from "obsidian";
 import * as React from "react";
-import { createRoot, Root } from "react-dom/client";
+import { Root } from "react-dom/client";
 
 interface TranscriptData {
   videoId: string;
@@ -61,11 +62,7 @@ function YoutubeTranscriptModalContent({ onClose }: { onClose: () => void }) {
     setError("");
 
     try {
-      const adapter = BackendSelector.getSelectedAdapter();
-      if (!adapter.youtube4llm) {
-        throw new Error("YouTube transcription is not configured for the selected backend.");
-      }
-      const response = await adapter.youtube4llm(url);
+      const response = await BrevilabsClient.getInstance().youtube4llm(url);
 
       if (!response.response.transcript) {
         throw new Error(
@@ -129,7 +126,7 @@ function YoutubeTranscriptModalContent({ onClose }: { onClose: () => void }) {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !isLoading && isValidUrl) {
-      handleDownload();
+      void handleDownload();
     }
   };
 
@@ -160,10 +157,10 @@ function YoutubeTranscriptModalContent({ onClose }: { onClose: () => void }) {
           <Button variant="ghost" onClick={handleDownloadAnother}>
             Download Another
           </Button>
-          <Button variant="default" onClick={handleCopyToClipboard}>
+          <Button variant="default" onClick={() => void handleCopyToClipboard()}>
             Copy to Clipboard
           </Button>
-          <Button variant="default" onClick={handleInsertToNote}>
+          <Button variant="default" onClick={() => void handleInsertToNote()}>
             Insert at Cursor
           </Button>
           <Button variant="secondary" onClick={onClose}>
@@ -194,7 +191,11 @@ function YoutubeTranscriptModalContent({ onClose }: { onClose: () => void }) {
         <Button variant="secondary" onClick={onClose} disabled={isLoading}>
           Cancel
         </Button>
-        <Button variant="default" onClick={handleDownload} disabled={isLoading || !isValidUrl}>
+        <Button
+          variant="default"
+          onClick={() => void handleDownload()}
+          disabled={isLoading || !isValidUrl}
+        >
           {isLoading ? "Downloading..." : "Download Transcript"}
         </Button>
       </div>
@@ -214,7 +215,7 @@ export class YoutubeTranscriptModal extends Modal {
 
   onOpen() {
     const { contentEl } = this;
-    this.root = createRoot(contentEl);
+    this.root = createPluginRoot(contentEl, this.app);
 
     const handleClose = () => {
       this.close();

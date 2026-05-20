@@ -25,6 +25,7 @@ import {
 } from "@/system-prompts/constants";
 import { logInfo } from "@/logger";
 import { ensureFolderExists } from "@/utils";
+import { trashFile } from "@/utils/vaultAdapterUtils";
 import { getSettings, updateSetting } from "@/settings/model";
 
 /**
@@ -147,7 +148,7 @@ export class SystemPromptManager {
 
         // Update frontmatter - write back ALL fields since vault.modify clears frontmatter
         // Reference: Command module writes all fields in processFrontMatter
-        await app.fileManager.processFrontMatter(file, (frontmatter) => {
+        await app.fileManager.processFrontMatter(file, (frontmatter: Record<string, unknown>) => {
           frontmatter[COPILOT_SYSTEM_PROMPT_CREATED] = newPrompt.createdMs;
           frontmatter[COPILOT_SYSTEM_PROMPT_MODIFIED] = newPrompt.modifiedMs;
           frontmatter[COPILOT_SYSTEM_PROMPT_LAST_USED] = newPrompt.lastUsedMs;
@@ -192,7 +193,7 @@ export class SystemPromptManager {
       // Delete the file first
       const file = this.vault.getAbstractFileByPath(filePath);
       if (file instanceof TFile) {
-        await this.vault.delete(file);
+        await trashFile(app, file);
       }
 
       // Clear state only after successful deletion to maintain consistency

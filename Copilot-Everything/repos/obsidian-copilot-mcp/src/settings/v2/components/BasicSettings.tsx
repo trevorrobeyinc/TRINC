@@ -1,10 +1,11 @@
-import { ChainType } from "@/chainFactory";
+import { ChainType } from "@/chainType";
 import { Button } from "@/components/ui/button";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { Input } from "@/components/ui/input";
 import { getModelDisplayWithIcons } from "@/components/ui/model-display";
 import { SettingItem } from "@/components/ui/setting-item";
 import { DEFAULT_OPEN_AREA, PLUS_UTM_MEDIUMS, SEND_SHORTCUT } from "@/constants";
+import { useApp } from "@/context";
 import { useTab } from "@/contexts/TabContext";
 import { cn } from "@/lib/utils";
 import { createPlusPageUrl } from "@/plusUtils";
@@ -25,6 +26,7 @@ const ChainType2Label: Record<ChainType, string> = {
 };
 
 export const BasicSettings: React.FC = () => {
+  const app = useApp();
   const settings = useSettingsValue();
   const { setSelectedTab } = useTab();
   const [isChecking, setIsChecking] = useState(false);
@@ -73,7 +75,10 @@ export const BasicSettings: React.FC = () => {
       setConversationNoteName(format);
       new Notice(`Format applied successfully! Example: ${customFileName}`, 4000);
     } catch (error) {
-      new Notice(`Error applying format: ${error.message}`, 4000);
+      new Notice(
+        `Error applying format: ${error instanceof Error ? error.message : String(error)}`,
+        4000
+      );
     } finally {
       setIsChecking(false);
     }
@@ -338,10 +343,10 @@ export const BasicSettings: React.FC = () => {
           <SettingItem
             type="text"
             title="Default Conversation Folder Name"
-            description="The default folder name where chat conversations will be saved. Default is 'copilot-mcp/copilot-conversations'"
+            description="The default folder name where chat conversations will be saved. Default is 'copilot/copilot-conversations'"
             value={settings.defaultSaveFolder}
             onChange={(value) => updateSetting("defaultSaveFolder", value)}
-            placeholder="copilot-mcp/copilot-conversations"
+            placeholder="copilot/copilot-conversations"
           />
 
           <SettingItem

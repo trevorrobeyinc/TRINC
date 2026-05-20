@@ -1,277 +1,297 @@
-import { type CopilotSettings } from "@/settings/model";
-import type { McpServerConfig } from "@/mcp/types";
+/**
+ * Encryption/decryption service for Copilot secrets.
+ *
+ * After the OS Keychain migration, this module only provides:
+ * - Decryption of legacy encrypted values (for reading legacy encrypted disk values)
+ * - `isSensitiveKey()` — canonical field identification
+ * - `isEncryptedValue()` — prefix detection for encrypted strings
+ * - Base64 utilities
+ *
+ * All encryption-write functions have been removed because secrets
+ * are now written to the OS keychain directly (plaintext).
+ */
+
+// Reason: do NOT import from @/logger here. The logger depends on getSettings(),
+// but this module runs during settings loading (before setSettings).
+// Use console.* directly for all logging in this file.
+
+// Reason: `buffer` is the npm polyfill (browser-compatible), bundled by
+// esbuild so the same Buffer code path works on desktop (Electron) and
+// mobile (WebView). Without this import, bare `Buffer` is undefined on
+// mobile and throws "Can't find variable: Buffer" — see PR #2443.
+// eslint-disable-next-line import/no-nodejs-modules
 import { Buffer } from "buffer";
 import { Platform } from "obsidian";
 
-// @ts-ignore
-let safeStorageInternal: Electron.SafeStorage | null = null;
-
-function getSafeStorage() {
-  if (Platform.isDesktop && safeStorageInternal) {
-    return safeStorageInternal;
-  }
-  // Dynamically import electron to access safeStorage
-  // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
-  safeStorageInternal = require("electron")?.remote?.safeStorage;
-  return safeStorageInternal;
+interface SafeStorage {
+  isEncryptionAvailable(): boolean;
+  encryptString(plainText: string): Buffer;
+  decryptString(encrypted: Buffer): string;
 }
 
-// Add new prefixes to distinguish encryption methods
+let safeStorageInternal: SafeStorage | null = null;
+
+/**
+ * Safely get Electron `safeStorage` when available.
+ *
+ * @returns The Electron safeStorage instance, or `null` when unavailable.
+ */
+function getSafeStorage(): SafeStorage | null {
+  if (!Platform.isDesktopApp && !Platform.isDesktop) return null;
+  if (safeStorageInternal) return safeStorageInternal;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const electron = require("electron") as { remote?: { safeStorage?: SafeStorage } } | undefined;
+    safeStorageInternal = electron?.remote?.safeStorage ?? null;
+    return safeStorageInternal;
+  } catch {
+    return null;
+  }
+}
+
+// Prefixes to distinguish encryption methods
 const DESKTOP_PREFIX = "enc_desk_";
 const WEBCRYPTO_PREFIX = "enc_web_";
-// Keep old prefix for backward compatibility
 const ENCRYPTION_PREFIX = "enc_";
 const DECRYPTION_PREFIX = "dec_";
-const DECRYPTION_FAILURE_MESSAGE = "Copilot failed to decrypt API keys!";
 
-// Add these constants for the Web Crypto implementation
-const ENCRYPTION_KEY = new TextEncoder().encode("obsidian-copilot-v1");
-const ALGORITHM = { name: "AES-GCM", iv: new Uint8Array(12) };
-
-async function getEncryptionKey(): Promise<CryptoKey> {
-  return await crypto.subtle.importKey("raw", ENCRYPTION_KEY, ALGORITHM.name, false, [
-    "encrypt",
-    "decrypt",
-  ]);
+/**
+ * Check whether a value looks like a well-formed encrypted Copilot secret
+ * (recognized prefix + plausible base64 payload).
+ *
+ * Use this when the caller wants strict detection — for example, deciding
+ * whether to display a value as decrypt-able in a UI. Returns false for
+ * values whose prefix matches but whose payload is corrupted, so callers
+ * that must protect such values during persistence should use
+ * `hasEncryptionPrefix()` instead.
+ */
+export function isEncryptedValue(value: string): boolean {
+  if (value.startsWith(DESKTOP_PREFIX)) {
+    return looksLikeBase64(value.slice(DESKTOP_PREFIX.length));
+  }
+  if (value.startsWith(WEBCRYPTO_PREFIX)) {
+    return looksLikeBase64(value.slice(WEBCRYPTO_PREFIX.length));
+  }
+  if (value.startsWith(ENCRYPTION_PREFIX)) {
+    return looksLikeBase64(value.slice(ENCRYPTION_PREFIX.length));
+  }
+  return false;
 }
 
-export async function encryptAllKeys(
-  settings: Readonly<CopilotSettings>
-): Promise<Readonly<CopilotSettings>> {
-  if (!settings.enableEncryption) {
-    return settings;
-  }
-  const newSettings = { ...settings };
-  const keysToEncrypt = Object.keys(settings).filter(
-    (key) =>
-      key.toLowerCase().includes("apikey") ||
-      key === "plusLicenseKey" ||
-      key === "githubCopilotAccessToken" ||
-      key === "githubCopilotToken"
+/**
+ * Permissive sibling of {@link isEncryptedValue}: returns true for any
+ * value carrying a Copilot encryption prefix, regardless of whether the
+ * payload still looks like valid base64.
+ *
+ * Reason: persistence code must treat "prefix matches but payload is
+ * corrupted" as encrypted-and-failed. Otherwise the keychain write path
+ * would treat a corrupted `enc_*` string as plaintext and silently
+ * overwrite the keychain with junk — and the disk-strip path would drop
+ * the only remaining copy. See `stripSecretsPreservingFailed`.
+ */
+export function hasEncryptionPrefix(value: string): boolean {
+  return (
+    value.startsWith(DESKTOP_PREFIX) ||
+    value.startsWith(WEBCRYPTO_PREFIX) ||
+    value.startsWith(ENCRYPTION_PREFIX)
   );
-
-  for (const key of keysToEncrypt) {
-    const apiKey = settings[key as keyof CopilotSettings] as string;
-    (newSettings[key as keyof CopilotSettings] as any) = await getEncryptedKey(apiKey);
-  }
-
-  if (Array.isArray(settings.activeModels)) {
-    newSettings.activeModels = await Promise.all(
-      settings.activeModels.map(async (model) => ({
-        ...model,
-        apiKey: await getEncryptedKey(model.apiKey || ""),
-      }))
-    );
-  }
-
-  if (Array.isArray(settings.activeEmbeddingModels)) {
-    newSettings.activeEmbeddingModels = await Promise.all(
-      settings.activeEmbeddingModels.map(async (model) => ({
-        ...model,
-        apiKey: await getEncryptedKey(model.apiKey || ""),
-      }))
-    );
-  }
-
-  if (settings.selfHostAdapter) {
-    newSettings.selfHostAdapter = {
-      ...settings.selfHostAdapter,
-      apiKey: await getEncryptedKey(settings.selfHostAdapter.apiKey || ""),
-    };
-  }
-
-  if (settings.mcp) {
-    newSettings.mcp = {
-      ...settings.mcp,
-      servers: Array.isArray(settings.mcp.servers)
-        ? await Promise.all(settings.mcp.servers.map((server) => encryptMcpServer(server)))
-        : settings.mcp.servers,
-    };
-  }
-
-  return newSettings;
 }
 
-export async function decryptStoredSettings(
-  settings: Readonly<CopilotSettings>
-): Promise<Readonly<CopilotSettings>> {
-  const newSettings = { ...settings };
-  const keysToDecrypt = Object.keys(settings).filter(
-    (key) =>
-      key.toLowerCase().includes("apikey") ||
-      key === "plusLicenseKey" ||
-      key === "githubCopilotAccessToken" ||
-      key === "githubCopilotToken"
-  );
-
-  for (const key of keysToDecrypt) {
-    const apiKey = settings[key as keyof CopilotSettings] as string;
-    (newSettings[key as keyof CopilotSettings] as any) = await getBestEffortDecryptedValue(apiKey);
-  }
-
-  if (Array.isArray(settings.activeModels)) {
-    newSettings.activeModels = await Promise.all(
-      settings.activeModels.map(async (model) => ({
-        ...model,
-        apiKey: await getBestEffortDecryptedValue(model.apiKey || ""),
-      }))
-    );
-  }
-
-  if (Array.isArray(settings.activeEmbeddingModels)) {
-    newSettings.activeEmbeddingModels = await Promise.all(
-      settings.activeEmbeddingModels.map(async (model) => ({
-        ...model,
-        apiKey: await getBestEffortDecryptedValue(model.apiKey || ""),
-      }))
-    );
-  }
-
-  if (settings.selfHostAdapter) {
-    newSettings.selfHostAdapter = {
-      ...settings.selfHostAdapter,
-      apiKey: await getBestEffortDecryptedValue(settings.selfHostAdapter.apiKey || ""),
-    };
-  }
-
-  if (settings.mcp) {
-    newSettings.mcp = {
-      ...settings.mcp,
-      servers: Array.isArray(settings.mcp.servers)
-        ? await Promise.all(settings.mcp.servers.map((server) => decryptMcpServer(server)))
-        : settings.mcp.servers,
-    };
-  }
-
-  return newSettings;
+/**
+ * Check whether a string is plausibly base64-encoded ciphertext.
+ */
+function looksLikeBase64(data: string): boolean {
+  if (!data) return false;
+  if (data.length % 4 === 1) return false;
+  return /^[A-Za-z0-9+/]+={0,2}$/.test(data);
 }
 
-export async function getEncryptedKey(apiKey: string): Promise<string> {
-  if (!apiKey || apiKey.startsWith(ENCRYPTION_PREFIX)) {
-    return apiKey;
-  }
+// ---------------------------------------------------------------------------
+// WebCrypto: decrypt-only support for legacy formats
+// ---------------------------------------------------------------------------
 
-  if (isDecrypted(apiKey)) {
-    apiKey = apiKey.replace(DECRYPTION_PREFIX, "");
-  }
+const WEBCRYPTO_IV_LENGTH = 12;
+const WEBCRYPTO_KEY_STORAGE_KEY = "obsidian-copilot:webcrypto-key:v1";
+/** Magic header for portable payloads (hardcoded key + random IV). */
+const WEBCRYPTO_PORTABLE_MAGIC = new Uint8Array([0x43, 0x50, 0x30, 0x30]); // "CP00"
+/** Magic header for legacy per-device payloads (kept for backward-compat decryption). */
+const WEBCRYPTO_DEVICE_MAGIC = new Uint8Array([0x43, 0x50, 0x30, 0x31]); // "CP01"
 
+/**
+ * Portable AES-GCM key material shared across all devices.
+ * Reason: derives a 256-bit AES key via SHA-256.
+ */
+const PORTABLE_WEBCRYPTO_KEY_MATERIAL = new TextEncoder().encode("obsidian-copilot-v1");
+const LEGACY_WEBCRYPTO_IV = new Uint8Array(WEBCRYPTO_IV_LENGTH);
+
+function assertWebCryptoAvailable(): void {
+  if (!window.crypto?.subtle) {
+    throw new Error("WebCrypto API is not available in this environment.");
+  }
+}
+
+function getLocalStorageSafe(): Storage | null {
   try {
-    // Try desktop encryption first
-    if (getSafeStorage()?.isEncryptionAvailable()) {
-      const encryptedBuffer = getSafeStorage().encryptString(apiKey) as Buffer;
-      return DESKTOP_PREFIX + encryptedBuffer.toString("base64");
+    return window.localStorage ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Read an existing per-device AES-256 key from localStorage.
+ * Reason: kept for backward-compat decryption of CP01 payloads.
+ */
+async function getExistingWebCryptoKey(): Promise<CryptoKey | null> {
+  try {
+    const storage = getLocalStorageSafe();
+    if (!storage) return null;
+    const existing = storage.getItem(WEBCRYPTO_KEY_STORAGE_KEY);
+    if (!existing) return null;
+    const raw = base64ToArrayBuffer(existing);
+    return await crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt", "decrypt"]);
+  } catch (error) {
+    console.warn("Failed to load WebCrypto key from localStorage.", error);
+    return null;
+  }
+}
+
+/**
+ * Import the portable WebCrypto key for CP00 decryption
+ * and legacy fixed-IV decryption.
+ */
+async function getPortableWebCryptoKey(): Promise<CryptoKey> {
+  const keyBytes = await crypto.subtle.digest("SHA-256", PORTABLE_WEBCRYPTO_KEY_MATERIAL);
+  return await crypto.subtle.importKey("raw", keyBytes, "AES-GCM", false, ["encrypt", "decrypt"]);
+}
+
+function hasWebCryptoMagic(bytes: Uint8Array, magic: Uint8Array): boolean {
+  if (bytes.length < magic.length) return false;
+  for (let i = 0; i < magic.length; i++) {
+    if (bytes[i] !== magic[i]) return false;
+  }
+  return true;
+}
+
+/**
+ * Decrypt a WEBCRYPTO_PREFIX value.
+ * Supports portable CP00, legacy per-device CP01, and legacy fixed-IV formats.
+ */
+async function decryptWebCryptoValue(base64Data: string): Promise<string> {
+  assertWebCryptoAvailable();
+  const raw = new Uint8Array(base64ToArrayBuffer(base64Data));
+
+  // Portable format: [CP00][IV][CIPHERTEXT]
+  if (hasWebCryptoMagic(raw, WEBCRYPTO_PORTABLE_MAGIC)) {
+    const ivStart = WEBCRYPTO_PORTABLE_MAGIC.length;
+    const ivEnd = ivStart + WEBCRYPTO_IV_LENGTH;
+    if (raw.length <= ivEnd) throw new Error("Invalid WebCrypto portable payload: too short.");
+
+    const iv = raw.slice(ivStart, ivEnd);
+    const ciphertext = raw.slice(ivEnd);
+    const key = await getPortableWebCryptoKey();
+    const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext);
+    return new TextDecoder().decode(decrypted);
+  }
+
+  // Legacy per-device format: [CP01][IV][CIPHERTEXT]
+  if (hasWebCryptoMagic(raw, WEBCRYPTO_DEVICE_MAGIC)) {
+    const ivStart = WEBCRYPTO_DEVICE_MAGIC.length;
+    const ivEnd = ivStart + WEBCRYPTO_IV_LENGTH;
+    if (raw.length <= ivEnd) throw new Error("Invalid WebCrypto CP01 payload: too short.");
+
+    const iv = raw.slice(ivStart, ivEnd);
+    const ciphertext = raw.slice(ivEnd);
+    const key = await getExistingWebCryptoKey();
+    if (!key) throw new Error("Per-device WebCrypto key unavailable for CP01 decryption.");
+
+    const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext);
+    return new TextDecoder().decode(decrypted);
+  }
+
+  // Legacy format: ciphertext only, fixed IV + hardcoded key
+  const key = await getPortableWebCryptoKey();
+  const decrypted = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: LEGACY_WEBCRYPTO_IV },
+    key,
+    base64ToArrayBuffer(base64Data)
+  );
+  return new TextDecoder().decode(decrypted);
+}
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
+/**
+ * Check whether a top-level settings key holds a sensitive value.
+ * This is the single source of truth for sensitive field identification.
+ */
+export function isSensitiveKey(key: string): boolean {
+  const lower = key.toLowerCase();
+  const normalized = lower.replace(/[_-]/g, "");
+  return (
+    normalized.includes("apikey") ||
+    lower.endsWith("token") ||
+    lower.endsWith("accesstoken") ||
+    lower.endsWith("secret") ||
+    lower.endsWith("password") ||
+    lower.endsWith("licensekey")
+  );
+}
+
+/**
+ * Decrypt an API key from any supported encryption format.
+ *
+ * Returns the plaintext value, or `""` on failure.
+ * For plaintext input, returns the value as-is.
+ */
+export async function getDecryptedKey(apiKey: string): Promise<string> {
+  try {
+    if (!apiKey || isPlainText(apiKey)) {
+      return apiKey;
+    }
+    if (isDecrypted(apiKey)) {
+      return apiKey.replace(DECRYPTION_PREFIX, "");
     }
 
-    // Fallback to Web Crypto API
-    const key = await getEncryptionKey();
-    const encodedData = new TextEncoder().encode(apiKey);
-    const encryptedData = await crypto.subtle.encrypt(ALGORITHM, key, encodedData);
-    return WEBCRYPTO_PREFIX + arrayBufferToBase64(encryptedData);
-  } catch (error) {
-    console.error("Encryption failed:", error);
-    return apiKey;
-  }
-}
+    if (apiKey.startsWith(DESKTOP_PREFIX)) {
+      const safeStorage = getSafeStorage();
+      if (!safeStorage?.isEncryptionAvailable()) {
+        console.warn("Cannot decrypt desktop-encrypted key: safeStorage unavailable.");
+        return "";
+      }
+      const base64Data = apiKey.replace(DESKTOP_PREFIX, "");
+      const buffer = Buffer.from(base64Data, "base64");
+      return safeStorage.decryptString(buffer);
+    }
 
-export async function getDecryptedKey(apiKey: string): Promise<string> {
-  if (!apiKey || isPlainText(apiKey)) {
-    return apiKey;
-  }
-  if (isDecrypted(apiKey)) {
-    return apiKey.replace(DECRYPTION_PREFIX, "");
-  }
+    if (apiKey.startsWith(WEBCRYPTO_PREFIX)) {
+      const base64Data = apiKey.replace(WEBCRYPTO_PREFIX, "");
+      return await decryptWebCryptoValue(base64Data);
+    }
 
-  // Handle different encryption methods
-  if (apiKey.startsWith(DESKTOP_PREFIX)) {
-    const base64Data = apiKey.replace(DESKTOP_PREFIX, "");
-    const buffer = Buffer.from(base64Data, "base64");
-    return getSafeStorage().decryptString(buffer) as string;
-  }
-
-  if (apiKey.startsWith(WEBCRYPTO_PREFIX)) {
-    const base64Data = apiKey.replace(WEBCRYPTO_PREFIX, "");
-    const key = await getEncryptionKey();
-    const encryptedData = base64ToArrayBuffer(base64Data);
-    const decryptedData = await crypto.subtle.decrypt(ALGORITHM, key, encryptedData);
-    return new TextDecoder().decode(decryptedData);
-  }
-
-  // Legacy support for old enc_ prefix
-  const base64Data = apiKey.replace(ENCRYPTION_PREFIX, "");
-  try {
-    // Try desktop decryption first
+    // Legacy enc_ prefix
+    const base64Data = apiKey.replace(ENCRYPTION_PREFIX, "");
     if (getSafeStorage()?.isEncryptionAvailable()) {
       try {
         const buffer = Buffer.from(base64Data, "base64");
-        return getSafeStorage().decryptString(buffer) as string;
+        return getSafeStorage()!.decryptString(buffer);
       } catch {
-        // Silent catch is intentional - if desktop decryption fails,
-        // it means this key was likely encrypted with Web Crypto.
-        // We'll fall through to the Web Crypto decryption below.
+        // Fall through to WebCrypto
       }
     }
 
-    // Fallback to Web Crypto API
-    const key = await getEncryptionKey();
-    const encryptedData = base64ToArrayBuffer(base64Data);
-    const decryptedData = await crypto.subtle.decrypt(ALGORITHM, key, encryptedData);
-    return new TextDecoder().decode(decryptedData);
+    return await decryptWebCryptoValue(base64Data);
   } catch (err) {
     console.error("Decryption failed:", err);
-    return DECRYPTION_FAILURE_MESSAGE;
+    return "";
   }
 }
 
-async function getBestEffortDecryptedValue(value: string): Promise<string> {
-  if (!value) {
-    return value;
-  }
-
-  const decrypted = await getDecryptedKey(value);
-  return decrypted === DECRYPTION_FAILURE_MESSAGE ? value : decrypted;
-}
-
-async function encryptMcpServer(server: McpServerConfig): Promise<McpServerConfig> {
-  return {
-    ...server,
-    id: await getEncryptedKey(server.id || ""),
-    displayName: await getEncryptedKey(server.displayName || ""),
-    transport: (await getEncryptedKey(server.transport || "")) as McpServerConfig["transport"],
-    httpEndpoint: await getEncryptedKey(server.httpEndpoint || ""),
-    authToken: await getEncryptedKey(server.authToken || ""),
-    vaultName: await getEncryptedKey(server.vaultName || ""),
-    vaultRoot: await getEncryptedKey(server.vaultRoot || ""),
-    backendHint: server.backendHint
-      ? ((await getEncryptedKey(server.backendHint)) as McpServerConfig["backendHint"])
-      : server.backendHint,
-    enabledToolNames: await Promise.all(
-      (server.enabledToolNames || []).map(async (toolName) => await getEncryptedKey(toolName))
-    ),
-  };
-}
-
-async function decryptMcpServer(server: McpServerConfig): Promise<McpServerConfig> {
-  return {
-    ...server,
-    id: await getBestEffortDecryptedValue(server.id || ""),
-    displayName: await getBestEffortDecryptedValue(server.displayName || ""),
-    transport: (await getBestEffortDecryptedValue(
-      server.transport || ""
-    )) as McpServerConfig["transport"],
-    httpEndpoint: await getBestEffortDecryptedValue(server.httpEndpoint || ""),
-    authToken: await getBestEffortDecryptedValue(server.authToken || ""),
-    vaultName: await getBestEffortDecryptedValue(server.vaultName || ""),
-    vaultRoot: await getBestEffortDecryptedValue(server.vaultRoot || ""),
-    backendHint: server.backendHint
-      ? ((await getBestEffortDecryptedValue(server.backendHint)) as McpServerConfig["backendHint"])
-      : server.backendHint,
-    enabledToolNames: await Promise.all(
-      (server.enabledToolNames || []).map(
-        async (toolName) => await getBestEffortDecryptedValue(toolName)
-      )
-    ),
-  };
-}
+// ---------------------------------------------------------------------------
+// Internal helpers
+// ---------------------------------------------------------------------------
 
 function isPlainText(key: string): boolean {
   return !key.startsWith(ENCRYPTION_PREFIX) && !key.startsWith(DECRYPTION_PREFIX);
@@ -279,15 +299,6 @@ function isPlainText(key: string): boolean {
 
 function isDecrypted(keyBuffer: string): boolean {
   return keyBuffer.startsWith(DECRYPTION_PREFIX);
-}
-
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
-  let binary = "";
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return window.btoa(binary);
 }
 
 function base64ToArrayBuffer(base64: string): ArrayBuffer {

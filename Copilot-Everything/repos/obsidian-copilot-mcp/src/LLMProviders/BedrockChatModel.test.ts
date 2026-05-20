@@ -1,5 +1,61 @@
 import { BedrockChatModel } from "./BedrockChatModel";
 
+type ProcessStreamResult = {
+  deltaChunks: Array<{
+    text?: string;
+    message: {
+      content: unknown;
+      additional_kwargs?: { delta?: { reasoning?: string } };
+    };
+  }>;
+  usage?: Record<string, unknown>;
+  stopReason?: string;
+  hasText: boolean;
+  debugSummaries: string[];
+};
+
+type ContentItem = { type: string; text?: string; thinking?: string };
+
+type ImageContent = {
+  type: "image";
+  source: { type: "base64"; media_type: string; data: string };
+} | null;
+
+type RequestBody = {
+  thinking?:
+    | { type: "enabled"; budget_tokens: number }
+    | { type: "adaptive"; display?: "summarized" | "omitted" };
+  temperature?: number;
+  anthropic_version?: string;
+  messages: Array<{
+    role: string;
+    content: Array<{
+      type: string;
+      text?: string;
+      source?: { type: string; media_type: string; data: string };
+    }>;
+  }>;
+};
+
+type BedrockInternal = {
+  decodeChunkBytes: (encoded: string) => string[];
+  processStreamEvent: (
+    event: unknown,
+    runManager: unknown,
+    currentUsage: unknown,
+    currentStopReason: unknown
+  ) => Promise<ProcessStreamResult>;
+  buildContentItemsFromDelta: (event: unknown) => ContentItem[] | null;
+  extractStreamText: (event: unknown) => string | null;
+  buildRequestBody: (messages: unknown[], options?: unknown) => RequestBody;
+  convertImageContent: (imageUrl: string) => ImageContent;
+  normaliseMessageContent: (
+    message: unknown
+  ) => string | Array<{ type: string; [key: string]: unknown }>;
+};
+
+const asInternal = (m: BedrockChatModel): BedrockInternal => m as unknown as BedrockInternal;
+
 /**
  * Builds a minimal Amazon EventStream message containing the provided UTF-8 payload.
  * This helper keeps CRC fields at zero because the decoder ignores them.
@@ -23,16 +79,36 @@ const buildEventStreamChunk = (payload: string): string => {
   return Buffer.from(buffer).toString("base64");
 };
 
-const createModel = (enableThinking = false): BedrockChatModel =>
+const createModel = (
+  enableThinking = false,
+  modelId = "anthropic.claude-3-haiku-20240307-v1:0"
+): BedrockChatModel =>
   new BedrockChatModel({
-    modelId: "anthropic.claude-3-haiku-20240307-v1:0",
+    modelId,
     apiKey: "test-key",
-    endpoint: "https://example.com/model/anthropic.claude-3-haiku-20240307-v1%3A0/invoke",
-    streamEndpoint:
-      "https://example.com/model/anthropic.claude-3-haiku-20240307-v1%3A0/invoke-with-response-stream",
+    endpoint: `https://example.com/model/${encodeURIComponent(modelId)}/invoke`,
+    streamEndpoint: `https://example.com/model/${encodeURIComponent(modelId)}/invoke-with-response-stream`,
     anthropicVersion: "bedrock-2023-05-31",
     enableThinking,
     fetchImplementation: jest.fn(),
+  });
+
+const createModelWithFetch = (
+  fetchMock: jest.Mock,
+  opts?: { modelId?: string; noStream?: boolean }
+): BedrockChatModel =>
+  new BedrockChatModel({
+    modelId: opts?.modelId ?? "anthropic.claude-sonnet-4-5-20250929-v1:0",
+    apiKey: "test-key",
+    endpoint: "https://example.com/model/anthropic.claude-sonnet-4-5-20250929-v1%3A0/invoke",
+    ...(opts?.noStream
+      ? {}
+      : {
+          streamEndpoint:
+            "https://example.com/model/anthropic.claude-sonnet-4-5-20250929-v1%3A0/invoke-with-response-stream",
+        }),
+    anthropicVersion: "bedrock-2023-05-31",
+    fetchImplementation: fetchMock,
   });
 
 describe("BedrockChatModel streaming decode", () => {
@@ -48,7 +124,7 @@ describe("BedrockChatModel streaming decode", () => {
     const base64 = Buffer.from(payload, "utf-8").toString("base64");
 
     const model = createModel();
-    const decoded = (model as any).decodeChunkBytes(base64);
+    const decoded = asInternal(model).decodeChunkBytes(base64);
 
     expect(decoded).toEqual([payload]);
   });
@@ -64,7 +140,7 @@ describe("BedrockChatModel streaming decode", () => {
 
     const base64 = buildEventStreamChunk(payload);
     const model = createModel();
-    const decoded = (model as any).decodeChunkBytes(base64);
+    const decoded = asInternal(model).decodeChunkBytes(base64);
 
     expect(decoded).toEqual([payload]);
   });
@@ -85,7 +161,7 @@ describe("BedrockChatModel streaming decode", () => {
     };
 
     const model = createModel();
-    const processed = await (model as any).processStreamEvent(
+    const processed = await asInternal(model).processStreamEvent(
       event,
       undefined,
       undefined,
@@ -111,10 +187,10 @@ describe("BedrockChatModel streaming decode", () => {
       };
 
       const model = createModel();
-      const contentItems = (model as any).buildContentItemsFromDelta(event);
+      const contentItems = asInternal(model).buildContentItemsFromDelta(event);
 
       expect(contentItems).toHaveLength(1);
-      expect(contentItems[0]).toEqual({
+      expect(contentItems![0]).toEqual({
         type: "thinking",
         thinking: "Let me analyze this problem...",
       });
@@ -133,10 +209,10 @@ describe("BedrockChatModel streaming decode", () => {
       };
 
       const model = createModel();
-      const contentItems = (model as any).buildContentItemsFromDelta(event);
+      const contentItems = asInternal(model).buildContentItemsFromDelta(event);
 
       expect(contentItems).toHaveLength(1);
-      expect(contentItems[0]).toEqual({
+      expect(contentItems![0]).toEqual({
         type: "text",
         text: "Based on my analysis, the answer is...",
       });
@@ -161,7 +237,7 @@ describe("BedrockChatModel streaming decode", () => {
       };
 
       const model = createModel();
-      const processed = await (model as any).processStreamEvent(
+      const processed = await asInternal(model).processStreamEvent(
         event,
         undefined,
         undefined,
@@ -175,7 +251,7 @@ describe("BedrockChatModel streaming decode", () => {
 
       // Check that content is an array with thinking type
       expect(Array.isArray(chunk?.message.content)).toBe(true);
-      const content = chunk?.message.content as any[];
+      const content = chunk?.message.content as unknown[];
       expect(content).toHaveLength(1);
       expect(content[0]).toEqual({
         type: "thinking",
@@ -208,7 +284,7 @@ describe("BedrockChatModel streaming decode", () => {
       };
 
       const model = createModel();
-      const processed = await (model as any).processStreamEvent(
+      const processed = await asInternal(model).processStreamEvent(
         event,
         undefined,
         undefined,
@@ -222,7 +298,7 @@ describe("BedrockChatModel streaming decode", () => {
 
       // Check that content is an array with text type
       expect(Array.isArray(chunk?.message.content)).toBe(true);
-      const content = chunk?.message.content as any[];
+      const content = chunk?.message.content as unknown[];
       expect(content).toHaveLength(1);
       expect(content[0]).toEqual({
         type: "text",
@@ -254,7 +330,7 @@ describe("BedrockChatModel streaming decode", () => {
         chunk: { bytes: thinkingBase64 },
       };
 
-      const thinkingResult = await (model as any).processStreamEvent(
+      const thinkingResult = await asInternal(model).processStreamEvent(
         thinkingEvent,
         undefined,
         undefined,
@@ -263,7 +339,7 @@ describe("BedrockChatModel streaming decode", () => {
 
       expect(thinkingResult.deltaChunks).toHaveLength(1);
       const thinkingChunk = thinkingResult.deltaChunks[0];
-      expect((thinkingChunk?.message.content as any[])[0]?.type).toBe("thinking");
+      expect((thinkingChunk?.message.content as Array<{ type: string }>)[0]?.type).toBe("thinking");
 
       // Second chunk: text
       const textPayload = JSON.stringify({
@@ -283,7 +359,7 @@ describe("BedrockChatModel streaming decode", () => {
         chunk: { bytes: textBase64 },
       };
 
-      const textResult = await (model as any).processStreamEvent(
+      const textResult = await asInternal(model).processStreamEvent(
         textEvent,
         undefined,
         undefined,
@@ -292,7 +368,7 @@ describe("BedrockChatModel streaming decode", () => {
 
       expect(textResult.deltaChunks).toHaveLength(1);
       const textChunk = textResult.deltaChunks[0];
-      expect((textChunk?.message.content as any[])[0]?.type).toBe("text");
+      expect((textChunk?.message.content as Array<{ type: string }>)[0]?.type).toBe("text");
     });
 
     it("extractStreamText can fallback to extract thinking content", () => {
@@ -307,7 +383,7 @@ describe("BedrockChatModel streaming decode", () => {
       };
 
       const model = createModel();
-      const extracted = (model as any).extractStreamText(event);
+      const extracted = asInternal(model).extractStreamText(event);
 
       expect(extracted).toBe("Fallback thinking extraction");
     });
@@ -324,10 +400,10 @@ describe("BedrockChatModel streaming decode", () => {
       };
 
       const model = createModel();
-      const contentItems = (model as any).buildContentItemsFromDelta(event);
+      const contentItems = asInternal(model).buildContentItemsFromDelta(event);
 
       expect(contentItems).toHaveLength(1);
-      expect(contentItems[0]).toEqual({
+      expect(contentItems![0]).toEqual({
         type: "thinking",
         thinking: "",
       });
@@ -337,8 +413,8 @@ describe("BedrockChatModel streaming decode", () => {
   describe("thinking mode enablement", () => {
     it("includes thinking parameter when enableThinking is true", () => {
       const model = createModel(true);
-      const requestBody = (model as any).buildRequestBody([
-        { role: "user", content: "test", _getType: () => "human" },
+      const requestBody = asInternal(model).buildRequestBody([
+        { role: "user", content: "test", getType: () => "human" },
       ]);
 
       expect(requestBody.thinking).toEqual({
@@ -351,8 +427,8 @@ describe("BedrockChatModel streaming decode", () => {
 
     it("does not include thinking parameter when enableThinking is false", () => {
       const model = createModel(false);
-      const requestBody = (model as any).buildRequestBody(
-        [{ role: "user", content: "test", _getType: () => "human" }],
+      const requestBody = asInternal(model).buildRequestBody(
+        [{ role: "user", content: "test", getType: () => "human" }],
         { temperature: 0.7 }
       );
 
@@ -364,8 +440,8 @@ describe("BedrockChatModel streaming decode", () => {
 
     it("respects user temperature when thinking is disabled", () => {
       const model = createModel(false);
-      const requestBody = (model as any).buildRequestBody(
-        [{ role: "user", content: "test", _getType: () => "human" }],
+      const requestBody = asInternal(model).buildRequestBody(
+        [{ role: "user", content: "test", getType: () => "human" }],
         { temperature: 0.5 }
       );
 
@@ -375,13 +451,75 @@ describe("BedrockChatModel streaming decode", () => {
 
     it("forces temperature to 1 when thinking is enabled", () => {
       const model = createModel(true);
-      const requestBody = (model as any).buildRequestBody(
-        [{ role: "user", content: "test", _getType: () => "human" }],
+      const requestBody = asInternal(model).buildRequestBody(
+        [{ role: "user", content: "test", getType: () => "human" }],
         { temperature: 0.5 } // User tries to set 0.5, should be overridden to 1
       );
 
       expect(requestBody.temperature).toBe(1);
       expect(requestBody.thinking).toBeDefined();
+    });
+
+    it("uses adaptive thinking with summarized display for claude-opus-4-7", () => {
+      const model = createModel(true, "anthropic.claude-opus-4-7-20260115-v1:0");
+      const requestBody = asInternal(model).buildRequestBody([
+        { role: "user", content: "test", getType: () => "human" },
+      ]);
+
+      expect(requestBody.thinking).toEqual({ type: "adaptive", display: "summarized" });
+      expect(requestBody.temperature).toBe(1);
+    });
+
+    it("uses adaptive thinking for opus-4-7 cross-region inference profiles", () => {
+      const model = createModel(true, "global.anthropic.claude-opus-4-7-20260115-v1:0");
+      const requestBody = asInternal(model).buildRequestBody([
+        { role: "user", content: "test", getType: () => "human" },
+      ]);
+
+      expect(requestBody.thinking).toEqual({ type: "adaptive", display: "summarized" });
+    });
+
+    it("keeps legacy thinking for opus-4-6 and earlier", () => {
+      const model = createModel(true, "anthropic.claude-opus-4-6-20250115-v1:0");
+      const requestBody = asInternal(model).buildRequestBody([
+        { role: "user", content: "test", getType: () => "human" },
+      ]);
+
+      expect(requestBody.thinking).toEqual({ type: "enabled", budget_tokens: 2048 });
+    });
+
+    it("keeps legacy thinking for sonnet-4 and 3-7-sonnet", () => {
+      const sonnet45 = createModel(true, "anthropic.claude-sonnet-4-5-20250929-v1:0");
+      expect(
+        asInternal(sonnet45).buildRequestBody([
+          { role: "user", content: "test", getType: () => "human" },
+        ]).thinking
+      ).toEqual({ type: "enabled", budget_tokens: 2048 });
+
+      const sonnet37 = createModel(true, "anthropic.claude-3-7-sonnet-20250219-v1:0");
+      expect(
+        asInternal(sonnet37).buildRequestBody([
+          { role: "user", content: "test", getType: () => "human" },
+        ]).thinking
+      ).toEqual({ type: "enabled", budget_tokens: 2048 });
+    });
+
+    it("keeps legacy thinking for dated Opus 4.0 snapshot IDs", () => {
+      // anthropic.claude-opus-4-20250514-v1:0 is the dated snapshot of Opus 4.0, not 4.20250514.
+      const opus40 = createModel(true, "anthropic.claude-opus-4-20250514-v1:0");
+      expect(
+        asInternal(opus40).buildRequestBody([
+          { role: "user", content: "test", getType: () => "human" },
+        ]).thinking
+      ).toEqual({ type: "enabled", budget_tokens: 2048 });
+
+      // anthropic.claude-opus-4-1-20250805-v1:0 is dated 4.1, not adaptive.
+      const opus41 = createModel(true, "anthropic.claude-opus-4-1-20250805-v1:0");
+      expect(
+        asInternal(opus41).buildRequestBody([
+          { role: "user", content: "test", getType: () => "human" },
+        ]).thinking
+      ).toEqual({ type: "enabled", budget_tokens: 2048 });
     });
   });
 
@@ -390,7 +528,7 @@ describe("BedrockChatModel streaming decode", () => {
       it("converts valid data URL to Claude image format", () => {
         const model = createModel();
         const dataUrl = "data:image/jpeg;base64,/9j/4AAQSkZJRg==";
-        const result = (model as any).convertImageContent(dataUrl);
+        const result = asInternal(model).convertImageContent(dataUrl);
 
         expect(result).toEqual({
           type: "image",
@@ -405,7 +543,7 @@ describe("BedrockChatModel streaming decode", () => {
       it("handles PNG images", () => {
         const model = createModel();
         const dataUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==";
-        const result = (model as any).convertImageContent(dataUrl);
+        const result = asInternal(model).convertImageContent(dataUrl);
 
         expect(result).toEqual({
           type: "image",
@@ -420,7 +558,7 @@ describe("BedrockChatModel streaming decode", () => {
       it("returns null for invalid data URL format", () => {
         const model = createModel();
         const invalidUrl = "not-a-data-url";
-        const result = (model as any).convertImageContent(invalidUrl);
+        const result = asInternal(model).convertImageContent(invalidUrl);
 
         expect(result).toBeNull();
       });
@@ -428,7 +566,7 @@ describe("BedrockChatModel streaming decode", () => {
       it("returns null for non-image media type", () => {
         const model = createModel();
         const dataUrl = "data:text/plain;base64,SGVsbG8gV29ybGQ=";
-        const result = (model as any).convertImageContent(dataUrl);
+        const result = asInternal(model).convertImageContent(dataUrl);
 
         expect(result).toBeNull();
       });
@@ -445,10 +583,10 @@ describe("BedrockChatModel streaming decode", () => {
               image_url: { url: "data:image/jpeg;base64,/9j/4AAQSkZJRg==" },
             },
           ],
-          _getType: () => "human",
+          getType: () => "human",
         };
 
-        const result = (model as any).normaliseMessageContent(message);
+        const result = asInternal(model).normaliseMessageContent(message);
 
         expect(Array.isArray(result)).toBe(true);
         expect(result).toHaveLength(2);
@@ -466,10 +604,10 @@ describe("BedrockChatModel streaming decode", () => {
             { type: "text", text: "Hello " },
             { type: "text", text: "world!" },
           ],
-          _getType: () => "human",
+          getType: () => "human",
         };
 
-        const result = (model as any).normaliseMessageContent(message);
+        const result = asInternal(model).normaliseMessageContent(message);
 
         expect(typeof result).toBe("string");
         expect(result).toBe("Hello world!");
@@ -479,10 +617,10 @@ describe("BedrockChatModel streaming decode", () => {
         const model = createModel();
         const message = {
           content: "Simple text message",
-          _getType: () => "human",
+          getType: () => "human",
         };
 
-        const result = (model as any).normaliseMessageContent(message);
+        const result = asInternal(model).normaliseMessageContent(message);
 
         expect(result).toBe("Simple text message");
       });
@@ -500,11 +638,11 @@ describe("BedrockChatModel streaming decode", () => {
                 image_url: { url: "data:image/jpeg;base64,/9j/4AAQSkZJRg==" },
               },
             ],
-            _getType: () => "human",
+            getType: () => "human",
           },
         ];
 
-        const requestBody = (model as any).buildRequestBody(messages);
+        const requestBody = asInternal(model).buildRequestBody(messages);
 
         expect(requestBody.messages).toHaveLength(1);
         expect(requestBody.messages[0].content).toHaveLength(2);
@@ -541,18 +679,18 @@ describe("BedrockChatModel streaming decode", () => {
                 image_url: { url: "data:image/png;base64,IMAGE2DATA" },
               },
             ],
-            _getType: () => "human",
+            getType: () => "human",
           },
         ];
 
-        const requestBody = (model as any).buildRequestBody(messages);
+        const requestBody = asInternal(model).buildRequestBody(messages);
 
         expect(requestBody.messages[0].content).toHaveLength(3);
         expect(requestBody.messages[0].content[0].type).toBe("text");
         expect(requestBody.messages[0].content[1].type).toBe("image");
-        expect(requestBody.messages[0].content[1].source.media_type).toBe("image/jpeg");
+        expect(requestBody.messages[0].content[1].source!.media_type).toBe("image/jpeg");
         expect(requestBody.messages[0].content[2].type).toBe("image");
-        expect(requestBody.messages[0].content[2].source.media_type).toBe("image/png");
+        expect(requestBody.messages[0].content[2].source!.media_type).toBe("image/png");
       });
 
       it("handles text-only messages correctly", () => {
@@ -560,11 +698,11 @@ describe("BedrockChatModel streaming decode", () => {
         const messages = [
           {
             content: "Just text, no images",
-            _getType: () => "human",
+            getType: () => "human",
           },
         ];
 
-        const requestBody = (model as any).buildRequestBody(messages);
+        const requestBody = asInternal(model).buildRequestBody(messages);
 
         expect(requestBody.messages).toHaveLength(1);
         expect(requestBody.messages[0].content).toHaveLength(1);
@@ -589,11 +727,11 @@ describe("BedrockChatModel streaming decode", () => {
                 image_url: { url: "data:image/jpeg;base64,VALIDDATA" }, // Valid
               },
             ],
-            _getType: () => "human",
+            getType: () => "human",
           },
         ];
 
-        const requestBody = (model as any).buildRequestBody(messages);
+        const requestBody = asInternal(model).buildRequestBody(messages);
 
         // Should have text + 1 valid image (invalid one skipped)
         expect(requestBody.messages[0].content).toHaveLength(2);
@@ -601,5 +739,96 @@ describe("BedrockChatModel streaming decode", () => {
         expect(requestBody.messages[0].content[1].type).toBe("image");
       });
     });
+  });
+});
+
+describe("BedrockChatModel inference-profile error rewriting", () => {
+  const awsInferenceProfileError = JSON.stringify({
+    message:
+      "Invocation of model ID anthropic.claude-sonnet-4-5 with on-demand throughput isn't supported. Retry your request with the ID or ARN of an inference profile that contains this model.",
+  });
+
+  const makeErrorResponse = (status: number, body: string): Response =>
+    ({
+      ok: false,
+      status,
+      text: () => Promise.resolve(body),
+    }) as unknown as Response;
+
+  it("rewrites 400 inference-profile error in non-streaming path to actionable message", async () => {
+    const fetchMock = jest.fn().mockResolvedValue(makeErrorResponse(400, awsInferenceProfileError));
+    const model = createModelWithFetch(fetchMock, { noStream: true });
+
+    const messages = [{ content: "hi", getType: () => "human", type: "human" }];
+    await expect(model._generate(messages as never, {})).rejects.toThrow(
+      /cross-region inference profile ID/
+    );
+  });
+
+  it("rewrites 400 inference-profile error in streaming path to actionable message", async () => {
+    const fetchMock = jest.fn().mockResolvedValue(makeErrorResponse(400, awsInferenceProfileError));
+    const model = createModelWithFetch(fetchMock);
+
+    const messages = [{ content: "hi", getType: () => "human", type: "human" }];
+    const gen = model._streamResponseChunks(messages as never, {});
+    await expect(gen.next()).rejects.toThrow(/cross-region inference profile ID/);
+  });
+
+  it("includes the bare model ID in the rewritten message", async () => {
+    const fetchMock = jest.fn().mockResolvedValue(makeErrorResponse(400, awsInferenceProfileError));
+    const model = createModelWithFetch(fetchMock, { noStream: true });
+
+    const messages = [{ content: "hi", getType: () => "human", type: "human" }];
+    await expect(model._generate(messages as never, {})).rejects.toThrow(
+      /anthropic\.claude-sonnet-4-5/
+    );
+  });
+
+  it("does not rewrite a 400 error that is unrelated to inference profiles", async () => {
+    const genericBody = JSON.stringify({ message: "ValidationException: bad request" });
+    const fetchMock = jest.fn().mockResolvedValue(makeErrorResponse(400, genericBody));
+    const model = createModelWithFetch(fetchMock, { noStream: true });
+
+    const messages = [{ content: "hi", getType: () => "human", type: "human" }];
+    await expect(model._generate(messages as never, {})).rejects.toThrow(
+      /Amazon Bedrock request failed with status 400/
+    );
+  });
+
+  it("does not rewrite non-400 errors", async () => {
+    const body = JSON.stringify({ message: "Internal Server Error" });
+    const fetchMock = jest.fn().mockResolvedValue(makeErrorResponse(500, body));
+    const model = createModelWithFetch(fetchMock, { noStream: true });
+
+    const messages = [{ content: "hi", getType: () => "human", type: "human" }];
+    await expect(model._generate(messages as never, {})).rejects.toThrow(
+      /Amazon Bedrock request failed with status 500/
+    );
+  });
+
+  it("rewrites the error even when AWS uses a curly apostrophe in 'isn’t supported'", async () => {
+    const curlyApostropheBody = JSON.stringify({
+      message:
+        "Invocation of model ID anthropic.claude-sonnet-4-5 with on-demand throughput isn’t supported. Retry your request with the ID or ARN of an inference profile that contains this model.",
+    });
+    const fetchMock = jest.fn().mockResolvedValue(makeErrorResponse(400, curlyApostropheBody));
+    const model = createModelWithFetch(fetchMock, { noStream: true });
+
+    const messages = [{ content: "hi", getType: () => "human", type: "human" }];
+    await expect(model._generate(messages as never, {})).rejects.toThrow(
+      /cross-region inference profile ID/
+    );
+  });
+
+  it("uses the provider segment from the bare model ID in the prefix guidance", async () => {
+    const nonAnthropicBody = JSON.stringify({
+      message:
+        "Invocation of model ID meta.llama4-maverick-17b with on-demand throughput isn't supported. Retry your request with the ID or ARN of an inference profile that contains this model.",
+    });
+    const fetchMock = jest.fn().mockResolvedValue(makeErrorResponse(400, nonAnthropicBody));
+    const model = createModelWithFetch(fetchMock, { noStream: true });
+
+    const messages = [{ content: "hi", getType: () => "human", type: "human" }];
+    await expect(model._generate(messages as never, {})).rejects.toThrow(/global\.meta\.<id>/);
   });
 });

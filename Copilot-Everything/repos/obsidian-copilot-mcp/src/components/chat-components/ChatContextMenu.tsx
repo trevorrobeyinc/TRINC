@@ -1,5 +1,5 @@
 import { AlertCircle, CheckCircle, CircleDashed, FileText, Loader2, X } from "lucide-react";
-import { Platform, TFile } from "obsidian";
+import { Platform, TFile, TFolder } from "obsidian";
 import React, { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,7 @@ import {
   FaviconOrGlobe,
 } from "@/components/chat-components/ContextBadges";
 import { SelectedTextContext, WebTabContext, isWebSelectedTextContext } from "@/types/message";
-import { ChainType } from "@/chainFactory";
+import { ChainType } from "@/chainType";
 import { Separator } from "@/components/ui/separator";
 import { useChainType, useIndexingProgress } from "@/aiParams";
 import { useProjectContextStatus } from "@/hooks/useProjectContextStatus";
@@ -21,6 +21,8 @@ import { getDomainFromUrl, isPlusChain, openFileInWorkspace } from "@/utils";
 import { mergeWebTabContexts } from "@/utils/urlNormalization";
 import { AtMentionTypeahead } from "./AtMentionTypeahead";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
+const EMPTY_SELECTED_TEXT_CONTEXTS: SelectedTextContext[] = [];
 
 interface ChatContextMenuProps {
   includeActiveNote: boolean;
@@ -32,11 +34,11 @@ interface ChatContextMenuProps {
   contextFolders: string[];
   contextWebTabs: WebTabContext[];
   selectedTextContexts?: SelectedTextContext[];
-  onRemoveContext: (category: string, data: any) => void;
+  onRemoveContext: (category: string, data: string) => void;
   showProgressCard: () => void;
   showIndexingCard?: () => void;
-  onTypeaheadSelect: (category: string, data: any) => void;
-  lexicalEditorRef?: React.RefObject<any>;
+  onTypeaheadSelect: (category: string, data: TFile | string | TFolder | WebTabContext) => void;
+  lexicalEditorRef?: React.RefObject<{ focus: () => void }>;
 }
 
 function ContextSelection({
@@ -44,7 +46,7 @@ function ContextSelection({
   onRemoveContext,
 }: {
   selectedText: SelectedTextContext;
-  onRemoveContext: (category: string, data: any) => void;
+  onRemoveContext: (category: string, data: string) => void;
 }) {
   // Handle web selected text
   if (isWebSelectedTextContext(selectedText)) {
@@ -104,7 +106,7 @@ export const ChatContextMenu: React.FC<ChatContextMenuProps> = ({
   contextUrls,
   contextFolders,
   contextWebTabs,
-  selectedTextContexts = [],
+  selectedTextContexts = EMPTY_SELECTED_TEXT_CONTEXTS,
   onRemoveContext,
   showProgressCard,
   showIndexingCard,
@@ -123,12 +125,15 @@ export const ChatContextMenu: React.FC<ChatContextMenuProps> = ({
   };
 
   // Simple wrapper that adds focus management to the ContextControl handler
-  const handleTypeaheadSelect = (category: string, data: any) => {
+  const handleTypeaheadSelect = (
+    category: string,
+    data: TFile | string | TFolder | WebTabContext
+  ) => {
     // Delegate to ContextControl handler
     onTypeaheadSelect(category, data);
 
     // Return focus to the editor after selection
-    setTimeout(() => {
+    window.setTimeout(() => {
       if (lexicalEditorRef?.current) {
         lexicalEditorRef.current.focus();
       }
@@ -139,7 +144,7 @@ export const ChatContextMenu: React.FC<ChatContextMenuProps> = ({
    * Handles clicking on a badge to open the file in a new tab (or focus existing tab)
    */
   const handleBadgeClick = (file: TFile) => {
-    openFileInWorkspace(file);
+    void openFileInWorkspace(file);
   };
 
   const uniqueNotes = React.useMemo(() => {

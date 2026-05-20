@@ -4,7 +4,6 @@ import {
   getSelectedTextContexts,
   ProjectConfig,
   removeSelectedTextContext,
-  setCurrentProject,
   useChainType,
   updateIndexingProgressState,
   useIndexingProgress,
@@ -12,7 +11,7 @@ import {
   useSelectedTextContexts,
 } from "@/aiParams";
 import { resetSessionSystemPromptSettings } from "@/system-prompts";
-import { ChainType } from "@/chainFactory";
+import { ChainType } from "@/chainType";
 import { useProjectContextStatus } from "@/hooks/useProjectContextStatus";
 import { logInfo, logError } from "@/logger";
 import type { WebTabContext } from "@/types/message";
@@ -42,12 +41,15 @@ import { clearRecordedPromptPayload } from "@/LLMProviders/chainRunner/utils/pro
 import { logFileManager } from "@/logFileManager";
 import CopilotPlugin from "@/main";
 import { useIsPlusUser } from "@/plusUtils";
-import { updateSetting, useSettingsValue } from "@/settings/model";
+import { ProjectFileManager } from "@/projects/ProjectFileManager";
+import { useProjects } from "@/projects/state";
+import { useSettingsValue } from "@/settings/model";
 import { ChatUIState } from "@/state/ChatUIState";
 import { FileParserManager } from "@/tools/FileParserManager";
 import { ChatMessage } from "@/types/message";
 import { err2String, isPlusChain } from "@/utils";
 import { arrayBufferToBase64 } from "@/utils/base64";
+import { appendUniqueFiles } from "@/utils/fileListUtils";
 import { Notice, TFile } from "obsidian";
 import { ContextManageModal } from "@/components/modals/project/context-manage-modal";
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -78,6 +80,7 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
   chatInput,
 }) => {
   const settings = useSettingsValue();
+  const projects = useProjects();
   const eventTarget = useContext(EventTargetContext);
 
   const { messages: chatHistory, addMessage: rawAddMessage } = useChatManager(chatUIState);
@@ -85,7 +88,6 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
   const [currentChain] = useChainType();
   const [currentAiMessage, setCurrentAiMessage] = useState("");
   const [inputMessage, setInputMessage] = useState("");
-  const [latestTokenCount, setLatestTokenCount] = useState<number | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   // Stable ID for streaming message, shared with final persisted message
   // This allows collapsible UI state (think blocks) to persist across streaming -> history
@@ -101,12 +103,6 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
       const messageToAdd = shouldAttachId ? { ...message, id: streamingId } : message;
 
       rawAddMessage(messageToAdd);
-      if (
-        messageToAdd.sender === AI_SENDER &&
-        messageToAdd.responseMetadata?.tokenUsage?.totalTokens
-      ) {
-        setLatestTokenCount(messageToAdd.responseMetadata.tokenUsage.totalTokens);
-      }
     },
     [rawAddMessage]
   );
@@ -119,8 +115,12 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState(LOADING_MESSAGES.DEFAULT);
   const [contextNotes, setContextNotes] = useState<TFile[]>([]);
-  const [includeActiveNote, setIncludeActiveNote] = useState(false);
-  const [includeActiveWebTab, setIncludeActiveWebTab] = useState(false);
+  const [includeActiveNote, setIncludeActiveNote] = useState(
+    settings.autoAddActiveContentToContext === true && currentChain !== ChainType.PROJECT_CHAIN
+  );
+  const [includeActiveWebTab, setIncludeActiveWebTab] = useState(
+    settings.autoAddActiveContentToContext === true && currentChain !== ChainType.PROJECT_CHAIN
+  );
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [showChatUI, setShowChatUI] = useState(false);
   const [chatHistoryItems, setChatHistoryItems] = useState<ChatHistoryItem[]>([]);
@@ -179,10 +179,11 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
     return projectContextStatus === "loading" || projectContextStatus === "error";
   };
 
-  // Reset user preference when status changes to allow default behavior
-  useEffect(() => {
+  const [prevProjectContextStatus, setPrevProjectContextStatus] = useState(projectContextStatus);
+  if (prevProjectContextStatus !== projectContextStatus) {
+    setPrevProjectContextStatus(projectContextStatus);
     setProgressCardVisible(null);
-  }, [projectContextStatus]);
+  }
 
   /**
    * Whether to show the indexing progress card.
@@ -195,12 +196,22 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
     return indexingState.isActive || indexingState.completionStatus !== "none";
   };
 
-  // Allow the card to show whenever new indexing activity or completion is detected
-  useEffect(() => {
+  const [prevIndexingActivity, setPrevIndexingActivity] = useState({
+    isActive: indexingState.isActive,
+    completionStatus: indexingState.completionStatus,
+  });
+  if (
+    prevIndexingActivity.isActive !== indexingState.isActive ||
+    prevIndexingActivity.completionStatus !== indexingState.completionStatus
+  ) {
+    setPrevIndexingActivity({
+      isActive: indexingState.isActive,
+      completionStatus: indexingState.completionStatus,
+    });
     if (indexingState.isActive || indexingState.completionStatus !== "none") {
       setIndexingCardVisible(null);
     }
-  }, [indexingState.isActive, indexingState.completionStatus]);
+  }
 
   const handleIndexingCardClose = useCallback(() => {
     setIndexingCardVisible(false);
@@ -225,11 +236,12 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
     await VectorStoreManager.getInstance().cancelIndexing();
   }, []);
 
-  // Clear token count when chat is cleared or replaced (e.g., loading chat history)
-  useEffect(() => {
-    if (chatHistory.length === 0) {
-      setLatestTokenCount(null);
+  const latestTokenCount = useMemo(() => {
+    for (let i = chatHistory.length - 1; i >= 0; i--) {
+      const m = chatHistory[i];
+      if (m.sender === AI_SENDER) return m.responseMetadata?.tokenUsage?.totalTokens ?? null;
     }
+    return null;
   }, [chatHistory]);
 
   const [previousMode, setPreviousMode] = useState<ChainType | null>(null);
@@ -239,13 +251,20 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
   const appContext = useContext(AppContext);
   const app = plugin.app || appContext;
 
+  /**
+   * Add selected image files while preserving the original selection order.
+   */
+  const handleAddImage = useCallback((files: File[]) => {
+    setSelectedImages((prev) => appendUniqueFiles(prev, files));
+  }, []);
+
   // Drag-and-drop hook for file handling
   const { isDragActive } = useChatFileDrop({
     app,
     contextNotes,
     setContextNotes,
     selectedImages,
-    onAddImage: (files) => setSelectedImages((prev) => [...prev, ...files]),
+    onAddImage: handleAddImage,
     containerRef: chatContainerRef,
   });
 
@@ -276,7 +295,10 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
 
     try {
       // Create message content array
-      const content: any[] = [];
+      type MessageContentItem =
+        | { type: "text"; text: string }
+        | { type: "image_url"; image_url: { url: string } };
+      const content: MessageContentItem[] = [];
 
       // Add text content if present
       if (inputMessage) {
@@ -347,7 +369,7 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
 
       // Autosave if enabled
       if (settings.autosaveChat) {
-        handleSaveAsNote();
+        await handleSaveAsNote();
       }
 
       // Get the LLM message for AI processing
@@ -365,7 +387,7 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
 
       // Autosave again after AI response
       if (settings.autosaveChat) {
-        handleSaveAsNote();
+        await handleSaveAsNote();
       }
     } catch (error) {
       logError("Error sending message:", error);
@@ -445,12 +467,12 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
         if (!success) {
           new Notice("Failed to regenerate message. Please try again.");
         } else if (settings.debug) {
-          console.log("Message regenerated successfully");
+          logInfo("Message regenerated successfully");
         }
 
         // Autosave the chat if the setting is enabled
         if (settings.autosaveChat) {
-          handleSaveAsNote();
+          await handleSaveAsNote();
         }
       } catch (error) {
         logError("Error regenerating message:", error);
@@ -527,7 +549,7 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
 
         // Autosave the chat if the setting is enabled
         if (settings.autosaveChat) {
-          handleSaveAsNote();
+          await handleSaveAsNote();
         }
       } catch (error) {
         logError("Error editing message:", error);
@@ -557,71 +579,33 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
   }, [onSaveChat, handleSaveAsNote]);
 
   const handleAddProject = useCallback(
-    (project: ProjectConfig) => {
-      const currentProjects = settings.projectList || [];
-      const existingIndex = currentProjects.findIndex((p) => p.name === project.name);
+    async (project: ProjectConfig) => {
+      const manager = ProjectFileManager.getInstance(plugin.app);
+      await manager.createProject(project);
+      new Notice(`${project.name} added successfully`);
 
-      if (existingIndex >= 0) {
-        throw new Error(`Project "${project.name}" already exists, please use a different name`);
-      }
-
-      const newProjectList = [...currentProjects, project];
-      updateSetting("projectList", newProjectList);
-
-      // Check if this project is now the current project
+      // Reason: reload is best-effort — the project is already saved, so a reload failure
+      // must not surface as a "save failed" error to the modal (which would cause retries
+      // and duplicate-id errors). reloadCurrentProject() handles its own error notices.
       const currentProject = getCurrentProject();
       if (currentProject?.id === project.id) {
-        // Reload the project context for the newly added project
-        reloadCurrentProject()
-          .then(() => {
-            new Notice(`${project.name} added and context loaded`);
-          })
-          .catch((error: Error) => {
-            logError("Error loading project context:", error);
-            new Notice(`${project.name} added but context loading failed`);
-          });
-      } else {
-        new Notice(`${project.name} added successfully`);
+        void reloadCurrentProject(plugin.app);
       }
-
-      return true;
     },
-    [settings.projectList]
+    [plugin.app]
   );
 
   const handleEditProject = useCallback(
-    (originP: ProjectConfig, updateP: ProjectConfig) => {
-      const currentProjects = settings.projectList || [];
-      const existingProject = currentProjects.find((p) => p.name === originP.name);
-
-      if (!existingProject) {
-        throw new Error(`Project "${originP.name}" does not exist`);
-      }
-
-      const newProjectList = currentProjects.map((p) => (p.name === originP.name ? updateP : p));
-      updateSetting("projectList", newProjectList);
-
-      // If this is the current project, update the current project atom
-      const currentProject = getCurrentProject();
-      if (currentProject?.id === originP.id) {
-        setCurrentProject(updateP);
-
-        // Reload the project context
-        reloadCurrentProject()
-          .then(() => {
-            new Notice(`${originP.name} updated and context reloaded`);
-          })
-          .catch((error: Error) => {
-            logError("Error reloading project context:", error);
-            new Notice(`${originP.name} updated but context reload failed`);
-          });
-      } else {
-        new Notice(`${originP.name} updated successfully`);
-      }
-
-      return true;
+    async (originP: ProjectConfig, updateP: ProjectConfig) => {
+      const manager = ProjectFileManager.getInstance(plugin.app);
+      await manager.updateProject(originP.id, updateP);
+      new Notice(`${originP.name} updated successfully`);
+      // Reason: no explicit reload needed here — ProjectManager's project-record subscriber
+      // already reacts to the cache update from updateProject() and triggers
+      // setCurrentProject + loadProjectContext + createChainWithNewModel.
+      // Doing it here too would duplicate expensive work (URL fetches, chain recreation).
     },
-    [settings.projectList]
+    [plugin.app]
   );
 
   const handleRemoveSelectedText = useCallback(
@@ -712,7 +696,6 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
     // Additional UI state reset specific to this component
     safeSet.setCurrentAiMessage("");
     setContextNotes([]);
-    setLatestTokenCount(null); // Clear token count on new chat
     // Capture web selection URL before clearing for suppression
     const webSelectionUrl = selectedTextContexts.find((ctx) => ctx.sourceType === "web")?.url;
     clearSelectedTextContexts();
@@ -808,7 +791,7 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
 
   // Event listener for abort stream events
   useEffect(() => {
-    const handleAbortStream = (event: CustomEvent) => {
+    const handleAbortStream = (event: CustomEvent<{ reason?: ABORT_REASON }>) => {
       const reason = event.detail?.reason || ABORT_REASON.NEW_CHAT;
       handleStopGenerating(reason);
     };
@@ -821,10 +804,19 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
     };
   }, [eventTarget, handleStopGenerating]);
 
-  // Use the autoAddActiveContentToContext setting
-  useEffect(() => {
+  const [prevAutoAddTuple, setPrevAutoAddTuple] = useState({
+    autoAdd: settings.autoAddActiveContentToContext,
+    chain: selectedChain,
+  });
+  if (
+    prevAutoAddTuple.autoAdd !== settings.autoAddActiveContentToContext ||
+    prevAutoAddTuple.chain !== selectedChain
+  ) {
+    setPrevAutoAddTuple({
+      autoAdd: settings.autoAddActiveContentToContext,
+      chain: selectedChain,
+    });
     if (settings.autoAddActiveContentToContext !== undefined) {
-      // Only apply the setting if not in Project mode
       if (selectedChain === ChainType.PROJECT_CHAIN) {
         setIncludeActiveNote(false);
         setIncludeActiveWebTab(false);
@@ -833,7 +825,7 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
         setIncludeActiveWebTab(settings.autoAddActiveContentToContext);
       }
     }
-  }, [settings.autoAddActiveContentToContext, selectedChain]);
+  }
 
   // Note: pendingMessages loading has been removed as ChatManager now handles
   // message persistence and loading automatically based on project context
@@ -869,7 +861,7 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
                   new ContextManageModal(
                     app,
                     (updatedProject) => {
-                      handleEditProject(currentProject, updatedProject);
+                      void handleEditProject(currentProject, updatedProject);
                     },
                     currentProject
                   ).open();
@@ -881,17 +873,17 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
           <div className="tw-inset-0 tw-z-modal tw-flex tw-items-center tw-justify-center tw-rounded-xl">
             <IndexingProgressCard
               onClose={handleIndexingCardClose}
-              onPause={handleIndexingPause}
-              onResume={handleIndexingResume}
-              onStop={handleIndexingStop}
+              onPause={() => void handleIndexingPause()}
+              onResume={() => void handleIndexingResume()}
+              onStop={() => void handleIndexingStop()}
             />
           </div>
         ) : (
           <>
             <ChatControls
-              onNewChat={handleNewChat}
+              onNewChat={() => void handleNewChat()}
               onSaveAsNote={() => handleSaveAsNote()}
-              onLoadHistory={handleLoadChatHistory}
+              onLoadHistory={() => void handleLoadChatHistory()}
               onModeChange={(newMode) => {
                 setPreviousMode(selectedChain);
                 // Hide chat UI when switching to project mode
@@ -921,7 +913,7 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
               setIncludeActiveWebTab={setIncludeActiveWebTab}
               activeWebTab={currentActiveWebTab}
               selectedImages={selectedImages}
-              onAddImage={(files: File[]) => setSelectedImages((prev) => [...prev, ...files])}
+              onAddImage={handleAddImage}
               setSelectedImages={setSelectedImages}
               disableModelSwitch={selectedChain === ChainType.PROJECT_CHAIN}
               selectedTextContexts={selectedTextContexts}
@@ -955,7 +947,7 @@ const ChatInternal: React.FC<ChatProps & { chatInput: ReturnType<typeof useChatI
           {selectedChain === ChainType.PROJECT_CHAIN && (
             <div className={`${selectedChain === ChainType.PROJECT_CHAIN ? "tw-z-modal" : ""}`}>
               <ProjectList
-                projects={settings.projectList || []}
+                projects={projects}
                 defaultOpen={true}
                 app={app}
                 plugin={plugin}

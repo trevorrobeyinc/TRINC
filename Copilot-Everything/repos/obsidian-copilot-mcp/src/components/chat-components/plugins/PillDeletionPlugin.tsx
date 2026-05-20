@@ -7,6 +7,7 @@ import {
   COMMAND_PRIORITY_CRITICAL,
   $isElementNode,
   DecoratorNode,
+  LexicalNode,
 } from "lexical";
 
 /**
@@ -19,14 +20,15 @@ export interface IPillNode {
 /**
  * Check if a node is a pill-like node (any DecoratorNode that implements IPillNode)
  */
-function $isPillNode(node: any): node is DecoratorNode<any> & IPillNode {
+function $isPillNode(node: LexicalNode): node is DecoratorNode<React.ReactNode> & IPillNode {
   // Check if it's a DecoratorNode (all pills extend DecoratorNode)
   if (!(node instanceof DecoratorNode)) {
     return false;
   }
 
   // Check if it implements the IPillNode interface
-  return typeof (node as any).isPill === "function" && (node as any).isPill() === true;
+  const maybePill = node as { isPill?: () => boolean };
+  return typeof maybePill.isPill === "function" && maybePill.isPill() === true;
 }
 
 /**
@@ -81,7 +83,7 @@ export function PillDeletionPlugin(): null {
           // Currently disabled since typeahead adds spaces after pills
           if (isBackward && anchor.offset === 0) {
             const previousSibling = anchorNode.getPreviousSibling();
-            if ($isPillNode(previousSibling)) {
+            if (previousSibling && $isPillNode(previousSibling)) {
               previousSibling.remove();
               handled = true;
               return;

@@ -5,9 +5,9 @@ import { getSettings } from "@/settings/model";
 import { logInfo, logError } from "@/logger";
 import { App, Notice, PluginSettingTab } from "obsidian";
 import React from "react";
-import { createRoot } from "react-dom/client";
 import SettingsMainV2 from "@/settings/v2/SettingsMainV2";
 import { ContainerContext } from "@/settings/v2/components/ContainerContext";
+import { createPluginRoot } from "@/utils/react/createPluginRoot";
 
 export class CopilotSettingTab extends PluginSettingTab {
   plugin: CopilotPlugin;
@@ -42,12 +42,18 @@ export class CopilotSettingTab extends PluginSettingTab {
       }
 
       // Reload the plugin
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const app = this.plugin.app as any;
-      await app.plugins.disablePlugin(this.plugin.manifest.id);
-      await app.plugins.enablePlugin(this.plugin.manifest.id);
 
-      app.setting.openTabById(this.plugin.manifest.id).display();
+      const app = this.plugin.app as unknown as {
+        plugins: {
+          disablePlugin: (id: string) => Promise<void>;
+          enablePlugin: (id: string) => Promise<void>;
+        };
+        setting: { openTabById: (id: string) => { display: () => void } };
+      };
+      await app.plugins.disablePlugin("copilot");
+      await app.plugins.enablePlugin("copilot");
+
+      app.setting.openTabById("copilot").display();
       new Notice("Plugin reloaded successfully.");
     } catch (error) {
       new Notice("Failed to reload the plugin. Please reload manually.");
@@ -58,9 +64,9 @@ export class CopilotSettingTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.style.userSelect = "text";
+    containerEl.addClass("tw-select-text");
     const div = containerEl.createDiv("div");
-    const sections = createRoot(div);
+    const sections = createPluginRoot(div, this.app);
 
     sections.render(
       <ContainerContext.Provider value={containerEl}>

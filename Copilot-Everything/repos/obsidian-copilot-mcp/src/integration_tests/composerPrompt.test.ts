@@ -1,5 +1,4 @@
 import { DEFAULT_SYSTEM_PROMPT, COMPOSER_OUTPUT_INSTRUCTIONS } from "../constants";
-import * as dotenv from "dotenv";
 import { jest } from "@jest/globals";
 import {
   GoogleGenerativeAI,
@@ -8,17 +7,13 @@ import {
   GenerativeModel,
 } from "@google/generative-ai";
 
-// Add global fetch polyfill for Node.js environments
-import fetch, { Headers, Request, Response } from "node-fetch";
-if (!globalThis.fetch) {
-  globalThis.fetch = fetch as any;
-  globalThis.Headers = Headers as any;
-  globalThis.Request = Request as any;
-  globalThis.Response = Response as any;
+// Load environment variables from .env.test using Node's native env-file loader.
+// `loadEnvFile` is available on Node >= 20.12 / 21.7 but @types/node here predates the typing.
+try {
+  (process as unknown as { loadEnvFile: (path: string) => void }).loadEnvFile(".env.test");
+} catch {
+  // .env.test is optional — skip silently when absent
 }
-
-// Load environment variables from .env.test
-dotenv.config({ path: ".env.test" });
 
 // Test data
 const atom_note = `Atoms are the basic particles of the chemical elements. An atom consists of a nucleus of protons and generally neutrons, surrounded by an electromagnetically bound swarm of electrons. The chemical elements are distinguished from each other by the number of protons that are in their atoms. For example, any atom that contains 11 protons is sodium, and any atom that contains 29 protons is copper. Atoms with the same number of protons but a different number of neutrons are called isotopes of the same element.
@@ -39,9 +34,6 @@ describe.skip("Composer Instructions - Integration Tests", () => {
   let model: GenerativeModel;
 
   beforeAll(() => {
-    // Log for debugging
-    console.log("Starting tests, API key available:", !!process.env.GEMINI_API_KEY);
-
     // Fail tests if no API key is available
     if (!process.env.GEMINI_API_KEY) {
       throw new Error(
@@ -80,7 +72,7 @@ describe.skip("Composer Instructions - Integration Tests", () => {
   });
 
   // Helper function to run a test with a given prompt and check for writeFile blocks
-  const testComposerResponse = async (
+  const testComposerResponse = (
     testName: string,
     userPrompt: string,
     expectedBlocks: number = 1
@@ -93,8 +85,6 @@ describe.skip("Composer Instructions - Integration Tests", () => {
           userPrompt + "\n\n<output_format>\n" + COMPOSER_OUTPUT_INSTRUCTIONS + "\n</output_format>"
         );
         const content = result.response.text();
-        // Log preview for inspection
-        console.log(`${testName} - Response preview:`, content);
 
         if (expectedBlocks == 0) {
           expect(content).not.toContain("<writeFile>");
@@ -118,7 +108,10 @@ describe.skip("Composer Instructions - Integration Tests", () => {
             // For canvas files, validate JSON structure
             if (path.endsWith(".canvas")) {
               try {
-                const canvasJson = JSON.parse(contentStr);
+                const canvasJson = JSON.parse(contentStr) as {
+                  nodes: unknown[];
+                  edges?: unknown[];
+                };
                 expect(canvasJson).toHaveProperty("nodes");
                 expect(Array.isArray(canvasJson.nodes)).toBe(true);
                 if (canvasJson.edges) {

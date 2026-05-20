@@ -19,8 +19,9 @@ import { getSettings } from "@/settings/model";
 import { debounce, getProviderInfo, getProviderLabel } from "@/utils";
 import { getApiKeyForProvider } from "@/utils/modelUtils";
 import { App, Modal, Platform } from "obsidian";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { createRoot, Root } from "react-dom/client";
+import React, { useCallback, useMemo, useState } from "react";
+import { Root } from "react-dom/client";
+import { createPluginRoot } from "@/utils/react/createPluginRoot";
 import { ModelParametersEditor } from "@/components/ui/ModelParametersEditor";
 
 interface ModelEditModalContentProps {
@@ -34,25 +35,25 @@ interface ModelEditModalContentProps {
   onCancel: () => void;
 }
 
-export const ModelEditModalContent: React.FC<ModelEditModalContentProps> = ({
+const ModelEditModalContent: React.FC<ModelEditModalContentProps> = ({
   model,
   onUpdate,
   isEmbeddingModel,
   onCancel,
 }) => {
+  // Reason: `model` is passed in once when ModelEditModal renders its React root
+  // (see class below) and never changes for the lifetime of this component — the
+  // modal unmounts on close and a new instance is constructed for each edit.
+  // No prop→state sync is needed; `useState(model)` at mount is sufficient.
   const [localModel, setLocalModel] = useState<CustomModel>(model);
-  const [originalModel, setOriginalModel] = useState<CustomModel>(model);
-  const [providerInfo, setProviderInfo] = useState<ProviderMetadata>({} as ProviderMetadata);
+  const originalModel = model;
+  const providerInfo = useMemo<ProviderMetadata>(
+    () => (model.provider ? getProviderInfo(model.provider) : ({} as ProviderMetadata)),
+    [model.provider]
+  );
   const settings = getSettings();
-  const isBedrockProvider = localModel.provider === ChatModelProviders.AMAZON_BEDROCK;
-
-  useEffect(() => {
-    setLocalModel(model);
-    setOriginalModel(model);
-    if (model.provider) {
-      setProviderInfo(getProviderInfo(model.provider));
-    }
-  }, [model]);
+  const isBedrockProvider =
+    (localModel.provider as ChatModelProviders) === ChatModelProviders.AMAZON_BEDROCK;
 
   // Debounce the onUpdate callback
   const debouncedOnUpdate = useMemo(
@@ -65,7 +66,7 @@ export const ModelEditModalContent: React.FC<ModelEditModalContentProps> = ({
 
   // Function to update local state immediately
   const handleLocalUpdate = useCallback(
-    (field: keyof CustomModel, value: any) => {
+    (field: keyof CustomModel, value: CustomModel[keyof CustomModel]) => {
       setLocalModel((prevModel) => {
         const updatedModel = {
           ...prevModel,
@@ -120,7 +121,8 @@ export const ModelEditModalContent: React.FC<ModelEditModalContentProps> = ({
     localModel
   );
   const showOtherParameters =
-    !isEmbeddingModel && localModel.provider !== EmbeddingModelProviders.COPILOT_PLUS_JINA;
+    !isEmbeddingModel &&
+    (localModel.provider as EmbeddingModelProviders) !== EmbeddingModelProviders.COPILOT_PLUS_JINA;
 
   return (
     <div className="tw-space-y-3 tw-p-4">
@@ -208,7 +210,7 @@ export const ModelEditModalContent: React.FC<ModelEditModalContentProps> = ({
         </FormField>
 
         {/* Prompt Caching Toggle for OpenRouter */}
-        {localModel.provider === ChatModelProviders.OPENROUTERAI && (
+        {(localModel.provider as ChatModelProviders) === ChatModelProviders.OPENROUTERAI && (
           <div className="tw-flex tw-items-center tw-gap-2">
             <Checkbox
               id="enable-prompt-caching"
@@ -271,8 +273,8 @@ export const ModelEditModalContent: React.FC<ModelEditModalContentProps> = ({
             </FormField>
 
             {/* Stream Usage Toggle for OpenAI-format providers */}
-            {(localModel.provider === ChatModelProviders.OPENAI_FORMAT ||
-              localModel.provider === ChatModelProviders.LM_STUDIO) && (
+            {((localModel.provider as ChatModelProviders) === ChatModelProviders.OPENAI_FORMAT ||
+              (localModel.provider as ChatModelProviders) === ChatModelProviders.LM_STUDIO) && (
               <FormField label="Stream Options">
                 <div className="tw-flex tw-items-center tw-gap-2">
                   <Checkbox
@@ -297,7 +299,7 @@ export const ModelEditModalContent: React.FC<ModelEditModalContentProps> = ({
             )}
 
             {/* Responses API Toggle for LM Studio */}
-            {localModel.provider === ChatModelProviders.LM_STUDIO && (
+            {(localModel.provider as ChatModelProviders) === ChatModelProviders.LM_STUDIO && (
               <FormField label="Responses API">
                 <div className="tw-flex tw-items-center tw-gap-2">
                   <Checkbox
@@ -365,9 +367,9 @@ export class ModelEditModal extends Modal {
     const { contentEl, modalEl } = this;
     // It occupies only 80% of the height, leaving a clickable blank area to prevent the close icon from malfunctioning.
     if (Platform.isMobile) {
-      modalEl.style.height = "80%";
+      modalEl.addClass("tw-h-4/5");
     }
-    this.root = createRoot(contentEl);
+    this.root = createPluginRoot(contentEl, this.app);
 
     const handleUpdate = (
       isEmbeddingModel: boolean,

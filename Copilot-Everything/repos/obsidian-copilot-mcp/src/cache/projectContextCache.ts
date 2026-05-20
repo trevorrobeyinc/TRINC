@@ -2,10 +2,10 @@ import { ProjectConfig } from "@/aiParams";
 import { FileCache } from "@/cache/fileCache";
 import { logError, logInfo, logWarn } from "@/logger";
 import { getMatchingPatterns, shouldIndexFile } from "@/search/searchUtils";
-import { getSettings } from "@/settings/model";
-import { MD5 } from "crypto-js";
+import { getCachedProjects } from "@/projects/state";
+import { md5 } from "@/utils/hash";
 import { TAbstractFile, TFile, Vault } from "obsidian";
-import debounce from "lodash.debounce";
+import { debounce } from "@/utils/debounce";
 import { Mutex } from "async-mutex";
 
 export interface ContextCache {
@@ -22,6 +22,38 @@ export interface ContextCache {
 
   // Cache metadata
   timestamp: number;
+}
+
+/** Reference to a cached file on disk, resolved from ContextCache. */
+export interface CacheFileRef {
+  cacheKey: string;
+  cachePath: string;
+}
+
+/** Default cache directory used by FileCache. */
+const FILE_CONTENT_CACHE_DIR = ".copilot/file-content-cache";
+
+/**
+ * Synchronously resolve the on-disk cache file reference for a parsed file.
+ * Accepts an already-loaded ContextCache so the caller controls the data source
+ * (avoids depending on memoryCache state which may not be populated yet).
+ *
+ * @param cache - Already-loaded ContextCache (from parent component state)
+ * @param filePath - Original source file path in the vault
+ * @returns Cache file reference, or null if not cached / invalid key
+ */
+export function getFileCacheRef(
+  cache: ContextCache | null | undefined,
+  filePath: string
+): CacheFileRef | null {
+  const entry = cache?.fileContexts?.[filePath];
+  if (!entry?.cacheKey || typeof entry.cacheKey !== "string" || !entry.cacheKey.trim()) {
+    return null;
+  }
+  return {
+    cacheKey: entry.cacheKey,
+    cachePath: `${FILE_CONTENT_CACHE_DIR}/${entry.cacheKey}.md`,
+  };
 }
 
 /**
@@ -94,8 +126,7 @@ export class ProjectContextCache {
         return;
       }
 
-      const settings = getSettings();
-      const projects = settings.projectList || [];
+      const projects = getCachedProjects();
 
       // Check each project to see if the file matches its patterns
       for (const project of projects) {
@@ -142,7 +173,7 @@ export class ProjectContextCache {
 
   private getCacheKey(project: ProjectConfig): string {
     // Use project ID as cache key
-    return MD5(project.id).toString();
+    return md5(project.id);
   }
 
   private getCachePath(cacheKey: string): string {
@@ -190,7 +221,7 @@ export class ProjectContextCache {
       if (await this.vault.adapter.exists(cachePath)) {
         logInfo("File cache hit for project:", project.name);
         const cacheContent = await this.vault.adapter.read(cachePath);
-        const contextCache = JSON.parse(cacheContent);
+        const contextCache = JSON.parse(cacheContent) as ContextCache;
         // Store in memory cache
         this.memoryCache.set(cacheKey, contextCache);
         return contextCache;
@@ -259,7 +290,7 @@ export class ProjectContextCache {
       logInfo("Caching context for project:", project.name);
 
       // Create a deep copy to avoid reference issues
-      const contextCacheCopy = JSON.parse(JSON.stringify(contextCache));
+      const contextCacheCopy = JSON.parse(JSON.stringify(contextCache)) as ContextCache;
 
       // Store in memory cache
       this.memoryCache.set(cacheKey, contextCacheCopy);
@@ -609,8 +640,7 @@ export class ProjectContextCache {
     filePath: string
   ): Promise<{ cacheKey: string; content: string } | null> {
     try {
-      const settings = getSettings();
-      const projects = settings.projectList || [];
+      const projects = getCachedProjects();
 
       if (projects.length === 0) {
         return null;

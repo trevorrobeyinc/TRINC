@@ -5,7 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import React, { useState } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { Root } from "react-dom/client";
+import { createPluginRoot } from "@/utils/react/createPluginRoot";
 import { getModelKeyFromModel, useSettingsValue } from "@/settings/model";
 import { getModelDisplayText } from "@/components/ui/model-display";
 import { cn } from "@/lib/utils";
@@ -41,7 +42,7 @@ function CustomCommandSettingsModalContent({
   const [command, setCommand] = useState(initialCommand);
   const [errors, setErrors] = useState<FormErrors>({});
 
-  const handleUpdate = (field: keyof CustomCommand, value: any) => {
+  const handleUpdate = (field: keyof CustomCommand, value: CustomCommand[keyof CustomCommand]) => {
     setCommand((prev) => ({
       ...prev,
       [field]: value,
@@ -181,7 +182,7 @@ export class CustomCommandSettingsModal extends Modal {
     app: App,
     private commands: CustomCommand[],
     private command: CustomCommand,
-    private onUpdate: (command: CustomCommand) => void
+    private onUpdate: (command: CustomCommand) => void | Promise<void>
   ) {
     super(app);
     // https://docs.obsidian.md/Reference/TypeScript+API/Modal/setTitle
@@ -191,10 +192,10 @@ export class CustomCommandSettingsModal extends Modal {
 
   onOpen() {
     const { contentEl } = this;
-    this.root = createRoot(contentEl);
+    this.root = createPluginRoot(contentEl, this.app);
 
     const handleConfirm = (command: CustomCommand) => {
-      this.onUpdate(command);
+      void this.onUpdate(command);
       this.close();
     };
 

@@ -5,7 +5,7 @@
 
 // ===== CITATION RULES =====
 
-export const CITATION_RULES = `CITATION RULES:
+const CITATION_RULES = `CITATION RULES:
 1. START with [^1] and increment sequentially ([^1], [^2], [^3], etc.) with NO gaps
 2. BE SELECTIVE: ONLY cite when introducing NEW factual claims, specific data, or direct quotes from sources
 3. IMPORTANT: Do NOT cite every sentence or bullet point. This creates clutter and poor readability.
@@ -21,7 +21,7 @@ export const CITATION_RULES = `CITATION RULES:
 9. If multiple source chunks come from the same document, cite each relevant chunk separately (e.g., [^1] and [^2] can both be from the same document title)
 10. End with '#### Sources' section containing: [^n]: [[Title]] (one per line, matching citation order)`;
 
-export const WEB_CITATION_RULES = `WEB CITATION RULES:
+const WEB_CITATION_RULES = `WEB CITATION RULES:
 1. START with [^1] and increment sequentially ([^1], [^2], [^3], etc.) with NO gaps
 2. Cite ONLY when introducing new factual claims, statistics, or direct quotes from the search results
 3. After every cited claim, place the corresponding footnote immediately after the sentence ("The study found X [^1]")
@@ -106,7 +106,7 @@ const MAX_FALLBACK_SOURCES = 20;
  * Adds fallback sources to response if citations are missing.
  */
 export function addFallbackSources(
-  response: string,
+  response: string | null | undefined,
   sources: { title?: string; path?: string }[],
   enableInlineCitations: boolean = true
 ): string {
@@ -141,7 +141,7 @@ export function addFallbackSources(
 /**
  * Sanitizes content to remove pre-existing citation markers to prevent number leakage.
  */
-export function sanitizeContentForCitations(text: string): string {
+export function sanitizeContentForCitations(text: string | null | undefined): string {
   if (!text) return "";
 
   // Remove inline footnote refs like [^12]
@@ -159,7 +159,7 @@ export function sanitizeContentForCitations(text: string): string {
 /**
  * Detects if response already has sources section or footnote definitions.
  */
-export function hasExistingCitations(response: string): boolean {
+export function hasExistingCitations(response: string | null | undefined): boolean {
   const content = response || "";
   const hasMarkdownHeading = /(^|\n)\s*#{1,6}\s*Sources\b/i.test(content);
   const hasPlainLabel = /(^|\n)\s*Sources\s*(?:[:-]\s*)?(\n|$)/i.test(content);
@@ -173,7 +173,7 @@ export function hasExistingCitations(response: string): boolean {
  * Detects if response contains inline citation markers in the body text (like [^1], [^2], etc.).
  * This is different from hasExistingCitations which checks for the Sources section.
  */
-export function hasInlineCitations(response: string): boolean {
+export function hasInlineCitations(response: string | null | undefined): boolean {
   const content = response || "";
   // Look for [^digits] patterns in the text (inline citations)
   // This should match [^1], [^2], etc. used in the body text
@@ -193,7 +193,7 @@ export function getWebSearchCitationInstructions(enableInlineCitations: boolean 
 
 // ===== CITATION PROCESSING UTILITIES =====
 
-export interface SourcesSection {
+interface SourcesSection {
   mainContent: string;
   sourcesBlock: string;
 }
@@ -254,7 +254,7 @@ export function extractSourcesSection(content: string): SourcesSection | null {
 /**
  * Normalizes sources block by adding line breaks if everything is on one line.
  */
-export function normalizeSourcesBlock(sourcesBlock: string): string {
+function normalizeSourcesBlock(sourcesBlock: string): string {
   if (!sourcesBlock.includes("\n")) {
     // Ensure a break before every [n]
     sourcesBlock = sourcesBlock.replace(/\s*\[(\d+)\]\s*/g, "\n[$1] ");
@@ -268,7 +268,7 @@ export function normalizeSourcesBlock(sourcesBlock: string): string {
 /**
  * Parses footnote definitions from sources block.
  */
-export function parseFootnoteDefinitions(sourcesBlock: string): string[] {
+function parseFootnoteDefinitions(sourcesBlock: string): string[] {
   return sourcesBlock
     .split("\n")
     .map((l) => l.trim())
@@ -278,10 +278,7 @@ export function parseFootnoteDefinitions(sourcesBlock: string): string[] {
 /**
  * Builds a citation renumbering map based on first-mention order in content.
  */
-export function buildCitationMap(
-  mainContent: string,
-  footnoteLines: string[]
-): Map<number, number> {
+function buildCitationMap(mainContent: string, footnoteLines: string[]): Map<number, number> {
   const map = new Map<number, number>();
   const seen = new Set<number>();
   const firstMention: number[] = [];
@@ -326,7 +323,7 @@ export function normalizeCitations(content: string, map: Map<number, number>): s
     changed = false;
 
     // Handle single citations: [^n] -> [n]
-    result = result.replace(/\[\^(\d+)\]/g, (match, n) => {
+    result = result.replace(/\[\^(\d+)\]/g, (match, n: string) => {
       const oldN = parseInt(n, 10);
       const newN = map.get(oldN) ?? oldN;
       const replacement = `[${newN}]`;
@@ -337,7 +334,7 @@ export function normalizeCitations(content: string, map: Map<number, number>): s
     });
 
     // Handle multiple citations: [^n, ^m] -> [n, m]
-    result = result.replace(/\[\^(\d+(?:\s*,\s*\^?\d+)*)\]/g, (match, citationList) => {
+    result = result.replace(/\[\^(\d+(?:\s*,\s*\^?\d+)*)\]/g, (match, citationList: string) => {
       // Split and process each number in the list
       const processedNumbers = citationList
         .split(",")
@@ -368,10 +365,7 @@ export function normalizeCitations(content: string, map: Map<number, number>): s
 /**
  * Converts footnote definitions to simple display items.
  */
-export function convertFootnoteDefinitions(
-  sourcesBlock: string,
-  map: Map<number, number>
-): string[] {
+function convertFootnoteDefinitions(sourcesBlock: string, map: Map<number, number>): string[] {
   const items: string[] = [];
   sourcesBlock.split("\n").forEach((line) => {
     const m = line.match(/^\[\^(\d+)\]:\s*(.*)$/);
@@ -409,7 +403,7 @@ export function convertFootnoteDefinitions(
 /**
  * Consolidates duplicate sources and returns mapping for citation updates.
  */
-export function consolidateDuplicateSources(items: string[]): {
+function consolidateDuplicateSources(items: string[]): {
   uniqueItems: string[];
   consolidationMap: Map<number, number>;
 } {
@@ -456,7 +450,7 @@ export function updateCitationsForConsolidation(
 ): string {
   if (consolidationMap.size === 0) return content;
 
-  return content.replace(/\[(\d+(?:\s*,\s*\d+)*)\]/g, (_match, nums) => {
+  return content.replace(/\[(\d+(?:\s*,\s*\d+)*)\]/g, (_match, nums: string) => {
     const parts = nums.split(/\s*,\s*/);
     const seen = new Set<number>();
     const unique: number[] = [];
@@ -485,7 +479,7 @@ export function deduplicateAdjacentCitations(content: string): string {
     // Match citation brackets separated by optional whitespace or connectors (" and ", ", ")
     result = result.replace(
       /\[(\d+(?:\s*,\s*\d+)*)\](?:\s*(?:and|,)\s*|\s*)\[(\d+(?:\s*,\s*\d+)*)\]/g,
-      (match, first, second) => {
+      (match, first: string, second: string) => {
         const firstNums = new Set(first.split(/\s*,\s*/).map((s: string) => s.trim()));
         const secondNums = second.split(/\s*,\s*/).map((s: string) => s.trim());
         if (secondNums.every((n: string) => firstNums.has(n))) {
@@ -591,7 +585,7 @@ function buildSourcesDetails(mainContent: string, items: SourcesDisplayItem[]): 
  * These spans provide visual feedback during streaming (styled as pending links)
  * and are replaced by linkInlineCitations with actual clickable anchors after streaming.
  */
-export function wrapCitationPlaceholders(content: string): string {
+function wrapCitationPlaceholders(content: string): string {
   return content.replace(
     /\[(\d+(?:\s*,\s*\d+)*)\](?!\()/g,
     '<span class="copilot-citation-ref">[$1]</span>'

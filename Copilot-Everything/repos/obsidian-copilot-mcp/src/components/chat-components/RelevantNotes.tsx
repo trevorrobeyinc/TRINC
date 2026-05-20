@@ -2,13 +2,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useApp } from "@/context";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useChatInput } from "@/context/ChatInputContext";
 import { useActiveFile } from "@/hooks/useActiveFile";
 import { useNoteDrag } from "@/hooks/useNoteDrag";
 import { cn } from "@/lib/utils";
-import { logWarn } from "@/logger";
+import { logError, logWarn } from "@/logger";
 import { SemanticSearchToggleModal } from "@/components/modals/SemanticSearchToggleModal";
 import { shouldUseMiyo } from "@/miyo/miyoUtils";
 import {
@@ -49,7 +50,7 @@ function useRelevantNotes(refresher: number) {
       }
     }
 
-    fetchNotes();
+    void fetchNotes();
   }, [activeFile?.path, refresher, signalTick]);
 
   return relevantNotes;
@@ -84,7 +85,7 @@ function useHasIndex(notePath: string, refresher: number) {
       }
     }
 
-    fetchHasIndex();
+    void fetchHasIndex();
   }, [notePath, refresher, signalTick]);
   return hasIndex;
 }
@@ -106,13 +107,14 @@ function RelevantNote({
   onAddToChat: () => void;
   onNavigateToNote: (openInNewLeaf: boolean) => void;
 }) {
+  const app = useApp();
   const [isOpen, setIsOpen] = useState(false);
   const [fileContent, setFileContent] = useState<string | null>(null);
   const handleDragStart = useNoteDrag();
 
   const loadContent = useCallback(async () => {
     if (fileContent) return; // Don't load if we already have content
-    const file = app.vault.getAbstractFileByPath(note.document.path);
+    const file = app.vault.getAbstractFileByPath(note.note.path);
     if (file instanceof TFile) {
       const content = await app.vault.cachedRead(file);
 
@@ -128,11 +130,11 @@ function RelevantNote({
       // Take first 1000 characters as preview
       setFileContent(cleanContent.slice(0, 1000) + (cleanContent.length > 1000 ? "..." : ""));
     }
-  }, [fileContent, note.document.path]);
+  }, [app, fileContent, note.note.path]);
 
   useEffect(() => {
     if (isOpen) {
-      loadContent();
+      void loadContent();
     }
   }, [isOpen, loadContent]);
 
@@ -161,7 +163,7 @@ function RelevantNote({
           <a
             draggable
             onDragStart={(e) => {
-              const file = app.vault.getAbstractFileByPath(note.document.path);
+              const file = app.vault.getAbstractFileByPath(note.note.path);
               if (file instanceof TFile) {
                 handleDragStart(e, file);
               }
@@ -179,9 +181,9 @@ function RelevantNote({
               }
             }}
             className="tw-block tw-w-full tw-truncate tw-text-sm tw-font-bold tw-text-normal"
-            title={`${note.document.title} - drag to insert wikilink`}
+            title={`${note.note.title} - drag to insert wikilink`}
           >
-            {note.document.title}
+            {note.note.title}
           </a>
         </div>
 
@@ -198,7 +200,7 @@ function RelevantNote({
       <CollapsibleContent>
         <div className="tw-border-[0px] tw-border-t tw-border-solid tw-border-border tw-px-4 tw-py-2">
           <div className="tw-whitespace-pre-wrap tw-text-wrap tw-break-all tw-text-xs tw-text-muted tw-opacity-75">
-            {note.document.path}
+            {note.note.path}
           </div>
           {fileContent && (
             <div className="tw-overflow-hidden tw-whitespace-pre-wrap tw-border-t tw-border-border tw-pb-4 tw-pt-2 tw-text-xs tw-text-normal">
@@ -243,19 +245,21 @@ function RelevantNotePopover({
   children: React.ReactNode;
 }) {
   return (
-    <Popover key={note.document.path}>
+    <Popover key={note.note.path}>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
       <PopoverContent className="tw-flex tw-w-fit tw-min-w-72 tw-max-w-96 tw-flex-col tw-gap-2 tw-overflow-hidden">
-        <span className="tw-text-sm tw-text-normal">{note.document.title}</span>
-        <span className="tw-text-xs tw-text-muted">{note.document.path}</span>
+        <span className="tw-text-sm tw-text-normal">{note.note.title}</span>
+        <span className="tw-text-xs tw-text-muted">{note.note.path}</span>
         <div className="tw-flex tw-gap-2">
           <button
+            type="button"
             onClick={onAddToChat}
             className="tw-inline-flex tw-items-center tw-gap-2 tw-border tw-border-solid tw-border-border !tw-bg-transparent !tw-shadow-none hover:!tw-bg-interactive-hover"
           >
             Add to Chat <PlusCircle className="tw-size-4" />
           </button>
           <button
+            type="button"
             onClick={(e) => {
               const openInNewLeaf = e.metaKey || e.ctrlKey;
               onNavigateToNote(openInNewLeaf);
@@ -272,6 +276,7 @@ function RelevantNotePopover({
 
 export const RelevantNotes = memo(
   ({ className, defaultOpen = false }: { className?: string; defaultOpen?: boolean }) => {
+    const app = useApp();
     const [refresher, setRefresher] = useState(0);
     const [isOpen, setIsOpen] = useState(defaultOpen);
     const relevantNotes = useRelevantNotes(refresher);
@@ -283,7 +288,7 @@ export const RelevantNotes = memo(
       const file = app.vault.getAbstractFileByPath(notePath);
       if (file instanceof TFile) {
         const leaf = app.workspace.getLeaf(openInNewLeaf);
-        leaf.openFile(file);
+        void leaf.openFile(file).catch((err) => logError("openFile failed", err));
       }
     };
     const addToChat = (prompt: string) => {
@@ -347,14 +352,14 @@ export const RelevantNotes = memo(
               {hasIndex ? (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost2" size="icon" onClick={refreshIndex}>
+                    <Button variant="ghost2" size="icon" onClick={() => void refreshIndex()}>
                       <RefreshCcw className="tw-size-4" />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="bottom">Reindex Current Note</TooltipContent>
                 </Tooltip>
               ) : (
-                <Button variant="secondary" size="sm" onClick={handleBuildIndex}>
+                <Button variant="secondary" size="sm" onClick={() => void handleBuildIndex()}>
                   Build Index
                 </Button>
               )}
@@ -380,27 +385,27 @@ export const RelevantNotes = memo(
             <div className="tw-flex tw-max-h-6 tw-flex-wrap tw-gap-x-2 tw-gap-y-1 tw-overflow-y-hidden tw-px-1">
               {relevantNotes.map((note) => (
                 <RelevantNotePopover
-                  key={note.document.path}
+                  key={note.note.path}
                   note={note}
-                  onAddToChat={() => addToChat(note.document.title)}
+                  onAddToChat={() => addToChat(note.note.title)}
                   onNavigateToNote={(openInNewLeaf: boolean) =>
-                    navigateToNote(note.document.path, openInNewLeaf)
+                    navigateToNote(note.note.path, openInNewLeaf)
                   }
                 >
                   <Badge
                     variant="outline"
-                    key={note.document.path}
+                    key={note.note.path}
                     draggable
                     onDragStart={(e) => {
-                      const file = app.vault.getAbstractFileByPath(note.document.path);
+                      const file = app.vault.getAbstractFileByPath(note.note.path);
                       if (file instanceof TFile) {
                         handleDragStart(e, file);
                       }
                     }}
                     className="tw-max-w-40 tw-text-xs tw-text-muted hover:tw-cursor-pointer hover:tw-bg-interactive-hover"
-                    title={`${note.document.title} - drag to insert wikilink`}
+                    title={`${note.note.title} - drag to insert wikilink`}
                   >
-                    <span className="tw-truncate">{note.document.title}</span>
+                    <span className="tw-truncate">{note.note.title}</span>
                   </Badge>
                 </RelevantNotePopover>
               ))}
@@ -411,10 +416,10 @@ export const RelevantNotes = memo(
               {relevantNotes.map((note) => (
                 <RelevantNote
                   note={note}
-                  key={note.document.path}
-                  onAddToChat={() => addToChat(note.document.title)}
+                  key={note.note.path}
+                  onAddToChat={() => addToChat(note.note.title)}
                   onNavigateToNote={(openInNewLeaf: boolean) =>
-                    navigateToNote(note.document.path, openInNewLeaf)
+                    navigateToNote(note.note.path, openInNewLeaf)
                   }
                 />
               ))}

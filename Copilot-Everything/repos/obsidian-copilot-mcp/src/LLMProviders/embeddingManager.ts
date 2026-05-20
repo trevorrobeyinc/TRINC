@@ -1,28 +1,26 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { CustomModel } from "@/aiParams";
-import { BackendSelector } from "@/backend/BackendSelector";
 import { BREVILABS_MODELS_BASE_URL, EmbeddingModelProviders, ProviderInfo } from "@/constants";
 import { getDecryptedKey } from "@/encryptionService";
 import { CustomError } from "@/error";
-import { isSelfHostModeValid } from "@/plusUtils";
+import { logInfo } from "@/logger";
 import { getModelKeyFromModel, getSettings, subscribeToSettingsChange } from "@/settings/model";
 import { err2String, safeFetch } from "@/utils";
-import { CohereEmbeddings } from "@langchain/cohere";
 import { Embeddings } from "@langchain/core/embeddings";
 import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
 import { OllamaEmbeddings } from "@langchain/ollama";
 import { AzureOpenAIEmbeddings, OpenAIEmbeddings } from "@langchain/openai";
 import { Notice } from "obsidian";
+import { BrevilabsClient } from "./brevilabsClient";
 import { CustomJinaEmbeddings } from "./CustomJinaEmbeddings";
 import { CustomOpenAIEmbeddings } from "./CustomOpenAIEmbeddings";
 
-type EmbeddingConstructorType = new (config: any) => Embeddings;
+type EmbeddingConstructorType = new (config: Record<string, unknown>) => Embeddings;
 
 const EMBEDDING_PROVIDER_CONSTRUCTORS = {
   [EmbeddingModelProviders.COPILOT_PLUS]: CustomOpenAIEmbeddings,
   [EmbeddingModelProviders.COPILOT_PLUS_JINA]: CustomJinaEmbeddings,
   [EmbeddingModelProviders.OPENAI]: OpenAIEmbeddings,
-  [EmbeddingModelProviders.COHEREAI]: CohereEmbeddings,
+  [EmbeddingModelProviders.COHEREAI]: OpenAIEmbeddings,
   [EmbeddingModelProviders.GOOGLE]: GoogleGenerativeAIEmbeddings,
   [EmbeddingModelProviders.AZURE_OPENAI]: AzureOpenAIEmbeddings,
   [EmbeddingModelProviders.OLLAMA]: OllamaEmbeddings,
@@ -118,14 +116,14 @@ export default class EmbeddingManager {
   }
 
   static getModelName(embeddingsInstance: Embeddings): string {
-    const emb = embeddingsInstance as any;
-    if ("model" in emb && emb.model) {
-      return emb.model as string;
-    } else if ("modelName" in emb && emb.modelName) {
-      return emb.modelName as string;
+    const emb = embeddingsInstance as { model?: string; modelName?: string };
+    if (emb.model) {
+      return emb.model;
+    } else if (emb.modelName) {
+      return emb.modelName;
     } else {
       throw new Error(
-        `Embeddings instance missing model or modelName properties: ${embeddingsInstance}`
+        `Embeddings instance missing model or modelName properties: ${JSON.stringify(embeddingsInstance)}`
       );
     }
   }
@@ -142,21 +140,22 @@ export default class EmbeddingManager {
     const settings = getSettings();
     const embeddingModelKey = settings.embeddingModelKey;
 
-    if (!EmbeddingManager.modelMap.hasOwnProperty(embeddingModelKey)) {
+    if (!Object.prototype.hasOwnProperty.call(EmbeddingManager.modelMap, embeddingModelKey)) {
       throw new CustomError(`No embedding model found for: ${embeddingModelKey}`);
     }
 
     const customModel = this.getCustomModel(embeddingModelKey);
 
     // Check if model is plus-exclusive but user is not a plus user
-    if (customModel.plusExclusive && !getSettings().isPlusUser && !isSelfHostModeValid()) {
+    if (customModel.plusExclusive && !getSettings().isPlusUser) {
       new Notice("Plus-only model, please consider upgrading to Plus to access it.");
       throw new CustomError("Plus-only model selected but user is not on Plus plan");
     }
 
     // Check if model is believer-exclusive but user is not on believer plan
-    if (customModel.believerExclusive && !isSelfHostModeValid()) {
-      const result = await BackendSelector.getHostedAdapter().validateHostedLicense();
+    if (customModel.believerExclusive) {
+      const brevilabsClient = BrevilabsClient.getInstance();
+      const result = await brevilabsClient.validateLicenseKey();
       if (!result.plan || result.plan.toLowerCase() !== "believer") {
         new Notice("Believer-only model, please consider upgrading to Believer to access it.");
         throw new CustomError("Believer-only model selected but user is not on Believer plan");
@@ -176,13 +175,12 @@ export default class EmbeddingManager {
       EmbeddingManager.embeddingModel = new selectedModel.EmbeddingConstructor(config);
       return EmbeddingManager.embeddingModel;
     } catch (error) {
-      throw new CustomError(
-        `Error creating embedding model: ${embeddingModelKey}. ${error.message}`
-      );
+      const message = error instanceof Error ? error.message : String(error);
+      throw new CustomError(`Error creating embedding model: ${embeddingModelKey}. ${message}`);
     }
   }
 
-  private async getEmbeddingConfig(customModel: CustomModel): Promise<any> {
+  private async getEmbeddingConfig(customModel: CustomModel): Promise<Record<string, unknown>> {
     const settings = getSettings();
     const modelName = customModel.name;
 
@@ -241,8 +239,14 @@ export default class EmbeddingManager {
         },
       },
       [EmbeddingModelProviders.COHEREAI]: {
-        model: modelName,
+        modelName,
         apiKey: await getDecryptedKey(customModel.apiKey || settings.cohereApiKey),
+        timeout: 10000,
+        batchSize: getSettings().embeddingBatchSize,
+        configuration: {
+          baseURL: customModel.baseUrl || ProviderInfo[EmbeddingModelProviders.COHEREAI].host,
+          fetch: customModel.enableCors ? safeFetch : undefined,
+        },
       },
       [EmbeddingModelProviders.GOOGLE]: {
         modelName: modelName,
@@ -323,7 +327,7 @@ export default class EmbeddingManager {
       await tryPing(false);
       return true;
     } catch (firstError) {
-      console.log("First ping attempt failed, trying with CORS...");
+      logInfo("First ping attempt failed, trying with CORS...");
       try {
         // Second try with CORS
         await tryPing(true);

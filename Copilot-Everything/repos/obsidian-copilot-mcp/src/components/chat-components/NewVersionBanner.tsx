@@ -5,7 +5,6 @@ import { updateSetting, useSettingsValue } from "@/settings/model";
 import { isNewerVersion } from "@/utils";
 import { XIcon } from "lucide-react";
 import React, { useState } from "react";
-import { PLUGIN_ID } from "@/constants";
 
 interface NewVersionBannerProps {
   currentVersion: string;
@@ -26,7 +25,7 @@ export function NewVersionBanner({ currentVersion }: NewVersionBannerProps) {
     if (latestVersion) {
       setIsVisible(false);
       // Wait for animation to complete before updating setting
-      setTimeout(() => {
+      window.setTimeout(() => {
         updateSetting("lastDismissedVersion", latestVersion);
       }, 300);
     }
@@ -63,7 +62,7 @@ export function NewVersionBanner({ currentVersion }: NewVersionBannerProps) {
             variant="ghost2"
             className="tw-text-accent hover:tw-text-accent-hover"
             onClick={() => {
-              window.open(`obsidian://show-plugin?id=${PLUGIN_ID}`, "_blank");
+              window.open(`obsidian://show-plugin?id=copilot`, "_blank");
               handleDismiss();
             }}
           >

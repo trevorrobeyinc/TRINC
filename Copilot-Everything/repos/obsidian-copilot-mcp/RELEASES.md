@@ -1,5 +1,194 @@
 # Release Notes
 
+# Copilot for Obsidian - Release v3.3.2 🛠️
+
+This patch is all about stability and speed. **Claude Opus 4.7+ now works correctly with adaptive thinking** on both direct Anthropic and AWS Bedrock, project-mode file ingestion is fixed, Quick Ask no longer crashes on `@`-mention, and the plugin is 75 KB lighter thanks to a clean dependency deduplication. Kudos to @logancyang and @zeroliu for the focused clean-up!
+
+- 🧠 **Claude Opus 4.7+ adaptive thinking is fixed** — Adding `claude-opus-4-7` (or any Opus 4.7+) as a model and enabling reasoning used to return a 400 error because the plugin was sending the legacy `thinking.type=enabled` shape, which Opus 4.7+ no longer accepts. It now correctly sends `thinking.type=adaptive` and requests a summarized display so the thinking block appears in chat. Both the direct Anthropic and AWS Bedrock code paths are fixed. (@logancyang)
+- 📂 **Project-mode file ingestion is fixed** — PDFs, images, audio files, and Office docs added to a project's source files were silently failing to upload because Obsidian's CORS-bypass path can't handle native `FormData` streams. The upload path now uses `requestUrl` with a manually-constructed multipart body, matching how the rest of the plugin talks to Brevilabs. (@zeroliu)
+- 💬 **Quick Ask no longer crashes on `@`-mention** — Opening the Quick Ask panel and typing `@` to mention a note was crashing with "useApp() called outside of AppContext.Provider". Fixed by wrapping the panel's React root in the same `AppContext` that the main chat view uses. (@zeroliu)
+- ⚡ **75 KB smaller bundle** — `@langchain/community` is dropped (Jina embeddings now run against a hand-rolled Obsidian-native client), and `openai` is bumped to v6 to eliminate a duplicate copy of the SDK that was sneaking in alongside `@langchain/openai`. The plugin is now around 3.3 MB. (@zeroliu)
+- 🔴 **Clearer error when a Bedrock model ID is missing its inference-profile prefix** — If you configure a bare regional Bedrock model ID (e.g. `anthropic.claude-sonnet-4-6` without a `global.`, `us.`, etc. prefix), the error used to surface as raw JSON. It now shows a plain-English message pointing you to Settings → Models and listing the four valid prefix forms. (@logancyang)
+- 🧹 **React state management cleanup** — 56 `setState`-in-`useEffect` anti-patterns were replaced with idiomatic React patterns across 21 files: derived state via `useMemo`, `useSyncExternalStore` for external stores, and `key`-prop resets where appropriate. Side effects include: the token-count badge in chat now updates correctly after regeneration, chain/setting toggles in ChatInput no longer flash stale state, and the draggable quick-command modal no longer resets your resize when content grows. (@zeroliu)
+
+More details in the changelog:
+
+### Improvements
+
+- #2460 chore(deps): remove unused deps and dead code to shrink bundle @zeroliu
+- #2463 chore(deps): drop @langchain/community + bump openai to v6 to dedupe SDKs @zeroliu
+- #2467 chore(react): centralize React root creation via createPluginRoot helper @zeroliu
+- #2469 Remove dead ChainFactory and chain validation helpers @zeroliu
+- #2470 style(css): expand #ccc to 6-digit hex format for consistency @zeroliu
+
+### Bug Fixes
+
+- #2399 fix(brevilabs): rewrite uploads via requestUrl multipart (W8/9) @zeroliu
+- #2454 chore(lint): fix no-direct-set-state-in-use-effect violations @zeroliu
+- #2466 fix(quick-ask): provide AppContext to overlay panel @zeroliu
+- #2471 fix(anthropic+bedrock): adaptive thinking + summarized display for claude-opus-4-7+ @logancyang
+- #2472 fix(bedrock): explain inference-profile requirement when AWS rejects on-demand model ID @logancyang
+
+## Troubleshoot
+
+- If models are missing, navigate to Copilot settings -> Models tab and click "Refresh Built-in Models".
+- Please report any issue you see in the member channel!
+
+---
+
+# Copilot for Obsidian - Release v3.3.1 🔐
+
+This release is all about keeping your API keys safe and your plugin running smoothly everywhere. **API keys can now be stored in Obsidian's built-in Keychain** so they never touch `data.json`, the encryption toggle is removed (it was more trouble than it was worth), and a wave of reliability fixes ensures chat works correctly on mobile, in popout windows, and with Plus mode. Underneath, **@zeroliu landed nineteen back-to-back PRs of code-quality work** — tightening ESLint, eliminating ~395 `any` types, swapping out unmaintained dependencies, and modernizing the React layer. Huge thanks to both @Emt-lin (Keychain) and @zeroliu (codebase hardening) for carrying this release. 🙌
+
+> ⚠️ **Requires Obsidian 1.11.4+.** The `minAppVersion` is bumped from 1.7.2 to 1.11.4 because the Keychain feature relies on Obsidian's `app.secretStorage` API, which only exists in 1.11.4 and later.
+
+- 🔐 **API keys now live in the Obsidian Keychain** — Fresh installs automatically store all API keys in Obsidian's vault-scoped Keychain instead of `data.json`. Existing users can opt in at any time via the new "API Key Storage" section in Advanced Settings. A guided migration wizard walks you through the move, and keys are stripped from `data.json` the moment migration completes. Each device has its own Keychain, so re-entering keys on a new device is expected. (@Emt-lin)
+  - The Advanced Settings panel shows your current storage mode and surfaces a clear warning if a synced vault arrives on a device whose Keychain is empty (so you know exactly why chat isn't working yet).
+  - A "Delete All Keys" option in Advanced Settings purges secrets from both the Keychain and `data.json` in one go.
+  - The Reset Settings button no longer touches API keys. Use "Delete All Keys" if you want them gone.
+- 🚫 **Encryption toggle removed in favor of the Keychain** — With API keys moving to the Obsidian Keychain, the standalone "Enable Encryption" toggle is no longer needed and has been retired. It also didn't survive a sync to mobile cleanly, which caused intermittent chat failures for some users. Migrate to the Keychain for proper secret storage; existing encrypted blobs are still decrypted transparently on read so nothing breaks. (@logancyang)
+  - Mobile users whose vault contained desktop-encrypted keys now see a startup notice listing exactly which fields need to be re-entered, rather than a confusing 401 error mid-chat.
+- 📱 **Image send on mobile is fixed** — Sending images was broken for all mobile users since 3.3.0 due to a missing Buffer polyfill. Fixed. (@logancyang)
+- ⌨️ **Quick Command shortcuts and icons restored** — The Cmd+Enter (Replace) and Cmd+Shift+Enter (Insert) shortcuts in the Quick Command result modal were broken if any global Obsidian hotkey was bound to Cmd+Enter. Fixed, and the inline shortcut glyphs next to the Insert/Replace buttons are back too. (@zeroliu)
+- 🧠 **Plus mode: no more surprise getFileTree calls** — When you have a note attached in context and ask "what's this note about?", the planner no longer fires a `getFileTree` tool call first. It now knows the content is already in context and answers directly. Explicit "list folders" or "find other notes" requests still trigger the tool as expected. (@logancyang)
+- 🏷️ **Settings version chip and Reset button are visible again** — Obsidian's own CSS was hiding the version chip and Reset Settings button at the top of the settings panel. Fixed by swapping the `<h1>` for a semantically equivalent `<div>` that Obsidian's styles don't suppress. (@logancyang)
+- 🛡️ **Supply-chain attestations for release assets** — Release artifacts (`main.js`, `manifest.json`, `styles.css`) are now cryptographically signed and published to Sigstore's transparency log. You can verify any release asset with `gh attestation verify`. (@logancyang)
+- 🧹 **Major codebase hardening pass** — @zeroliu landed a sustained ESLint and type-safety campaign across the repo: ~395 `any` types removed, dozens of type-aware rules turned on, unsafe assignments/returns/member-access/arguments locked down, floating promises explicitly handled, deprecated dependencies swapped, dead CSS removed, the global `app` reference replaced with a `useApp()` hook, and a long tail of smaller wins. See the full PR list below.
+
+More details in the changelog:
+
+### Improvements
+
+- #2364 feat(keychain): migrate API key storage to Obsidian Keychain @Emt-lin
+- #2431 ci(release): publish artifact attestations for release assets @logancyang
+- #2448 refactor(react): replace global `app` with useApp() hook @zeroliu
+
+### Bug Fixes
+
+- #2457 fix(plus): planner skips getFileTree when active note is attached @logancyang
+- #2455 fix(keychain): empty-keychain banner, reset modal copy, lifecycle reset @logancyang
+- #2446 fix(encryption): deprecate encryption toggle; fix mobile chat failure on desktop-encrypted keys @logancyang
+- #2445 fix(settings): restore version chip + reset button hidden by Obsidian h1 CSS @logancyang
+- #2443 fix(mobile): import Buffer from the polyfill so image send works on mobile @logancyang
+- #2442 fix(quick-command): restore Cmd+Enter shortcut and shortcut hint icons @zeroliu
+
+### Code Quality (@zeroliu)
+
+- #2453 chore(lint): fix no-array-index-key and other React lint warnings
+- #2452 chore(eslint): enable no-explicit-any; fix ~395 violations
+- #2451 chore(styles): drop dead CSS, reduce !important, fix duplicate selectors
+- #2450 chore(lint): fix deprecation and template-literal lint warnings
+- #2449 chore(icons): drop deprecated lucide Youtube icon; reuse Globe
+- #2447 chore(deps): swap unmaintained/legacy deps per e18e module-replacements
+- #2444 chore(types): tighten any types and fix langchain getType deprecation
+- #2441 chore(eslint): enable no-unnecessary-type-assertion and no-misused-promises
+- #2440 chore(eslint): enable @typescript-eslint/no-unsafe-argument and fix violations
+- #2439 chore(eslint): enable @typescript-eslint/unbound-method
+- #2438 chore(eslint): enable no-unsafe-member-access; fix 124 violations
+- #2437 chore(eslint): enable @typescript-eslint/no-floating-promises
+- #2436 chore(eslint): enable @typescript-eslint/no-unsafe-return
+- #2435 chore(test): type test mocks to satisfy @typescript-eslint/no-unsafe-call
+- #2434 chore(eslint): enable no-unsafe-assignment for tests
+- #2433 chore(eslint): remove redundant non-TS rule overrides
+- #2424 chore(lint): enable 4 type-aware quick-win rules and fix violations
+
+## Troubleshoot
+
+- If models are missing, navigate to Copilot settings -> Models tab and click "Refresh Built-in Models".
+- Please report any issue you see in the member channel!
+
+---
+
+# Copilot for Obsidian - Release v3.3.0 🚀
+
+The headline of this release is a big one: **your projects now live as notes in your vault**, not buried in `data.json`. Update and your existing projects migrate automatically. Everything else in this release is quality and polish: a 1.8 MB bundle reduction, mobile support declared official, fresh built-in models, and a wave of reliability fixes for Korean/CJK input, Miyo, Ollama, popout windows, and more!
+
+- 📁 **Projects are now vault notes** — Project configurations are migrated out of the plugin's `data.json` and into your vault as regular markdown files. On first launch after the update, Copilot reads your existing projects and writes them to vault files automatically. You can see, edit, and version-control your project configs like any other note! Any projects that can't be migrated are backed up to an `unsupported/` subfolder so nothing is lost. (@Emt-lin)
+- 📱 **Mobile support is now official** — Copilot is no longer desktop-only in the plugin manifest. Chat, Vault QA, and Plus modes all work on Obsidian Mobile, and the plugin now properly declares `minAppVersion: 1.7.2` so users on older Obsidian builds get a clear message rather than a cryptic runtime error. (@logancyang)
+- ⚡ **Bundle shrinks by 1.8 MB** — Cohere and Mistral models now route through OpenAI-compatible endpoints instead of their own SDKs, trimming the plugin from ~5 MB down to ~3.3 MB. Faster loads, especially on mobile! Note: if you had a custom `baseUrl` saved for a Cohere model, clear it in the model settings so Cohere falls back to the correct compatibility endpoint. (@logancyang)
+- 💡 **Latest built-in models (May 2026)** — Built-in model list updated: GPT-5.5, GPT-5.4-mini, Claude Opus 4.7, Gemini 3.1 Flash-Lite (now GA), and Grok 4.3 are all available out of the box. Click "Refresh Built-in Models" in settings if you don't see them yet. (@logancyang)
+- 🔧 **GitHub Copilot codex models use the Responses API** — Codex-family models accessed through GitHub Copilot now correctly route to the `/responses` endpoint. Previously they were hitting `/chat/completions` and failing with HTTP 400. (@Keryer)
+- ⌨️ **Enter key delay fixed for Korean/CJK input** — A 100ms timeout in the IME composition handler was making Enter feel sluggish when confirming Korean, Japanese, or Chinese input. Removed. (@octo-patch)
+- 🗑️ **Deleted files respect your trash preference** — When Copilot deletes a chat history file, project file, system prompt, or custom command, it now uses Obsidian's trash setting (system trash / vault `.trash` / permanent) instead of always deleting permanently. Recoverable! (@zeroliu)
+- 🛤️ **Miyo path fixes for cross-vault and remote setups** — Two Miyo fixes ship together: vault-folder-prefixed paths are now sent to the related-notes endpoint (fixing cross-device disambiguation), and the vault folder-name prefix is stripped from indexed paths (fixing broken links in "List Indexed Files"). (@wenzhengjiang)
+- 🌐 **Ollama respects the CORS setting** — Ollama requests now route through `safeFetch` when "Enable CORS" is toggled, matching what every other OpenAI-compatible provider does. Fixes mobile (WKWebView) requests to `http://` Ollama hosts. (@zeroliu)
+- 🪟 **Popout window reliability** — Chat in a popout window now creates DOM nodes in the correct window. Typing into the chat input after dragging the leaf between windows works without reopening the view. Pills, typeahead menus, the Quick Ask overlay, and inline citation links all render correctly in popouts. (@zeroliu)
+- 🧠 **Think-section rendering fix** — A bug where indented code blocks inside `<think>` sections consumed the closing `</div>` tag and displayed it as literal text has been fixed. Affects models like `google/gemma-4-31b-it` that use indented bullet-point reasoning. (@trulyshelton)
+
+More details in the changelog:
+
+### Improvements
+
+- #2324 feat: migrate project storage from data.json to vault files @Emt-lin
+- #2402 perf(deps): route Cohere & Mistral through OpenAI-compat (-1.8 MB bundle) @logancyang
+- #2396 chore(models): bump built-in models to latest (May 2026) @logancyang
+- #2425 chore(manifest): bump minAppVersion to 1.7.2 and declare mobile support @logancyang
+- #2406 fix(popout): document ownership and selection listener fixes (W4/9) @zeroliu
+- #2405 fix(vault): respect user trash preference via FileManager.trashFile (W7/9) @zeroliu
+- #2404 chore(providers): adopt non-deprecated LangChain APIs + type cleanup @zeroliu
+- #2403 chore(types): tighten types and replace TFile/TFolder casts @zeroliu
+- #2401 chore(popout): window-global API swaps for timers, globalThis, base64 @zeroliu
+- #2400 chore(styles): replace element.style with Tailwind + CSS vars @zeroliu
+- #2398 chore(deps): bump deps ahead of scorecard cleanup @zeroliu
+- #2358 docs(ai): unify AGENTS.md and CLAUDE.md @capyBearista
+
+### Bug Fixes
+
+- #2393 fix(miyo): send portable folder-prefixed path to related-notes endpoint @wenzhengjiang
+- #2390 fix(miyo): strip vault folder-name prefix from indexed paths @wenzhengjiang
+- #2382 fix(ollama): route through safeFetch when enableCors is set @zeroliu
+- #2367 fix: remove 100ms IME timeout that delayed Enter key for Korean/CJK input @octo-patch
+- #2343 fix: prevent </div> from being consumed by indented code blocks in think sections @trulyshelton
+- #2320 fix: use /responses for GitHub Copilot codex models @Keryer
+- #2408 fix: broken tests @zeroliu
+- #2407 chore(promises): explicit handling of floating promises @zeroliu
+
+## Troubleshoot
+
+- If models are missing, navigate to Copilot settings -> Models tab and click "Refresh Built-in Models".
+- Please report any issue you see in the member channel!
+
+---
+
+# Copilot for Obsidian - Prerelease v3.2.9-beta.0 🧪
+
+This is a beta release for testing the project storage migration, mobile support declaration, and a wave of reliability fixes before they ship in 3.2.9. Please report any issues in the Discord member channel with the version number in your report title.
+
+- 📁 **Projects now live in your vault, not data.json** — Project configurations are migrated from the plugin's `data.json` into your vault as regular markdown files. Your projects and their settings transfer automatically on first load. This is a significant storage change — testers please verify your projects come through intact and project chat history loads correctly. (@Emt-lin)
+- 📱 **Mobile support is now officially declared** — Copilot is no longer desktop-only. The plugin now works on Obsidian Mobile (minAppVersion 1.7.2). If you're a mobile user, now is the time to test! (@logancyang)
+- ⚡ **Bundle shrinks by 1.8 MB** — Cohere and Mistral models now route through the OpenAI-compatible endpoint instead of their own SDKs, cutting the plugin bundle from ~5 MB down to ~3.3 MB. Faster loads, especially on mobile. (@logancyang)
+- 🔧 **GitHub Copilot codex models use the Responses API** — Models like `gpt-4.1` and `o4-mini` accessed through GitHub Copilot now use the `/responses` endpoint as required. (@Keryer)
+- ⌨️ **Enter key delay fixed for Korean/CJK input** — A 100ms IME timeout was causing a noticeable delay when confirming input with Enter in Korean, Japanese, and Chinese. Removed. (@octo-patch)
+- 🛤️ **Miyo path portability fixes** — Two Miyo fixes land together: vault-folder-prefixed paths are now sent to the related-notes endpoint (fixing cross-vault disambiguation), and the vault folder-name prefix is stripped from indexed paths (fixing search result links). (@wenzhengjiang)
+- 🌐 **Ollama respects CORS setting for all requests** — Ollama requests now go through `safeFetch` when `enableCors` is set, matching the intended behavior for custom Ollama setups. (@zeroliu)
+- 🧠 **Think-section `</div>` parsing fix** — A bug where `</div>` tags were consumed by indented code blocks inside think sections has been fixed. (@trulyshelton)
+- 🛡️ **Codebase quality hardening** — A large wave of ESLint rule enablements (Obsidian API rules, security rules, type-aware rules) and corresponding fixes landed across the W0-W9 scorecard series. No behavior changes for users, but the codebase is now significantly more defensively typed and free of unsafe patterns. (@zeroliu)
+
+## What to Test
+
+- **Project migration**: Open the plugin after updating. Confirm all your projects appear in the Projects list and project chat history loads. Check that project files appear as notes in your vault.
+- **Mobile**: If you use Obsidian Mobile, install the prerelease and confirm basic chat, model switching, and search all work.
+- **Korean/CJK input**: Confirm Enter key no longer has a 100ms lag when confirming IME input in the chat box.
+- **Miyo**: If you use Miyo, test related-notes and search to confirm paths resolve correctly.
+- **Ollama with CORS**: If you run Ollama with `enableCors: true`, confirm requests still go through correctly.
+- **Bundle size**: Confirm Cohere and Mistral models still work correctly after the SDK routing change.
+
+## How to Install the Prerelease
+
+1. Download `main.js`, `manifest.json`, and `styles.css` from this prerelease's GitHub release page.
+2. Replace the same three files in your vault's `.obsidian/plugins/copilot/` folder.
+3. Reload the plugin (Settings → Community Plugins → toggle Copilot off and back on, or restart Obsidian).
+4. Report issues with the prerelease version number `3.2.9-beta.0` in the title so we can track them.
+
+To return to the stable release: reinstall the plugin from Obsidian's community-plugin browser.
+
+## Troubleshoot
+
+- If models are missing, navigate to Copilot settings -> Models tab and click "Refresh Built-in Models".
+- Please report any issue you see in the member channel with `3.2.9-beta.0` in the title!
+
+---
+
 # Copilot for Obsidian - Release v3.2.8 🔍
 
 A small but handy patch release adding a **global search toggle for Miyo** so you can search across everything you've indexed, not just your current vault!

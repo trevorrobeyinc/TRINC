@@ -1,7 +1,7 @@
 import { MessageRepository } from "./MessageRepository";
 import { ChatMessage, MessageContext, StoredMessage } from "@/types/message";
-import { formatDateTime } from "@/utils";
-import { TFile } from "obsidian";
+import { formatDateTime, FormattedDateTime } from "@/utils";
+import { mockTFile } from "@/__tests__/mockObsidian";
 
 // Mock dependencies
 jest.mock("@/utils", () => ({
@@ -14,11 +14,12 @@ jest.mock("@/logger", () => ({
 
 describe("MessageRepository", () => {
   let messageRepo: MessageRepository;
-  let mockFormattedDateTime: any;
+  let mockFormattedDateTime: FormattedDateTime;
 
   beforeEach(() => {
     messageRepo = new MessageRepository();
     mockFormattedDateTime = {
+      fileName: "20231201_103000",
       display: "2023-12-01 10:30:00",
       epoch: 1701423000000,
     };
@@ -53,7 +54,7 @@ describe("MessageRepository", () => {
     });
 
     it("should add a message with context", () => {
-      const mockFile = { path: "test.md", basename: "test" } as TFile;
+      const mockFile = mockTFile({ path: "test.md", basename: "test" });
       const context: MessageContext = {
         notes: [mockFile],
         urls: ["https://example.com"],
@@ -98,7 +99,7 @@ describe("MessageRepository", () => {
       messageRepo.addMessage("Hello", "Hello", "user");
 
       // Make message invisible by directly accessing internal array
-      const internalMessages = (messageRepo as any).messages as StoredMessage[];
+      const internalMessages = (messageRepo as unknown as { messages: StoredMessage[] }).messages;
       internalMessages[0].isVisible = false;
 
       const messages = messageRepo.getDisplayMessages();
@@ -281,7 +282,7 @@ describe("MessageRepository", () => {
   describe("Bug Prevention Tests", () => {
     describe("Context Badge Bug Prevention", () => {
       it("should preserve context when creating display messages", () => {
-        const mockFile = { path: "test.md", basename: "test" } as TFile;
+        const mockFile = mockTFile({ path: "test.md", basename: "test" });
         const context: MessageContext = {
           notes: [mockFile],
           urls: ["https://example.com"],

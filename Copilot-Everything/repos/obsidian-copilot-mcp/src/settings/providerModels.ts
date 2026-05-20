@@ -228,7 +228,7 @@ export interface GroqModel {
   owned_by: string;
   active?: boolean;
   context_window?: number;
-  public_apps?: any;
+  public_apps?: unknown;
 }
 
 // XAI response model definition
@@ -427,7 +427,7 @@ export type ProviderModelAdapters = {
  * Provider model adapters - converts different provider model data to standard format
  * These adapters extract model information from API responses and return in a unified format
  */
-export const providerAdapters: ProviderModelAdapters = {
+const providerAdapters: ProviderModelAdapters = {
   [ChatModelProviders.OPENAI]: (data): StandardModel[] =>
     data.data?.map((model) => ({
       id: model.id,
@@ -515,27 +515,47 @@ export const providerAdapters: ProviderModelAdapters = {
  * Default model adapter - handles unknown provider or format model data
  * Attempts to detect common data structure patterns and extract relevant information
  */
-export const getDefaultModelAdapter = (provider: SettingKeyProviders) => {
-  return (data: any): StandardModel[] => {
+/** Coerce an unknown model field value to a string, falling back to a default. */
+const toStr = (val: unknown, fallback: string): string =>
+  typeof val === "string" && val.length > 0
+    ? val
+    : typeof val === "number"
+      ? String(val)
+      : fallback;
+
+const getDefaultModelAdapter = (provider: SettingKeyProviders) => {
+  return (data: Record<string, unknown>): StandardModel[] => {
     // Try to detect common data structure patterns
     if (data.data && Array.isArray(data.data)) {
-      return data.data.map((model: any) => ({
-        id: model.id || model.name || String(Math.random()),
-        name: model.name || model.id || model.display_name || "Unknown Model",
-        provider: provider,
-      }));
+      return (data.data as Record<string, unknown>[]).map(
+        (model): StandardModel => ({
+          id: toStr(model.id, "") || toStr(model.name, String(Math.random())),
+          name:
+            toStr(model.name, "") ||
+            toStr(model.id, "") ||
+            toStr(model.display_name, "Unknown Model"),
+          provider: provider,
+        })
+      );
     } else if (data.models && Array.isArray(data.models)) {
-      return data.models.map((model: any) => ({
-        id: model.id || model.name || String(Math.random()),
-        name: model.name || model.displayName || model.id || "Unknown Model",
-        provider: provider,
-      }));
+      return (data.models as Record<string, unknown>[]).map(
+        (model): StandardModel => ({
+          id: toStr(model.id, "") || toStr(model.name, String(Math.random())),
+          name:
+            toStr(model.name, "") ||
+            toStr(model.displayName, "") ||
+            toStr(model.id, "Unknown Model"),
+          provider: provider,
+        })
+      );
     } else if (Array.isArray(data)) {
-      return data.map((model: any) => ({
-        id: model.id || model.name || String(Math.random()),
-        name: model.name || model.id || "Unknown Model",
-        provider: provider,
-      }));
+      return (data as Record<string, unknown>[]).map(
+        (model): StandardModel => ({
+          id: toStr(model.id, "") || toStr(model.name, String(Math.random())),
+          name: toStr(model.name, "") || toStr(model.id, "Unknown Model"),
+          provider: provider,
+        })
+      );
     }
     return [];
   };
@@ -545,17 +565,20 @@ export const getDefaultModelAdapter = (provider: SettingKeyProviders) => {
  * Get adapter function
  * Uses provider-specific adapter if available, otherwise falls back to default adapter
  */
-export const getModelAdapter = (provider: SettingKeyProviders) => {
+const getModelAdapter = (provider: SettingKeyProviders) => {
   return providerAdapters[provider] || getDefaultModelAdapter(provider);
 };
 
 /**
  * Parse model data and convert to standard format
  */
-export const parseModelsResponse = (provider: SettingKeyProviders, data: any): StandardModel[] => {
+export const parseModelsResponse = (
+  provider: SettingKeyProviders,
+  data: unknown
+): StandardModel[] => {
   const adapter = getModelAdapter(provider);
   try {
-    return adapter(data);
+    return adapter(data as never);
   } catch (error) {
     logError(`Error parsing ${provider} model data:`, error);
     return [];

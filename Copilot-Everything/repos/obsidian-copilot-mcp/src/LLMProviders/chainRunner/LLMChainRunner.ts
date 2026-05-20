@@ -15,7 +15,9 @@ export class LLMChainRunner extends BaseChainRunner {
    * Construct messages array using envelope-based context (L1-L5 layers)
    * Requires context envelope - throws error if unavailable
    */
-  private async constructMessages(userMessage: ChatMessage): Promise<any[]> {
+  private async constructMessages(
+    userMessage: ChatMessage
+  ): Promise<{ role: string; content: string | unknown[] }[]> {
     // Require envelope for LLM chain
     if (!userMessage.contextEnvelope) {
       throw new Error(
@@ -32,7 +34,7 @@ export class LLMChainRunner extends BaseChainRunner {
       debug: false,
     });
 
-    const messages: any[] = [];
+    const messages: { role: string; content: string | unknown[] }[] = [];
 
     // Add system message (L1)
     const systemMessage = baseMessages.find((m) => m.role === "system");
@@ -50,7 +52,7 @@ export class LLMChainRunner extends BaseChainRunner {
       // Handle multimodal content if present
       if (userMessage.content && Array.isArray(userMessage.content)) {
         // Merge envelope text with multimodal content (images)
-        const updatedContent = userMessage.content.map((item: any) => {
+        const updatedContent = userMessage.content.map((item: { type?: string }) => {
           if (item.type === "text") {
             return { ...item, text: userMessageContent.content };
           }
@@ -115,9 +117,13 @@ export class LLMChainRunner extends BaseChainRunner {
 
       // Stream with abort signal
       const chatStream = await withSuppressedTokenWarnings(() =>
-        this.chainManager.chatModelManager.getChatModel().stream(messages, {
-          signal: abortController.signal,
-        })
+        this.chainManager.chatModelManager.getChatModel().stream(
+          // ProviderMessage[] format matches what getChatModel().stream() accepts at runtime
+          messages as never,
+          {
+            signal: abortController.signal,
+          }
+        )
       );
 
       for await (const chunk of chatStream) {
@@ -125,15 +131,19 @@ export class LLMChainRunner extends BaseChainRunner {
           logInfo("Stream iteration aborted", { reason: abortController.signal.reason });
           break;
         }
-        streamer.processChunk(chunk);
+        streamer.processChunk(chunk as Parameters<typeof streamer.processChunk>[0]);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Check if the error is due to abort signal
-      if (error.name === "AbortError" || abortController.signal.aborted) {
+      const errorName = error instanceof Error ? error.name : "";
+      if (errorName === "AbortError" || abortController.signal.aborted) {
         logInfo("Stream aborted by user", { reason: abortController.signal.reason });
         // Don't show error message for user-initiated aborts
       } else {
-        await this.handleError(error, streamer.processErrorChunk.bind(streamer));
+        await this.handleError(
+          error,
+          streamer.processErrorChunk.bind(streamer) as (message: string) => void
+        );
       }
     }
 

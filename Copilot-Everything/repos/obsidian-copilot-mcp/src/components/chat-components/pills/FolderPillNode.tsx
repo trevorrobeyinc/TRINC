@@ -4,10 +4,11 @@ import {
   DOMConversionMap,
   DOMConversionOutput,
   DOMExportOutput,
+  LexicalEditor,
   LexicalNode,
   NodeKey,
 } from "lexical";
-import { BasePillNode, SerializedBasePillNode } from "./BasePillNode";
+import { BasePillNode, getEditorDocument, SerializedBasePillNode } from "./BasePillNode";
 import { TruncatedPillText } from "./TruncatedPillText";
 import { PillBadge } from "./PillBadge";
 
@@ -93,8 +94,8 @@ export class FolderPillNode extends BasePillNode {
   /**
    * Override to export DOM with curly braces
    */
-  exportDOM(): DOMExportOutput {
-    const element = document.createElement("span");
+  exportDOM(editor: LexicalEditor): DOMExportOutput {
+    const element = getEditorDocument(editor).createElement("span");
     element.setAttribute(this.getDataAttribute(), "");
     element.setAttribute("data-pill-value", this.__value);
     element.textContent = `{${this.getFolderPath()}}`;
@@ -120,11 +121,11 @@ export function $createFolderPillNode(folderPath: string): FolderPillNode {
   return new FolderPillNode(folderPath);
 }
 
-export function $isFolderPillNode(node: any): node is FolderPillNode {
+export function $isFolderPillNode(node: LexicalNode): node is FolderPillNode {
   return node instanceof FolderPillNode;
 }
 
-export function $findFolderPills(): FolderPillNode[] {
+function $findFolderPills(): FolderPillNode[] {
   const root = $getRoot();
   const pills: FolderPillNode[] = [];
 
@@ -134,7 +135,7 @@ export function $findFolderPills(): FolderPillNode[] {
     }
 
     if ("getChildren" in node && typeof node.getChildren === "function") {
-      const children = node.getChildren();
+      const children = node.getChildren() as LexicalNode[];
       for (const child of children) {
         traverse(child);
       }

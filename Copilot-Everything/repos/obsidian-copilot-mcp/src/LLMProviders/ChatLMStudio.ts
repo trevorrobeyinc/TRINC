@@ -11,14 +11,14 @@ import { ChatOpenAI } from "@langchain/openai";
 export interface ChatLMStudioInput {
   modelName?: string;
   apiKey?: string;
-  configuration?: any;
+  configuration?: Record<string, unknown>;
   temperature?: number;
   maxTokens?: number;
   topP?: number;
   frequencyPenalty?: number;
   streaming?: boolean;
   streamUsage?: boolean;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -27,13 +27,13 @@ export interface ChatLMStudioInput {
  * stop before the request is sent, guaranteeing all null values in
  * tools are stripped regardless of which LangChain code path produced them.
  */
-function createLMStudioFetch(baseFetch?: typeof globalThis.fetch): typeof globalThis.fetch {
-  const underlyingFetch = baseFetch || globalThis.fetch;
+function createLMStudioFetch(baseFetch?: typeof window.fetch): typeof window.fetch {
+  const underlyingFetch = baseFetch || window.fetch;
 
   return async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
     if (init?.body && typeof init.body === "string") {
       try {
-        const body = JSON.parse(init.body);
+        const body = JSON.parse(init.body) as { tools?: unknown };
         let modified = false;
 
         // Strip null/undefined values from tool definitions
@@ -63,7 +63,8 @@ function createLMStudioFetch(baseFetch?: typeof globalThis.fetch): typeof global
 
 export class ChatLMStudio extends ChatOpenAI {
   constructor(fields: ChatLMStudioInput) {
-    const originalFetch = fields.configuration?.fetch;
+    const configuration = fields.configuration as { fetch?: typeof window.fetch } | undefined;
+    const originalFetch = configuration?.fetch;
 
     super({
       ...fields,
@@ -78,7 +79,7 @@ export class ChatLMStudio extends ChatOpenAI {
       // `text: { format: undefined }` (serializes to `text: {}`) which LM Studio
       // rejects with "Required: text.format".
       modelKwargs: {
-        ...fields.modelKwargs,
+        ...(fields.modelKwargs as Record<string, unknown> | undefined),
         text: { format: { type: "text" } },
       },
     });

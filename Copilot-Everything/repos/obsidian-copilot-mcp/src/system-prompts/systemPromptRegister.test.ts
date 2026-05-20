@@ -1,7 +1,8 @@
-import { Notice, Plugin, TFile, Vault } from "obsidian";
+import { Notice, Plugin, Vault } from "obsidian";
 import { SystemPromptRegister } from "@/system-prompts/systemPromptRegister";
 import * as state from "@/system-prompts/state";
 import * as systemPromptUtils from "@/system-prompts/systemPromptUtils";
+import { mockTFile } from "@/__tests__/mockObsidian";
 
 // Mock obsidian
 jest.mock("obsidian", () => ({
@@ -67,8 +68,8 @@ describe("SystemPromptRegister", () => {
   let mockPlugin: Plugin;
   let mockVault: Vault;
   let register: SystemPromptRegister;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let vaultEventHandlers: Record<string, (...args: any[]) => void>;
+
+  let vaultEventHandlers: Record<string, (...args: unknown[]) => unknown>;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -78,8 +79,7 @@ describe("SystemPromptRegister", () => {
 
     mockPlugin = {} as Plugin;
     mockVault = {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      on: jest.fn((event: string, handler: (...args: any[]) => void) => {
+      on: jest.fn((event: string, handler: (...args: unknown[]) => unknown) => {
         vaultEventHandlers[event] = handler;
       }),
       off: jest.fn(),
@@ -94,11 +94,11 @@ describe("SystemPromptRegister", () => {
 
   describe("handleFileDeletion - selectedPromptTitle sync", () => {
     it("clears selectedPromptTitle when deleted file matches current selection", async () => {
-      const mockFile = {
+      const mockFile = mockTFile({
         path: "SystemPrompts/MyPrompt.md",
         basename: "MyPrompt",
         extension: "md",
-      } as TFile;
+      });
 
       // Set up: current selection points to the file being deleted
       (state.getSelectedPromptTitle as jest.Mock).mockReturnValue("MyPrompt");
@@ -112,11 +112,11 @@ describe("SystemPromptRegister", () => {
     });
 
     it("does not clear selectedPromptTitle when deleted file does not match", async () => {
-      const mockFile = {
+      const mockFile = mockTFile({
         path: "SystemPrompts/OtherPrompt.md",
         basename: "OtherPrompt",
         extension: "md",
-      } as TFile;
+      });
 
       // Set up: current selection points to a different prompt
       (state.getSelectedPromptTitle as jest.Mock).mockReturnValue("MyPrompt");
@@ -130,11 +130,11 @@ describe("SystemPromptRegister", () => {
     });
 
     it("does not clear selectedPromptTitle when no prompt is selected", async () => {
-      const mockFile = {
+      const mockFile = mockTFile({
         path: "SystemPrompts/MyPrompt.md",
         basename: "MyPrompt",
         extension: "md",
-      } as TFile;
+      });
 
       // Set up: no prompt is currently selected
       (state.getSelectedPromptTitle as jest.Mock).mockReturnValue("");
@@ -150,11 +150,11 @@ describe("SystemPromptRegister", () => {
 
   describe("handleFileRename - selectedPromptTitle sync", () => {
     it("updates selectedPromptTitle when renamed file matches current selection", async () => {
-      const mockFile = {
+      const mockFile = mockTFile({
         path: "SystemPrompts/NewName.md",
         basename: "NewName",
         extension: "md",
-      } as TFile;
+      });
       const oldPath = "SystemPrompts/OldName.md";
 
       // Set up: current selection points to the old name
@@ -170,11 +170,11 @@ describe("SystemPromptRegister", () => {
     });
 
     it("clears selectedPromptTitle when file is moved out of prompts folder", async () => {
-      const mockFile = {
+      const mockFile = mockTFile({
         path: "OtherFolder/MyPrompt.md",
         basename: "MyPrompt",
         extension: "md",
-      } as TFile;
+      });
       const oldPath = "SystemPrompts/MyPrompt.md";
 
       // Set up: current selection points to the moved file
@@ -191,11 +191,11 @@ describe("SystemPromptRegister", () => {
     });
 
     it("does not update selectedPromptTitle when renamed file does not match", async () => {
-      const mockFile = {
+      const mockFile = mockTFile({
         path: "SystemPrompts/NewName.md",
         basename: "NewName",
         extension: "md",
-      } as TFile;
+      });
       const oldPath = "SystemPrompts/OldName.md";
 
       // Set up: current selection points to a different prompt
@@ -211,11 +211,11 @@ describe("SystemPromptRegister", () => {
     });
 
     it("does not update selectedPromptTitle when no prompt is selected", async () => {
-      const mockFile = {
+      const mockFile = mockTFile({
         path: "SystemPrompts/NewName.md",
         basename: "NewName",
         extension: "md",
-      } as TFile;
+      });
       const oldPath = "SystemPrompts/OldName.md";
 
       // Set up: no prompt is currently selected
@@ -239,11 +239,16 @@ describe("SystemPromptRegister", () => {
       jest.useFakeTimers();
 
       // Capture the settings change handler
-      const { subscribeToSettingsChange } = jest.requireMock("@/settings/model");
-      settingsChangeHandler = subscribeToSettingsChange.mock.calls[0]?.[0];
+      const { subscribeToSettingsChange } = jest.requireMock<{
+        subscribeToSettingsChange: jest.Mock;
+      }>("@/settings/model");
+      settingsChangeHandler = subscribeToSettingsChange.mock
+        .calls[0]?.[0] as typeof settingsChangeHandler;
 
       // Get reference to mock manager
-      const { SystemPromptManager } = jest.requireMock("@/system-prompts/systemPromptManager");
+      const { SystemPromptManager } = jest.requireMock<{
+        SystemPromptManager: { getInstance: () => { fetchPrompts: jest.Mock } };
+      }>("@/system-prompts/systemPromptManager");
       mockManager = SystemPromptManager.getInstance();
     });
 
@@ -280,10 +285,13 @@ describe("SystemPromptRegister", () => {
     });
 
     it("clears defaultSystemPromptTitle when prompt not found in new folder", async () => {
-      const { getSettings, updateSetting } = jest.requireMock("@/settings/model");
+      const { getSettings, updateSetting } = jest.requireMock<{
+        getSettings: jest.Mock;
+        updateSetting: jest.Mock;
+      }>("@/settings/model");
 
       // Set up: default prompt points to a prompt that won't exist in new folder
-      (getSettings as jest.Mock).mockReturnValue({
+      getSettings.mockReturnValue({
         defaultSystemPromptTitle: "OldDefault",
         userSystemPromptsFolder: "NewFolder",
       });
@@ -313,10 +321,13 @@ describe("SystemPromptRegister", () => {
     });
 
     it("does not clear prompts when they exist in new folder", async () => {
-      const { getSettings, updateSetting } = jest.requireMock("@/settings/model");
+      const { getSettings, updateSetting } = jest.requireMock<{
+        getSettings: jest.Mock;
+        updateSetting: jest.Mock;
+      }>("@/settings/model");
 
       // Set up: prompts exist in new folder
-      (getSettings as jest.Mock).mockReturnValue({
+      getSettings.mockReturnValue({
         defaultSystemPromptTitle: "ExistingPrompt",
         userSystemPromptsFolder: "NewFolder",
       });

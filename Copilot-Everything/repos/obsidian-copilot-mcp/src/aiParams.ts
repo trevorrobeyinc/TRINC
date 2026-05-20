@@ -1,4 +1,4 @@
-import { ChainType } from "@/chainFactory";
+import { ChainType } from "@/chainType";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 
@@ -6,6 +6,7 @@ import { ModelCapability, ReasoningEffort, Verbosity } from "@/constants";
 import { settingsAtom, settingsStore } from "@/settings/model";
 import { SelectedTextContext } from "@/types/message";
 import { atom, useAtom } from "jotai";
+import { TFile } from "obsidian";
 
 const userModelKeyAtom = atom<string | null>(null);
 const modelKeyAtom = atom(
@@ -59,7 +60,7 @@ export const projectContextLoadAtom = atom<ProjectContextLoadState>({
   total: [],
 });
 
-export interface IndexingProgressState {
+interface IndexingProgressState {
   isActive: boolean;
   isPaused: boolean;
   isCancelled: boolean;
@@ -69,7 +70,7 @@ export interface IndexingProgressState {
   completionStatus: "none" | "success" | "cancelled" | "error";
 }
 
-export const indexingProgressAtom = atom<IndexingProgressState>({
+const indexingProgressAtom = atom<IndexingProgressState>({
   isActive: false,
   isPaused: false,
   isCancelled: false,
@@ -128,7 +129,7 @@ export interface ModelConfig {
 export interface SetChainOptions {
   prompt?: ChatPromptTemplate;
   chatModel?: BaseChatModel;
-  noteFile?: any;
+  noteFile?: TFile;
   abortController?: AbortController;
   refreshIndex?: boolean;
 }
@@ -236,24 +237,8 @@ export function subscribeToProjectChange(
   });
 }
 
-export function useCurrentProject() {
-  return useAtom(currentProjectAtom, {
-    store: settingsStore,
-  });
-}
-
 export function setProjectLoading(loading: boolean) {
   settingsStore.set(projectLoadingAtom, loading);
-}
-
-export function isProjectLoading(): boolean {
-  return settingsStore.get(projectLoadingAtom);
-}
-
-export function subscribeToProjectLoadingChange(callback: (loading: boolean) => void): () => void {
-  return settingsStore.sub(projectLoadingAtom, () => {
-    callback(settingsStore.get(projectLoadingAtom));
-  });
 }
 
 export function useProjectLoading() {
@@ -274,11 +259,6 @@ export function getSelectedTextContexts(): SelectedTextContext[] {
   return settingsStore.get(selectedTextContextsAtom);
 }
 
-export function addSelectedTextContext(context: SelectedTextContext) {
-  const current = getSelectedTextContexts();
-  setSelectedTextContexts([...current, context]);
-}
-
 export function removeSelectedTextContext(id: string) {
   const current = getSelectedTextContexts();
   setSelectedTextContexts(current.filter((context) => context.id !== id));
@@ -292,13 +272,6 @@ export function useSelectedTextContexts() {
   return useAtom(selectedTextContextsAtom, {
     store: settingsStore,
   });
-}
-
-/**
- * Gets the project context load state from the atom.
- */
-export function getProjectContextLoadState(): Readonly<ProjectContextLoadState> {
-  return settingsStore.get(projectContextLoadAtom);
 }
 
 /**
@@ -319,17 +292,6 @@ export function updateProjectContextLoadState<K extends keyof ProjectContextLoad
     ...prev,
     [key]: valueFn(prev[key]),
   }));
-}
-
-/**
- * Subscribes to changes in the project context load state.
- */
-export function subscribeToProjectContextLoadChange(
-  callback: (state: ProjectContextLoadState) => void
-): () => void {
-  return settingsStore.sub(projectContextLoadAtom, () => {
-    callback(settingsStore.get(projectContextLoadAtom));
-  });
 }
 
 /**
@@ -370,7 +332,7 @@ export function updateIndexingProgressState(partial: Partial<IndexingProgressSta
 // cascading React re-renders from frequent Jotai atom updates.
 let _lastUpdateTime = 0;
 let _pendingCount = 0;
-let _throttleTimer: ReturnType<typeof setTimeout> | null = null;
+let _throttleTimer: number | null = null;
 const THROTTLE_INTERVAL_MS = 500;
 
 /**
@@ -381,7 +343,7 @@ export function resetIndexingProgressState() {
   // Cancel any pending throttled indexing count write so a stale timer from a
   // previous run cannot corrupt the freshly-reset state.
   if (_throttleTimer !== null) {
-    clearTimeout(_throttleTimer);
+    window.clearTimeout(_throttleTimer);
     _throttleTimer = null;
   }
   _lastUpdateTime = 0;
@@ -410,13 +372,13 @@ export function throttledUpdateIndexingCount(indexedCount: number): void {
     // Enough time has passed — write immediately
     _lastUpdateTime = now;
     if (_throttleTimer !== null) {
-      clearTimeout(_throttleTimer);
+      window.clearTimeout(_throttleTimer);
       _throttleTimer = null;
     }
     updateIndexingProgressState({ indexedCount: _pendingCount });
   } else if (_throttleTimer === null) {
     // Schedule a trailing write
-    _throttleTimer = setTimeout(
+    _throttleTimer = window.setTimeout(
       () => {
         _lastUpdateTime = Date.now();
         _throttleTimer = null;
@@ -433,7 +395,7 @@ export function throttledUpdateIndexingCount(indexedCount: number): void {
  */
 export function flushIndexingCount(): void {
   if (_throttleTimer !== null) {
-    clearTimeout(_throttleTimer);
+    window.clearTimeout(_throttleTimer);
     _throttleTimer = null;
   }
   updateIndexingProgressState({ indexedCount: _pendingCount });

@@ -1,8 +1,8 @@
-import { logInfo, logWarn } from "@/logger";
+import { logError, logInfo, logWarn } from "@/logger";
 import { MiyoClient } from "@/miyo/MiyoClient";
 import {
-  getMiyoAbsolutePath,
   getMiyoCustomUrl,
+  getMiyoFilePath,
   getMiyoFolderName,
   getVaultRelativeMiyoPath,
   shouldUseMiyo,
@@ -35,16 +35,18 @@ function shouldUseMiyoForRelevantNotes(): boolean {
  * @param currentFilePath - The current file path.
  * @returns A map of the highest score hits for each note.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- InternalTypedDocument<any> is required as Orama controls this type
 function getHighestScoreHits(hits: Result<InternalTypedDocument<any>>[], currentFilePath: string) {
   const hitMap = new Map<string, number>();
   for (const hit of hits) {
-    const matchingScore = hitMap.get(hit.document.path);
+    const path = (hit.document as { path: string }).path;
+    const matchingScore = hitMap.get(path);
     if (matchingScore) {
       if (hit.score > matchingScore) {
-        hitMap.set(hit.document.path, hit.score);
+        hitMap.set(path, hit.score);
       }
     } else {
-      hitMap.set(hit.document.path, hit.score);
+      hitMap.set(path, hit.score);
     }
   }
   hitMap.delete(currentFilePath);
@@ -102,6 +104,7 @@ async function calculateSimilarityScoreFromOrama({
   filePath,
   currentNoteEmbeddings,
 }: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Orama<any> is the correct API type
   db: Orama<any>;
   filePath: string;
   currentNoteEmbeddings: number[][];
@@ -125,12 +128,13 @@ async function calculateSimilarityScoreFromOrama({
  * @returns Map of note paths to max similarity score.
  */
 async function calculateSimilarityScoreFromMiyo(filePath: string): Promise<Map<string, number>> {
+  const settings = getSettings();
+  const miyoClient = new MiyoClient();
+  const folderName = getMiyoFolderName(app);
+  const miyoFilePath = getMiyoFilePath(app, filePath);
   try {
-    const settings = getSettings();
-    const miyoClient = new MiyoClient();
     const baseUrl = await miyoClient.resolveBaseUrl(getMiyoCustomUrl(settings));
-    const folderName = getMiyoFolderName(app);
-    const response = await miyoClient.searchRelated(baseUrl, getMiyoAbsolutePath(app, filePath), {
+    const response = await miyoClient.searchRelated(baseUrl, miyoFilePath, {
       folderName,
       limit: MAX_K,
     });
@@ -151,15 +155,25 @@ async function calculateSimilarityScoreFromMiyo(filePath: string): Promise<Map<s
       }
     }
 
-    if (getSettings().debug) {
+    if (settings.debug) {
+      const sampleResponsePath = results[0]?.path;
+      const sampleStripped = sampleResponsePath
+        ? getVaultRelativeMiyoPath(app, sampleResponsePath)
+        : undefined;
       logInfo(
-        `RelevantNotes(Miyo): received ${results.length} chunks, collected ${similarityScoreMap.size} note scores`
+        `RelevantNotes(Miyo): file_path=${miyoFilePath} folder_name=${folderName} ` +
+          `received ${results.length} chunks, collected ${similarityScoreMap.size} note scores ` +
+          `(sample response.path=${sampleResponsePath ?? "n/a"} → stripped=${sampleStripped ?? "n/a"})`
       );
     }
 
     return capToTopK(similarityScoreMap);
   } catch (error) {
-    logWarn("RelevantNotes(Miyo): failed to compute similarity scores", error);
+    logError(
+      `RelevantNotes(Miyo): searchRelated failed for file_path=${miyoFilePath} folder_name=${folderName}: ${
+        (error as Error).message
+      }`
+    );
     return new Map();
   }
 }
@@ -265,7 +279,7 @@ function mergeScoreMaps(
 }
 
 export type RelevantNoteEntry = {
-  document: {
+  note: {
     path: string;
     title: string;
   };
@@ -316,7 +330,7 @@ export async function findRelevantNotes({
         return null;
       }
       return {
-        document: {
+        note: {
           path,
           title: file.basename,
         },

@@ -1,11 +1,9 @@
 import { CustomModel, ProjectConfig } from "@/aiParams";
-import type { BackendMode } from "@/backend/BackendAdapter";
-import type { SelfHostExecutionMode, SelfHostRuntimeLane } from "@/backend/selfHostContract";
 import { atom, createStore, useAtomValue } from "jotai";
 import type { McpSettings } from "@/mcp/types";
 import { v4 as uuidv4 } from "uuid";
 
-import { type ChainType } from "@/chainFactory";
+import { type ChainType } from "@/chainType";
 import { type SortStrategy, isSortStrategy } from "@/utils/recentUsageManager";
 import {
   AGENT_MAX_ITERATIONS_LIMIT,
@@ -46,17 +44,6 @@ export interface LegacyCommandSettings {
    * Whether to show the command in the context menu.
    */
   showInContextMenu: boolean;
-}
-
-export interface HostedAdapterSettings {
-  enabled: boolean;
-}
-
-export interface SelfHostAdapterSettings {
-  baseUrl: string;
-  apiKey: string;
-  enableMiyoBackend: boolean;
-  runtimeLane: SelfHostRuntimeLane;
 }
 
 export interface CopilotSettings {
@@ -111,7 +98,8 @@ export interface CopilotSettings {
   chatNoteContextTags: string[];
   enableIndexSync: boolean;
   debug: boolean;
-  enableEncryption: boolean;
+  /** @deprecated Removed — keychain is now the sole encryption mechanism. */
+  enableEncryption?: never;
   maxSourceChunks: number;
   enableInlineCitations: boolean;
   qaExclusions: string;
@@ -123,6 +111,8 @@ export interface CopilotSettings {
   promptSortStrategy: string;
   chatHistorySortStrategy: SortStrategy;
   projectListSortStrategy: SortStrategy;
+  /** Projects config root folder in vault (default: "copilot/projects"). */
+  projectsFolder: string;
   embeddingRequestsPerMin: number;
   embeddingBatchSize: number;
   defaultOpenArea: DEFAULT_OPEN_AREA;
@@ -141,14 +131,6 @@ export interface CopilotSettings {
   enableCustomPromptTemplating: boolean;
   /** Enable semantic search using Orama for meaning-based document retrieval */
   enableSemanticSearchV3: boolean;
-  /** Explicit backend mode selection for the plugin runtime */
-  backendMode: BackendMode;
-  /** Hosted Brevilabs adapter settings */
-  hostedAdapter: HostedAdapterSettings;
-  /** Self-host adapter settings */
-  selfHostAdapter: SelfHostAdapterSettings;
-  /** Which execution path self-host mode should use */
-  selfHostExecutionMode: SelfHostExecutionMode;
   /** Enable self-host mode (e.g., Miyo) - uses self-hosted services for search, LLMs, OCR, etc. */
   enableSelfHostMode: boolean;
   /** Enable Miyo-backed indexing and semantic search when self-host mode is active */
@@ -221,11 +203,25 @@ export interface CopilotSettings {
   autoCompactThreshold: number;
   /** Folder where converted document markdown files are saved */
   convertedDocOutputFolder: string;
-  /** MCP settings and server registrations */
+  /** MCP settings and server registrations (forked addition) */
   mcp: McpSettings;
+  /**
+   * When `true`, the OS keychain is the single source of truth for secrets;
+   * data.json must never contain plaintext secret values.
+   *
+   * Set on:
+   * - Fresh installs (no prior data.json) when keychain is available
+   * - User clicking "Migrate to Keychain" in Advanced Settings
+   * - `forgetAllSecrets` (after stripping disk + clearing keychain)
+   */
+  _keychainOnly?: boolean;
+  /**
+   * Stable namespace ID for keychain entries, persisted once on first use.
+   * Reason: using a persisted ID (instead of deriving from vault path) means
+   * renaming or moving the vault folder does not orphan keychain entries.
+   */
+  _keychainVaultId?: string;
 }
-
-export type { SelfHostExecutionMode };
 
 export const settingsStore = createStore();
 export const settingsAtom = atom<CopilotSettings>(DEFAULT_SETTINGS);
@@ -311,6 +307,15 @@ export function getSettings(): Readonly<CopilotSettings> {
 
 /**
  * Resets the settings to the default values.
+ *
+ * DESIGN NOTE — does NOT clear secrets from the Obsidian Keychain. Reset only
+ * rewrites `data.json` to defaults; a keychain-only vault keeps its OS keychain
+ * entries. "Delete All Keys" (Advanced Settings → API Key Storage, backed by
+ * `KeychainService.forgetAllSecrets`) is the dedicated path for erasing keychain
+ * secrets. Wiring that async transaction into this synchronous reset would pull
+ * the keychain service and its callbacks through `SettingsMainV2`, and is
+ * intentionally left out of the first-stage migration.
+ * If a future review flags this again, point them at this note.
  */
 export function resetSettings(): void {
   const defaultSettingsWithBuiltIns = {
@@ -346,6 +351,14 @@ export function useSettingsValue(): Readonly<CopilotSettings> {
 }
 
 /**
+ * Normalize persisted model provider values so identity keys stay stable across migrations.
+ * Reason: Legacy data may store "azure_openai" while runtime uses "azure-openai".
+ */
+export function normalizeModelProvider(provider: string): string {
+  return provider === "azure_openai" ? EmbeddingModelProviders.AZURE_OPENAI : provider;
+}
+
+/**
  * Sanitizes the settings to ensure they are valid.
  * Note: This will be better handled by Zod in the future.
  */
@@ -375,7 +388,7 @@ export function sanitizeSettings(settings: CopilotSettings): CopilotSettings {
     settingsToSanitize.activeEmbeddingModels = settingsToSanitize.activeEmbeddingModels.map((m) => {
       return {
         ...m,
-        provider: m.provider === "azure_openai" ? EmbeddingModelProviders.AZURE_OPENAI : m.provider,
+        provider: normalizeModelProvider(m.provider),
       };
     });
   }
@@ -403,99 +416,6 @@ export function sanitizeSettings(settings: CopilotSettings): CopilotSettings {
   // Migration: Rename legacy enableMiyoSearch to enableMiyo.
   if (legacyEnableMiyoSearch !== undefined && sanitizedSettings.enableMiyo === undefined) {
     sanitizedSettings.enableMiyo = legacyEnableMiyoSearch as boolean;
-  }
-
-  // Backend mode migration and synchronization
-  if (sanitizedSettings.backendMode !== "hosted" && sanitizedSettings.backendMode !== "self_host") {
-    sanitizedSettings.backendMode = sanitizedSettings.enableSelfHostMode ? "self_host" : "hosted";
-  }
-
-  if (
-    !sanitizedSettings.hostedAdapter ||
-    typeof sanitizedSettings.hostedAdapter.enabled !== "boolean"
-  ) {
-    sanitizedSettings.hostedAdapter = { ...DEFAULT_SETTINGS.hostedAdapter };
-  }
-
-  if (!sanitizedSettings.selfHostAdapter) {
-    sanitizedSettings.selfHostAdapter = { ...DEFAULT_SETTINGS.selfHostAdapter };
-  }
-
-  sanitizedSettings.selfHostAdapter = {
-    ...DEFAULT_SETTINGS.selfHostAdapter,
-    ...sanitizedSettings.selfHostAdapter,
-  };
-
-  if (!sanitizedSettings.selfHostAdapter.baseUrl && sanitizedSettings.selfHostUrl) {
-    sanitizedSettings.selfHostAdapter.baseUrl = sanitizedSettings.selfHostUrl;
-  }
-
-  if (!sanitizedSettings.selfHostAdapter.apiKey && sanitizedSettings.selfHostApiKey) {
-    sanitizedSettings.selfHostAdapter.apiKey = sanitizedSettings.selfHostApiKey;
-  }
-
-  if (!sanitizedSettings.selfHostUrl && sanitizedSettings.selfHostAdapter.baseUrl) {
-    sanitizedSettings.selfHostUrl = sanitizedSettings.selfHostAdapter.baseUrl;
-  }
-
-  if (!sanitizedSettings.selfHostApiKey && sanitizedSettings.selfHostAdapter.apiKey) {
-    sanitizedSettings.selfHostApiKey = sanitizedSettings.selfHostAdapter.apiKey;
-  }
-
-  if (
-    sanitizedSettings.selfHostExecutionMode !== "direct_plugin_mcp" &&
-    sanitizedSettings.selfHostExecutionMode !== "exact_backend_emulator" &&
-    sanitizedSettings.selfHostExecutionMode !== "direct_obsidian_vaultzk"
-  ) {
-    sanitizedSettings.selfHostExecutionMode = DEFAULT_SETTINGS.selfHostExecutionMode;
-  }
-
-  if (
-    typeof sanitizedSettings.selfHostAdapter.enableMiyoBackend !== "boolean" &&
-    typeof sanitizedSettings.enableMiyo === "boolean"
-  ) {
-    sanitizedSettings.selfHostAdapter.enableMiyoBackend = sanitizedSettings.enableMiyo;
-  }
-
-  if (
-    sanitizedSettings.selfHostAdapter.runtimeLane !== "production_official" &&
-    sanitizedSettings.selfHostAdapter.runtimeLane !== "fork_dev" &&
-    sanitizedSettings.selfHostAdapter.runtimeLane !== "raycast"
-  ) {
-    sanitizedSettings.selfHostAdapter.runtimeLane = DEFAULT_SETTINGS.selfHostAdapter.runtimeLane;
-  }
-
-  // MCP settings defaults
-  if (!sanitizedSettings.mcp) {
-    sanitizedSettings.mcp = { ...DEFAULT_SETTINGS.mcp };
-  }
-
-  sanitizedSettings.mcp = {
-    ...DEFAULT_SETTINGS.mcp,
-    ...sanitizedSettings.mcp,
-    allowlist: Array.isArray(sanitizedSettings.mcp.allowlist)
-      ? sanitizedSettings.mcp.allowlist
-      : DEFAULT_SETTINGS.mcp.allowlist,
-    denylist: Array.isArray(sanitizedSettings.mcp.denylist)
-      ? sanitizedSettings.mcp.denylist
-      : DEFAULT_SETTINGS.mcp.denylist,
-    servers: Array.isArray(sanitizedSettings.mcp.servers)
-      ? sanitizedSettings.mcp.servers.map((server) => ({
-          ...DEFAULT_SETTINGS.mcp.servers[0],
-          ...server,
-          enabledToolNames: Array.isArray(server.enabledToolNames)
-            ? server.enabledToolNames
-            : DEFAULT_SETTINGS.mcp.servers[0].enabledToolNames,
-        }))
-      : DEFAULT_SETTINGS.mcp.servers,
-  };
-
-  if (
-    !["read_only_only", "prompt_on_writes", "allow_without_prompt"].includes(
-      sanitizedSettings.mcp.confirmationPolicy
-    )
-  ) {
-    sanitizedSettings.mcp.confirmationPolicy = DEFAULT_SETTINGS.mcp.confirmationPolicy;
   }
 
   // Stuff in settings are string even when the interface has number type!
@@ -562,21 +482,9 @@ export function sanitizeSettings(settings: CopilotSettings): CopilotSettings {
     sanitizedSettings.miyoServerUrl = DEFAULT_SETTINGS.miyoServerUrl;
   }
 
-  // Sync self-host adapter fields from top-level settings
-  sanitizedSettings.enableSelfHostMode = sanitizedSettings.backendMode === "self_host";
-  sanitizedSettings.selfHostAdapter.enableMiyoBackend = sanitizedSettings.enableMiyo;
-  sanitizedSettings.selfHostAdapter.baseUrl =
-    sanitizedSettings.selfHostUrl || sanitizedSettings.selfHostAdapter.baseUrl;
-  sanitizedSettings.selfHostAdapter.apiKey =
-    sanitizedSettings.selfHostApiKey || sanitizedSettings.selfHostAdapter.apiKey;
-
   // Ensure selfHostSearchProvider is a valid value
   const validSearchProviders = ["firecrawl", "perplexity"] as const;
-  if (
-    !validSearchProviders.includes(
-      sanitizedSettings.selfHostSearchProvider as (typeof validSearchProviders)[number]
-    )
-  ) {
+  if (!validSearchProviders.includes(sanitizedSettings.selfHostSearchProvider)) {
     sanitizedSettings.selfHostSearchProvider = DEFAULT_SETTINGS.selfHostSearchProvider;
   }
 
@@ -708,6 +616,18 @@ export function sanitizeSettings(settings: CopilotSettings): CopilotSettings {
   const promptsFolder = (settingsToSanitize.customPromptsFolder || "").trim();
   sanitizedSettings.customPromptsFolder =
     promptsFolder.length > 0 ? promptsFolder : DEFAULT_SETTINGS.customPromptsFolder;
+
+  // Ensure projectsFolder falls back to default when empty/whitespace.
+  // Reason: reject path traversal segments ("..") and absolute paths to prevent
+  // writes outside the vault root.
+  const projectsFolder = (settingsToSanitize.projectsFolder || "").trim();
+  // Reason: also reject Unix absolute paths (/foo) and UNC paths (\\server\share)
+  const hasTraversal =
+    /(^|[/\\])\.\.[/\\]?/.test(projectsFolder) ||
+    /^[a-zA-Z]:/.test(projectsFolder) ||
+    /^[/\\]/.test(projectsFolder);
+  sanitizedSettings.projectsFolder =
+    projectsFolder.length > 0 && !hasTraversal ? projectsFolder : DEFAULT_SETTINGS.projectsFolder;
 
   // Ensure chatHistorySortStrategy has a valid value (exclude "manual" which is only for custom commands)
   if (

@@ -1,13 +1,11 @@
 import {
   getCurrentProject,
-  ProjectConfig,
   subscribeToProjectChange,
   useChainType,
   useModelKey,
   useProjectLoading,
 } from "@/aiParams";
-import { ChainType } from "@/chainFactory";
-import { AddImageModal } from "@/components/modals/AddImageModal";
+import { ChainType } from "@/chainType";
 import { Button } from "@/components/ui/button";
 import { ModelSelector } from "@/components/ui/ModelSelector";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -19,13 +17,21 @@ import {
   normalizeWebTabContext,
 } from "@/utils/urlNormalization";
 
-import { updateSetting, useSettingsValue } from "@/settings/model";
+import { useSettingsValue } from "@/settings/model";
 import { SelectedTextContext, WebTabContext } from "@/types/message";
 import { isAllowedFileForNoteContext } from "@/utils";
+import { getFileIdentityKey } from "@/utils/fileListUtils";
 import { CornerDownLeft, Image, Loader2, StopCircle, X } from "lucide-react";
-import { App, Notice, TFile } from "obsidian";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { $getSelection, $isRangeSelection } from "lexical";
+import { App, Notice, TFile, TFolder } from "obsidian";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import { $getSelection, $isRangeSelection, LexicalEditor as LexicalEditorType } from "lexical";
 import { ContextControl } from "./ContextControl";
 import { $removePillsByPath } from "./pills/NotePillNode";
 import { $removeActiveNotePills } from "./pills/ActiveNotePillNode";
@@ -114,7 +120,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const [contextFolders, setContextFolders] = useState<string[]>(initialContext?.folders || []);
   const [contextWebTabs, setContextWebTabs] = useState<WebTabContext[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
-  const lexicalEditorRef = useRef<any>(null);
+  const lexicalEditorRef = useRef<LexicalEditorType | null>(null);
   const [currentModelKey, setCurrentModelKey] = useModelKey();
   const [currentChain] = useChainType();
   const [isProjectLoading] = useProjectLoading();
@@ -123,7 +129,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
     const activeFile = app.workspace.getActiveFile();
     return isAllowedFileForNoteContext(activeFile) ? activeFile : null;
   });
-  const [selectedProject, setSelectedProject] = useState<ProjectConfig | null>(null);
   const [notesFromPills, setNotesFromPills] = useState<{ path: string; basename: string }[]>([]);
   const [urlsFromPills, setUrlsFromPills] = useState<string[]>([]);
   const [foldersFromPills, setFoldersFromPills] = useState<string[]>([]);
@@ -147,7 +152,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
       return webTabsFromPills;
     }
 
-    return editor.read(() => {
+    return editor.read((): WebTabContext[] => {
       const pills = $findWebTabPills();
       return pills.map((pill) => ({
         url: pill.getURL(),
@@ -171,41 +176,35 @@ const ChatInput: React.FC<ChatInputProps> = ({
     "If you have many files in context, this can take a while...",
   ];
 
-  // Sync autonomous agent toggle with settings and chain type
-  useEffect(() => {
-    if (currentChain === ChainType.PROJECT_CHAIN) {
-      // Force off in Projects mode
-      setAutonomousAgentToggle(false);
-    } else {
-      // In other modes, use the actual settings value
-      setAutonomousAgentToggle(settings.enableAutonomousAgent);
-    }
-  }, [settings.enableAutonomousAgent, currentChain]);
+  // Render-phase reset: re-derive autonomous agent toggle whenever chain or setting changes
+  const autonomousAgentSourceRef = useRef<{
+    chain: ChainType;
+    enabled: boolean;
+  }>({ chain: currentChain, enabled: settings.enableAutonomousAgent });
+  if (
+    autonomousAgentSourceRef.current.chain !== currentChain ||
+    autonomousAgentSourceRef.current.enabled !== settings.enableAutonomousAgent
+  ) {
+    autonomousAgentSourceRef.current = {
+      chain: currentChain,
+      enabled: settings.enableAutonomousAgent,
+    };
+    setAutonomousAgentToggle(
+      currentChain === ChainType.PROJECT_CHAIN ? false : settings.enableAutonomousAgent
+    );
+  }
 
-  useEffect(() => {
-    if (currentChain === ChainType.PROJECT_CHAIN) {
-      setSelectedProject(getCurrentProject());
-
-      const unsubscribe = subscribeToProjectChange((project) => {
-        setSelectedProject(project);
-      });
-
-      return () => {
-        unsubscribe();
-      };
-    } else {
-      setSelectedProject(null);
-    }
-  }, [currentChain]);
+  const subscribedProject = useSyncExternalStore(subscribeToProjectChange, getCurrentProject);
+  const selectedProject = currentChain === ChainType.PROJECT_CHAIN ? subscribedProject : null;
 
   useEffect(() => {
     if (!isProjectLoading) return;
 
-    const interval = setInterval(() => {
+    const interval = window.setInterval(() => {
       setLoadingMessageIndex((prev) => (prev + 1) % loadingMessages.length);
     }, 3000);
 
-    return () => clearInterval(interval);
+    return () => window.clearInterval(interval);
   }, [isProjectLoading, loadingMessages.length]);
 
   const getDisplayModelKey = (): string => {
@@ -322,19 +321,25 @@ const ChatInput: React.FC<ChatInputProps> = ({
     });
   };
 
-  // Sync tool button states with tool pills
-  useEffect(() => {
-    if (!isCopilotPlus || autonomousAgentToggle) return;
-
-    // Update button states based on current tool pills
-    const hasVault = toolsFromPills.includes("@vault");
-    const hasWeb = toolsFromPills.includes("@websearch") || toolsFromPills.includes("@web");
-    const hasComposer = toolsFromPills.includes("@composer");
-
-    setVaultToggle(hasVault);
-    setWebToggle(hasWeb);
-    setComposerToggle(hasComposer);
-  }, [toolsFromPills, isCopilotPlus, autonomousAgentToggle]);
+  // Render-phase reset: mirror tool pill presence into toggle state when inputs change.
+  // Users can still flip toggles independently via ChatToolControls.
+  const toolPillSourceRef = useRef<{
+    tools: string[];
+    isCopilotPlus: boolean;
+    autonomousAgentToggle: boolean;
+  }>({ tools: toolsFromPills, isCopilotPlus, autonomousAgentToggle });
+  if (
+    toolPillSourceRef.current.tools !== toolsFromPills ||
+    toolPillSourceRef.current.isCopilotPlus !== isCopilotPlus ||
+    toolPillSourceRef.current.autonomousAgentToggle !== autonomousAgentToggle
+  ) {
+    toolPillSourceRef.current = { tools: toolsFromPills, isCopilotPlus, autonomousAgentToggle };
+    if (isCopilotPlus && !autonomousAgentToggle) {
+      setVaultToggle(toolsFromPills.includes("@vault"));
+      setWebToggle(toolsFromPills.includes("@websearch") || toolsFromPills.includes("@web"));
+      setComposerToggle(toolsFromPills.includes("@composer"));
+    }
+  }
 
   // Handle when context notes are removed from the context menu
   // This should remove all corresponding pills from the editor
@@ -376,7 +381,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   // Unified handler for adding to context (from popover @ mention)
-  const handleAddToContext = (category: string, data: any) => {
+  const handleAddToContext = (category: string, data: TFile | string | TFolder | WebTabContext) => {
     switch (category) {
       case "activeNote":
         // Set active note context flag (no pill needed - context badge shows it)
@@ -416,8 +421,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
         break;
       case "folders":
         // For folders from context menu, update contextFolders directly (no pills in editor)
-        if (data && data.path) {
-          const folderPath = data.path;
+        if (data && typeof (data as { path?: unknown }).path === "string") {
+          const folderPath = (data as { path: string }).path;
           setContextFolders((prev) => {
             const exists = prev.find((f) => f === folderPath);
             if (!exists) {
@@ -429,8 +434,13 @@ const ChatInput: React.FC<ChatInputProps> = ({
         break;
       case "webTabs":
         // Badge-only behavior (like notes): add to contextWebTabs state, no pill insertion
-        if (data && typeof data.url === "string") {
-          const normalized = normalizeWebTabContext(data as WebTabContext);
+        if (
+          data &&
+          typeof data === "object" &&
+          "url" in data &&
+          typeof (data as { url: unknown }).url === "string"
+        ) {
+          const normalized = normalizeWebTabContext(data);
           if (!normalized) break;
 
           // If selecting the active web tab, toggle the active badge instead
@@ -463,7 +473,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   // Unified handler for removing from context (from context menu badges)
-  const handleRemoveFromContext = (category: string, data: any) => {
+  const handleRemoveFromContext = (category: string, data: string) => {
     switch (category) {
       case "activeNote":
         // Remove active note pill from editor and turn off flag
@@ -574,57 +584,48 @@ const ChatInput: React.FC<ChatInputProps> = ({
     });
   }, [notesFromPills, app.vault, setContextNotes]);
 
-  // URL pill-to-context synchronization (when URL pills are added) - only for Plus chains
+  // Pill state is owned by the Lexical editor; absorb new entries into our context arrays
+  // without removing user-added ones (removal is handled in the dedicated handlers above).
   useEffect(() => {
     if (isPlusChain(currentChain)) {
+      // eslint-disable-next-line @eslint-react/hooks-extra/no-direct-set-state-in-use-effect
       setContextUrls((prev) => {
         const contextUrlSet = new Set(prev);
-
-        // Find URLs that need to be added
-        const newUrlsFromPills = urlsFromPills.filter((pillUrl) => {
-          // Only add if not already in context
-          return !contextUrlSet.has(pillUrl);
-        });
-
-        // Add completely new URLs from pills
+        const newUrlsFromPills = urlsFromPills.filter((pillUrl) => !contextUrlSet.has(pillUrl));
         if (newUrlsFromPills.length > 0) {
           return Array.from(new Set([...prev, ...newUrlsFromPills]));
         }
-
         return prev;
       });
     } else {
-      // Clear URLs for non-Plus chains
+      // eslint-disable-next-line @eslint-react/hooks-extra/no-direct-set-state-in-use-effect
       setContextUrls([]);
     }
   }, [urlsFromPills, currentChain]);
 
-  // Folder-to-context synchronization (when folders are added via pills)
+  // Pill state is owned by the Lexical editor; absorb new entries into context folders
+  // without removing user-added ones (removal is handled in handleFolderPillsRemoved).
   useEffect(() => {
+    // eslint-disable-next-line @eslint-react/hooks-extra/no-direct-set-state-in-use-effect
     setContextFolders((prev) => {
       const contextFolderPaths = new Set(prev);
-
-      // Find folders that need to be added
-      const newFoldersFromPills = foldersFromPills.filter((pillFolder) => {
-        // Only add if not already in context
-        return !contextFolderPaths.has(pillFolder);
-      });
-
-      // Add completely new folders from pills
+      const newFoldersFromPills = foldersFromPills.filter(
+        (pillFolder) => !contextFolderPaths.has(pillFolder)
+      );
       return [...prev, ...newFoldersFromPills];
     });
   }, [foldersFromPills]);
 
   // Update the current active note whenever it changes
   useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout>;
+    let timeoutId: number;
 
     const handleActiveLeafChange = () => {
       // Clear any existing timeout
-      clearTimeout(timeoutId);
+      window.clearTimeout(timeoutId);
 
       // Set new timeout
-      timeoutId = setTimeout(() => {
+      timeoutId = window.setTimeout(() => {
         const activeNote = app.workspace.getActiveFile();
         setCurrentActiveNote(isAllowedFileForNoteContext(activeNote) ? activeNote : null);
       }, 100); // Wait 100ms after the last event because it fires multiple times
@@ -633,13 +634,13 @@ const ChatInput: React.FC<ChatInputProps> = ({
     const eventRef = app.workspace.on("active-leaf-change", handleActiveLeafChange);
 
     return () => {
-      clearTimeout(timeoutId); // Clean up any pending timeout
+      window.clearTimeout(timeoutId); // Clean up any pending timeout
       // cspell:disable-next-line
       app.workspace.offref(eventRef); // Remove event listener
     };
   }, [app.workspace]);
 
-  const onEditorReady = useCallback((editor: any) => {
+  const onEditorReady = useCallback((editor: LexicalEditorType) => {
     lexicalEditorRef.current = editor;
   }, []);
 
@@ -654,8 +655,10 @@ const ChatInput: React.FC<ChatInputProps> = ({
       }
     };
 
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
+    const doc = containerRef.current?.doc;
+    if (!doc) return;
+    doc.addEventListener("keydown", handleKeyDown);
+    return () => doc.removeEventListener("keydown", handleKeyDown);
   }, [editMode, onEditCancel]);
 
   // Handle tool button toggle-off events - remove corresponding pills
@@ -739,13 +742,14 @@ const ChatInput: React.FC<ChatInputProps> = ({
       {selectedImages.length > 0 && (
         <div className="selected-images">
           {selectedImages.map((file, index) => (
-            <div key={index} className="image-preview-container">
+            <div key={getFileIdentityKey(file)} className="image-preview-container">
               <img
                 src={URL.createObjectURL(file)}
                 alt={file.name}
                 className="selected-image-preview"
               />
               <button
+                type="button"
                 className="remove-image-button"
                 onClick={() => setSelectedImages((prev) => prev.filter((_, i) => i !== index))}
                 title="Remove image"
@@ -853,8 +857,17 @@ const ChatInput: React.FC<ChatInputProps> = ({
                       variant="ghost2"
                       size="fit"
                       className="tw-text-muted hover:tw-text-accent"
-                      onClick={() => {
-                        new AddImageModal(app, onAddImage).open();
+                      onClick={(e) => {
+                        const input = e.currentTarget.doc.createElement("input");
+                        input.type = "file";
+                        input.accept = "image/*";
+                        input.multiple = true;
+                        input.addEventListener(
+                          "change",
+                          () => onAddImage(Array.from(input.files || [])),
+                          { once: true }
+                        );
+                        input.click();
                       }}
                     >
                       <Image className="tw-size-4" />
@@ -886,7 +899,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
           )}
         </div>
       </div>
-
     </div>
   );
 };

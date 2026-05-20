@@ -2,6 +2,7 @@ import { type Youtube4llmResponse } from "@/LLMProviders/brevilabsClient";
 import { getDecryptedKey } from "@/encryptionService";
 import { logError, logInfo } from "@/logger";
 import { getSettings } from "@/settings/model";
+import { safeFetchNoThrow } from "@/utils";
 
 const FIRECRAWL_SEARCH_URL = "https://api.firecrawl.dev/v2/search";
 const PERPLEXITY_CHAT_URL = "https://api.perplexity.ai/chat/completions";
@@ -45,7 +46,7 @@ export function hasSelfHostSearchKey(): boolean {
 async function firecrawlSearch(query: string, apiKey: string): Promise<SelfHostWebSearchResult> {
   const startTime = Date.now();
 
-  const response = await fetch(FIRECRAWL_SEARCH_URL, {
+  const response = await safeFetchNoThrow(FIRECRAWL_SEARCH_URL, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -59,7 +60,9 @@ async function firecrawlSearch(query: string, apiKey: string): Promise<SelfHostW
     throw new Error(`Firecrawl search failed (${response.status}): ${text}`);
   }
 
-  const json = await response.json();
+  const json = (await response.json()) as {
+    data?: FirecrawlSearchResult[] | { web?: FirecrawlSearchResult[] };
+  };
 
   // v2 returns { data: { web: [...] } }, older responses return { data: [...] }
   const rawData = json?.data;
@@ -95,7 +98,7 @@ async function perplexitySonarSearch(
   query: string,
   apiKey: string
 ): Promise<SelfHostWebSearchResult> {
-  const response = await fetch(PERPLEXITY_CHAT_URL, {
+  const response = await safeFetchNoThrow(PERPLEXITY_CHAT_URL, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -112,9 +115,12 @@ async function perplexitySonarSearch(
     throw new Error(`Perplexity Sonar search failed (${response.status}): ${text}`);
   }
 
-  const json = await response.json();
+  const json = (await response.json()) as {
+    choices?: Array<{ message?: { content?: string } }>;
+    citations?: unknown;
+  };
   const content = json?.choices?.[0]?.message?.content ?? "";
-  const citations: string[] = Array.isArray(json?.citations) ? json.citations : [];
+  const citations: string[] = Array.isArray(json?.citations) ? (json.citations as string[]) : [];
 
   return { content, citations };
 }
@@ -144,7 +150,7 @@ export async function selfHostYoutube4llm(url: string): Promise<Youtube4llmRespo
 
   const transcriptUrl = `${SUPADATA_TRANSCRIPT_URL}?url=${encodeURIComponent(url)}&mode=auto&text=true`;
 
-  const response = await fetch(transcriptUrl, {
+  const response = await safeFetchNoThrow(transcriptUrl, {
     method: "GET",
     headers: {
       "x-api-key": apiKey,
@@ -153,7 +159,7 @@ export async function selfHostYoutube4llm(url: string): Promise<Youtube4llmRespo
   });
 
   if (response.status === 200) {
-    const json = await response.json();
+    const json = (await response.json()) as { content?: string };
     const elapsed = Date.now() - startTime;
     logInfo(`[selfHostYoutube4llm] transcript received in ${elapsed}ms`);
     return {
@@ -163,7 +169,7 @@ export async function selfHostYoutube4llm(url: string): Promise<Youtube4llmRespo
   }
 
   if (response.status === 201 || response.status === 202) {
-    const json = await response.json();
+    const json = (await response.json()) as { job_id?: string };
     const jobId = json.job_id;
     if (!jobId) {
       throw new Error("Supadata returned async status but no job_id");
@@ -187,9 +193,9 @@ async function pollSupadataJob(
   const pollUrl = `${SUPADATA_TRANSCRIPT_URL}/${jobId}`;
 
   while (Date.now() < deadline) {
-    await new Promise((resolve) => setTimeout(resolve, SUPADATA_POLL_INTERVAL));
+    await new Promise((resolve) => window.setTimeout(resolve, SUPADATA_POLL_INTERVAL));
 
-    const pollResponse = await fetch(pollUrl, {
+    const pollResponse = await safeFetchNoThrow(pollUrl, {
       method: "GET",
       headers: {
         "x-api-key": apiKey,
@@ -198,7 +204,7 @@ async function pollSupadataJob(
     });
 
     if (pollResponse.status === 200) {
-      const json = await pollResponse.json();
+      const json = (await pollResponse.json()) as { content?: string };
       const elapsed = Date.now() - startTime;
       logInfo(`[selfHostYoutube4llm] async transcript completed in ${elapsed}ms`);
       return {

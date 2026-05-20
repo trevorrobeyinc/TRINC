@@ -6,7 +6,7 @@ import { useLatestVersion } from "@/hooks/useLatestVersion";
 import CopilotPlugin from "@/main";
 import { resetSettings } from "@/settings/model";
 import { CommandSettings } from "@/settings/v2/components/CommandSettings";
-import { Cog, Command, Cpu, Database, Sparkles, Wrench } from "lucide-react";
+import { Cog, Command, Cpu, Database, Plug, Sparkles, Wrench } from "lucide-react";
 import React from "react";
 import { AdvancedSettings } from "./components/AdvancedSettings";
 import { BasicSettings } from "./components/BasicSettings";
@@ -25,7 +25,7 @@ const icons: Record<TabId, JSX.Element> = {
   QA: <Database className="tw-size-5" />,
   command: <Command className="tw-size-5" />,
   plus: <Sparkles className="tw-size-5" />,
-  mcp: <Wrench className="tw-size-5" />,
+  mcp: <Plug className="tw-size-5" />,
   advanced: <Wrench className="tw-size-5" />,
 };
 
@@ -89,8 +89,8 @@ const SettingsMainV2: React.FC<SettingsMainV2Props> = ({ plugin }) => {
   const [resetKey, setResetKey] = React.useState(0);
   const { latestVersion, hasUpdate } = useLatestVersion(plugin.manifest.version);
 
-  const handleReset = async () => {
-    const modal = new ResetSettingsConfirmModal(app, async () => {
+  const handleReset = () => {
+    const modal = new ResetSettingsConfirmModal(plugin.app, () => {
       resetSettings();
       // Increment the key to force re-render of all components
       setResetKey((prev) => prev + 1);
@@ -101,25 +101,37 @@ const SettingsMainV2: React.FC<SettingsMainV2Props> = ({ plugin }) => {
   return (
     <TabProvider>
       <div>
-        <div className="tw-flex tw-flex-col tw-gap-2">
-          <h1 className="tw-flex tw-flex-col tw-gap-2 sm:tw-flex-row sm:tw-items-center sm:tw-justify-between">
+        <div className="tw-mb-4 tw-flex tw-flex-col tw-gap-2">
+          {/* Reason: Obsidian's settings modal CSS hides plugin-rendered <h1>
+              elements (display: none) because Obsidian reserves the top-level
+              heading for itself. Use a div with heading-equivalent styling. */}
+          <div
+            role="heading"
+            aria-level={1}
+            className="tw-flex tw-flex-col tw-gap-2 tw-text-base tw-font-semibold sm:tw-flex-row sm:tw-items-center sm:tw-justify-between"
+          >
             <div className="tw-flex tw-items-center tw-gap-2">
-              <span>{plugin.manifest.name} Settings</span>
+              <span>Copilot Settings</span>
               <div className="tw-flex tw-items-center tw-gap-1">
-                <span className="tw-text-xs tw-text-muted">v{plugin.manifest.version}</span>
+                <span className="tw-text-xs tw-font-normal tw-text-muted">
+                  v{plugin.manifest.version}
+                </span>
                 {latestVersion && (
                   <>
                     {hasUpdate ? (
                       <a
-                        href={`obsidian://show-plugin?id=${plugin.manifest.id}`}
+                        href="obsidian://show-plugin?id=copilot"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="tw-text-xs tw-text-accent hover:tw-underline"
+                        className="tw-text-xs tw-font-normal tw-text-accent hover:tw-underline"
                       >
                         (Update to v{latestVersion})
                       </a>
                     ) : (
-                      <span className="tw-text-xs tw-text-normal"> (up to date)</span>
+                      <span className="tw-text-xs tw-font-normal tw-text-normal">
+                        {" "}
+                        (up to date)
+                      </span>
                     )}
                   </>
                 )}
@@ -130,7 +142,7 @@ const SettingsMainV2: React.FC<SettingsMainV2Props> = ({ plugin }) => {
                 Reset Settings
               </Button>
             </div>
-          </h1>
+          </div>
         </div>
         {/* Add the key prop to force re-render */}
         <SettingsContent key={resetKey} />

@@ -1,11 +1,14 @@
 export function err2String(err: unknown, stack = false): string {
   try {
     if (err instanceof Error) {
+      const cause = (err as { cause?: unknown }).cause;
       const causeMsg =
-        (err as any)?.cause instanceof Error
-          ? (err as any).cause.message
-          : (err as any)?.cause
-            ? String((err as any).cause)
+        cause instanceof Error
+          ? cause.message
+          : cause != null
+            ? typeof cause === "string"
+              ? cause
+              : (JSON.stringify(cause) ?? "")
             : "";
       const stackStr = stack && err.stack ? err.stack : "";
       const parts = [err.message];

@@ -30,7 +30,7 @@ export interface GraphBoostConfig {
 /**
  * Default configuration
  */
-export const DEFAULT_CONFIG: GraphBoostConfig = {
+const DEFAULT_CONFIG: GraphBoostConfig = {
   enabled: true,
   maxCandidates: 10,
   backlinkWeight: 1.0,
@@ -156,9 +156,7 @@ export class GraphBoostCalculator {
    */
   private resolveFile(noteId: string): TFile | null {
     const file = this.metadataCache.getFirstLinkpathDest(noteId, "");
-    // In tests, the file might be a plain object with the right shape
-    // Check for the required properties instead of instanceof
-    return file && typeof file === "object" && "path" in file ? (file as TFile) : null;
+    return file instanceof TFile ? file : null;
   }
 
   /**

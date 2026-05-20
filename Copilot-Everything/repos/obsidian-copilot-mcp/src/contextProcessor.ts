@@ -1,5 +1,5 @@
 import { getSelectedTextContexts } from "@/aiParams";
-import { ChainType } from "@/chainFactory";
+import { ChainType } from "@/chainType";
 import { RESTRICTION_MESSAGES } from "@/constants";
 import { logWarn, logInfo, logError } from "@/logger";
 import { escapeXml } from "@/LLMProviders/chainRunner/utils/xmlParsing";
@@ -20,6 +20,31 @@ import {
   ACTIVE_WEB_TAB_CONTEXT_TAG,
   YOUTUBE_VIDEO_CONTEXT_TAG,
 } from "./constants";
+
+/** Minimal typing for the Dataview plugin API (third-party plugin, no official types). */
+interface DataviewApi {
+  query(
+    query: string,
+    sourcePath: string
+  ): Promise<{ successful: boolean; error?: string; value: DataviewResult }>;
+}
+
+interface DataviewResult {
+  type: string;
+  values: DataviewRow[];
+  headers?: string[];
+}
+
+type DataviewRow = unknown[] | DataviewTaskItem | DataviewLinkLike;
+
+interface DataviewTaskItem {
+  completed: boolean;
+  text?: string;
+}
+
+interface DataviewLinkLike {
+  path: string;
+}
 
 interface EmbeddedLinkTarget {
   path: string | null;
@@ -80,7 +105,9 @@ export class ContextProcessor {
    */
   async processDataviewBlocks(content: string, sourcePath: string): Promise<string> {
     // Check if Dataview plugin is available
-    const dataviewPlugin = (app as any).plugins?.plugins?.dataview;
+    const dataviewPlugin = (
+      app as unknown as { plugins?: { plugins?: { dataview?: { api?: DataviewApi } } } }
+    ).plugins?.plugins?.dataview;
     if (!dataviewPlugin) {
       return content; // Dataview not installed, return content as-is
     }
@@ -101,18 +128,21 @@ export class ContextProcessor {
       const match = matches[i];
       const queryType = match[1]; // 'dataview' or 'dataviewjs'
       const query = match[2].trim();
-      const matchStart = match.index!;
+      const matchStart = match.index;
       const matchEnd = matchStart + match[0].length;
 
       try {
         // Execute query with timeout
         const result = await Promise.race([
           this.executeDataviewQuery(dataviewApi, query, queryType, sourcePath),
-          new Promise((_, reject) => setTimeout(() => reject(new Error("Query timeout")), 5000)),
+          new Promise((_, reject) =>
+            window.setTimeout(() => reject(new Error("Query timeout")), 5000)
+          ),
         ]);
 
         // Replace block with structured output using slice (position-based, handles duplicates)
-        const replacement = `\n\n<${DATAVIEW_BLOCK_TAG}>\n<query_type>${queryType}</query_type>\n<original_query>\n${query}\n</original_query>\n<executed_result>\n${result}\n</executed_result>\n</${DATAVIEW_BLOCK_TAG}>\n\n`;
+        const resultStr = typeof result === "string" ? result : JSON.stringify(result);
+        const replacement = `\n\n<${DATAVIEW_BLOCK_TAG}>\n<query_type>${queryType}</query_type>\n<original_query>\n${query}\n</original_query>\n<executed_result>\n${resultStr}\n</executed_result>\n</${DATAVIEW_BLOCK_TAG}>\n\n`;
         content = content.slice(0, matchStart) + replacement + content.slice(matchEnd);
       } catch (error) {
         logError(`Error executing Dataview query:`, error);
@@ -129,7 +159,7 @@ export class ContextProcessor {
    * Execute a Dataview query and format the results
    */
   private async executeDataviewQuery(
-    dataviewApi: any,
+    dataviewApi: DataviewApi,
     query: string,
     queryType: string,
     sourcePath: string
@@ -143,7 +173,7 @@ export class ContextProcessor {
     const result = await dataviewApi.query(query, sourcePath);
 
     if (!result.successful) {
-      throw new Error(result.error || "Query failed");
+      throw new Error(result.error ?? "Query failed");
     }
 
     // Format results based on type
@@ -153,7 +183,7 @@ export class ContextProcessor {
   /**
    * Format Dataview query results into readable text
    */
-  private formatDataviewResult(result: any): string {
+  private formatDataviewResult(result: DataviewResult): string {
     if (!result) {
       return "No results";
     }
@@ -162,20 +192,20 @@ export class ContextProcessor {
     if (result.type === "list") {
       return this.formatDataviewList(result.values);
     } else if (result.type === "table") {
-      return this.formatDataviewTable(result.headers, result.values);
+      return this.formatDataviewTable(result.headers ?? [], result.values as unknown[][]);
     } else if (result.type === "task") {
-      return this.formatDataviewTasks(result.values);
+      return this.formatDataviewTasks(result.values as DataviewTaskItem[]);
     } else if (Array.isArray(result)) {
-      return result.map((item) => this.formatDataviewValue(item)).join("\n");
+      return (result as unknown[]).map((item) => this.formatDataviewValue(item)).join("\n");
     }
 
-    return String(result);
+    return JSON.stringify(result);
   }
 
   /**
    * Format Dataview list results
    */
-  private formatDataviewList(values: any[]): string {
+  private formatDataviewList(values: DataviewRow[]): string {
     if (!values || values.length === 0) {
       return "No results";
     }
@@ -185,7 +215,7 @@ export class ContextProcessor {
   /**
    * Format Dataview table results
    */
-  private formatDataviewTable(headers: string[], rows: any[][]): string {
+  private formatDataviewTable(headers: string[], rows: unknown[][]): string {
     if (!rows || rows.length === 0) {
       return "No results";
     }
@@ -204,14 +234,14 @@ export class ContextProcessor {
   /**
    * Format Dataview task results
    */
-  private formatDataviewTasks(tasks: any[]): string {
+  private formatDataviewTasks(tasks: DataviewTaskItem[]): string {
     if (!tasks || tasks.length === 0) {
       return "No results";
     }
     return tasks
       .map((task) => {
         const checkbox = task.completed ? "[x]" : "[ ]";
-        return `- ${checkbox} ${this.formatDataviewValue(task.text || task)}`;
+        return `- ${checkbox} ${this.formatDataviewValue(task.text ?? task)}`;
       })
       .join("\n");
   }
@@ -219,22 +249,27 @@ export class ContextProcessor {
   /**
    * Format individual Dataview values
    */
-  private formatDataviewValue(value: any): string {
+  private formatDataviewValue(value: unknown): string {
     if (value === null || value === undefined) {
       return "";
     }
 
     // Handle links
-    if (value && typeof value === "object" && value.path) {
-      return `[[${value.path}]]`;
+    if (value && typeof value === "object" && "path" in value) {
+      return `[[${(value as DataviewLinkLike).path}]]`;
     }
 
     // Handle arrays
     if (Array.isArray(value)) {
-      return value.map((v) => this.formatDataviewValue(v)).join(", ");
+      return (value as unknown[]).map((v) => this.formatDataviewValue(v)).join(", ");
     }
 
-    return String(value);
+    if (typeof value === "object") {
+      return JSON.stringify(value);
+    }
+
+    // value is a primitive (string, number, boolean, bigint) at this point
+    return `${value as string | number | boolean | bigint}`;
   }
 
   /**
@@ -923,7 +958,7 @@ export class ContextProcessor {
 
         // Use AbortSignal for cancellable timeout
         const abortController = new AbortController();
-        const timeoutId = setTimeout(() => {
+        const timeoutId = window.setTimeout(() => {
           abortController.abort();
         }, READER_MODE_CONTENT_TIMEOUT_MS);
 
@@ -940,7 +975,7 @@ export class ContextProcessor {
             content,
           });
         } finally {
-          clearTimeout(timeoutId);
+          window.clearTimeout(timeoutId);
         }
       } catch (error) {
         logError(`Error processing web tab ${tab.url}:`, error);

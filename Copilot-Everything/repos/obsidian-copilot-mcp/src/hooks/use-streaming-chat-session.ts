@@ -94,7 +94,8 @@ function shouldSkipPersistOnAbort(signal: AbortSignal): boolean {
   // If abort() was called without a string reason, treat it as a "non-commit" cancel.
   if (typeof reason !== "string") return true;
 
-  return reason === ABORT_REASON.NEW_CHAT || reason === ABORT_REASON.UNMOUNT;
+  const typedReason = reason as ABORT_REASON;
+  return typedReason === ABORT_REASON.NEW_CHAT || typedReason === ABORT_REASON.UNMOUNT;
 }
 
 /**
@@ -310,7 +311,7 @@ export function useStreamingChatSession(
         const stream = await chainWithSignal.stream({ input: prompt });
 
         for await (const chunk of stream) {
-          thinkStreamer.processChunk(chunk);
+          thinkStreamer.processChunk(chunk as Parameters<typeof thinkStreamer.processChunk>[0]);
           if (abortController.signal.aborted) break;
         }
       } catch (error) {

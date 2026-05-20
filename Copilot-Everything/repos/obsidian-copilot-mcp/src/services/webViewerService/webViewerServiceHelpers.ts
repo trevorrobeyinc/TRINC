@@ -36,7 +36,12 @@ export function toStringSafe(value: unknown): string {
   if (typeof value === "string") return value;
   if (value === null || value === undefined) return "";
   try {
-    return String(value);
+    if (typeof value === "object") return JSON.stringify(value);
+    if (typeof value === "function") return value.toString();
+    if (typeof value === "symbol") return value.toString();
+    if (typeof value === "bigint") return value.toString();
+    if (typeof value === "number" || typeof value === "boolean") return String(value);
+    return "";
   } catch {
     return "";
   }
@@ -54,7 +59,7 @@ export function toErrorMessage(err: unknown): string {
  * Delay for the provided number of milliseconds.
  */
 export async function delay(ms: number): Promise<void> {
-  await new Promise<void>((resolve) => setTimeout(resolve, ms));
+  await new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
 
 /**
@@ -250,7 +255,7 @@ function tryExtractPluginApi(entry: unknown): WebViewerPluginApi | null {
     typeof maybe.openUrl === "function" || typeof maybe.handleOpenUrl === "function";
 
   if (hasOpenCapability) {
-    return maybe as WebViewerPluginApi;
+    return maybe;
   }
   return null;
 }
@@ -276,7 +281,7 @@ export function getInternalWebViewerPluginApi(
     plugins instanceof Map
       ? plugins.get(WEB_VIEWER_VIEW_TYPE)
       : isRecord(plugins)
-        ? (plugins as Record<string, unknown>)[WEB_VIEWER_VIEW_TYPE]
+        ? plugins[WEB_VIEWER_VIEW_TYPE]
         : null;
 
   if (directEntry) {

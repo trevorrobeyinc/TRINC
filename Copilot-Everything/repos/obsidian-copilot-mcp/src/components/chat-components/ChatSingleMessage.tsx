@@ -32,11 +32,12 @@ import { cn } from "@/lib/utils";
 import { parseToolCallMarkers } from "@/LLMProviders/chainRunner/utils/toolCallParser";
 import { parseReasoningBlock } from "@/LLMProviders/chainRunner/utils/AgentReasoningState";
 import { processInlineCitations } from "@/LLMProviders/chainRunner/utils/citationUtils";
+import { logError } from "@/logger";
 import { ChatMessage } from "@/types/message";
 import { cleanMessageForCopy, extractYoutubeVideoId, insertIntoEditor } from "@/utils";
 import { preprocessAIResponse } from "@/utils/markdownPreprocess";
 import { App, Component, MarkdownRenderer, MarkdownView, TFile } from "obsidian";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSettingsValue } from "@/settings/model";
 import {
   buildCopilotCollapsibleDomId,
@@ -90,7 +91,7 @@ const INLINE_CITATION_RE = /\[(\d+(?:\s*,\s*\d+)*)\]/g;
  * to the corresponding source note. Reads the source mapping from the
  * rendered .copilot-sources section in the same message.
  */
-export const linkInlineCitations = (root: HTMLElement): void => {
+const linkInlineCitations = (root: HTMLElement): void => {
   // Build citation number -> source anchor mapping from the rendered sources section.
   // We store the anchor element (not just the href) so we can copy Obsidian-specific
   // attributes like data-href and class="internal-link" onto the inline citation link.
@@ -115,10 +116,15 @@ export const linkInlineCitations = (root: HTMLElement): void => {
 
   if (citationAnchors.size === 0) return;
 
+  // Bind DOM ops to the document that owns `root` — the chat message may live
+  // in an Obsidian popout while a different window is focused, in which case
+  // `activeDocument` would create nodes with the wrong owner.
+  const doc = root.doc;
+
   // Collect text nodes that contain citation patterns (outside sources section)
   const sourcesEl = root.querySelector(".copilot-sources");
   const textNodes: Text[] = [];
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+  const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
     acceptNode(node) {
       if (sourcesEl?.contains(node)) return NodeFilter.FILTER_REJECT;
       if (node.parentElement?.closest("code, pre")) return NodeFilter.FILTER_REJECT;
@@ -139,27 +145,27 @@ export const linkInlineCitations = (root: HTMLElement): void => {
     const text = node.textContent || "";
     INLINE_CITATION_RE.lastIndex = 0;
 
-    const fragment = document.createDocumentFragment();
+    const fragment = doc.createDocumentFragment();
     let lastIndex = 0;
     let match: RegExpExecArray | null;
 
     while ((match = INLINE_CITATION_RE.exec(text)) !== null) {
       // Text before the citation
       if (match.index > lastIndex) {
-        fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+        fragment.appendChild(doc.createTextNode(text.slice(lastIndex, match.index)));
       }
 
       const nums = match[1].split(/\s*,\s*/).map((s) => parseInt(s.trim(), 10));
       const allResolved = nums.every((num) => citationAnchors.has(num));
 
       if (allResolved) {
-        const span = document.createElement("span");
+        const span = doc.createElement("span");
         span.className = "copilot-citation-group";
-        span.appendChild(document.createTextNode("["));
+        span.appendChild(doc.createTextNode("["));
         nums.forEach((num, i) => {
-          if (i > 0) span.appendChild(document.createTextNode(", "));
+          if (i > 0) span.appendChild(doc.createTextNode(", "));
           const sourceAnchor = citationAnchors.get(num)!;
-          const link = document.createElement("a");
+          const link = doc.createElement("a");
           // Copy all attributes from the source anchor so Obsidian internal-link
           // metadata (e.g. data-href, class="internal-link") is preserved.
           for (const attr of Array.from(sourceAnchor.attributes)) {
@@ -171,17 +177,17 @@ export const linkInlineCitations = (root: HTMLElement): void => {
           link.setAttribute("aria-label", `Source ${num}`);
           span.appendChild(link);
         });
-        span.appendChild(document.createTextNode("]"));
+        span.appendChild(doc.createTextNode("]"));
         fragment.appendChild(span);
       } else {
-        fragment.appendChild(document.createTextNode(match[0]));
+        fragment.appendChild(doc.createTextNode(match[0]));
       }
 
       lastIndex = match.index + match[0].length;
     }
 
     if (lastIndex < text.length) {
-      fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
+      fragment.appendChild(doc.createTextNode(text.slice(lastIndex)));
     }
 
     // If the text node is inside a placeholder span, replace the span itself
@@ -209,6 +215,7 @@ function MessageContext({ context }: { context: ChatMessage["context"] }) {
   return (
     <div className="tw-flex tw-flex-wrap tw-gap-2">
       {context.notes.map((note, index) => (
+        // eslint-disable-next-line @eslint-react/no-array-index-key -- context arrays may contain duplicate notes (see MessageContext.test.tsx duplicate-handling cases)
         <Tooltip key={`note-${index}-${note.path}`}>
           <TooltipTrigger asChild>
             <div>
@@ -219,6 +226,7 @@ function MessageContext({ context }: { context: ChatMessage["context"] }) {
         </Tooltip>
       ))}
       {context.urls.map((url, index) => (
+        // eslint-disable-next-line @eslint-react/no-array-index-key -- context arrays may contain duplicate urls (see MessageContext.test.tsx duplicate-handling cases)
         <Tooltip key={`url-${index}-${url}`}>
           <TooltipTrigger asChild>
             <div>
@@ -229,6 +237,7 @@ function MessageContext({ context }: { context: ChatMessage["context"] }) {
         </Tooltip>
       ))}
       {context.webTabs?.map((webTab, index) => (
+        // eslint-disable-next-line @eslint-react/no-array-index-key -- context arrays may contain duplicates; index disambiguates same-url entries
         <Tooltip key={`webTab-${index}-${webTab.url}`}>
           <TooltipTrigger asChild>
             <div>
@@ -248,6 +257,7 @@ function MessageContext({ context }: { context: ChatMessage["context"] }) {
         </Tooltip>
       ))}
       {context.tags?.map((tag, index) => (
+        // eslint-disable-next-line @eslint-react/no-array-index-key -- context arrays may contain duplicates; index disambiguates same-value entries
         <Tooltip key={`tag-${index}-${tag}`}>
           <TooltipTrigger asChild>
             <div>
@@ -258,6 +268,7 @@ function MessageContext({ context }: { context: ChatMessage["context"] }) {
         </Tooltip>
       ))}
       {context.folders?.map((folder, index) => (
+        // eslint-disable-next-line @eslint-react/no-array-index-key -- context arrays may contain duplicates; index disambiguates same-value entries
         <Tooltip key={`folder-${index}-${folder}`}>
           <TooltipTrigger asChild>
             <div>
@@ -268,6 +279,7 @@ function MessageContext({ context }: { context: ChatMessage["context"] }) {
         </Tooltip>
       ))}
       {context.selectedTextContexts?.map((selectedText, index) => (
+        // eslint-disable-next-line @eslint-react/no-array-index-key -- context arrays may contain duplicates; index disambiguates same-id entries
         <Tooltip key={`selectedText-${index}-${selectedText.id}`}>
           <TooltipTrigger asChild>
             <div>
@@ -302,12 +314,24 @@ const ChatSingleMessage: React.FC<ChatSingleMessageProps> = ({
 }) => {
   const [isCopied, setIsCopied] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
-  // Agent Reasoning Block state
-  const [reasoningData, setReasoningData] = useState<{
+  const parsedReasoningBlock = useMemo(
+    () => parseReasoningBlock(message.message),
+    [message.message]
+  );
+  const reasoningData = useMemo<{
     status: "reasoning" | "collapsed" | "complete";
     elapsedSeconds: number;
     steps: string[];
-  } | null>(null);
+  } | null>(() => {
+    if (!parsedReasoningBlock?.hasReasoning || parsedReasoningBlock.status === "idle") {
+      return null;
+    }
+    return {
+      status: parsedReasoningBlock.status,
+      elapsedSeconds: parsedReasoningBlock.elapsedSeconds,
+      steps: parsedReasoningBlock.steps,
+    };
+  }, [parsedReasoningBlock]);
   const contentRef = useRef<HTMLDivElement>(null);
   const componentRef = useRef<Component | null>(null);
   const isUnmountingRef = useRef<boolean>(false);
@@ -345,13 +369,16 @@ const ChatSingleMessage: React.FC<ChatSingleMessageProps> = ({
     }
 
     const cleanedContent = cleanMessageForCopy(message.message);
-    navigator.clipboard.writeText(cleanedContent).then(() => {
-      setIsCopied(true);
+    navigator.clipboard
+      .writeText(cleanedContent)
+      .then(() => {
+        setIsCopied(true);
 
-      setTimeout(() => {
-        setIsCopied(false);
-      }, 2000);
-    });
+        window.setTimeout(() => {
+          setIsCopied(false);
+        }, 2000);
+      })
+      .catch((err) => logError("Clipboard writeText failed", err));
   };
 
   const preprocess = useCallback(
@@ -373,48 +400,53 @@ const ChatSingleMessage: React.FC<ChatSingleMessageProps> = ({
         const openTag = `<${tagName}>`;
         let sectionIndex = 0;
 
+        // Trims content and appends \n so the closing </div> always lands on
+        // its own unindented line. Without this, content ending with a
+        // 4-space-indented line (a markdown code block) would cause </div> to
+        // be consumed by the code block and rendered as escaped literal text.
+        const ensureClosingTagOnNewLine = (text: string) => text.trim() + "\n";
+
+        const buildDetails = (sectionContent: string, openAttr: string, domId: string) =>
+          `<details id="${domId}"${openAttr} style="${detailsStyle}">` +
+          `<summary style="${summaryStyle}">${summaryText}</summary>` +
+          `<div class="tw-text-muted" style="${contentStyle}">${ensureClosingTagOnNewLine(sectionContent)}</div>` +
+          `</details>\n\n`;
+
         // During streaming, if we find any tag that's either unclosed or being processed
         if (isStreaming && content.includes(openTag)) {
           // Replace any complete sections first
           const completeRegex = new RegExp(`<${tagName}>([\\s\\S]*?)<\\/${tagName}>`, "g");
-          content = content.replace(completeRegex, (_match, sectionContent) => {
+          content = content.replace(completeRegex, (_match, sectionContent: string) => {
             const sectionKey = `${tagName}-${sectionIndex}`;
             sectionIndex += 1;
             const domId = buildCopilotCollapsibleDomId(messageId.current, sectionKey);
             // Check if user has explicitly set a state; if not, default to collapsed (original behavior)
             const openAttribute = collapsibleOpenStateMap.get(domId) ? " open" : "";
-
-            return `<details id="${domId}"${openAttribute} style="${detailsStyle}">
-              <summary style="${summaryStyle}">${summaryText}</summary>
-              <div class="tw-text-muted" style="${contentStyle}">${sectionContent.trim()}</div>
-            </details>\n\n`;
+            return buildDetails(sectionContent, openAttribute, domId);
           });
 
           // Then handle any unclosed tag, but preserve the streamed content
           const unClosedRegex = new RegExp(`<${tagName}>([\\s\\S]*)$`);
           content = content.replace(
             unClosedRegex,
-            (_match, partialContent) => `<div style="${detailsStyle}">
-              <div style="${summaryStyle}">${streamingSummaryText}</div>
-              <div class="tw-text-muted" style="${contentStyle}">${partialContent.trim()}</div>
-            </div>`
+            (_match, partialContent: string) =>
+              `<div style="${detailsStyle}">` +
+              `<div style="${summaryStyle}">${streamingSummaryText}</div>` +
+              `<div class="tw-text-muted" style="${contentStyle}">${ensureClosingTagOnNewLine(partialContent)}</div>` +
+              `</div>`
           );
           return content;
         }
 
         // Not streaming, process all sections normally
         const regex = new RegExp(`<${tagName}>([\\s\\S]*?)<\\/${tagName}>`, "g");
-        return content.replace(regex, (_match, sectionContent) => {
+        return content.replace(regex, (_match, sectionContent: string) => {
           const sectionKey = `${tagName}-${sectionIndex}`;
           sectionIndex += 1;
           const domId = buildCopilotCollapsibleDomId(messageId.current, sectionKey);
           // Restore open state from previous render
           const openAttribute = collapsibleOpenStateMap.get(domId) ? " open" : "";
-
-          return `<details id="${domId}"${openAttribute} style="${detailsStyle}">
-            <summary style="${summaryStyle}">${summaryText}</summary>
-            <div class="tw-text-muted" style="${contentStyle}">${sectionContent.trim()}</div>
-          </details>\n\n`;
+          return buildDetails(sectionContent, openAttribute, domId);
         });
       };
 
@@ -434,7 +466,7 @@ const ChatSingleMessage: React.FC<ChatSingleMessageProps> = ({
           const xmlCodeblockRegex =
             /```(?:xml)?\s*([\s\S]*?<writeFile>[\s\S]*?<\/writeFile>[\s\S]*?)\s*```/g;
 
-          return text.replace(xmlCodeblockRegex, (_match, xmlContent) => {
+          return text.replace(xmlCodeblockRegex, (_match: string, xmlContent: string) => {
             // Extract just the content inside the codeblock and return it without the codeblock wrapper
             return xmlContent.trim();
           });
@@ -447,7 +479,7 @@ const ChatSingleMessage: React.FC<ChatSingleMessageProps> = ({
           // Pattern to match XML codeblocks that contain unclosed writeFile tags
           const streamingXmlCodeblockRegex = /```xml\s*([\s\S]*?<writeFile>[\s\S]*?)$/g;
 
-          return text.replace(streamingXmlCodeblockRegex, (_match, xmlContent) => {
+          return text.replace(streamingXmlCodeblockRegex, (_match: string, xmlContent: string) => {
             // Extract the content and return it without the codeblock wrapper
             return xmlContent.trim();
           });
@@ -540,7 +572,7 @@ const ChatSingleMessage: React.FC<ChatSingleMessageProps> = ({
         // Match ![title](url) format and check if URL is YouTube
         const imageEmbedRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
 
-        return content.replace(imageEmbedRegex, (match, title, url) => {
+        return content.replace(imageEmbedRegex, (match, title: string, url: string) => {
           const videoId = extractYoutubeVideoId(url);
           if (!videoId) {
             // Not a YouTube URL, keep original
@@ -641,24 +673,15 @@ const ChatSingleMessage: React.FC<ChatSingleMessageProps> = ({
 
       const originMessage = message.message;
 
-      // Parse and extract agent reasoning block if present
-      const reasoningBlockData = parseReasoningBlock(originMessage);
-      if (reasoningBlockData?.hasReasoning && reasoningBlockData.status !== "idle") {
-        setReasoningData({
-          status: reasoningBlockData.status as "reasoning" | "collapsed" | "complete",
-          elapsedSeconds: reasoningBlockData.elapsedSeconds,
-          steps: reasoningBlockData.steps,
-        });
-      } else {
-        setReasoningData(null);
-      }
-
       // Use content after reasoning block (or full message if no reasoning block)
-      const messageContent = reasoningBlockData?.contentAfter ?? originMessage;
+      const messageContent = parsedReasoningBlock?.contentAfter ?? originMessage;
       const processedMessage = preprocess(messageContent);
       const parsedMessage = parseToolCallMarkers(processedMessage, messageId.current);
 
       if (!isUnmountingRef.current) {
+        // Bind DOM ops to the document that owns the message container so
+        // popout-window chats don't pick up the wrong document if focus shifts.
+        const doc = contentRef.current.doc;
         // Track existing tool call and error block IDs
         const existingToolCallIds = new Set<string>();
         const existingErrorIds = new Set<string>();
@@ -686,7 +709,7 @@ const ChatSingleMessage: React.FC<ChatSingleMessageProps> = ({
             // Find where to insert this text segment
             const insertBefore = contentRef.current!.children[currentIndex];
 
-            const textDiv = document.createElement("div");
+            const textDiv = doc.createElement("div");
             textDiv.className = "message-segment";
 
             if (insertBefore) {
@@ -695,16 +718,22 @@ const ChatSingleMessage: React.FC<ChatSingleMessageProps> = ({
               contentRef.current!.appendChild(textDiv);
             }
 
-            MarkdownRenderer.renderMarkdown(segment.content, textDiv, "", componentRef.current!);
-            normalizeFootnoteRendering(textDiv);
+            void MarkdownRenderer.renderMarkdown(
+              segment.content,
+              textDiv,
+              "",
+              componentRef.current!
+            )
+              .then(() => normalizeFootnoteRendering(textDiv))
+              .catch((err) => logError("renderMarkdown failed", err));
             currentIndex++;
           } else if (segment.type === "toolCall" && segment.toolCall) {
             const toolCallId = segment.toolCall.id;
-            let container = document.getElementById(`tool-call-${toolCallId}`);
+            let container = doc.getElementById(`tool-call-${toolCallId}`);
 
             if (!container) {
               const insertBefore = contentRef.current!.children[currentIndex];
-              const toolDiv = document.createElement("div");
+              const toolDiv = doc.createElement("div");
               toolDiv.className = "tool-call-container";
               toolDiv.id = `tool-call-${toolCallId}`;
 
@@ -718,10 +747,11 @@ const ChatSingleMessage: React.FC<ChatSingleMessageProps> = ({
             }
 
             const rootRecord = ensureToolCallRoot(
+              app,
               messageId.current,
               rootsRef.current,
               toolCallId,
-              container as HTMLElement,
+              container,
               "render refresh"
             );
 
@@ -732,12 +762,12 @@ const ChatSingleMessage: React.FC<ChatSingleMessageProps> = ({
             currentIndex++;
           } else if (segment.type === "error" && segment.error) {
             const errorId = segment.error.id;
-            let container = document.getElementById(`error-block-${errorId}`);
+            let container = doc.getElementById(`error-block-${errorId}`);
 
             if (!container) {
               // Insert error block at the current stream position
               const insertBefore = contentRef.current!.children[currentIndex];
-              const errorDiv = document.createElement("div");
+              const errorDiv = doc.createElement("div");
               errorDiv.className = "error-block-container";
               errorDiv.id = `error-block-${errorId}`;
 
@@ -752,10 +782,11 @@ const ChatSingleMessage: React.FC<ChatSingleMessageProps> = ({
 
             // Use dedicated error block root to prevent ID collisions with tool calls
             const rootRecord = ensureErrorBlockRoot(
+              app,
               messageId.current,
               errorRootsRef.current,
               errorId,
-              container as HTMLElement,
+              container,
               "error render"
             );
 
@@ -776,7 +807,7 @@ const ChatSingleMessage: React.FC<ChatSingleMessageProps> = ({
 
         existingToolCallIds.forEach((id) => {
           if (!currentToolCallIds.has(id)) {
-            const element = document.getElementById(`tool-call-${id}`);
+            const element = doc.getElementById(`tool-call-${id}`);
             if (element) {
               removeToolCallRoot(messageId.current, rootsRef.current, id, "tool call removal");
               element.remove();
@@ -793,7 +824,7 @@ const ChatSingleMessage: React.FC<ChatSingleMessageProps> = ({
 
         existingErrorIds.forEach((id) => {
           if (!currentErrorIds.has(id)) {
-            const element = document.getElementById(`error-block-${id}`);
+            const element = doc.getElementById(`error-block-${id}`);
             if (element) {
               removeErrorBlockRoot(
                 messageId.current,
@@ -819,7 +850,15 @@ const ChatSingleMessage: React.FC<ChatSingleMessageProps> = ({
     return () => {
       isUnmountingRef.current = true;
     };
-  }, [message, app, componentRef, isStreaming, preprocess, collapsibleOpenStateMap]);
+  }, [
+    message,
+    app,
+    componentRef,
+    isStreaming,
+    preprocess,
+    collapsibleOpenStateMap,
+    parsedReasoningBlock,
+  ]);
 
   // Cleanup effect that only runs on component unmount
   useEffect(() => {
@@ -841,8 +880,9 @@ const ChatSingleMessage: React.FC<ChatSingleMessageProps> = ({
       // Set unmounting flag immediately
       isUnmountingRef.current = true;
 
-      // Defer cleanup to avoid React rendering conflicts
-      setTimeout(() => {
+      // Defer cleanup to avoid React rendering conflicts.
+      // eslint-disable-next-line @eslint-react/web-api/no-leaked-timeout -- fire-and-forget defer; no cleanup target available inside an effect-cleanup
+      window.setTimeout(() => {
         // Clean up component
         if (currentComponentRef.current) {
           currentComponentRef.current.unload();
@@ -890,42 +930,46 @@ const ChatSingleMessage: React.FC<ChatSingleMessageProps> = ({
 
     const editor = leaf.view.editor;
     const hasSelection = editor.getSelection().length > 0;
-    insertIntoEditor(message.message, hasSelection);
+    void insertIntoEditor(message.message, hasSelection);
   };
 
   const renderMessageContent = () => {
     if (message.content) {
       return (
         <div className="tw-flex tw-flex-col tw-gap-3">
-          {message.content.map((item, index) => {
-            if (item.type === "text") {
-              return (
-                <div key={index}>
-                  {message.sender === USER_SENDER ? (
-                    <div className="tw-whitespace-pre-wrap tw-break-words tw-text-[calc(var(--font-text-size)_-_2px)] tw-font-normal">
-                      {message.message}
-                    </div>
-                  ) : (
-                    <div
-                      ref={contentRef}
-                      className={message.isErrorMessage ? "tw-text-error" : ""}
-                    ></div>
-                  )}
-                </div>
-              );
-            } else if (item.type === "image_url") {
-              return (
-                <div key={index} className="message-image-content">
-                  <img
-                    src={item.image_url.url}
-                    alt="User uploaded image"
-                    className="chat-message-image"
-                  />
-                </div>
-              );
+          {(message.content as Array<{ type: string; image_url?: { url: string } }>).map(
+            (item, index) => {
+              if (item.type === "text") {
+                return (
+                  // eslint-disable-next-line @eslint-react/no-array-index-key -- content array is fixed once message is rendered; items not reordered
+                  <div key={index}>
+                    {message.sender === USER_SENDER ? (
+                      <div className="tw-whitespace-pre-wrap tw-break-words tw-text-[calc(var(--font-text-size)_-_2px)] tw-font-normal">
+                        {message.message}
+                      </div>
+                    ) : (
+                      <div
+                        ref={contentRef}
+                        className={message.isErrorMessage ? "tw-text-error" : ""}
+                      ></div>
+                    )}
+                  </div>
+                );
+              } else if (item.type === "image_url") {
+                return (
+                  // eslint-disable-next-line @eslint-react/no-array-index-key -- content array is fixed once message is rendered; items not reordered
+                  <div key={index} className="message-image-content">
+                    <img
+                      src={item.image_url!.url}
+                      alt="User uploaded image"
+                      className="chat-message-image"
+                    />
+                  </div>
+                );
+              }
+              return null;
             }
-            return null;
-          })}
+          )}
         </div>
       );
     }
@@ -981,7 +1025,9 @@ const ChatSingleMessage: React.FC<ChatSingleMessageProps> = ({
             />
           )}
 
-          <div className="message-content">{renderMessageContent()}</div>
+          <div className="message-content tw-break-words !tw-leading-[1.6]">
+            {renderMessageContent()}
+          </div>
 
           {message.responseMetadata?.wasTruncated && message.sender !== USER_SENDER && (
             <TokenLimitWarning message={message} app={app} />

@@ -1,6 +1,7 @@
 import React from "react";
-import { $isFolderPillNode } from "../pills/FolderPillNode";
+import { $isFolderPillNode, FolderPillNode } from "../pills/FolderPillNode";
 import { GenericPillSyncPlugin, PillSyncConfig } from "./GenericPillSyncPlugin";
+import type { LexicalNode } from "lexical";
 
 /**
  * Props for the FolderPillSyncPlugin component
@@ -17,7 +18,7 @@ interface FolderPillSyncPluginProps {
  */
 const folderPillConfig: PillSyncConfig<string> = {
   isPillNode: $isFolderPillNode,
-  extractData: (node: any) => node.getFolderPath(),
+  extractData: (node: LexicalNode) => (node as FolderPillNode).getFolderPath(),
 };
 
 /**

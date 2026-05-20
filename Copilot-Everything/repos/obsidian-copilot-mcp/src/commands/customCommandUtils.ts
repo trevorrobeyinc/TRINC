@@ -6,11 +6,10 @@ import {
   COPILOT_COMMAND_SLASH_ENABLED,
   EMPTY_COMMAND,
   LEGACY_SELECTED_TEXT_PLACEHOLDER,
-  QUICK_COMMAND_CODE_BLOCK,
 } from "@/commands/constants";
 import { CustomCommand } from "@/commands/type";
 import { logWarn } from "@/logger";
-import { normalizePath, Notice, TAbstractFile, TFile, Vault, Editor } from "obsidian";
+import { normalizePath, Notice, TAbstractFile, TFile, Vault } from "obsidian";
 import { getSettings } from "@/settings/model";
 import {
   updateCachedCommands,
@@ -68,7 +67,13 @@ export function validateCommandName(
   return null;
 }
 
-export { getCommandId } from "./commandId";
+/**
+ * Converts a custom command name to a command id. Encodes the name to avoid
+ * special characters.
+ */
+export function getCommandId(commandName: string) {
+  return encodeURIComponent(commandName.toLowerCase());
+}
 
 export function getCustomCommandsFolder(): string {
   return normalizePath(getSettings().customPromptsFolder);
@@ -140,7 +145,7 @@ export function sortCommandsByOrder(commands: CustomCommand[]): CustomCommand[] 
   });
 }
 
-export function sortCommandsByRecency(commands: CustomCommand[]): CustomCommand[] {
+function sortCommandsByRecency(commands: CustomCommand[]): CustomCommand[] {
   return sortByStrategy(commands, "recent", {
     getName: (command) => command.title,
     getCreatedAtMs: () => 0,
@@ -148,7 +153,7 @@ export function sortCommandsByRecency(commands: CustomCommand[]): CustomCommand[
   });
 }
 
-export function sortCommandsByAlphabetical(commands: CustomCommand[]): CustomCommand[] {
+function sortCommandsByAlphabetical(commands: CustomCommand[]): CustomCommand[] {
   return sortByStrategy(commands, "name", {
     getName: (command) => command.title,
     getCreatedAtMs: () => 0,
@@ -160,7 +165,7 @@ export function sortCommandsByAlphabetical(commands: CustomCommand[]): CustomCom
  * Sort prompts of the slash commands based on the sort strategy.
  */
 export function sortSlashCommands(commands: CustomCommand[]): CustomCommand[] {
-  const sortStrategy = getSettings().promptSortStrategy;
+  const sortStrategy: PromptSortStrategy = getSettings().promptSortStrategy as PromptSortStrategy;
   switch (sortStrategy) {
     case PromptSortStrategy.TIMESTAMP:
       return sortCommandsByRecency(commands);
@@ -289,7 +294,7 @@ async function extractVariablesFromPrompt(
         .slice(1)
         .split(",")
         .map((tag) => tag.trim());
-      const noteFiles = await getNotesFromTags(vault, tagNames);
+      const noteFiles = getNotesFromTags(vault, tagNames);
       const notesContent: string[] = [];
       for (const file of noteFiles) {
         const content = await getFileContent(file, vault);
@@ -303,7 +308,7 @@ async function extractVariablesFromPrompt(
       variableResult.content = notesContent.join("\n\n");
     } else {
       const processedVariableName = processVariableNameForNotePath(variableName);
-      const noteFiles = await getNotesFromPath(vault, processedVariableName);
+      const noteFiles = getNotesFromPath(vault, processedVariableName);
       const notesContent: string[] = [];
       for (const file of noteFiles) {
         const content = await getFileContent(file, vault);
@@ -487,7 +492,7 @@ export function getNextCustomCommandOrder(): number {
 export async function ensureCommandFrontmatter(file: TFile, command: CustomCommand) {
   try {
     addPendingFileWrite(file.path);
-    await app.fileManager.processFrontMatter(file, (frontmatter) => {
+    await app.fileManager.processFrontMatter(file, (frontmatter: Record<string, unknown>) => {
       if (frontmatter[COPILOT_COMMAND_CONTEXT_MENU_ENABLED] == null) {
         frontmatter[COPILOT_COMMAND_CONTEXT_MENU_ENABLED] = command.showInContextMenu;
       }
@@ -507,69 +512,4 @@ export async function ensureCommandFrontmatter(file: TFile, command: CustomComma
   } finally {
     removePendingFileWrite(file.path);
   }
-}
-
-/**
- * Removes all quick command code blocks from the editor while preserving cursor position and selection
- * @param editor - The Obsidian editor instance
- * @returns true if any blocks were removed, false otherwise
- */
-export function removeQuickCommandBlocks(editor: Editor): boolean {
-  // Store original selection positions
-  const originalFrom = editor.getCursor("from");
-  const originalTo = editor.getCursor("to");
-
-  const content = editor.getValue();
-  const lines = content.split("\n");
-  let hasExisting = false;
-  const newLines = [];
-  let removedLinesBeforeFrom = 0;
-  let removedLinesBeforeTo = 0;
-  let i = 0;
-
-  while (i < lines.length) {
-    if (lines[i].trim() === `\`\`\`${QUICK_COMMAND_CODE_BLOCK}`) {
-      hasExisting = true;
-      const blockStartLine = i;
-
-      // Skip the opening line
-      i++;
-      // Skip until we find the closing ```
-      while (i < lines.length && lines[i].trim() !== "```") {
-        i++;
-      }
-      // Skip the closing line
-      i++;
-
-      const removedLineCount = i - blockStartLine;
-
-      // Calculate how many lines were removed before the selection positions
-      if (blockStartLine <= originalFrom.line) {
-        removedLinesBeforeFrom += removedLineCount;
-      }
-      if (blockStartLine <= originalTo.line) {
-        removedLinesBeforeTo += removedLineCount;
-      }
-    } else {
-      newLines.push(lines[i]);
-      i++;
-    }
-  }
-
-  // Update editor content and restore selection if we removed existing blocks
-  if (hasExisting) {
-    editor.setValue(newLines.join("\n"));
-
-    // Calculate new selection positions accounting for removed lines
-    const newFromLine = Math.max(0, originalFrom.line - removedLinesBeforeFrom);
-    const newToLine = Math.max(0, originalTo.line - removedLinesBeforeTo);
-
-    // Restore the selection
-    editor.setSelection(
-      { line: newFromLine, ch: originalFrom.ch },
-      { line: newToLine, ch: originalTo.ch }
-    );
-  }
-
-  return hasExisting;
 }

@@ -14,6 +14,7 @@ import { PromptSortStrategy } from "@/types";
 import { sortSlashCommands } from "@/commands/customCommandUtils";
 import { DEFAULT_SETTINGS } from "@/constants";
 import { logWarn } from "@/logger";
+import { mockTFile } from "@/__tests__/mockObsidian";
 
 // Mock Obsidian
 jest.mock("obsidian", () => ({
@@ -31,7 +32,7 @@ jest.mock("@/logger", () => ({
 
 // Mock the utility functions
 jest.mock("@/utils", () => {
-  const actual = jest.requireActual("@/utils");
+  const actual = jest.requireActual<{ stripFrontmatter: unknown }>("@/utils");
   return {
     extractTemplateNoteFiles: jest.fn().mockReturnValue([]),
     getFileContent: jest.fn(),
@@ -64,10 +65,10 @@ describe("processedPrompt()", () => {
         }),
       },
     } as unknown as Vault;
-    mockActiveNote = {
+    mockActiveNote = mockTFile({
       path: "path/to/active/note.md",
       basename: "Active Note",
-    } as TFile;
+    });
   });
 
   it("should add 1 context and selectedText", async () => {
@@ -84,7 +85,7 @@ describe("processedPrompt()", () => {
 
     (getFileContent as jest.Mock).mockResolvedValueOnce("here is the note content for note0");
     (getFileName as jest.Mock).mockReturnValueOnce("Variable Note");
-    (getNotesFromPath as jest.Mock).mockResolvedValueOnce([mockActiveNote]);
+    (getNotesFromPath as jest.Mock).mockReturnValueOnce([mockActiveNote]);
 
     const result = await processPrompt(doc.content, selectedText, mockVault, mockActiveNote);
 
@@ -110,14 +111,14 @@ describe("processedPrompt()", () => {
       .mockResolvedValueOnce("here is the note content for note0")
       .mockResolvedValueOnce("note content for note1");
 
-    const { getFileName } = jest.requireMock("@/utils") as any;
+    const { getFileName } = jest.requireMock<{ getFileName: jest.Mock }>("@/utils");
     getFileName.mockReturnValueOnce("Variable1 Note").mockReturnValueOnce("Variable2 Note");
 
-    const mockNote1 = { path: "path/to/note1.md", basename: "Variable1 Note" } as TFile;
-    const mockNote2 = { path: "path/to/note2.md", basename: "Variable2 Note" } as TFile;
+    const mockNote1 = mockTFile({ path: "path/to/note1.md", basename: "Variable1 Note" });
+    const mockNote2 = mockTFile({ path: "path/to/note2.md", basename: "Variable2 Note" });
     (getNotesFromPath as jest.Mock)
-      .mockResolvedValueOnce([mockNote1])
-      .mockResolvedValueOnce([mockNote2]);
+      .mockReturnValueOnce([mockNote1])
+      .mockReturnValueOnce([mockNote2]);
 
     const result = await processPrompt(doc.content, selectedText, mockVault, mockActiveNote);
 
@@ -174,7 +175,7 @@ describe("processedPrompt()", () => {
     const selectedText = "";
 
     (getFileContent as jest.Mock).mockResolvedValue("Content of the active note");
-    const { getFileName } = jest.requireMock("@/utils") as any;
+    const { getFileName } = jest.requireMock<{ getFileName: jest.Mock }>("@/utils");
     getFileName.mockReturnValue("Active Note");
 
     const result = await processPrompt(doc.content, selectedText, mockVault, mockActiveNote);
@@ -228,16 +229,16 @@ describe("processedPrompt()", () => {
     const selectedText = "";
 
     // Mock note file for the tag
-    const mockNoteForTag = {
+    const mockNoteForTag = mockTFile({
       path: "path/to/tagged/note.md",
       basename: "Tagged Note",
-    } as TFile;
+    });
 
     // Mock getNotesFromTags to return our mock note
-    (getNotesFromTags as jest.Mock).mockResolvedValue([mockNoteForTag]);
+    (getNotesFromTags as jest.Mock).mockReturnValue([mockNoteForTag]);
 
     // Mock getFileName to return the basename
-    const { getFileName } = jest.requireMock("@/utils") as any;
+    const { getFileName } = jest.requireMock<{ getFileName: jest.Mock }>("@/utils");
     getFileName.mockReturnValue("Tagged Note");
 
     // Mock getFileContent to return content for the note
@@ -256,20 +257,20 @@ describe("processedPrompt()", () => {
     const selectedText = "";
 
     // Mock note files for the tags
-    const mockNoteForTag1 = {
+    const mockNoteForTag1 = mockTFile({
       basename: "Tagged Note 1",
       path: "path/to/tagged/note1.md",
-    } as TFile;
-    const mockNoteForTag2 = {
+    });
+    const mockNoteForTag2 = mockTFile({
       basename: "Tagged Note 2",
       path: "path/to/tagged/note2.md",
-    } as TFile;
+    });
 
     // Mock getNotesFromTags to return our mock notes
-    (getNotesFromTags as jest.Mock).mockResolvedValue([mockNoteForTag1, mockNoteForTag2]);
+    (getNotesFromTags as jest.Mock).mockReturnValue([mockNoteForTag1, mockNoteForTag2]);
 
     // Mock getFileName to return the basename
-    const { getFileName } = jest.requireMock("@/utils") as any;
+    const { getFileName } = jest.requireMock<{ getFileName: jest.Mock }>("@/utils");
     getFileName.mockImplementation((file: TFile) => file.basename);
 
     // Mock getFileContent to return content for each note
@@ -294,7 +295,7 @@ describe("processedPrompt()", () => {
   it("should process [[note title]] syntax correctly", async () => {
     const customPrompt = "Content of [[Test Note]] is important.";
     const selectedText = "";
-    const mockTestNote = { basename: "Test Note", path: "Test Note.md" } as TFile;
+    const mockTestNote = mockTFile({ basename: "Test Note", path: "Test Note.md" });
 
     // Mock the necessary functions
     (extractTemplateNoteFiles as jest.Mock).mockReturnValue([mockTestNote]);
@@ -316,20 +317,20 @@ describe("processedPrompt()", () => {
     const selectedText = "";
 
     // Mock the necessary functions
-    const mockNoteFile = {
+    const mockNoteFile = mockTFile({
       basename: "Test Note",
       path: "Test Note.md",
-    } as TFile;
+    });
 
     (extractTemplateNoteFiles as jest.Mock).mockReturnValue([mockNoteFile]);
 
-    const { getFileName } = jest.requireMock("@/utils") as any;
+    const { getFileName } = jest.requireMock<{ getFileName: jest.Mock }>("@/utils");
     getFileName.mockReturnValue("Test Note");
 
     (getFileContent as jest.Mock).mockResolvedValue("Test note content");
 
     // Mock getNotesFromPath to return our mock note
-    (getNotesFromPath as jest.Mock).mockResolvedValue([mockNoteFile]);
+    (getNotesFromPath as jest.Mock).mockReturnValue([mockNoteFile]);
 
     const result = await processPrompt(customPrompt, selectedText, mockVault, mockActiveNote);
 
@@ -353,15 +354,15 @@ describe("processedPrompt()", () => {
     const selectedText = "";
 
     // Mock the necessary functions
-    const mockNote1 = {
+    const mockNote1 = mockTFile({
       basename: "Note1",
       path: "Note1.md",
-    } as TFile;
+    });
 
     // Only Note1 should be extracted since it's wrapped in {[[]]}
     (extractTemplateNoteFiles as jest.Mock).mockReturnValue([mockNote1]);
 
-    const { getFileName } = jest.requireMock("@/utils") as any;
+    const { getFileName } = jest.requireMock<{ getFileName: jest.Mock }>("@/utils");
     getFileName.mockImplementation((file: TFile) => file.basename);
 
     (getFileContent as jest.Mock).mockImplementation((file: TFile) => {
@@ -372,7 +373,7 @@ describe("processedPrompt()", () => {
     });
 
     // Mock getNotesFromPath to return our mock note
-    (getNotesFromPath as jest.Mock).mockResolvedValue([mockNote1]);
+    (getNotesFromPath as jest.Mock).mockReturnValue([mockNote1]);
 
     const result = await processPrompt(customPrompt, selectedText, mockVault, mockActiveNote);
 
@@ -394,13 +395,13 @@ describe("processedPrompt()", () => {
   it("should handle multiple occurrences of {[[note title]]} syntax", async () => {
     const customPrompt = "{[[Note1]]} is related to {[[Note2]]} and {[[Note3]]}.";
     const selectedText = "";
-    const mockNote1 = { basename: "Note1", path: "Note1.md" } as TFile;
-    const mockNote2 = { basename: "Note2", path: "Note2.md" } as TFile;
-    const mockNote3 = { basename: "Note3", path: "Note3.md" } as TFile;
+    const mockNote1 = mockTFile({ basename: "Note1", path: "Note1.md" });
+    const mockNote2 = mockTFile({ basename: "Note2", path: "Note2.md" });
+    const mockNote3 = mockTFile({ basename: "Note3", path: "Note3.md" });
 
     // Mock the necessary functions
     (extractTemplateNoteFiles as jest.Mock).mockReturnValue([mockNote1, mockNote2, mockNote3]);
-    (getNotesFromPath as jest.Mock).mockResolvedValue([]);
+    (getNotesFromPath as jest.Mock).mockReturnValue([]);
     (getFileContent as jest.Mock).mockImplementation((file: TFile) => {
       if (file.basename === "Note1") {
         return "Note1 content";
@@ -458,7 +459,7 @@ describe("processedPrompt()", () => {
     const selectedText = "";
 
     // Mock getFileName and getFileContent
-    const { getFileName } = jest.requireMock("@/utils") as any;
+    const { getFileName } = jest.requireMock<{ getFileName: jest.Mock }>("@/utils");
     getFileName.mockReturnValue("Active Note");
 
     (getFileContent as jest.Mock).mockResolvedValue("Content of the active note");
@@ -510,7 +511,7 @@ describe("processedPrompt()", () => {
 
     // Mock getFileContent for the active note when processed via {}
     (getFileContent as jest.Mock).mockResolvedValue("Content of the active note");
-    const { getFileName } = jest.requireMock("@/utils") as any;
+    const { getFileName } = jest.requireMock<{ getFileName: jest.Mock }>("@/utils");
     getFileName.mockReturnValue("Active Note");
 
     const result = await processPrompt(doc.content, selectedText, mockVault, mockActiveNote);
@@ -629,7 +630,7 @@ describe("sortSlashCommands", () => {
     });
 
     const sorted = sortSlashCommands(sampleCommands);
-    expect(sorted.map((c: any) => c.title)).toEqual(["Gamma", "Alpha", "Beta"]);
+    expect(sorted.map((c: { title: string }) => c.title)).toEqual(["Gamma", "Alpha", "Beta"]);
   });
 
   it("sorts alphabetically (ALPHABETICAL)", () => {
@@ -639,7 +640,7 @@ describe("sortSlashCommands", () => {
     });
 
     const sorted = sortSlashCommands(sampleCommands);
-    expect(sorted.map((c: any) => c.title)).toEqual(["Alpha", "Beta", "Gamma"]);
+    expect(sorted.map((c: { title: string }) => c.title)).toEqual(["Alpha", "Beta", "Gamma"]);
   });
 
   it("sorts by manual order (MANUAL)", () => {
@@ -648,7 +649,7 @@ describe("sortSlashCommands", () => {
       promptSortStrategy: PromptSortStrategy.MANUAL,
     });
     const sorted = sortSlashCommands(sampleCommands);
-    expect(sorted.map((c: any) => c.title)).toEqual(["Alpha", "Beta", "Gamma"]);
+    expect(sorted.map((c: { title: string }) => c.title)).toEqual(["Alpha", "Beta", "Gamma"]);
   });
 
   it("returns original order for unknown strategy", () => {
@@ -662,43 +663,60 @@ describe("sortSlashCommands", () => {
 });
 
 describe("parseCustomCommandFile", () => {
-  let originalApp: any;
-  let mockFile: any;
-  let mockFrontmatter: any;
-  let mockMetadata: any;
+  interface MockFrontmatter {
+    "copilot-command-context-menu-enabled"?: boolean;
+    "copilot-command-slash-enabled"?: boolean;
+    "copilot-command-context-menu-order"?: number;
+    "copilot-command-model-key"?: string;
+    "copilot-command-last-used"?: number;
+  }
+  interface MockMetadata {
+    frontmatter: MockFrontmatter;
+  }
+  interface MockAppLike {
+    vault: { read: jest.Mock };
+    metadataCache: { getFileCache: jest.Mock };
+  }
+  type AppRef = { app: unknown };
+
+  let originalApp: unknown;
+  let mockFile: TFile;
+  let mockFrontmatter: MockFrontmatter;
+  let mockMetadata: MockMetadata;
 
   beforeEach(() => {
     // Save and mock global app
-    originalApp = global.app;
+    originalApp = (window as unknown as AppRef).app;
     mockFrontmatter = {
-      "copilot-mcp-command-context-menu-enabled": true,
-      "copilot-mcp-command-slash-enabled": false,
-      "copilot-mcp-command-context-menu-order": 42,
-      "copilot-mcp-command-model-key": "gpt-4",
-      "copilot-mcp-command-last-used": 1234567890,
+      "copilot-command-context-menu-enabled": true,
+      "copilot-command-slash-enabled": false,
+      "copilot-command-context-menu-order": 42,
+      "copilot-command-model-key": "gpt-4",
+      "copilot-command-last-used": 1234567890,
     };
     mockMetadata = { frontmatter: mockFrontmatter };
-    global.app = {
+    const mockedApp: MockAppLike = {
       vault: {
         read: jest
           .fn()
           .mockResolvedValue(
-            "---\ncopilot-mcp-command-context-menu-enabled: true\ncopilot-mcp-command-slash-enabled: false\ncopilot-mcp-command-context-menu-order: 42\ncopilot-mcp-command-model-key: gpt-4\ncopilot-mcp-command-last-used: 1234567890\n---\nPrompt content here."
-          ) as any,
-      } as any,
+            "---\ncopilot-command-context-menu-enabled: true\ncopilot-command-slash-enabled: false\ncopilot-command-context-menu-order: 42\ncopilot-command-model-key: gpt-4\ncopilot-command-last-used: 1234567890\n---\nPrompt content here."
+          ),
+      },
       metadataCache: {
-        getFileCache: jest.fn().mockReturnValue(mockMetadata) as any,
-      } as any,
-    } as any;
-    mockFile = {
+        getFileCache: jest.fn().mockReturnValue(mockMetadata),
+      },
+    };
+    (window as unknown as AppRef).app = mockedApp;
+    mockFile = mockTFile({
       basename: "Test Command",
       extension: "md",
       path: "CustomCommands/Test Command.md",
-    };
+    });
   });
 
   afterEach(() => {
-    global.app = originalApp;
+    (window as unknown as AppRef).app = originalApp;
   });
 
   it("parses a custom command file with frontmatter and content", async () => {
@@ -718,8 +736,12 @@ describe("parseCustomCommandFile", () => {
   });
 
   it("uses EMPTY_COMMAND defaults if frontmatter is missing", async () => {
-    (global.app.vault as any).read.mockResolvedValue("Prompt content only, no frontmatter.");
-    (global.app.metadataCache as any).getFileCache.mockReturnValue({});
+    (window.app.vault as unknown as { read: jest.Mock }).read.mockResolvedValue(
+      "Prompt content only, no frontmatter."
+    );
+    (
+      window.app.metadataCache as unknown as { getFileCache: jest.Mock }
+    ).getFileCache.mockReturnValue({});
     const { parseCustomCommandFile } = await import("@/commands/customCommandUtils");
     const result = await parseCustomCommandFile(mockFile);
     expect(result).toEqual({

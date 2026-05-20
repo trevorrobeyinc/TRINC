@@ -3,6 +3,7 @@ import { TFile, App } from "obsidian";
 import ChatInput from "./ChatInput";
 import { ChatMessage } from "@/types/message";
 import { useActiveWebTabState } from "./hooks/useActiveWebTabState";
+import { appendUniqueFiles } from "@/utils/fileListUtils";
 
 interface InlineMessageEditorProps {
   /** The initial message text to edit */
@@ -32,7 +33,7 @@ export const InlineMessageEditor: React.FC<InlineMessageEditorProps> = ({
 
   // Convert initialContext to the format expected by ChatInput
   const [contextNotes, setContextNotes] = useState<TFile[]>(
-    initialContext?.notes?.map((note) => note as TFile) || []
+    initialContext?.notes?.filter((note): note is TFile => note instanceof TFile) || []
   );
   const [includeActiveNote, setIncludeActiveNote] = useState(false);
   const [includeActiveWebTab, setIncludeActiveWebTab] = useState(false);
@@ -78,8 +79,11 @@ export const InlineMessageEditor: React.FC<InlineMessageEditorProps> = ({
     // Not used in edit mode
   }, []);
 
+  /**
+   * Add selected image files while preserving the original selection order.
+   */
   const handleAddImage = useCallback((files: File[]) => {
-    setSelectedImages((prev) => [...prev, ...files]);
+    setSelectedImages((prev) => appendUniqueFiles(prev, files));
   }, []);
 
   const handleRemoveSelectedText = useCallback((id: string) => {

@@ -23,16 +23,14 @@ import {
   ModelInfo,
   safeFetch,
   safeFetchNoThrow,
+  shouldUseGitHubCopilotResponsesApi,
 } from "@/utils";
-import { HarmBlockThreshold, HarmCategory } from "@google/generative-ai";
 import { ChatAnthropic } from "@langchain/anthropic";
-import { ChatCohere } from "@langchain/cohere";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { BaseLanguageModel } from "@langchain/core/language_models/base";
 import { ChatDeepSeek } from "@langchain/deepseek";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { ChatGroq } from "@langchain/groq";
-import { ChatMistralAI } from "@langchain/mistralai";
 import { ChatOllama } from "@langchain/ollama";
 import { ChatOpenAI } from "@langchain/openai";
 import { ChatXAI } from "@langchain/xai";
@@ -42,31 +40,41 @@ import { ChatOpenRouter } from "./ChatOpenRouter";
 import { ChatLMStudio } from "./ChatLMStudio";
 import { BedrockChatModel, type BedrockChatModelFields } from "./BedrockChatModel";
 import { GitHubCopilotChatModel } from "@/LLMProviders/githubCopilot/GitHubCopilotChatModel";
+import { GitHubCopilotResponsesModel } from "@/LLMProviders/githubCopilot/GitHubCopilotResponsesModel";
+import type { SafetySetting } from "@google/generative-ai";
+
+const GOOGLE_SAFETY_SETTINGS_BLOCK_NONE: SafetySetting[] = [
+  { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" } as SafetySetting,
+  { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" } as SafetySetting,
+  { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" } as SafetySetting,
+  { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" } as SafetySetting,
+];
 
 // Patch BaseLanguageModel.prototype.getNumTokens once at module load to prevent
 // tiktoken CDN fetches. LangChain's default getNumTokens() downloads a ~3MB BPE
 // vocabulary from tiktoken.pages.dev, which blocks all LLM calls when the CDN is
 // unreachable. This char/4 estimation is the same fallback LangChain uses internally
 // before tiktoken loads. Actual token usage comes from API response metadata.
-(BaseLanguageModel.prototype as any).getNumTokens = async (
-  content: string | Array<{ type: string; text?: string }>
-) => {
+ 
+(
+  BaseLanguageModel.prototype as { getNumTokens: (...args: unknown[]) => Promise<number> }
+).getNumTokens = async (content: string | Array<{ type: string; text?: string }>) => {
   const text =
     typeof content === "string"
       ? content
-      : content.map((item: any) => (typeof item === "string" ? item : (item.text ?? ""))).join("");
+      : content.map((item: { type: string; text?: string }): string => item.text ?? "").join("");
   return Math.ceil(text.length / 4);
 };
 
 type ChatConstructorType = {
-  new (config: any): any;
+  new (config: Record<string, unknown>): BaseChatModel;
 };
 
 const CHAT_PROVIDER_CONSTRUCTORS = {
   [ChatModelProviders.OPENAI]: ChatOpenAI,
   [ChatModelProviders.AZURE_OPENAI]: ChatOpenAI,
   [ChatModelProviders.ANTHROPIC]: ChatAnthropic,
-  [ChatModelProviders.COHEREAI]: ChatCohere,
+  [ChatModelProviders.COHEREAI]: ChatOpenAI,
   [ChatModelProviders.GOOGLE]: ChatGoogleGenerativeAI,
   [ChatModelProviders.XAI]: ChatXAI,
   [ChatModelProviders.OPENROUTERAI]: ChatOpenRouter,
@@ -76,7 +84,7 @@ const CHAT_PROVIDER_CONSTRUCTORS = {
   [ChatModelProviders.OPENAI_FORMAT]: ChatOpenAI,
   [ChatModelProviders.SILICONFLOW]: ChatOpenAI,
   [ChatModelProviders.COPILOT_PLUS]: ChatOpenRouter,
-  [ChatModelProviders.MISTRAL]: ChatMistralAI,
+  [ChatModelProviders.MISTRAL]: ChatOpenAI,
   [ChatModelProviders.DEEPSEEK]: ChatDeepSeek,
   [ChatModelProviders.AMAZON_BEDROCK]: BedrockChatModel,
   [ChatModelProviders.GITHUB_COPILOT]: GitHubCopilotChatModel,
@@ -193,7 +201,7 @@ export default class ChatModelManager {
 
     const modelName = customModel.name;
     const modelInfo = getModelInfo(modelName);
-    const { isThinkingEnabled } = modelInfo;
+    const { isThinkingEnabled, usesAdaptiveThinking } = modelInfo;
     const resolvedTemperature = this.getTemperatureForModel(modelInfo, customModel, settings);
     const maxTokens = customModel.maxTokens ?? settings.maxTokens;
 
@@ -240,13 +248,18 @@ export default class ChatModelManager {
           fetch: customModel.enableCors ? safeFetch : undefined,
         },
         ...(isThinkingEnabled && {
-          thinking: {
-            type: "enabled",
-            budget_tokens: ChatModelManager.ANTHROPIC_THINKING_BUDGET_TOKENS,
-          },
+          // Opus 4.7+ defaults thinking.display to "omitted" so thinking summaries
+          // never reach the UI; force "summarized" for the adaptive branch. Pre-4.7
+          // models default to "summarized" server-side and don't need this.
+          thinking: usesAdaptiveThinking
+            ? { type: "adaptive" as const, display: "summarized" as const }
+            : {
+                type: "enabled" as const,
+                budget_tokens: ChatModelManager.ANTHROPIC_THINKING_BUDGET_TOKENS,
+              },
         }),
       },
-      [ChatModelProviders.AZURE_OPENAI]: await (async () => {
+      [ChatModelProviders.AZURE_OPENAI]: await (async (): Promise<Record<string, unknown>> => {
         const azureUrl = normalizeAzureUrl(customModel.baseUrl);
         return {
           modelName: customModel.baseUrl
@@ -279,30 +292,17 @@ export default class ChatModelManager {
         };
       })(),
       [ChatModelProviders.COHEREAI]: {
+        modelName,
         apiKey: await getDecryptedKey(customModel.apiKey || settings.cohereApiKey),
-        model: modelName,
+        configuration: {
+          baseURL: customModel.baseUrl || ProviderInfo[ChatModelProviders.COHEREAI].host,
+          fetch: customModel.enableCors ? safeFetch : undefined,
+        },
       },
       [ChatModelProviders.GOOGLE]: {
         apiKey: await getDecryptedKey(customModel.apiKey || settings.googleApiKey),
         model: modelName,
-        safetySettings: [
-          {
-            category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-            threshold: HarmBlockThreshold.BLOCK_NONE,
-          },
-          {
-            category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-            threshold: HarmBlockThreshold.BLOCK_NONE,
-          },
-          {
-            category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-            threshold: HarmBlockThreshold.BLOCK_NONE,
-          },
-          {
-            category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-            threshold: HarmBlockThreshold.BLOCK_NONE,
-          },
-        ],
+        safetySettings: GOOGLE_SAFETY_SETTINGS_BLOCK_NONE,
         baseUrl: customModel.baseUrl,
       },
       [ChatModelProviders.XAI]: {
@@ -344,6 +344,9 @@ export default class ChatModelManager {
         headers: {
           Authorization: `Bearer ${await getDecryptedKey(customModel.apiKey || "default-key")}`,
         },
+        // Route through Obsidian's requestUrl (safeFetch) to bypass CORS / mixed-content
+        // restrictions — required on mobile (WKWebView) when calling http:// Ollama hosts.
+        fetch: customModel.enableCors ? safeFetch : undefined,
         // Enable thinking for models with REASONING capability (e.g., qwen3, deepseek-r1)
         // Thinking content goes to additional_kwargs.reasoning_content
         think: customModel.capabilities?.includes(ModelCapability.REASONING) ?? false,
@@ -407,9 +410,12 @@ export default class ChatModelManager {
         },
       },
       [ChatModelProviders.MISTRAL]: {
-        model: modelName,
+        modelName,
         apiKey: await getDecryptedKey(customModel.apiKey || settings.mistralApiKey),
-        serverURL: customModel.baseUrl,
+        configuration: {
+          baseURL: customModel.baseUrl || ProviderInfo[ChatModelProviders.MISTRAL].host,
+          fetch: customModel.enableCors ? safeFetch : undefined,
+        },
       },
       [ChatModelProviders.DEEPSEEK]: {
         modelName: modelName,
@@ -435,7 +441,7 @@ export default class ChatModelManager {
     let selectedProviderConfig =
       providerConfig[customModel.provider as keyof typeof providerConfig] || {};
 
-    if (customModel.provider === ChatModelProviders.AMAZON_BEDROCK) {
+    if ((customModel.provider as ChatModelProviders) === ChatModelProviders.AMAZON_BEDROCK) {
       selectedProviderConfig = await this.buildBedrockConfig(
         customModel,
         modelName,
@@ -478,7 +484,7 @@ export default class ChatModelManager {
     maxTokens: number,
     _temperature: number | undefined,
     customModel?: CustomModel
-  ) {
+  ): Record<string, unknown> {
     const settings = getSettings();
     const modelInfo = getModelInfo(modelName);
     const resolvedTemperature = this.getTemperatureForModel(
@@ -487,7 +493,7 @@ export default class ChatModelManager {
       settings
     );
 
-    const config: any = {
+    const config: Record<string, unknown> = {
       maxTokens,
       temperature: resolvedTemperature,
     };
@@ -505,7 +511,7 @@ export default class ChatModelManager {
       if (
         modelInfo.isGPT5 &&
         customModel?.verbosity &&
-        customModel?.provider !== ChatModelProviders.AZURE_OPENAI
+        (customModel?.provider as ChatModelProviders) !== ChatModelProviders.AZURE_OPENAI
       ) {
         const verbosityValue = customModel.verbosity;
         // For Responses API, verbosity is nested under 'text' parameter
@@ -580,7 +586,7 @@ export default class ChatModelManager {
    * This prevents passing undefined values to providers that don't support them
    */
   private getProviderSpecificParams(provider: ChatModelProviders, customModel: CustomModel) {
-    const params: Record<string, any> = {};
+    const params: Record<string, unknown> = {};
 
     // Add topP only if defined
     if (customModel.topP !== undefined) {
@@ -660,7 +666,7 @@ export default class ChatModelManager {
    * @returns True when the provider requirements are satisfied, otherwise false.
    */
   private hasProviderCredentials(model: CustomModel): boolean {
-    if (model.provider === ChatModelProviders.AMAZON_BEDROCK) {
+    if ((model.provider as ChatModelProviders) === ChatModelProviders.AMAZON_BEDROCK) {
       const settings = getSettings();
       const apiKey = model.apiKey || settings.amazonBedrockApiKey;
       // Region defaults to us-east-1 if not specified, so API key is the only requirement
@@ -676,8 +682,9 @@ export default class ChatModelManager {
   }
 
   getProviderConstructor(model: CustomModel): ChatConstructorType {
-    const constructor: ChatConstructorType =
-      CHAT_PROVIDER_CONSTRUCTORS[model.provider as ChatModelProviders];
+    const constructor: ChatConstructorType = CHAT_PROVIDER_CONSTRUCTORS[
+      model.provider as ChatModelProviders
+    ] as unknown as ChatConstructorType;
     if (!constructor) {
       console.warn(`Unknown provider: ${model.provider} for model: ${model.name}`);
       throw new Error(`Unknown provider: ${model.provider} for model: ${model.name}`);
@@ -779,8 +786,8 @@ export default class ChatModelManager {
       const modelInfo = getModelInfo(model.name);
       if (
         modelInfo.isGPT5 &&
-        (model.provider === ChatModelProviders.OPENAI ||
-          model.provider === ChatModelProviders.OPENAI_FORMAT)
+        ((model.provider as ChatModelProviders) === ChatModelProviders.OPENAI ||
+          (model.provider as ChatModelProviders) === ChatModelProviders.OPENAI_FORMAT)
       ) {
         logInfo(`Chat model set with Responses API for GPT-5: ${model.name}`);
       }
@@ -799,7 +806,7 @@ export default class ChatModelManager {
     }
     if (!selectedModel.hasApiKey) {
       const errorMessage = `API key is not provided for the model: ${modelKey}.`;
-      if (model.provider === ChatModelProviders.COPILOT_PLUS) {
+      if ((model.provider as ChatModelProviders) === ChatModelProviders.COPILOT_PLUS) {
         throw new MissingPlusLicenseError(
           "Copilot Plus license key is not configured. Please enter your license key in the Copilot Plus section at the top of Basic Settings."
         );
@@ -811,22 +818,35 @@ export default class ChatModelManager {
     const modelInfo = getModelInfo(model.name);
 
     // For GPT-5 models, automatically use Responses API for proper verbosity support
-    const constructorConfig: any = { ...modelConfig };
+    const constructorConfig: Record<string, unknown> = { ...modelConfig };
+    const useCopilotResponses = shouldUseGitHubCopilotResponsesApi(model);
     if (
       modelInfo.isGPT5 &&
-      (selectedModel.vendor === ChatModelProviders.OPENAI ||
-        selectedModel.vendor === ChatModelProviders.OPENAI_FORMAT)
+      ((selectedModel.vendor as ChatModelProviders) === ChatModelProviders.OPENAI ||
+        (selectedModel.vendor as ChatModelProviders) === ChatModelProviders.OPENAI_FORMAT)
     ) {
       constructorConfig.useResponsesApi = true;
       logInfo(`Enabling Responses API for GPT-5 model: ${model.name} (${selectedModel.vendor})`);
     }
 
+    if (useCopilotResponses) {
+      constructorConfig.useResponsesApi = true;
+      logInfo(`Enabling Responses API for GitHub Copilot model: ${model.name}`);
+    }
+
     // For LM Studio, use ChatLMStudio by default for Responses API compatibility.
     // Opt out by setting useResponsesApi to false.
-    if (model.provider === ChatModelProviders.LM_STUDIO && model.useResponsesApi !== false) {
+    if (
+      (model.provider as ChatModelProviders) === ChatModelProviders.LM_STUDIO &&
+      model.useResponsesApi !== false
+    ) {
       const lmStudioInstance = new ChatLMStudio(constructorConfig);
       logInfo(`[ChatModelManager] Using Responses API for LM Studio model: ${model.name}`);
       return lmStudioInstance;
+    }
+
+    if (useCopilotResponses) {
+      return new GitHubCopilotResponsesModel(constructorConfig);
     }
 
     const newModelInstance = new selectedModel.AIConstructor(constructorConfig);
@@ -885,25 +905,33 @@ export default class ChatModelManager {
       const pingMaxTokens = modelInfo.isThinkingEnabled ? 4096 : 30;
       const tokenConfig = { maxTokens: pingMaxTokens };
 
-      const constructorConfig: any = {
+      const constructorConfig: Record<string, unknown> = {
         ...pingConfig,
         ...tokenConfig,
       };
+      const useCopilotResponses = shouldUseGitHubCopilotResponsesApi(model);
 
       if (
         modelInfo.isGPT5 &&
-        (model.provider === ChatModelProviders.OPENAI ||
-          model.provider === ChatModelProviders.OPENAI_FORMAT)
+        ((model.provider as ChatModelProviders) === ChatModelProviders.OPENAI ||
+          (model.provider as ChatModelProviders) === ChatModelProviders.OPENAI_FORMAT)
       ) {
+        constructorConfig.useResponsesApi = true;
+      }
+
+      if (useCopilotResponses) {
         constructorConfig.useResponsesApi = true;
       }
 
       // For LM Studio with Responses API, ping via ChatLMStudio so the
       // connectivity check hits the same /v1/responses endpoint used in chats.
       const testModel =
-        model.provider === ChatModelProviders.LM_STUDIO && model.useResponsesApi !== false
+        (model.provider as ChatModelProviders) === ChatModelProviders.LM_STUDIO &&
+        model.useResponsesApi !== false
           ? new ChatLMStudio(constructorConfig)
-          : new (this.getProviderConstructor(modelToTest))(constructorConfig);
+          : useCopilotResponses
+            ? new GitHubCopilotResponsesModel(constructorConfig)
+            : new (this.getProviderConstructor(modelToTest))(constructorConfig);
       await testModel.invoke([{ role: "user", content: "hello" }], {
         timeout: 8000,
       });
@@ -914,7 +942,7 @@ export default class ChatModelManager {
       await tryPing(false);
       return true;
     } catch (firstError) {
-      console.log("First ping attempt failed, trying with CORS...");
+      logInfo("First ping attempt failed, retrying with CORS enabled.");
       try {
         // Second try with CORS
         await tryPing(true);

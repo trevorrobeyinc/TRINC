@@ -1,7 +1,9 @@
 import { ProjectConfig, setCurrentProject } from "@/aiParams";
+import type CopilotPlugin from "@/main";
 import { AddProjectModal } from "@/components/modals/project/AddProjectModal";
 import { ConfirmModal } from "@/components/modals/ConfirmModal";
 import { Button } from "@/components/ui/button";
+import { useApp } from "@/context";
 import { useChatInput } from "@/context/ChatInputContext";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -14,10 +16,12 @@ import {
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { SearchBar } from "@/components/ui/SearchBar";
 import { cn } from "@/lib/utils";
-import { logError } from "@/logger";
-import { updateSetting, useSettingsValue } from "@/settings/model";
+import { logError, logWarn } from "@/logger";
+import { ProjectFileManager } from "@/projects/ProjectFileManager";
+import { useSettingsValue } from "@/settings/model";
 import { RecentUsageManager, sortByStrategy } from "@/utils/recentUsageManager";
 import {
+  ArrowUpRight,
   ChevronDown,
   ChevronUp,
   Edit2,
@@ -28,8 +32,16 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { getCachedProjectRecordById } from "@/projects/state";
 import { App, Notice } from "obsidian";
-import React, { memo, useEffect, useMemo, useState } from "react";
+import React, {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { filterProjects } from "@/utils/projectUtils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -41,22 +53,12 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 function useRecentUsageManagerRevision<Key extends string>(
   manager: RecentUsageManager<Key> | null | undefined
 ): number {
-  const [revision, setRevision] = useState(() => manager?.getRevision() ?? 0);
-
-  useEffect(() => {
-    if (!manager) {
-      setRevision(0);
-      return;
-    }
-
-    setRevision(manager.getRevision());
-
-    return manager.subscribe(() => {
-      setRevision(manager.getRevision());
-    });
-  }, [manager]);
-
-  return revision;
+  const subscribe = useCallback(
+    (cb: () => void) => manager?.subscribe(cb) ?? (() => {}),
+    [manager]
+  );
+  const getSnapshot = useCallback(() => manager?.getRevision() ?? 0, [manager]);
+  return useSyncExternalStore(subscribe, getSnapshot);
 }
 
 function ProjectItem({
@@ -70,6 +72,7 @@ function ProjectItem({
   onEdit: (project: ProjectConfig) => void;
   onDelete: (project: ProjectConfig) => void;
 }) {
+  const app = useApp();
   return (
     <div
       className="tw-group tw-flex tw-cursor-pointer tw-items-center tw-justify-between tw-gap-2 tw-rounded-lg tw-border tw-border-solid tw-border-border tw-p-3 tw-transition-all tw-duration-200 tw-bg-secondary/40 hover:tw-border-interactive-accent hover:tw-text-accent hover:tw-shadow-[0_2px_12px_rgba(0,0,0,0.1)] active:tw-scale-[0.98]"
@@ -96,6 +99,7 @@ function ProjectItem({
             <Button
               variant="ghost2"
               size="icon"
+              aria-label="Edit Project"
               onClick={(e) => {
                 e.stopPropagation();
                 onEdit(project);
@@ -111,6 +115,7 @@ function ProjectItem({
             <Button
               variant="ghost2"
               size="icon"
+              aria-label="Start Chat"
               onClick={(e) => {
                 e.stopPropagation();
                 loadContext(project);
@@ -126,6 +131,34 @@ function ProjectItem({
             <Button
               variant="ghost2"
               size="icon"
+              aria-label="Open Project File"
+              onClick={(e) => {
+                e.stopPropagation();
+                const record = getCachedProjectRecordById(project.id);
+                if (record?.filePath) {
+                  // Reason: hidden-folder files are not in vault cache, so openLinkText silently fails.
+                  const fileInCache = app.vault.getAbstractFileByPath(record.filePath);
+                  if (fileInCache) {
+                    void app.workspace.openLinkText(record.filePath, "", true);
+                  } else {
+                    new Notice(
+                      "Project file is in a hidden folder and cannot be opened from the file explorer."
+                    );
+                  }
+                }
+              }}
+            >
+              <ArrowUpRight className="tw-size-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Open Project File</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost2"
+              size="icon"
+              aria-label="Delete Project"
               onClick={(e) => {
                 e.stopPropagation();
                 const modal = new ConfirmModal(
@@ -165,9 +198,9 @@ export const ProjectList = memo(
     projects: ProjectConfig[];
     defaultOpen?: boolean;
     app: App;
-    plugin?: any; // CopilotPlugin, optional for backwards compatibility
-    onProjectAdded: (project: ProjectConfig) => void;
-    onEditProject: (originP: ProjectConfig, updateP: ProjectConfig) => void;
+    plugin?: CopilotPlugin; // optional for backwards compatibility
+    onProjectAdded: (project: ProjectConfig) => Promise<void>;
+    onEditProject: (originP: ProjectConfig, updateP: ProjectConfig) => Promise<void>;
     hasMessages?: boolean;
     showChatUI: (v: boolean) => void;
     onClose: () => void;
@@ -180,19 +213,39 @@ export const ProjectList = memo(
     const chatInput = useChatInput();
     const settings = useSettingsValue();
 
+    // Safety net: if the selected project disappears from the list (delete/move/duplicate-id),
+    // clear local UI selection. Don't call setCurrentProject(null) here — ProjectManager's
+    // records subscriber handles the atom update with save-first ordering via switchProject(null).
+    // Consolidated into a single effect so the local resets and the parent showChatUI(false)
+    // land in the same committed transition. Splitting them caused render-phase setState to
+    // flip the "missing" flag back to false before any effect observed the transition,
+    // leaving the chat UI open with no project selected.
+    useEffect(() => {
+      if (!selectedProject) return;
+      const stillExists = projects.some((p) => p.id === selectedProject.id);
+      if (stillExists) return;
+      // eslint-disable-next-line @eslint-react/hooks-extra/no-direct-set-state-in-use-effect
+      setSelectedProject(null);
+      // eslint-disable-next-line @eslint-react/hooks-extra/no-direct-set-state-in-use-effect
+      setShowChatInput(false);
+      // eslint-disable-next-line @eslint-react/hooks-extra/no-direct-set-state-in-use-effect
+      setIsOpen(true);
+      showChatUI(false);
+    }, [projects, selectedProject, showChatUI]);
+
     // Get the project usage manager for subscription
     const projectUsageTimestampsManager =
-      plugin?.projectManager?.getProjectUsageTimestampsManager?.() as
-        | RecentUsageManager<string>
-        | undefined;
+      plugin?.projectManager?.getProjectUsageTimestampsManager?.();
     const projectUsageRevision = useRecentUsageManagerRevision(projectUsageTimestampsManager);
 
-    // Auto collapse when messages appear
-    useEffect(() => {
-      if (hasMessages) {
-        setIsOpen(false);
-      }
-    }, [hasMessages]);
+    // Auto collapse when messages first appear; user can re-open manually.
+    const [prevHasMessages, setPrevHasMessages] = useState(hasMessages);
+    if (!prevHasMessages && hasMessages) {
+      setPrevHasMessages(true);
+      setIsOpen(false);
+    } else if (prevHasMessages && !hasMessages) {
+      setPrevHasMessages(false);
+    }
 
     // Sort projects based on sort strategy
     // Note: projectUsageRevision triggers re-sort when in-memory timestamps change,
@@ -228,9 +281,14 @@ export const ProjectList = memo(
     }, [sortedProjects, searchQuery]);
 
     const handleAddProject = () => {
-      const modal = new AddProjectModal(app, async (project: ProjectConfig) => {
-        onProjectAdded(project);
-      });
+      const modal = new AddProjectModal(
+        app,
+        async (project: ProjectConfig) => {
+          await onProjectAdded(project);
+        },
+        undefined,
+        plugin
+      );
       modal.open();
     };
 
@@ -238,28 +296,35 @@ export const ProjectList = memo(
       const modal = new AddProjectModal(
         app,
         async (updatedProject: ProjectConfig) => {
-          onEditProject(originP, updatedProject);
-          if (selectedProject && selectedProject.name === originP.name) {
+          await onEditProject(originP, updatedProject);
+          if (selectedProject && selectedProject.id === originP.id) {
             setSelectedProject(updatedProject);
           }
         },
-        originP
+        originP,
+        plugin
       );
       modal.open();
     };
 
-    const handleDeleteProject = (project: ProjectConfig) => {
-      const currentProjects = projects || [];
-      const newProjectList = currentProjects.filter((p) => p.name !== project.name);
-
-      // If the deleted project is currently selected, close it
-      if (selectedProject?.name === project.name) {
-        enableOrDisableProject(false);
+    const handleDeleteProject = async (project: ProjectConfig) => {
+      const manager = ProjectFileManager.getInstance(app);
+      try {
+        await manager.deleteProject(project.id);
+        // Reason: only clear UI selection — don't call setCurrentProject(null) here
+        // because deleteProject already triggers the register's save-first flow.
+        if (selectedProject?.id === project.id) {
+          setSelectedProject(null);
+          setShowChatInput(false);
+          setIsOpen(true);
+          showChatUI(false);
+        }
+        new Notice(`Project "${project.name}" deleted successfully`);
+      } catch (error) {
+        logError("[Projects] Failed to delete project", error);
+        const message = error instanceof Error ? error.message : String(error);
+        new Notice(`Failed to delete project: ${message}`);
       }
-
-      // Update the project list in settings
-      updateSetting("projectList", newProjectList);
-      new Notice(`Project "${project.name}" deleted successfully`);
     };
 
     const enableOrDisableProject = (enable: boolean, project?: ProjectConfig) => {
@@ -272,7 +337,7 @@ export const ProjectList = memo(
         return;
       } else {
         if (!project) {
-          logError("Must be exist one project.");
+          logWarn("[Projects] No project provided for context loading");
           return;
         }
         setSelectedProject(project);
@@ -288,7 +353,7 @@ export const ProjectList = memo(
       showChatUI(true);
       setCurrentProject(p);
 
-      setTimeout(() => {
+      window.setTimeout(() => {
         chatInput.focusInput();
       }, 0);
     };
@@ -302,9 +367,9 @@ export const ProjectList = memo(
                 <div className="tw-flex tw-min-w-0 tw-items-center tw-gap-2">
                   <span className="tw-font-semibold tw-text-normal">Projects</span>
                   <Select
-                    value={selectedProject.name}
+                    value={selectedProject.id}
                     onValueChange={(value) => {
-                      const project = sortedProjects.find((p) => p.name === value);
+                      const project = sortedProjects.find((p) => p.id === value);
                       if (project) {
                         handleLoadContext(project);
                       }
@@ -321,8 +386,8 @@ export const ProjectList = memo(
                     <SelectContent className="tw-truncate">
                       {sortedProjects.map((project) => (
                         <SelectItem
-                          key={project.name}
-                          value={project.name}
+                          key={project.id}
+                          value={project.id}
                           className="tw-flex tw-items-center tw-gap-2"
                         >
                           <div className="tw-flex tw-min-w-0 tw-items-center tw-gap-2">
@@ -428,7 +493,7 @@ export const ProjectList = memo(
                       <div className="tw-flex tw-flex-col tw-gap-2 @2xl:tw-grid @2xl:tw-grid-cols-2 @4xl:tw-grid-cols-3">
                         {filteredProjects.map((project) => (
                           <ProjectItem
-                            key={project.name}
+                            key={project.id}
                             project={project}
                             loadContext={handleLoadContext}
                             onEdit={handleEditProject}

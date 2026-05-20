@@ -13,16 +13,16 @@ function hasWeakTyping(schema: z.ZodType): boolean {
   }
 
   if (schema instanceof z.ZodObject) {
-    const shape = schema.shape;
+    const shape = schema.shape as Record<string, z.ZodType>;
     for (const value of Object.values(shape)) {
-      if (hasWeakTyping(value as z.ZodType)) {
+      if (hasWeakTyping(value)) {
         return true;
       }
     }
   }
 
   if (schema instanceof z.ZodArray) {
-    return hasWeakTyping(schema._def.type);
+    return hasWeakTyping(schema._def.type as z.ZodType);
   }
 
   if (
@@ -30,7 +30,7 @@ function hasWeakTyping(schema: z.ZodType): boolean {
     schema instanceof z.ZodNullable ||
     schema instanceof z.ZodDefault
   ) {
-    return hasWeakTyping(schema._def.innerType);
+    return hasWeakTyping(schema._def.innerType as z.ZodType);
   }
 
   return false;
@@ -186,8 +186,13 @@ describe("All Tools Validation", () => {
 
       // Check that descriptions are accessible
       const shape = wellDocumentedSchema.shape;
-      expect((shape.query as any)._def.description).toBe("The search query to execute");
-      expect((shape.limit as any)._def.description).toBe("Maximum number of results to return");
+      type ZodWithDef = { _def: { description: string } };
+      expect((shape.query as unknown as ZodWithDef)._def.description).toBe(
+        "The search query to execute"
+      );
+      expect((shape.limit as unknown as ZodWithDef)._def.description).toBe(
+        "Maximum number of results to return"
+      );
     });
   });
 

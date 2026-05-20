@@ -2,6 +2,7 @@ import React from "react";
 import { render } from "@testing-library/react";
 import { ChatMessage } from "@/types/message";
 import { TFile } from "obsidian";
+import { mockTFile } from "@/__tests__/mockObsidian";
 
 // Mock Tooltip components
 jest.mock("@radix-ui/react-tooltip", () => ({
@@ -30,11 +31,13 @@ function MessageContext({ context }: { context: ChatMessage["context"] }) {
   return (
     <div className="tw-flex tw-flex-wrap tw-gap-2">
       {context.notes.map((note, index) => (
+        // eslint-disable-next-line @eslint-react/no-array-index-key -- mirrors the production component; context arrays may contain duplicates
         <div key={`${index}-${note.path}`} data-testid="note-badge">
           <span>{note.basename}</span>
         </div>
       ))}
       {context.urls.map((url, index) => (
+        // eslint-disable-next-line @eslint-react/no-array-index-key -- mirrors the production component; context arrays may contain duplicates
         <div key={`${index}-${url}`} data-testid="url-badge">
           <span>{url}</span>
         </div>
@@ -45,11 +48,11 @@ function MessageContext({ context }: { context: ChatMessage["context"] }) {
 
 describe("MessageContext", () => {
   const createMockFile = (path: string, basename: string): TFile =>
-    ({
+    mockTFile({
       path,
       basename,
       // Add other required TFile properties as needed
-    }) as TFile;
+    });
 
   describe("Duplicate Notes Bug Prevention", () => {
     it("should render duplicate notes without React key conflicts", () => {

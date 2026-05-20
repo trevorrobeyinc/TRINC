@@ -1,11 +1,11 @@
 import { cn } from "@/lib/utils";
 import { logError } from "@/logger";
 import { getSettings, updateSetting } from "@/settings/model";
+import { createPluginRoot } from "@/utils/react/createPluginRoot";
 import { Change, diffArrays } from "diff";
 import { Check, X as XIcon } from "lucide-react";
 import { App, ItemView, Notice, TFile, WorkspaceLeaf } from "obsidian";
 import React, { memo, useMemo, useRef, useState } from "react";
-import { createRoot } from "react-dom/client";
 import { Button } from "../ui/button";
 import { SettingSwitch } from "../ui/setting-switch";
 import { getChangeBlocks } from "@/composerUtils";
@@ -131,6 +131,7 @@ const WordDiffSpan: React.FC<WordDiffSpanProps> = memo(({ original, modified, si
         if (side === "original") {
           if (part.removed) {
             return (
+              // eslint-disable-next-line @eslint-react/no-array-index-key -- diff parts are computed once per render and not reordered
               <span key={idx} className="tw-bg-error tw-text-error">
                 {part.value}
               </span>
@@ -140,6 +141,7 @@ const WordDiffSpan: React.FC<WordDiffSpanProps> = memo(({ original, modified, si
         } else {
           if (part.added) {
             return (
+              // eslint-disable-next-line @eslint-react/no-array-index-key -- diff parts are computed once per render and not reordered
               <span key={idx} className="tw-bg-success tw-text-success">
                 {part.value}
               </span>
@@ -147,6 +149,7 @@ const WordDiffSpan: React.FC<WordDiffSpanProps> = memo(({ original, modified, si
           }
           if (part.removed) return null;
         }
+        // eslint-disable-next-line @eslint-react/no-array-index-key -- diff parts are computed once per render and not reordered
         return <span key={idx}>{part.value}</span>;
       })}
     </span>
@@ -189,7 +192,7 @@ const DiffCell: React.FC<DiffCellProps> = memo(({ row, side }) => {
 
 DiffCell.displayName = "DiffCell";
 
-export const APPLY_VIEW_TYPE = "copilot-mcp-apply-view";
+export const APPLY_VIEW_TYPE = "obsidian-copilot-apply-view";
 
 export interface ApplyViewState {
   changes: Change[];
@@ -205,7 +208,7 @@ interface ExtendedChange extends Change {
 }
 
 export class ApplyView extends ItemView {
-  private root: ReturnType<typeof createRoot> | null = null;
+  private root: ReturnType<typeof createPluginRoot> | null = null;
   private state: ApplyViewState | null = null;
   private result: ApplyViewResult | null = null;
 
@@ -249,7 +252,7 @@ export class ApplyView extends ItemView {
 
     const rootEl = contentEl.createDiv();
     if (!this.root) {
-      this.root = createRoot(rootEl);
+      this.root = createPluginRoot(rootEl, this.app);
     }
 
     // Pass a close function that takes a result
@@ -285,6 +288,7 @@ const SideBySideBlock = memo(({ block }: SideBySideBlockProps) => {
       {/* Original (left) column */}
       <div className="tw-rounded-md tw-border tw-border-solid tw-border-border tw-bg-primary tw-p-2">
         {rows.map((row, idx) => (
+          // eslint-disable-next-line @eslint-react/no-array-index-key -- diff rows are computed once per block and not reordered
           <div key={idx} className="tw-whitespace-pre-wrap tw-font-mono tw-text-sm">
             <DiffCell row={row} side="original" />
           </div>
@@ -294,6 +298,7 @@ const SideBySideBlock = memo(({ block }: SideBySideBlockProps) => {
       {/* Modified (right) column */}
       <div className="tw-rounded-md tw-border tw-border-solid tw-border-border tw-bg-primary tw-p-2">
         {rows.map((row, idx) => (
+          // eslint-disable-next-line @eslint-react/no-array-index-key -- diff rows are computed once per block and not reordered
           <div key={idx} className="tw-whitespace-pre-wrap tw-font-mono tw-text-sm">
             <DiffCell row={row} side="modified" />
           </div>
@@ -319,6 +324,7 @@ const SplitBlock = memo(({ block }: SplitBlockProps) => {
     return (
       <div className="tw-whitespace-pre-wrap tw-px-2 tw-py-1 tw-font-mono tw-text-sm tw-text-normal">
         {block.map((change, idx) => (
+          // eslint-disable-next-line @eslint-react/no-array-index-key -- block changes are computed once per render and not reordered
           <span key={idx}>{change.value}</span>
         ))}
       </div>
@@ -333,6 +339,7 @@ const SplitBlock = memo(({ block }: SplitBlockProps) => {
         <div className="tw-whitespace-pre-wrap tw-font-mono tw-text-sm">
           {rows.map((row, idx) =>
             row.original !== null ? (
+              // eslint-disable-next-line @eslint-react/no-array-index-key -- diff rows are computed once per block and not reordered
               <div key={idx}>
                 <DiffCell row={row} side="original" />
               </div>
@@ -347,6 +354,7 @@ const SplitBlock = memo(({ block }: SplitBlockProps) => {
         <div className="tw-whitespace-pre-wrap tw-font-mono tw-text-sm">
           {rows.map((row, idx) =>
             row.modified !== null ? (
+              // eslint-disable-next-line @eslint-react/no-array-index-key -- diff rows are computed once per block and not reordered
               <div key={idx}>
                 <DiffCell row={row} side="modified" />
               </div>
@@ -410,7 +418,9 @@ const ApplyViewRoot: React.FC<ApplyViewRootProps> = ({ app, state, close }) => {
       close(result ? "accepted" : "failed"); // Pass result
     } catch (error) {
       logError("Error applying changes:", error);
-      new Notice(`Error applying changes: ${error.message}`);
+      new Notice(
+        `Error applying changes: ${error instanceof Error ? error.message : String(error)}`
+      );
       close("failed"); // fallback, but you may want to handle this differently
     }
   };
@@ -427,7 +437,9 @@ const ApplyViewRoot: React.FC<ApplyViewRootProps> = ({ app, state, close }) => {
       close(result ? "rejected" : "failed"); // Pass result
     } catch (error) {
       logError("Error applying changes:", error);
-      new Notice(`Error applying changes: ${error.message}`);
+      new Notice(
+        `Error applying changes: ${error instanceof Error ? error.message : String(error)}`
+      );
       close("failed");
     }
   };
@@ -522,7 +534,7 @@ const ApplyViewRoot: React.FC<ApplyViewRootProps> = ({ app, state, close }) => {
     });
 
     // Focus on the next change block after state update
-    setTimeout(() => focusNextChangeBlock(blockIndex), 0);
+    window.setTimeout(() => focusNextChangeBlock(blockIndex), 0);
   };
 
   // Reject a block of changes
@@ -548,7 +560,7 @@ const ApplyViewRoot: React.FC<ApplyViewRootProps> = ({ app, state, close }) => {
     });
 
     // Focus on the next change block after state update
-    setTimeout(() => focusNextChangeBlock(blockIndex), 0);
+    window.setTimeout(() => focusNextChangeBlock(blockIndex), 0);
   };
 
   return (
@@ -612,6 +624,7 @@ const ApplyViewRoot: React.FC<ApplyViewRootProps> = ({ app, state, close }) => {
 
           return (
             <div
+              // eslint-disable-next-line @eslint-react/no-array-index-key -- changeBlocks is computed once from the diff and not reordered; blockIndex also keys blockRefs
               key={blockIndex}
               ref={(el) => (blockRefs.current[blockIndex] = el)}
               className={cn("tw-mb-4 tw-overflow-hidden tw-rounded-md")}
@@ -622,6 +635,7 @@ const ApplyViewRoot: React.FC<ApplyViewRootProps> = ({ app, state, close }) => {
                   {block
                     .filter((change) => !change.removed)
                     .map((change, idx) => (
+                      // eslint-disable-next-line @eslint-react/no-array-index-key -- block changes are computed once per render and not reordered
                       <div key={idx}>{change.value}</div>
                     ))}
                 </div>
@@ -631,6 +645,7 @@ const ApplyViewRoot: React.FC<ApplyViewRootProps> = ({ app, state, close }) => {
                   {block
                     .filter((change) => !change.added)
                     .map((change, idx) => (
+                      // eslint-disable-next-line @eslint-react/no-array-index-key -- block changes are computed once per render and not reordered
                       <div key={idx}>{change.value}</div>
                     ))}
                 </div>

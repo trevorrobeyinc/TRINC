@@ -2,10 +2,31 @@ import { logInfo, logWarn, logMarkdownBlock, logTable } from "@/logger";
 import { sanitizeContentForCitations } from "@/LLMProviders/chainRunner/utils/citationUtils";
 
 /**
+ * Raw document shape returned by search/retrieval tools.
+ * Fields are optional because different providers may omit some.
+ */
+export interface SearchDoc {
+  title?: string;
+  path?: string;
+  content?: string;
+  mtime?: string | number;
+  rerank_score?: number;
+  score?: number;
+  explanation?: unknown;
+  includeInContext?: boolean;
+  __sourceId?: string | number;
+  collection_name?: string;
+  source_id?: string | number;
+  matchType?: string;
+  source?: string;
+  chunkId?: string;
+}
+
+/**
  * Quality summary for search results.
  * Helps the LLM evaluate whether results are adequate or if re-search is needed.
  */
-export interface QualitySummary {
+interface QualitySummary {
   high: number; // Count of results with score >= 0.7
   medium: number; // Count of results with score >= 0.3 and < 0.7
   low: number; // Count of results with score < 0.3
@@ -20,7 +41,7 @@ export interface QualitySummary {
  * @param searchResults - Array of search results with scores
  * @returns Quality summary with counts by relevance tier
  */
-export function generateQualitySummary(searchResults: any[]): QualitySummary {
+export function generateQualitySummary(searchResults: SearchDoc[]): QualitySummary {
   if (!Array.isArray(searchResults) || searchResults.length === 0) {
     return { high: 0, medium: 0, low: 0, total: 0, averageScore: 0 };
   }
@@ -77,13 +98,15 @@ export function formatQualitySummary(summary: QualitySummary): string {
  * @param searchResults - The raw search results from localSearch tool
  * @returns Formatted text string for LLM
  */
-export function formatSearchResultsForLLM(searchResults: any[]): string {
+export function formatSearchResultsForLLM(searchResults: unknown): string {
   if (!Array.isArray(searchResults)) {
     return "";
   }
 
   // Filter documents that should be included in context
-  const includedDocs = searchResults.filter((doc) => doc.includeInContext !== false);
+  const includedDocs = (searchResults as SearchDoc[]).filter(
+    (doc) => doc.includeInContext !== false
+  );
 
   if (includedDocs.length === 0) {
     return "No relevant documents found.";
@@ -91,15 +114,11 @@ export function formatSearchResultsForLLM(searchResults: any[]): string {
 
   // Format each document with essential metadata
   const formattedDocs = includedDocs
-    .map((doc: any, idx: number) => {
+    .map((doc, idx: number) => {
       const title = doc.title || "Untitled";
       const path = doc.path || "";
       // Optional stable source id if provided by caller; fallback to order
-      const sourceId =
-        (doc as any).__sourceId ||
-        (doc as any).collection_name ||
-        (doc as any).source_id ||
-        idx + 1;
+      const sourceId = doc.__sourceId || doc.collection_name || doc.source_id || idx + 1;
 
       // Safely handle mtime - check validity before converting
       let modified: string | null = null;
@@ -159,13 +178,13 @@ export function formatSearchResultStringForLLM(resultString: string): string {
  * @returns Sources array with explanation preserved for UI
  */
 export function extractSourcesFromSearchResults(
-  searchResults: any[]
-): { title: string; path: string; score: number; explanation?: any }[] {
+  searchResults: unknown
+): { title: string; path: string; score: number; explanation?: unknown }[] {
   if (!Array.isArray(searchResults)) {
     return [];
   }
 
-  return searchResults.map((doc: any) => ({
+  return (searchResults as SearchDoc[]).map((doc) => ({
     title: doc.title || doc.path || "Untitled",
     path: doc.path || doc.title || "",
     score: doc.rerank_score || doc.score || 0,
@@ -193,19 +212,20 @@ function toIsoString(ts: unknown): string {
  * Create a concise, single-line summary of an explanation object.
  * Includes lexical matches, semantic score, folder/graph boosts, and score adjustments.
  */
-export function summarizeExplanation(explanation: any): string {
+function summarizeExplanation(explanation: unknown): string {
   if (!explanation) return "";
 
   const parts: string[] = [];
+  const exp = explanation as Record<string, unknown>;
 
   try {
     // Lexical matches summary
-    if (Array.isArray(explanation.lexicalMatches) && explanation.lexicalMatches.length > 0) {
+    if (Array.isArray(exp.lexicalMatches) && exp.lexicalMatches.length > 0) {
       const fields = new Set<string>();
       const terms = new Set<string>();
-      for (const m of explanation.lexicalMatches) {
-        if (m?.field) fields.add(String(m.field));
-        if (m?.query) terms.add(String(m.query));
+      for (const m of exp.lexicalMatches as Array<{ field?: unknown; query?: unknown }>) {
+        if (typeof m?.field === "string") fields.add(m.field);
+        if (typeof m?.query === "string") terms.add(m.query);
       }
       const fieldsStr = Array.from(fields).join("/");
       const termsStr = Array.from(terms).slice(0, 3).join(", ");
@@ -213,24 +233,32 @@ export function summarizeExplanation(explanation: any): string {
     }
 
     // Semantic score
-    if (typeof explanation.semanticScore === "number" && explanation.semanticScore > 0) {
-      parts.push(`Semantic: ${(explanation.semanticScore * 100).toFixed(1)}%`);
+    if (typeof exp.semanticScore === "number" && exp.semanticScore > 0) {
+      parts.push(`Semantic: ${(exp.semanticScore * 100).toFixed(1)}%`);
     }
 
     // Folder boost
-    if (explanation.folderBoost && typeof explanation.folderBoost.boostFactor === "number") {
-      const fb = explanation.folderBoost;
+    if (
+      exp.folderBoost &&
+      typeof (exp.folderBoost as { boostFactor?: number }).boostFactor === "number"
+    ) {
+      const fb = exp.folderBoost as { boostFactor: number; folder?: string };
       const folder = fb.folder || "root";
       parts.push(`Folder +${fb.boostFactor.toFixed(2)} (${folder})`);
     }
 
     // Graph connections (query-aware boost)
-    if (explanation.graphConnections && typeof explanation.graphConnections === "object") {
-      const gc = explanation.graphConnections;
+    if (exp.graphConnections && typeof exp.graphConnections === "object") {
+      const gc = exp.graphConnections as {
+        backlinks?: number;
+        coCitations?: number;
+        sharedTags?: number;
+        score?: number;
+      };
       const bits: string[] = [];
-      if (gc.backlinks > 0) bits.push(`${gc.backlinks} backlinks`);
-      if (gc.coCitations > 0) bits.push(`${gc.coCitations} co-cites`);
-      if (gc.sharedTags > 0) bits.push(`${gc.sharedTags} tags`);
+      if ((gc.backlinks ?? 0) > 0) bits.push(`${gc.backlinks} backlinks`);
+      if ((gc.coCitations ?? 0) > 0) bits.push(`${gc.coCitations} co-cites`);
+      if ((gc.sharedTags ?? 0) > 0) bits.push(`${gc.sharedTags} tags`);
       if (typeof gc.score === "number") {
         parts.push(`Graph ${gc.score.toFixed(1)}${bits.length ? ` (${bits.join(", ")})` : ""}`);
       } else if (bits.length) {
@@ -240,21 +268,21 @@ export function summarizeExplanation(explanation: any): string {
 
     // Legacy graph boost
     if (
-      explanation.graphBoost &&
-      typeof explanation.graphBoost.boostFactor === "number" &&
-      !explanation.graphConnections
+      exp.graphBoost &&
+      typeof (exp.graphBoost as { boostFactor?: number }).boostFactor === "number" &&
+      !exp.graphConnections
     ) {
-      const gb = explanation.graphBoost;
+      const gb = exp.graphBoost as { boostFactor: number; connections?: number };
       parts.push(`Graph +${gb.boostFactor.toFixed(2)} (${gb.connections} connections)`);
     }
 
     // Score adjustment
     if (
-      typeof explanation.baseScore === "number" &&
-      typeof explanation.finalScore === "number" &&
-      explanation.baseScore !== explanation.finalScore
+      typeof exp.baseScore === "number" &&
+      typeof exp.finalScore === "number" &&
+      exp.baseScore !== exp.finalScore
     ) {
-      parts.push(`Score: ${explanation.baseScore.toFixed(4)}→${explanation.finalScore.toFixed(4)}`);
+      parts.push(`Score: ${exp.baseScore.toFixed(4)}→${exp.finalScore.toFixed(4)}`);
     }
   } catch {
     // Ignore explanation parsing errors, leave parts as-is
@@ -282,8 +310,8 @@ export function summarizeExplanation(explanation: any): string {
  * @returns Formatted XML string with `<filterResults>` and `<searchResults>` sections
  */
 export function formatSplitSearchResultsForLLM(
-  filterDocs: any[],
-  searchDocs: any[],
+  filterDocs: SearchDoc[],
+  searchDocs: SearchDoc[],
   startId = 1
 ): string {
   let currentId = startId;
@@ -292,8 +320,8 @@ export function formatSplitSearchResultsForLLM(
   // Format filter results
   if (filterDocs.length > 0) {
     const filterXml = filterDocs
-      .map((doc: any) => {
-        const id = (doc as any).__sourceId || currentId++;
+      .map((doc) => {
+        const id = doc.__sourceId || currentId++;
         const title = doc.title || "Untitled";
         const path = doc.path || "";
         const matchType = doc.matchType || doc.source || "filter";
@@ -317,8 +345,8 @@ ${doc.content || ""}
   // Format search results
   if (searchDocs.length > 0) {
     const searchXml = searchDocs
-      .map((doc: any) => {
-        const id = (doc as any).__sourceId || currentId++;
+      .map((doc) => {
+        const id = doc.__sourceId || currentId++;
         const title = doc.title || "Untitled";
         const path = doc.path || "";
         const modified = toIsoString(doc.mtime);
@@ -393,16 +421,13 @@ export function isTimeDominantResults(docs: Array<{ source?: string }>): boolean
  * @param snippetLength - Maximum characters for the content snippet (default 300)
  * @returns Formatted XML string with `<additionalMatches>` wrapper, or empty string if no docs
  */
-export function formatMetadataOnlyDocuments(
-  docs: Array<{ title?: string; path?: string; mtime?: number | null; content?: string }>,
-  snippetLength = 300
-): string {
+export function formatMetadataOnlyDocuments(docs: unknown, snippetLength = 300): string {
   if (!Array.isArray(docs) || docs.length === 0) {
     return "";
   }
 
-  const fileElements = docs
-    .map((doc: any) => {
+  const fileElements = (docs as SearchDoc[])
+    .map((doc) => {
       const title = doc.title || "Untitled";
       const path = doc.path || "";
       const modified = toIsoString(doc.mtime);
@@ -420,7 +445,7 @@ export function formatMetadataOnlyDocuments(
   return `<additionalMatches count="${docs.length}" note="These results contain titles and metadata only. To read the full content of a note, call the readNote tool with its path.">\n${fileElements}\n</additionalMatches>`;
 }
 
-export function logSearchResultsDebugTable(searchResults: any[]): void {
+export function logSearchResultsDebugTable(searchResults: SearchDoc[]): void {
   if (!Array.isArray(searchResults) || searchResults.length === 0) {
     logInfo("Search Results: (none)");
     return;
@@ -435,7 +460,7 @@ export function logSearchResultsDebugTable(searchResults: any[]): void {
   };
 
   let includedCount = 0;
-  const rows: Row[] = searchResults.map((doc: any) => {
+  const rows: Row[] = searchResults.map((doc) => {
     const mtime = toIsoString(doc.mtime);
     const scoreNum = typeof doc.rerank_score === "number" ? doc.rerank_score : doc.score || 0;
     const score = (Number.isFinite(scoreNum) ? scoreNum : 0).toFixed(4);

@@ -6,7 +6,6 @@ import { StructuredTool } from "@langchain/core/tools";
  */
 export interface ToolMetadata {
   id: string;
-  providerId?: string;
   displayName: string;
   description: string;
   category: "search" | "time" | "file" | "media" | "mcp" | "memory" | "custom" | "cli";
@@ -19,6 +18,13 @@ export interface ToolMetadata {
   isBackground?: boolean; // If true, tool execution is not shown to user
   isPlusOnly?: boolean; // If true, tool requires Plus subscription
   requiresUserMessageContent?: boolean; // If true, tool receives original user message for URL extraction
+  /**
+   * Forked addition. Identifies which dynamic provider registered this tool,
+   * so the provider can later removeByProvider / replaceByProvider on settings
+   * change. Built-in tools (registered at plugin onload via initializeBuiltinTools)
+   * leave this unset; MCP / future dynamic providers MUST set it.
+   */
+  providerId?: string;
 }
 
 /**
@@ -60,14 +66,8 @@ export class ToolRegistry {
   }
 
   /**
-   * Remove a registered tool by ID.
-   */
-  unregister(id: string): void {
-    this.tools.delete(id);
-  }
-
-  /**
-   * Remove all tools registered by a provider.
+   * Remove all tools registered by a specific provider (forked addition).
+   * Used by McpToolProvider.syncFromSettings when MCP is disabled or its config changes.
    */
   removeByProvider(providerId: string): void {
     for (const [id, definition] of this.tools.entries()) {
@@ -78,7 +78,10 @@ export class ToolRegistry {
   }
 
   /**
-   * Replace all tools registered by a provider.
+   * Replace all tools registered by a specific provider (forked addition).
+   * Atomically removes the provider's prior set and registers the new set,
+   * tagging every registration with the providerId so subsequent removeByProvider
+   * calls find them.
    */
   replaceByProvider(providerId: string, definitions: ToolDefinition[]): void {
     this.removeByProvider(providerId);

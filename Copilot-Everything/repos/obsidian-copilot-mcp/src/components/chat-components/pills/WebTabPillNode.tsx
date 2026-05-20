@@ -5,12 +5,13 @@ import {
   DOMConversionOutput,
   DOMExportOutput,
   EditorConfig,
+  LexicalEditor,
   LexicalNode,
   NodeKey,
 } from "lexical";
 import { Globe } from "lucide-react";
 import { getDomainFromUrl } from "@/utils";
-import { BasePillNode, SerializedBasePillNode } from "./BasePillNode";
+import { BasePillNode, getEditorDocument, SerializedBasePillNode } from "./BasePillNode";
 import { PillBadge } from "./PillBadge";
 
 export interface SerializedWebTabPillNode extends SerializedBasePillNode {
@@ -63,8 +64,8 @@ export class WebTabPillNode extends BasePillNode {
     return "data-lexical-web-tab-pill";
   }
 
-  createDOM(_config: EditorConfig): HTMLElement {
-    const span = document.createElement("span");
+  createDOM(_config: EditorConfig, editor: LexicalEditor): HTMLElement {
+    const span = getEditorDocument(editor).createElement("span");
     span.className = "web-tab-pill-wrapper";
     return span;
   }
@@ -99,8 +100,8 @@ export class WebTabPillNode extends BasePillNode {
     };
   }
 
-  exportDOM(): DOMExportOutput {
-    const element = document.createElement("span");
+  exportDOM(editor: LexicalEditor): DOMExportOutput {
+    const element = getEditorDocument(editor).createElement("span");
     element.setAttribute("data-lexical-web-tab-pill", "true");
     element.setAttribute("data-url", this.__url);
     if (this.__title) {
@@ -205,32 +206,6 @@ export function $findWebTabPills(): WebTabPillNode[] {
 
   traverse(root);
   return pills;
-}
-
-/**
- * Check if a WebTabPillNode with the given URL exists in the editor.
- * Must be called within a Lexical read/update context.
- * Uses early-exit traversal for better performance.
- */
-export function $hasWebTabPillWithUrl(url: string): boolean {
-  const root = $getRoot();
-
-  function traverse(node: LexicalNode): boolean {
-    if (node instanceof WebTabPillNode && node.getURL() === url) {
-      return true; // Early exit on match
-    }
-    if ("getChildren" in node && typeof node.getChildren === "function") {
-      const children = (node as { getChildren: () => LexicalNode[] }).getChildren();
-      for (const child of children) {
-        if (traverse(child)) {
-          return true; // Propagate early exit
-        }
-      }
-    }
-    return false;
-  }
-
-  return traverse(root);
 }
 
 /** Remove WebTabPillNodes by URL. */

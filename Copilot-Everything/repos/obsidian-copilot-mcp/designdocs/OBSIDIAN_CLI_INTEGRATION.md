@@ -4,12 +4,6 @@
 **Status:** Draft — Experimental, Desktop-Only
 **Scope:** Copilot plugin tooling (`AutonomousAgent` + `Copilot Plus` tool execution path)
 
-> Status note on 2026-03-21:
-> This document describes the older direct plugin-side CLI tool track inside `obsidian-copilot-mcp`.
-> That track remains desktop-only and experimental.
-> The current production-stable CLI contract for `My Digital Garden` now lives in the bridge-backed MCP server lane under `bridges/raycast-obsidian-extension/mcp-server`, with structured health diagnostics and live stability gating.
-> Raw direct CLI on the same macOS machine is now being evaluated through a separate `full_direct_cli` validation track and `scripts/direct-cli-stability-gate.sh`; it is not yet a convergence signal by itself.
-
 ## 1. Problem Statement
 
 Obsidian now ships an official CLI (early access). Copilot already has a mature tool system, but it currently duplicates vault operations through plugin APIs and internal tool implementations. We need a low-risk path to leverage CLI capabilities without rewriting the agent loop.

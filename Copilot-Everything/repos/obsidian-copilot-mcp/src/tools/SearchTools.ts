@@ -1,6 +1,7 @@
 import { getStandaloneQuestion } from "@/chainUtils";
-import { BackendSelector } from "@/backend/BackendSelector";
 import { TEXT_WEIGHT } from "@/constants";
+import { BrevilabsClient } from "@/LLMProviders/brevilabsClient";
+import { hasSelfHostSearchKey, selfHostWebSearch } from "@/LLMProviders/selfHostServices";
 import { logInfo } from "@/logger";
 import { shouldUseMiyo } from "@/miyo/miyoUtils";
 import { isSelfHostModeValid } from "@/plusUtils";
@@ -102,11 +103,6 @@ async function performLexicalSearch({
   preExpandedQuery?: QueryExpansionInfo;
 }) {
   const settings = getSettings();
-  if (isSelfHostModeValid() && !RetrieverFactory.isMiyoActive() && forceLexical) {
-    throw new Error(
-      "Self-host mode is selected. Local lexical fallback is disabled; configure a self-host backend or enable Miyo."
-    );
-  }
   // Extract tag terms for self-host retriever (server-side tag filtering).
   // When salientTerms misses hashtags (e.g. query="#python" with empty salientTerms),
   // fall back to parsing them from the raw query so SelfHostRetriever gets tag filters.
@@ -213,8 +209,8 @@ async function performLexicalSearch({
     source: doc.metadata.source,
     mtime: doc.metadata.mtime ?? null,
     ctime: doc.metadata.ctime ?? null,
-    chunkId: (doc.metadata as any).chunkId ?? null,
-    isChunk: (doc.metadata as any).isChunk ?? false,
+    chunkId: (doc.metadata as Record<string, unknown>).chunkId ?? null,
+    isChunk: (doc.metadata as Record<string, unknown>).isChunk ?? false,
     explanation: doc.metadata.explanation ?? null,
     isFilterResult: isFilter,
     matchType: isFilter ? doc.metadata.source || "filter" : (undefined as string | undefined),
@@ -240,9 +236,9 @@ async function performLexicalSearch({
   }));
   const dedupedSearchSources = deduplicateSources(searchSourcesLike);
 
-  const bestByKey = new Map<string, any>();
+  const bestByKey = new Map<string, { rerank_score?: number }>();
   for (const d of taggedSearchResults) {
-    const key = (d.path || d.title).toLowerCase();
+    const key = ((d.path as string) || (d.title as string)).toLowerCase();
     const existing = bestByKey.get(key);
     if (!existing || (d.rerank_score || 0) > (existing.rerank_score || 0)) {
       bestByKey.set(key, d);
@@ -320,8 +316,8 @@ const semanticSearchTool = createLangChainTool({
         source: doc.metadata.source,
         mtime: doc.metadata.mtime ?? null,
         ctime: doc.metadata.ctime ?? null,
-        chunkId: (doc.metadata as any).chunkId ?? null,
-        isChunk: (doc.metadata as any).isChunk ?? false,
+        chunkId: (doc.metadata as Record<string, unknown>).chunkId ?? null,
+        isChunk: (doc.metadata as Record<string, unknown>).isChunk ?? false,
         explanation: doc.metadata.explanation ?? null,
       };
     });
@@ -333,9 +329,9 @@ const semanticSearchTool = createLangChainTool({
     }));
     const dedupedSources = deduplicateSources(sourcesLike);
 
-    const bestByKey = new Map<string, any>();
+    const bestByKey = new Map<string, { rerank_score?: number }>();
     for (const d of formattedResults) {
-      const key = (d.path || d.title).toLowerCase();
+      const key = ((d.path as string) || (d.title as string)).toLowerCase();
       const existing = bestByKey.get(key);
       if (!existing || (d.rerank_score || 0) > (existing.rerank_score || 0)) {
         bestByKey.set(key, d);
@@ -437,8 +433,8 @@ async function performMiyoSearch({
     source: doc.metadata.source,
     mtime: doc.metadata.mtime ?? null,
     ctime: doc.metadata.ctime ?? null,
-    chunkId: (doc.metadata as any).chunkId ?? null,
-    isChunk: (doc.metadata as any).isChunk ?? false,
+    chunkId: (doc.metadata as Record<string, unknown>).chunkId ?? null,
+    isChunk: (doc.metadata as Record<string, unknown>).isChunk ?? false,
     explanation: doc.metadata.explanation ?? null,
     isFilterResult: isFilter,
     matchType: isFilter ? doc.metadata.source || "filter" : (undefined as string | undefined),
@@ -473,8 +469,7 @@ const localSearchTool = createLangChainTool({
     }
 
     const tagTerms = salientTerms.filter((term) => term.startsWith("#"));
-    const shouldForceLexical =
-      !isSelfHostModeValid() && (timeRange !== undefined || tagTerms.length > 0);
+    const shouldForceLexical = timeRange !== undefined || tagTerms.length > 0;
 
     // For time-range and tag queries, force lexical search for better filtering
     // Otherwise, let RetrieverFactory handle the priority (Self-hosted > Semantic > Lexical)
@@ -528,10 +523,10 @@ const indexTool = createLangChainTool({
               `Semantic search index has been refreshed with ${count} documents.`,
           documentCount: count,
         };
-      } catch (error: any) {
+      } catch (error: unknown) {
         return {
           success: false,
-          message: `Failed to index with semantic search: ${error.message}`,
+          message: `Failed to index with semantic search: ${error instanceof Error ? error.message : String(error)}`,
         };
       }
     } else {
@@ -568,18 +563,18 @@ const webSearchTool = createLangChainTool({
       // Get standalone question considering chat history
       const standaloneQuestion = await getStandaloneQuestion(query, chatHistory);
 
-      const adapter = BackendSelector.getSelectedAdapter();
-      if (!adapter.webSearch) {
-        throw new Error(
-          isSelfHostModeValid()
-            ? "Self-host mode is selected, but web search is not configured or not supported."
-            : "Hosted web search is unavailable."
-        );
-      }
+      let webContent: string;
+      let citations: string[];
 
-      const result = await adapter.webSearch(standaloneQuestion);
-      const webContent = result.content;
-      const citations = result.citations;
+      if (isSelfHostModeValid() && hasSelfHostSearchKey()) {
+        const result = await selfHostWebSearch(standaloneQuestion);
+        webContent = result.content;
+        citations = result.citations;
+      } else {
+        const response = await BrevilabsClient.getInstance().webSearch(standaloneQuestion);
+        webContent = response.response.choices[0].message.content;
+        citations = response.response.citations || [];
+      }
 
       // Return structured JSON response for consistency with other tools
       // Format as an array of results like localSearch does

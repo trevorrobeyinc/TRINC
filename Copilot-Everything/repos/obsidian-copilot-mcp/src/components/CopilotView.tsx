@@ -2,13 +2,14 @@ import ChainManager from "@/LLMProviders/chainManager";
 import Chat from "@/components/Chat";
 import { ChatViewLayout } from "@/components/chat-components/ChatViewLayout";
 import { CHAT_VIEWTYPE } from "@/constants";
-import { AppContext, EventTargetContext } from "@/context";
+import { EventTargetContext } from "@/context";
 import CopilotPlugin from "@/main";
 import { FileParserManager } from "@/tools/FileParserManager";
+import { createPluginRoot } from "@/utils/react/createPluginRoot";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { ItemView, Platform, WorkspaceLeaf } from "obsidian";
 import * as React from "react";
-import { createRoot, Root } from "react-dom/client";
+import { Root } from "react-dom/client";
 
 export default class CopilotView extends ItemView {
   private get chainManager(): ChainManager {
@@ -22,6 +23,7 @@ export default class CopilotView extends ItemView {
   private drawerHideObserver: MutationObserver | null = null;
   private layout: ChatViewLayout | null = null;
   private lastDrawerEl: HTMLElement | null = null;
+  private windowMigrationDestroy: (() => void) | null = null;
   eventTarget: EventTarget;
 
   constructor(
@@ -54,7 +56,7 @@ export default class CopilotView extends ItemView {
   }
 
   async onOpen(): Promise<void> {
-    this.root = createRoot(this.containerEl.children[1]);
+    this.root = createPluginRoot(this.containerEl.children[1], this.app);
     const handleSaveAsNote = (saveFunction: () => Promise<void>) => {
       this.handleSaveAsNote = saveFunction;
     };
@@ -67,6 +69,19 @@ export default class CopilotView extends ItemView {
     this.setupMobileKeyboardObserver();
     this.setupDrawerHideObserver();
 
+    // Reason: When the leaf is dragged to (or back from) an Obsidian popout, the
+    // containerEl is reparented into a different window's document but onOpen
+    // does not re-fire. Lexical's editor._window stays bound to the original
+    // window, so input events fired in the popout never reach the editor.
+    // Tearing down and recreating the React root forces Lexical to re-register
+    // its root element under the new window — typing works again.
+    this.windowMigrationDestroy = this.containerEl.onWindowMigrated(() => {
+      if (!this.root) return;
+      this.root.unmount();
+      this.root = createPluginRoot(this.containerEl.children[1], this.app);
+      this.renderView(handleSaveAsNote, updateUserMessageHistory);
+    });
+
     // Reason: The view can move between containers (e.g. editor tab → drawer)
     // without onOpen firing again. Re-bind the drawer observer on layout changes
     // so it always watches the correct drawer element.
@@ -74,7 +89,7 @@ export default class CopilotView extends ItemView {
     // before we disconnect and rebind.
     this.registerEvent(
       this.app.workspace.on("layout-change", () => {
-        requestAnimationFrame(() => this.setupDrawerHideObserver());
+        window.requestAnimationFrame(() => this.setupDrawerHideObserver());
       })
     );
   }
@@ -94,12 +109,12 @@ export default class CopilotView extends ItemView {
     this.keyboardObserver?.disconnect();
 
     const syncKeyboardClass = () => {
-      const drawer = this.containerEl.closest(".workspace-drawer") as HTMLElement | null;
+      const drawer = this.containerEl.closest<HTMLElement>(".workspace-drawer");
 
       // Reason: If the view moved out of its previous drawer, clear the class on the old one
       // so drawer chrome (header/tab options) is restored.
       if (this.lastDrawerEl && this.lastDrawerEl !== drawer) {
-        this.lastDrawerEl.classList.remove("copilot-mcp-keyboard-open");
+        this.lastDrawerEl.classList.remove("copilot-keyboard-open");
       }
       this.lastDrawerEl = drawer;
 
@@ -109,13 +124,13 @@ export default class CopilotView extends ItemView {
       // querying by data-type which is more brittle across Obsidian versions.
       const isCopilotActive = !!this.containerEl.closest(".workspace-drawer-active-tab-content");
       const kbHeight = parseFloat(
-        document.documentElement.style.getPropertyValue("--keyboard-height") || "0"
+        this.containerEl.doc.documentElement.style.getPropertyValue("--keyboard-height") || "0"
       );
-      drawer.classList.toggle("copilot-mcp-keyboard-open", isCopilotActive && kbHeight > 0);
+      drawer.classList.toggle("copilot-keyboard-open", isCopilotActive && kbHeight > 0);
     };
 
     this.keyboardObserver = new MutationObserver(syncKeyboardClass);
-    this.keyboardObserver.observe(document.documentElement, {
+    this.keyboardObserver.observe(this.containerEl.doc.documentElement, {
       attributes: true,
       attributeFilter: ["style"],
     });
@@ -138,7 +153,7 @@ export default class CopilotView extends ItemView {
 
     this.drawerHideObserver?.disconnect();
 
-    const drawer = this.containerEl.closest(".workspace-drawer") as HTMLElement | null;
+    const drawer = this.containerEl.closest<HTMLElement>(".workspace-drawer");
     if (!drawer) return;
 
     let wasHidden = drawer.classList.contains("is-hidden");
@@ -168,20 +183,18 @@ export default class CopilotView extends ItemView {
     if (!this.root) return;
 
     this.root.render(
-      <AppContext.Provider value={this.app}>
-        <EventTargetContext.Provider value={this.eventTarget}>
-          <Tooltip.Provider delayDuration={0}>
-            <Chat
-              chainManager={this.chainManager}
-              updateUserMessageHistory={updateUserMessageHistory}
-              fileParserManager={this.fileParserManager}
-              plugin={this.plugin}
-              onSaveChat={handleSaveAsNote}
-              chatUIState={this.plugin.chatUIState}
-            />
-          </Tooltip.Provider>
-        </EventTargetContext.Provider>
-      </AppContext.Provider>
+      <EventTargetContext.Provider value={this.eventTarget}>
+        <Tooltip.Provider delayDuration={0}>
+          <Chat
+            chainManager={this.chainManager}
+            updateUserMessageHistory={updateUserMessageHistory}
+            fileParserManager={this.fileParserManager}
+            plugin={this.plugin}
+            onSaveChat={handleSaveAsNote}
+            chatUIState={this.plugin.chatUIState}
+          />
+        </Tooltip.Provider>
+      </EventTargetContext.Provider>
     );
   }
 
@@ -209,12 +222,14 @@ export default class CopilotView extends ItemView {
     this.keyboardObserver = null;
     this.drawerHideObserver?.disconnect();
     this.drawerHideObserver = null;
+    this.windowMigrationDestroy?.();
+    this.windowMigrationDestroy = null;
     this.layout?.destroy();
     this.layout = null;
     // Reason: Clean up the class on the tracked drawer element when the view is closed.
     // Use lastDrawerEl instead of querying closest(), because the view may have already
     // been detached from the drawer DOM by the time onClose fires.
-    this.lastDrawerEl?.classList.remove("copilot-mcp-keyboard-open");
+    this.lastDrawerEl?.classList.remove("copilot-keyboard-open");
     this.lastDrawerEl = null;
 
     if (this.root) {

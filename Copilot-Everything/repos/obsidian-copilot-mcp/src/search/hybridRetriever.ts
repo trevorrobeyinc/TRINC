@@ -1,5 +1,5 @@
 // DEPRECATED: Legacy hybrid retriever backed by Orama. Replaced by v3 TieredLexicalRetriever + MemoryIndexManager.
-import { BackendSelector } from "@/backend/BackendSelector";
+import { BrevilabsClient } from "@/LLMProviders/brevilabsClient";
 import EmbeddingManager from "@/LLMProviders/embeddingManager";
 import { logInfo } from "@/logger";
 import VectorStoreManager from "@/search/vectorStoreManager";
@@ -53,7 +53,7 @@ export class HybridRetriever extends BaseRetriever {
       // Add check for empty array
       if (combinedChunks.length === 0) {
         if (getSettings().debug) {
-          console.log("No chunks found for query:", query);
+          logInfo("No chunks found for query:", query);
         }
         return finalChunks;
       }
@@ -73,34 +73,32 @@ export class HybridRetriever extends BaseRetriever {
         (maxOramaScore < this.options.useRerankerThreshold || allScoresAreNaN);
       // Apply reranking if max score is below the threshold or all scores are NaN
       if (shouldRerank) {
-        const adapter = BackendSelector.getSelectedAdapter();
-        const rerankResponse = await adapter.rerank?.(
+        const rerankResponse = await BrevilabsClient.getInstance().rerank(
           query,
+          // Limit the context length to 3000 characters to avoid overflowing the reranker
           combinedChunks.map((doc) => doc.pageContent.slice(0, 3000))
         );
 
-        if (rerankResponse) {
-          // Map chunks based on reranked scores and include rerank_score in metadata
-          finalChunks = rerankResponse.response.data.map((item) => ({
-            ...combinedChunks[item.index],
-            metadata: {
-              ...combinedChunks[item.index].metadata,
-              rerank_score: item.relevance_score,
-            },
-          }));
-        }
+        // Map chunks based on reranked scores and include rerank_score in metadata
+        finalChunks = rerankResponse.response.data.map((item) => ({
+          ...combinedChunks[item.index],
+          metadata: {
+            ...combinedChunks[item.index].metadata,
+            rerank_score: item.relevance_score,
+          },
+        }));
       }
 
       if (getSettings().debug) {
-        console.log("*** HYBRID RETRIEVER DEBUG INFO: ***");
-        console.log("\nExplicit Chunks: ", explicitChunks);
-        console.log("Orama Chunks: ", oramaChunks);
-        console.log("Combined Chunks: ", combinedChunks);
-        console.log("Max Orama Score: ", maxOramaScore);
+        logInfo("*** HYBRID RETRIEVER DEBUG INFO: ***");
+        logInfo("\nExplicit Chunks: ", explicitChunks);
+        logInfo("Orama Chunks: ", oramaChunks);
+        logInfo("Combined Chunks: ", combinedChunks);
+        logInfo("Max Orama Score: ", maxOramaScore);
         if (shouldRerank) {
-          console.log("Reranked Chunks: ", finalChunks);
+          logInfo("Reranked Chunks: ", finalChunks);
         } else {
-          console.log("No reranking applied.");
+          logInfo("No reranking applied.");
         }
       }
 
@@ -164,7 +162,7 @@ export class HybridRetriever extends BaseRetriever {
 
     const db = await VectorStoreManager.getInstance().getDb();
 
-    const searchParams: any = {
+    const searchParams: Record<string, unknown> = {
       similarity: this.options.minSimilarityScore,
       limit: this.options.maxK,
       includeVectors: true,
@@ -188,7 +186,7 @@ export class HybridRetriever extends BaseRetriever {
 
       if (tagOnlyQuery) {
         if (getSettings().debug) {
-          console.log("Tag only query detected, setting textWeight to 1 and vectorWeight to 0.");
+          logInfo("Tag only query detected, setting textWeight to 1 and vectorWeight to 0.");
         }
         textWeight = 1;
         vectorWeight = 0;
@@ -262,16 +260,16 @@ export class HybridRetriever extends BaseRetriever {
               created_at: hit.document.created_at,
               nchars: hit.document.nchars,
               // Expose chunkId explicitly for cross-engine deduplication
-              chunkId: hit.document.metadata?.chunkId,
+              chunkId: (hit.document.metadata as { chunkId?: string } | undefined)?.chunkId,
             },
           })
       );
 
       // Combine and deduplicate results
       const combinedResults = [...dailyNoteResultsWithContext, ...timeIntervalDocuments];
-      const uniqueResults = Array.from(new Set(combinedResults.map((doc) => doc.metadata.id))).map(
-        (id) => combinedResults.find((doc) => doc.metadata.id === id)
-      );
+      const uniqueResults = Array.from(
+        new Set(combinedResults.map((doc): string => (doc.metadata as { id: string }).id))
+      ).map((id) => combinedResults.find((doc) => (doc.metadata as { id: string }).id === id));
 
       return uniqueResults.filter((doc): doc is Document => doc !== undefined);
     }
@@ -318,7 +316,7 @@ export class HybridRetriever extends BaseRetriever {
             created_at: hit.document.created_at,
             nchars: hit.document.nchars,
             // Expose chunkId explicitly for cross-engine deduplication
-            chunkId: hit.document.metadata?.chunkId,
+            chunkId: (hit.document.metadata as { chunkId?: string } | undefined)?.chunkId,
           },
         });
       })

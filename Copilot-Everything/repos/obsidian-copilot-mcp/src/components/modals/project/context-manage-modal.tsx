@@ -1,6 +1,7 @@
 import { FailedItem, ProjectConfig, useProjectContextLoad, getCurrentProject } from "@/aiParams";
 import { ContextCache, ProjectContextCache } from "@/cache/projectContextCache";
 import { FolderSearchModal } from "@/components/modals/FolderSearchModal";
+import { openCachedProjectFile } from "@/utils/cacheFileOpener";
 import { ProjectFileSelectModal } from "@/components/modals/ProjectFileSelectModal";
 import { TagSearchModal } from "@/components/modals/TagSearchModal";
 import { TruncatedText } from "@/components/TruncatedText";
@@ -22,6 +23,7 @@ import {
 import { getTagsFromNote } from "@/utils";
 import {
   AlertCircle,
+  ArrowUpRight,
   CheckCircle,
   FileAudio,
   FileImage,
@@ -36,8 +38,9 @@ import {
 } from "lucide-react";
 import { App, Modal, Notice, Platform, TFile } from "obsidian";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { Root } from "react-dom/client";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
+import { createPluginRoot } from "@/utils/react/createPluginRoot";
 
 function FileIcon({ extension, size = "tw-size-4" }: { extension: string; size?: string }) {
   const ext = extension.toLowerCase().replace("*.", "");
@@ -62,7 +65,7 @@ type ActiveSection = "tags" | "folders" | "files" | "extensions" | "ignoreFiles"
 type ActiveItem = string | null;
 
 interface SectionHeaderProps {
-  IconComponent: React.ComponentType<any>;
+  IconComponent: React.ComponentType<{ className?: string }>;
   title: string;
   iconColorClassName: string;
   onAddClick: () => void;
@@ -110,7 +113,7 @@ interface SectionItem {
 
 interface SectionListProps {
   title: string;
-  IconComponent: React.ComponentType<any>;
+  IconComponent: React.ComponentType<{ className?: string }>;
   iconColorClassName: string;
   items: SectionItem[];
   activeItem: string | null;
@@ -255,9 +258,11 @@ interface ItemCardProps {
   viewMode: "list";
   loadStatus?: ProjectContextItemStatusInfo;
   onDelete: (e: React.MouseEvent, item: GroupItem) => void;
+  /** Optional: callback to open the cached parsed content for this file. */
+  onOpenCached?: () => void;
 }
 
-function ItemCard({ item, viewMode, loadStatus, onDelete }: ItemCardProps) {
+function ItemCard({ item, viewMode, loadStatus, onDelete, onOpenCached }: ItemCardProps) {
   const extension = item.id.split(".").pop() || "";
 
   // add or remove
@@ -306,6 +311,20 @@ function ItemCard({ item, viewMode, loadStatus, onDelete }: ItemCardProps) {
             )}
             <span className="tw-hidden md:tw-inline">{STATUS_LABELS[loadStatus.status]}</span>
           </Badge>
+        )}
+        {onOpenCached && loadStatus?.status === "success" && (
+          <Button
+            variant="ghost2"
+            size="icon"
+            className="tw-hidden tw-size-5 group-hover:tw-block"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenCached();
+            }}
+            title="View Parsed Content"
+          >
+            <ArrowUpRight className="tw-size-4" />
+          </Button>
         )}
         <IconComponent
           className="tw-hidden tw-size-4 tw-shrink-0 tw-text-muted hover:tw-text-warning group-hover:tw-block group-hover:tw-flex-none"
@@ -418,7 +437,7 @@ function ContextManage({ initialProject, onSave, onCancel, app }: ContextManageP
         setProjectCache(cache);
       }
     };
-    loadCache();
+    void loadCache();
     return () => {
       isMounted = false;
     };
@@ -591,8 +610,8 @@ function ContextManage({ initialProject, onSave, onCancel, app }: ContextManageP
       const extensionPatterns = Object.keys(list.extensions);
       const notePatterns = list.notes
         .map((note) => {
-          const file = appFiles.find((file) => file.path === note.id);
-          if (file) {
+          const file = app.vault.getAbstractFileByPath(note.id);
+          if (file instanceof TFile) {
             return getFilePattern(file);
           }
         })
@@ -605,7 +624,7 @@ function ContextManage({ initialProject, onSave, onCancel, app }: ContextManageP
         notePatterns,
       });
     },
-    []
+    [app.vault]
   );
 
   // ignore file items convert to exclusions format
@@ -689,8 +708,8 @@ function ContextManage({ initialProject, onSave, onCancel, app }: ContextManageP
       const parsedQuery = parseSearchQuery(searchTerm);
       return allItems
         .filter((item) => {
-          const fileObj = appAllFiles.find((f) => f.path === item.id);
-          if (!fileObj) return false;
+          const fileObj = app.vault.getAbstractFileByPath(item.id);
+          if (!(fileObj instanceof TFile)) return false;
 
           const isNote = fileObj.extension === "md";
 
@@ -826,7 +845,7 @@ function ContextManage({ initialProject, onSave, onCancel, app }: ContextManageP
     activeItem,
     parseSearchQuery,
     allItems,
-    appAllFiles,
+    app.vault,
     groupList.tags,
     groupList.folders,
     groupList.notes,
@@ -1084,8 +1103,8 @@ function ContextManage({ initialProject, onSave, onCancel, app }: ContextManageP
   const handleDeleteItem = (e: React.MouseEvent, item: GroupItem) => {
     e.stopPropagation();
 
-    const file = appAllFiles.find((file) => file.path === item.id);
-    if (file) {
+    const file = app.vault.getAbstractFileByPath(item.id);
+    if (file instanceof TFile) {
       // add file to ignore
       setIgnoreItems((prev) => {
         const newFiles = new Set(prev.files);
@@ -1119,9 +1138,9 @@ function ContextManage({ initialProject, onSave, onCancel, app }: ContextManageP
   const handleDeleteIgnoreItem = (e: React.MouseEvent, item: GroupItem) => {
     e.stopPropagation();
 
-    const file = appAllFiles.find((file) => file.path === item.id);
+    const file = app.vault.getAbstractFileByPath(item.id);
 
-    if (file) {
+    if (file instanceof TFile) {
       setIgnoreItems((prev) => {
         const newFiles = new Set(prev.files);
         newFiles.delete(file);
@@ -1308,6 +1327,15 @@ function ContextManage({ initialProject, onSave, onCancel, app }: ContextManageP
                                   ? handleDeleteIgnoreItem
                                   : handleDeleteItem
                               }
+                              onOpenCached={
+                                // Reason: only offer open for non-markdown files that have been processed
+                                !item.isIgnored && item.id.split(".").pop()?.toLowerCase() !== "md"
+                                  ? () => {
+                                      const name = item.name || item.id.split("/").pop() || item.id;
+                                      void openCachedProjectFile(app, projectCache, item.id, name);
+                                    }
+                                  : undefined
+                              }
                             />
                           ) : null
                         )
@@ -1353,9 +1381,9 @@ export class ContextManageModal extends Modal {
 
   onOpen() {
     const { contentEl, modalEl } = this;
-    this.root = createRoot(contentEl);
+    this.root = createPluginRoot(contentEl, this.app);
 
-    modalEl.style.minWidth = "50vw";
+    modalEl.addClass("tw-min-w-[50vw]");
 
     const handleSave = (project: ProjectConfig) => {
       this.onSave(project);

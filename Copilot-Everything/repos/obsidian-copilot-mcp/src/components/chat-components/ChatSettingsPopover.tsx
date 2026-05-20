@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useApp } from "@/context";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
@@ -11,7 +12,7 @@ import { SettingSwitch } from "@/components/ui/setting-switch";
 import { ModelParametersEditor } from "@/components/ui/ModelParametersEditor";
 import { CustomModel, getModelKey } from "@/aiParams";
 import { getSettings, updateSetting } from "@/settings/model";
-import debounce from "lodash.debounce";
+import { debounce } from "@/utils/debounce";
 import {
   getDefaultSystemPromptTitle,
   getDisableBuiltinSystemPrompt,
@@ -33,6 +34,7 @@ const RESETTABLE_MODEL_PARAMS: (keyof CustomModel)[] = [
 ];
 
 export function ChatSettingsPopover() {
+  const app = useApp();
   const settings = getSettings();
   const modelKey = getModelKey();
 
@@ -43,6 +45,11 @@ export function ChatSettingsPopover() {
 
   // Local editing state
   const [localModel, setLocalModel] = useState<CustomModel | undefined>(originalModel);
+  const [prevModelKey, setPrevModelKey] = useState(modelKey);
+  if (prevModelKey !== modelKey) {
+    setPrevModelKey(modelKey);
+    setLocalModel(originalModel);
+  }
 
   // System prompt state (session-level, in-memory)
   const prompts = useSystemPrompts();
@@ -65,14 +72,9 @@ export function ChatSettingsPopover() {
       : "";
 
   // Read state from session atom
-  const [disableBuiltin, setDisableBuiltin] = useState(getDisableBuiltinSystemPrompt());
+  const [disableBuiltin, setDisableBuiltin] = useState(() => getDisableBuiltinSystemPrompt());
   const [showConfirmation, setShowConfirmation] = useState(false);
   const confirmationRef = useRef<HTMLDivElement>(null);
-
-  // Update local state when original model changes (e.g., switching models)
-  useEffect(() => {
-    setLocalModel(originalModel);
-  }, [originalModel]);
 
   // Auto-scroll to confirmation box when it appears
   useEffect(() => {
@@ -81,8 +83,8 @@ export function ChatSettingsPopover() {
     }
   }, [showConfirmation]);
 
-  // Debounced save function - must be defined before handleOpenChange
-  // Reference: Command module uses lodash.debounce which has cancel() method
+  // Debounced save function - must be defined before handleOpenChange.
+  // Uses debounce.cancel() / debounce.flush() to manage pending writes on unmount.
   const debouncedSave = useMemo(
     () =>
       debounce((updatedModel: CustomModel) => {
@@ -128,7 +130,7 @@ export function ChatSettingsPopover() {
    * Update model parameters (immediately update UI, delayed save)
    */
   const handleParamChange = useCallback(
-    (field: keyof CustomModel, value: any) => {
+    (field: keyof CustomModel, value: CustomModel[keyof CustomModel]) => {
       if (!localModel) return;
 
       const updatedModel = { ...localModel, [field]: value };
@@ -199,7 +201,7 @@ export function ChatSettingsPopover() {
   const handleOpenSourceFile = () => {
     if (!displayValue) return;
     const filePath = getPromptFilePath(displayValue);
-    app.workspace.openLinkText(filePath, "", true);
+    void app.workspace.openLinkText(filePath, "", true);
   };
 
   if (!localModel) {

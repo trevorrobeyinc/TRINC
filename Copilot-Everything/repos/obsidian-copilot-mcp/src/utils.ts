@@ -1,4 +1,9 @@
-import { ChainType, Document } from "@/chainFactory";
+// Reason: `buffer` is the npm polyfill (browser-compatible), bundled by esbuild
+// so the same Buffer code path works on desktop (Electron) and mobile (WebView).
+// eslint-disable-next-line import/no-nodejs-modules
+import { Buffer } from "buffer";
+
+import { ChainType } from "@/chainType";
 import {
   ALLOWED_NOTE_CONTEXT_EXTENSIONS,
   ChatModelProviders,
@@ -9,16 +14,13 @@ import {
   ProviderMetadata,
   SettingKeyProviders,
   TEXT_READABLE_EXTENSIONS,
-  USER_SENDER,
 } from "@/constants";
 import { logInfo, logWarn } from "@/logger";
 import { CopilotSettings } from "@/settings/model";
-import { ChatMessage } from "@/types/message";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
+import { Document } from "@langchain/core/documents";
 import { MemoryVariables } from "@langchain/core/memory";
-import { RunnableSequence } from "@langchain/core/runnables";
-import { BaseChain, RetrievalQAChain } from "@langchain/classic/chains";
-import moment from "moment";
+import { DateTime } from "luxon";
 import { MarkdownView, Notice, TFile, Vault, normalizePath, requestUrl } from "obsidian";
 import { CustomModel } from "./aiParams";
 import { getApiKeyForProvider } from "@/utils/modelUtils";
@@ -47,11 +49,11 @@ export function getDomainFromUrl(url: string): string {
 
 // Add custom error type at the top of the file
 interface APIError extends Error {
-  json?: any;
+  json?: unknown;
 }
 
 // Error message constants
-export const ERROR_MESSAGES = {
+const ERROR_MESSAGES = {
   INVALID_LICENSE_KEY_USER:
     "Invalid Copilot Plus license key. Please check your license key in settings.",
   UNKNOWN_ERROR: "An unknown error occurred",
@@ -59,32 +61,35 @@ export const ERROR_MESSAGES = {
 } as const;
 
 // Error handling utilities
-export interface ErrorDetail {
+interface ErrorDetail {
   status?: number;
   message?: string;
   reason?: string;
 }
 
-export function extractErrorDetail(error: any): ErrorDetail {
-  const errorDetail = error?.detail || {};
+function extractErrorDetail(error: unknown): ErrorDetail {
+  const err = error as Record<string, unknown> | null | undefined;
+  const errorDetail: ErrorDetail = (err?.detail as ErrorDetail) || {};
   return {
     status: errorDetail.status,
-    message: errorDetail.message || error?.message,
+    message: errorDetail.message || (err?.message as string | undefined),
     reason: errorDetail.reason,
   };
 }
 
-export function isLicenseKeyError(error: any): boolean {
+function isLicenseKeyError(error: unknown): boolean {
   const errorDetail = extractErrorDetail(error);
-  return (
+  const err = error as Record<string, unknown> | null | undefined;
+  const message = err?.message as string | undefined;
+  return Boolean(
     errorDetail.reason === "Invalid license key" ||
-    error?.message === "Invalid license key" ||
-    error?.message?.includes("status 403") ||
-    errorDetail.status === 403
+      message === "Invalid license key" ||
+      message?.includes("status 403") ||
+      errorDetail.status === 403
   );
 }
 
-export function getApiErrorMessage(error: any): string {
+export function getApiErrorMessage(error: unknown): string {
   const errorDetail = extractErrorDetail(error);
   if (isLicenseKeyError(error)) {
     return ERROR_MESSAGES.INVALID_LICENSE_KEY_USER;
@@ -94,10 +99,6 @@ export function getApiErrorMessage(error: any): string {
     (errorDetail.reason ? `Error: ${errorDetail.reason}` : ERROR_MESSAGES.UNKNOWN_ERROR)
   );
 }
-
-export const getModelNameFromKey = (modelKey: string): string => {
-  return modelKey.split("|")[0];
-};
 
 export const isFolderMatch = (fileFullpath: string, inputPath: string): boolean => {
   const fileSegments = fileFullpath.split("/").map((segment) => segment.toLowerCase());
@@ -151,7 +152,7 @@ export function stripHash(tag: string): string {
 /**
  * Options for {@link stripFrontmatter}.
  */
-export interface StripFrontmatterOptions {
+interface StripFrontmatterOptions {
   /**
    * When true (default), trims leading whitespace after the frontmatter block.
    * When false, preserves leading whitespace from the body, but still removes
@@ -251,57 +252,6 @@ export function getNotesFromTags(vault: Vault, tags: string[], noteFiles?: TFile
   return filesWithTag;
 }
 
-// TODO: Chain type conversion still needed for chain runner selection
-// This function is still used but the underlying chain infrastructure is deprecated
-export const stringToChainType = (chain: string): ChainType => {
-  switch (chain) {
-    case "llm_chain":
-      return ChainType.LLM_CHAIN;
-    case "vault_qa":
-      return ChainType.VAULT_QA_CHAIN;
-    case "copilot_plus":
-      return ChainType.COPILOT_PLUS_CHAIN;
-    default:
-      throw new Error(`Unknown chain type: ${chain}`);
-  }
-};
-
-// TODO: These chain validation functions are deprecated
-// Remove after confirming chainManager no longer uses them
-export const isLLMChain = (chain: RunnableSequence): chain is RunnableSequence => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (chain as any).last?.modelName || (chain as any).last?.model;
-};
-
-export const isRetrievalQAChain = (chain: BaseChain): chain is RetrievalQAChain => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (chain as any).last?.retriever !== undefined;
-};
-
-export const isSupportedChain = (chain: RunnableSequence): chain is RunnableSequence => {
-  return isLLMChain(chain) || isRetrievalQAChain(chain);
-};
-
-// Returns the last N messages from the chat history,
-// last one being the newest ai message
-export const getChatContext = (chatHistory: ChatMessage[], contextSize: number) => {
-  if (chatHistory.length === 0) {
-    return [];
-  }
-  const lastAiMessageIndex = chatHistory
-    .slice()
-    .reverse()
-    .findIndex((msg) => msg.sender !== USER_SENDER);
-  if (lastAiMessageIndex === -1) {
-    // No ai messages found, return an empty array
-    return [];
-  }
-
-  const lastIndex = chatHistory.length - 1 - lastAiMessageIndex;
-  const startIndex = Math.max(0, lastIndex - contextSize + 1);
-  return chatHistory.slice(startIndex, lastIndex + 1);
-};
-
 export interface FormattedDateTime {
   fileName: string;
   display: string;
@@ -312,16 +262,12 @@ export const formatDateTime = (
   now: Date,
   timezone: "local" | "utc" = "local"
 ): FormattedDateTime => {
-  const formattedDateTime = moment(now);
-
-  if (timezone === "utc") {
-    formattedDateTime.utc();
-  }
+  const dt = timezone === "utc" ? DateTime.fromJSDate(now).toUTC() : DateTime.fromJSDate(now);
 
   return {
-    fileName: formattedDateTime.format("YYYYMMDD_HHmmss"),
-    display: formattedDateTime.format("YYYY/MM/DD HH:mm:ss"),
-    epoch: formattedDateTime.valueOf(),
+    fileName: dt.toFormat("yyyyMMdd_HHmmss"),
+    display: dt.toFormat("yyyy/MM/dd HH:mm:ss"),
+    epoch: dt.toMillis(),
   };
 };
 
@@ -360,20 +306,17 @@ export async function ensureFolderExists(folderPath: string): Promise<void> {
 }
 
 export function stringToFormattedDateTime(timestamp: string): FormattedDateTime {
-  const date = moment(timestamp, "YYYY/MM/DD HH:mm:ss");
-  if (!date.isValid()) {
+  const date = DateTime.fromFormat(timestamp, "yyyy/MM/dd HH:mm:ss");
+  if (!date.isValid) {
     // If the string is not in the expected format, return current date/time
     return formatDateTime(new Date());
   }
   return {
-    fileName: date.format("YYYYMMDD_HHmmss"),
-    display: date.format("YYYY/MM/DD HH:mm:ss"),
-    epoch: date.valueOf(),
+    fileName: date.toFormat("yyyyMMdd_HHmmss"),
+    display: date.toFormat("yyyy/MM/dd HH:mm:ss"),
+    epoch: date.toMillis(),
   };
 }
-
-// Re-export for backward compatibility (constants now live in @/constants)
-export { ALLOWED_NOTE_CONTEXT_EXTENSIONS, TEXT_READABLE_EXTENSIONS };
 
 /**
  * Check if a file has a text-readable extension (md, canvas, base).
@@ -432,23 +375,6 @@ export function isAllowedFileForChainContext(file: TFile | null, chainType: Chai
   return isPlusChain(chainType);
 }
 
-export async function getAllNotesContent(vault: Vault): Promise<string> {
-  const vaultNotes: string[] = [];
-
-  const markdownFiles = vault.getMarkdownFiles();
-
-  for (const file of markdownFiles) {
-    const fileContent = await vault.cachedRead(file);
-    // Import is not available at the top level due to circular dependency
-    const { VAULT_NOTE_TAG } = await import("@/constants");
-    vaultNotes.push(
-      `<${VAULT_NOTE_TAG}>\n<path>${file.path}</path>\n<content>\n${fileContent}\n</content>\n</${VAULT_NOTE_TAG}>`
-    );
-  }
-
-  return vaultNotes.join("\n\n");
-}
-
 export function areEmbeddingModelsSame(
   model1: string | undefined,
   model2: string | undefined
@@ -465,52 +391,6 @@ export function areEmbeddingModelsSame(
     return true;
   }
   return model1 === model2;
-}
-
-// Basic prompts
-export function sendNotesContentPrompt(notes: { name: string; content: string }[]): string {
-  const formattedNotes = notes.map((note) => `## ${note.name}\n\n${note.content}`).join("\n\n");
-
-  return (
-    `Please read the notes below and be ready to answer questions about them. ` +
-    `If there's no information about a certain topic, just say the note ` +
-    `does not mention it. ` +
-    `The content of the notes is between "/***/":\n\n/***/\n\n${formattedNotes}\n\n/***/\n\n` +
-    `Please reply with the following word for word:` +
-    `"OK I've read these notes. ` +
-    `Feel free to ask related questions, such as 'give me a summary of these notes in bullet points', 'what key questions do these notes answer', etc. "\n`
-  );
-}
-
-function getNoteTitleAndTags(noteWithTag: {
-  name: string;
-  content: string;
-  tags?: string[];
-}): string {
-  return (
-    `[[${noteWithTag.name}]]` +
-    (noteWithTag.tags && noteWithTag.tags.length > 0 ? `\ntags: ${noteWithTag.tags.join(",")}` : "")
-  );
-}
-
-function getChatContextStr(chatNoteContextPath: string, chatNoteContextTags: string[]): string {
-  const pathStr = chatNoteContextPath ? `\nChat context by path: ${chatNoteContextPath}` : "";
-  const tagsStr =
-    chatNoteContextTags?.length > 0 ? `\nChat context by tags: ${chatNoteContextTags}` : "";
-  return pathStr + tagsStr;
-}
-
-export function getSendChatContextNotesPrompt(
-  notes: { name: string; content: string }[],
-  chatNoteContextPath: string,
-  chatNoteContextTags: string[]
-): string {
-  const noteTitles = notes.map((note) => getNoteTitleAndTags(note)).join("\n\n");
-  return (
-    `Please read the notes below and be ready to answer questions about them. ` +
-    getChatContextStr(chatNoteContextPath, chatNoteContextTags) +
-    `\n\n${noteTitles}`
-  );
 }
 
 export interface ChatHistoryEntry {
@@ -531,7 +411,7 @@ export interface ChatHistoryEntry {
 // TODO: Deprecated, use chatHistoryUtils.processRawChatHistory instead
 export function extractChatHistory(memoryVariables: MemoryVariables): ChatHistoryEntry[] {
   const chatHistory: ChatHistoryEntry[] = [];
-  const { history } = memoryVariables;
+  const history = memoryVariables.history as Array<{ content?: string }>;
 
   for (let i = 0; i < history.length; i += 2) {
     const userMessage = history[i]?.content || "";
@@ -633,14 +513,9 @@ export function extractTemplateNoteFiles(query: string, vault: Vault): TFile[] {
 }
 
 // Helper function to check if a note title is unique in the vault
-export function isNoteTitleUnique(title: string, vault: Vault): boolean {
+function isNoteTitleUnique(title: string, vault: Vault): boolean {
   const files = vault.getMarkdownFiles();
   return files.filter((f) => f.basename === title).length === 1;
-}
-
-// Helper function to determine if we should show the full path for a file
-export function shouldShowPath(file: TFile): boolean {
-  return (file as any).needsPathDisplay === true;
 }
 
 /**
@@ -665,17 +540,11 @@ export function extractUniqueTitlesFromDocs(docs: Document[]): string[] {
   const titlesSet = new Set<string>();
   docs.forEach((doc) => {
     if (doc.metadata?.title) {
-      titlesSet.add(doc.metadata?.title);
+      titlesSet.add(doc.metadata.title as string);
     }
   });
 
   return Array.from(titlesSet);
-}
-
-export function extractJsonFromCodeBlock(content: string): any {
-  const codeBlockMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-  const jsonContent = codeBlockMatch ? codeBlockMatch[1].trim() : content.trim();
-  return JSON.parse(jsonContent);
 }
 
 const YOUTUBE_URL_REGEX =
@@ -770,14 +639,6 @@ export function isTwitterUrl(url: string): boolean {
 }
 
 /**
- * Extract first YouTube URL from text (legacy function for backward compatibility)
- */
-export function extractYoutubeUrl(text: string): string | null {
-  const match = text.match(YOUTUBE_URL_REGEX);
-  return match ? match[0] : null;
-}
-
-/**
  * Extract all YouTube URLs from text (legacy function for backward compatibility)
  */
 export function extractAllYoutubeUrls(text: string): string[] {
@@ -826,18 +687,28 @@ export async function safeFetch(
     contentType: "application/json",
     headers: headers,
     method: method,
-    ...(methodsWithBody.includes(method) && { body: options.body?.toString() }),
+    ...(methodsWithBody.includes(method) &&
+      typeof options.body === "string" && { body: options.body }),
     throw: false, // Don't throw so we can get the response body
   });
 
   // Check if response is error status (only throw if throwOnHttpError is true)
   if (throwOnHttpError && response.status >= 400) {
-    let errorJson;
+    type ErrorJson = {
+      detail?: { reason?: string; message?: string } | string;
+      reason?: string;
+      message?: string;
+    };
+    let errorJson: ErrorJson | null = null;
     try {
-      errorJson = typeof response.json === "string" ? JSON.parse(response.json) : response.json;
+      errorJson = (
+        typeof response.json === "string" ? JSON.parse(response.json) : response.json
+      ) as ErrorJson;
     } catch {
       try {
-        errorJson = typeof response.text === "string" ? JSON.parse(response.text) : response.text;
+        errorJson = (
+          typeof response.text === "string" ? JSON.parse(response.text) : response.text
+        ) as ErrorJson;
       } catch {
         errorJson = null;
       }
@@ -848,15 +719,13 @@ export async function safeFetch(
     error.json = errorJson;
 
     // Handle nested error structure
-    if (
-      errorJson?.detail?.reason === "Invalid license key" ||
-      errorJson?.reason === "Invalid license key"
-    ) {
+    const detail = errorJson && typeof errorJson.detail === "object" ? errorJson.detail : undefined;
+    if (detail?.reason === "Invalid license key" || errorJson?.reason === "Invalid license key") {
       error.message = "Invalid license key";
-    } else if (errorJson?.detail?.message || errorJson?.message) {
-      const message = errorJson?.detail?.message || errorJson?.message;
-      const reason = errorJson?.detail?.reason || errorJson?.reason;
-      error.message = reason ? `${message}: ${reason}` : message;
+    } else if (detail?.message || errorJson?.message) {
+      const message = detail?.message || errorJson?.message;
+      const reason = detail?.reason || errorJson?.reason;
+      error.message = reason ? `${message}: ${reason}` : (message ?? "");
     } else if (errorJson?.detail) {
       error.message = JSON.stringify(errorJson.detail);
     } else if (errorJson) {
@@ -878,19 +747,17 @@ export async function safeFetch(
     bytes: () => Promise.resolve(new Uint8Array(0)),
     body: createReadableStreamFromString(response.text),
     bodyUsed: true,
-    json: () => response.json,
+    json: (): Promise<unknown> => Promise.resolve(response.json as unknown),
     text: async () => response.text,
     arrayBuffer: async () => {
       if (response.arrayBuffer) {
         return response.arrayBuffer;
       }
       const base64 = response.text.replace(/^data:.*;base64,/, "");
-      const binaryString = atob(base64);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      return bytes.buffer;
+      // Reason: Buffer (from the `buffer` polyfill imported above) is the
+      // cross-platform path — bare global Buffer is undefined in mobile WebView.
+      const buf = Buffer.from(base64, "base64");
+      return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
     },
     blob: () => {
       throw new Error("not implemented");
@@ -937,10 +804,7 @@ function createReadableStreamFromString(input: string) {
 
 // err2String is now exported from '@/errorFormat' to avoid circular dependencies and duplication.
 
-export function omit<T extends Record<string, any>, K extends keyof T>(
-  obj: T,
-  keys: K[]
-): Omit<T, K> {
+export function omit<T extends object, K extends keyof T>(obj: T, keys: K[]): Omit<T, K> {
   const result = { ...obj };
   keys.forEach((key) => {
     delete result[key];
@@ -968,14 +832,6 @@ export function getProviderInfo(provider: string): ProviderMetadata {
 export function getProviderLabel(provider: string, model?: CustomModel): string {
   const baseLabel = ProviderInfo[provider as Provider]?.label || provider;
   return baseLabel + (model?.believerExclusive && baseLabel === "Copilot Plus" ? "(Believer)" : "");
-}
-
-export function getProviderHost(provider: string): string {
-  return ProviderInfo[provider as Provider]?.host || "";
-}
-
-export function getProviderKeyManagementURL(provider: string): string {
-  return ProviderInfo[provider as Provider]?.keyManagementURL || "";
 }
 
 /**
@@ -1111,16 +967,7 @@ export async function insertIntoEditor(message: string, replace: boolean = false
   finalizeInsertion();
 }
 
-export function debounce<T extends (...args: any[]) => void>(
-  func: T,
-  wait: number
-): (...args: Parameters<T>) => void {
-  let timeout: NodeJS.Timeout;
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
-}
+export { debounce } from "@/utils/debounce";
 
 /**
  * Compare two semantic version strings.
@@ -1150,7 +997,7 @@ export async function checkLatestVersion(): Promise<{
       url: "https://api.github.com/repos/logancyang/obsidian-copilot/releases/latest",
       method: "GET",
     });
-    const version = response.json.tag_name.replace("v", "");
+    const version = (response.json as { tag_name: string }).tag_name.replace("v", "");
     return { version, error: null };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Failed to check for updates";
@@ -1166,18 +1013,53 @@ export function isOSeriesModel(model: BaseChatModel | string): boolean {
   }
 
   // For BaseChatModel instances
-  const modelName = (model as any).modelName || (model as any).model || "";
+  const m = model as unknown as Record<string, unknown>;
+  const modelName: string = (m.modelName as string) || (m.model as string) || "";
   return modelName.startsWith("o1") || modelName.startsWith("o3") || modelName.startsWith("o4");
 }
 
-export function isGPT5Model(model: BaseChatModel | string): boolean {
+function isGPT5Model(model: BaseChatModel | string): boolean {
   if (typeof model === "string") {
     return model.startsWith("gpt-5");
   }
 
   // For BaseChatModel instances
-  const modelName = (model as any).modelName || (model as any).model || "";
+  const m = model as unknown as Record<string, unknown>;
+  const modelName: string = (m.modelName as string) || (m.model as string) || "";
   return modelName.startsWith("gpt-5");
+}
+
+/**
+ * Checks whether a model belongs to the Codex family.
+ * Codex model identifiers consistently include the "codex" token.
+ * @param model - Model instance or model name string.
+ * @returns True when the model name indicates a Codex model.
+ */
+function isCodexModel(model: BaseChatModel | string): boolean {
+  const m = model as unknown as Record<string, unknown>;
+  const modelName: string =
+    typeof model === "string" ? model : (m.modelName as string) || (m.model as string) || "";
+  return modelName.toLowerCase().includes("codex");
+}
+
+/**
+ * Determines whether a GitHub Copilot model should use the Responses API.
+ * Copilot Codex models reject `/chat/completions` and must be sent to `/responses`.
+ * @param model - Minimal model configuration used for routing.
+ * @returns True when the model should be routed to `/responses`.
+ */
+export function shouldUseGitHubCopilotResponsesApi(
+  model: Pick<CustomModel, "provider" | "name" | "useResponsesApi">
+): boolean {
+  if ((model.provider as ChatModelProviders) !== ChatModelProviders.GITHUB_COPILOT) {
+    return false;
+  }
+
+  if (model.useResponsesApi === true) {
+    return true;
+  }
+
+  return isCodexModel(model.name);
 }
 
 /**
@@ -1188,11 +1070,13 @@ export interface ModelInfo {
   isOSeries: boolean;
   isGPT5: boolean;
   isThinkingEnabled: boolean;
+  usesAdaptiveThinking: boolean;
 }
 
 export function getModelInfo(model: BaseChatModel | string): ModelInfo {
-  const modelName =
-    typeof model === "string" ? model : (model as any).modelName || (model as any).model || "";
+  const m = model as unknown as Record<string, unknown>;
+  const modelName: string =
+    typeof model === "string" ? model : (m.modelName as string) || (m.model as string) || "";
 
   const isOSeries = isOSeriesModel(modelName);
   const isGPT5 = isGPT5Model(modelName);
@@ -1201,10 +1085,18 @@ export function getModelInfo(model: BaseChatModel | string): ModelInfo {
     modelName.startsWith("claude-sonnet-4") ||
     modelName.startsWith("claude-opus-4");
 
+  // claude-opus-4-7 and later reject the legacy { type: "enabled", budget_tokens } shape
+  // with a 400 and require { type: "adaptive" }. Detect by minor version on the opus-4 line.
+  // Constrain the minor to 1-2 digits followed by a delimiter or end-of-string so dated
+  // snapshot IDs (e.g. "claude-opus-4-20250514") aren't misread as Opus 4.20250514.
+  const opusMinorMatch = modelName.match(/^claude-opus-4-(\d{1,2})(?:[-.]|$)/);
+  const usesAdaptiveThinking = opusMinorMatch ? parseInt(opusMinorMatch[1], 10) >= 7 : false;
+
   return {
     isOSeries,
     isGPT5,
     isThinkingEnabled,
+    usesAdaptiveThinking,
   };
 }
 
@@ -1237,7 +1129,8 @@ export function checkModelApiKey(
   hasApiKey: boolean;
   errorNotice?: string;
 } {
-  if (model.provider === ChatModelProviders.AMAZON_BEDROCK) {
+  const provider = model.provider as ChatModelProviders;
+  if (provider === ChatModelProviders.AMAZON_BEDROCK) {
     const apiKey = model.apiKey || settings.amazonBedrockApiKey;
     if (!apiKey) {
       return {
@@ -1252,7 +1145,7 @@ export function checkModelApiKey(
   }
 
   // GitHub Copilot uses OAuth, not API key
-  if (model.provider === ChatModelProviders.GITHUB_COPILOT) {
+  if (provider === ChatModelProviders.GITHUB_COPILOT) {
     const hasAuth = Boolean(
       model.apiKey || settings.githubCopilotToken || settings.githubCopilotAccessToken
     );
@@ -1266,7 +1159,7 @@ export function checkModelApiKey(
     return { hasApiKey: true };
   }
 
-  const needSetKeyPath = !!getNeedSetKeyProvider().find((provider) => provider === model.provider);
+  const needSetKeyPath = !!getNeedSetKeyProvider().find((p) => p === provider);
   const hasNoApiKey = !getApiKeyForProvider(model.provider as SettingKeyProviders, model);
 
   // For Providers that require setting a key in the dialog, an inspection is necessary.
@@ -1289,18 +1182,18 @@ export function checkModelApiKey(
  * Extracts text content from a message chunk that could be either a string
  * or an array of content objects (Claude 3.7 format)
  */
-export function extractTextFromChunk(content: any): string {
+export function extractTextFromChunk(content: unknown): string {
   if (typeof content === "string") {
     return content;
   }
   if (Array.isArray(content)) {
-    return content
+    return (content as Array<{ type?: string; text?: string }>)
       .filter((item) => item.type === "text")
-      .map((item) => item.text)
+      .map((item) => item.text ?? "")
       .join("");
   }
-  // For any other type, try to convert to string or return empty
-  return String(content || "");
+  // For any other type, return empty string
+  return "";
 }
 
 /**
@@ -1310,7 +1203,7 @@ export function extractTextFromChunk(content: any): string {
  * @param text - The text or content array to remove think tags from
  * @returns The text with think tags removed
  */
-export function removeThinkTags(text: any): string {
+export function removeThinkTags(text: unknown): string {
   // First convert any content format to plain text
   const plainText = extractTextFromChunk(text);
   // Remove complete think tags and their content
@@ -1327,7 +1220,7 @@ export function removeThinkTags(text: any): string {
  * @param text - The text or content array to remove error tags from
  * @returns The text with error tags removed
  */
-export function removeErrorTags(text: any): string {
+export function removeErrorTags(text: unknown): string {
   // First convert any content format to plain text
   const plainText = extractTextFromChunk(text);
   // Then remove error tags
@@ -1350,17 +1243,17 @@ export async function withSuppressedTokenWarnings<T>(fn: () => Promise<T>): Prom
 
   try {
     // Replace with filtered version
-    console.warn = function (...args) {
+    console.warn = function (...args: unknown[]) {
       // Ignore token counting warnings
+      const first = args[0];
       if (
-        args[0]?.includes &&
-        (args[0].includes("Failed to calculate number of tokens") ||
-          args[0].includes("Unknown model"))
+        typeof first === "string" &&
+        (first.includes("Failed to calculate number of tokens") || first.includes("Unknown model"))
       ) {
         return;
       }
       // Pass through other warnings
-      return originalWarn.apply(console, args);
+      originalWarn.apply(console, args);
     };
 
     // Execute the provided function
@@ -1386,7 +1279,7 @@ export async function withTimeout<T>(
   const { TimeoutError } = await import("@/error");
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => {
+  const timeoutId = window.setTimeout(() => {
     controller.abort();
   }, timeoutMs);
 
@@ -1400,7 +1293,7 @@ export async function withTimeout<T>(
       }),
     ]);
   } finally {
-    clearTimeout(timeoutId);
+    window.clearTimeout(timeoutId);
   }
 }
 
@@ -1515,7 +1408,9 @@ export async function openFileInWorkspace(file: TFile, focusIfOpen: boolean = tr
       leaf.view.getViewType() === "pdf" ||
       leaf.view.getViewType() === "canvas"
     ) {
-      const viewFile = (leaf.view as any).file;
+      const viewFile = (leaf.view as unknown as Record<string, unknown>).file as
+        | { path: string }
+        | undefined;
       if (viewFile && viewFile.path === file.path) {
         existingLeaf = leaf;
       }

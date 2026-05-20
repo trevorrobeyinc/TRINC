@@ -167,14 +167,34 @@ export class RetrieverFactory {
             reason: "Self-host mode is enabled and backend is available",
           };
         }
-        throw new Error(
-          "Self-host mode is selected, but the configured self-host vector backend is unavailable."
-        );
+        logWarn("RetrieverFactory: Self-host mode backend unavailable, falling back");
       } else {
-        throw new Error(
-          "Self-host mode is selected, but no self-host vector backend URL is configured."
-        );
+        logInfo("RetrieverFactory: Self-host mode enabled but URL not configured, falling back");
       }
+
+      // Self-host mode fallback: use semantic if enabled, otherwise lexical
+      if (currentSettings.enableSemanticSearchV3) {
+        const retriever = new MergedSemanticRetriever(app, normalizedOptions);
+        logInfo(
+          "RetrieverFactory: Using MergedSemanticRetriever (semantic search fallback for self-host mode)"
+        );
+        return {
+          retriever,
+          type: "semantic",
+          reason: "Self-host mode fallback to semantic search",
+        };
+      }
+
+      // Semantic search not enabled, fall back to lexical
+      const retriever = new TieredLexicalRetriever(app, normalizedOptions);
+      logInfo(
+        "RetrieverFactory: Using TieredLexicalRetriever (lexical search fallback for self-host mode)"
+      );
+      return {
+        retriever,
+        type: "lexical",
+        reason: "Self-host mode fallback to lexical search (semantic disabled)",
+      };
     }
 
     // Standard mode: check enableSemanticSearchV3 setting
@@ -278,7 +298,15 @@ export class RetrieverFactory {
 
     // Self-host mode handling - requires valid validation (within grace period)
     if (isSelfHostModeValid()) {
-      return "self_hosted";
+      // URL configured with backend available → self_hosted (API key is optional)
+      if (currentSettings.selfHostUrl && RetrieverFactory.selfHostedBackend) {
+        return "self_hosted";
+      }
+      // Self-host mode enabled but not ready → check semantic setting
+      if (currentSettings.enableSemanticSearchV3) {
+        return "semantic";
+      }
+      return "lexical";
     }
 
     // Standard mode

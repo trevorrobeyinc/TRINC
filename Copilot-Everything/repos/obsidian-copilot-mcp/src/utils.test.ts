@@ -3,17 +3,22 @@ import { TFile } from "obsidian";
 import {
   extractNoteFiles,
   extractTemplateNoteFiles,
+  formatDateTime,
+  getModelInfo,
   getNotesFromPath,
   getNotesFromTags,
   getUtf8ByteLength,
   isFolderMatch,
+  shouldUseGitHubCopilotResponsesApi,
   processVariableNameForNotePath,
   removeThinkTags,
+  stringToFormattedDateTime,
   stripFrontmatter,
   truncateToByteLimit,
   withTimeout,
 } from "./utils";
 import { TimeoutError } from "./error";
+import { ChatModelProviders } from "./constants";
 
 // Mock Obsidian's TFile class
 jest.mock("obsidian", () => {
@@ -95,7 +100,7 @@ const mockFileMetadata = {
 const mockApp = {
   vault: new Obsidian.Vault(),
   metadataCache: mockMetadataCache,
-} as any;
+} as unknown as typeof window.app;
 
 describe("isFolderMatch", () => {
   it("should return file from the folder name 1", async () => {
@@ -147,7 +152,7 @@ describe("Vault", () => {
 describe("getNotesFromPath", () => {
   it("should return all markdown files", async () => {
     const vault = new Obsidian.Vault();
-    const files = await getNotesFromPath(vault, "/");
+    const files = getNotesFromPath(vault, "/");
     expect(files.map((f) => f.path)).toEqual([
       "test/test2/note1.md",
       "test/note2.md",
@@ -165,31 +170,31 @@ describe("getNotesFromPath", () => {
 
   it("should return filtered markdown files 1", async () => {
     const vault = new Obsidian.Vault();
-    const files = await getNotesFromPath(vault, "test2");
+    const files = getNotesFromPath(vault, "test2");
     expect(files.map((f) => f.path)).toEqual(["test/test2/note1.md", "test2/note3.md"]);
   });
 
   it("should return filtered markdown files 2", async () => {
     const vault = new Obsidian.Vault();
-    const files = await getNotesFromPath(vault, "test");
+    const files = getNotesFromPath(vault, "test");
     expect(files.map((f) => f.path)).toEqual(["test/test2/note1.md", "test/note2.md"]);
   });
 
   it("should return filtered markdown files 3", async () => {
     const vault = new Obsidian.Vault();
-    const files = await getNotesFromPath(vault, "note4.md");
+    const files = getNotesFromPath(vault, "note4.md");
     expect(files.map((f) => f.path)).toEqual(["note4.md"]);
   });
 
   it("should return filtered markdown files 4", async () => {
     const vault = new Obsidian.Vault();
-    const files = await getNotesFromPath(vault, "/test");
+    const files = getNotesFromPath(vault, "/test");
     expect(files.map((f) => f.path)).toEqual(["test/test2/note1.md", "test/note2.md"]);
   });
 
   it("should not return markdown files", async () => {
     const vault = new Obsidian.Vault();
-    const files = await getNotesFromPath(vault, "");
+    const files = getNotesFromPath(vault, "");
     expect(files).toEqual([]);
   });
 
@@ -205,7 +210,7 @@ describe("getNotesFromPath", () => {
         { path: "folder/other/note.md" },
       ]);
 
-    const files = await getNotesFromPath(vault, "folder/subfolder 1/eng");
+    const files = getNotesFromPath(vault, "folder/subfolder 1/eng");
     expect(files).toEqual([
       { path: "folder/subfolder 1/eng/1.md" },
       { path: "folder/subfolder 1/eng/2.md" },
@@ -263,7 +268,7 @@ describe("getNotesFromPath", () => {
 describe("getNotesFromTags", () => {
   beforeAll(() => {
     // @ts-ignore
-    global.app = mockApp;
+    window.app = mockApp;
 
     // Setup metadata cache mock
     mockMetadataCache.getFileCache.mockImplementation((file: TFile) => {
@@ -273,7 +278,7 @@ describe("getNotesFromTags", () => {
 
   afterAll(() => {
     // @ts-ignore
-    delete global.app;
+    delete window.app;
   });
 
   beforeEach(() => {
@@ -285,7 +290,7 @@ describe("getNotesFromTags", () => {
     const tags = ["#tag1"];
     const expectedPaths = ["test/test2/note1.md", "note4.md"];
 
-    const result = await getNotesFromTags(mockVault, tags);
+    const result = getNotesFromTags(mockVault, tags);
     const resultPaths = result.map((fileWithTags) => fileWithTags.path);
 
     expect(resultPaths).toEqual(expect.arrayContaining(expectedPaths));
@@ -297,7 +302,7 @@ describe("getNotesFromTags", () => {
     const tags = ["#nonexistentTag"];
     const expected: string[] = [];
 
-    const result = await getNotesFromTags(mockVault, tags);
+    const result = getNotesFromTags(mockVault, tags);
 
     expect(result).toEqual(expected);
   });
@@ -307,7 +312,7 @@ describe("getNotesFromTags", () => {
     const tags = ["#tag2", "#tag4"];
     const expectedPaths = ["test/test2/note1.md", "test/note2.md", "note4.md"];
 
-    const result = await getNotesFromTags(mockVault, tags);
+    const result = getNotesFromTags(mockVault, tags);
     const resultPaths = result.map((fileWithTags) => fileWithTags.path);
 
     expect(resultPaths).toEqual(expect.arrayContaining(expectedPaths));
@@ -317,10 +322,14 @@ describe("getNotesFromTags", () => {
   it("should handle both path and tags, returning files under the specified path with the specified tags", async () => {
     const mockVault = new Obsidian.Vault();
     const tags = ["#tag1"];
-    const noteFiles = [{ path: "test/test2/note1.md" }, { path: "test/note2.md" }] as TFile[];
+    type TFileCtor = new (path: string) => TFile;
+    const noteFiles: TFile[] = [
+      new (TFile as unknown as TFileCtor)("test/test2/note1.md"),
+      new (TFile as unknown as TFileCtor)("test/note2.md"),
+    ];
     const expectedPaths = ["test/test2/note1.md"];
 
-    const result = await getNotesFromTags(mockVault, tags, noteFiles);
+    const result = getNotesFromTags(mockVault, tags, noteFiles);
     const resultPaths = result.map((fileWithTags) => fileWithTags.path);
 
     expect(resultPaths).toEqual(expect.arrayContaining(expectedPaths));
@@ -331,7 +340,7 @@ describe("getNotesFromTags", () => {
     const mockVault = new Obsidian.Vault();
 
     const tags = ["#inlineTag1"];
-    const result = await getNotesFromTags(mockVault, tags);
+    const result = getNotesFromTags(mockVault, tags);
 
     expect(result).toEqual([]); // Should return empty since inline tags are ignored
   });
@@ -527,10 +536,49 @@ I need to consider:
   });
 });
 
+describe("shouldUseGitHubCopilotResponsesApi", () => {
+  it("should enable responses API for GitHub Copilot codex models", () => {
+    expect(
+      shouldUseGitHubCopilotResponsesApi({
+        provider: ChatModelProviders.GITHUB_COPILOT,
+        name: "gpt-5.3-codex",
+      })
+    ).toBe(true);
+  });
+
+  it("should not enable responses API for non-codex GitHub Copilot models by default", () => {
+    expect(
+      shouldUseGitHubCopilotResponsesApi({
+        provider: ChatModelProviders.GITHUB_COPILOT,
+        name: "gpt-4.1",
+      })
+    ).toBe(false);
+  });
+
+  it("should ignore codex names for non-Copilot providers", () => {
+    expect(
+      shouldUseGitHubCopilotResponsesApi({
+        provider: ChatModelProviders.OPENAI,
+        name: "gpt-5.3-codex",
+      })
+    ).toBe(false);
+  });
+
+  it("should allow explicit responses API opt-in for GitHub Copilot models", () => {
+    expect(
+      shouldUseGitHubCopilotResponsesApi({
+        provider: ChatModelProviders.GITHUB_COPILOT,
+        name: "custom-model",
+        useResponsesApi: true,
+      })
+    ).toBe(true);
+  });
+});
+
 describe("withTimeout", () => {
   it("should return result when operation completes within timeout", async () => {
     const operation = async (signal: AbortSignal) => {
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await new Promise((resolve) => window.setTimeout(resolve, 50));
       return "success";
     };
 
@@ -540,7 +588,7 @@ describe("withTimeout", () => {
 
   it("should throw TimeoutError when operation exceeds timeout", async () => {
     const operation = async (signal: AbortSignal) => {
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => window.setTimeout(resolve, 200));
       return "should not complete";
     };
 
@@ -558,7 +606,7 @@ describe("withTimeout", () => {
         wasAborted = true;
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => window.setTimeout(resolve, 200));
       return "should not complete";
     };
 
@@ -569,7 +617,7 @@ describe("withTimeout", () => {
     }
 
     // Give time for abort event to fire
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await new Promise((resolve) => window.setTimeout(resolve, 10));
     expect(wasAborted).toBe(true);
   });
 
@@ -583,7 +631,7 @@ describe("withTimeout", () => {
 
   it("should clean up timeout even when operation throws", async () => {
     const operation = async (signal: AbortSignal) => {
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await new Promise((resolve) => window.setTimeout(resolve, 50));
       throw new Error("Operation failed");
     };
 
@@ -796,5 +844,144 @@ title: Test
     const content = "---\r\ntitle: Test\r\n---\r\n  Content here.";
     const result = stripFrontmatter(content, { trimStart: false });
     expect(result).toBe("  Content here.");
+  });
+});
+
+describe("formatDateTime", () => {
+  const fixedDate = new Date("2024-03-15T14:30:45.123Z");
+
+  it("formats UTC deterministically when timezone='utc'", () => {
+    const result = formatDateTime(fixedDate, "utc");
+    expect(result.fileName).toBe("20240315_143045");
+    expect(result.display).toBe("2024/03/15 14:30:45");
+    expect(result.epoch).toBe(fixedDate.getTime());
+  });
+
+  it("local format is structurally valid and matches host timezone offset", () => {
+    const result = formatDateTime(fixedDate, "local");
+    // Display must always be "YYYY/MM/DD HH:mm:ss" regardless of host TZ.
+    expect(result.display).toMatch(/^\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}$/);
+    expect(result.fileName).toMatch(/^\d{8}_\d{6}$/);
+    expect(result.epoch).toBe(fixedDate.getTime());
+
+    // The local display should equal what the host JS Date renders.
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const expectedDisplay =
+      `${fixedDate.getFullYear()}/${pad(fixedDate.getMonth() + 1)}/${pad(fixedDate.getDate())} ` +
+      `${pad(fixedDate.getHours())}:${pad(fixedDate.getMinutes())}:${pad(fixedDate.getSeconds())}`;
+    expect(result.display).toBe(expectedDisplay);
+  });
+
+  it("local and UTC differ when host is not on UTC, and agree otherwise", () => {
+    const local = formatDateTime(fixedDate, "local");
+    const utc = formatDateTime(fixedDate, "utc");
+    if (fixedDate.getTimezoneOffset() === 0) {
+      expect(local.display).toBe(utc.display);
+    } else {
+      expect(local.display).not.toBe(utc.display);
+    }
+  });
+
+  it("defaults to local timezone", () => {
+    const explicit = formatDateTime(fixedDate, "local");
+    const defaulted = formatDateTime(fixedDate);
+    expect(defaulted).toEqual(explicit);
+  });
+
+  it("epoch is independent of timezone choice", () => {
+    expect(formatDateTime(fixedDate, "local").epoch).toBe(formatDateTime(fixedDate, "utc").epoch);
+  });
+
+  it("zero-pads single-digit month/day/hour/minute/second", () => {
+    const earlyDate = new Date("2024-01-02T03:04:05.000Z");
+    const result = formatDateTime(earlyDate, "utc");
+    expect(result.fileName).toBe("20240102_030405");
+    expect(result.display).toBe("2024/01/02 03:04:05");
+  });
+});
+
+describe("stringToFormattedDateTime", () => {
+  it("parses a valid 'YYYY/MM/DD HH:mm:ss' string and round-trips display", () => {
+    const result = stringToFormattedDateTime("2024/03/15 10:30:45");
+    expect(result.display).toBe("2024/03/15 10:30:45");
+    expect(result.fileName).toBe("20240315_103045");
+    // The reconstructed Date must format back to the same components in local time.
+    const d = new Date(result.epoch);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    expect(
+      `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ` +
+        `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+    ).toBe("2024/03/15 10:30:45");
+  });
+
+  it("round-trips formatDateTime(local) output", () => {
+    const original = new Date("2024-07-04T18:00:00.000Z");
+    const formatted = formatDateTime(original, "local");
+    const reparsed = stringToFormattedDateTime(formatted.display);
+    expect(reparsed.display).toBe(formatted.display);
+    expect(reparsed.fileName).toBe(formatted.fileName);
+    // Display is second-precision, so the round-tripped epoch loses millis.
+    expect(reparsed.epoch).toBe(Math.floor(original.getTime() / 1000) * 1000);
+  });
+
+  it("falls back to current date/time on invalid input", () => {
+    const before = Date.now();
+    const result = stringToFormattedDateTime("not-a-date");
+    const after = Date.now();
+    expect(result.epoch).toBeGreaterThanOrEqual(before);
+    expect(result.epoch).toBeLessThanOrEqual(after);
+    expect(result.display).toMatch(/^\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}$/);
+    expect(result.fileName).toMatch(/^\d{8}_\d{6}$/);
+  });
+
+  it("falls back on wrong-format input (e.g. dashes)", () => {
+    const before = Date.now();
+    const result = stringToFormattedDateTime("2024-03-15 10:30:45");
+    const after = Date.now();
+    expect(result.epoch).toBeGreaterThanOrEqual(before);
+    expect(result.epoch).toBeLessThanOrEqual(after);
+  });
+});
+
+describe("getModelInfo", () => {
+  it("flags claude-opus-4-7 as adaptive thinking", () => {
+    const info = getModelInfo("claude-opus-4-7");
+    expect(info.isThinkingEnabled).toBe(true);
+    expect(info.usesAdaptiveThinking).toBe(true);
+  });
+
+  it("flags claude-opus-4-8 and higher as adaptive thinking", () => {
+    expect(getModelInfo("claude-opus-4-8").usesAdaptiveThinking).toBe(true);
+    expect(getModelInfo("claude-opus-4-12").usesAdaptiveThinking).toBe(true);
+  });
+
+  it("keeps claude-opus-4-6 and earlier on legacy thinking", () => {
+    const six = getModelInfo("claude-opus-4-6");
+    expect(six.isThinkingEnabled).toBe(true);
+    expect(six.usesAdaptiveThinking).toBe(false);
+
+    const zero = getModelInfo("claude-opus-4-0");
+    expect(zero.isThinkingEnabled).toBe(true);
+    expect(zero.usesAdaptiveThinking).toBe(false);
+  });
+
+  it("does not affect other thinking-enabled families", () => {
+    expect(getModelInfo("claude-sonnet-4-5").usesAdaptiveThinking).toBe(false);
+    expect(getModelInfo("claude-3-7-sonnet-20250219").usesAdaptiveThinking).toBe(false);
+  });
+
+  it("does not match unversioned claude-opus-4 prefix", () => {
+    const bare = getModelInfo("claude-opus-4");
+    expect(bare.isThinkingEnabled).toBe(true);
+    expect(bare.usesAdaptiveThinking).toBe(false);
+  });
+
+  it("does not treat dated snapshot IDs as adaptive thinking minors", () => {
+    // claude-opus-4-20250514 is the dated snapshot of Opus 4.0, not Opus 4.20250514.
+    expect(getModelInfo("claude-opus-4-20250514").usesAdaptiveThinking).toBe(false);
+    // claude-opus-4-1-20250805 is dated 4.1.
+    expect(getModelInfo("claude-opus-4-1-20250805").usesAdaptiveThinking).toBe(false);
+    // Dated 4.7 still matches because the minor is delimited by "-".
+    expect(getModelInfo("claude-opus-4-7-20260115").usesAdaptiveThinking).toBe(true);
   });
 });

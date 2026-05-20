@@ -1,4 +1,16 @@
-import { App, TFile, TFolder } from "obsidian";
+import { App, TAbstractFile, TFile, TFolder } from "obsidian";
+
+/**
+ * Move a file or folder to the user's configured trash via FileManager.trashFile (Obsidian 1.4+).
+ * Respects the user's deletion preference (system trash / vault .trash / permanent).
+ * Cast is needed because the bundled `obsidian.d.ts` doesn't yet expose this method.
+ */
+export async function trashFile(app: App, file: TAbstractFile): Promise<void> {
+  const fileManager = app.fileManager as unknown as {
+    trashFile(f: TAbstractFile): Promise<void>;
+  };
+  await fileManager.trashFile(file);
+}
 
 /**
  * Resolve a file path to a TFile, with adapter fallback for hidden directories.
@@ -6,7 +18,7 @@ import { App, TFile, TFolder } from "obsidian";
  */
 export async function resolveFileByPath(app: App, filePath: string): Promise<TFile | null> {
   const file = app.vault.getAbstractFileByPath(filePath);
-  if (file) return file as TFile;
+  if (file instanceof TFile) return file;
 
   if (await app.vault.adapter.exists(filePath)) {
     return createSyntheticTFile(app, filePath);
@@ -55,8 +67,8 @@ export async function patchFrontmatter(
 ): Promise<void> {
   const file = app.vault.getAbstractFileByPath(filePath);
 
-  if (file && app.fileManager?.processFrontMatter) {
-    await app.fileManager.processFrontMatter(file as TFile, (frontmatter) => {
+  if (file instanceof TFile && app.fileManager?.processFrontMatter) {
+    await app.fileManager.processFrontMatter(file, (frontmatter: Record<string, unknown>) => {
       for (const [key, value] of Object.entries(updates)) {
         frontmatter[key] = value;
       }
@@ -67,8 +79,10 @@ export async function patchFrontmatter(
   if (!(await app.vault.adapter.exists(filePath))) return;
 
   const raw = await app.vault.adapter.read(filePath);
+  // Reason: detect line ending style to preserve consistency when appending new fields
+  const lineEnding = raw.includes("\r\n") ? "\r\n" : "\n";
   const updated = raw.replace(
-    /^(---\n[\s\S]*?)(---)/,
+    /^(\uFEFF?---\r?\n[\s\S]*?\r?\n)(---)/,
     (_match, yamlBlock: string, closing: string) => {
       let patched = yamlBlock;
       for (const [key, value] of Object.entries(updates)) {
@@ -80,7 +94,7 @@ export async function patchFrontmatter(
         if (fieldRegex.test(patched)) {
           patched = patched.replace(fieldRegex, `${key}: ${formattedValue}`);
         } else {
-          patched += `${key}: ${formattedValue}\n`;
+          patched += `${key}: ${formattedValue}${lineEnding}`;
         }
       }
       return patched + closing;
@@ -102,12 +116,15 @@ export async function readFrontmatterViaAdapter(
   filePath: string
 ): Promise<Record<string, string> | null> {
   const raw = await app.vault.adapter.read(filePath);
-  const yaml = raw.match(/^---\n([\s\S]*?)\n---/)?.[1];
+  // Reason: strip BOM and accept CRLF line endings for Windows/external-editor compatibility
+  const normalized = raw.replace(/^\uFEFF/, "");
+  const yaml = normalized.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/)?.[1];
   if (!yaml) return null;
 
   const result: Record<string, string> = {};
-  for (const line of yaml.split("\n")) {
-    const match = line.match(/^(\w+):\s*(.+)/);
+  for (const line of yaml.split(/\r?\n/)) {
+    // Reason: use [\w-] instead of \w to support hyphenated YAML keys (e.g. copilot-project-last-used)
+    const match = line.match(/^([\w-]+):\s*(.+)/);
     if (match) {
       result[match[1]] = match[2].trim().replace(/^["']|["']$/g, "");
     }
@@ -122,7 +139,8 @@ export async function readFrontmatterViaAdapter(
 async function createSyntheticTFile(app: App, filePath: string): Promise<TFile> {
   const stat = await app.vault.adapter.stat(filePath);
   const name = filePath.split("/").pop() ?? "";
-  return {
+  const synthetic: TFile = Object.create(TFile.prototype);
+  Object.assign(synthetic, {
     path: filePath,
     name,
     basename: name.replace(/\.md$/, ""),
@@ -130,5 +148,6 @@ async function createSyntheticTFile(app: App, filePath: string): Promise<TFile> 
     stat: stat ?? { ctime: Date.now(), mtime: Date.now(), size: 0 },
     vault: app.vault,
     parent: null,
-  } as unknown as TFile;
+  });
+  return synthetic;
 }

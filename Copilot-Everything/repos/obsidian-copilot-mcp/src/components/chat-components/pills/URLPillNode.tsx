@@ -5,10 +5,11 @@ import {
   DOMConversionOutput,
   DOMExportOutput,
   EditorConfig,
+  LexicalEditor,
   LexicalNode,
   NodeKey,
 } from "lexical";
-import { BasePillNode, SerializedBasePillNode } from "./BasePillNode";
+import { BasePillNode, getEditorDocument, SerializedBasePillNode } from "./BasePillNode";
 import { PillBadge } from "./PillBadge";
 
 export interface SerializedURLPillNode extends SerializedBasePillNode {
@@ -49,8 +50,8 @@ export class URLPillNode extends BasePillNode {
     return "data-lexical-url-pill";
   }
 
-  createDOM(_config: EditorConfig): HTMLElement {
-    const span = document.createElement("span");
+  createDOM(_config: EditorConfig, editor: LexicalEditor): HTMLElement {
+    const span = getEditorDocument(editor).createElement("span");
     span.className = "url-pill-wrapper";
     return span;
   }
@@ -85,8 +86,8 @@ export class URLPillNode extends BasePillNode {
     };
   }
 
-  exportDOM(): DOMExportOutput {
-    const element = document.createElement("span");
+  exportDOM(editor: LexicalEditor): DOMExportOutput {
+    const element = getEditorDocument(editor).createElement("span");
     element.setAttribute("data-lexical-url-pill", "true");
     element.setAttribute("data-url", this.__url);
     if (this.__title) {
@@ -156,7 +157,7 @@ export function $createURLPillNode(url: string, title?: string, isActive = false
   return new URLPillNode(url, title, isActive);
 }
 
-export function $findURLPills(): URLPillNode[] {
+function $findURLPills(): URLPillNode[] {
   const root = $getRoot();
   const pills: URLPillNode[] = [];
 
@@ -166,7 +167,7 @@ export function $findURLPills(): URLPillNode[] {
     }
 
     if ("getChildren" in node && typeof node.getChildren === "function") {
-      const children = node.getChildren();
+      const children = node.getChildren() as LexicalNode[];
       for (const child of children) {
         traverse(child);
       }
@@ -186,6 +187,6 @@ export function $removePillsByURL(url: string): void {
   }
 }
 
-export function $isURLPillNode(node: any): node is URLPillNode {
+export function $isURLPillNode(node: LexicalNode): node is URLPillNode {
   return node instanceof URLPillNode;
 }

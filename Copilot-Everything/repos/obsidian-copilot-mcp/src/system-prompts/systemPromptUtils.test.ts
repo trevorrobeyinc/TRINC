@@ -9,12 +9,14 @@ import {
 import { UserSystemPrompt } from "@/system-prompts/type";
 import { TFile, TAbstractFile, normalizePath } from "obsidian";
 import * as settingsModel from "@/settings/model";
+import type { CopilotSettings } from "@/settings/model";
+import { mockTFile } from "@/__tests__/mockObsidian";
 
 // Mock Obsidian
 jest.mock("obsidian", () => ({
   TFile: jest.fn(),
   TAbstractFile: jest.fn(),
-  normalizePath: jest.fn((path) => path),
+  normalizePath: jest.fn((path: string) => path),
 }));
 
 // Mock settings
@@ -117,7 +119,7 @@ describe("getSystemPromptsFolder", () => {
   it("returns the system prompts folder path from settings", () => {
     jest.spyOn(settingsModel, "getSettings").mockReturnValue({
       userSystemPromptsFolder: "CustomFolder/SystemPrompts",
-    } as any);
+    } as CopilotSettings);
 
     const result = getSystemPromptsFolder();
     expect(result).toBe("CustomFolder/SystemPrompts");
@@ -126,7 +128,7 @@ describe("getSystemPromptsFolder", () => {
   it("normalizes the path", () => {
     jest.spyOn(settingsModel, "getSettings").mockReturnValue({
       userSystemPromptsFolder: "SystemPrompts",
-    } as any);
+    } as CopilotSettings);
 
     const result = getSystemPromptsFolder();
     expect(normalizePath).toHaveBeenCalled();
@@ -138,7 +140,7 @@ describe("getPromptFilePath", () => {
   beforeEach(() => {
     jest.spyOn(settingsModel, "getSettings").mockReturnValue({
       userSystemPromptsFolder: "SystemPrompts",
-    } as any);
+    } as CopilotSettings);
   });
 
   it("returns correct file path with .md extension", () => {
@@ -154,14 +156,14 @@ describe("isSystemPromptFile", () => {
   beforeEach(() => {
     jest.spyOn(settingsModel, "getSettings").mockReturnValue({
       userSystemPromptsFolder: "SystemPrompts",
-    } as any);
+    } as CopilotSettings);
   });
 
   it("returns true for valid system prompt file", () => {
-    const mockFile = {
+    const mockFile = mockTFile({
       path: "SystemPrompts/Test.md",
       extension: "md",
-    } as TFile;
+    });
 
     // Mock instanceof check
     Object.setPrototypeOf(mockFile, TFile.prototype);
@@ -178,10 +180,10 @@ describe("isSystemPromptFile", () => {
   });
 
   it("returns false for non-markdown files", () => {
-    const mockFile = {
+    const mockFile = mockTFile({
       path: "SystemPrompts/Test.txt",
       extension: "txt",
-    } as TFile;
+    });
 
     Object.setPrototypeOf(mockFile, TFile.prototype);
 
@@ -189,10 +191,10 @@ describe("isSystemPromptFile", () => {
   });
 
   it("returns false for files outside system prompts folder", () => {
-    const mockFile = {
+    const mockFile = mockTFile({
       path: "OtherFolder/Test.md",
       extension: "md",
-    } as TFile;
+    });
 
     Object.setPrototypeOf(mockFile, TFile.prototype);
 
@@ -200,10 +202,10 @@ describe("isSystemPromptFile", () => {
   });
 
   it("returns false for files in subfolders", () => {
-    const mockFile = {
+    const mockFile = mockTFile({
       path: "SystemPrompts/Subfolder/Test.md",
       extension: "md",
-    } as TFile;
+    });
 
     Object.setPrototypeOf(mockFile, TFile.prototype);
 
@@ -211,10 +213,10 @@ describe("isSystemPromptFile", () => {
   });
 
   it("returns false for files in unsupported subfolder", () => {
-    const mockFile = {
+    const mockFile = mockTFile({
       path: "SystemPrompts/unsupported/Failed Migration.md",
       extension: "md",
-    } as TFile;
+    });
 
     Object.setPrototypeOf(mockFile, TFile.prototype);
 
@@ -224,17 +226,17 @@ describe("isSystemPromptFile", () => {
   it("works with custom userSystemPromptsFolder setting", () => {
     jest.spyOn(settingsModel, "getSettings").mockReturnValue({
       userSystemPromptsFolder: "CustomFolder/MyPrompts",
-    } as any);
+    } as CopilotSettings);
 
-    const validFile = {
+    const validFile = mockTFile({
       path: "CustomFolder/MyPrompts/Test.md",
       extension: "md",
-    } as TFile;
+    });
 
-    const unsupportedFile = {
+    const unsupportedFile = mockTFile({
       path: "CustomFolder/MyPrompts/unsupported/Failed.md",
       extension: "md",
-    } as TFile;
+    });
 
     Object.setPrototypeOf(validFile, TFile.prototype);
     Object.setPrototypeOf(unsupportedFile, TFile.prototype);
@@ -245,45 +247,45 @@ describe("isSystemPromptFile", () => {
 });
 
 describe("parseSystemPromptFile", () => {
-  let originalApp: any;
+  let originalApp: typeof window.app;
   let mockFile: TFile;
 
   beforeEach(() => {
-    originalApp = global.app;
-    mockFile = {
+    originalApp = window.app;
+    mockFile = mockTFile({
       basename: "Test Prompt",
       path: "SystemPrompts/Test Prompt.md",
       extension: "md",
-    } as TFile;
+    });
 
-    global.app = {
+    window.app = {
       vault: {
         read: jest.fn(),
       },
       metadataCache: {
         getFileCache: jest.fn(),
       },
-    } as any;
+    } as unknown as typeof window.app;
   });
 
   afterEach(() => {
-    global.app = originalApp;
+    window.app = originalApp;
   });
 
   it("parses a file with frontmatter and content", async () => {
     const rawContent = `---
-copilot-mcp-system-prompt-created: 1234567890
-copilot-mcp-system-prompt-modified: 1234567891
-copilot-mcp-system-prompt-last-used: 1234567892
+copilot-system-prompt-created: 1234567890
+copilot-system-prompt-modified: 1234567891
+copilot-system-prompt-last-used: 1234567892
 ---
 This is the prompt content.`;
 
     (app.vault.read as jest.Mock).mockResolvedValue(rawContent);
     (app.metadataCache.getFileCache as jest.Mock).mockReturnValue({
       frontmatter: {
-        "copilot-mcp-system-prompt-created": 1234567890,
-        "copilot-mcp-system-prompt-modified": 1234567891,
-        "copilot-mcp-system-prompt-last-used": 1234567892,
+        "copilot-system-prompt-created": 1234567890,
+        "copilot-system-prompt-modified": 1234567891,
+        "copilot-system-prompt-last-used": 1234567892,
       },
     });
 
@@ -317,14 +319,14 @@ This is the prompt content.`;
 
   it("uses default values for missing frontmatter fields", async () => {
     const rawContent = `---
-copilot-mcp-system-prompt-created: 1234567890
+copilot-system-prompt-created: 1234567890
 ---
 Content here.`;
 
     (app.vault.read as jest.Mock).mockResolvedValue(rawContent);
     (app.metadataCache.getFileCache as jest.Mock).mockReturnValue({
       frontmatter: {
-        "copilot-mcp-system-prompt-created": 1234567890,
+        "copilot-system-prompt-created": 1234567890,
       },
     });
 

@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { TFile } from "obsidian";
+import React, { useCallback, useState } from "react";
+import { TFile, TFolder } from "obsidian";
 import { TypeaheadMenuPopover } from "./TypeaheadMenuPopover";
 import {
   useAtMentionCategories,
@@ -8,11 +8,12 @@ import {
   CategoryOption,
 } from "./hooks/useAtMentionCategories";
 import { useAtMentionSearch } from "./hooks/useAtMentionSearch";
+import type { WebTabContext } from "@/types/message";
 
 interface AtMentionTypeaheadProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelect: (category: AtMentionCategory, data: any) => void;
+  onSelect: (category: AtMentionCategory, data: TFile | string | TFolder | WebTabContext) => void;
   isCopilotPlus?: boolean;
   currentActiveFile?: TFile | null;
 }
@@ -41,6 +42,8 @@ export function AtMentionTypeahead({
   }>({
     mode: "category",
   });
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  const [prevResultsLength, setPrevResultsLength] = useState(0);
 
   const availableCategoryOptions = useAtMentionCategories(isCopilotPlus);
 
@@ -56,9 +59,9 @@ export function AtMentionTypeahead({
 
   // Handle selection
   const handleSelect = useCallback(
-    (option: any) => {
+    (option: CategoryOption | AtMentionOption) => {
       // Guard: never select disabled options (defensive check for click events)
-      if (option?.disabled) return;
+      if ((option as { disabled?: boolean })?.disabled) return;
 
       if (extendedState.mode === "category" && isCategoryOption(option) && !searchQuery) {
         // Category was selected - switch to search mode for that category
@@ -160,8 +163,8 @@ export function AtMentionTypeahead({
     [selectedIndex, searchResults, handleSelect, onClose, extendedState.mode, searchQuery]
   );
 
-  // Reset state when menu closes
-  useEffect(() => {
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
     if (!isOpen) {
       setSearchQuery("");
       setSelectedIndex(0);
@@ -170,12 +173,12 @@ export function AtMentionTypeahead({
         selectedCategory: undefined,
       });
     }
-  }, [isOpen]);
+  }
 
-  // Reset selected index when options change
-  useEffect(() => {
+  if (searchResults.length !== prevResultsLength) {
+    setPrevResultsLength(searchResults.length);
     setSelectedIndex(0);
-  }, [searchResults.length]);
+  }
 
   if (!isOpen) {
     return null;
@@ -183,7 +186,7 @@ export function AtMentionTypeahead({
 
   return (
     <TypeaheadMenuPopover
-      options={searchResults as any[]}
+      options={searchResults}
       selectedIndex={selectedIndex}
       onSelect={handleSelect}
       onHighlight={handleHighlight}

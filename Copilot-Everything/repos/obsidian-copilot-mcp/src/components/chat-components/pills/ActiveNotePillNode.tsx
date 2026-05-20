@@ -4,11 +4,12 @@ import {
   DOMConversionOutput,
   DOMExportOutput,
   EditorConfig,
+  LexicalEditor,
   LexicalNode,
   NodeKey,
   $getRoot,
 } from "lexical";
-import { BasePillNode, SerializedBasePillNode } from "./BasePillNode";
+import { BasePillNode, getEditorDocument, SerializedBasePillNode } from "./BasePillNode";
 import { TruncatedPillText } from "./TruncatedPillText";
 import { PillBadge } from "./PillBadge";
 import { useActiveFile } from "../context/ActiveFileContext";
@@ -43,8 +44,8 @@ export class ActiveNotePillNode extends BasePillNode {
     return "data-lexical-active-note-pill";
   }
 
-  createDOM(_config: EditorConfig): HTMLElement {
-    const span = document.createElement("span");
+  createDOM(_config: EditorConfig, editor: LexicalEditor): HTMLElement {
+    const span = getEditorDocument(editor).createElement("span");
     span.className = "active-note-pill-wrapper";
     return span;
   }
@@ -75,8 +76,8 @@ export class ActiveNotePillNode extends BasePillNode {
     };
   }
 
-  exportDOM(): DOMExportOutput {
-    const element = document.createElement("span");
+  exportDOM(editor: LexicalEditor): DOMExportOutput {
+    const element = getEditorDocument(editor).createElement("span");
     element.setAttribute("data-lexical-active-note-pill", "true");
     element.textContent = "{activeNote}";
     return { element };
@@ -163,12 +164,12 @@ export function $removeActiveNotePills(): number {
   const root = $getRoot();
   let removedCount = 0;
 
-  function traverse(node: any): void {
+  function traverse(node: LexicalNode): void {
     if ($isActiveNotePillNode(node)) {
       node.remove();
       removedCount++;
-    } else if (typeof node.getChildren === "function") {
-      const children = node.getChildren();
+    } else if ("getChildren" in node && typeof node.getChildren === "function") {
+      const children = node.getChildren() as LexicalNode[];
       for (const child of children) {
         traverse(child);
       }

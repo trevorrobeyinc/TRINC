@@ -138,22 +138,26 @@ export class VaultQAChainRunner extends BaseChainRunner {
       // Format documents as context with XML tags
       // Sanitize content to remove pre-existing citation markers
 
-      const context = retrievedDocs
-        .map((doc: any) => {
+      const context = (
+        retrievedDocs as { metadata?: { title?: string; path?: string }; pageContent?: string }[]
+      )
+        .map((doc) => {
           const title = doc.metadata?.title || "Untitled";
           const path = doc.metadata?.path || title;
-          return `<${RETRIEVED_DOCUMENT_TAG}>\n<title>${title}</title>\n<path>${path}</path>\n<content>\n${sanitizeContentForCitations(doc.pageContent)}\n</content>\n</${RETRIEVED_DOCUMENT_TAG}>`;
+          return `<${RETRIEVED_DOCUMENT_TAG}>\n<title>${title}</title>\n<path>${path}</path>\n<content>\n${sanitizeContentForCitations(doc.pageContent ?? "")}\n</content>\n</${RETRIEVED_DOCUMENT_TAG}>`;
         })
         .join("\n\n");
 
       // Step 6: Build messages array with envelope-aware logic
-      const messages: any[] = [];
+      const messages: { role: string; content: string | unknown[] }[] = [];
       const chatModel = this.chainManager.chatModelManager.getChatModel();
 
       // Prepare RAG context and citation instructions
-      const sourceEntries: SourceCatalogEntry[] = retrievedDocs
+      const sourceEntries: SourceCatalogEntry[] = (
+        retrievedDocs as { metadata?: { title?: string; path?: string } }[]
+      )
         .slice(0, Math.max(5, Math.min(20, retrievedDocs.length)))
-        .map((d: any) => ({
+        .map((d) => ({
           title: d.metadata?.title || d.metadata?.path || "Untitled",
           path: d.metadata?.path || d.metadata?.title || "",
         }));
@@ -204,12 +208,14 @@ export class VaultQAChainRunner extends BaseChainRunner {
 
         // Handle multimodal content if present
         if (userMessage.content && Array.isArray(userMessage.content)) {
-          const updatedContent = userMessage.content.map((item: any) => {
-            if (item.type === "text") {
-              return { ...item, text: enhancedUserContent };
+          const updatedContent = userMessage.content.map(
+            (item: { type?: string }): { type?: string; [key: string]: unknown } => {
+              if (item.type === "text") {
+                return { ...item, text: enhancedUserContent };
+              }
+              return { ...item };
             }
-            return item;
-          });
+          );
           messages.push({
             role: "user",
             content: updatedContent,
@@ -234,9 +240,13 @@ export class VaultQAChainRunner extends BaseChainRunner {
 
       // Stream with abort signal
       const chatStream = await withSuppressedTokenWarnings(() =>
-        this.chainManager.chatModelManager.getChatModel().stream(messages, {
-          signal: abortController.signal,
-        })
+        this.chainManager.chatModelManager.getChatModel().stream(
+          // ProviderMessage[] format matches what getChatModel().stream() accepts at runtime
+          messages as never,
+          {
+            signal: abortController.signal,
+          }
+        )
       );
 
       for await (const chunk of chatStream) {
@@ -244,15 +254,18 @@ export class VaultQAChainRunner extends BaseChainRunner {
           logInfo("VaultQA stream iteration aborted", { reason: abortController.signal.reason });
           break;
         }
-        streamer.processChunk(chunk);
+        streamer.processChunk(chunk as Parameters<typeof streamer.processChunk>[0]);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Check if the error is due to abort signal
-      if (error.name === "AbortError" || abortController.signal.aborted) {
+      if ((error as { name?: string }).name === "AbortError" || abortController.signal.aborted) {
         logInfo("VaultQA stream aborted by user", { reason: abortController.signal.reason });
         // Don't show error message for user-initiated aborts
       } else {
-        await this.handleError(error, streamer.processErrorChunk.bind(streamer));
+        await this.handleError(
+          error,
+          streamer.processErrorChunk.bind(streamer) as (message: string) => void
+        );
       }
     }
 

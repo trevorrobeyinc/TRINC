@@ -36,7 +36,7 @@ jest.mock("@/LLMProviders/chainRunner/utils/citationUtils", () => ({
 }));
 
 jest.mock("obsidian", () => {
-  const renderMarkdown = jest.fn();
+  const renderMarkdown = jest.fn().mockResolvedValue(undefined);
   return {
     MarkdownRenderer: {
       renderMarkdown,
@@ -63,18 +63,151 @@ jest.mock("obsidian", () => {
   };
 });
 
-const { __renderMarkdownMock: renderMarkdownMock } = jest.requireMock("obsidian") as {
+const { __renderMarkdownMock: renderMarkdownMock } = jest.requireMock<{
   __renderMarkdownMock: jest.Mock;
-};
+}>("obsidian");
+
+// ---------------------------------------------------------------------------
+// Verifies that the HTML string passed to MarkdownRenderer.renderMarkdown
+// never has </div> or </details> on the same line as a 4-space-indented
+// line. This was the root cause of the Gemma rendering bug: google/gemma-4-31b-it
+// thinking output ends with 4-space-indented bullet points, and without a
+// trailing \n the closing </div> was consumed by markdown's indented code
+// block rule and rendered as literal "&lt;/div&gt;" text.
+// ---------------------------------------------------------------------------
+
+describe("think block rendering — closing tags are not consumed by indented code blocks", () => {
+  const createAppStub = (): App =>
+    ({
+      workspace: { getActiveFile: jest.fn(() => null) },
+      metadataCache: { getFirstLinkpathDest: jest.fn(() => null) },
+    }) as unknown as App;
+
+  const baseAiMessage: ChatMessage = {
+    id: "ai-1",
+    sender: "AI",
+    message: "",
+    isVisible: true,
+    timestamp: null,
+  };
+
+  beforeEach(() => {
+    renderMarkdownMock.mockReset();
+    renderMarkdownMock.mockResolvedValue(undefined);
+  });
+
+  beforeAll(() => {
+    (window as unknown as Record<string, unknown>).activeDocument = window.document;
+  });
+
+  /**
+   * Asserts that no line in the rendered markdown matches:
+   *   <4+ spaces><any content></div>  or  <4+ spaces><any content></details>
+   * Such a pattern means the closing tag is inside a code block and will be
+   * escaped by the markdown renderer.
+   */
+  function assertNoClosingTagOnIndentedLine(capturedMarkdown: string[]) {
+    for (const md of capturedMarkdown) {
+      for (const line of md.split("\n")) {
+        if (/^ {4}/.test(line)) {
+          expect(line).not.toContain("</div>");
+          expect(line).not.toContain("</details>");
+        }
+      }
+    }
+  }
+
+  it("does not place </div> on a 4-space-indented line (non-streaming, think block)", async () => {
+    const thinkContent =
+      "Planning my response:\n    *   Be helpful and direct.\n    *   Answer clearly.";
+    const messageText = `<think>${thinkContent}</think>Here is my answer.`;
+
+    const capturedMarkdown: string[] = [];
+    renderMarkdownMock.mockImplementation(async (md: string, el: HTMLElement) => {
+      capturedMarkdown.push(md);
+      el.textContent = "rendered";
+    });
+
+    render(
+      <TooltipProvider>
+        <ChatSingleMessage
+          message={{ ...baseAiMessage, message: messageText }}
+          app={createAppStub()}
+          isStreaming={false}
+          onDelete={() => {}}
+        />
+      </TooltipProvider>
+    );
+
+    await waitFor(() => expect(renderMarkdownMock).toHaveBeenCalled());
+
+    assertNoClosingTagOnIndentedLine(capturedMarkdown);
+  });
+
+  it("does not place </div> on a 4-space-indented line (streaming, complete think block)", async () => {
+    const thinkContent = "Thinking:\n    1.  First step.\n    2.  Second step.";
+    const messageText = `<think>${thinkContent}</think>Response text.`;
+
+    const capturedMarkdown: string[] = [];
+    renderMarkdownMock.mockImplementation(async (md: string, el: HTMLElement) => {
+      capturedMarkdown.push(md);
+      el.textContent = "rendered";
+    });
+
+    render(
+      <TooltipProvider>
+        <ChatSingleMessage
+          message={{ ...baseAiMessage, message: messageText }}
+          app={createAppStub()}
+          isStreaming={true}
+          onDelete={() => {}}
+        />
+      </TooltipProvider>
+    );
+
+    await waitFor(() => expect(renderMarkdownMock).toHaveBeenCalled());
+
+    assertNoClosingTagOnIndentedLine(capturedMarkdown);
+  });
+
+  it("does not place </div> on a 4-space-indented line (streaming, unclosed think block)", async () => {
+    // Simulates mid-stream: the </think> closing tag has not arrived yet.
+    const messageText = "<think>Thinking:\n    *   Still streaming.";
+
+    const capturedMarkdown: string[] = [];
+    renderMarkdownMock.mockImplementation(async (md: string, el: HTMLElement) => {
+      capturedMarkdown.push(md);
+      el.textContent = "rendered";
+    });
+
+    render(
+      <TooltipProvider>
+        <ChatSingleMessage
+          message={{ ...baseAiMessage, message: messageText }}
+          app={createAppStub()}
+          isStreaming={true}
+          onDelete={() => {}}
+        />
+      </TooltipProvider>
+    );
+
+    await waitFor(() => expect(renderMarkdownMock).toHaveBeenCalled());
+
+    assertNoClosingTagOnIndentedLine(capturedMarkdown);
+  });
+});
 
 describe("normalizeFootnoteRendering", () => {
   beforeEach(() => {
     renderMarkdownMock.mockReset();
+    renderMarkdownMock.mockResolvedValue(undefined);
   });
 
   it("removes separator and backref while preserving non-footnote elements", () => {
-    const container = document.createElement("div");
-    container.innerHTML = `
+    const container = window.document.createElement("div");
+    container.append(
+      ...new DOMParser().parseFromString(
+        `
       <div>
         <p>Body <sup><a href="#fn-1">1-1</a></sup></p>
         <hr class="content-separator" />
@@ -87,7 +220,10 @@ describe("normalizeFootnoteRendering", () => {
           </ol>
         </div>
       </div>
-    `;
+    `,
+        "text/html"
+      ).body.children
+    );
 
     normalizeFootnoteRendering(container);
 
@@ -98,11 +234,16 @@ describe("normalizeFootnoteRendering", () => {
   });
 
   it("leaves non-numeric footnote references untouched", () => {
-    const container = document.createElement("div");
-    container.innerHTML = `
+    const container = window.document.createElement("div");
+    container.append(
+      ...new DOMParser().parseFromString(
+        `
       <p>Body <sup><a href="#fn-note">Note-A</a></sup></p>
       <a class="footnote-backref" href="#ref">↩</a>
-    `;
+    `,
+        "text/html"
+      ).body.children
+    );
 
     normalizeFootnoteRendering(container);
 
@@ -134,15 +275,18 @@ describe("ChatSingleMessage", () => {
 
   beforeEach(() => {
     renderMarkdownMock.mockReset();
+    renderMarkdownMock.mockResolvedValue(undefined);
   });
 
   beforeAll(() => {
-    (globalThis as any).activeDocument = document;
+    (window as unknown as Record<string, unknown>).activeDocument = window.document;
   });
 
   it("normalizes rendered footnotes for assistant messages", async () => {
-    renderMarkdownMock.mockImplementation((_markdown: string, el: HTMLElement) => {
-      el.innerHTML = `
+    renderMarkdownMock.mockImplementation(async (_markdown: string, el: HTMLElement) => {
+      el.append(
+        ...new DOMParser().parseFromString(
+          `
         <p>Example <sup><a href="#fn-2">2-1</a></sup></p>
         <hr class="content-hr" />
         <div class="footnotes">
@@ -153,7 +297,10 @@ describe("ChatSingleMessage", () => {
             </li>
           </ol>
         </div>
-      `;
+      `,
+          "text/html"
+        ).body.children
+      );
     });
 
     const { container } = render(

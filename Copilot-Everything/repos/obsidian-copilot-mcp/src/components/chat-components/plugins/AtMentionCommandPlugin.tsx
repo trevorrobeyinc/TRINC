@@ -39,7 +39,11 @@ export function AtMentionCommandPlugin({
   const availableCategoryOptions = useAtMentionCategories(isCopilotPlus);
 
   // Load note content for preview using shared utilities
-  const loadNoteContentForPreview = useCallback(async (file: TFile) => {
+  const loadNoteContentForPreview = useCallback(async (file: TFile | null) => {
+    if (!file) {
+      setCurrentPreviewContent("");
+      return;
+    }
     try {
       // Handle PDF and canvas files - treat as empty content (no preview)
       if (file.extension === "pdf" || file.extension === "canvas") {
@@ -90,7 +94,7 @@ export function AtMentionCommandPlugin({
 
   // Selection handler
   const handleSelect = useCallback(
-    (option: any) => {
+    (option: CategoryOption | AtMentionOption) => {
       if (extendedState.mode === "category" && isCategoryOption(option) && !currentQuery) {
         // Category was selected - switch to search mode for that category
         setExtendedState((prev) => ({
@@ -126,7 +130,7 @@ export function AtMentionCommandPlugin({
     [extendedState.mode, currentQuery, isCategoryOption, isAtMentionOption, editor]
   );
 
-  const onStateChangeCallback = useCallback((newState: any) => {
+  const onStateChangeCallback = useCallback((newState: { query: string; isOpen: boolean }) => {
     setCurrentQuery(newState.query);
     // Reset to category mode when menu closes
     if (!newState.isOpen) {
@@ -148,8 +152,8 @@ export function AtMentionCommandPlugin({
     onStateChange: onStateChangeCallback,
   });
 
-  // Load preview content when selection changes
-  useEffect(() => {
+  // Compute the currently selected file for preview, or null if not a note
+  const selectedFile = useMemo<TFile | null>(() => {
     const selectedOption = searchResults[state.selectedIndex];
     if (
       selectedOption &&
@@ -157,11 +161,15 @@ export function AtMentionCommandPlugin({
       selectedOption.category === "notes" &&
       selectedOption.data instanceof TFile
     ) {
-      loadNoteContentForPreview(selectedOption.data);
-    } else {
-      setCurrentPreviewContent("");
+      return selectedOption.data;
     }
-  }, [state.selectedIndex, searchResults, isAtMentionOption, loadNoteContentForPreview]);
+    return null;
+  }, [state.selectedIndex, searchResults, isAtMentionOption]);
+
+  // Load preview content when selected file changes
+  useEffect(() => {
+    void loadNoteContentForPreview(selectedFile);
+  }, [selectedFile, loadNoteContentForPreview]);
 
   // Create display options with preview content for the highlighted note
   const displayOptions = useMemo(() => {
@@ -186,7 +194,7 @@ export function AtMentionCommandPlugin({
     <>
       {state.isOpen && (
         <TypeaheadMenuPortal
-          options={displayOptions as any[]}
+          options={displayOptions}
           selectedIndex={state.selectedIndex}
           onSelect={handleSelect}
           onHighlight={handleHighlight}

@@ -9,14 +9,6 @@
 import { PromptContextEnvelope, PromptLayerSegment } from "@/context/PromptContextTypes";
 
 // Minimal mocks to avoid deep dependency chains
-jest.mock("@/chainFactory", () => ({
-  ChainType: {
-    LLM_CHAIN: "llm_chain",
-    COPILOT_PLUS_CHAIN: "copilot_plus_chain",
-    PROJECT_CHAIN: "project_chain",
-  },
-}));
-
 jest.mock("@/aiParams", () => ({
   getSelectedTextContexts: jest.fn().mockReturnValue([]),
 }));
@@ -56,6 +48,17 @@ jest.mock("@/commands/customCommandUtils", () => ({
 jest.mock("./ContextCompactor", () => ({}));
 
 import { ContextManager } from "./ContextManager";
+import type { MessageRepository } from "./MessageRepository";
+
+type ContextManagerInternal = {
+  buildL2ContextFromPreviousTurns: (
+    currentMessageId: string,
+    messageRepo: MessageRepository
+  ) => { l2Context: string; l2Paths: Set<string> };
+};
+
+const asInternal = (m: ContextManager): ContextManagerInternal =>
+  m as unknown as ContextManagerInternal;
 
 /**
  * Build a minimal PromptContextEnvelope with L3_TURN segments.
@@ -76,7 +79,7 @@ function buildEnvelopeWithL3Segments(segments: PromptLayerSegment[]): PromptCont
       },
     ],
     serializedText: "",
-    layerHashes: {} as any,
+    layerHashes: {} as PromptContextEnvelope["layerHashes"],
     combinedHash: "test",
   };
 }
@@ -84,7 +87,9 @@ function buildEnvelopeWithL3Segments(segments: PromptLayerSegment[]): PromptCont
 /**
  * Create a mock MessageRepository that returns the given display messages.
  */
-function createMockMessageRepo(messages: Array<{ id: string; sender: string; contextEnvelope?: PromptContextEnvelope }>) {
+function createMockMessageRepo(
+  messages: Array<{ id: string; sender: string; contextEnvelope?: PromptContextEnvelope }>
+): MessageRepository {
   return {
     getDisplayMessages: () =>
       messages.map((msg) => ({
@@ -94,11 +99,11 @@ function createMockMessageRepo(messages: Array<{ id: string; sender: string; con
         isVisible: true,
         contextEnvelope: msg.contextEnvelope,
       })),
-  } as any;
+  } as unknown as MessageRepository;
 }
 
 describe("ContextManager L2 promotion filtering", () => {
-  let contextManager: any;
+  let contextManager: ContextManager;
 
   beforeEach(() => {
     contextManager = ContextManager.getInstance();
@@ -128,7 +133,10 @@ describe("ContextManager L2 promotion filtering", () => {
       { id: "msg-2", sender: "user" }, // current message (no envelope yet)
     ]);
 
-    const { l2Context } = contextManager.buildL2ContextFromPreviousTurns("msg-2", mockRepo);
+    const { l2Context } = asInternal(contextManager).buildL2ContextFromPreviousTurns(
+      "msg-2",
+      mockRepo
+    );
 
     // note_context should be promoted to L2
     expect(l2Context).toContain("note_context");
@@ -156,7 +164,10 @@ describe("ContextManager L2 promotion filtering", () => {
       { id: "msg-2", sender: "user" },
     ]);
 
-    const { l2Context } = contextManager.buildL2ContextFromPreviousTurns("msg-2", mockRepo);
+    const { l2Context } = asInternal(contextManager).buildL2ContextFromPreviousTurns(
+      "msg-2",
+      mockRepo
+    );
 
     expect(l2Context).not.toContain("web_selected_text");
     expect(l2Context).not.toContain("Web selection content");
@@ -186,7 +197,10 @@ describe("ContextManager L2 promotion filtering", () => {
       { id: "msg-2", sender: "user" },
     ]);
 
-    const { l2Context } = contextManager.buildL2ContextFromPreviousTurns("msg-2", mockRepo);
+    const { l2Context } = asInternal(contextManager).buildL2ContextFromPreviousTurns(
+      "msg-2",
+      mockRepo
+    );
 
     expect(l2Context).toContain("Note content here");
     expect(l2Context).toContain("URL content here");
@@ -209,7 +223,10 @@ describe("ContextManager L2 promotion filtering", () => {
       { id: "msg-2", sender: "user" },
     ]);
 
-    const { l2Context } = contextManager.buildL2ContextFromPreviousTurns("msg-2", mockRepo);
+    const { l2Context } = asInternal(contextManager).buildL2ContextFromPreviousTurns(
+      "msg-2",
+      mockRepo
+    );
 
     // prior_context is not in the registry, so it should pass through
     expect(l2Context).toContain("prior_context");
@@ -247,7 +264,10 @@ describe("ContextManager L2 promotion filtering", () => {
       { id: "msg-2", sender: "user" },
     ]);
 
-    const { l2Context } = contextManager.buildL2ContextFromPreviousTurns("msg-2", mockRepo);
+    const { l2Context } = asInternal(contextManager).buildL2ContextFromPreviousTurns(
+      "msg-2",
+      mockRepo
+    );
 
     expect(l2Context).toContain("Should be in L2");
     expect(l2Context).toContain("Also in L2");
@@ -278,7 +298,10 @@ describe("ContextManager L2 promotion filtering", () => {
       { id: "msg-2", sender: "user" },
     ]);
 
-    const { l2Context } = contextManager.buildL2ContextFromPreviousTurns("msg-2", mockRepo);
+    const { l2Context } = asInternal(contextManager).buildL2ContextFromPreviousTurns(
+      "msg-2",
+      mockRepo
+    );
 
     expect(l2Context).toContain("Note in compacted segment");
     expect(l2Context).toContain("URL in compacted segment");
@@ -309,7 +332,10 @@ describe("ContextManager L2 promotion filtering", () => {
       { id: "msg-2", sender: "user" },
     ]);
 
-    const { l2Context } = contextManager.buildL2ContextFromPreviousTurns("msg-2", mockRepo);
+    const { l2Context } = asInternal(contextManager).buildL2ContextFromPreviousTurns(
+      "msg-2",
+      mockRepo
+    );
 
     expect(l2Context).toContain("Recoverable note");
     expect(l2Context).not.toContain("<web_selected_text>");
@@ -339,7 +365,10 @@ describe("ContextManager L2 promotion filtering", () => {
       { id: "msg-2", sender: "user" },
     ]);
 
-    const { l2Context } = contextManager.buildL2ContextFromPreviousTurns("msg-2", mockRepo);
+    const { l2Context } = asInternal(contextManager).buildL2ContextFromPreviousTurns(
+      "msg-2",
+      mockRepo
+    );
 
     expect(l2Context).toContain("Some compacted note");
     // prior_context_note should appear exactly once (appended by the caller),
@@ -369,7 +398,10 @@ describe("ContextManager L2 promotion filtering", () => {
       { id: "msg-2", sender: "user" },
     ]);
 
-    const { l2Context } = contextManager.buildL2ContextFromPreviousTurns("msg-2", mockRepo);
+    const { l2Context } = asInternal(contextManager).buildL2ContextFromPreviousTurns(
+      "msg-2",
+      mockRepo
+    );
 
     // No prior_context blocks exist, so no re-fetch instruction should be appended
     expect(l2Context).toContain("Regular note content");
@@ -398,7 +430,10 @@ describe("ContextManager L2 promotion filtering", () => {
       { id: "msg-2", sender: "user" },
     ]);
 
-    const { l2Context } = contextManager.buildL2ContextFromPreviousTurns("msg-2", mockRepo);
+    const { l2Context } = asInternal(contextManager).buildL2ContextFromPreviousTurns(
+      "msg-2",
+      mockRepo
+    );
 
     expect(l2Context).toContain("Known block");
     // Unknown tag must NOT be dropped
@@ -426,7 +461,10 @@ describe("ContextManager L2 promotion filtering", () => {
       { id: "msg-2", sender: "user" },
     ]);
 
-    const { l2Context } = contextManager.buildL2ContextFromPreviousTurns("msg-2", mockRepo);
+    const { l2Context } = asInternal(contextManager).buildL2ContextFromPreviousTurns(
+      "msg-2",
+      mockRepo
+    );
 
     expect(l2Context).toContain("XML Docs");
     // No real prior_context blocks, so no refetch instruction
@@ -453,7 +491,10 @@ describe("ContextManager L2 promotion filtering", () => {
       { id: "msg-2", sender: "user" },
     ]);
 
-    const { l2Context } = contextManager.buildL2ContextFromPreviousTurns("msg-2", mockRepo);
+    const { l2Context } = asInternal(contextManager).buildL2ContextFromPreviousTurns(
+      "msg-2",
+      mockRepo
+    );
 
     expect(l2Context).toContain("XML Guide");
     // The literal <selected_text> inside note content must survive
@@ -482,7 +523,10 @@ describe("ContextManager L2 promotion filtering", () => {
       { id: "msg-2", sender: "user" },
     ]);
 
-    const { l2Context } = contextManager.buildL2ContextFromPreviousTurns("msg-2", mockRepo);
+    const { l2Context } = asInternal(contextManager).buildL2ContextFromPreviousTurns(
+      "msg-2",
+      mockRepo
+    );
 
     // Both notes must be present (compacted or verbatim)
     expect(l2Context).toContain("Note A");
@@ -508,7 +552,10 @@ describe("ContextManager L2 promotion filtering", () => {
       { id: "msg-2", sender: "user" },
     ]);
 
-    const { l2Context } = contextManager.buildL2ContextFromPreviousTurns("msg-2", mockRepo);
+    const { l2Context } = asInternal(contextManager).buildL2ContextFromPreviousTurns(
+      "msg-2",
+      mockRepo
+    );
 
     expect(l2Context).toContain("Compacted note summary");
     // Real prior_context block exists, so re-fetch instruction should be present

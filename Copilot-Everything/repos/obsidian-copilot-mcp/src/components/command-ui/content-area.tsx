@@ -55,20 +55,20 @@ export function ContentArea({
   const [isEditMode, setIsEditMode] = React.useState(false);
 
   // Determine if we should show the markdown preview
-  const isCompletedResult =
-    state.type === "result" && !state.isStreaming;
-  const showPreview =
-    !!renderMarkdown && isCompletedResult && !isEditMode;
+  const isCompletedResult = state.type === "result" && !state.isStreaming;
+  const showPreview = !!renderMarkdown && isCompletedResult && !isEditMode;
 
   // Reason: Reset to preview mode whenever a new generation starts.
   // This covers both type transitions (idle→loading) and same-type transitions
   // (result→result with isStreaming flipping true for follow-up generation).
   const isGenerating = state.type === "loading" || (state.type === "result" && state.isStreaming);
-  React.useEffect(() => {
-    if (isGenerating) {
-      setIsEditMode(false);
-    }
-  }, [isGenerating]);
+  const [prevIsGenerating, setPrevIsGenerating] = React.useState(isGenerating);
+  if (isGenerating && !prevIsGenerating) {
+    setPrevIsGenerating(true);
+    setIsEditMode(false);
+  } else if (!isGenerating && prevIsGenerating) {
+    setPrevIsGenerating(false);
+  }
 
   // Auto-scroll to bottom when streaming
   React.useEffect(() => {
@@ -94,7 +94,8 @@ export function ContentArea({
 
   // Markdown preview mode
   if (showPreview && renderMarkdown) {
-    const previewContent = (editable && value !== undefined) ? value : (state as { text: string }).text;
+    const previewContent =
+      editable && value !== undefined ? value : (state as { text: string }).text;
     return (
       <div className={cn("tw-flex tw-min-h-0 tw-flex-1 tw-flex-col tw-px-4 tw-py-2", className)}>
         <div className="tw-relative tw-min-h-0 tw-flex-1 tw-overflow-auto tw-rounded-md tw-border tw-border-solid tw-px-3 tw-py-2">

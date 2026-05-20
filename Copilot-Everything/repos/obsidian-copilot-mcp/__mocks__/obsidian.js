@@ -1,8 +1,25 @@
 // __mocks__/obsidian.js
-/* eslint-disable no-undef */
-import yaml from "js-yaml";
+import { parse as parseYamlString } from "yaml";
+
+// Per-test overrides set via the exported `__setRequestUrlImpl` helper.
+// Default: empty success response. Tests that exercise network paths should
+// install their own implementation.
+let requestUrlImpl = jest.fn().mockResolvedValue({
+  status: 200,
+  text: "",
+  json: undefined,
+  arrayBuffer: new ArrayBuffer(0),
+  headers: {},
+});
 
 module.exports = {
+  // Reason: normalizePath is used by projectPaths.ts; identity function is sufficient for tests
+  normalizePath: jest.fn().mockImplementation((p) => p),
+  moment: jest.requireActual("moment"),
+  requestUrl: (...args) => requestUrlImpl(...args),
+  __setRequestUrlImpl: (impl) => {
+    requestUrlImpl = impl;
+  },
   Vault: jest.fn().mockImplementation(() => {
     return {
       getMarkdownFiles: jest.fn().mockImplementation(() => {
@@ -30,12 +47,7 @@ module.exports = {
     isDesktop: true,
   },
   parseYaml: jest.fn().mockImplementation((content) => {
-    return yaml.load(content);
-  }),
-  requestUrl: jest.fn().mockResolvedValue({
-    status: 200,
-    json: { ok: true, data: {} },
-    text: '{"ok":true,"data":{}}',
+    return parseYamlString(content);
   }),
   Modal: class Modal {
     constructor() {
@@ -54,7 +66,7 @@ module.exports = {
     },
   })),
   ItemView: jest.fn().mockImplementation(function () {
-    this.containerEl = document.createElement("div");
+    this.containerEl = window.document.createElement("div");
     this.onOpen = jest.fn();
     this.onClose = jest.fn();
     this.getDisplayText = jest.fn().mockReturnValue("Mock View");
@@ -63,7 +75,7 @@ module.exports = {
   }),
   Notice: jest.fn().mockImplementation(function (message) {
     this.message = message;
-    this.noticeEl = document.createElement("div");
+    this.noticeEl = window.document.createElement("div");
     this.hide = jest.fn();
   }),
   TFile: jest.fn().mockImplementation(function (path) {
@@ -85,7 +97,7 @@ module.exports = {
 };
 
 // Mock the global app object
-global.app = {
+window.app = {
   vault: {
     getAbstractFileByPath: jest.fn().mockReturnValue({
       name: "test-file.md",
@@ -105,5 +117,8 @@ global.app = {
   metadataCache: {
     getFirstLinkpathDest: jest.fn().mockReturnValue(null),
     getFileCache: jest.fn().mockReturnValue(null),
+  },
+  fileManager: {
+    trashFile: jest.fn().mockResolvedValue(undefined),
   },
 };

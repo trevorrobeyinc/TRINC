@@ -1,3 +1,4 @@
+import type ChainManager from "@/LLMProviders/chainManager";
 import MemoryManager from "@/LLMProviders/memoryManager";
 import { ModelAdapterFactory } from "@/LLMProviders/chainRunner/utils/modelAdapter";
 import { buildAgentPromptDebugReport } from "@/LLMProviders/chainRunner/utils/promptDebugService";
@@ -6,6 +7,8 @@ import { ChatMessage } from "@/types/message";
 import { initializeBuiltinTools } from "@/tools/builtinTools";
 import { getSettings } from "@/settings/model";
 import { UserMemoryManager } from "@/memory/UserMemoryManager";
+import type { App } from "obsidian";
+import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 
 interface HeadlessApp {
   vault: {
@@ -94,7 +97,8 @@ export async function run(args: string[]): Promise<void> {
   }
 
   const app = createHeadlessApp();
-  (globalThis as any).app = app;
+  // eslint-disable-next-line obsidianmd/no-global-this -- node-only debug script, no window available
+  (global as unknown as { app: unknown }).app = app;
 
   initializeBuiltinTools();
 
@@ -109,13 +113,15 @@ export async function run(args: string[]): Promise<void> {
     .join("\n");
 
   const memoryManager = MemoryManager.getInstance();
-  const userMemoryManager = new UserMemoryManager(app as any);
+  const userMemoryManager = new UserMemoryManager(app as unknown as App);
   const chainContext = {
     memoryManager,
     userMemoryManager,
-  } as any;
+  } as unknown as ChainManager;
 
-  const adapter = ModelAdapterFactory.createAdapter({ modelName: "gpt-4" } as any);
+  const adapter = ModelAdapterFactory.createAdapter({
+    modelName: "gpt-4",
+  } as unknown as BaseChatModel);
   const report = await buildAgentPromptDebugReport({
     chainManager: chainContext,
     adapter,

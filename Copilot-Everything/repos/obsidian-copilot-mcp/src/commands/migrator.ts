@@ -13,6 +13,7 @@ import {
 import { COPILOT_COMMAND_CONTEXT_MENU_ENABLED } from "@/commands/constants";
 import { ConfirmModal } from "@/components/modals/ConfirmModal";
 import { getCachedCustomCommands } from "@/commands/state";
+import { logError } from "@/logger";
 
 async function saveUnsupportedCommands(commands: CustomCommand[]) {
   const folderPath = getCustomCommandsFolder();
@@ -23,7 +24,7 @@ async function saveUnsupportedCommands(commands: CustomCommand[]) {
     commands.map(async (command) => {
       const filePath = `${unsupportedFolderPath}/${command.title}.md`;
       const file = await app.vault.create(filePath, command.content);
-      await app.fileManager.processFrontMatter(file, (frontmatter) => {
+      await app.fileManager.processFrontMatter(file, (frontmatter: Record<string, unknown>) => {
         frontmatter[COPILOT_COMMAND_CONTEXT_MENU_ENABLED] = command.showInContextMenu;
         frontmatter[COPILOT_COMMAND_SLASH_ENABLED] = command.showInSlashMenu;
         frontmatter[COPILOT_COMMAND_CONTEXT_MENU_ORDER] = command.order;
@@ -93,7 +94,7 @@ export async function generateDefaultCommands(): Promise<void> {
     (command) => !existingCommands.some((c) => c.title === command.title)
   );
   const newCommands = [...existingCommands, ...defaultCommands];
-  CustomCommandManager.getInstance().updateCommands(newCommands);
+  await CustomCommandManager.getInstance().updateCommands(newCommands);
 }
 
 /** Suggests the default commands if the user has not created any commands yet. */
@@ -108,7 +109,9 @@ export async function suggestDefaultCommands(): Promise<void> {
     new ConfirmModal(
       app,
       () => {
-        generateDefaultCommands();
+        void generateDefaultCommands().catch((err) =>
+          logError("generateDefaultCommands failed", err)
+        );
       },
       "Would you like to add Copilot recommended commands in your custom prompts folder? These commands will be available through the right-click context menu and slash commands in chat.",
       "Welcome to Copilot",

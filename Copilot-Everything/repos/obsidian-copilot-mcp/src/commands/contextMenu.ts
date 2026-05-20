@@ -1,6 +1,6 @@
 import { getCommandId, sortCommandsByOrder } from "@/commands/customCommandUtils";
 import { getCachedCustomCommands } from "@/commands/state";
-import { COMMAND_IDS, COMMAND_NAMESPACE, PLUGIN_NAME } from "@/constants";
+import { COMMAND_IDS } from "@/constants";
 import type { App, Menu } from "obsidian";
 import type { CustomCommand } from "./type";
 
@@ -29,32 +29,32 @@ export function registerContextMenu(menu: Menu, obsidianApp: App): void {
     obsidianApp.commands.executeCommandById(commandId);
   };
 
-  // Create the main plugin submenu
+  // Create the main "Copilot" submenu
   menu.addItem((item) => {
-    item.setTitle(PLUGIN_NAME);
+    item.setTitle("Copilot");
     item.setSubmenu();
 
     const submenu = item.submenu;
     if (!submenu) return;
 
     // Add the main selection command
-      submenu.addItem((subItem) => {
-        subItem.setTitle("Add selection to chat context").onClick(() => {
-          execute(`${COMMAND_NAMESPACE}:${COMMAND_IDS.ADD_SELECTION_TO_CHAT_CONTEXT}`);
-        });
+    submenu.addItem((subItem) => {
+      subItem.setTitle("Add selection to chat context").onClick(() => {
+        execute(`copilot:${COMMAND_IDS.ADD_SELECTION_TO_CHAT_CONTEXT}`);
       });
+    });
 
-      submenu.addItem((subItem) => {
-        subItem.setTitle("Quick Ask").onClick(() => {
-          execute(`${COMMAND_NAMESPACE}:${COMMAND_IDS.TRIGGER_QUICK_ASK}`);
-        });
+    submenu.addItem((subItem) => {
+      subItem.setTitle("Quick Ask").onClick(() => {
+        execute(`copilot:${COMMAND_IDS.TRIGGER_QUICK_ASK}`);
       });
+    });
 
-      submenu.addItem((subItem) => {
-        subItem.setTitle("Trigger quick command").onClick(() => {
-          execute(`${COMMAND_NAMESPACE}:${COMMAND_IDS.TRIGGER_QUICK_COMMAND}`);
-        });
+    submenu.addItem((subItem) => {
+      subItem.setTitle("Trigger quick command").onClick(() => {
+        execute(`copilot:${COMMAND_IDS.TRIGGER_QUICK_COMMAND}`);
       });
+    });
 
     // Get custom commands
     const commands = getCachedCustomCommands();
@@ -71,7 +71,7 @@ export function registerContextMenu(menu: Menu, obsidianApp: App): void {
     sortCommandsByOrder(visibleCustomCommands).forEach((command: CustomCommand) => {
       submenu.addItem((subItem) => {
         subItem.setTitle(command.title).onClick(() => {
-          execute(`${COMMAND_NAMESPACE}:${getCommandId(command.title)}`);
+          execute(`copilot:${getCommandId(command.title)}`);
         });
       });
     });

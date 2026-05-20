@@ -102,19 +102,6 @@ If your plugin does not need CSS, delete this file.
   border-radius: 3px;
 }
 
-.remove-note {
-  padding: 0 4px;
-  cursor: pointer;
-  opacity: 0.5;
-  background: none !important;
-  border: none !important;
-  box-shadow: none !important;
-}
-
-.remove-note:hover {
-  opacity: 1;
-}
-
 .context-note .note-name {
   max-width: 150px;
   overflow: hidden;
@@ -164,35 +151,6 @@ If your plugin does not need CSS, delete this file.
 .select-wrapper {
   position: relative;
   display: inline-block;
-}
-
-.chat-icon-button.clickable-icon,
-.chat-icon-selection,
-.model-select-button,
-.submit-button,
-.chain-select-button {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 0;
-  background: none !important;
-  border: none !important;
-  box-shadow: none !important;
-  color: var(--text-muted);
-  font-size: 10px;
-  cursor: pointer;
-  opacity: 0.5;
-  transition: opacity 0.2s ease;
-}
-
-.chat-icon-button.clickable-icon:hover,
-.chat-icon-selection:hover,
-.model-select-button:hover,
-.submit-button:hover,
-.chain-select-button:hover {
-  background: none !important;
-  color: var(--text-normal);
-  opacity: 1;
 }
 
 @keyframes flash {
@@ -351,26 +309,12 @@ If your plugin does not need CSS, delete this file.
   position: relative;
 }
 
-.submit-button svg,
-.model-select-button svg,
-.chain-select-button svg {
-  width: 12px;
-  height: 12px;
-}
-
 .message {
   display: flex;
   padding: 0;
   border-radius: 4px;
   position: relative;
   margin-bottom: 0;
-}
-
-.message-content {
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  word-break: break-word;
-  line-height: 1.6 !important;
 }
 
 .message-content p {
@@ -409,6 +353,7 @@ If your plugin does not need CSS, delete this file.
   border-radius: 4px;
   padding: 10px;
   border: 1px solid var(--background-modifier-border);
+  position: relative;
 }
 
 .message-content pre code {
@@ -420,11 +365,6 @@ If your plugin does not need CSS, delete this file.
   white-space: pre-wrap;
   word-wrap: break-word;
   overflow-wrap: break-word;
-}
-
-/* Style for the copy button in code blocks */
-.message-content pre {
-  position: relative;
 }
 
 .message-content pre .copy-code-button {
@@ -529,7 +469,7 @@ If your plugin does not need CSS, delete this file.
   text-align: center;
   vertical-align: middle;
   padding: 0.5em;
-  border: none !important;
+  border: none;
   height: 2.5em;
 }
 
@@ -582,11 +522,11 @@ If your plugin does not need CSS, delete this file.
 }
 
 .switch.disabled input:checked + .slider {
-  background-color: #ccc;
+  background-color: #cccccc;
 }
 
 .switch.disabled input:focus + .slider {
-  box-shadow: 0 0 1px #ccc;
+  box-shadow: 0 0 1px #cccccc;
 }
 
 .switch.disabled input:checked + .slider:before {
@@ -621,7 +561,7 @@ If your plugin does not need CSS, delete this file.
   padding: 8px;
   font-size: 14px;
   line-height: 1.5;
-  border: 1px solid #ccc;
+  border: 1px solid #cccccc;
   border-radius: 4px;
   resize: vertical;
   overflow-y: hidden;
@@ -899,7 +839,7 @@ If your plugin does not need CSS, delete this file.
 /* use 'important' to prevent ob default css style from being third-party theme overridden */
 /* --copilot-status-bar-clearance is set dynamically by ChatViewLayout */
 
-.workspace-leaf-content[data-type="copilot-mcp-chat-view"] .view-content {
+.workspace-leaf-content[data-type="copilot-chat-view"] .view-content {
   padding-bottom: calc(
     var(--safe-area-inset-bottom, 0px) + var(--copilot-status-bar-clearance, 0px) + var(--size-4-1)
   ) !important;
@@ -908,7 +848,7 @@ If your plugin does not need CSS, delete this file.
 /* Editor mode for mobile - legacy (no bottom navbar): minimal padding */
 body.is-mobile
   .workspace-tab-container
-  .workspace-leaf-content[data-type="copilot-mcp-chat-view"]
+  .workspace-leaf-content[data-type="copilot-chat-view"]
   .view-content {
   padding-bottom: var(--size-4-1) !important;
 }
@@ -917,7 +857,7 @@ body.is-mobile
 @supports selector(body:has(*)) {
   body.is-mobile:has(.mobile-navbar):not(.is-hidden-nav)
     .workspace-tab-container
-    .workspace-leaf-content[data-type="copilot-mcp-chat-view"]
+    .workspace-leaf-content[data-type="copilot-chat-view"]
     .view-content {
     padding-bottom: calc(
       var(--navbar-height, 50px) + max(var(--safe-area-inset-bottom, 0px), var(--size-4-3)) +
@@ -930,7 +870,7 @@ body.is-mobile
 @supports selector(body:has(*)) {
   body.is-mobile:has(.mobile-navbar):not(.is-hidden-nav)
     .workspace-tab-container
-    .workspace-leaf-content[data-type="copilot-mcp-apply-view"]
+    .workspace-leaf-content[data-type="obsidian-copilot-apply-view"]
     .view-content {
     padding-bottom: calc(
       var(--navbar-height, 50px) + max(var(--safe-area-inset-bottom, 0px), var(--size-4-3)) +
@@ -941,7 +881,7 @@ body.is-mobile
   /* Lift the fixed Accept/Reject button bar above the navbar */
   body.is-mobile:has(.mobile-navbar):not(.is-hidden-nav)
     .workspace-tab-container
-    .workspace-leaf-content[data-type="copilot-mcp-apply-view"]
+    .workspace-leaf-content[data-type="obsidian-copilot-apply-view"]
     .tw-fixed.tw-bottom-4 {
     bottom: calc(
       var(--navbar-height, 50px) + max(var(--safe-area-inset-bottom, 0px), var(--size-4-3)) +
@@ -951,8 +891,8 @@ body.is-mobile
 }
 
 /* Hide drawer header and tab-options when keyboard is open in Copilot's drawer */
-body.is-mobile .workspace-drawer.copilot-mcp-keyboard-open .workspace-drawer-header,
-body.is-mobile .workspace-drawer.copilot-mcp-keyboard-open .workspace-drawer-tab-options {
+body.is-mobile .workspace-drawer.copilot-keyboard-open .workspace-drawer-header,
+body.is-mobile .workspace-drawer.copilot-keyboard-open .workspace-drawer-tab-options {
   display: none !important;
 }
 
@@ -1224,12 +1164,12 @@ body.is-mobile div[data-radix-popper-content-wrapper] {
 }
 
 /* Quick Ask Overlay Styles */
-.copilot-mcp-quick-ask-overlay-host {
+.copilot-quick-ask-overlay-host {
   position: relative;
 }
 
 /* Override Obsidian's default contenteditable border */
-.copilot-mcp-quick-ask-overlay [contenteditable] {
+.copilot-quick-ask-overlay [contenteditable] {
   border: none !important;
   box-shadow: none !important;
   outline: none !important;
@@ -1239,13 +1179,13 @@ body.is-mobile div[data-radix-popper-content-wrapper] {
    selection handling that prevents normal text selection in child elements.
    Only target message text containers (marked with data-quick-ask-selectable)
    to avoid overriding user-select on buttons and other interactive controls. */
-.copilot-mcp-quick-ask-overlay [data-quick-ask-selectable],
-.copilot-mcp-quick-ask-overlay [data-quick-ask-selectable] * {
+.copilot-quick-ask-overlay [data-quick-ask-selectable],
+.copilot-quick-ask-overlay [data-quick-ask-selectable] * {
   user-select: text !important;
   -webkit-user-select: text !important;
 }
 
-.copilot-mcp-quick-ask-overlay-root {
+.copilot-quick-ask-overlay-root {
   position: absolute;
   top: 0;
   left: 0;
@@ -1255,18 +1195,18 @@ body.is-mobile div[data-radix-popper-content-wrapper] {
   z-index: var(--layer-popover);
 }
 
-.copilot-mcp-quick-ask-overlay {
+.copilot-quick-ask-overlay {
   position: absolute;
   pointer-events: auto;
   z-index: var(--layer-popover);
-  animation: copilot-mcp-quick-ask-fade-in 0.2s ease-out;
+  animation: copilot-quick-ask-fade-in 0.2s ease-out;
 }
 
-.copilot-mcp-quick-ask-overlay.closing {
-  animation: copilot-mcp-quick-ask-fade-out 0.2s ease-in forwards;
+.copilot-quick-ask-overlay.closing {
+  animation: copilot-quick-ask-fade-out 0.2s ease-in forwards;
 }
 
-@keyframes copilot-mcp-quick-ask-fade-in {
+@keyframes copilot-quick-ask-fade-in {
   from {
     opacity: 0;
     transform: translateY(-8px);
@@ -1277,7 +1217,7 @@ body.is-mobile div[data-radix-popper-content-wrapper] {
   }
 }
 
-@keyframes copilot-mcp-quick-ask-fade-out {
+@keyframes copilot-quick-ask-fade-out {
   from {
     opacity: 1;
     transform: translateY(0);
