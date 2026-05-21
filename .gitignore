@@ -124,15 +124,17 @@ temp/
 .cache/
 
 # -----------------------------------------------------------------------------
-# Workspace runtime state — trevor-robey-inc-agents biomedical workflow
+# Workspace runtime state — biomedical workflow engine
+# (folder flat-merged 2026-05-19: trevor-robey-inc-agents/ ->
+#  "Trevor Robey Intelligence Network Citations/")
 # -----------------------------------------------------------------------------
 # Run-time logs and large transient artifacts; keep deliberate content.
-trevor-robey-inc-agents/state/
-trevor-robey-inc-agents/workspace/audit/live-run-*.stdout
-trevor-robey-inc-agents/workspace/audit/live-run-*.stderr
-trevor-robey-inc-agents/workspace/runtime/cache/
-trevor-robey-inc-agents/workspace/research-raw/
-trevor-robey-inc-agents/workspace/research-output/_tmp/
+Trevor Robey Intelligence Network Citations/state/
+Trevor Robey Intelligence Network Citations/workspace/audit/live-run-*.stdout
+Trevor Robey Intelligence Network Citations/workspace/audit/live-run-*.stderr
+Trevor Robey Intelligence Network Citations/workspace/runtime/cache/
+Trevor Robey Intelligence Network Citations/workspace/research-raw/
+Trevor Robey Intelligence Network Citations/workspace/research-output/_tmp/
 
 # -----------------------------------------------------------------------------
 # Validation gate run logs (Copilot-Everything)
