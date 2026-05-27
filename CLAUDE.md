@@ -2,7 +2,7 @@
 
 Single-repo monorepo for the **Trevor Robey, INC.** biomedical research intelligence stack. As of 2026-05-07 this is the canonical source of truth — three previously separate sub-trees (`Claude/`, `Copilot-Everything/`, `trevor-robey-inc-agents/`) plus the brand canon at `trevor-robey-inc/` are all first-class members of this repo.
 
-GitHub: [trevoralexanderrobey/TrevClaw-Obsidianodus](https://github.com/trevoralexanderrobey/TrevClaw-Obsidianodus) (private).
+Hosting: **local-only as of 2026-05-26.** The private GitHub remote `trevoralexanderrobey/TrevClaw-Obsidianodus` was **deleted** on 2026-05-26; the monorepo now lives only on this machine with **no git remotes**. Durable backup is a verified `git bundle --all` in `~/Downloads/` (e.g. `TrevClaw-Obsidianodus-FULL-backup-20260526-2255.bundle`) — keep an off-device copy. Do not re-add a remote or push without an explicit decision to reverse this local-only posture.
 
 ## Repo Topology
 
@@ -177,7 +177,7 @@ Logs: `~/.pm2/logs/` (PM2-managed mcp-bridge). Per-workflow biomedical-pipeline 
 - Port assignments are coordinated here; do not reassign without updating this file.
 - The MCP bridge at :8798 is the canonical vault access point. Do not create alternative vault bridges.
 - Session artifacts go to `.archive/` directories, not workspace roots.
-- **Single-repo invariant (2026-05-07)**: this monorepo at [`trevoralexanderrobey/TrevClaw-Obsidianodus`](https://github.com/trevoralexanderrobey/TrevClaw-Obsidianodus) is the single source of truth. Do NOT re-create separate sub-repos for `Claude/`, `Copilot-Everything/`, or `trevor-robey-inc-agents/` — they live here. The retired GitHub remote `https://github.com/trevoralexanderrobey/trevor-robey-inc-agents` is the rollback anchor (tag `pre-monorepo-consolidation-2026-05-07` at SHA `8e782a0`).
+- **Single-repo invariant (2026-05-07; now local-only as of 2026-05-26)**: this monorepo is the single source of truth and now lives **only on this machine** — the private GitHub remote `trevoralexanderrobey/TrevClaw-Obsidianodus` was **deleted 2026-05-26** and there are **no git remotes**. Do NOT re-create separate sub-repos for `Claude/`, `Copilot-Everything/`, or `trevor-robey-inc-agents/` — they live here. Do NOT re-add a remote or push without an explicit decision to reverse the local-only posture; durable backup is the verified `git bundle --all` in `~/Downloads/`. The predecessor repo `trevor-robey-inc-agents` (separate, archived 2026-05-07) remains the documented historical rollback anchor (tag `pre-monorepo-consolidation-2026-05-07` at SHA `8e782a0`).
 - **Submodule discipline**: only `trevor-robey-inc-agents/vendor/tooluniverse` is a submodule (third-party Apache-2.0). Do not introduce new submodules without an explicit upstream-tracking justification; vendor instead and document with an `UPSTREAM.md`.
 
 ## Security Orchestration
