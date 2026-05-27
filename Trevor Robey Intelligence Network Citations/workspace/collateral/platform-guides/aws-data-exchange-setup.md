@@ -1,24 +1,26 @@
 # AWS Data Exchange Provider Setup Guide
 
+> **Canonical copy lives at [`03-platforms/aws-data-exchange/setup-guide.md`](../../../03-platforms/aws-data-exchange/setup-guide.md); account access at [`03-platforms/aws-data-exchange/account-access.md`](../../../03-platforms/aws-data-exchange/account-access.md).** This collateral copy is kept in sync with those — edit the `03-platforms/` versions first.
+
 ## Purpose
 
 AWS Data Exchange is the enterprise delivery channel. Premium/Enterprise clients ($15K-$120K+) receive data via AWS native infrastructure. Provider onboarding takes 2-4 weeks.
 
 ## Prerequisites
 
-- AWS account with:
-  - W-9 tax form on file
-  - US bank account for payouts
-  - MFA enabled on root and IAM users
-  - IAM user with `aws-marketplace:*` permissions
+- **AWS account access** — see [`account-access.md`](../../../03-platforms/aws-data-exchange/account-access.md) (canonical). Account `833390816446` is reached via IAM Identity Center SSO + a YubiKey FIDO2 key; the operator assumes `AdministratorAccess` for seller work, the AI/MCP stays `ReadOnlyAccess`. **No long-lived IAM-user keys** — the earlier "root + IAM user with `aws-marketplace:*`" model is obsolete.
+- W-9 tax form on file
+- US bank account for payouts
 - At least one completed Premium/Enterprise workflow
 
 ## Step 1: Apply as Provider
 
+> Sign in via the IAM Identity Center access portal (`https://d-90660e72bc.awsapps.com/start`) and choose the **AdministratorAccess** role tile — provider registration is a consequential, operator-only action (YubiKey tap).
+
 1. Go to AWS Marketplace Management Portal
 2. Select "Register as a data provider"
 3. Complete business information:
-   - Legal entity: Trevor Robey Inc.
+   - Legal entity: Trevor Robey Intelligence Network Citations LLC (wordmark: "Trevor Robey, INC."; INC = Intelligence Network Citations)
    - Contact: trevor@trevorobeyinc.com
    - Categories: Healthcare, Life Sciences, Financial Services (for hedge fund clients)
 4. Submit W-9 and banking details
@@ -38,7 +40,7 @@ This creates:
 
 ## Step 3: Create Product Listing (After Approval)
 
-1. Log into AWS Marketplace Management Portal
+1. Sign in at the access portal and assume **AdministratorAccess** (operator-only; YubiKey tap), then open the AWS Marketplace Management Portal
 2. Create New Product → Data Product
 3. Use `product-description.md` for listing copy
 4. Upload `data/` directory as S3 revision
@@ -46,7 +48,7 @@ This creates:
 
 ## Step 4: Private Offers for Enterprise Clients
 
-For enterprise clients ($60K-$120K+ ARR):
+For enterprise clients (custom-scoped, typically $9,950–$24,950 for Cross-Silo Connector Reports + ongoing portfolio coverage):
 1. Create Private Offer in AWS Marketplace
 2. Set custom pricing and terms
 3. Client subscribes via their AWS account

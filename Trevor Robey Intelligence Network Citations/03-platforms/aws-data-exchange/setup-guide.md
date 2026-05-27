@@ -6,14 +6,14 @@ AWS Data Exchange is the enterprise delivery channel. Premium/Enterprise clients
 
 ## Prerequisites
 
-- AWS account with:
-  - W-9 tax form on file
-  - US bank account for payouts
-  - MFA enabled on root and IAM users
-  - IAM user with `aws-marketplace:*` permissions
+- **AWS account access** — see [`account-access.md`](account-access.md) (canonical). Account `833390816446` is reached via IAM Identity Center SSO + a YubiKey FIDO2 key; the operator assumes `AdministratorAccess` for seller work, the AI/MCP stays `ReadOnlyAccess`. **No long-lived IAM-user keys** — the earlier "root + IAM user with `aws-marketplace:*`" model is obsolete.
+- W-9 tax form on file (placeholder: [`tax-interview-w9.md`](tax-interview-w9.md))
+- US bank account for payouts (placeholder: [`bank-verification.md`](bank-verification.md))
 - At least one completed Premium/Enterprise workflow
 
 ## Step 1: Apply as Provider
+
+> Sign in via the IAM Identity Center access portal (`https://d-90660e72bc.awsapps.com/start`) and choose the **AdministratorAccess** role tile — seller/provider registration is a consequential, operator-only action (YubiKey tap). See [`account-access.md`](account-access.md).
 
 1. Go to AWS Marketplace Management Portal
 2. Select "Register as a data provider"
@@ -38,7 +38,7 @@ This creates:
 
 ## Step 3: Create Product Listing (After Approval)
 
-1. Log into AWS Marketplace Management Portal
+1. Sign in at the access portal and assume **AdministratorAccess** (operator-only; YubiKey tap), then open the AWS Marketplace Management Portal
 2. Create New Product → Data Product
 3. Use `product-description.md` for listing copy
 4. Upload `data/` directory as S3 revision

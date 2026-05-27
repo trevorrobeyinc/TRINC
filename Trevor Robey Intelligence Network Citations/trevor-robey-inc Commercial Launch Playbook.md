@@ -6,14 +6,14 @@
 >
 > *Elevator:* Citation-traced biomedical due diligence for biotech investors and pharma BD. Five days. Zero hallucinations. Audit trail included.
 
-> ### STATUS UPDATE — 2026-05-04
+> ### STATUS UPDATE — 2026-05-04 (table kept live; rows current as of 2026-05-26 — see PROGRESS LOG 2026-05-26 below)
 >
 > The April 30 channel sequence (Datarade #1 → AWS DX #2 → HF #3) is partially blocked. Updated standing:
 >
 > | # | Channel | Status | Action |
 > |---|---|---|---|
-> | 1 | **Datarade** | 🟡 IN REVIEW — Pre-call intake form ✅ **SUBMITTED 2026-05-11** with brand-current Sample Pack PDF + Data Dictionary attached (HubSpot CDN UUID `f2e8abb3-7742-4ffe-aa8e-00e5f0f0d1dc`). Sales meeting **2026-05-20 at 10:30 AM** (Google Meet). Counterparty: calendar link says *Jack McGrath*; operator references *Richard* — confirm in minute one. Post-approval the vendor portal is `app.monda.ai` (Monda is Datarade's exclusive vendor partner), not datarade.ai itself. | Rehearse the Investor Pre-Mortem positioning per [`05-launch-plan/week-4-may18-may22/datarade-onboarding-call.md`](05-launch-plan/week-4-may18-may22/datarade-onboarding-call.md); skim the Data Dictionary on page 2 of the uploaded sample pack so it can be discussed cold. |
-> | 2 | **AWS Marketplace + AWS Data Exchange** | 🟡 REJECTION REVERSED — initially REJECTED 2026-05-03 ("proposed solution does not currently meet these criteria"; likely cause: no AWS-native angle in seller profile + Software-products classification mismatch for a data-product business). **AWS subsequently reached back out to assist toward approval.** Operator has sent **2 emails to the AWS management team** (per operator note 2026-05-11); **awaiting reply**. *(Correspondence file location not yet logged in this monorepo — TODO: add a pointer under [`03-platforms/aws-data-exchange/`](03-platforms/aws-data-exchange/) once the email thread is filed locally.)* Listing artifacts (DSA, dataset CSVs, listing copy, MANIFEST) remain staged in [`trevor-robey-inc-agents/workspace/aws-marketplace-listing/pharmacovigilance-sample-pack/`](workspace/aws-marketplace-listing/pharmacovigilance-sample-pack/) and need no rework when approval lands. | Wait for AWS management reply; if response triggers a wizard step, follow the 8-step upload sequence in [`MANIFEST.md`](workspace/aws-marketplace-listing/pharmacovigilance-sample-pack/MANIFEST.md). File the 2 sent-email texts into the monorepo (e.g. `03-platforms/aws-data-exchange/correspondence-2026-05.md`) so the appeal trail is auditable. |
+> | 1 | **Datarade** | 🔴 REJECTED 2026-05-20 — the onboarding/sales call (2026-05-20 10:30 AM, Google Meet) ended in a **decline; reason given: the business is not yet established** (too new / no operating track record). The intake form had been ✅ SUBMITTED 2026-05-11 (brand-current Sample Pack PDF + Data Dictionary, HubSpot CDN UUID `f2e8abb3-7742-4ffe-aa8e-00e5f0f0d1dc`) and cleared intake fine — the block is vendor establishment, not the product. The `app.monda.ai` vendor portal stays gated behind that bar. | **Re-apply once "established":** target CA SOS LLC approval + a handful of closed direct-sale engagements (dated revenue / testimonials) as track-record proof, then resubmit — no product/collateral rework needed. Interim: run paid commerce off-platform via direct sale; keep marketplace presence through the two free listings (HuggingFace row 3, Snowflake row 5). |
+> | 2 | **AWS Marketplace + AWS Data Exchange** | 🟡 AWAITING REPLY (follow-up #3 sent 2026-05-23) — initially REJECTED 2026-05-03 ("proposed solution does not currently meet these criteria"; likely cause: no AWS-native angle in seller profile + Software-products classification mismatch for a data-product business). **AWS then reached back out to assist toward approval.** Operator sent **2 emails to the AWS management team** (~2026-05-09 and ~2026-05-11); **no reply since — ~2 weeks of silence as of 2026-05-23**. **Follow-up #3 drafted 2026-05-23** (to be sent from `trevor@trevorobeyinc.com`, re-stating readiness and asking for the specific next step); draft + full thread now logged at [`03-platforms/aws-data-exchange/correspondence-2026-05.md`](03-platforms/aws-data-exchange/correspondence-2026-05.md). Listing artifacts (DSA, dataset CSVs, listing copy, MANIFEST) remain staged in [`trevor-robey-inc-agents/workspace/aws-marketplace-listing/pharmacovigilance-sample-pack/`](workspace/aws-marketplace-listing/pharmacovigilance-sample-pack/) and need no rework when approval lands. **Account access is now established** (2026-05-26): account `833390816446` via IAM Identity Center SSO + YubiKey FIDO2, ReadOnly for the AI / Admin for the operator — [`account-access.md`](03-platforms/aws-data-exchange/account-access.md). | Send the 2026-05-23 follow-up, then allow ~5–7 business days. If still silent by ~2026-06-02, escalate via the AWS Marketplace Seller Operations "Contact Us" case form (subcategory "Onboarding Request"). On any reply that triggers a wizard step, follow the 8-step upload sequence in [`MANIFEST.md`](workspace/aws-marketplace-listing/pharmacovigilance-sample-pack/MANIFEST.md). Paste all 3 email texts into the correspondence file as they go out / arrive. |
 > | 3 | **HuggingFace gated dataset** | 🟢 UNBLOCKED — no review gate, instant signup. Top-of-funnel only (no native commerce layer). | Push live this week per Section 2 #3. Lead capture, not direct revenue. |
 > | **4** | **Gumroad** | 🟡 SIGNED UP, PARKED — operator decided 2026-05-04 to defer Gumroad until brand has more establishment. Gumroad has zero built-in audience — requires self-driven traffic, which is the bottleneck for a brand-new business. Account remains open for tactical micro-commitment teasers when outbound starts converting. | Park; revisit when trevorobeyinc.com landing page + outbound is generating consistent traffic. |
 > | **5** | **Snowflake Marketplace** ⭐ NEW — added 2026-05-04 | 🟢 PARTIALLY UNBLOCKED — free-listing path is ~1 business day approval. Paid-listing monetization requires a Partner Manager vetting call (Datarade-shape gate). | **NEXT ACTION** — publish a FREE citation-index listing within 1 business day to get inside the marketplace where Section 1 target accounts (AstraZeneca, GSK, AbbVie, biotech investor data teams) actively shop. Route paid conversion off-platform via direct sale until the operator is ready for the paid-listing vetting call. |
@@ -53,6 +53,62 @@
 > - **Next operator-assisted step after this:** MCP browser-tool walkthrough of
 >   operator-supplied URLs (AWS seller console / Datarade-Monda portal) to guide
 >   live navigation. Staged, not started.
+
+> ### PROGRESS LOG — 2026-05-23 (Datarade declined; AWS follow-up #3)
+>
+> **Channel state on this date:**
+> - **Datarade** 🔴 **REJECTED** — the 2026-05-20 onboarding call ended in a
+>   decline; **reason given: the business is not yet established** (too new / no
+>   operating track record). This flips STATUS UPDATE row 1 from 🟡 IN REVIEW to
+>   🔴 REJECTED. **Re-apply path:** establishment proof — CA SOS LLC approval +
+>   a handful of closed direct-sale engagements (dated revenue / testimonials) —
+>   then resubmit. No product or collateral rework needed; the Sample Pack +
+>   Data Dictionary already cleared Datarade's intake. Per-platform record:
+>   [`03-platforms/datarade/onboarding-call-notes.md`](03-platforms/datarade/onboarding-call-notes.md).
+> - **AWS Marketplace / Data Exchange** 🟡 — still **no reply** to the 2 emails
+>   sent ~2026-05-09 and ~2026-05-11; ≈2 weeks of silence. **Today:** drafted
+>   **follow-up #3** — concise, references the prior thread + the
+>   rejection-reversal, asks for the specific next step / wizard stage. Sends from
+>   `trevor@trevorobeyinc.com` (the Zoho business mailbox — the thread is NOT in
+>   the connected personal Gmail, so it can't be auto-drafted; send manually).
+>   Draft + correspondence log:
+>   [`03-platforms/aws-data-exchange/correspondence-2026-05.md`](03-platforms/aws-data-exchange/correspondence-2026-05.md).
+>   Escalation if silent by ~2026-06-02: Seller Operations "Contact Us" case form.
+> - **Net standing:** the original Datarade #1 → AWS #2 → HF #3 sequence now has
+>   Datarade closed until "established" and AWS mid-appeal (a 60–180-day channel
+>   regardless), so **near-term marketplace presence rests on the two zero-gate
+>   free listings** — HuggingFace gated dataset (row 3) and a Snowflake free
+>   citation-index listing (row 5, ~1-day approval) — with off-platform direct
+>   sale as the real revenue motion. Establishment proof (LLC approval + first
+>   closed deals) is now the gating asset that unlocks BOTH the Datarade re-apply
+>   AND the Snowflake paid-listing vetting call.
+
+> ### PROGRESS LOG — 2026-05-26 (AWS account access established: SSO + YubiKey + read-only MCP)
+>
+> **Not a channel-status change — an access-infrastructure change.** The AWS
+> *account* is now reachable through a hardware-gated, least-privilege setup; the
+> Data Exchange *seller qualification* remains 🟡 awaiting reply (unchanged from
+> 2026-05-23). What was set up:
+> - **IAM Identity Center (Organization instance `ssoins-722314a77ded4856`)** on
+>   account `833390816446` (Org `o-dram9st6t2`). Sign-in via the access portal
+>   `https://d-90660e72bc.awsapps.com/start`; second factor = **YubiKey 5 NFC
+>   FIPS (FIDO2)**. No long-lived keys on disk; root has MFA + no access keys.
+> - **Two roles:** `AdministratorAccess` (operator-only — all consequential
+>   seller / Data Exchange / S3 work) and `ReadOnlyAccess` (the AI / AWS API MCP
+>   Server — read/describe/list only, cannot mutate). Hard rule carried into the
+>   runbook: the AI stays ReadOnly; admin only with explicit per-action operator
+>   permission.
+> - **Runbook impact:** the stale "root + IAM user with `aws-marketplace:*` keys"
+>   model in the setup guides was replaced. Canonical access doc created at
+>   [`03-platforms/aws-data-exchange/account-access.md`](03-platforms/aws-data-exchange/account-access.md);
+>   [`setup-guide.md`](03-platforms/aws-data-exchange/setup-guide.md),
+>   [`seller-registration.md`](03-platforms/aws-data-exchange/seller-registration.md),
+>   and [`public-seller-profile.md`](03-platforms/aws-data-exchange/public-seller-profile.md)
+>   updated to point at it.
+> - **Why it matters now:** when AWS replies and a wizard step opens, the operator
+>   can sign in and act same-day; the AI can read live account / listing state to
+>   assist (read-only) with no new credential wiring. Setup narrative:
+>   [`context-handoff-aws-mcp-yubikey-sso-setup.md`](../context-handoff-aws-mcp-yubikey-sso-setup.md).
 
 **Bottom line:** trevor-robey-inc enters a market that has been waiting for a citation-disciplined alternative — every claim PMID/NCT/ChEMBL-traced, refund-backed citation-audit SLA, audit-trail-included at investor-grade price. Two of Trevor's six "distribution platforms" (Outlier.ai, Mindrift.ai) are not marketplaces at all; the highest-leverage move in the next seven days is a Datarade vendor application paired with a gated HuggingFace teaser dataset — those two listings can be live by Friday May 1, 2026 with zero contractor spend. AWS Data Exchange should be initiated in parallel but treated as a 60–180 day enterprise channel, not a Week-1 revenue source. DrugBank must be removed from every public pack until a commercial license is signed, and FAERS is now AEMS with daily updates as of March 11, 2026 — the Pharmacovigilance Pack copy needs that update before any cold email goes out. The 12 named target accounts below all show concrete 2025–2026 buying signals. The lead public offering is **Investor Pre-Mortem** ($9,950 anchor / $14,950 standard / $19,950 custom with KOL primary research), positioned against McKinsey diligence ($150K–$750K, 2–6 weeks) and ChatGPT (free, 30%+ citation hallucination). Pharmacovigilance Pack remains as the tactical demonstration listing on Datarade and HuggingFace at the existing $2,500–$4,950 tier; it is no longer the lead product.
 
