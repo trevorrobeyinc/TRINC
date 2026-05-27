@@ -30,7 +30,7 @@ Dependent updates that fire on CA SOS approval: SOS Entity Number → AWS Market
 
 ## 0b. Repo topology (as of 2026-05-07)
 
-This repo is a **member of the TrevClaw-Obsidianodus monorepo** at [`https://github.com/trevoralexanderrobey/TrevClaw-Obsidianodus`](https://github.com/trevoralexanderrobey/TrevClaw-Obsidianodus). The previous standalone GitHub remote `https://github.com/trevoralexanderrobey/trevor-robey-inc-agents` is the rollback anchor (tag `pre-monorepo-consolidation-2026-05-07` at SHA `8e782a0`); archive pending. All run paths below are relative to the monorepo root (`/Users/trevorrobey/TrevClaw-Obsidianodus/trevor-robey-inc-agents/`); legacy absolute paths under `/Users/trevorrobey/Code/trevor-robey-inc-agents/` are preserved via back-symlink during the transition.
+This repo is a **member of the TrevClaw-Obsidianodus monorepo**, now **local-only** at `/Users/trevorrobey/TrevClaw-Obsidianodus` (the private GitHub remote was **deleted 2026-05-26**; **no git remotes** — durable backup is a `git bundle --all` at `~/TrevClaw-Obsidianodus.bundle`). The previous standalone GitHub remote `https://github.com/trevoralexanderrobey/trevor-robey-inc-agents` is the rollback anchor (tag `pre-monorepo-consolidation-2026-05-07` at SHA `8e782a0`); archive pending. All run paths below are relative to the monorepo root (`/Users/trevorrobey/TrevClaw-Obsidianodus/trevor-robey-inc-agents/`); legacy absolute paths under `/Users/trevorrobey/Code/trevor-robey-inc-agents/` are preserved via back-symlink during the transition.
 
 ToolUniverse is a pinned submodule at [`vendor/tooluniverse/`](vendor/tooluniverse) (SHA `3833b0e`, v1.1.10).
 

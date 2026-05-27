@@ -171,6 +171,6 @@ access in place is a prerequisite for acting the moment qualification clears.
 
 Every value above was confirmed against live AWS read-only API calls on
 2026-05-26 and the verbatim `~/.aws/config`. Setup narrative:
-[`context-handoff-aws-mcp-yubikey-sso-setup.md`](../../../context-handoff-aws-mcp-yubikey-sso-setup.md)
-(repo root) and the 2026-05-27 entry in the monorepo `CLAUDE.md`
+`context-handoff-aws-mcp-yubikey-sso-setup.md` (archived locally in `.archive/context-handoffs/`,
+gitignored) and the 2026-05-27 entry in the monorepo `CLAUDE.md`
 **Browser Session History**.
