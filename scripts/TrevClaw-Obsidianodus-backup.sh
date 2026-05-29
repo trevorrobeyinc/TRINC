@@ -1,12 +1,15 @@
 #!/bin/bash
-# refresh-backup.sh — back up TrevClaw-Obsidianodus to an encrypted external drive.
+# TrevClaw-Obsidianodus-backup.sh — back up the TrevClaw-Obsidianodus monorepo
+# to an encrypted external drive.
 #
 # Creates a timestamped `git bundle --all` (full history, all branches, all tags)
-# on the target volume and verifies it.
+# on the target volume and verifies it. Produces files named
+# TrevClaw-Obsidianodus-YYYYMMDD-HHMM.bundle so they match the canonical
+# backup bundle ~/TrevClaw-Obsidianodus.bundle on disk.
 #
 # Usage:
-#   scripts/refresh-backup.sh                          # auto-detect a mounted external drive
-#   scripts/refresh-backup.sh /Volumes/<drive-name>    # explicit target
+#   scripts/TrevClaw-Obsidianodus-backup.sh                       # auto-detect external drive
+#   scripts/TrevClaw-Obsidianodus-backup.sh /Volumes/<drive-name>  # explicit target
 #
 # Prerequisites:
 #   The encrypted USB drive must already be unlocked (PIN entered on the keypad)
