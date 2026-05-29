@@ -110,6 +110,16 @@
 >   assist (read-only) with no new credential wiring. Setup narrative:
 >   `context-handoff-aws-mcp-yubikey-sso-setup.md` (archived locally in `.archive/context-handoffs/`, gitignored).
 
+> ### PROGRESS LOG — 2026-05-28 (AWS MFA hardened: second YubiKey enrolled as backup)
+>
+> A **second FIDO2 security key** — **YubiKey 5C NFC FIPS** (USB-C) — was
+> enrolled on the IAM Identity Center user `Trevoralexanderrobey` alongside the
+> primary **YubiKey 5 NFC FIPS** (USB-A). Either key independently completes
+> sign-in. Purpose: prevent catastrophic account lockout if one key is lost or
+> damaged. For the redundancy to be meaningful, the two keys must be stored
+> **separately** (daily-carry vs. off-site/safe). Canonical access doc updated:
+> [`account-access.md`](03-platforms/aws-data-exchange/account-access.md).
+
 **Bottom line:** trevor-robey-inc enters a market that has been waiting for a citation-disciplined alternative — every claim PMID/NCT/ChEMBL-traced, refund-backed citation-audit SLA, audit-trail-included at investor-grade price. Two of Trevor's six "distribution platforms" (Outlier.ai, Mindrift.ai) are not marketplaces at all; the highest-leverage move in the next seven days is a Datarade vendor application paired with a gated HuggingFace teaser dataset — those two listings can be live by Friday May 1, 2026 with zero contractor spend. AWS Data Exchange should be initiated in parallel but treated as a 60–180 day enterprise channel, not a Week-1 revenue source. DrugBank must be removed from every public pack until a commercial license is signed, and FAERS is now AEMS with daily updates as of March 11, 2026 — the Pharmacovigilance Pack copy needs that update before any cold email goes out. The 12 named target accounts below all show concrete 2025–2026 buying signals. The lead public offering is **Investor Pre-Mortem** ($9,950 anchor / $14,950 standard / $19,950 custom with KOL primary research), positioned against McKinsey diligence ($150K–$750K, 2–6 weeks) and ChatGPT (free, 30%+ citation hallucination). Pharmacovigilance Pack remains as the tactical demonstration listing on Datarade and HuggingFace at the existing $2,500–$4,950 tier; it is no longer the lead product.
 
 ---

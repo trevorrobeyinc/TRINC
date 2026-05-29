@@ -51,12 +51,18 @@ works today.
 | **Access portal (sign-in URL)** | **`https://d-90660e72bc.awsapps.com/start`** |
 | Identity source | Identity Center directory (built-in) |
 | SSO user | `Trevoralexanderrobey` (Enabled) |
-| MFA device | **YubiKey 5 NFC FIPS** — FIDO2 "Security keys" |
+| MFA devices (FIDO2) | **2 keys enrolled** — primary **YubiKey 5 NFC FIPS** (USB-A) + backup **YubiKey 5C NFC FIPS** (USB-C, added 2026-05-28). Either key independently completes sign-in. |
 
 Signing in to the access portal requires the username/password **and** a
-physical tap of the YubiKey. There is no SMS/TOTP fallback — the FIDO2 key is
-the second factor. This makes the account **phishing-resistant**: credentials
-alone cannot complete a login.
+physical tap of one of the registered YubiKeys. There is no SMS/TOTP fallback
+— a FIDO2 key is the second factor. This makes the account
+**phishing-resistant**: credentials alone cannot complete a login.
+
+The **backup YubiKey was enrolled 2026-05-28** so a single lost or damaged key
+cannot lock the account. For that redundancy to actually protect the account,
+the two keys must be stored **physically separately** (one daily-carry,
+one off-site / safe / safe-deposit box). Both keys in the same drawer doesn't
+protect against fire, theft, or losing the same bag.
 
 ## The two roles (permission sets)
 
