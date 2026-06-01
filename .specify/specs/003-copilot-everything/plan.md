@@ -1,5 +1,11 @@
 # Implementation Plan: Copilot-Everything (Obsidian Integration + TLS Proxy Layer)
 
+> ⚠️ **`claude-cli-bridge` retired 2026-05-31 (historical doc).** Every reference to `claude-cli-bridge`
+> below describes a component that has since been retired and archived to
+> `Claude/.archive/claude-cli-bridge/` — superseded by the native Claude Desktop Code tab. Those lines
+> are preserved verbatim as a point-in-time design record and no longer describe the live system. See
+> the root `CLAUDE.md` deletion log.
+
 **Branch**: `003-copilot-everything` | **Date**: 2026-05-13 | **Spec**: [`spec.md`](./spec.md)
 
 ## Technical Context
@@ -15,7 +21,7 @@ Three active layers (backend-emulator retired 2026-04-11, deleted 2026-05-08; CD
 
 1. **Canonical HTTPS bridge** (`bridges/obsidian-copilot-bridge/`, exposes `:8798`). Multi-operator daemon. RestApiBackend (Obsidian Local REST API plugin :27124) preferred; CLI subprocess fallback. HMAC replay-guard auth (`x-mcp-token`, `x-mcp-timestamp`, `x-mcp-nonce`, `x-mcp-body-sha256`). Spawned by the `obsidian-bridge-launcher` Obsidian plugin (lifecycle-tied). `src/server/httpTransport.ts` is the canonical HTTPS-required pattern — any new bridge in the monorepo MUST copy from it.
 2. **Consolidated stdio adapter** (`bridges/obsidian-stdio-adapter/`). Single stdio MCP adapter tunneling Claude/Raycast stdio consumers to `:8798`. Two profiles via `OBSIDIAN_STDIO_PROFILE`: `claude` (default — 11 tools including the three dev-console tools) and `raycast` (adds `raycast_daily_open`). Replaces the deleted claude-adapter, obsidian-mcp-stdio, raycast-obsidian-stdio.
-3. **Outbound `claude` CLI bridge** (`bridges/claude-cli-bridge/index.mjs`). Stdio MCP server — the INVERSE of `claude mcp serve`. Exposes the local `claude` CLI as MCP tools (`claude_run`, `claude_resume`, `claude_version`, `claude_diag`) so a parent MCP client can delegate sub-tasks to a fresh isolated `claude -p` subprocess. Recursion-isolated via `--strict-mcp-config` + empty `mcpServers` temp file. Auth via `CLAUDE_CODE_OAUTH_TOKEN` env var (keychain-ACL bypass). Heartbeat: `notifications/progress` every 20s when caller supplies `_meta.progressToken`. **No TCP listener** — exempt from HTTPS-only invariant.
+3. **Outbound `claude` CLI bridge** (`bridges/claude-cli-bridge/index.mjs`) — ⚠️ **RETIRED 2026-05-31**, archived to `Claude/.archive/claude-cli-bridge/` (superseded by the native Claude Desktop Code tab; see root `CLAUDE.md` deletion log). Historical description retained: stdio MCP server — the INVERSE of `claude mcp serve`. Exposes the local `claude` CLI as MCP tools (`claude_run`, `claude_resume`, `claude_version`, `claude_diag`) so a parent MCP client can delegate sub-tasks to a fresh isolated `claude -p` subprocess. Recursion-isolated via `--strict-mcp-config` + empty `mcpServers` temp file. Auth via `CLAUDE_CODE_OAUTH_TOKEN` env var (keychain-ACL bypass). Heartbeat: `notifications/progress` every 20s when caller supplies `_meta.progressToken`. **No TCP listener** — exempt from HTTPS-only invariant.
 4. **Four launchd-owned TLS proxies** (`scripts/{miyo,qdrant,lm-studio,ollama}-tls-proxy.mjs`). Single-`.mjs` canonical pattern: throws on cert-load failure, no plaintext fallback path. Wraps third-party loopback services that only expose plaintext HTTP.
 5. **Vendored Obsidian Copilot plugin fork** (`repos/obsidian-copilot-mcp/` at SHA `df61538` of `logancyang/obsidian-copilot`, branch `codex/post-validated-mcp-baseline`). Manually re-synced; re-sync instructions live in `repos/obsidian-copilot-mcp/UPSTREAM.md`.
 

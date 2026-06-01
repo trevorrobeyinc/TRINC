@@ -1,5 +1,11 @@
 # Feature Specification: Copilot-Everything (Obsidian Integration + TLS Proxy Layer)
 
+> ⚠️ **`claude-cli-bridge` retired 2026-05-31 (historical doc).** User Story 4 and the
+> FR-008/FR-009/FR-010 + SC-005 references to `claude-cli-bridge` below describe a component that has
+> since been retired and archived to `Claude/.archive/claude-cli-bridge/` — superseded by the native
+> Claude Desktop Code tab. Preserved verbatim as a point-in-time design record; no longer the live
+> system. See the root `CLAUDE.md` deletion log.
+
 **Feature Branch**: `003-copilot-everything`
 **Created**: 2026-05-13
 **Status**: Draft (reverse-engineered)
@@ -32,6 +38,12 @@ The `Copilot-Everything/repos/obsidian-copilot-mcp/` directory is a **vendored f
 `Copilot-Everything/bridges/obsidian-copilot-bridge/` contains the canonical HTTPS bridge implementation pattern (`src/server/httpTransport.ts`) — the file other bridges in the monorepo MUST copy from. It throws if `transport.tls` is unset, reads the mkcert pair, calls `https.createServer`, and asserts `instanceof https.Server` post-construction.
 
 ### User Story 4 — Outbound MCP Delegation via claude-cli-bridge (Priority: P2)
+
+> ⚠️ **RETIRED 2026-05-31 (historical spec).** This user story and its FR-008/FR-009/FR-010 + SC-005
+> below describe the `claude-cli-bridge`, which was retired and archived to
+> `Claude/.archive/claude-cli-bridge/` — superseded by the native Claude Desktop Code tab. The text is
+> preserved unchanged as a point-in-time design record; it no longer describes the live system. See the
+> root `CLAUDE.md` deletion log.
 
 Claude Desktop chat (or any other parent MCP client) needs to delegate an entire sub-task to a fresh, isolated `claude -p` subprocess and get the answer back. `Copilot-Everything/bridges/claude-cli-bridge/index.mjs` is a stdio MCP server that wraps the local `claude` CLI for OUTBOUND delegation — the inverse of `claude mcp serve` (which is the INBOUND direction that exposes Claude Code's tools to the parent). Tools: `claude_run` (one-shot prompt + returns `session_id` for chaining), `claude_resume` (continue by `session_id`; optional `fork_session: true`), `claude_version`, `claude_diag`. Recursion-isolated: every spawn carries `--strict-mcp-config` + a temp MCP config containing only `{"mcpServers": {}}`, so the subprocess sees zero `mcp__*` tools and cannot loop back into the bridge. Auth flows through `process.env.CLAUDE_CODE_OAUTH_TOKEN` populated by Claude Desktop's `mcpServers["claude-cli-bridge"].env` block (keychain-ACL bypass — macOS Keychain ACLs are bundle-identifier-specific and Claude Desktop's helper has a different bundle ID than whatever process did the original `claude auth login`). Long subprocess waits emit MCP `notifications/progress` events every 20s when the caller supplies a `_meta.progressToken`, so the parent client's per-request timeout (Claude Desktop default ~60s) does not fire mid-call.
 

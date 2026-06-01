@@ -46,8 +46,9 @@ Three independent operators share this stack. None is subordinate to the others.
 
 ```
 Claude Desktop (heavy-lift code/file operator)
-  ├── [MCP stdio] → claude-code CLI                                 (INBOUND  — `claude mcp serve` exposes Claude Code's tools)
-  ├── [MCP stdio] → claude-cli-bridge adapter                       (OUTBOUND — spawns isolated `claude -p` subprocess; recursion-isolated via --strict-mcp-config; Claude/claude-cli-bridge/)
+  # Claude Code now runs via the native Claude Desktop Code tab (no custom subprocess orchestration).
+  # The only MCP stdio servers Desktop needs are the obsidian-bridge adapter and the filesystem server.
+  # (Retired 2026-05-31: INBOUND `claude mcp serve` + OUTBOUND claude-cli-bridge — see deletion log.)
   ├── [MCP stdio] → obsidian-bridge adapter → [HTTPS :8798] → Canonical MCP Bridge
   └── [MCP stdio] → filesystem server
 
@@ -244,6 +245,7 @@ Predecessor of qdrant-tls-proxy: a separate subproject at `Claude/qdrant-tls-pro
 - `Claude/qdrant-tls-proxy/` — second-pass deletion 2026-05-08, then **replaced 2026-05-08** by the canonical-pattern proxy at `Copilot-Everything/scripts/qdrant-tls-proxy.mjs` owned by launchd unit `com.trevorrobey.qdrant-tls-proxy`. The deleted subproject was the wrong pattern (own package.json + PM2 ownership, never wired in by any client). The replacement matches `miyo-tls-proxy.mjs` (single .mjs file, launchd-owned, throws on cert failure). Both clients now point at `https://127.0.0.1:6433`. See "Wrapped in HTTPS by in-monorepo proxies" above.
 - `obsidian-devtools` MCP path retired 2026-05-08 — Claude Desktop's `obsidian-devtools` chrome-devtools-mcp entry (CDP on plain-HTTP `:8315`), `~/Library/LaunchAgents/com.trevorrobey.obsidian-debug.plist`, and `~/bin/launch-obsidian.sh` are all deleted. Replaced by three in-bridge tools that go through the canonical HTTPS bridge on `:8798` instead of CDP: `obsidian_dev_console_logs`, `obsidian_dev_console_errors` (read-only ring buffers, always on), and `obsidian_dev_console_eval` (gated by the `devConsoleEvalEnabled` setting on the obsidian-bridge-launcher plugin, default OFF). Wire: bridge child process ↔ launcher plugin via a new fd-3 line-delimited JSON-RPC channel (`stdio: ["ignore","pipe","pipe","pipe"]` + `BRIDGE_IPC_FD=3`); launcher captures `console.{log,info,warn,error,debug}` + `window.error` + `unhandledrejection` into ring buffers at plugin onload. The retired homebrew CDP path should not be reintroduced.
 - `chrome-devtools-mcp` fully retired 2026-05-12 — process tree killed; caches, profile clone, npx cache, and `chrome-devtools-headless` entry in `claude_desktop_config.json` deleted; the `~/Code/chrome-devtools-mcp/` clone removed; **Playwright MCP (`--isolated`) + Claude in Chrome** are now the only two browser-control surfaces. The scrape-sidecar at `trevor-robey-inc-agents/scrape-sidecar/` was migrated off `seleniumbase` + `camoufox[geoip]` onto Playwright Firefox + Chromium (isolated profile per fetch) on the same day. See `~/.local/share/browser-tools/CONTEXT-HANDOFF-browser-mcp-downsize.md` for the full purge inventory and the new global `~/.claude/CLAUDE.md` "Browser MCP Strategy and Context Persistence" rule.
+- `claude-cli-bridge` retired 2026-05-31 — superseded by the native Claude Desktop Code tab, which replaces BOTH the OUTBOUND `claude-cli-bridge` adapter AND the INBOUND `claude mcp serve` registration. Archived to `Claude/.archive/claude-cli-bridge/` (git history + `.learnings/LEARNINGS.md` preserved; `git log --follow` works). Do NOT reintroduce a custom `claude -p` subprocess bridge or a `claude mcp serve` wiring; drive Claude Code through the native Desktop Code tab instead.
 
 ## Browser Session History
 

@@ -221,7 +221,7 @@ The bridge must be running (`pm2 start` or `scripts/bridge-start.sh`) before too
 - Backend emulator (8789) — companion orchestration service, not an MCP server
 - Miyo (8742) — companion retrieval service, accessed through the bridge's `miyo_search_context` tool
 
-> **Outbound `claude` CLI bridge lives in `Claude/claude-cli-bridge/`** — see `Claude/CLAUDE.md` for that bridge's tools, recursion guard, and auth path. Conceptually it's a Claude-tooling sibling of `Medical-Zettelkasten-MCP` and `trevorobeyinc-research-memory-mcp`, not an Obsidian-stack adapter.
+> **Outbound `claude` CLI bridge — ⚠️ RETIRED 2026-05-31** (was `Claude/claude-cli-bridge/`, now archived to `Claude/.archive/claude-cli-bridge/`). Superseded by the native Claude Desktop Code tab; see the root `CLAUDE.md` deletion log. Kept for reference only — do not reintroduce.
 
 ## Multi-Operator Context
 

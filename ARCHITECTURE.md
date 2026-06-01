@@ -134,7 +134,8 @@ Three independent operators share this stack. None is subordinate to the others.
 
 ```
 Claude Desktop (heavy-lift code/file operator)
-  +-- [MCP stdio] -> claude-code CLI
+  # Claude Code now runs via the native Desktop Code tab; the INBOUND `claude mcp serve`
+  # and the OUTBOUND claude-cli-bridge were retired 2026-05-31 (see root CLAUDE.md deletion log).
   +-- [MCP stdio] -> obsidian-bridge adapter -> [HTTPS :8798] -> Canonical MCP Bridge
   +-- [MCP stdio] -> chrome-devtools
   +-- [MCP stdio] -> filesystem server

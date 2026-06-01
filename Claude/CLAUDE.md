@@ -20,9 +20,16 @@ If you ever wonder "this Obsidian plugin is ours, why isn't it under `Copilot-Ev
 | Obsidian Bridge Launcher | `obsidian-bridge-launcher/` | Obsidian plugin — spawns the canonical MCP bridge child process on `:8798` tied to Obsidian's plugin host lifecycle. Owns the fd-3 line-delimited JSON-RPC IPC channel (`BRIDGE_IPC_FD=3`) used for renderer-scope console capture and gated eval. Bridge **code** lives in `Copilot-Everything/bridges/obsidian-copilot-bridge/`; this plugin owns only the lifecycle. |
 | Obsidian Vault Zettelkasten | `obsidian-vault-zettelkasten/` | Obsidian plugin — hosts the in-process `ZettelkastenService` (LLM-driven, vault-grounded). Migrated here 2026-04-11 from the now-deleted backend emulator on `:8789`. Consumes Miyo via `:8743` HTTPS proxy, Qdrant via `:6433` HTTPS proxy, LM Studio via `:1235` HTTPS proxy. |
 | Trevor Robey INC Research Memory MCP | `trevorobeyinc-research-memory-mcp/` | Stdio MCP server. Qdrant-backed pack storage via `:6433` HTTPS proxy. Auto-ingested by the Command Center plugin after workflow completion. |
-| Outbound `claude` CLI bridge | `claude-cli-bridge/` | Stdio MCP server. Wraps the local `claude` CLI for OUTBOUND delegation (inverse of `claude mcp serve`). Lets a parent MCP client (Claude Desktop chat) shell out to a fresh `claude -p` subprocess. Recursion-isolated. Tools: `claude_run`, `claude_resume`, `claude_version`, `claude_diag`. |
+| Outbound `claude` CLI bridge ⚠️ **RETIRED 2026-05-31** | `.archive/claude-cli-bridge/` | **Retired** — superseded by the native Claude Desktop Code tab; archived to `Claude/.archive/claude-cli-bridge/` (history + LEARNINGS preserved). Was a stdio MCP server wrapping the local `claude` CLI for OUTBOUND delegation. See the root `CLAUDE.md` deletion log; do not reintroduce. |
 
-## Outbound `claude` CLI bridge — `claude-cli-bridge/`
+## Outbound `claude` CLI bridge — `claude-cli-bridge/` ⚠️ RETIRED 2026-05-31
+
+> **RETIRED 2026-05-31 — superseded by the native Claude Desktop Code tab.** The code below is
+> archived to `Claude/.archive/claude-cli-bridge/` (git history + `.learnings/LEARNINGS.md` preserved)
+> and is **no longer wired into the topology or registered with Claude Desktop**. The section is kept
+> as reference for the recursion-guard / heartbeat / keychain-ACL learnings only. Do not reintroduce a
+> custom `claude -p` subprocess bridge or a `claude mcp serve` registration. See the root `CLAUDE.md`
+> deletion log.
 
 `claude-cli-bridge/` is the **inverse** of `claude mcp serve`. Where `claude mcp serve` exposes Claude Code's tools INTO an MCP client (the inbound direction registered in Claude Desktop as the `claude-code` server), `claude-cli-bridge` exposes the local `claude` CLI OUT — letting an MCP client (e.g. Claude Desktop chat) push a button and have a fresh, isolated `claude -p` subprocess go do an entire sub-task and hand the answer back.
 
@@ -104,6 +111,6 @@ This workspace is the primary environment for cloning web apps into localhost se
 
 | Workspace | Path (relative to monorepo root) | Role |
 |-----------|----------------------------------|------|
-| Copilot-Everything | [`../Copilot-Everything/`](../Copilot-Everything/) | Obsidian plugin fork (vendored at `repos/obsidian-copilot-mcp/`), canonical MCP bridge (`bridges/obsidian-copilot-bridge/` → `:8798`), consolidated stdio adapter, claude-cli-bridge (outbound delegation), four HTTPS TLS proxies (Miyo / Qdrant / LM Studio / Ollama). |
+| Copilot-Everything | [`../Copilot-Everything/`](../Copilot-Everything/) | Obsidian plugin fork (vendored at `repos/obsidian-copilot-mcp/`), canonical MCP bridge (`bridges/obsidian-copilot-bridge/` → `:8798`), consolidated stdio adapter, ~~claude-cli-bridge~~ (retired 2026-05-31 → `Claude/.archive/`), four HTTPS TLS proxies (Miyo / Qdrant / LM Studio / Ollama). |
 | trevor-robey-inc-agents (powered by OpenClaw) | [`../trevor-robey-inc-agents/`](../trevor-robey-inc-agents/) | Citation-traced biomedical due diligence engine. On-demand subprocess via `node scripts/run-workflow.js` — no persistent gateway. (Path migrated from `/Users/trevorrobey/Code/trevor-robey-inc-agents` during the 2026-05-07 monorepo consolidation. Backend emulator at `:8789` retired 2026-04-11.) |
 | trevor-robey-inc (brand / commercial) | [`../trevor-robey-inc/`](../trevor-robey-inc/) | Brand canon, LLC formation paperwork, six-SKU offering ladder, REVENUE_PLAYBOOK, NOTICE. Authoritative customer-facing copy authority is the `trevor-robey-inc-brand-guardian` skill, not this folder. |
