@@ -29,7 +29,7 @@ export class MiyoClient {
   /** Check if Miyo is running. */
   async isHealthy(): Promise<boolean> {
     try {
-      const res = await requestUrl({ url: `${this.baseUrl}/health`, method: "GET" });
+      const res = await requestUrl({ url: `${this.baseUrl}/v0/health`, method: "GET" });
       return res.status === 200;
     } catch {
       return false;
