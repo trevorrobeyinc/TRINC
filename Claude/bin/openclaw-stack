@@ -3,15 +3,31 @@ set -euo pipefail
 
 LOGS_DIR="$HOME/Claude/.logs"
 PLISTS_DST="$HOME/Library/LaunchAgents"
+MKCERT_CA="$HOME/Library/Application Support/mkcert/rootCA.pem"
+
+# In-monorepo HTTPS TLS proxies (launchd-owned; staged + installed via
+# Copilot-Everything/scripts/install-tls-proxies.sh). Loopback services are
+# reached ONLY through these proxies, never their plaintext upstreams.
+# Format: "<launchd-unit>:<proxy-port>:<upstream-port>:<label>"
+TLS_PROXIES=(
+  "com.trevorrobey.miyo-tls-proxy:8743:8742:Miyo"
+  "com.trevorrobey.qdrant-tls-proxy:6433:6333:Qdrant"
+  "com.trevorrobey.lm-studio-tls-proxy:1235:1234:LM Studio"
+  "com.trevorrobey.ollama-tls-proxy:11435:11434:Ollama"
+)
 
 # Services we manage. Gateway/bridge/MCP are pre-existing.
 MANAGED_SERVICES=(
   "com.trevorrobey.cc-bridge-monitor"
 )
 
-# All services we monitor
+# All services we monitor (cc-bridge-monitor + the four launchd TLS proxies)
 ALL_SERVICES=(
   "com.trevorrobey.cc-bridge-monitor"
+  "com.trevorrobey.miyo-tls-proxy"
+  "com.trevorrobey.qdrant-tls-proxy"
+  "com.trevorrobey.lm-studio-tls-proxy"
+  "com.trevorrobey.ollama-tls-proxy"
 )
 
 cmd_start() {
@@ -55,22 +71,34 @@ cmd_status() {
   printf "%-48s %-8s %-15s\n" "Obsidian (CC bridge :8799)" \
     "$(pgrep -x Obsidian 2>/dev/null || echo '-')" \
     "$(pgrep -x Obsidian > /dev/null 2>&1 && echo 'running' || echo 'not running')"
-  printf "%-48s %-8s %-15s\n" "Miyo.app (:8742)" \
-    "$(pgrep -x Miyo 2>/dev/null || echo '-')" \
+  printf "%-48s %-8s %-15s\n" "Miyo.app (upstream behind :8743 proxy)" \
+    "$(pgrep -x Miyo 2>/dev/null | head -1 || echo '-')" \
     "$(pgrep -x Miyo > /dev/null 2>&1 && echo 'running' || echo 'not running')"
 }
 
 cmd_health() {
-  echo "Miyo (:8742):"
-  if miyo_resp=$(curl -s -m 3 http://127.0.0.1:8742/v0/health 2>/dev/null); then
+  echo "TLS proxies (HTTPS terminators → plaintext upstream):"
+  for entry in "${TLS_PROXIES[@]}"; do
+    IFS=':' read -r _unit pport uport name <<< "$entry"
+    code=$(curl -s -o /dev/null -w "%{http_code}" -m 3 --cacert "$MKCERT_CA" "https://127.0.0.1:$pport/" 2>/dev/null || echo "000")
+    if [ "$code" != "000" ]; then
+      printf "  %-10s :%-6s up (TLS ok; upstream :%s)\n" "$name" "$pport" "$uport"
+    else
+      printf "  %-10s :%-6s DOWN (proxy not listening / TLS fail) — run install-tls-proxies.sh\n" "$name" "$pport"
+    fi
+  done
+  echo ""
+
+  echo "Miyo semantic search (via :8743 proxy → :8742):"
+  if miyo_resp=$(curl -s -m 3 --cacert "$MKCERT_CA" https://127.0.0.1:8743/v0/health 2>/dev/null); then
     echo "$miyo_resp" | python3 -m json.tool 2>/dev/null || echo "  responding"
   else
-    echo "  unreachable (Miyo.app may be closed)"
+    echo "  unreachable via :8743 (check the proxy unit in 'openclaw-stack status'; Miyo.app may be closed)"
   fi
   echo ""
 
-  echo "CC Bridge (:8799):"
-  if bridge_resp=$(curl -s -m 3 http://127.0.0.1:8799/health 2>/dev/null); then
+  echo "CC Bridge (:8799, HTTPS):"
+  if bridge_resp=$(curl -s -m 3 --cacert "$MKCERT_CA" https://127.0.0.1:8799/health 2>/dev/null); then
     echo "$bridge_resp" | python3 -m json.tool 2>/dev/null || echo "  responding"
   else
     echo "  unreachable (Obsidian may be closed)"
