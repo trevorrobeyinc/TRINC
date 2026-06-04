@@ -18,6 +18,13 @@ out/
 # Runtime / state / logs
 # ─────────────────────────────────────────────
 state/
+# The broad `state/` rule above (runtime state dirs) was silently swallowing the
+# vendored Copilot fork's UPSTREAM source dir
+# `repos/obsidian-copilot-mcp/src/state/` (ChatUIState.ts, vaultDataAtoms.ts),
+# which broke `npm run build` (TS2307: cannot find module @/state/*).
+# Re-include that source directory explicitly.
+!repos/obsidian-copilot-mcp/src/state/
+!repos/obsidian-copilot-mcp/src/state/**
 logs/
 *.log
 *.pid
