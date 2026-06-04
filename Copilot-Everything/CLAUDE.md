@@ -139,7 +139,6 @@ Working Miyo endpoints: `/v0/health`, `/v0/search`, `/v0/search/related`, `/v0/p
 All in `scripts/`. Key ones:
 
 - `bridge-start.sh` / `bridge-health-check.sh` — MCP bridge
-- `backend-start.sh` / `backend-smoke-test.sh` — Backend emulator
 - `full-functional-sweep.sh` — 21-check validation suite
 - `zettelkasten-smoke-test.sh` — 11-check ZK validation suite
 - `zettelkasten-scheduler.sh` — Scheduled ZK report generation
