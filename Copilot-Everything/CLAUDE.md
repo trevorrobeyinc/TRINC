@@ -146,6 +146,7 @@ All in `scripts/`. Key ones:
 - `plugin-reload.sh` — Reload plugin in Obsidian
 - `dev-build.sh` / `dev-deploy.sh` — Plugin dev workflow
 - `lib.sh` — Shared constants and utilities (WORKSPACE_ROOT, PRODUCTION_VAULT, etc.)
+- `install-tls-proxies.sh` — Stage the four `*-tls-proxy.mjs` (Miyo/Qdrant/LM Studio/Ollama) to `~/.local/share/trevclaw-tls-proxies/` and repoint + reload their launchd units. Required because launchd's TCC context can't read scripts on the external `/Volumes/ExtraCurricular` volume. Re-run after editing any proxy script.
 
 ## MCP Bridge Contract
 
