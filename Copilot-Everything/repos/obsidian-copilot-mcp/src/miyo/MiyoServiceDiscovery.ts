@@ -73,9 +73,37 @@ export class MiyoServiceDiscovery {
       return null;
     }
 
+    // A local Miyo always advertises a loopback host in service.json. Reach it
+    // through the in-monorepo HTTPS proxy at :8743, never its raw plaintext
+    // port — see getDefaultBaseUrl() and the monorepo HTTPS-only invariant
+    // (TrevClaw-Obsidianodus/CLAUDE.md). The discovered port is informational;
+    // the proxy fronts Miyo's plaintext upstream.
+    if (this.isLoopbackHost(serviceConfig.host)) {
+      const baseUrl = this.getDefaultBaseUrl();
+      this.cachedBaseUrl = baseUrl;
+      if (getSettings().debug) {
+        logInfo(
+          `Miyo service discovery resolved loopback host=${serviceConfig.host} ` +
+            `port=${serviceConfig.port}; routing through HTTPS proxy ${baseUrl}`
+        );
+      }
+      return baseUrl;
+    }
+
     const baseUrl = this.normalizeBaseUrl(`http://${serviceConfig.host}:${serviceConfig.port}`);
     this.cachedBaseUrl = baseUrl;
     return baseUrl;
+  }
+
+  /**
+   * Determine whether a discovered host is a loopback address.
+   *
+   * @param host - Host string from the Miyo service discovery file.
+   * @returns True for 127.0.0.1, ::1, or localhost (IPv6 brackets tolerated).
+   */
+  private isLoopbackHost(host: string): boolean {
+    const normalized = host.trim().toLowerCase().replace(/^\[|\]$/g, "");
+    return normalized === "127.0.0.1" || normalized === "::1" || normalized === "localhost";
   }
 
   /**

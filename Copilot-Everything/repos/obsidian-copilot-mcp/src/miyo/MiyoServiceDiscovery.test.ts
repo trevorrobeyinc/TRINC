@@ -129,7 +129,7 @@ describe("MiyoServiceDiscovery", () => {
 
     const baseUrl = await MiyoServiceDiscovery.getInstance().resolveBaseUrl({ forceRefresh: true });
 
-    expect(baseUrl).toBe("http://127.0.0.1:8742");
+    expect(baseUrl).toBe("https://127.0.0.1:8743");
     expect(modules.readFile).toHaveBeenCalledWith(
       "/Users/test/Library/Application Support/Miyo/service.json",
       "utf8"
@@ -146,7 +146,7 @@ describe("MiyoServiceDiscovery", () => {
 
     const baseUrl = await MiyoServiceDiscovery.getInstance().resolveBaseUrl({ forceRefresh: true });
 
-    expect(baseUrl).toBe("http://127.0.0.1:8742");
+    expect(baseUrl).toBe("https://127.0.0.1:8743");
     expect(modules.readFile).toHaveBeenCalledWith(
       "C:/Users/test/AppData/Local/Miyo/service.json",
       "utf8"
@@ -163,7 +163,7 @@ describe("MiyoServiceDiscovery", () => {
 
     const baseUrl = await MiyoServiceDiscovery.getInstance().resolveBaseUrl({ forceRefresh: true });
 
-    expect(baseUrl).toBe("http://127.0.0.1:8742");
+    expect(baseUrl).toBe("https://127.0.0.1:8743");
     expect(modules.readFile).toHaveBeenCalledWith("/home/test/.config/Miyo/service.json", "utf8");
   });
 
@@ -181,7 +181,7 @@ describe("MiyoServiceDiscovery", () => {
     expect(modules.readFile).not.toHaveBeenCalled();
   });
 
-  it("falls back to localhost:8742 when service.json is missing", async () => {
+  it("falls back to the HTTPS proxy :8743 when service.json is missing", async () => {
     const missingFileError = Object.assign(new Error("not found"), { code: "ENOENT" });
     const { nodeRequire, modules } = createMockNodeRequire(
       "linux",
@@ -197,7 +197,7 @@ describe("MiyoServiceDiscovery", () => {
 
     const baseUrl = await MiyoServiceDiscovery.getInstance().resolveBaseUrl({ forceRefresh: true });
 
-    expect(baseUrl).toBe("http://127.0.0.1:8742");
+    expect(baseUrl).toBe("https://127.0.0.1:8743");
     expect(modules.readFile).toHaveBeenCalledWith("/home/test/.config/Miyo/service.json", "utf8");
   });
 
@@ -227,8 +227,8 @@ describe("MiyoServiceDiscovery", () => {
     const firstBaseUrl = await discovery.resolveBaseUrl();
     const secondBaseUrl = await discovery.resolveBaseUrl();
 
-    expect(firstBaseUrl).toBe("http://127.0.0.1:8742");
-    expect(secondBaseUrl).toBe("http://127.0.0.1:9000");
+    expect(firstBaseUrl).toBe("https://127.0.0.1:8743");
+    expect(secondBaseUrl).toBe("https://127.0.0.1:8743");
     expect(modules.readFile).toHaveBeenCalledTimes(2);
   });
 
@@ -257,7 +257,7 @@ describe("MiyoServiceDiscovery", () => {
 
     const baseUrl = await MiyoServiceDiscovery.getInstance().resolveBaseUrl({ forceRefresh: true });
 
-    expect(baseUrl).toBe("http://127.0.0.1:8742");
+    expect(baseUrl).toBe("https://127.0.0.1:8743");
     expect(modules.readFile).toHaveBeenNthCalledWith(
       1,
       "C:/Users/test/AppData/Local/Miyo/service.json",
