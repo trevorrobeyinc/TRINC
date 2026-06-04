@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-WORKSPACE_ROOT="/Users/trevorrobey/TrevClaw-Obsidianodus/Copilot-Everything"
+WORKSPACE_ROOT="/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Copilot-Everything"
 PRODUCTION_VAULT="/Volumes/ExtraCurricular/My Digital Garden"
 DEV_VAULT="$WORKSPACE_ROOT/dev-vault"
 PLUGIN_REPO="$WORKSPACE_ROOT/repos/obsidian-copilot-mcp"
@@ -221,7 +221,11 @@ detect_miyo_base_url() {
   service_file="$(detect_miyo_service_file || true)"
   [[ -n "$service_file" ]] || return 1
 
-  jq -r '"http://\(.host):\(.port)"' "$service_file"
+  # HTTPS-only invariant: a local Miyo (service.json always advertises a
+  # loopback host) is reached through the in-monorepo TLS proxy on :8743,
+  # never its plaintext upstream. Mirrors MiyoServiceDiscovery.ts. For a
+  # remote Miyo, pass MIYO_BASE_URL=https://... explicitly (handled above).
+  printf '%s\n' "https://127.0.0.1:8743"
 }
 
 detect_obsidian_config_dir() {
