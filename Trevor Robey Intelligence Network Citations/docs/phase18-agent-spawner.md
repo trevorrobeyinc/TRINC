@@ -49,6 +49,15 @@ Phase 18 adds mission orchestration on top of the validated Phase 14-17 baseline
 - Internal packaging autonomy is expanded for local artifact preparation only.
 - External publishing, upload, marketplace submission, and delivery remain manual-only and outside the Phase 18 mission runtime.
 
+## Post-Research Engine Compatibility (Citation Integrity + Cost-Avoidance Deliverables)
+- Later post-research-engine slices extend the same mission runtime shape; they do not change Phase 18 guardrails or the `orchestrator_aggregation` synthesis ownership.
+- A report-level citation gate runs in `workflow-engine.executeMissionStep` (`verifyReportCitations`): every identifier cited in the assembled report is cross-checked against the union of identifiers actually fetched at runtime by tool-prefetch. A cited id is "grounded" if it was present in fetched evidence, otherwise "ungrounded" (likely model-introduced). The gate engages only when there IS fetched ground truth, and hard-fails the mission step (error code `PHASE30_CITATION_UNVERIFIED`) when the grounded ratio is below `minGroundedCitationRatio` (agent-config default `0.34`). It writes `citation-verification.json` + `report-annotated.md` to the workflow dir and annotates surviving ungrounded cites inline as `[UNVERIFIED]`. Citations are grounded in the source records actually retrieved at runtime; they are not independently re-resolved against a live external database.
+- A retraction screen checks each cited DOI against Crossref `/works/{DOI}`; a report citing any retracted paper hard-stops (error code `PHASE30_CITATION_RETRACTED`). It is fail-soft, so a Crossref network blip cannot wrongly block a report.
+- Corpora ingestion adds a local fetcher (`ctgov-supplemental`, tool name `ctgov_stopped_trials`) routed into role prefetch through a local-fetcher seam in `tool-prefetch.js`; it returns TERMINATED/WITHDRAWN/SUSPENDED trials for a condition with each sponsor's stated stop reason and protocol change-history, NCT-traced.
+- New mission-bundle deliverables are produced and sealed in the release bundle alongside existing Phase 19 artifacts:
+  - `deliverables/citation-integrity.md` — a graded (A/B/C/D, or F/BLOCKED on any retraction, N/A if nothing cited) provenance ledger rendered from the citation-verification metadata.
+  - `deliverables/graveyard-memo.md` — a deterministically rendered (no LLM) memo of prior terminated/withdrawn/suspended programs in the indication, each NCT-traced with the sponsor's stated stop reason (or an explicit "(none stated by sponsor)", never invented), protocol churn, and a resolvable `clinicaltrials.gov/study/<NCT>` link; it carries a LOW/MODERATE/HIGH protocol amendment-risk band. Both memos are fail-soft and bounded, so an absent fetcher or empty indication simply omits them and never blocks a passing report.
+
 ## Outer Operator Workflow Compatibility
 - Phase 18 runtime authority remains in-repo (`supervisor-authority` + governance path).
 - Cline is a recommended outer operator shell for planning/review and approved implementation work.

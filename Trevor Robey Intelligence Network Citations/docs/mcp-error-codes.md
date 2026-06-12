@@ -41,3 +41,18 @@
 - `MUTATION_EXTERNAL_LINKS_EXCEEDED`
 - `MUTATION_EMBEDDED_IMAGES_EXCEEDED`
 - `MUTATION_LOG_CHAIN_INVALID`
+
+## Citation Integrity
+Emitted by the report-level citation gate run in `workflow-engine.executeMissionStep`,
+which cross-checks every identifier cited in the assembled report against the union of
+identifiers actually retrieved at runtime by tool-prefetch (citations are grounded in the
+source records retrieved at runtime, plus DOI retraction-screening via Crossref). The gate
+engages only when there is fetched ground truth.
+- `PHASE30_CITATION_UNVERIFIED` — the grounded ratio (cited identifiers present in fetched
+  evidence ÷ total cited) fell below `minGroundedCitationRatio` (agent-config default `0.34`);
+  the report refuses to ship. Surviving ungrounded cites are annotated inline `[UNVERIFIED]`
+  and a `citation-verification.json` / `report-annotated.md` pair is written to the workflow dir.
+- `PHASE30_CITATION_RETRACTED` — a cited DOI was found retracted via Crossref `/works/{DOI}`
+  (`relation.is-retracted-by` or an `update-to` of type `retraction`); the report hard-stops.
+  Fail-soft: a Crossref error yields no retractions, so a network blip can never wrongly block
+  a report.

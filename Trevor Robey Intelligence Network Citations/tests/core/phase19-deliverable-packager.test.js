@@ -116,6 +116,38 @@ test("phase19 deliverable packager writes deterministic manifests and checksums"
   assert.equal(firstChecksums, secondChecksums);
 });
 
+test("phase19 deliverable packager ships the graveyard memo + amendment-risk when present (Slice 3 v2)", async () => {
+  const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "openclaw-phase19-packager-graveyard-"));
+  const packager = createDeliverablePackager({ rootDir: tmp });
+  const fixture = createMissionFixture();
+  fixture.sourceContext.graveyard_memo = {
+    count: 2,
+    markdown: "# Graveyard Memo — Prior Terminated Programs\n\nNCT00000001 was terminated."
+  };
+  fixture.sourceContext.amendment_risk = {
+    sampled: 2, band: "HIGH",
+    markdown: "## Protocol Amendment-Risk Signal\n\nAmendment-risk: HIGH."
+  };
+
+  const bundleDir = packager.createBundleWorkspace(fixture.offer.offer_id);
+  const refs = packager.writeDeliverables(bundleDir, fixture.offer, fixture.sourceContext);
+
+  assert.ok(refs.graveyard_memo, "graveyard_memo artifact ref is set");
+  const memo = fs.readFileSync(path.join(bundleDir, refs.graveyard_memo), "utf8");
+  assert.ok(memo.includes("NCT00000001"), "graveyard memo body shipped");
+  assert.ok(memo.includes("Amendment-risk: HIGH"), "amendment-risk appended to the same artifact");
+});
+
+test("phase19 deliverable packager omits the graveyard memo when no stopped trials were found", async () => {
+  const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "openclaw-phase19-packager-no-graveyard-"));
+  const packager = createDeliverablePackager({ rootDir: tmp });
+  const fixture = createMissionFixture(); // no graveyard_memo in sourceContext
+  const bundleDir = packager.createBundleWorkspace(fixture.offer.offer_id);
+  const refs = packager.writeDeliverables(bundleDir, fixture.offer, fixture.sourceContext);
+  assert.equal(refs.graveyard_memo, undefined, "no graveyard ref when absent");
+  assert.ok(!fs.existsSync(path.join(bundleDir, "deliverables", "graveyard-memo.md")), "no graveyard file written");
+});
+
 test("phase19 deliverable packager fails when a required artifact slot is not produced", async () => {
   const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "openclaw-phase19-packager-missing-slot-"));
   const packager = createDeliverablePackager({ rootDir: tmp });

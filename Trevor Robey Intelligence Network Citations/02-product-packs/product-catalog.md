@@ -25,6 +25,7 @@ Per-asset risk dossier delivered in 5–10 business days for biotech investors a
 Structured post-mortem of Phase 2/3 terminations in a single mechanism. Endpoint analysis, enrollment dynamics, regulatory feedback, and comparable-failures matrix.
 
 - **Citation discipline**: NCT-indexed failure pattern matrix
+- **Graveyard Memo + protocol Amendment-Risk** (`graveyard-memo.md`): each prior terminated / withdrawn / suspended program in the indication is NCT-traced with the sponsor's *stated* stop reason (or an explicit "(none stated by sponsor)" — never invented) and a resolvable ClinicalTrials.gov link, plus a LOW / MODERATE / HIGH protocol amendment-risk band derived from each program's change-history. Rendered deterministically from the retrieved ClinicalTrials.gov records (no LLM), so every claim is verifiable.
 - **ICP**: pharma R&D CI / medical affairs · biotech VC diligence leads
 - **Pricing**: **$14,950**
 
@@ -109,12 +110,13 @@ The seven offerings above are produced by six biomedical workflow templates in t
 - Executive summary with prioritized findings
 - Evidence provenance appendix
 - Chain-hashed integrity verification (Phase 22 / Phase 28 evidence ledgers)
+- **Citation Integrity & Provenance ledger** (`citation-integrity.md`): a graded (A/B/C/D) provenance audit trail; every cited identifier is grounded against the source records actually retrieved at runtime, and every cited DOI is retraction-screened against Crossref. A report grades F / BLOCKED if it cites any retracted paper, and the build fails before shipping if too few citations are grounded in retrieved evidence.
 
 ---
 
 ## Why trevor-robey-inc
 
-- **Citation discipline as a gate, not a warning**: every claim PMID / NCT / ChEMBL CID / DOI traced; outputs without verifiable identifiers fail the build
+- **Citation discipline as a gate, not a warning**: every claim PMID / NCT / ChEMBL CID / DOI traced; outputs without verifiable identifiers fail the build. A report-level citation gate cross-checks every cited identifier against the source records actually retrieved at runtime — a build hard-fails before shipping if too few citations are grounded in retrieved evidence, and surviving ungrounded citations are annotated inline `[UNVERIFIED]`. Every cited DOI is retraction-screened against Crossref; a report that cites any retracted paper is hard-stopped.
 - **Refund-backed citation-audit SLA**: written guarantee on every deliverable
 - **5–10 business day Speed SLA** for Investor Pre-Mortem; 24–48 hours for Conference Synthesis Brief
 - **Cryptographic Provenance**: Phase 28 evidence ledger for SEC/FDA compliance

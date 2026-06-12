@@ -19,6 +19,14 @@ Execution flow:
 - `openclaw-bridge/core/interaction-log.js`
 - `openclaw-bridge/core/task-definition-schema.js`
 - `openclaw-bridge/core/research-output-manager.js`
+- `openclaw-bridge/core/citation-gate.js`
+- `openclaw-bridge/core/citation-extractor.js`
+
+Citation-integrity layer (post-research engine):
+- `openclaw-bridge/mcp/crossref-retraction/crossref-retraction.js`
+- `openclaw-bridge/mcp/ctgov-supplemental/ctgov-supplemental.js`
+- `openclaw-bridge/monetization/integrity-rating.js`
+- `openclaw-bridge/monetization/graveyard-memo.js`
 
 ## LLM Provider Configuration
 Committed template:
@@ -88,6 +96,79 @@ RLHF mode:
 - Engine execution requires `context.supervisorDecision.approved === true`.
 - Missing receipt fails closed with `SUPERVISOR_APPROVAL_REQUIRED`.
 - Denied supervisor path terminates before LLM execution.
+
+## Citation Integrity (Post-Research Engine)
+The post-research engine adds a zero-fabrication citation-integrity layer. Citations in a
+shipped report are grounded in the source records actually retrieved at runtime, plus a
+DOI retraction screen against Crossref. (Citations are NOT independently re-resolved against
+their live source databases — grounded is not the same as re-resolved.)
+
+Runtime persistence:
+- `agent-engine.js` persists `fetched_citation_ids` (the identifiers actually retrieved at
+  runtime by tool-prefetch) plus a per-task `citation_verification` block into research-output
+  metadata.
+- `buildPrompt` carries an ABSOLUTE-RULE "ZERO FABRICATION" clause: never invent a PMID/NCT/DOI;
+  emit `[no verifiable citation found]` instead.
+
+Report-level citation gate (`workflow-engine.executeMissionStep` → `verifyReportCitations`):
+- Cross-checks every identifier cited in the assembled report against the UNION of
+  runtime-fetched ids. A cited id is "grounded" if present in fetched evidence, else
+  "ungrounded" (likely model-introduced).
+- HARD-FAILS (`PHASE30_CITATION_UNVERIFIED`) when the grounded ratio is below
+  `minGroundedCitationRatio` (agent-config default `0.34`). Engages only when there is fetched
+  ground truth.
+- Writes `citation-verification.json` and `report-annotated.md` to the workflow dir; surviving
+  ungrounded cites are annotated inline `[UNVERIFIED]`.
+
+Retraction screen (`crossref-retraction.js`, wired via `researchRuntime`):
+- Checks each cited DOI against Crossref `/works/{DOI}` (`relation.is-retracted-by` or
+  `update-to` type `retraction`). A report citing ANY retracted paper HARD-STOPS
+  (`PHASE30_CITATION_RETRACTED`). Fail-soft: Crossref errors yield no retractions, so a network
+  blip can never wrongly block a report.
+
+DOI extraction (`citation-extractor.js`):
+- The DOI regex stops at non-DOI terminators (markdown/prose punctuation) and strips trailing
+  sentence punctuation after capture (a DOI never ends in `.` `,` `;` `:`). This prevents
+  trailing `]]` / `;` / `.` from being captured, which had deflated the grounded ratio and
+  duplicated DOIs.
+
+## Corpora Ingestion (Stop-Reason Archaeology)
+- `ctgov-supplemental.js` is a LOCAL FETCHER (not ToolUniverse) that searches
+  ClinicalTrials.gov API v2 for TERMINATED/WITHDRAWN/SUSPENDED trials in a condition, returning
+  each trial's `whyStopped` text plus protocol change-history (version count + most-amended
+  modules) from the internal history endpoint. Has a session cache.
+- Routed into role prefetch through the local-fetcher seam in `tool-prefetch.js`
+  (`createToolPrefetch` `options.localFetchers`), tool name `ctgov_stopped_trials`. Each record
+  is NCT-traced (grounded cite).
+
+## Mission Bundle Deliverables
+Every mission bundle now ships, in addition to the report, a citation-integrity audit trail and
+a cost-avoidance graveyard memo. Both are registered in `manifest.json` and sealed in
+`checksums.txt`.
+
+- `deliverables/citation-integrity.md` — `integrity-rating.js` `buildIntegrityReport(citation_verification)`
+  renders a graded provenance ledger (grade A/B/C/D from the grounded ratio; F + "BLOCKED" if any
+  retraction; N/A if nothing cited). It is the report's audit-trail spine.
+- `deliverables/graveyard-memo.md` — `graveyard-memo.js` `buildGraveyardMemo(stoppedTrials, {indication})`
+  renders a memo of prior terminated/withdrawn/suspended programs in the indication, each
+  NCT-traced, with the sponsor's stated stop reason (or an explicit "(none stated by sponsor)" —
+  never invented), protocol churn, and a resolvable `clinicaltrials.gov/study/<NCT>` link.
+  `buildAmendmentRisk(stoppedTrials)` renders a protocol amendment-risk band (LOW/MODERATE/HIGH)
+  from the change-history median/max version count + most-amended modules. Both are rendered
+  DETERMINISTICALLY from the fetched records (no LLM), so every claim is verifiable.
+
+Wiring: on a gate-PASSING mission, `executeMissionStep` re-fetches the indication's stopped trials
+(a session-cache hit — no extra CT.gov call), builds both memos (fully fail-soft + bounded — an
+absent fetcher/empty indication/fetch error simply omits them and never blocks a passing report),
+persists `graveyard-memo.md` to the workflow dir, and attaches them to the result; `executeOfferStep`
+threads them into `source_context`; the deliverable packager ships `graveyard-memo.md` and registers
+`artifactRefs.graveyard_memo`; `state.artifacts.graveyard` records the summary. `_workflow-runtime`
+exposes the same `ctgovSupplemental` + `crossrefRetraction` instances on `researchRuntime`.
+
+## Error Codes
+- `SUPERVISOR_APPROVAL_REQUIRED` — engine execution requires a supervisor approval receipt.
+- `PHASE30_CITATION_UNVERIFIED` — grounded citation ratio below `minGroundedCitationRatio`.
+- `PHASE30_CITATION_RETRACTED` — report cites a Crossref-flagged retracted DOI.
 
 ## Quick Start (Mock Provider)
 ```bash

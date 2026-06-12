@@ -1,0 +1,13 @@
+{
+  "schema_version": "phase34-role-provider-map-v1",
+  "_comment": "Authoritative role->backend routing for the multi-agent layer. With an EMPTY `roles` object every role uses `default` (claude-code) — identical to current behavior, and independent of whether Ollama/LM Studio are installed. TO ACTIVATE a local backend for a role: (1) install the engine + pull/load the model, (2) confirm the exact served id (`ollama list` / LM Studio), (3) move an entry from `_recommended_after_install` into `roles` with that id. NOTE: provider `local` == Ollama (matches llm-adapter dispatch + llm-providers.json `local`); `lm-studio` == LM Studio; `claude-code` == Claude.",
+  "default": { "provider": "claude-code", "model": "claude-sonnet-4-6", "fallback": "lm-studio" },
+  "roles": {
+    "scout":       { "provider": "local",       "model": "qwen2.5:7b-instruct", "fallback": "claude-code" },
+    "synthesizer": { "provider": "claude-code", "model": "claude-sonnet-4-6",   "fallback": "lm-studio" }
+  },
+  "_recommended_after_install": {
+    "analyst": { "provider": "lm-studio", "model": "qwen/qwen3.5-9b", "fallback": "claude-code", "note": "READY TO RESTORE — LM Studio stays installed + configured (llm-providers.json lm-studio entry intact). Moved out 2026-06-11 for 16GB stability (Ollama is the only local model). To re-enable: `lms server start --port 1234` + `lms load qwen/qwen3.5-9b`, then move this entry into `roles`." }
+  },
+  "_memory_note": "Single local model by choice (scout → Ollama). analyst is absent from `roles` so it resolves to `default` (claude-code). synthesizer stays on claude-code (its fallback lm-studio only triggers if claude-code errors AND LM Studio is serving)."
+}

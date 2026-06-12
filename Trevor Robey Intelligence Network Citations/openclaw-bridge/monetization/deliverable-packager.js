@@ -6,6 +6,7 @@ const path = require("node:path");
 
 const { canonicalize, canonicalJson, safeString, sha256 } = require("../../workflows/governance-automation/common.js");
 const { extractCitations, deduplicateCitations, countByType, roleLabel } = require("../core/citation-extractor.js");
+const { buildIntegrityReport } = require("./integrity-rating.js");
 const { PHASE21_RELEASE_METADATA_SCHEMA } = require("./publisher-adapter-contract.js");
 const { validatePublisherAdapterSnapshot } = require("./publisher-adapter-snapshot-validator.js");
 
@@ -71,7 +72,7 @@ function createDeliverablePackager(options = {}) {
     const artifacts = Array.isArray(sourceContext.artifacts) ? sourceContext.artifacts : [];
     const allText = artifacts.map((a) => a.output_full || a.output_excerpt || "").join("\n");
     const citations = extractCitations(allText);
-    const uniqueCitations = [...new Map(citations.map((c) => [`${c.type}:${c.id}`, c])).values()];
+    const uniqueCitations = deduplicateCitations(citations);
     const totalChars = artifacts.reduce((sum, a) => sum + (a.output_full || a.output_excerpt || "").length, 0);
     const pageEstimate = Math.max(1, Math.round(totalChars / 2000));
     const productLine = safeString(offer.product_line).replace(/_/g, " ");
@@ -137,7 +138,7 @@ function createDeliverablePackager(options = {}) {
     const artifacts = Array.isArray(sourceContext.artifacts) ? sourceContext.artifacts : [];
     const allText = artifacts.map((a) => a.output_full || a.output_excerpt || "").join("\n");
     const citations = extractCitations(allText);
-    const uniqueCitations = [...new Map(citations.map((c) => [`${c.type}:${c.id}`, c])).values()];
+    const uniqueCitations = deduplicateCitations(citations);
 
     const lines = [
       `# ${safeString(offer.offer_title)}`,
@@ -201,7 +202,7 @@ function createDeliverablePackager(options = {}) {
     const artifacts = Array.isArray(sourceContext.artifacts) ? sourceContext.artifacts : [];
     const allText = artifacts.map((a) => a.output_full || a.output_excerpt || "").join("\n");
     const citations = extractCitations(allText);
-    const uniqueCitations = [...new Map(citations.map((c) => [`${c.type}:${c.id}`, c])).values()];
+    const uniqueCitations = deduplicateCitations(citations);
     const byType = {};
     for (const c of uniqueCitations) {
       if (!byType[c.type]) byType[c.type] = 0;
@@ -278,7 +279,7 @@ function createDeliverablePackager(options = {}) {
     const artifacts = Array.isArray(sourceContext.artifacts) ? sourceContext.artifacts : [];
     const allText = artifacts.map((a) => a.output_full || a.output_excerpt || "").join("\n");
     const citations = extractCitations(allText);
-    const uniqueCitations = [...new Map(citations.map((c) => [`${c.type}:${c.id}`, c])).values()];
+    const uniqueCitations = deduplicateCitations(citations);
     const sampleCitation = uniqueCitations[0] || { type: "PMID", id: "00000000" };
 
     return canonicalize({
@@ -465,7 +466,7 @@ function createDeliverablePackager(options = {}) {
       }
       writeText(tablesPath, renderCsv(csvRows));
 
-      const uniqueAllCitations = [...new Map(allCitations.map((c) => [`${c.type}:${c.id}`, c])).values()];
+      const uniqueAllCitations = deduplicateCitations(allCitations);
       const synthArtifact = allArtifacts.find((a) => roleLabel(a.task_id) === "Integrated Synthesis") || allArtifacts[allArtifacts.length - 1];
       const synthText = synthArtifact ? (synthArtifact.output_full || synthArtifact.output_excerpt || "") : "";
       const execSummary = synthText.slice(0, 1500).trim();
@@ -494,6 +495,23 @@ function createDeliverablePackager(options = {}) {
       artifactRefs.primary_deliverable = relativeFrom(bundleDir, reportPath);
       artifactRefs.structured_support = relativeFrom(bundleDir, tablesPath);
       artifactRefs.supporting_appendix = relativeFrom(bundleDir, appendixPath);
+      // Slice 3: the Citation Integrity & Provenance ledger — the deliverable's audit-trail
+      // artifact, built deterministically from the citation gate's verification (the product spine).
+      if (sourceContext.citation_verification) {
+        const integrityPath = path.join(deliverablesDir, "citation-integrity.md");
+        writeText(integrityPath, buildIntegrityReport(sourceContext.citation_verification).markdown);
+        artifactRefs.citation_integrity = relativeFrom(bundleDir, integrityPath);
+      }
+      // Slice 3 v2: the structured kill-memo — prior terminated programs (graveyard) + the
+      // protocol amendment-risk signal, rendered upstream from NCT-traced CT.gov records. A
+      // cost-AVOIDANCE deliverable; only present when stopped trials were retrieved for the indication.
+      if (sourceContext.graveyard_memo && safeString(sourceContext.graveyard_memo.markdown)) {
+        const graveyardPath = path.join(deliverablesDir, "graveyard-memo.md");
+        const amendmentMd = sourceContext.amendment_risk && safeString(sourceContext.amendment_risk.markdown)
+          ? "\n" + sourceContext.amendment_risk.markdown : "";
+        writeText(graveyardPath, sourceContext.graveyard_memo.markdown + amendmentMd);
+        artifactRefs.graveyard_memo = relativeFrom(bundleDir, graveyardPath);
+      }
       artifactRefs.sample_preview = relativeFrom(bundleDir, previewPath);
 
     } else {
@@ -746,7 +764,32 @@ function createDeliverablePackager(options = {}) {
       fs.rmSync(finalBundleDir, { recursive: true, force: true });
     }
     ensureDir(path.dirname(finalBundleDir));
-    fs.renameSync(tempBundleDir, finalBundleDir);
+    try {
+      fs.renameSync(tempBundleDir, finalBundleDir);
+    } catch (error) {
+      // The bundle workspace is created under os.tmpdir() (internal disk), while
+      // releasesDir may live on a different filesystem/volume (e.g. the repo on an
+      // external drive). rename(2) cannot move across devices and throws EXDEV.
+      // Fall back to a recursive copy + remove so commit works regardless of where
+      // the repo is mounted.
+      if (error && error.code === "EXDEV") {
+        // Cross-device: copy then remove. If the copy fails partway, clean up the partial
+        // destination (so a half-written bundle is never mistaken for a complete one) and
+        // keep the temp dir for diagnosis, then rethrow with context.
+        try {
+          fs.cpSync(tempBundleDir, finalBundleDir, { recursive: true });
+        } catch (copyError) {
+          try { fs.rmSync(finalBundleDir, { recursive: true, force: true }); } catch { /* best effort */ }
+          const wrapped = new Error(`commitBundle cross-device copy failed for offer '${offerId}': ${copyError && copyError.message}`);
+          wrapped.code = (copyError && copyError.code) || "COMMIT_BUNDLE_COPY_FAILED";
+          wrapped.cause = copyError;
+          throw wrapped;
+        }
+        fs.rmSync(tempBundleDir, { recursive: true, force: true });
+      } else {
+        throw error;
+      }
+    }
     return finalBundleDir;
   }
 

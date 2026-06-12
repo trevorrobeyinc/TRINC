@@ -2,7 +2,7 @@
 
 const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
-const { extractCitations, deduplicateCitations, countByType, roleLabel } = require("../../openclaw-bridge/core/citation-extractor.js");
+const { extractCitations, deduplicateCitations, countByType, crossCheckCitations, roleLabel } = require("../../openclaw-bridge/core/citation-extractor.js");
 
 describe("citation-extractor", () => {
   describe("extractCitations", () => {
@@ -36,6 +36,29 @@ describe("citation-extractor", () => {
       assert.ok(types.includes("DrugBank"));
       assert.ok(types.includes("UniProt"));
       assert.ok(types.includes("DOI"));
+    });
+
+    it("stops DOIs at trailing markdown/punctuation (no ]] or ; captured) and dupes collapse", () => {
+      const text = "See doi: 10.3389/fphar.2026.1787936]] and doi: 10.54097/5hr7dp28]]; plus [[doi: 10.54097/5hr7dp28]] again and doi: 10.1016/j.ajpc.2023.100579]].";
+      const dois = extractCitations(text).filter((c) => c.type === "DOI").map((c) => c.id);
+      assert.ok(dois.includes("10.3389/fphar.2026.1787936"), "no trailing ]]");
+      assert.ok(dois.includes("10.54097/5hr7dp28"), "no trailing ];");
+      assert.ok(dois.includes("10.1016/j.ajpc.2023.100579"));
+      const dedup = deduplicateCitations(extractCitations(text)).filter((c) => c.type === "DOI").map((c) => c.id);
+      assert.equal(dedup.filter((d) => d === "10.54097/5hr7dp28").length, 1, "the two 5hr7dp28 mentions collapse to one clean id");
+    });
+
+    it("still extracts a clean DOI fully (internal dots/slashes preserved)", () => {
+      const dois = extractCitations("doi: 10.1038/nature12373 and https://doi.org/10.1016/j.cell.2020.05.001").filter((c) => c.type === "DOI").map((c) => c.id);
+      assert.ok(dois.includes("10.1038/nature12373"));
+      assert.ok(dois.includes("10.1016/j.cell.2020.05.001"));
+    });
+
+    it("strips a trailing sentence period from a DOI while keeping internal dots", () => {
+      const dois = extractCitations("Per doi: 10.1038/nature12373. And see doi: 10.1016/j.cell.2020.05.001.").filter((c) => c.type === "DOI").map((c) => c.id);
+      assert.ok(dois.includes("10.1038/nature12373"), "trailing period stripped");
+      assert.ok(dois.includes("10.1016/j.cell.2020.05.001"), "internal dots kept, trailing period stripped");
+      assert.ok(!dois.some((d) => d.endsWith(".")), "no extracted DOI ends in a period");
     });
 
     it("returns empty array for text with no citations", () => {
@@ -87,6 +110,25 @@ describe("citation-extractor", () => {
     it("defaults to Research Output for unknown roles", () => {
       assert.equal(roleLabel("unknown_agent"), "Research Output");
       assert.equal(roleLabel(""), "Research Output");
+    });
+  });
+
+  describe("crossCheckCitations", () => {
+    it("splits report citations into verified (in fetched set) vs unverified (model-introduced)", () => {
+      const report = "Evidence from PMID: 12345678 and trial NCT00012345; also see PMID: 99999999.";
+      const result = crossCheckCitations(report, ["12345678", "NCT00012345"]);
+      assert.equal(result.total, 3);
+      assert.equal(result.verified_count, 2);
+      assert.equal(result.unverified_count, 1);
+      assert.equal(result.verified_ratio, 0.667);
+      assert.equal(result.unverified[0].id, "99999999");
+    });
+
+    it("ratio 0 and empty unverified when the report has no citations", () => {
+      const r = crossCheckCitations("No citations here.", ["12345678"]);
+      assert.equal(r.total, 0);
+      assert.equal(r.verified_ratio, 0);
+      assert.deepEqual(r.unverified, []);
     });
   });
 });

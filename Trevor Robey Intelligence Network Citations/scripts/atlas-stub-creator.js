@@ -139,7 +139,20 @@ function main() {
     }
     const noteDir = path.join(atlasRoot, dirName);
     fs.mkdirSync(noteDir, { recursive: true });
-    const notePath = path.join(noteDir, `${link.target}.md`);
+    const targetSegment = String(link.target || "");
+    const notePath = path.join(noteDir, `${targetSegment}.md`);
+    // Hardening (F-P1): never let an untrusted wikilink target escape the atlas
+    // directory. Reject path separators / ".." / any resolved containment break.
+    if (
+      /[\\/]/.test(targetSegment) ||
+      targetSegment.includes("..") ||
+      !path.resolve(notePath).startsWith(path.resolve(noteDir) + path.sep)
+    ) {
+      skipped++;
+      byType[dirName] = byType[dirName] || { created: 0, skipped: 0 };
+      byType[dirName].skipped += 1;
+      continue;
+    }
     if (fs.existsSync(notePath)) {
       skipped++;
       byType[dirName] = byType[dirName] || { created: 0, skipped: 0 };

@@ -54,7 +54,7 @@ Claude Desktop (heavy-lift code/file operator)
 
 Command Center plugin (workflow dispatch + monitoring, Obsidian plugin at obsidian-openclaw-command-center/)
   ├── [child_process.spawn()] → trevor-robey-inc-agents/scripts/run-workflow.js
-  │                              ├── role-routed LLM providers (Claude Code primary, LM Studio fallback, mock for CI; Ollama slot disabled)
+  │                              ├── per-role LLM routing via config/role-provider-map.json (2026-06-11): scout→Ollama (qwen2.5:7b-instruct, :11434 boot-persistent), analyst+synthesizer→Claude Code, default→Claude Code; each non-claude route falls back to claude-code. --operator-approve is YubiKey-gated. Per-role identity/memory under config/agents/<role>/{SOUL.md,AGENTS.md,sessions/}
   │                              ├── ToolUniverse subprocess (vendor/tooluniverse, ~2,116 tools)
   │                              └── 8 project MCP servers (chembl, clinicaltrials-gov, pubmed, huggingface metadata-only, npi, icd10, owkin, gdrive)
   ├── [child_process.spawn()] → trevorobeyinc-research-memory CLI (auto-ingest pack to Qdrant)
@@ -63,7 +63,7 @@ Command Center plugin (workflow dispatch + monitoring, Obsidian plugin at obsidi
   └── [HTTP :8799] → Own additive MCP bridge (biomedical workflow tools)
 
 Biomedical Workflow Observability Stack (optional, Docker Compose)
-  ├── Traefik :11480/:11481 → Ollama :11434 / LM Studio :1234 (failover)
+  ├── Traefik :11480/:11481 → Ollama :11434 / LM Studio :1234 (failover) — HISTORICAL / not in the live path (live local path = mkcert TLS proxies :11435 → Ollama, :1235 → LM Studio)
   ├── Prometheus :9090 → (no scrape target — biomedical workflow has no persistent gateway)
   └── Grafana :3001 → Prometheus datasource
 ```
@@ -81,7 +81,7 @@ Biomedical Workflow Observability Stack (optional, Docker Compose)
 | 1235 | LM Studio TLS proxy (HTTPS terminator → :1234) | HTTPS | Copilot-Everything | launchd `com.trevorrobey.lm-studio-tls-proxy` |
 | 1234 | LM Studio (plaintext upstream — only the proxy at :1235 should reach it) | HTTP | external | LM Studio app |
 | 11435 | Ollama TLS proxy (HTTPS terminator → :11434) | HTTPS | Copilot-Everything | launchd `com.trevorrobey.ollama-tls-proxy` |
-| 11434 | Ollama (plaintext upstream — only the proxy at :11435 should reach it; provider slot currently DISABLED in config/llm-providers.json) | HTTP | external | Ollama app |
+| 11434 | Ollama (plaintext upstream — only the proxy at :11435 should reach it; provider slot ENABLED for scout 2026-06-11, boot-persistent launchd service `homebrew.mxcl.ollama`) | HTTP | external | Ollama (launchd) |
 | 11480 | Traefik scout proxy (optional) | HTTP | trevor-robey-inc-agents | Docker Compose |
 | 11481 | Traefik analyst proxy (optional) | HTTP | trevor-robey-inc-agents | Docker Compose |
 | 9090 | Prometheus (optional) | HTTP | trevor-robey-inc-agents | Docker Compose |
@@ -97,7 +97,7 @@ All HTTPS services use mkcert certificates at `~/.local/share/mkcert/localhost.p
 
 > **Notes**:
 > - backend-emulator (:8789) was retired 2026-04-11 — ZettelkastenService now runs in-process inside the `vault-zettelkasten` Obsidian plugin.
-> - The biomedical research engine (`/Users/trevorrobey/Code/trevor-robey-inc-agents/`) runs as on-demand subprocess via `node scripts/run-workflow.js` — there is no persistent gateway service. The previous launchd entry on :18789 was for the unrelated homebrew `openclaw` (a consumer "Personal AI assistant" from openclaw.ai, different product entirely; removed 2026-04-27).
+> - The biomedical research engine (`/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations/`) runs as on-demand subprocess via `node scripts/run-workflow.js` — there is no persistent gateway service. The previous launchd entry on :18789 was for the unrelated homebrew `openclaw` (a consumer "Personal AI assistant" from openclaw.ai, different product entirely; removed 2026-04-27).
 
 1. **Obsidian** — opening Obsidian loads two bridge-owning plugins:
    - `obsidian-bridge-launcher` spawns the canonical MCP bridge child process on :8798 (HTTPS).
@@ -114,7 +114,7 @@ curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.
 lsof -nP -iTCP:8742 -sTCP:LISTEN | grep -i miyo   # plaintext Miyo upstream (proxy backs onto this)
 curl http://127.0.0.1:6333/collections/miyo
 # Biomedical workflow runtime check (no persistent service — verify the subprocess path is wired):
-cd /Users/trevorrobey/TrevClaw-Obsidianodus/trevor-robey-inc-agents && bash scripts/verify-phase29-policy.sh | tail -1
+cd "/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations" && bash scripts/verify-phase29-policy.sh | tail -1
 ```
 
 ## Key Integration Points
@@ -135,20 +135,22 @@ Authoritative narrative lives in `trevor-robey-inc-agents/{NOTICE.md,TREVOR_ROBE
 **Tagline**: *Every claim, sourced. Every risk, named. In days, not weeks.*
 **Elevator**: *Citation-traced biomedical due diligence for biotech investors and pharma BD. Five days. Zero hallucinations. Audit trail included.*
 
-**LLM provider stack** (per `trevor-robey-inc-agents/config/llm-providers.json`):
+**LLM provider stack** — stateful per-role routing via `config/role-provider-map.json` (updated 2026-06-11; precedence `roles[role]` → template `provider_preference` → `default` = claude-code; each non-claude route falls back to claude-code). Persistent per-role identity + session memory under `config/agents/<role>/{SOUL.md,AGENTS.md,sessions/}`:
 
-| Provider | Role | Status |
+| Provider | Role(s) | Status |
 |---|---|---|
-| Claude Code CLI (`claude-sonnet-4-6`) | Primary | Active; default for all production tiers |
-| LM Studio (`qwen2.5-coder-7b-instruct`, alt `mistral-nemo-12b`) | Fallback | Active on `https://127.0.0.1:1235` (TLS proxy → upstream :1234) |
+| Claude Code CLI (`claude-sonnet-4-6`) | **analyst, synthesizer** + global default | Active; flat **Claude Max 20×** subscription (not per-token). `--operator-approve` is YubiKey-gated (`operator-approve-gate arm`). |
+| Ollama (`local`, `qwen2.5:7b-instruct`) | **scout** | **Active + boot-persistent** (launchd service, :11434) via TLS proxy `https://127.0.0.1:11435` — the only local model |
+| LM Studio (`qwen/qwen3.5-9b`) | — (staged for analyst) | **Installed; model UNLOADED** (server :1234 via TLS proxy :1235). Route staged in `_recommended_after_install`; analyst reverted to claude-code 2026-06-11 for 16 GB stability |
 | Mock provider | CI / deterministic tests | Active |
-| Ollama | — | Configured, **disabled** |
 
 ToolUniverse subprocess (Apache-2.0, Harvard MIMS / Zitnik Lab; `vendor/tooluniverse/`) provides ~2,116 biomedical tools. Eight project MCP servers under `openclaw-bridge/mcp/` cover ChEMBL, ClinicalTrials.gov, PubMed, HuggingFace Hub (metadata-only — no model weights downloaded), NPI Registry, ICD-10, Owkin pathology, Google Drive.
 
 **Pricing tiers (2026-04-30)**: Investor Pre-Mortem $9,950 anchor / $14,950 standard / $19,950 custom (with KOL primary research) · Failed Trial Archaeology $14,950 · tactical SKUs $4,950 (Conference Synthesis Brief, Trial Design Benchmark Pack) · Cross-Silo Connector Report $9,950–$24,950 · Plain-Language Patient Brief $2,500. Pharmacovigilance Pack retained as tactical SKU (existing marketplace listings preserved). Full breakdown in `REVENUE_PLAYBOOK.md` §2.
 
-**Posture**: research artifacts only (not validated for clinical decision support); no PHI hosted or processed (sources are public biomedical databases); manual-only external actions (no autonomous publish/post/login/transact); citation traceability enforced as a quality gate (every row in every citation index carries a real PMID, NCT, ChEMBL CID, or DOI). Full disclaimers in `NOTICE.md`.
+**Mission-bundle deliverables (2026-06-12)**: every report bundle now ships two additional deterministically-rendered deliverables (registered in `manifest.json` + sealed in `checksums.txt`): `deliverables/citation-integrity.md` — a graded (A/B/C/D, F+"BLOCKED" if any retraction, N/A if nothing cited) provenance ledger derived from the runtime citation-verification record, and `deliverables/graveyard-memo.md` — an NCT-traced memo of prior terminated/withdrawn/suspended programs in the indication (each with the sponsor's stated stop reason or an explicit "(none stated by sponsor)" — never invented, plus protocol churn and a resolvable clinicaltrials.gov/study/<NCT> link) and a protocol amendment-risk band (LOW/MODERATE/HIGH). The graveyard data comes from a local ClinicalTrials.gov v2 stop-reason/change-history fetcher routed through role prefetch; the memos render from the fetched records with no LLM and are fully fail-soft (an absent fetcher / empty indication / fetch error simply omits them and never blocks a passing report). Engine deep-dive: `Trevor Robey Intelligence Network Citations/CLAUDE.md`.
+
+**Posture**: research artifacts only (not validated for clinical decision support); no PHI hosted or processed (sources are public biomedical databases); manual-only external actions (no autonomous publish/post/login/transact); citation traceability enforced as a quality gate (every row in every citation index carries a real PMID, NCT, ChEMBL CID, or DOI). As of 2026-06-12 the post-research engine adds a runtime citation-integrity layer: every cited identifier is **grounded in the source records actually retrieved at runtime** (a report-level gate cross-checks each cited id against the union of runtime-fetched ids; below the `minGroundedCitationRatio` threshold the report hard-fails `PHASE30_CITATION_UNVERIFIED`), and every cited DOI is **retraction-screened against Crossref** (any retracted paper hard-stops `PHASE30_CITATION_RETRACTED`, fail-soft on Crossref errors). Grounding/retraction-screening is *not* per-citation external re-resolution against each live source database. Full disclaimers in `NOTICE.md`. Engine deep-dive: `Trevor Robey Intelligence Network Citations/CLAUDE.md`.
 
 **Out of stack** (named in early planning, NOT shipped): Qwen2.5-7B-Instruct, OpenBioLLM-Llama3-8B, any HF-downloaded model weights, the homebrew `openclaw` / `openclaw-cli` (those are unrelated openclaw.ai consumer products).
 

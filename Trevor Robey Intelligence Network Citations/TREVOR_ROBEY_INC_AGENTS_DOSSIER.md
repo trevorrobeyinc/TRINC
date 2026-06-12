@@ -50,7 +50,7 @@ In plain English:
 
 - It runs six prebuilt biomedical research workflows (`drug-discovery-full`, `pharmacovigilance-report`, `clinical-trial-landscape`, `target-validation-pack`, `rare-disease-brief`, `general-research-pack`) end-to-end via a single command.
 - It pulls live evidence from ToolUniverse (~2,116 biomedical tools, Apache-2.0, Harvard MIMS / Zitnik Lab) plus eight project MCP servers (ChEMBL, ClinicalTrials.gov, PubMed, HuggingFace Hub, NPI Registry, ICD-10, Owkin pathology, Google Drive).
-- It produces ZIP release bundles containing a multi-section research report (40 KB+ typical), a citation-index CSV in which every row carries a real identifier (PMID, NCT, ChEMBL CID, DOI), an executive summary, a provenance manifest, and structured metadata.
+- It produces ZIP release bundles containing a multi-section research report (40 KB+ typical), a citation-index CSV in which every row carries a real identifier (PMID, NCT, ChEMBL CID, DOI), an executive summary, a provenance manifest, structured metadata, and (as of 2026-06-12) a Citation Integrity & Provenance ledger plus, for indication missions, a Graveyard Memo with protocol amendment-risk band (see "Citation-integrity layer + cost-avoidance deliverables" below).
 - It tracks evidence after export so the operator can prove what was shipped, where it went, and what happened next.
 - It is designed to help the operator turn research work into monetizable outputs without crossing the repo's manual-only external-action boundary.
 
@@ -136,17 +136,47 @@ flowchart TD
 
 ### Provider Stack (LLMs + tool surface)
 
+**Updated 2026-06-11:** the engine now runs a **stateful multi-agent routing layer** (built + verified live this date). Per-role backend routing is real via `config/role-provider-map.json`, with precedence `roles[role] → workflow-template provider_preference → default=claude-code`. Each non-`claude-code` route carries a `claude-code` fallback (`llm-adapter.complete()` retries `fallbackProvider` on error). This supersedes both the old "Scout→Ollama / Analyst→LM Studio / Synthesizer→Claude (not active)" fiction *and* the later "claude-code does everything / per-role routing not active / Ollama off" correction. The table below is the current truth.
+
 | Provider | Role | Status | Notes |
 | --- | --- | --- | --- |
-| **Claude Code CLI** (`claude-sonnet-4-6`) | Primary LLM | Active | `claude -p` stdin pipe, authenticated via Claude Max Pro. Default for all production tiers. |
-| **LM Studio** (local) | Fallback LLM | Active | `qwen2.5-coder-7b-instruct` on `localhost:1234`; `mistral-nemo-12b` documented as alt for stronger reasoning. |
+| **Claude Code CLI** (`claude-code` provider) | Default LLM + `analyst` + `synthesizer` (`claude-sonnet-4-6`) | Active | Runs the `claude` CLI on the **Claude Max 20×** subscription (flat-rate, NOT per-token; only metered beyond plan limits). Default for unmapped roles and the global default. `analyst` was briefly LM Studio on 2026-06-11, then reverted for 16 GB stability. |
+| **Ollama** (`local` provider, `qwen2.5:7b-instruct`) | `scout` | Active | The **only** local model in use. Serves `:11434` as a boot-persistent launchd service (`homebrew.mxcl.ollama`, RunAtLoad + KeepAlive), reached via the `:11435` mkcert TLS proxy. Falls back to `claude-code` on error. |
+| **LM Studio** (local, `qwen/qwen3.5-9b`) | `analyst` (staged) | Installed, model UNLOADED | brew cask 0.4.16; 9B Q4_K_M GGUF on disk; server `:1234` via the `:1235` mkcert TLS proxy. Model currently unloaded (RAM freed); server is NOT boot-persistent. `analyst`'s lm-studio route is staged in `role-provider-map` under `_recommended_after_install` for a one-line flip-back. |
 | **Mock provider** | Test / CI | Active | Deterministic; required for offline `npm test`. |
-| **Ollama** | Local LLM slot | Disabled | Configured but not enabled in `config/llm-providers.json`. |
 | **ToolUniverse** (subprocess) | Biomedical tool surface | Active | ~2,116 tools, Apache-2.0, Harvard MIMS / Zitnik Lab; vendored at `vendor/tooluniverse/`; Phase 29 verified. |
 | **Scholar Gateway (Semantic Scholar)** | First-class literature lane | Active | `SemanticScholar_search_papers` is wired into the role prefetch map for `scout`, `analyst`, `literature_reviewer`, and `competitive_intel_analyst` — runs alongside PubMed/EuropePMC for every literature-aware role, not as a fallback. Complementary in-process JS MCP at `openclaw-bridge/mcp/semantic-scholar-mcp.js`; full vendored toolset (7 tools: search_papers, get_paper, get_pdf_snippets, get_recommendations, get_author, search_authors, etc.) at `vendor/tooluniverse/src/tooluniverse/tools/SemanticScholar_*.py`. Smoke tests under `audit/evidence/mcp-live/semantic-scholar-*.json`. See `config/tool-prefetch-map.json` for current wiring. |
 | **Project MCP servers** | Domain tool surface | Active | 8 servers under `openclaw-bridge/mcp/`: `chembl-mcp`, `clinicaltrials-gov-mcp`, `pubmed-mcp`, `huggingface-mcp` (metadata only), `npi-mcp`, `icd10-mcp`, `owkin-mcp`, `gdrive-mcp`. |
 
-No HuggingFace model weights are downloaded or run. The `huggingface-mcp` server queries Hub metadata only. Qwen2.5-7B-Instruct and OpenBioLLM-Llama3-8B were named in earlier planning but are not part of this stack.
+No HuggingFace model weights are downloaded or run. The `huggingface-mcp` server queries Hub metadata only. OpenBioLLM-Llama3-8B was named in earlier planning but is not part of this stack; the live local model is Ollama `qwen2.5:7b-instruct` (scout) with LM Studio `qwen/qwen3.5-9b` staged for analyst.
+
+#### Persistent agent identity + memory (added 2026-06-11)
+
+Each role has a durable identity/memory tree under `config/agents/<role>/`:
+
+- `SOUL.md` — identity / mandate
+- `AGENTS.md` — route + collaboration profile
+- `sessions/` — per-run records plus `summary-latest.json`
+
+The identity + latest summary are loaded into the prompt by `role-router.dispatch` (via `agent-context-loader`) and written back after each run by `agent-session-recorder`. New core modules: `openclaw-bridge/core/{role-provider-router, agent-context-loader, agent-session-recorder}.js`. `agent-config.json` is now `phase34-agent-config-v2` (adds `agentStateDir` and `roleProviderMap`).
+
+#### Auth + TLS for the routing path (added 2026-06-11)
+
+- The engine's `--operator-approve` flag is **YubiKey-gated** (PIN + touch via `operator-approve-gate arm`; one-shot, TTL 300s, nonce-rotated, fail-closed).
+- `scripts/run-workflow.sh` sets `NODE_EXTRA_CA_CERTS` (mkcert root CA) so the `local` / `lm-studio` TLS proxies (`:11435` / `:1235`) validate.
+- The Obsidian Command Center plugin now spawns `run-workflow.js` with `--operator-approve` plus that CA env.
+- Any earlier mention of Traefik `:11480`/`:11481` failover proxies is **historical / not in the current path** — the live path is the mkcert TLS proxies `:11435` / `:1235`.
+
+#### Citation-integrity layer + cost-avoidance deliverables (added 2026-06-12)
+
+This is the post-research engine layer that makes the long-standing "citation traceability is a gate, not a warning" promise enforceable at runtime. Shipped, unit-tested (316/316), and live-verified on an armed heart-failure run (workflow 6/6 steps, grounded ratio 1.0, 8 stopped trials retrieved, integrity grade A, both new deliverables sealed in the release bundle).
+
+- **Runtime citation gate.** `agent-engine.js` persists the `fetched_citation_ids` (identifiers actually retrieved at runtime by tool-prefetch) plus a per-task `citation_verification` block into research-output metadata, and `buildPrompt` carries an ABSOLUTE-RULE "ZERO FABRICATION" clause (never invent a PMID/NCT/DOI; say `[no verifiable citation found]` instead). `workflow-engine.executeMissionStep` then runs a report-level gate (`verifyReportCitations` in `openclaw-bridge/core/citation-gate.js`): every identifier cited in the assembled report is cross-checked against the union of runtime-fetched ids. A cited id is **grounded** if it was present in fetched evidence, else **ungrounded** (likely model-introduced). The gate hard-fails / refuses to ship (`PHASE30_CITATION_UNVERIFIED`) when the grounded ratio is below `minGroundedCitationRatio` (agent-config default `0.34`), writes `citation-verification.json` + `report-annotated.md` to the workflow dir, and annotates surviving ungrounded cites inline `[UNVERIFIED]`. It engages only when there IS fetched ground truth. (Accurate scope: citations are grounded in the source records actually retrieved at runtime, not independently re-resolved against each live external database.)
+- **DOI retraction screen.** `openclaw-bridge/mcp/crossref-retraction/crossref-retraction.js` checks each cited DOI against Crossref `/works/{DOI}` (`relation.is-retracted-by` or `update-to` type "retraction"). A report citing any retracted paper hard-stops (`PHASE30_CITATION_RETRACTED`). Fail-soft: Crossref errors yield no retractions, so a network blip can never wrongly block a report.
+- **Stop-reason / change-history corpora ingestion.** `openclaw-bridge/mcp/ctgov-supplemental/ctgov-supplemental.js` is a local fetcher (not ToolUniverse) that searches ClinicalTrials.gov API v2 for TERMINATED/WITHDRAWN/SUSPENDED trials in a condition, returning each trial's `whyStopped` text plus protocol change-history (version count + most-amended modules) from the internal history endpoint, with a session cache. It is routed into role prefetch through a new local-fetcher seam in `tool-prefetch.js` (`createToolPrefetch` `options.localFetchers`, tool_name `ctgov_stopped_trials`). Each record is NCT-traced.
+- **New mission-bundle deliverables.** `deliverables/citation-integrity.md` (rendered by `openclaw-bridge/monetization/integrity-rating.js` `buildIntegrityReport` — a graded provenance ledger: grade A/B/C/D from the grounded ratio; F + "BLOCKED" if any retraction; N/A if nothing cited) and `deliverables/graveyard-memo.md` (rendered by `openclaw-bridge/monetization/graveyard-memo.js` `buildGraveyardMemo` — prior terminated/withdrawn/suspended programs in the indication, each NCT-traced, with the sponsor's stated stop reason or an explicit "(none stated by sponsor)" — never invented — protocol churn, and a resolvable `clinicaltrials.gov/study/<NCT>` link, plus `buildAmendmentRisk` for a LOW/MODERATE/HIGH protocol amendment-risk band from change-history median/max version count). Both are rendered deterministically from fetched records (no LLM). On a gate-passing mission, `executeMissionStep` re-fetches the indication's stopped trials (session-cache hit, no extra CT.gov call), builds both memos (fully fail-soft + bounded — an absent fetcher/empty indication/fetch error simply omits them and never blocks a passing report), persists them to the workflow dir, and the deliverable-packager ships `graveyard-memo.md` and registers `artifactRefs.graveyard_memo`; `citation-integrity.md` is registered in `manifest.json` and sealed in `checksums.txt`.
+- **DOI extraction fix.** `openclaw-bridge/core/citation-extractor.js` now stops the DOI regex at non-DOI terminators and strips trailing sentence punctuation after capture (a DOI never ends in `.`, `,`, `;`, `:`), which had previously deflated the grounded ratio and duplicated DOIs; confirmed live to raise the same deliverable's integrity grade from C/0.69 to A/1.0.
+- **New error codes:** `PHASE30_CITATION_UNVERIFIED`, `PHASE30_CITATION_RETRACTED`. **New config:** `minGroundedCitationRatio` (agent-config; default `0.34`). **Tests** under `tests/core/{citation-extractor,citation-gate,ctgov-supplemental,crossref-retraction,integrity-rating,graveyard-memo,phase19-deliverable-packager}.test.js`.
 
 ### Core Runtime
 
@@ -215,9 +245,11 @@ No HuggingFace model weights are downloaded or run. The `huggingface-mcp` server
 
 The prior Standard / Premium / Custom / Enterprise-ARR ladder is retired. Custom and enterprise-subscription delivery remains available for cloud-data-platform engagements, but the lead public ladder is the single-deliverable SKU table.
 
+As of 2026-06-12 every mission bundle ships a **Citation Integrity & Provenance ledger** (`deliverables/citation-integrity.md`, the report's audit-trail spine — a graded provenance ledger grounded in the source records actually retrieved at runtime + DOI retraction-screened), and indication missions additionally ship a **Graveyard Memo** of prior terminated/withdrawn/suspended programs (each NCT-traced, with the sponsor's stated stop reason and a protocol amendment-risk band). These directly back the Failed Trial Archaeology deliverable's "structured post-mortem of Phase 2/3 terminations." See "Citation-integrity layer + cost-avoidance deliverables" under Architecture Map.
+
 ### Buyer-side guarantees baked into the architecture
 
-- **Citation traceability is a gate, not a warning.** Outputs without verifiable PMID / NCT / ChEMBL CID / DOI fail the quality gate.
+- **Citation traceability is a gate, not a warning.** Outputs without verifiable PMID / NCT / ChEMBL CID / DOI fail the quality gate. As of 2026-06-12 the gate is also enforced at runtime: every identifier cited in an assembled report is cross-checked against the union of identifiers actually retrieved by the run's tool-prefetch, so each citation is grounded in the source records actually retrieved at runtime (and every cited DOI is retraction-screened against Crossref). See "Citation-integrity layer + cost-avoidance deliverables" below. (Note: citations are grounded in retrieved source records + DOI retraction-screened; this is not per-citation external re-resolution against each live source database.)
 - **Manual-only external-action boundary.** Agents prepare, package, and produce evidence; they never autonomously publish, post, transact, log in, or browse. Human operator approval is required for every external step.
 - **No PHI by design.** All queried sources are public biomedical databases (PubMed/NLM, ClinicalTrials.gov/NIH, ChEMBL/EBI, OpenTargets, DrugBank, CMS NPI, ICD-10/WHO, Owkin). The system does not host, transmit, or process Protected Health Information.
 - **Defensible chain of custody.** Every export carries a deterministic provenance manifest plus cryptographically chained post-export evidence ledgers (Phase 22 submission evidence, Phase 28 delivery evidence). Buyers in regulated workflows get audit-ready artifacts.

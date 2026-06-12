@@ -31,6 +31,8 @@ All integration code lives in the OpenClaw repo under `openclaw-bridge/mcp/zette
 
 The integration is wired into `_workflow-runtime.js` via late-binding `configureToolCallLoop()` on the agent engine. When the Zettelkasten integration is enabled in config, the workflow runtime registers Zettelkasten tools alongside ToolUniverse tools in the agentic loop, making them available to any enabled agent role.
 
+> **Note (runtime seams added by the citation-integrity / corpora work):** `_workflow-runtime.js` now also exposes the `ctgovSupplemental` and `crossrefRetraction` instances on `researchRuntime`. The stopped-trial corpus fetcher is routed into role prefetch through a local-fetcher seam in `tool-prefetch.js` (`createToolPrefetch` `options.localFetchers`), registered under tool_name `ctgov_stopped_trials`. This runs alongside the ToolUniverse SMCP path and the Zettelkasten wrapper — Zettelkasten routing is unchanged.
+
 ## Usage
 
 ### Post-Workflow CLI
@@ -66,7 +68,7 @@ The agent receives the result inline and continues reasoning -- no manual interv
 
 ## Workflow
 
-1. Agent pre-fetches ToolUniverse data (existing `tool-prefetch.js`)
+1. Agent pre-fetches ToolUniverse data (existing `tool-prefetch.js`); a local-fetcher seam in the same module can additionally pull the stopped-trial corpus (`ctgov_stopped_trials`)
 2. Agent calls Zettelkasten tools via `<tool_call>` or post-workflow CLI
 3. Graph analysis identifies gaps and connections
 4. Agent uses gap insights to refine next ToolUniverse queries

@@ -1,9 +1,11 @@
 # Datarade Vendor Application — Trevor Robey Intelligence Network Citations LLC
 
-**Submission target**: https://datarade.ai/company/contact/data-providers
-**Drafted**: 2026-04-26 · **Updated**: 2026-05-06 (LLC formation filed) · **Submit by**: Tue 2026-04-28 (or after CA SOS approval — recommended to attach stamped Articles)
+> **Status (2026-06-10): SUBMITTED → DECLINED. Do not treat this as un-submitted.** The intake form was **submitted 2026-05-11** (brand-current Sample Pack + Data Dictionary; HubSpot CDN UUID `f2e8abb3-7742-4ffe-aa8e-00e5f0f0d1dc`) and cleared intake; the **2026-05-20 onboarding call ended in a decline — reason: "the business is not yet established"** (no operating track record), not a product problem. Re-apply after establishment proof (CA SOS LLC approval + a few dated closed-deal engagements); no collateral rework needed. Per-call record: [`onboarding-call-notes.md`](onboarding-call-notes.md). The "Submit by 2026-04-28" line below was a pre-submission target and is now historical.
 
-Paste-ready blocks mapped to Datarade's intake form. Each `##` heading corresponds to a form field.
+**Submission target**: https://datarade.ai/company/contact/data-providers
+**Drafted**: 2026-04-26 · **Updated**: 2026-05-06 (LLC formation filed) · **Original submit target (historical)**: Tue 2026-04-28 · **Actually submitted**: 2026-05-11 · **Outcome**: declined 2026-05-20 ("not yet established")
+
+Paste-ready blocks mapped to Datarade's intake form. Each `##` heading corresponds to a form field. *(Note: a "typo'd contact email" in legacy collateral is tracked separately on `go-live-checklist.md` gate #1 — confirm the address before any resubmission.)*
 
 ---
 
@@ -118,7 +120,7 @@ Proactive disclosure of every source database used and its license terms.
 | UniProt | CC BY 4.0 | ✅ Included with attribution string |
 | ChEMBL | CC BY-SA 3.0 | ✅ Included as derived analyses with version cited (e.g., ChEMBL_36, Sept 2025); raw rows not redistributed |
 | OpenTargets, GARD, Orphanet, HPA | Open-license, public | ✅ Included |
-| **DrugBank** | Commercial-license-required | ❌ **NOT INCLUDED**. Commercial DrugBank-licensed pack available under separate engagement — contact trevor@trevorobeyinc.com. |
+| **DrugBank** | Commercial-license-required | ❌ **NOT INCLUDED** — no DrugBank data ships in any pack. The project does **not** currently hold a DrugBank commercial license, so do not advertise a "DrugBank-licensed pack." If a buyer needs DrugBank-derived fields, that is a separate engagement contingent on first signing a DrugBank commercial license. See [`../../09-source-licenses/drugbank-stop-ship-unless-licensed.md`](../../09-source-licenses/drugbank-stop-ship-unless-licensed.md). |
 | EudraVigilance (public reports) | Public reports only — no licensed extracts | ✅ Public-portion only |
 
 This register ships in every deliverable as an appendix.

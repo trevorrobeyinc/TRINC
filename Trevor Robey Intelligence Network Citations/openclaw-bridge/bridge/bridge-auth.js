@@ -116,7 +116,10 @@ function isPrincipalAllowedForRoute(principal, routeType) {
     );
   }
 
-  return true;
+  // Security (audit F-A4): default-DENY any auth-required route that lacks an
+  // explicit principal mapping above. Fail closed instead of fail open so a
+  // newly-added route cannot silently become reachable by every principal.
+  return false;
 }
 
 function principalToMcpRole(principal) {

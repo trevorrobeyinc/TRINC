@@ -34,7 +34,7 @@ User → Obsidian Copilot Chat
     ▼
   OpenClaw Research Agents         ← child_process.spawn(), NOT HTTP
     │
-    ├─ Claude Code (LLM)
+    ├─ Per-role LLM routing (scout→Ollama, analyst/synthesizer→Claude Code)
     ├─ ToolUniverse (2,173 biomedical tools)
     └─ Medical Zettelkasten MCP (optional graph analysis)
          │
@@ -57,7 +57,15 @@ Workflows execute via `scripts/run-workflow.js`, spawned as a child process by t
 
 Six workflow templates: `general-research-pack`, `drug-discovery-full`, `pharmacovigilance-report`, `target-validation-pack`, `clinical-trial-landscape`, `rare-disease-brief`.
 
-LLM provider chain: Claude Code (primary, via `claude -p` stdin pipe) → LM Studio (fallback, localhost:1234) → Mock (testing).
+**Updated 2026-06-11:** the engine now runs a **stateful multi-agent routing layer** (live 2026-06-11), superseding the old flat "Claude Code primary → LM Studio fallback → Mock" chain. Per-role backend is resolved through `config/role-provider-map.json` (`roles[role]` → template `provider_preference` → `default` = claude-code), and each non-claude route falls back to claude-code:
+- **scout → Ollama** (provider `local`, model `qwen2.5:7b-instruct`) — :11434 boot-persistent launchd service, reached via the :11435 mkcert TLS proxy.
+- **analyst → claude-code** (`claude-sonnet-4-6`) — was briefly LM Studio on 2026-06-11 but reverted the same day for 16 GB stability (Ollama is the only resident local model); the LM Studio analyst entry is parked in `_recommended_after_install`, ready to restore.
+- **synthesizer → claude-code** (`claude-sonnet-4-6`).
+- **unmapped / default → claude-code**.
+
+Provider notes: `local` == Ollama (:11434, boot-persistent), `lm-studio` == LM Studio (`qwen/qwen3.5-9b` installed, server :1234 via :1235 mkcert proxy, model currently unloaded), `claude-code` == Claude via `claude -p`. Any Traefik :11480/:11481 failover-proxy references elsewhere are historical — the live path uses the mkcert TLS proxies (:11435 / :1235).
+
+Persistent agent identity/memory lives in `config/agents/<role>/{SOUL.md,AGENTS.md,sessions/}`.
 
 Config toggles (both enabled):
 - `config/tool-call-loop-config.json` — iterative ToolUniverse calling for analyst roles
@@ -70,7 +78,7 @@ Config toggles (both enabled):
 Key classes:
 - `OpenClawPlugin` — lifecycle, command registration, workflow orchestration
 - `McpBridgeServer` — in-plugin HTTP bridge on :8799 (11 tools)
-- `OpenClawRunner` — subprocess spawner (`child_process.spawn`)
+- `OpenClawRunner` — subprocess spawner (`child_process.spawn`). **Updated 2026-06-11:** now spawns `scripts/run-workflow.js` with `--template/--inputs/--confirm` **plus `--operator-approve`** and a `NODE_EXTRA_CA_CERTS` env pointing at the mkcert root CA (so the per-role `local`/`lm-studio` TLS proxies validate). Obsidian-launched workflows therefore require an armed YubiKey token first (`operator-approve-gate arm` = PIN + touch); without a fresh token the run is denied (fail-closed). The plugin was rebuilt (`npm run build`) and the new `main.js` redeployed to the vault `.obsidian/plugins/openclaw-command-center/`. The `workflow_created`→`workflow_result` stdout contract and the `workspace/workflows/{id}/workflow.json` schema are unchanged — the tracker/runner still read them exactly as before.
 - `WorkflowTracker` — polls `workflow.json` every 2s + directory scan fallback every 3s
 - `ZettelkastenClient` — on-demand stdio MCP client for graph analysis
 - `WorkflowModal` — template selector UI (manual path)
@@ -171,7 +179,7 @@ Runs every 60 seconds via launchd. Checks Obsidian, CC bridge (:8799), and Infra
 3. Command Center plugin resolves template (general-research-pack)
 4. OpenClawRunner spawns: node scripts/run-workflow.js --template general-research-pack --topic "aspirin for pain"
 5. WorkflowTracker starts dir-scan + polls workflow.json every 2s
-6. Agents execute: scout → analyst → synthesizer (5-15 min, ~150-300K tokens)
+6. Agents execute: scout (Ollama) → analyst (Claude Code) → synthesizer (Claude Code), routed per-role via role-provider-map (5-15 min, ~150-300K tokens)
 7. workflow.json status transitions: running → completed
 8. Tracker fires onWorkflowDone (PATH A)
 9. Plugin generates 6+ vault notes with YAML frontmatter, wikilinks, tags
@@ -192,7 +200,8 @@ Runs every 60 seconds via launchd. Checks Obsidian, CC bridge (:8799), and Infra
 | InfraNodus | Zettelkasten MCP | in-process require() | Graph engine |
 | InfraNodus | Obsidian Bridge | HTTP POST :8798 | Push notes to vault |
 | InfraNodus | OpenClaw Gateway | HTTP :18789 | Submit workflows from UI |
-| OpenClaw Agents | Claude Code | stdin pipe | Primary LLM |
+| OpenClaw Agents | Claude Code | stdin pipe (`claude -p`) | Default LLM (analyst, synthesizer, unmapped) |
+| OpenClaw Agents | Ollama | HTTPS via :11435 mkcert proxy → :11434 | scout role (`qwen2.5:7b-instruct`) — see role-provider-map |
 | OpenClaw Agents | ToolUniverse | stdio MCP | 2,173 biomedical tools |
 | OpenClaw Agents | Zettelkasten MCP | stdio | Optional in-workflow analysis |
 
@@ -266,4 +275,4 @@ Verify with: `openclaw-stack verify`
 
 5. **launchd over PM2**: Native macOS service management with crash restart, throttle intervals, and no zombie processes. PM2 was removed after persistent reliability issues.
 
-6. **Three independent operators**: Claude Desktop, Command Center plugin, and InfraNodus-Visual are peers. None is subordinate. Each has its own LLM (Claude, Claude, Copilot Plus Flash respectively).
+6. **Three independent operators**: Claude Desktop, Command Center plugin, and InfraNodus-Visual are peers. None is subordinate. Each has its own LLM surface (Claude; the Command Center's per-role routing layer — scout→Ollama, analyst/synthesizer/default→Claude Code; Copilot Plus Flash respectively). **Updated 2026-06-11:** the middle operator is no longer single-"Claude" — its agents route per-role through `config/role-provider-map.json` with claude-code as the default and every non-claude route falling back to claude-code.

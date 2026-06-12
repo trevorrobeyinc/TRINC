@@ -128,9 +128,15 @@ function spawnSidecar({ logger }) {
         "Run the sidecar setup once or set OPENCLAW_AUTOSTART_SCRAPE_SIDECAR=0 to disable."
     );
   }
+  // Hardening (audit gdrive-oauth / F-SUB2): don't propagate the high-value
+  // Google refresh token / client secret into the sidecar subprocess.
+  const sidecarEnv = { ...process.env };
+  for (const k of Object.keys(sidecarEnv)) {
+    if (/^GOOGLE_DRIVE_|^GOOGLE_CLIENT_SECRET$/i.test(k)) delete sidecarEnv[k];
+  }
   const child = childProcess.spawn("bash", [START_SCRIPT], {
     cwd: SIDECAR_DIR,
-    env: process.env,
+    env: sidecarEnv,
     stdio: ["ignore", "inherit", "inherit"],
     detached: false
   });

@@ -40,7 +40,7 @@ Next steps:
 4. If a GitHub Actions required check fails after the PR exists, triage it with:
    gh auth status
    gh pr view --json number,url
-   python3 /Users/trevorrobey/.codex/skills/gh-fix-ci/scripts/inspect_pr_checks.py --repo . --pr <number-or-url> --json
+   python3 /Users/myhome/.codex/skills/gh-fix-ci/scripts/inspect_pr_checks.py --repo . --pr <number-or-url> --json
 EOF
 }
 

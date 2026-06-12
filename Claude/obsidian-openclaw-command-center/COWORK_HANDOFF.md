@@ -150,6 +150,8 @@ Expected: 3 rows (scout, analyst, synthesizer) with `claude-code` provider and `
 
 To cancel mid-run: command palette > **OpenClaw: Cancel Running Workflow**
 
+**Note (citation-integrity gate)**: As of the post-research engine work, the underlying `run-workflow.js` engine runs a report-level citation gate before shipping. A workflow can now legitimately HARD-FAIL with `PHASE30_CITATION_UNVERIFIED` (the grounded-citation ratio fell below `minGroundedCitationRatio`, agent-config default `0.34` — i.e. too many cited identifiers were not present in the evidence actually retrieved at runtime) or `PHASE30_CITATION_RETRACTED` (a cited DOI is flagged retracted by the Crossref retraction screen). If a run errors with one of these codes, that is the gate refusing to ship a report, not a plugin bug. On a passing run, the mission bundle also includes two new deliverables — `deliverables/citation-integrity.md` (graded provenance ledger) and `deliverables/graveyard-memo.md` (prior terminated/withdrawn/suspended trials in the indication + protocol amendment-risk band).
+
 ## Step 9: Check Obsidian Dev Console for Errors
 
 Open Cmd+Option+I > Console tab. Look for:
@@ -244,6 +246,17 @@ User picks template → WorkflowModal
 - **run-workflow.js**: Spawned with `--template`, `--inputs '{"..."}' `, `--confirm`. No `--provider` flag. Uses Node.js at the configured path (NOT Electron's node).
 - **Zettelkasten MCP**: Spawned as `node server.js` with JSON-RPC 2.0 over stdin/stdout. Protocol version `2025-06-18`.
 - **Miyo**: HTTP requests to `127.0.0.1:8742`. Degrades gracefully if not running.
+
+### Engine-Side Citation Integrity (run-workflow.js / openclaw-bridge)
+
+The `run-workflow.js` engine the plugin spawns now enforces a zero-fabrication citation layer before a report ships. This is engine-side, not plugin-side — the plugin just reads the output it produces:
+
+- **Citation gate** (report-level): cross-checks every identifier (PMID/NCT/DOI) cited in the assembled report against the union of identifiers actually retrieved at runtime by tool-prefetch. A cited id present in that fetched evidence is "grounded"; one that is not is "ungrounded" (likely model-introduced). The report is **grounded in the source records actually retrieved at runtime + DOI retraction-screened against Crossref** — it is NOT independently re-resolved against each citation's live source database. Hard-fails with `PHASE30_CITATION_UNVERIFIED` when the grounded ratio is below `minGroundedCitationRatio` (default `0.34`); surviving ungrounded cites are annotated inline `[UNVERIFIED]`. Writes `citation-verification.json` + `report-annotated.md` to the workflow dir. Engages only when there is fetched ground truth.
+- **Retraction screen**: each cited DOI is checked against Crossref; a report citing any retracted paper hard-stops with `PHASE30_CITATION_RETRACTED`. Fail-soft — a Crossref network error yields no retractions and can never wrongly block a report.
+- **Stopped-trial corpora**: a local ClinicalTrials.gov v2 fetcher pulls TERMINATED/WITHDRAWN/SUSPENDED trials for the indication (each trial's `whyStopped` text + protocol change-history), routed into role prefetch as `ctgov_stopped_trials`. Each record is NCT-traced.
+- **New deliverables** (in every passing mission bundle, registered in `manifest.json` + sealed in `checksums.txt`):
+  - `deliverables/citation-integrity.md` — graded provenance ledger (grade A/B/C/D from the grounded ratio; F/"BLOCKED" on any retraction; N/A if nothing cited).
+  - `deliverables/graveyard-memo.md` — prior terminated/withdrawn/suspended programs in the indication, each NCT-traced with the sponsor's stated stop reason (or an explicit "(none stated by sponsor)" — never invented) and a resolvable `clinicaltrials.gov/study/<NCT>` link, plus a protocol amendment-risk band (LOW/MODERATE/HIGH). Rendered deterministically from the fetched records (no LLM). Memo wiring is fully fail-soft: an absent fetcher / empty indication / fetch error simply omits the memos and never blocks a passing report.
 
 ### MCP Bridge (Auto-Start, In-Plugin, Manual Controls)
 

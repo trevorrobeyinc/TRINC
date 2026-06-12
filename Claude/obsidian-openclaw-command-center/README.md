@@ -147,6 +147,15 @@ FROM "OpenClaw"
 WHERE type = "openclaw/workflow"
 ```
 
+### Citation integrity layer (engine-side)
+
+The OpenClaw engine now runs a zero-fabrication citation-integrity gate at the report level. Every identifier cited in the assembled report is cross-checked against the union of source records actually retrieved at runtime: a cited id is "grounded" if it appeared in fetched evidence, otherwise "ungrounded" (likely model-introduced). The engine refuses to ship a report whose grounded ratio falls below `minGroundedCitationRatio` (default `0.34`, error `PHASE30_CITATION_UNVERIFIED`), and each cited DOI is retraction-screened against Crossref — any retracted paper hard-stops the report (`PHASE30_CITATION_RETRACTED`). Surviving ungrounded cites are annotated inline `[UNVERIFIED]`. Citations are grounded in the retrieved source records plus the DOI retraction screen; they are not independently re-resolved against a live external database.
+
+Two new deliverables ship in each mission bundle (alongside the vault notes above):
+
+- **`citation-integrity.md`** -- a graded provenance ledger (grade A–D from the grounded ratio; F/BLOCKED if any retraction) that is the report's audit-trail spine.
+- **`graveyard-memo.md`** -- a memo of prior terminated/withdrawn/suspended programs in the indication, each NCT-traced with the sponsor's stated stop reason (or an explicit "(none stated by sponsor)" — never invented) and a protocol amendment-risk band (LOW/MODERATE/HIGH). Rendered deterministically from the fetched ClinicalTrials.gov records, so every claim is verifiable.
+
 ## Development
 
 ```bash

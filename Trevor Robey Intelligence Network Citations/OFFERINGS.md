@@ -30,15 +30,23 @@
 ## Brand Commitments
 
 - **Citation-Audit SLA** on every deliverable — refund-backed
+- **Citation-Integrity Gate** — every cited identifier in the assembled report is cross-checked against the source records actually retrieved at runtime; citations are graded "grounded" (present in retrieved evidence) vs "ungrounded" (likely model-introduced). The report refuses to ship when the grounded ratio falls below threshold, and surviving ungrounded cites are annotated inline `[UNVERIFIED]`. Cited DOIs are screened against Crossref for retractions, and any report citing a retracted paper hard-stops. (Citations are grounded in the retrieved source records + DOI retraction-screened — they are not independently re-resolved against each live external database.)
 - **Public Hallucination Audit**: trevor-robey-inc Hallucination Audit v1 (100 questions, 5 systems, methodology open-source)
 - **Speed SLA**: 5–10 business days for Investor Pre-Mortem (written guarantee)
+
+### Bundle deliverables (shipped)
+
+Every mission bundle now seals two audit-trail artifacts alongside the report:
+
+- **Citation Integrity & Provenance ledger** — a graded provenance ledger (A/B/C/D from the grounded ratio; F/BLOCKED if any cited paper is retracted; N/A if nothing is cited), the report's audit-trail spine.
+- **Graveyard Memo + protocol Amendment-Risk** — for an indication, a memo of prior terminated/withdrawn/suspended trial programs, each NCT-traced with the sponsor's stated stop reason (or an explicit "(none stated by sponsor)" — never invented), protocol churn, and a resolvable clinicaltrials.gov link; plus a protocol amendment-risk band (LOW/MODERATE/HIGH) derived deterministically from change-history version counts. Rendered from the fetched records (no LLM), so every claim is verifiable.
 
 ## Posture (preserved)
 
 - Research artifacts only — not validated for clinical decision support
 - No PHI hosted, transmitted, or processed
 - Manual-only external actions — no autonomous publishing, posting, or login
-- Citation traceability quality gate — every row carries a real PMID, NCT, ChEMBL CID, or DOI
+- Citation traceability quality gate — every row carries a real PMID, NCT, ChEMBL CID, or DOI; a report-level gate cross-checks every cited identifier against the records actually retrieved at runtime (grounded vs ungrounded) and refuses to ship below the grounded-ratio threshold, and cited DOIs are screened against Crossref for retractions (grounded + retraction-screened, not independently re-resolved against each live source database)
 
 ## Engine credit
 
