@@ -126,7 +126,11 @@ export async function appendNoteTool(
   }
 
   const payload = schema.parse(input);
-  const guarded = guardVaultRelativePath(payload.vaultRoot, payload.path);
+  if (!runtime.config.allowedVaultRoots.includes(payload.vaultRoot)) {
+    throw new AppError(ERROR_CODES.PATH_OUTSIDE_VAULT, "vaultRoot is not in allowedVaultRoots.");
+  }
+  // Security (audit VW-2): pin the guard root to the server-configured vault.
+  const guarded = guardVaultRelativePath(runtime.config.allowedVaultRoots[0], payload.path);
   assertExpectedRevision(guarded.absolutePath, payload.expectedRevision);
 
   if (!payload.idempotencyKey) {

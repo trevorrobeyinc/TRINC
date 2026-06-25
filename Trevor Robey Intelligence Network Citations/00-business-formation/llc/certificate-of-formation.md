@@ -1,6 +1,6 @@
 # Certificate of Formation — Trevor Robey Intelligence Network Citations LLC
 
-## Filing Status (as of 2026-05-06)
+## Filing Status (APPROVED 2026-06-18)
 
 | Field | Value |
 |---|---|
@@ -10,9 +10,9 @@
 | Filing date | 2026-05-06 |
 | bizfileOnline receipt # | B20260217250 |
 | Standard processing | $70 |
-| Approval status | **Pending** (2-3 business days expected; check bizfileOnline My Records) |
-| 12-digit California Entity Number | TBD — populated upon SOS approval |
-| Stamped Articles PDF | TBD — download from bizfileOnline My Records once approved |
+| Approval status | **APPROVED** — Initial Business Filing Approved (SOS approval letter dated 2026-06-18) |
+| California Entity No. | **B20260217250** (CA bizfile alphanumeric format; same value as Document No.) |
+| Stamped Articles PDF | In hand — filed Articles of Organization + Filing Acknowledgment (B20260217250) + Welcome Letter saved in `~/Documents` |
 | Receipt PDF | [`receipt-articles-of-organization-2026-05-06.pdf`](./receipt-articles-of-organization-2026-05-06.pdf) (in this folder) |
 
 ## Entity details
@@ -47,9 +47,9 @@ The wordmark and full legal name are paired in customer-facing materials with th
 
 ## Next steps
 
-1. Wait 2-3 business days for SOS approval email
-2. Download stamped Articles PDF from bizfileOnline → My Records
-3. Record 12-digit Entity Number above
+1. ~~Wait for SOS approval~~ ✅ **APPROVED 2026-06-18** (Initial Business Filing Approved)
+2. ~~Download stamped Articles PDF~~ ✅ In hand (saved in `~/Documents`)
+3. ~~Record Entity Number~~ ✅ **Entity No. B20260217250** recorded above
 4. Apply for IRS EIN (free, instant): https://www.irs.gov/businesses/small-businesses-self-employed/apply-for-an-employer-identification-number-ein-online
 5. File Statement of Information (Form LLC-12, $20) within 90 days of approval
 6. Pay $800 California Franchise Tax to FTB by August 15, 2026 (15th day of 4th month after formation)

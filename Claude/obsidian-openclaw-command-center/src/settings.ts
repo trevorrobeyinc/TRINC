@@ -25,7 +25,7 @@ export class OpenClawSettingTab extends PluginSettingTab {
       .setDesc("Absolute path to the trevor-robey-inc-agents repository root (OpenClaw engine)")
       .addText((text) =>
         text
-          .setPlaceholder("/Users/trevorrobey/Code/trevor-robey-inc-agents")
+          .setPlaceholder("/Users/myhome/Code/trevor-robey-inc-agents")
           .setValue(this.plugin.settings.openclawPath)
           .onChange(async (value) => {
             this.plugin.settings.openclawPath = value.trim();
@@ -40,7 +40,7 @@ export class OpenClawSettingTab extends PluginSettingTab {
       .addText((text) =>
         text
           .setPlaceholder(
-            "/Users/trevorrobey/Code/Claude/Medical-Zettelkasten-MCP/src/server.js"
+            "/Users/myhome/Code/Claude/Medical-Zettelkasten-MCP/src/server.js"
           )
           .setValue(this.plugin.settings.zettelkastenServerPath)
           .onChange(async (value) => {

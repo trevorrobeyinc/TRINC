@@ -31,10 +31,10 @@ scripts/run-workflow.js          ──►  the Phase 30 "workflow engine"
         │      runs as a normal Node child process (NOT a container)
         ▼
 LLM call for each agent role     ──►  per-role provider routing (role-provider-router.js)
-        │                              scout → Ollama (local qwen2.5:7b)
-        │                              analyst / synthesizer → Claude Code CLI (`claude -p`)
-        │                              unmapped roles + default → Claude Code; each route
-        │                              falls back to Claude Code on failure
+        │                              scout / analyst / synthesizer → Claude Code CLI
+        │                              (`claude -p`, Claude Opus 4.8, 1M ctx); OSS models
+        │                              (Ollama / LM Studio) = small per-role helper pre-pass
+        │                              + fallback; unmapped roles + default → Claude Code
         ▼
 ToolUniverse                     ──►  2,116 biomedical tools (Harvard, vendored)
         │
@@ -51,12 +51,13 @@ citation-gate.js                 ──►  report-level grounding gate (cited i
 
 **Plain-English takeaways:**
 - **Per-role provider routing is now live (the engine is genuinely multi-agent).** **Updated 2026-06-11:** the prior claim here — that "claude-code does everything; LM Studio is a backup; Ollama is switched off" — is **superseded.** A stateful multi-agent routing layer was built and verified live on 2026-06-11. Roles are mapped in `config/role-provider-map.json` (precedence: `roles[role]` → the template's `provider_preference` → `default = claude-code`):
-  - **scout → Ollama** (provider `local`, model `qwen2.5:7b-instruct`; a boot-persistent launchd service on `:11434`, reached through a `:11435` mkcert TLS proxy).
-  - **analyst → claude-code** (`claude-sonnet-4-6`) — briefly pointed at LM Studio on 2026-06-11, then reverted to claude-code for 16 GB-RAM stability (Ollama is the only local model carrying a role).
-  - **synthesizer → claude-code** (`claude-sonnet-4-6`).
-  - **Unmapped roles and the default → claude-code**, and *every* non-claude route falls back to claude-code if it fails.
+  - **Updated 2026-06-22:** **scout, analyst, and synthesizer all run on `claude-code` (Claude Opus 4.8, `claude-opus-4-8`, 1M context by default — no `[1m]` suffix).** The open-source models are demoted to small per-role **helpers**: each role optionally runs a cheap OSS *pre-pass* (`agent-engine.runHelperPrePass`) that triages/compresses the prefetched evidence before Opus reasons over it. The helper is advisory only and can never inject a citation (the grounded-citation set is computed from the fetched evidence, not the helper digest), and it is fail-soft (skipped if the local engine is down).
+  - **scout → claude-code / Opus 4.8.** Helper + fallback = Ollama `qwen2.5:7b-instruct` (the retired-as-primary "back burner" model; boot-persistent on `:11434` via the `:11435` mkcert TLS proxy).
+  - **analyst → claude-code / Opus 4.8.** Helper + fallback = LM Studio `qwen/qwen3.5-9b`.
+  - **synthesizer → claude-code / Opus 4.8.** Helper + fallback = LM Studio `qwen/qwen3.5-9b`.
+  - **Unmapped roles and the default → claude-code** (`claude-sonnet-4-6`), and *every* non-claude route falls back to claude-code if it fails.
   - **Persistent agent identity/memory:** each role has `config/agents/<role>/{SOUL.md, AGENTS.md, sessions/}`, loaded by `role-router.dispatch` (via `agent-context-loader`) and written back by `agent-session-recorder`. New modules: `openclaw-bridge/core/{role-provider-router, agent-context-loader, agent-session-recorder}.js`; `llm-adapter.complete()` takes a per-call provider override with role-level fallback. Config schema bumped `agent-config.json` → `phase34-agent-config-v2`.
-  - **LM Studio is installed** (brew cask 0.4.16, `qwen/qwen3.5-9b` on disk, server `:1234` via a `:1235` proxy) but the model is **UNLOADED and not boot-persistent**; the analyst's LM-Studio route is staged in `role-provider-map` under `_recommended_after_install` for a future flip-back.
+  - **LM Studio is installed** (brew cask 0.4.16, `qwen/qwen3.5-9b` on disk, server `:1234` via a `:1235` proxy) but the model is **UNLOADED and not boot-persistent**; it now serves as the **analyst + synthesizer helper/fallback** (load with `lms server start` + `lms load qwen/qwen3.5-9b`). Because helper pre-passes are fail-soft, an unloaded LM Studio simply means those two roles run on Opus alone.
   - **Verified 2026-06-11:** an armed run had scout provider `= local` (0 fallbacks), analyst + synthesizer on claude-code, `SOUL.md` loaded, sessions recorded, `workflow.json` 5/5 steps completed (plugin contract intact), clean exit.
 - **Nothing runs in Docker/containers.** There's a folder of container-security rules (`openclaw-bridge/execution/`) but the engine never uses it — workflows are plain Node processes. It's scaffolding for a future that hasn't been built.
 - **Engine end-to-end: FIXED & PROVEN (2026-06-10).** It used to halt at a human-approval gate (`role-router.js`, `PHASE15_HUMAN_APPROVAL_REQUIRED`) no production code could satisfy. Now `scripts/run-workflow.js` has an opt-in **`--operator-approve`** flag (default OFF / fail-closed; gate unchanged for every other caller) that threads the operator's approval through to the gate, plus a packager EXDEV fix for running on the external volume. A real run completed 5/5 steps and exported an 88 KB report bundle (61 KB `report.md`, 196-row dataset, 219 citations). **Updated 2026-06-11:** `--operator-approve` is now **YubiKey-gated** (PIN + touch via `operator-approve-gate arm`; one-shot, TTL 300s, rotated token, fail-closed), and `scripts/run-workflow.sh` exports `NODE_EXTRA_CA_CERTS` (the mkcert CA) so the local TLS proxies are trusted. The Obsidian Command Center plugin now spawns the engine with `--operator-approve` plus that CA env. Tests: `tests/core/phase30-operator-approve.test.js`. Detail: [`THE-WHOLE-SYSTEM.md`](THE-WHOLE-SYSTEM.md) §0a.

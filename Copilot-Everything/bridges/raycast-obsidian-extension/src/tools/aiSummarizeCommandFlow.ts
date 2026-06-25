@@ -35,8 +35,8 @@ export async function triggerSummarizePrompt(_vaultName: string): Promise<string
     try {
       await triggerObsidianCommand(commandId);
       return commandId;
-    } catch {
-      // Try next known summarize command id.
+    } catch (error) {
+      console.error(`[summarize] candidate "${commandId}" failed:`, error instanceof Error ? error.message : error);
     }
   }
 
@@ -92,7 +92,12 @@ export async function runAiSummarizeCommand(params: {
 
     openedUri = `obsidian://open?path=${encodeURIComponent(path.join(vault.path, normalizedPath))}`;
     await open(openedUri);
-    await new Promise((resolve) => setTimeout(resolve, params.openDelayMs ?? 1200));
+    // Let the note open, THEN bring Obsidian frontmost so Copilot's command sees it as the
+    // active markdown editor. obsidian://open alone does not reliably focus the editor when the
+    // command is launched from Raycast (which holds focus) — without the activate, copilot:summarize
+    // dispatches but finds no active editor, so the seeded note is never rewritten (workflow "stops").
+    await new Promise((resolve) => setTimeout(resolve, params.openDelayMs ?? 700));
+    await restoreObsidianFocus(vault.name, params.activationDelayMs ?? 1500);
   } else {
     // Raycast steals focus; bring Obsidian back to the front so Copilot can act on the active note.
     await restoreObsidianFocus(vault.name, params.activationDelayMs ?? 1000);

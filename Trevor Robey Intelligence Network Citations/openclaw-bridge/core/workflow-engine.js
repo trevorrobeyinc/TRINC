@@ -13,6 +13,9 @@ const timeProviderModule = require("./time-provider.js");
 const { createDatasetBuilder } = require("../dataset/dataset-builder.js");
 const { createDatasetOutputManager } = require("../dataset/dataset-output-manager.js");
 const { verifyReportCitations, annotateSubtaskOutputs, checkRetractions } = require("./citation-gate.js");
+const { extractCitations, deduplicateCitations } = require("./citation-extractor.js");
+const { createCitationReresolver } = require("../mcp/citation-reresolver/citation-reresolver.js");
+const { buildReproducibilityManifest, renderManifestMarkdown } = require("./reproducibility-manifest.js");
 const { buildGraveyardMemo, buildAmendmentRisk } = require("../monetization/graveyard-memo.js");
 
 function ensureDir(dirPath) {
@@ -317,6 +320,76 @@ function createWorkflowEngine(options = {}) {
         } catch (annotateError) {
           logger.warn({ event: "citation_gate_annotate_failed", error: safeString(annotateError && annotateError.message) });
         }
+      }
+
+      // Slice 4 — citation RE-RESOLUTION + Reproducibility Manifest. The gate proved the cited ids
+      // are GROUNDED in fetched evidence; this independently RE-RESOLVES each one against its live
+      // source registry at delivery and records VERIFIED / UNRESOLVED / UNCHECKED in a manifest.
+      // Fail-soft on infra (network/throttle => UNCHECKED, never a false VERIFIED); fail-CLOSED on
+      // fabrication (a live "does-not-exist" => UNRESOLVED => BLOCK), mirroring the gate above.
+      try {
+        const cites = deduplicateCitations(extractCitations(gate.reportText || ""));
+        if (cites.length > 0) {
+          const startedAt = new Date().toISOString();
+          const reresolver = createCitationReresolver({
+            logger,
+            contactEmail: safeString(researchRuntime.config && researchRuntime.config.contactEmail) || "trevor@trevorobeyinc.com",
+            ncbiApiKey: safeString(researchRuntime.config && researchRuntime.config.ncbiApiKey) || process.env.NCBI_API_KEY || ""
+          });
+          const reresolved = await reresolver.resolveAll(cites);
+          const manifest = buildReproducibilityManifest({
+            reresolved,
+            retraction: { checked: true, retracted_dois: retraction.retracted },
+            gate: {
+              cited: gate.cited, grounded: gate.grounded, ungrounded: gate.ungrounded,
+              grounded_ratio: gate.grounded_ratio, min_grounded_ratio: gate.min_grounded_ratio, hardFail: false
+            },
+            groundedIds: gate.fetchedIds,
+            meta: {
+              reportId: missionEnvelope.mission_id,
+              deliveryId: context.workflowId,
+              resolverTableVersion: reresolver.RESOLVER_TABLE_VERSION,
+              asOf: startedAt.slice(0, 10),
+              startedAt,
+              completedAt: new Date().toISOString()
+            }
+          });
+          try {
+            const mdir = getWorkflowDir(context.workflowId);
+            ensureDir(mdir);
+            fs.writeFileSync(path.join(mdir, "reproducibility-manifest.json"), JSON.stringify(manifest, null, 2));
+            fs.writeFileSync(path.join(mdir, "reproducibility-manifest.md"), renderManifestMarkdown(manifest));
+          } catch (persistErr) {
+            logger.warn({ event: "reproducibility_manifest_persist_failed", error: safeString(persistErr && persistErr.message) });
+          }
+          logger.info({
+            event: "citation_reresolution",
+            mission_id: missionEnvelope.mission_id,
+            verified: manifest.summary.counts.verified,
+            unresolved: manifest.summary.counts.unresolved,
+            unchecked: manifest.summary.counts.unchecked,
+            decision: manifest.summary.delivery_decision
+          });
+          if (citationVerification) {
+            citationVerification.reproducibility = manifest.summary;
+            citationVerification.reproducibility_manifest = manifest;
+          }
+          if (manifest.summary.delivery_decision === "BLOCK") {
+            const err = new Error(
+              `Citation re-resolution failed: ${manifest.summary.counts.unresolved} cited identifier(s) did NOT resolve ` +
+              `in their live source registry — refusing to ship to protect the zero-fabrication guarantee. ` +
+              `See reproducibility-manifest.json in the workflow dir.`
+            );
+            err.code = "PHASE30_CITATION_UNRESOLVED";
+            err.citation_verification = citationVerification;
+            throw err;
+          }
+        }
+      } catch (reresolveError) {
+        // Re-throw our own hard-fail; swallow only infra errors (fail-soft) so a resolver bug never
+        // blocks a report the gate already passed.
+        if (reresolveError && reresolveError.code === "PHASE30_CITATION_UNRESOLVED") throw reresolveError;
+        logger.warn({ event: "citation_reresolution_failed", error: safeString(reresolveError && reresolveError.message) });
       }
     }
 

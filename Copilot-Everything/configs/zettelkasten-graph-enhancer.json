@@ -1,6 +1,6 @@
 {
   "enabled": false,
-  "zettelkastenMcpServerPath": "/Users/trevorrobey/Claude/Medical-Zettelkasten-MCP/src/server.js",
-  "nodePath": "/Users/trevorrobey/.nvm/versions/node/v22.13.1/bin/node",
+  "zettelkastenMcpServerPath": "/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Claude/Medical-Zettelkasten-MCP/src/server.js",
+  "nodePath": "/Users/myhome/.nvm/versions/node/v22.13.1/bin/node",
   "timeoutMs": 30000
 }

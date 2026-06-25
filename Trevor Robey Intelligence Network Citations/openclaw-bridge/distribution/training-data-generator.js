@@ -81,7 +81,7 @@ function generateQuestionFromClaim(claim, sectionTitle) {
     return `Describe the clinical trial evidence relevant to ${sectionTitle.toLowerCase()}, including the specific trial registry identifiers. What are the key findings?`;
   }
 
-  return `In the context of ${domain} research on ${sectionTitle.toLowerCase()}, what are the evidence-backed findings? Cite specific database identifiers (PMID, NCT, CID, DrugBank, etc.) in your response.`;
+  return `In the context of ${domain} research on ${sectionTitle.toLowerCase()}, what are the evidence-backed findings? Cite specific database identifiers (PMID, NCT, CID, etc.) in your response.`;
 }
 
 function generateQAPairs(reportMarkdown, citationsCsv) {

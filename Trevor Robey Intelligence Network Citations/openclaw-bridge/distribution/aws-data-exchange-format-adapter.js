@@ -1,6 +1,7 @@
 "use strict";
 
 const timeProvider = require("../core/time-provider.js");
+const allowlist = require("./license-allowlist.js");
 
 const formatId = "aws-data-exchange";
 
@@ -27,11 +28,11 @@ function transform(workflowOutput, options = {}) {
     "- Evidence ledger with chain-hashed citation records",
     "",
     "## Pricing",
-    "- Custom Intelligence Mission: $15,000 - $35,000 per project",
-    "- Enterprise Subscription: $60,000 - $120,000+ ARR",
+    "- Subscription pricing is set per listing offer (monthly / annual auto-renew).",
+    "- Private offers available for enterprise and custom engagements.",
     "",
     "## Provider",
-    "Trevor Robey Inc. | trevor@trevorobeyinc.com | https://trevorrobeyinc.github.io"
+    "Trevor Robey, INC. | trevor@trevorobeyinc.com | https://trevorobeyinc.com"
   ].join("\n");
 
   const revisionMetadata = {
@@ -55,7 +56,7 @@ function transform(workflowOutput, options = {}) {
         items: {
           type: "object",
           properties: {
-            type: { type: "string", enum: ["PMID", "NCT", "CID", "DrugBank", "UniProt", "ChEMBL", "DOI"] },
+            type: { type: "string", enum: ["PMID", "NCT", "CID", "UniProt", "ChEMBL", "DOI"] },
             id: { type: "string" },
             context: { type: "string" }
           }
@@ -77,6 +78,9 @@ function transform(workflowOutput, options = {}) {
     citations: workflowOutput.citations || "",
     metadata: workflowOutput.metadata || {}
   }, null, 2);
+
+  // License pre-flight (fail closed): no DrugBank, and no ChEMBL data/activity values, may ship.
+  allowlist.assertShippable({ schema, citations: workflowOutput.citations, text: workflowOutput.report });
 
   return {
     files: [

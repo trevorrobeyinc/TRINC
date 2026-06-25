@@ -23,8 +23,8 @@ function safeRelative(input: string): string {
   if (containsIllegalPathChars(normalized)) {
     throw new AppError(ERROR_CODES.PATH_INVALID, "Path contains illegal control characters.");
   }
-  if (normalized.split("/").some((segment) => segment === ".." || segment === "" || segment === ".")) {
-    throw new AppError(ERROR_CODES.PATH_INVALID, "Path traversal is not allowed.");
+  if (normalized.split("/").some((segment) => segment === "" || segment.startsWith("."))) {
+    throw new AppError(ERROR_CODES.PATH_INVALID, "Path traversal or dot-segments (e.g. .obsidian) are not allowed.");
   }
   if (process.platform === "win32" && hasWindowsAdsOrUncPattern(normalized)) {
     throw new AppError(ERROR_CODES.PATH_INVALID, "UNC paths and alternate data streams are not allowed.");

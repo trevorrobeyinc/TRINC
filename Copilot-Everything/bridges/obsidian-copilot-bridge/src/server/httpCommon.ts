@@ -44,6 +44,13 @@ export function createRequestListener(runtime: RuntimeContext): (req: IncomingMe
     runtime.config.security.rateLimitPerMinute,
     runtime.config.security.globalRateLimitPerMinute
   );
+  // Pre-auth flood guard (audit AR-3): a generous, coarse cap applied BEFORE auth so a
+  // flood of unauthenticated requests cannot reach the per-client budget below. Set to
+  // the global limit so it never affects a legitimate client under normal load.
+  const preAuthLimiter = new CompositeRateLimiter(
+    runtime.config.security.globalRateLimitPerMinute,
+    runtime.config.security.globalRateLimitPerMinute
+  );
 
   return async (req, res) => {
     if (req.method === "OPTIONS") {
@@ -58,6 +65,12 @@ export function createRequestListener(runtime: RuntimeContext): (req: IncomingMe
     }
 
     if (req.method === "GET" && url.pathname === "/metrics") {
+      try {
+        verifyAuthToken(runtime.config.security.authToken, getToken(req));
+      } catch (error) {
+        json(res, 401, buildFailure(error));
+        return;
+      }
       json(res, 200, buildMetricsSnapshot(runtime));
       return;
     }
@@ -89,8 +102,9 @@ export function createRequestListener(runtime: RuntimeContext): (req: IncomingMe
     }
 
     const remote = req.socket.remoteAddress ?? "unknown";
-    if (!limiter.allow(remote)) {
-      runtime.metrics.increment("rate_limit_rejections_total", { client: remote });
+    // Pre-auth flood guard only — does NOT consume the per-client budget.
+    if (!preAuthLimiter.allow(remote)) {
+      runtime.metrics.increment("rate_limit_rejections_total", { client: "preauth" });
       json(
         res,
         429,
@@ -100,7 +114,20 @@ export function createRequestListener(runtime: RuntimeContext): (req: IncomingMe
     }
 
     try {
-      verifyAuthToken(runtime.config.security.authToken, getToken(req));
+      const token = getToken(req);
+      verifyAuthToken(runtime.config.security.authToken, token);
+      // Per-client budget keyed on the authenticated token, NOT the shared loopback IP,
+      // so an unauthenticated caller can never consume the legit client's budget (AR-3).
+      const clientKey = createHash("sha256").update(token ?? "").digest("hex");
+      if (!limiter.allow(clientKey)) {
+        runtime.metrics.increment("rate_limit_rejections_total", { client: "token" });
+        json(
+          res,
+          429,
+          buildFailure(new AppError(ERROR_CODES.RATE_LIMIT_EXCEEDED, "Rate limit exceeded.", true, { retryAfterMs: 1000 }))
+        );
+        return;
+      }
       const body = await readBody(req);
       replayGuard.verify(
         req.headers["x-mcp-timestamp"] as string | undefined,

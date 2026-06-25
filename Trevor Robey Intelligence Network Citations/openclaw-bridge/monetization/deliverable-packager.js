@@ -7,8 +7,10 @@ const path = require("node:path");
 const { canonicalize, canonicalJson, safeString, sha256 } = require("../../workflows/governance-automation/common.js");
 const { extractCitations, deduplicateCitations, countByType, roleLabel } = require("../core/citation-extractor.js");
 const { buildIntegrityReport } = require("./integrity-rating.js");
+const { renderManifestMarkdown } = require("../core/reproducibility-manifest.js");
 const { PHASE21_RELEASE_METADATA_SCHEMA } = require("./publisher-adapter-contract.js");
 const { validatePublisherAdapterSnapshot } = require("./publisher-adapter-snapshot-validator.js");
+const allowlist = require("../distribution/license-allowlist.js");
 
 function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
@@ -86,9 +88,9 @@ function createDeliverablePackager(options = {}) {
       "",
       "## Overview",
       "",
-      `This intelligence pack delivers comprehensive, citation-backed research synthesized from peer-reviewed biomedical literature, clinical trial registries, and pharmacological databases. Every claim is traceable to its primary source — no hallucinated references, no fabricated data.`,
+      `This intelligence pack delivers citation-backed research synthesized from peer-reviewed biomedical literature, clinical trial registries, and pharmacological databases. Every cited identifier is programmatically re-resolved against its issuing public registry at delivery; the per-identifier result (VERIFIED / UNRESOLVED / UNCHECKED) is recorded in the accompanying Reproducibility Manifest. Verification confirms each identifier resolves to a source record — it does not assess the scientific correctness of the source.`,
       "",
-      `The report spans **${pageEstimate}+ pages** of original analysis containing **${uniqueCitations.length} verified citations** drawn from PubMed, ClinicalTrials.gov, PubChem, UniProt, ChEMBL, DrugBank, and other authoritative sources.`,
+      `The report spans **${pageEstimate}+ pages** of original analysis containing **${uniqueCitations.length} verified citations** drawn from PubMed, ClinicalTrials.gov, PubChem, UniProt, ChEMBL, and other authoritative sources.`,
       "",
       "## What's Included",
       "",
@@ -236,8 +238,7 @@ function createDeliverablePackager(options = {}) {
       "- **PubChem** — Chemical compound properties, bioassay data (CID identifiers)",
       "- **ClinicalTrials.gov** — Clinical trial registries (NCT identifiers)",
       "- **UniProt** — Protein sequence and function (UniProt accession numbers)",
-      "- **ChEMBL** — Bioactivity and drug-target interactions (CHEMBL identifiers)",
-      "- **DrugBank** — Drug and pharmacological data (DB identifiers)",
+      "- **ChEMBL** — Bioactivity and drug-target interactions (CHEMBL identifiers, cited by ID only)",
       "- **CrossRef / DOI** — Scholarly article resolution (DOI identifiers)",
       "",
       "## Citation Verification Methodology",
@@ -280,6 +281,7 @@ function createDeliverablePackager(options = {}) {
     const allText = artifacts.map((a) => a.output_full || a.output_excerpt || "").join("\n");
     const citations = extractCitations(allText);
     const uniqueCitations = deduplicateCitations(citations);
+    allowlist.assertNoBannedCitationTypes(uniqueCitations); // fail closed: no DrugBank in shipped citations
     const sampleCitation = uniqueCitations[0] || { type: "PMID", id: "00000000" };
 
     return canonicalize({
@@ -298,7 +300,7 @@ function createDeliverablePackager(options = {}) {
           file: "tables.csv",
           description: "Citation index with type, identifier, source task, and context",
           columns: [
-            { name: "citation_type", type: "string", description: "Citation identifier type (PMID, NCT, CID, DOI, UniProt, ChEMBL, DrugBank)", nullable: false },
+            { name: "citation_type", type: "string", description: "Citation identifier type (PMID, NCT, CID, DOI, UniProt, ChEMBL)", nullable: false },
             { name: "identifier", type: "string", description: "The citation identifier value", nullable: false },
             { name: "source_task", type: "string", description: "Agent task ID that produced this citation", nullable: false },
             { name: "context_snippet", type: "string", description: "Surrounding text context for the citation", nullable: true }
@@ -501,6 +503,16 @@ function createDeliverablePackager(options = {}) {
         const integrityPath = path.join(deliverablesDir, "citation-integrity.md");
         writeText(integrityPath, buildIntegrityReport(sourceContext.citation_verification).markdown);
         artifactRefs.citation_integrity = relativeFrom(bundleDir, integrityPath);
+        // Reproducibility Manifest — per-citation live re-resolution result, shipped beside the
+        // integrity ledger so a subscriber can re-run the listed URLs and reproduce the verdicts.
+        const rm = sourceContext.citation_verification.reproducibility_manifest;
+        if (rm && rm.summary) {
+          const rmJsonPath = path.join(deliverablesDir, "reproducibility-manifest.json");
+          const rmMdPath = path.join(deliverablesDir, "reproducibility-manifest.md");
+          writeText(rmJsonPath, JSON.stringify(rm, null, 2));
+          writeText(rmMdPath, renderManifestMarkdown(rm));
+          artifactRefs.reproducibility_manifest = relativeFrom(bundleDir, rmMdPath);
+        }
       }
       // Slice 3 v2: the structured kill-memo — prior terminated programs (graveyard) + the
       // protocol amendment-risk signal, rendered upstream from NCT-traced CT.gov records. A

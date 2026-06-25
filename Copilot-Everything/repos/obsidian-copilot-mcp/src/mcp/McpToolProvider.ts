@@ -5,6 +5,7 @@ import { ToolDefinition, ToolRegistry } from "@/tools/ToolRegistry";
 import { requestUrl } from "obsidian";
 import { getMcpCatalogEntry, getMcpCatalogToolNames } from "./catalog";
 import type { McpServerConfig, McpSettings } from "./types";
+import { ConfirmModal } from "@/components/modals/ConfirmModal";
 
 export interface McpServerHealth {
   serverId: string;
@@ -244,9 +245,32 @@ export class McpToolProvider {
         description: `${entry.description} [MCP server: ${server.displayName}]`,
         schema: entry.schema,
         func: async (rawArgs) => {
-          // Writes execute directly — no confirmation modal.
-          // The read_only_only gate above (line 264) still strips
-          // mutating tools when that policy is active.
+          // Security (audit RF-4): under prompt_on_writes, require explicit user
+          // confirmation before any mutating tool runs. (read_only_only withholds such
+          // tools at the gate above; allow_without_prompt executes directly.)
+          if (entry.isMutating && settings.confirmationPolicy === "prompt_on_writes") {
+            const approved = await new Promise<boolean>((resolve) => {
+              new ConfirmModal(
+                app,
+                () => resolve(true),
+                `The AI is requesting to run the mutating MCP tool "${entry.displayName}" on server "${server.displayName}". Allow it?`,
+                "Confirm MCP write",
+                "Run",
+                "Cancel",
+                () => resolve(false)
+              ).open();
+            });
+            if (!approved) {
+              return {
+                type: "mcp_result",
+                serverId: server.id,
+                tool: entry.toolName,
+                canceled: true,
+                meta: { canceledByUser: true },
+                error: { code: "user_declined", message: "User declined the mutating MCP tool." },
+              };
+            }
+          }
 
           const input = entry.buildInput(rawArgs as Record<string, unknown>, server);
           if (entry.toolName === "obsidian_append_note" && !input.idempotencyKey) {

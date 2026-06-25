@@ -25,7 +25,7 @@
     "workerConcurrency": 4
   },
   "allowedVaultRoots": [
-    "/Users/trevorrobey/THE Copilot in Obsidian Everything/dev-vault",
+    "/absolute/path/to/your/obsidian/vault",
     "/Volumes/ExtraCurricular/My Digital Garden"
   ],
   "security": {

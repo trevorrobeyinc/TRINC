@@ -66,6 +66,10 @@ export class OpenClawRunner {
       "--inputs",
       JSON.stringify(options.inputs),
       "--confirm",
+      // Obsidian-launched runs go through the same YubiKey gate as the CLI: the engine
+      // verifies+consumes an armed token. Arm it first in a terminal: `operator-approve-gate arm`
+      // (PIN + touch). Without a fresh armed token the run is denied (fail-closed).
+      "--operator-approve",
     ];
 
     // Enrich PATH so the spawned subprocess can find `claude`, `node`, `npx`, `uv`, etc.
@@ -93,6 +97,11 @@ export class OpenClawRunner {
         ...process.env,
         OPENCLAW_ROOT: settings.openclawPath,
         PATH: enrichedPath,
+        // Trust the mkcert root CA so the `local` (Ollama :11435) and `lm-studio` (:1235)
+        // TLS proxies validate — lets per-role local backends work from an Obsidian launch.
+        NODE_EXTRA_CA_CERTS:
+          process.env.NODE_EXTRA_CA_CERTS ||
+          `${home}/Library/Application Support/mkcert/rootCA.pem`,
       },
     });
 

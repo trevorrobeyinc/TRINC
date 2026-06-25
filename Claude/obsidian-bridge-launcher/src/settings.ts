@@ -53,7 +53,7 @@ export class BridgeLauncherSettingTab extends PluginSettingTab {
       .addText((text) =>
         text
           .setPlaceholder(
-            "/Users/trevorrobey/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge"
+            "/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge"
           )
           .setValue(this.plugin.settings.bridgePackagePath)
           .onChange(async (value) => {
@@ -67,7 +67,7 @@ export class BridgeLauncherSettingTab extends PluginSettingTab {
       .setDesc("Path to Node.js binary (>= 22.5 for node:sqlite)")
       .addText((text) =>
         text
-          .setPlaceholder("/Users/trevorrobey/.nvm/versions/node/v22.13.1/bin/node")
+          .setPlaceholder("/Users/myhome/.nvm/versions/node/v22.13.1/bin/node")
           .setValue(this.plugin.settings.nodePath)
           .onChange(async (value) => {
             this.plugin.settings.nodePath = value.trim();

@@ -21,7 +21,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const DEFAULT_CONFIG = Object.freeze({
   enabled: false,
-  zettelkastenMcpServerPath: "/Users/trevorrobey/Claude/Medical-Zettelkasten-MCP/src/server.js",
+  zettelkastenMcpServerPath: "/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Claude/Medical-Zettelkasten-MCP/src/server.js",
   nodePath: process.execPath,
   timeoutMs: 30000
 });

@@ -96,6 +96,9 @@ function createRoleRouter(options = {}) {
       provider: safeString(route.provider) || context.provider,
       model: safeString(route.model) || context.model,
       fallbackProvider: safeString(route.fallback) || context.fallbackProvider,
+      // Small per-role OSS helper that runs a cheap evidence pre-pass before the primary
+      // backend (agent-engine.runHelperPrePass). null when the role declares none.
+      helper: route.helper || context.helper || null,
       agentIdentityPrefix: identity.agentIdentityPrefix || context.agentIdentityPrefix
     };
 

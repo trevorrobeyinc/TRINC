@@ -25,7 +25,7 @@
     "workerConcurrency": 4
   },
   "allowedVaultRoots": [
-    "/Users/trevorrobey/THE Copilot in Obsidian Everything/dev-vault"
+    "/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Copilot-Everything/dev-vault"
   ],
   "security": {
     "authToken": "replace-with-128-bit-random-or-better-token",

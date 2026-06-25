@@ -17,7 +17,7 @@
 
 set -euo pipefail
 
-SRC="/Users/trevorrobey/TrevClaw-Obsidianodus"
+SRC="/Volumes/ExtraCurricular/TrevClaw-Obsidianodus"
 TARGET="${1:-}"
 
 # Auto-detect a writable external volume when no arg is given.

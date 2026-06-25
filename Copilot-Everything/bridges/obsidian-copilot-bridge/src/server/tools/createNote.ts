@@ -32,7 +32,12 @@ export async function createNoteTool(
   }
 
   const payload = schema.parse(input);
-  const guarded = guardVaultRelativePath(payload.vaultRoot, payload.path);
+  if (!runtime.config.allowedVaultRoots.includes(payload.vaultRoot)) {
+    throw new AppError(ERROR_CODES.PATH_OUTSIDE_VAULT, "vaultRoot is not in allowedVaultRoots.");
+  }
+  // Security (audit VW-2): pin the guard root to the server-configured vault, not the
+  // client-supplied vaultRoot, so the bridge-side checks always run against the real vault.
+  const guarded = guardVaultRelativePath(runtime.config.allowedVaultRoots[0], payload.path);
   fs.mkdirSync(path.dirname(guarded.absolutePath), { recursive: true });
   const exists = fs.existsSync(guarded.absolutePath);
 
@@ -46,10 +51,10 @@ export async function createNoteTool(
   const mappedInput: Record<string, unknown> = {
     vault: payload.vault,
     vaultRoot: payload.vaultRoot,
-    path: payload.path,
+    path: guarded.relativePath,
     name: path.posix.basename(
-      payload.path,
-      payload.path.endsWith(".md") ? ".md" : undefined
+      guarded.relativePath,
+      guarded.relativePath.endsWith(".md") ? ".md" : undefined
     ),
     content: payload.content,
     overwrite: payload.overwrite,

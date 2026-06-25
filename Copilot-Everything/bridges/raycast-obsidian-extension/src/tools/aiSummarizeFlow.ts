@@ -70,6 +70,87 @@ async function askRaycastAIWithFallback(prompt: string): Promise<{ summaryText: 
   }
 }
 
+function stripFrontmatter(markdown: string): string {
+  const match = markdown.match(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/);
+  return match ? markdown.slice(match[0].length) : markdown;
+}
+
+/**
+ * Build the prompt the SAME way Copilot's "Summarize" custom command does: take the template's own
+ * instruction body (YAML frontmatter stripped) and substitute the source content for its `{}`
+ * placeholder. This reproduces the reference-note format exactly, instead of re-wrapping the template
+ * in a different "fill the {{placeholders}}" framing (which is what made the output drift).
+ */
+function buildFaithfulTemplatePrompt(templateContent: string, sourceText: string): string {
+  const body = stripFrontmatter(templateContent).trim();
+  const source = sourceText.trim();
+  return body.includes("{}") ? body.replace("{}", source) : `${body}\n\nSource content:\n${source}`;
+}
+
+const defaultAnthropicModel = "claude-sonnet-4-6";
+
+async function askClaude(prompt: string, apiKey: string, model: string): Promise<string> {
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ model, max_tokens: 4096, messages: [{ role: "user", content: prompt }] }),
+  });
+  if (!response.ok) {
+    throw new Error(`Anthropic API ${response.status}: ${(await response.text()).slice(0, 300)}`);
+  }
+  const data = (await response.json()) as { content?: Array<{ type: string; text?: string }> };
+  const text = (data.content ?? [])
+    .filter((block) => block.type === "text")
+    .map((block) => block.text ?? "")
+    .join("")
+    .trim();
+  if (!text) {
+    throw new Error("Anthropic API returned no text content.");
+  }
+  return text;
+}
+
+/**
+ * Generate the structured summary by filling the Copilot "Summarize" template, WITHOUT writing it.
+ * Claude (Anthropic API) is the intended model — used whenever an API key is provided; Raycast AI is
+ * only a fallback when no key is set. Returns the completed markdown for the caller to persist (e.g.
+ * write the summary note over the Local REST API) — no Obsidian command, plugin, or modal involved.
+ */
+export async function generateTemplateSummaryText(params: {
+  templatePath: string;
+  sourceTitle: string;
+  sourceText: string;
+  sourceNoteContent?: string;
+  sourcePath?: string;
+  anthropicApiKey?: string;
+  anthropicModel?: string;
+}): Promise<{ summaryText: string; usedFallbackModel: boolean; model: string }> {
+  const templateContent = await fs.readFile(params.templatePath, "utf-8");
+  if (!templateContent.trim()) {
+    throw new Error(`Summary template is empty: ${params.templatePath}`);
+  }
+
+  const prompt = buildFaithfulTemplatePrompt(templateContent, params.sourceText);
+
+  const apiKey = params.anthropicApiKey?.trim();
+  if (apiKey) {
+    const model = params.anthropicModel?.trim() || defaultAnthropicModel;
+    const summaryText = await askClaude(prompt, apiKey, model);
+    return { summaryText, usedFallbackModel: false, model };
+  }
+
+  // No Anthropic key set — fall back to Raycast AI so the pipeline still completes.
+  const aiResult = await askRaycastAIWithFallback(prompt);
+  if (!aiResult.summaryText.trim()) {
+    throw new Error("Summary model returned empty text (set the Anthropic API Key pref to use Claude).");
+  }
+  return { summaryText: aiResult.summaryText, usedFallbackModel: true, model: "raycast-ai" };
+}
+
 export async function runTemplateSummaryFromSource(params: {
   vaultName: string;
   vaultPath: string;

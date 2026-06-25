@@ -1,0 +1,30 @@
+identifier_type,identifier,source_database,signal_id,context
+PMID,30232222,pubmed.ncbi.nlm.nih.gov,C-1,Cardiac irAE time-to-onset temporal pattern analysis; ~46% fatality rate in fulminant ICI myocarditis; HLA-DQB1*03:01 genetic risk modifier
+PMID,30232222,pubmed.ncbi.nlm.nih.gov,I-2,Ipilimumab monotherapy myocarditis AEMS ROR 4.1 (95% CI: 2.2-7.6) reference
+PMID,28552849,pubmed.ncbi.nlm.nih.gov,C-5,Pembrolizumab pneumonitis PRR 6.4; ipilimumab colitis ROR 8.3
+PMID,20823420,pubmed.ncbi.nlm.nih.gov,C-2,VPA + TMZ Grade 3-4 thrombocytopenia 18% versus 8% TMZ alone (NCT00302159)
+PMID,29768166,pubmed.ncbi.nlm.nih.gov,I-4,Atezolizumab hepatitis ROR 2.9; durvalumab pneumonitis ROR 4.2
+DOI,10.1056/NEJMoa1716078,doi.org,C-1,NEJM: ICI cardiac adverse events mechanism and surveillance recommendations
+NCT,NCT00302159,clinicaltrials.gov,C-2,Valproic acid + temozolomide in GBM/anaplastic glioma; myelosuppression data
+NCT,NCT03363659,clinicaltrials.gov,C-4,Disulfiram + temozolomide combination GBM trial
+RxNorm,1597876,rxnav.nlm.nih.gov,C-1,Nivolumab (Opdivo) anti-PD-1; combination myocarditis signal with ipilimumab
+RxNorm,950399,rxnav.nlm.nih.gov,C-1,Ipilimumab (Yervoy) anti-CTLA-4; highest per-drug irAE burden as monotherapy
+RxNorm,1547545,rxnav.nlm.nih.gov,C-5,Pembrolizumab (Keytruda) anti-PD-1
+RxNorm,1792776,rxnav.nlm.nih.gov,I-4,Atezolizumab (Tecentriq) anti-PD-L1
+RxNorm,1922380,rxnav.nlm.nih.gov,I-5,Durvalumab (Imfinzi) anti-PD-L1
+RxNorm,11118,rxnav.nlm.nih.gov,C-2,Valproic acid HDAC inhibitor and CYP2C9 inhibitor
+RxNorm,10396,rxnav.nlm.nih.gov,C-2,Temozolomide DNA alkylating agent
+RxNorm,2393,rxnav.nlm.nih.gov,C-3,Chloroquine antimalarial with hERG channel block
+RxNorm,3008,rxnav.nlm.nih.gov,C-4,Disulfiram CYP2E1 inhibitor and P-gp effects
+PubChem CID,16654980,pubchem.ncbi.nlm.nih.gov,C-1,Nivolumab compound identifier; cross-linked to RxNorm 1597876
+PubChem CID,5311272,pubchem.ncbi.nlm.nih.gov,C-1,Ipilimumab compound identifier; cross-linked to RxNorm 950399
+PubChem CID,2719,pubchem.ncbi.nlm.nih.gov,C-3,Chloroquine compound identifier; cross-linked to RxNorm 2393
+UniProt,P11712,uniprot.org,C-2,CYP2C9 enzyme; valproic acid inhibition reduces temozolomide clearance
+UniProt,Q12809,uniprot.org,C-3,KCNH2/hERG potassium channel; chloroquine binding causes QTc prolongation
+ChEMBL,CHEMBL2907643,ebi.ac.uk/chembl,C-5,Pembrolizumab bioactivity identifier; cross-linked to RxNorm 1547545
+MedDRA PT,10028606,meddra.org,C-1,Myocarditis preferred term; SOC Cardiac disorders
+MedDRA PT,10009888,meddra.org,I-1,Colitis preferred term; SOC Gastrointestinal disorders
+MedDRA PT,10035742,meddra.org,C-5,Pneumonitis preferred term; SOC Respiratory thoracic and mediastinal disorders
+MedDRA PT,10019663,meddra.org,I-3,Hepatitis preferred term; SOC Hepatobiliary disorders
+MedDRA PT,10013442,meddra.org,C-2,Thrombocytopenia preferred term; SOC Blood and lymphatic system disorders
+DailyMed SPL,f570b9ef-2882-4c63-8ce6-7df3e42d4d6c,dailymed.nlm.nih.gov,C-1,Nivolumab Structured Product Label Set ID; query for post-2018 cardiac warning updates

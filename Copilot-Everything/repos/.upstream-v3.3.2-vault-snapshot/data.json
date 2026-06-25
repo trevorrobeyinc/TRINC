@@ -1,7 +1,7 @@
 {
-  "userId": "adf7310f-c3bf-47b1-b664-37e22145ae4a",
+  "userId": "",
   "isPlusUser": true,
-  "plusLicenseKey": "enc_desk_djEwA70QDpYUvHvNyGoP1THCYQW2q8isjtpFlezc/1uZ1mHfO/NQfCXreRI+OdZH+2NT",
+  "plusLicenseKey": "",
   "openAIApiKey": "",
   "openAIOrgId": "",
   "huggingfaceApiKey": "",
@@ -544,29 +544,29 @@
     "denylist": [],
     "servers": [
       {
-        "id": "enc_desk_djEwQA8qQOOjR3PhBF7oASWQluTi2kX3BYZvoY9kF/abpQQ=",
-        "displayName": "enc_desk_djEwfU0FHwRF7Fie0Sc8WpaBm/qUbHUP6ai7b8uk/jzkyYU=",
+        "id": "",
+        "displayName": "",
         "enabled": true,
-        "transport": "enc_desk_djEwifBiymSdAf8S7aK45i86Eg==",
-        "httpEndpoint": "enc_desk_djEwtkaMS2qF00dqjkArN1gyQLM6pw1dwnY4Ke2pXy5FBbU=",
-        "authToken": "enc_desk_djEweUzN1GAUc8ptYQ+AUDbCfnveZOlGlwJZALAIXJPoMPyf+cHmD/icLqAbsNJAC0sJ",
+        "transport": "",
+        "httpEndpoint": "",
+        "authToken": "",
         "timeoutMs": 20000,
-        "vaultName": "enc_desk_djEwvCy4dXAAfmgbbTn8EQ+GUrfW8ynA9Zw2E2PZU0dW260=",
-        "vaultRoot": "enc_desk_djEwgY2FBUWJkomUT12y4018pGkf5u2E2f5yre9a+ENyQyPabubxHiIrskDbI6Y3XyaG",
+        "vaultName": "",
+        "vaultRoot": "",
         "backendHint": "",
         "enabledToolNames": [
-          "enc_desk_djEwkHc8sBNHuTxYXnXJcS59bw==",
-          "enc_desk_djEwJQsWyHHlbEDQP9VbXpAC3o0Na3zWElkM7StlSmMX2eI=",
-          "enc_desk_djEwyUKNuBnY/Jipew5YdiChRpk3YM0vdhv/S+UcBRwMVuk=",
-          "enc_desk_djEwTjjGyyyhywDtgyV3T6UeuH3tNu1n9QRQqxXaLozfmz4=",
-          "enc_desk_djEwbs8m9EBmmoZDs3Mjgy0CklMsuWHI5HbsG6CVZtWwT6M=",
-          "enc_desk_djEwGUltC/QDJXZblSHEGH6lbdpz5HxwQaZyjrCo9QcCTS0=",
-          "enc_desk_djEwUETSoxW0mdyJ9bozsKxhdPOpCE0WOL2g9a7PXm3lpSM=",
-          "enc_desk_djEwmuG2aOTQUUOj+G5Sjkq/lPv6AJOz+WIu6mvRMsFZQPo=",
-          "enc_desk_djEwmuG2aOTQUUOj+G5Sjkq/lFfxL67QHFvAYU26mPQ2Q4o=",
-          "enc_desk_djEwmuG2aOTQUUOj+G5Sjkq/lBDmKlvpgWrHUOCB8HYZVp0=",
-          "enc_desk_djEwmuG2aOTQUUOj+G5Sjkq/lDB74WL5y0k3u2Yw8Jp3O5Y=",
-          "enc_desk_djEwkqZBWcWGnTWGxXnaVka43StoXICSB+aSPsdc/ZlXLNQ="
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
         ]
       }
     ]

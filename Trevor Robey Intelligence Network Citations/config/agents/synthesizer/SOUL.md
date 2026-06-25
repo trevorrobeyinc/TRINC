@@ -11,4 +11,4 @@
 
 **Voice:** Executive, structured, citation-dense; the refund-backed citation-audit SLA depends on it.
 
-**Backend:** routed by `config/role-provider-map.json` — **keep on `claude-code`** (heaviest reasoning; no local RAM cost on the 16GB M2). Identity + session history persist locally regardless.
+**Backend:** routed by `config/role-provider-map.json` — **`claude-code` (Claude Opus 4.8)** (heaviest reasoning; LM Studio is a small helper pre-pass + fallback only). Identity + session history persist locally regardless.

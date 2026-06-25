@@ -1,11 +1,47 @@
 import * as http from "http";
 import * as https from "https";
-import { readFileSync } from "fs";
+import * as os from "os";
+import * as path from "path";
+import { readFileSync, writeFileSync, mkdirSync, chmodSync } from "fs";
 import { createHash, timingSafeEqual, randomBytes } from "crypto";
 import { App, TFile, normalizePath } from "obsidian";
 import type { OpenClawSettings } from "../types";
 
 const HOST = "127.0.0.1";
+
+// Security (audit P0): obsidian_execute_command must NOT be an open dispatcher to
+// every enabled plugin's commands — that allows lateral pivot (e.g. to runjs =
+// arbitrary in-process JS). Restrict to this plugin's own command namespace by
+// default. Add specific reviewed command IDs to ALLOWED_COMMAND_IDS to extend.
+const ALLOWED_COMMAND_PREFIXES = ["openclaw-command-center:"];
+const ALLOWED_COMMAND_IDS: string[] = [];
+function isCommandAllowed(commandId: string): boolean {
+  if (ALLOWED_COMMAND_IDS.includes(commandId)) return true;
+  return ALLOWED_COMMAND_PREFIXES.some((p) => commandId.startsWith(p));
+}
+
+// Security (audit P0): the bridge bearer token must NOT live in Obsidian's
+// data.json — Obsidian persists it world-readably and auto-creates .bak copies,
+// which leaked the live token. Keep it in a dedicated 0600 file under ~/.config
+// (outside the synced vault) instead.
+function bridgeTokenFilePath(): string {
+  return path.join(os.homedir(), ".config", "openclaw-command-center", "bridge-token");
+}
+
+function loadOrCreateBridgeToken(): string {
+  const file = bridgeTokenFilePath();
+  try {
+    const existing = readFileSync(file, "utf8").trim();
+    if (existing.length >= 32) return existing;
+  } catch {
+    /* not present yet — create below */
+  }
+  const fresh = randomBytes(32).toString("hex");
+  mkdirSync(path.dirname(file), { recursive: true });
+  writeFileSync(file, fresh, { mode: 0o600 });
+  try { chmodSync(file, 0o600); } catch { /* best effort */ }
+  return fresh;
+}
 
 /**
  * Constant-time bearer-token verification (added 2026-05-04 H2 hardening).
@@ -102,6 +138,9 @@ export class McpBridgeServer {
     private pluginActions?: PluginActions
   ) {}
 
+  // Bearer token loaded from the 0600 ~/.config file (not from settings/data.json).
+  private bridgeToken = "";
+
   get isRunning(): boolean {
     return this.server !== null;
   }
@@ -111,18 +150,10 @@ export class McpBridgeServer {
 
     this.startTime = Date.now();
 
-    // Ensure a bearer token exists. If empty (first start, or user cleared it),
-    // generate a fresh 32-byte hex token and persist via the saveSettings hook.
-    if (!this.settings.bridgeToken || this.settings.bridgeToken.length < 32) {
-      const fresh = randomBytes(32).toString("hex");
-      this.settings.bridgeToken = fresh;
-      console.log(
-        `[OpenClaw] Generated new Command Center bridge token (length ${fresh.length}). ` +
-        `Save via plugin saveData hook to persist.`
-      );
-      // Surface to the plugin so it can persist via saveData.
-      try { (this as unknown as { onTokenGenerated?: (t: string) => void }).onTokenGenerated?.(fresh); } catch { /* noop */ }
-    }
+    // Load (or create) the bearer token from a 0600 file outside Obsidian's
+    // settings. Previously the token lived in data.json, which Obsidian persists
+    // world-readably and auto-backups — leaking the credential (audit P0).
+    this.bridgeToken = loadOrCreateBridgeToken();
 
     return new Promise((resolve, reject) => {
       let tls: { key: Buffer; cert: Buffer };
@@ -216,7 +247,7 @@ export class McpBridgeServer {
     }
 
     // Bearer-token gate for every other route (added 2026-05-04 H2 hardening).
-    if (!verifyToken(this.settings.bridgeToken, extractToken(req))) {
+    if (!verifyToken(this.bridgeToken, extractToken(req))) {
       this.sendJson(res, 401, {
         ok: false,
         error: { message: "Missing or invalid Command Center bridge token. Provide it via Authorization: Bearer <token> or X-MCP-Token: <token>." },
@@ -508,6 +539,14 @@ export class McpBridgeServer {
     if (!/^[a-z0-9_-]+:[a-z0-9_-]+$/i.test(commandId)) {
       throw new Error(
         `Invalid command ID format: ${commandId}. Expected: plugin-id:command-name`
+      );
+    }
+
+    // Security (audit P0): enforce the command allowlist (no open dispatch).
+    if (!isCommandAllowed(commandId)) {
+      throw new Error(
+        `Command '${commandId}' is not permitted by the OpenClaw bridge. ` +
+          `Only ${ALLOWED_COMMAND_PREFIXES.join(", ")}* commands are allowed.`
       );
     }
 

@@ -23,7 +23,7 @@ export default function Command() {
       <Form.TextField
         id="videoUrl"
         title="Video URL"
-        placeholder="https://youtube.com/watch?v=... or https://www.tiktok.com/@user/video/..."
+        placeholder="Paste a video URL — YouTube, TikTok, Wiley, etc. (auth sites: set the yt-dlp Cookies Browser pref)"
       />
     </Form>
   );

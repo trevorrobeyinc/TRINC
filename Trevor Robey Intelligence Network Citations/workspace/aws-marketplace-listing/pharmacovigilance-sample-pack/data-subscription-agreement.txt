@@ -1,7 +1,7 @@
 # Data Subscription Agreement (DSA)
 ## Pharmacovigilance Sample Pack — Free Tier
 
-**Provider**: Trevor Robey Inc. ("Provider"), a Delaware-organized limited liability company.
+**Provider**: Trevor Robey Intelligence Network Citations LLC, a California limited liability company (filed at the California Secretary of State 2026-05-06; receipt B20260217250), doing business under the wordmark "Trevor Robey, INC." (where INC = Intelligence Network Citations) ("Provider").
 **Product**: Pharmacovigilance Sample Pack (free tier).
 **Effective date**: Date of subscription acceptance via AWS Data Exchange.
 
@@ -52,7 +52,7 @@ PROVIDER'S AGGREGATE LIABILITY FOR ANY CLAIM ARISING OUT OF OR RELATING TO THIS 
 
 ## 9. Governing law
 
-This Agreement is governed by the laws of the State of Delaware, USA, without regard to conflict-of-laws principles. Disputes shall be resolved in the state or federal courts of Delaware, and Subscriber consents to personal jurisdiction therein.
+This Agreement is governed by the laws of the State of California, USA, without regard to conflict-of-laws principles. Disputes shall be resolved in the state or federal courts of California, and Subscriber consents to personal jurisdiction therein.
 
 ## 10. Contact
 

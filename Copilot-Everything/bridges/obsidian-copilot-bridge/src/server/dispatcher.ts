@@ -54,6 +54,16 @@ const handlers: Record<string, ToolHandler> = {
   obsidian_dev_console_eval: devConsoleEvalTool,
 };
 
+// Security (audit DT-3): tools denied when the bridge is in read-only mode.
+const READ_ONLY_BLOCKED_TOOLS = new Set<string>([
+  "obsidian_create_note",
+  "obsidian_append_note",
+  "obsidian_execute_command",
+  "obsidian_open_vault",
+  "research_publish",
+  "obsidian_dev_console_eval",
+]);
+
 function laneForOperation(operation: Operation | undefined): "interactive" | "mutating" {
   if (operation === "create_note" || operation === "append_note") {
     return "mutating";
@@ -78,6 +88,15 @@ export async function dispatchToolRequest(runtime: RuntimeContext, rawBody: stri
     const handler = handlers[parsedBody.tool];
     if (!handler) {
       throw new AppError(ERROR_CODES.INTERNAL_ERROR, `Unknown tool '${parsedBody.tool}'.`);
+    }
+
+    // Security (audit DT-3): central read-only kill-switch covering every
+    // mutating/execution tool (not just create/append).
+    if (runtime.config.readOnlyMode && READ_ONLY_BLOCKED_TOOLS.has(parsedBody.tool)) {
+      throw new AppError(
+        ERROR_CODES.NO_CAPABLE_BACKEND,
+        `Tool '${parsedBody.tool}' is disabled while the bridge is in read-only mode.`
+      );
     }
 
     const lane = laneForOperation(parsedBody.operation);

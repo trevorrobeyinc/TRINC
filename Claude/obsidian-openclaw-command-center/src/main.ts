@@ -102,6 +102,13 @@ export default class OpenClawPlugin extends Plugin {
 
     // MCP bridge for Copilot integration — wait for layout to be ready
     this.app.workspace.onLayoutReady(() => {
+      // Migrate (audit P0): the bridge token now lives in a 0600 file outside
+      // data.json. Clear any legacy token so it stops leaking via data.json (and
+      // Obsidian's auto-generated .bak copies).
+      if (this.settings.bridgeToken) {
+        this.settings.bridgeToken = "";
+        void this.saveSettings();
+      }
       if (this.settings.enableCopilotBridge) {
         this.bridgeServer = new McpBridgeServer(
           this.app,

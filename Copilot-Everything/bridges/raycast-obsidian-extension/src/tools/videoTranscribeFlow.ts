@@ -8,8 +8,8 @@ import { promisify } from "node:util";
 
 import { raycastObsidianCreateNote } from "@/api/mcp/raycastObsidianMcp";
 import { getVaultsFromPreferencesOrObsidianJson } from "@/obsidian/internal/obsidian";
-import { runBackendFirstTemplateSummaryFromSource } from "@/tools/aiSummarizeFlow";
-import { buildDeterministicTranscriptSection, injectDeterministicTranscriptSection } from "@/tools/transcriptSection";
+import { generateTemplateSummaryText } from "@/tools/aiSummarizeFlow";
+import { buildDeterministicTranscriptSection } from "@/tools/transcriptSection";
 
 const execFileAsync = promisify(execFile);
 
@@ -17,9 +17,13 @@ export interface VideoCommandPreferences {
   vaultPath?: string;
   summarizeTemplatePath?: string;
   summaryOutputFolder?: string;
+  anthropicApiKey?: string;
+  anthropicModel?: string;
+  cleanupAfterSummary?: boolean;
   ytDlpPath?: string;
   ytDlpCookiesFromBrowser?: string;
   ytDlpCookiesFile?: string;
+  ytDlpImpersonate?: string;
   videoDownloadFolder?: string;
   whisperPath?: string;
   whisperModel?: string;
@@ -42,9 +46,8 @@ const defaultExecPathEntries = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin
 const videoExtensions = [".mp4", ".mkv", ".webm", ".mov"] as const;
 const defaultYtDlpPathCandidates = ["/opt/homebrew/bin/yt-dlp", "/usr/local/bin/yt-dlp"] as const;
 const defaultWhisperPathCandidates = ["/opt/homebrew/bin/whisper", "/usr/local/bin/whisper"] as const;
-const defaultSummaryTemplateRelativePath = "copilot/copilot-custom-prompts/Summarize.md";
-const defaultSummaryOutputFolder = "obsidian-copilot-summaries";
 const defaultVideoDownloadFolder = "Video Downloads";
+const defaultSummaryOutputFolder = "obsidian-copilot-summaries";
 const ytDlpCookieBrowserFallbackOrder = ["chrome", "chromium", "safari", "brave", "firefox", "edge"] as const;
 const tiktokDesktopUserAgent =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36";
@@ -118,19 +121,6 @@ async function resolvePrimaryVaultPath(prefs: VideoCommandPreferences): Promise<
   throw new Error("No Obsidian vault path configured. Set Path to Vault in extension preferences.");
 }
 
-function resolveSummaryTemplatePath(vaultPath: string, prefs: VideoCommandPreferences): string {
-  const configured = prefs.summarizeTemplatePath?.trim();
-  if (configured) {
-    return configured;
-  }
-
-  return path.join(vaultPath, ...defaultSummaryTemplateRelativePath.split("/"));
-}
-
-function resolveSummaryOutputFolder(prefs: VideoCommandPreferences): string {
-  return normalizeVaultRelativeFolder(prefs.summaryOutputFolder, defaultSummaryOutputFolder);
-}
-
 function resolveYtDlpPath(prefs: VideoCommandPreferences): string {
   const configured = prefs.ytDlpPath?.trim();
   if (configured) {
@@ -178,6 +168,28 @@ function configuredYtDlpCookieArgs(prefs: VideoCommandPreferences): string[] {
   return [];
 }
 
+// Cloudflare-fronted sites (e.g. Wiley course media) reject yt-dlp's default TLS
+// fingerprint with a 403 even when the logged-in session cookie is present. yt-dlp's
+// --impersonate (curl_cffi) makes the request mimic a real browser's TLS handshake so
+// the WAF lets it through. Defaults to "chrome"; "none"/"off"/"disabled" turns it off.
+// Requires curl_cffi in yt-dlp's runtime — downloadVideoAndSubtitles degrades gracefully
+// (retries without it) if this yt-dlp build lacks impersonation support.
+function configuredYtDlpImpersonateArgs(prefs: VideoCommandPreferences): string[] {
+  const target = prefs.ytDlpImpersonate?.trim();
+  if (target && ["none", "off", "disable", "disabled", "false"].includes(target.toLowerCase())) {
+    return [];
+  }
+  return ["--impersonate", target || "chrome"];
+}
+
+function isYtDlpImpersonateUnavailableError(error: unknown): boolean {
+  const errorText = extractProcessErrorText(error).toLowerCase();
+  return (
+    (errorText.includes("impersonate target") && errorText.includes("not available")) ||
+    errorText.includes("list-impersonate-targets")
+  );
+}
+
 function toErrorOutputText(value: string | Buffer | undefined): string {
   if (typeof value === "string") {
     return value;
@@ -215,7 +227,15 @@ function isYtDlpAuthChallengeError(error: unknown): boolean {
     errorText.includes("sign in to confirm") ||
     errorText.includes("login required") ||
     errorText.includes("log in") ||
-    errorText.includes("verify you are human")
+    errorText.includes("verify you are human") ||
+    // A bare HTTP 401/403 from a login-gated page is an auth challenge too. yt-dlp's
+    // generic extractor reports it as "Unable to download webpage: HTTP Error 403:
+    // Forbidden" with none of the phrases above, so match the status text directly and
+    // let the browser-cookie fallback (chrome first) retry with the logged-in session.
+    errorText.includes("http error 401") ||
+    errorText.includes("http error 403") ||
+    errorText.includes("403: forbidden") ||
+    errorText.includes("401: unauthorized")
   );
 }
 
@@ -247,6 +267,38 @@ function isTikTokUrl(value: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Build the base name used for the transcript/transcription/summary notes. yt-dlp returns a generic
+ * title for some hosts (e.g. Wiley course pages → "Videoplayer"), which would name every note
+ * "Videoplayer (1)-<timestamp>". When the title looks generic, derive a readable base name from the
+ * source URL's filename instead. Preserves the trailing -<ISO timestamp> the output template appended
+ * (keeps notes unique per run). The downloaded mp4 keeps its own yt-dlp filename.
+ */
+function deriveNoteBaseName(rawBaseName: string, url: string): string {
+  const tsSuffix = rawBaseName.match(/-\d{4}-\d{2}-\d{2}T[0-9-]+Z$/)?.[0] ?? "";
+  const rawTitle = tsSuffix ? rawBaseName.slice(0, rawBaseName.length - tsSuffix.length) : rawBaseName;
+  const looksGeneric =
+    !rawTitle.replace(/\s*\(\d+\)\s*$/, "").trim() ||
+    !/[a-z]/i.test(rawTitle) ||
+    /^(videoplayer|video|media|player|untitled|clip|movie|stream|index|default)(\s*\(\d+\))?$/i.test(
+      rawTitle.trim()
+    );
+  if (!looksGeneric) {
+    return rawBaseName;
+  }
+  let derived = "";
+  try {
+    derived = decodeURIComponent(new URL(url).pathname.split("/").filter(Boolean).pop() ?? "")
+      .replace(/\.[a-z0-9]+$/i, "")
+      .replace(/[_+]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  } catch {
+    derived = "";
+  }
+  return derived ? `${derived}${tsSuffix}` : rawBaseName;
 }
 
 function getYtDlpSubtitleArgs(): string[] {
@@ -429,9 +481,29 @@ async function downloadVideoAndSubtitles(
   ];
 
   const cookieArgs = configuredYtDlpCookieArgs(prefs);
+  const impersonateArgs = configuredYtDlpImpersonateArgs(prefs);
+
+  // Run yt-dlp with browser TLS-fingerprint impersonation, but degrade gracefully: if
+  // this yt-dlp build lacks curl_cffi, retry the same args without --impersonate so that
+  // ordinary (non-Cloudflare) downloads keep working on installs without impersonation.
+  const runYtDlpWithImpersonate = async (args: string[]): Promise<void> => {
+    if (impersonateArgs.length === 0) {
+      await runYtDlp(ytDlpPath, args);
+      return;
+    }
+    try {
+      await runYtDlp(ytDlpPath, [...args, ...impersonateArgs]);
+    } catch (error) {
+      if (isYtDlpImpersonateUnavailableError(error)) {
+        await runYtDlp(ytDlpPath, args);
+        return;
+      }
+      throw error;
+    }
+  };
 
   try {
-    await runYtDlp(ytDlpPath, [...baseArgs, ...cookieArgs]);
+    await runYtDlpWithImpersonate([...baseArgs, ...cookieArgs]);
     return;
   } catch (error) {
     if (cookieArgs.length > 0 || !isYtDlpAuthChallengeError(error)) {
@@ -439,10 +511,13 @@ async function downloadVideoAndSubtitles(
     }
   }
 
+  // Cloudflare + login-gated media (e.g. Wiley) needs BOTH the logged-in browser session
+  // cookie AND a real-browser TLS fingerprint, so each fallback attempt pairs
+  // --cookies-from-browser with --impersonate.
   let lastError: unknown;
   for (const browser of ytDlpCookieBrowserFallbackOrder) {
     try {
-      await runYtDlp(ytDlpPath, [...baseArgs, "--cookies-from-browser", browser]);
+      await runYtDlpWithImpersonate([...baseArgs, "--cookies-from-browser", browser]);
       return;
     } catch (error) {
       lastError = error;
@@ -471,6 +546,19 @@ function buildVideoSourceNoteContent(params: {
 - **Extracted**: ${params.extractedAtIso}
 
 ${params.transcriptSection}`;
+}
+
+/**
+ * Remove every leftover artifact from a run once the summary note is safely written — the downloaded
+ * video + subtitle/format-variant sidecars, the transcript .txt, the transcription note, and the temp
+ * dirs — leaving ONLY the summary note in obsidian-copilot-summaries. The summary note is never in the
+ * target list, so it is never touched; missing/locked files are tolerated.
+ */
+async function cleanupRunArtifacts(targets: { files: string[]; tempDirs: string[] }): Promise<void> {
+  await Promise.all([
+    ...targets.files.map((file) => fs.rm(file, { force: true }).catch(() => undefined)),
+    ...targets.tempDirs.map((dir) => fs.rm(dir, { recursive: true, force: true }).catch(() => undefined)),
+  ]);
 }
 
 export async function runVideoTranscribeCommand(
@@ -520,7 +608,10 @@ export async function runVideoTranscribeCommand(
       transcriptText = normalizeExtractedText(await transcribeWithWhisper(primaryVideoFile, prefs, whisperTmpDir));
     }
 
-    const baseName = path.basename(primaryVideoFile, path.extname(primaryVideoFile));
+    const rawBaseName = path.basename(primaryVideoFile, path.extname(primaryVideoFile));
+    // Name notes from a readable title (derived from the URL) when yt-dlp's title is generic
+    // (e.g. Wiley → "Videoplayer"); the mp4 keeps its own yt-dlp filename.
+    const baseName = deriveNoteBaseName(rawBaseName, videoUrl);
     transcriptRelativePath = toPosixPath(path.posix.join(videoFolder, ".transcripts", `${baseName}.txt`));
     const sourceNotePath = toPosixPath(path.posix.join(videoFolder, `${baseName} transcription.md`));
     sourceNoteRelativePath = sourceNotePath;
@@ -553,44 +644,62 @@ export async function runVideoTranscribeCommand(
       overwrite: true,
     });
 
-    toast.title = "Generating summary with Backend Emulator...";
-    const summaryResult = await runBackendFirstTemplateSummaryFromSource({
-      vaultName,
-      vaultPath,
+    // Generate the structured summary HEADLESSLY with the same "Summarize" template — no Copilot plugin,
+    // no command palette, no modal. Run the template through Raycast AI, then write the completed markdown
+    // straight to the summary note over the Local REST API (via the bridge). The Video Downloads
+    // transcription note above stays as the raw source.
+    const summaryFolder = normalizeVaultRelativeFolder(prefs.summaryOutputFolder, defaultSummaryOutputFolder);
+    const summaryNotePath = toPosixPath(path.posix.join(summaryFolder, `${baseName} summary.md`));
+    const summarizeTemplatePath =
+      prefs.summarizeTemplatePath?.trim() ||
+      path.join(vaultPath, "copilot", "copilot-custom-prompts", "Summarize.md");
+
+    toast.title = prefs.anthropicApiKey?.trim()
+      ? "Summarizing with Claude (Summarize template)..."
+      : "Summarizing with the Summarize template...";
+    const summary = await generateTemplateSummaryText({
+      templatePath: summarizeTemplatePath,
       sourceTitle: baseName,
       sourceText: transcriptText,
-      sourcePath: sourceNotePath,
       sourceNoteContent,
-      templatePath: resolveSummaryTemplatePath(vaultPath, prefs),
-      outputFolder: resolveSummaryOutputFolder(prefs),
+      sourcePath: sourceNotePath,
+      anthropicApiKey: prefs.anthropicApiKey,
+      anthropicModel: prefs.anthropicModel,
     });
 
-    // Keep the source note aligned with summary-note structure while locking transcript block format.
-    const finalizedSourceNoteContent = injectDeterministicTranscriptSection(summaryResult.summaryText, transcriptSection);
     await raycastObsidianCreateNote({
       vault: vaultName,
       vaultRoot: vaultPath,
-      path: sourceNotePath,
-      content: finalizedSourceNoteContent,
+      path: summaryNotePath,
+      content: summary.summaryText,
       overwrite: true,
     });
 
+    // Summary is safely written — remove every leftover (mp4 + subtitle/variants, transcript .txt,
+    // transcription note, temp dirs), leaving ONLY the summary note. Toggle via the cleanup pref.
+    if (prefs.cleanupAfterSummary !== false) {
+      toast.title = "Cleaning up leftover files...";
+      await cleanupRunArtifacts({
+        files: [...artifacts, transcriptAbsolutePath, path.join(vaultPath, ...sourceNotePath.split("/"))],
+        tempDirs: [
+          path.join(os.tmpdir(), "raycast-obsidian", "yt-dlp", timestamp),
+          path.join(os.tmpdir(), "raycast-obsidian", "whisper", timestamp),
+        ],
+      });
+    }
+
     toast.style = Toast.Style.Success;
     toast.title = "Transcribe & Save complete";
-    toast.message = summaryResult.usedBackend
-      ? `${summaryResult.summaryNotePath} (backend)`
-      : summaryResult.usedFallbackModel
-        ? `${summaryResult.summaryNotePath} (fallback model)`
-        : summaryResult.summaryNotePath;
+    toast.message = `Summarized via ${summary.model} -> ${summaryNotePath}`;
     await popToRoot();
 
     return {
       sourceNoteRelativePath,
       transcriptRelativePath,
-      summaryNotePath: summaryResult.summaryNotePath,
+      summaryNotePath,
       sourceVideoRelativePath,
-      usedBackend: summaryResult.usedBackend,
-      usedFallbackModel: summaryResult.usedFallbackModel,
+      usedBackend: false,
+      usedFallbackModel: summary.usedFallbackModel,
     };
   } catch (error) {
     if (sourceNoteRelativePath) {

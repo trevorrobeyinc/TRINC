@@ -1,6 +1,6 @@
 "use strict";
 
-const WATERMARK = "Produced by OpenClaw Research Intelligence — https://trevorrobeyinc.github.io";
+const WATERMARK = "Produced by OpenClaw Research Intelligence — https://trevorobeyinc.com";
 
 function extractTrainingSamples(reportMarkdown) {
   if (!reportMarkdown) return [];
@@ -12,7 +12,7 @@ function extractTrainingSamples(reportMarkdown) {
     if (clean.length < 80) continue;
     samples.push({
       text: clean.slice(0, 2000),
-      has_citations: /\b(PMID|NCT\d|CID\s*:\s*\d|ChEMBL|DrugBank|UniProt|doi:\s*10\.)/i.test(clean)
+      has_citations: /\b(PMID|NCT\d|CID\s*:\s*\d|ChEMBL|UniProt|doi:\s*10\.)/i.test(clean)
     });
   }
   return samples;
@@ -51,7 +51,7 @@ function transform(workflowOutput, options = {}) {
     "",
     "## Dataset Description",
     "Citation-backed biomedical research produced by OpenClaw's deterministic 3-agent pipeline.",
-    "Every claim is backed by verifiable database identifiers (PMID, NCT, PubChem CID, DrugBank, UniProt, ChEMBL, DOI).",
+    "Every claim is backed by verifiable database identifiers (PMID, NCT, PubChem CID, UniProt, ChEMBL, DOI).",
     "",
     "## Dataset Structure",
     "### Data Fields",
@@ -64,7 +64,6 @@ function transform(workflowOutput, options = {}) {
     "| PMID | PMID: 30232222 | PubMed |",
     "| NCT | NCT01234567 | ClinicalTrials.gov |",
     "| CID | CID: 2244 | PubChem |",
-    "| DrugBank | DB00945 | DrugBank |",
     "| UniProt | P04637 | UniProt |",
     "| ChEMBL | CHEMBL25 | ChEMBL |",
     "",
@@ -72,7 +71,7 @@ function transform(workflowOutput, options = {}) {
     "CC-BY-NC-4.0",
     "",
     "## Contact",
-    "Trevor Robey | trevor@trevorobeyinc.com | https://trevorrobeyinc.github.io"
+    "Trevor Robey | trevor@trevorobeyinc.com | https://trevorobeyinc.com"
   ].join("\n");
 
   const samples = extractTrainingSamples(workflowOutput.report);
@@ -87,7 +86,7 @@ function transform(workflowOutput, options = {}) {
     splits: {
       train: { num_examples: samples.length }
     },
-    homepage: "https://trevorrobeyinc.github.io",
+    homepage: "https://trevorobeyinc.com",
     license: "cc-by-nc-4.0"
   };
 

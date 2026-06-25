@@ -4,7 +4,9 @@ import { parse as parseYamlString } from "yaml";
 // Per-test overrides set via the exported `__setRequestUrlImpl` helper.
 // Default: empty success response. Tests that exercise network paths should
 // install their own implementation.
-let requestUrlImpl = jest.fn().mockResolvedValue({
+// requestUrl is a jest.fn directly so tests can call requestUrl.mockResolvedValue(...)
+// and assert requestUrl.toHaveBeenCalled*(). __setRequestUrlImpl is kept for back-compat.
+const requestUrl = jest.fn().mockResolvedValue({
   status: 200,
   text: "",
   json: undefined,
@@ -16,9 +18,9 @@ module.exports = {
   // Reason: normalizePath is used by projectPaths.ts; identity function is sufficient for tests
   normalizePath: jest.fn().mockImplementation((p) => p),
   moment: jest.requireActual("moment"),
-  requestUrl: (...args) => requestUrlImpl(...args),
+  requestUrl,
   __setRequestUrlImpl: (impl) => {
-    requestUrlImpl = impl;
+    requestUrl.mockImplementation(impl);
   },
   Vault: jest.fn().mockImplementation(() => {
     return {

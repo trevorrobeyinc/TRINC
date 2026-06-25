@@ -186,21 +186,20 @@ Logs: `~/.pm2/logs/` (PM2-managed mcp-bridge). Per-workflow biomedical-pipeline 
 ## Security Orchestration
 
 Security of this stack is handled by the global `security-orchestration` skill
-(the "security triad" reflex — see `~/.claude/CLAUDE.md`). Any security-related
-work here engages **Kismet WIDS MCP + CrowdStrike Falcon MCP/API + the
-Kismet→Falcon bridge** as one coordinated unit, with stack-specialized depth
-from `~/.claude/skills/security-orchestration/references/trevclaw-stack-profile.md`.
+(the security reflex — see `~/.claude/CLAUDE.md`). Any security-related
+work here engages **CrowdStrike Falcon (MCP/API)** as one coordinated unit, with
+stack-specialized depth from
+`~/.claude/skills/security-orchestration/references/trevclaw-stack-profile.md`.
 
 - **Read-only recon first**, then cross-correlate, then **strict propose-only**:
-  every console-mutating Falcon/Kismet action is surfaced for an explicitly
+  every console-mutating Falcon action is surfaced for an explicitly
   typed, per-item authorization before apply. "Go" never authorizes a mutation.
 - The first hardening any review should produce is the one already named in the
   HTTPS-only section below as not-yet-implemented: restrict loopback
   :8742/:6333/:1234/:11434 to the proxy UIDs (Falcon `firewall` module is a
   candidate vehicle).
-- Never weaken Falcon Custom-IOA rule 1. The Kismet asymmetric gate loosens only
-  via the `kismet-mcp-safety` skill. The bridge stays `dry_run=true` until
-  explicitly flipped. Infra-security only — no PHI is hosted or processed.
+- Never weaken Falcon Custom-IOA rule 1. Infra-security only — no PHI is hosted
+  or processed.
 
 ## HTTPS-only invariant (non-negotiable, monorepo-wide)
 

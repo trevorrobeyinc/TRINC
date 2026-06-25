@@ -15,6 +15,19 @@ const path = require("node:path");
 
 function safeStr(v) { return typeof v === "string" ? v.trim() : ""; }
 
+// A role may declare a small `helper` model that runs a cheap, bounded pre-pass before the
+// primary backend (evidence triage/compression). Normalize to { provider, model[, maxTokens] }
+// or null. The helper is advisory only and can never expand the citation grounded set.
+function normalizeHelper(h) {
+  if (!h || typeof h !== "object") return null;
+  const provider = safeStr(h.provider);
+  if (!provider) return null;
+  const helper = { provider, model: safeStr(h.model) };
+  const maxTokens = Number(h.maxTokens);
+  if (Number.isFinite(maxTokens) && maxTokens > 0) helper.maxTokens = maxTokens;
+  return helper;
+}
+
 function createRoleProviderRouter(options = {}) {
   const rootDir = safeStr(options.rootDir) || process.cwd();
   const logger = options.logger && typeof options.logger.info === "function"
@@ -55,11 +68,14 @@ function createRoleProviderRouter(options = {}) {
     const fallback = (roleEntry && safeStr(roleEntry.fallback))
       || safeStr(map.default.fallback)
       || "";
+    const helper = normalizeHelper(roleEntry && roleEntry.helper)
+      || normalizeHelper(map.default && map.default.helper)
+      || null;
 
     if (roleEntry) {
-      logger.info({ event: "role_provider_routed", role, provider, model, fallback });
+      logger.info({ event: "role_provider_routed", role, provider, model, fallback, helper });
     }
-    return { provider, model, fallback };
+    return { provider, model, fallback, helper };
   }
 
   return Object.freeze({ resolveRoute });

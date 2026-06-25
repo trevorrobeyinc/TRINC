@@ -83,7 +83,9 @@ export const MCP_TOOL_CATALOG: Record<string, McpCatalogEntry> = {
     displayName: "Execute Command via MCP",
     description: "Execute an Obsidian command ID through the MCP bridge.",
     operation: "execute_command",
-    isMutating: false,
+    // Security (audit RF-3): command execution is mutating/dangerous — classify it as such
+    // so read-only / prompt-on-writes policies correctly withhold it.
+    isMutating: true,
     schema: z.object({
       id: z.string().min(1).describe("Obsidian command ID to execute"),
     }),

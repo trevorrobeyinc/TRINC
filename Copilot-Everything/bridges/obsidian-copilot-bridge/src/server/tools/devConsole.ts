@@ -106,6 +106,17 @@ export async function devConsoleEvalTool(
   const t0 = startedAt();
   try {
     requireIpc(runtime, requestId);
+    // Security (audit DT-1): dev_console_eval runs ARBITRARY JavaScript in the
+    // Obsidian renderer (host RCE). Disabled by default; require explicit opt-in.
+    const evalAllowed =
+      process.env.OBSIDIAN_BRIDGE_ALLOW_EVAL === "1" ||
+      (runtime.config.security as { allowDevConsoleEval?: boolean }).allowDevConsoleEval === true;
+    if (!evalAllowed) {
+      throw new AppError(
+        ERROR_CODES.DEV_CONSOLE_EVAL_DISABLED,
+        "dev_console_eval is disabled by default (arbitrary code execution). Set security.allowDevConsoleEval=true or OBSIDIAN_BRIDGE_ALLOW_EVAL=1 to enable."
+      );
+    }
     const input = evalInputSchema.parse(rawInput);
     const callTimeout = (input.timeoutMs ?? 5000) + 1000;
     const result = (await runtime.launcherIpc!.request(

@@ -4,7 +4,7 @@ build/
 .tmp/
 logs/
 config/agents/*/sessions/
-.ci/npm-cache/_update-notifier-last-checked
+.ci/npm-cache/
 openclaw-bridge/.bridge/
 openclaw-bridge/data/
 openclaw-bridge/logs/
