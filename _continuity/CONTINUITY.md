@@ -12,8 +12,7 @@
 - **Canonical path:** `/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/_continuity/CONTINUITY.md`
 - **Repo-canonical, single file** — there is no mirror and no copy. All four surfaces edit *this* file on disk.
 - **Business canon (do not duplicate here — point to it):** repo `CLAUDE.md`,
-  `Trevor Robey Intelligence Network Citations/{THE-WHOLE-SYSTEM.md, SYSTEM-REALITY.md}`,
-  `claudeco_vault-index.md` (monorepo orientation).
+  `Trevor Robey Intelligence Network Citations/{THE-WHOLE-SYSTEM.md, SYSTEM-REALITY.md}`.
 
 ---
 
@@ -43,7 +42,7 @@
 |---|---|---|
 | **CLI Claude Code** (`claude` in Terminal) | direct filesystem | repo `CLAUDE.md` pointer + repo skill `continuity-board` |
 | **Desktop Claude Code** (Desktop Code tab) | direct filesystem (Filesystem MCP) | repo `CLAUDE.md` pointer + repo skill `continuity-board` |
-| **Cowork** | direct filesystem | `claudeco_project.md` pointer |
+| **Cowork** | direct filesystem | repo `CLAUDE.md` board pointer (top of file) |
 | **Claude Chat (Desktop app)** | direct filesystem — Filesystem MCP connector, allowed roots `/Users/myhome` + `/Volumes/ExtraCurricular` | user points it here; see `README.md` |
 
 > Not the web version of Chat — the **Desktop** app, which has the Filesystem MCP connector.

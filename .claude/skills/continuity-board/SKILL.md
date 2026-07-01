@@ -56,7 +56,7 @@ If the Log is long (> ~30 entries), archive the older tail into `_continuity/log
   vault, connectors, plugins). Home-network / Security Everything / personal work goes to
   `~/.claude/handoffs/`, memory, or its own repo — not here. (Repo infra *does* count.)
 - Don't duplicate business canon here — point to `CLAUDE.md`, `SYSTEM-REALITY.md`,
-  `THE-WHOLE-SYSTEM.md`, `claudeco_vault-index.md`.
+  `THE-WHOLE-SYSTEM.md`.
 - Don't work around a hung write by writing to a *different* file — retry the board write; a
   fragmented board defeats the whole point.
 - Don't confuse this with the global `session-handoff` skill (one-shot conversation resume) — this

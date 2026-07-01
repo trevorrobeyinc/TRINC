@@ -27,7 +27,7 @@ mirror.
 |---|---|---|
 | **CLI Claude Code** | Native filesystem (working dir is the repo, or an absolute path). | Auto-reads repo `CLAUDE.md` (has a pointer) + the repo skill `continuity-board` triggers on session start / "handoff" language. |
 | **Desktop Claude Code** (Desktop Code tab) | Filesystem MCP / native file tools. | Same as CLI — repo `CLAUDE.md` pointer + `continuity-board` skill. |
-| **Cowork** | Filesystem (it already writes `claudeco_*` files in this repo). | `claudeco_project.md` (the Cowork cubicle anchor) points here. |
+| **Cowork** | Filesystem (writes files in this repo directly). | repo `CLAUDE.md` board pointer (top of file). |
 | **Claude Chat (Desktop app)** | **Filesystem MCP connector**, allowed roots `/Users/myhome` + `/Volumes/ExtraCurricular`. Reads/writes the repo directly. | The user (or a prior note) points Chat at `_continuity/CONTINUITY.md`. Chat is **not** limited to the `:8798` Obsidian bridge. |
 
 > **Important correction (2026-07-01):** the repo `CLAUDE.md` topology used to imply Chat could
@@ -52,7 +52,7 @@ mirror.
 5. **Name your surface** in every entry (`CLI Claude Code` / `Desktop Claude Code` / `Cowork` /
    `Claude Chat`) so cooperation is legible.
 6. **Point to canon, don't fork it.** This board is a *pointer + state* layer. Deep facts live in
-   `CLAUDE.md`, `SYSTEM-REALITY.md`, `THE-WHOLE-SYSTEM.md`, `claudeco_vault-index.md`. Link, don't
+   `CLAUDE.md`, `SYSTEM-REALITY.md`, `THE-WHOLE-SYSTEM.md`. Link, don't
    duplicate.
 
 > **Scope gate — business only:** only write to the board when the work relates to the Trevor
