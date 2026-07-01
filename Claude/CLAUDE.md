@@ -2,6 +2,11 @@
 
 Central organizational workspace housing all Claude-assisted projects for the biomedical research intelligence stack.
 
+> **📌 Shared Continuity Board:** the cross-surface work log lives at the repo root —
+> [`../_continuity/CONTINUITY.md`](../_continuity/CONTINUITY.md). All four Claude surfaces (CLI
+> Claude Code, Desktop Claude Code, Cowork, Claude Chat) read it at session start and append on
+> progress/handoff. See [`../_continuity/README.md`](../_continuity/README.md).
+
 ## Why this workspace exists (vs `Copilot-Everything/`)
 
 The split is **ownership-based**, not artifact-type-based:

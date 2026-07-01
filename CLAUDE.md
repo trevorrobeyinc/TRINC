@@ -4,6 +4,16 @@ Single-repo monorepo for the **Trevor Robey, INC.** biomedical research intellig
 
 Hosting: **local-only as of 2026-05-26.** The private GitHub remote `trevoralexanderrobey/TrevClaw-Obsidianodus` was **deleted** on 2026-05-26; the monorepo now lives only on this machine with **no git remotes**. Durable backup is a verified `git bundle --all` in `~/Downloads/` (e.g. `TrevClaw-Obsidianodus-FULL-backup-20260526-2255.bundle`) — keep an off-device copy. Do not re-add a remote or push without an explicit decision to reverse this local-only posture.
 
+## 📌 Shared Continuity Board — read this first
+
+> **Before substantive work in this repo, read [`_continuity/CONTINUITY.md`](_continuity/CONTINUITY.md).**
+> It is the ONE living board all four Claude surfaces share — **CLI Claude Code, Desktop Claude
+> Code, Cowork, and Claude Chat (Desktop)** — so every surface knows what's being worked on and
+> what changed, and can adjust/add/cooperate. Read **Current focus** + the top few **Log** entries
+> at session start; append a Log entry on meaningful progress or handoff. Protocol, reachability,
+> and external-volume write-safety: [`_continuity/README.md`](_continuity/README.md). The Code
+> surfaces also auto-trigger via the repo skill `.claude/skills/continuity-board/`.
+
 ## Repo Topology
 
 > **Folder consolidation (2026-05-19).** The two former sibling folders
@@ -43,6 +53,18 @@ Hosting: **local-only as of 2026-05-26.** The private GitHub remote `trevoralexa
 ## Multi-Operator Topology
 
 Three independent operators share this stack. None is subordinate to the others.
+
+> **Four Claude *surfaces* reach this repo's filesystem directly (corrected 2026-07-01).** The
+> MCP wiring below describes the *plumbing*; separately, the four human-facing Claude surfaces —
+> **CLI Claude Code, Desktop Claude Code, Cowork, and Claude Chat (Desktop app)** — all read/write
+> this repo on disk and coordinate through the shared board at `_continuity/CONTINUITY.md`.
+> **Claude Chat (Desktop) is NOT limited to the `:8798` Obsidian bridge for local files:** it has a
+> **Filesystem MCP connector with allowed roots `/Users/myhome` and `/Volumes/ExtraCurricular`**,
+> so it reads/writes `/Volumes/ExtraCurricular/TrevClaw-Obsidianodus` (and sees `My Digital Garden`
+> as a sibling dir) directly. `:8798` is an *additional* semantic path (Obsidian/Zettelkasten over
+> `My Digital Garden`), not Chat's only route to disk. Caveat: Chat-side writes to the external
+> volume have hung before — a Filesystem-MCP restart clears it; treat Chat writes as
+> available-but-probe-first (see `_continuity/README.md`).
 
 ```
 Claude Desktop (heavy-lift code/file operator)
