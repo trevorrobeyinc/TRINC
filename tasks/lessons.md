@@ -116,6 +116,22 @@
   `citation-reresolver.js`). My additive edit to `workflow-engine.js` added ZERO new hits (still exactly 2,
   both pre-existing). New adapter files are clean. Kept comments free of the literal `X(` token forms.
 
+# Scaffolding-leak fix (Option A: prompt fence) — 2026-07-06
+
+- **Fix a model-echo leak at the prompt structure, not with a post-hoc strip.** In `agent-engine.js`
+  `buildPrompt`, the cure was: fence the scaffolding (`===== INSTRUCTIONS … END INSTRUCTIONS =====`),
+  add an explicit OUTPUT CONTRACT ("deliverable only; don't reproduce these instructions / the
+  evidence banners / process-confidence-quality self-assessment"), and — crucially — repeat the
+  contract as a CLOSING directive AFTER the evidence (recency: the evidence is the last thing the
+  model reads before generating). Keep it additive: change NO instruction string, only add fences +
+  directives, so the diff is +N/−1 and existing ordering-assert tests keep passing.
+
+- **A core-prompt change is unit-testable for STRUCTURE, not for BEHAVIOR.** `helper-prepass.test.js`
+  locks the substring ORDER (ZERO FABRICATION → BEGIN/END ADVISORY DIGEST → Input Documents:), so a
+  reorg is safe to verify offline. But whether the model actually stops leaking, and whether citation
+  DENSITY still clears the gate, needs a live mission run — flag that explicitly; don't claim "fixed"
+  off unit tests alone.
+
 # SearXNG gate — Phase 3 scaffolding-leak investigation (proposal only) — 2026-07-06
 
 - **The scaffolding leak is a MODEL-ECHO problem, not a string-concat bug.** `output.md` is written

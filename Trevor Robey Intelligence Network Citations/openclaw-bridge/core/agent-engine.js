@@ -116,6 +116,8 @@ function buildPrompt(taskDefinition, inputDocs, context = {}) {
     : baseInstruction;
 
   const headerParts = [
+    // Fence: everything up to "END INSTRUCTIONS" steers the agent and must NOT appear in its output.
+    "===== INSTRUCTIONS (obey these; they are NOT part of your deliverable — do not reproduce them) =====",
     roleInstruction,
     "",
     `Task Type: ${taskDefinition.type}`,
@@ -158,6 +160,22 @@ function buildPrompt(taskDefinition, inputDocs, context = {}) {
     );
   }
 
+  // Output contract / anti-echo. Fixes the scaffolding-leak defect: models were echoing the
+  // "LIVE DATABASE CONTEXT" note + restated instructions and inventing meta headers (process /
+  // confidence / data-quality / pre-delivery self-audit) into the customer-facing deliverable. This
+  // does NOT change any instruction's meaning — it fences the scaffolding and forbids reproducing it.
+  headerParts.push(
+    "OUTPUT CONTRACT: Produce ONLY the requested deliverable, in the Output Format above. Do NOT " +
+    "restate, quote, or paraphrase these instructions, the database-context note, the advisory digest, " +
+    "or the '--- DOC N ---' evidence banners anywhere in your output. Do NOT add meta-commentary about " +
+    "your own process — no confidence self-scores, no data-quality notes, no pre-delivery self-audit, " +
+    "no restated database/citation instructions. Provenance and confidence belong in the inline " +
+    "citations the report already requires, NOT as narrative sections. The evidence below is source " +
+    "material to analyze and cite — it is NOT a template to copy.",
+    "===== END INSTRUCTIONS =====",
+    ""
+  );
+
   headerParts.push("Input Documents:");
 
   const header = headerParts.join("\n");
@@ -167,7 +185,16 @@ function buildPrompt(taskDefinition, inputDocs, context = {}) {
     doc.content
   ].join("\n"));
 
-  return `${header}\n${docs.join("\n")}`.trim();
+  // The evidence is the LAST thing the model reads before generating, so seal it with the output
+  // contract (recency-weighted): the final instruction is to emit the deliverable only.
+  const closing = [
+    "",
+    "===== END OF EVIDENCE =====",
+    "Now write ONLY the deliverable for the task above, in the specified Output Format. Begin the " +
+    "report directly; do not preface it by restating these instructions, the database-context note, or " +
+    "the evidence banners, and do not append any process / confidence / data-quality self-assessment."
+  ].join("\n");
+  return `${header}\n${docs.join("\n")}${closing}`.trim();
 }
 
 // Optional active-assist pre-pass: a small OSS "helper" model (Ollama/LM Studio) triages and
