@@ -79,13 +79,19 @@ Guidelines:
 ## Settings
 - **Auto-insert on file open**: When enabled, empty notes opened from a wiki link are automatically filled with a definition.
 - **Require origin link to trigger**: Only generate when the origin note actually contains a wiki link to the new note (prevents generation for unrelated empty notes).
+- **Definitions folder**: All new definition notes are created/relocated into this single vault folder (created automatically if missing). Default: `Contextual Wiki Definitions`. You can then move each note wherever you like — the wiki link still resolves by name.
 
 ## Usage
+
+### One command / hotkey: "Define selection or regenerate definition"
+Bind a hotkey to **Contextual Wiki Definitions: Define selection or regenerate definition** (Settings → Hotkeys). It does one of two things depending on context:
+
+- **Text selected → Define selection.** Highlight a word or phrase in a note and press the hotkey. The plugin wraps the selection as a `[[wiki link]]` in that note, creates the definition note **in the configured Definitions folder** (see Settings), generates the context-grounded definition from the origin note, and opens the new note. Move the note wherever you like afterward — the link still resolves by name. If a note for that term already exists, it is opened (never overwritten).
+- **No selection → Regenerate.** Rebuilds the current note's definition using the previously-active note as origin. If no distinct origin is known, a quick picker lets you choose one.
+
+### Click-to-define (automatic)
 - Type a wiki link like `[[Your Term]]` in a note, then click it.
-- When the empty note opens, the plugin inserts a completed definition template using the origin note as context.
-- To regenerate for an existing note: Command palette → "Regenerate definition for current note". The plugin uses the previously active note as origin when available; otherwise it falls back to the current note content.
-- Pick a specific origin note: Command palette → "Pick origin note, then regenerate" to choose context explicitly via a note picker.
-- Test API without modifying the note: Command palette → "Test API roundtrip (log only)". Result is logged to the developer console.
+- When the empty note opens, the plugin inserts a completed definition template using the origin note as context. (Governed by the "Auto-insert on file open" setting.)
 
 ## How it works (technical)
 - Listens to `file-open` events; when an empty Markdown file opens, it treats the previously active note as the origin context.
@@ -127,7 +133,6 @@ By default, the plugin sanitizes all API responses before writing them to your n
 ## Debugging
 - Open the developer console (Cmd+Opt+I on macOS) and check logs under "[Contextual Wiki Definitions]".
 - The plugin shows progress/failure via Obsidian notices (top-right toasts).
-- Use "Test API roundtrip (log only)" to validate your license/endpoint without modifying notes.
 
 ## License
 MIT

@@ -78,7 +78,7 @@ module.exports = class ContextualWikiDefinitions extends Plugin {
         const initialStat = file.stat;
         const isBrandNew = initialStat && initialStat.size === 0;
         if (isBrandNew) {
-          file = await this._ensureNewWikiLinkNoteInOriginFolder(file, origin);
+          file = await this._ensureNoteInDefinitionsFolder(file);
           if (file && file.extension === 'md') {
             this.previousFile = file;
           }
@@ -191,69 +191,54 @@ module.exports = class ContextualWikiDefinitions extends Plugin {
 
     this.addSettingTab(new ContextualDefinitionSettingTab(this.app, this));
 
+    // ONE command for the whole workflow (replaces the old separate
+    // "Regenerate", "Pick origin", and "Test API roundtrip" commands):
+    //  • With text selected → "Define selection": wrap the highlighted text as a
+    //    [[wiki link]] in the current (origin) note, create the definition note
+    //    in the configured definitions folder, generate the context-grounded
+    //    definition, and open it.
+    //  • With no selection → "Regenerate": rebuild the current note's definition
+    //    using the previously-active note as origin; if no distinct origin is
+    //    known, fall back to a quick origin picker.
+    // Keeps id 'regenerate-definition' so any existing hotkey keeps working.
     this.addCommand({
       id: 'regenerate-definition',
-      name: 'Regenerate definition for current note',
-      callback: async () => {
-        await this.regenerateForCurrentNote();
-      },
-    });
+      name: 'Define selection or regenerate definition',
+      editorCallback: async (editor) => {
+        const origin = this.app.workspace.getActiveFile();
+        if (!origin || origin.extension !== 'md') return;
 
-    this.addCommand({
-      id: 'pick-origin-and-regenerate',
-      name: 'Pick origin note, then regenerate',
-      callback: async () => {
-        const target = this.app.workspace.getActiveFile();
-        if (!target || target.extension !== 'md') return;
-
-        const files = this.app.vault.getMarkdownFiles();
-        const modal = new OriginNoteSuggestModal(this.app, files, async (origin) => {
-          try {
-            const context = await this.app.vault.read(origin);
-            const term = target.basename;
-            const originLink = this._computeOriginLinktext(origin, target);
-            // BUG FIX: Apply context truncation consistently (same as elsewhere)
-            const prompt = this.buildPrompt(term, this._truncateContext(context), originLink, this._zkPlaceholderTraits());
-            let definition = await this.queryCopilot(prompt);
-            if (definition) {
-              definition = this._sanitizeOutput(definition);
-              definition = this._ensureSourceContextFromLine(definition, originLink);
-              await this.app.vault.modify(target, definition);
-              this._enrichWithZettelkastenTraitsAsync(target, origin);
-            } else {
-              try {
-                const fallback = this._buildLocalTemplate(term, originLink, this._truncateContext(context));
-                await this.app.vault.modify(target, fallback);
-                new Notice('Inserted local fallback definition (API failed).');
-              } catch (e) {
-                console.error('Failed to insert fallback template (picker)', e);
-              }
-            }
-          } catch (e) {
-            console.error('Failed to regenerate with picked origin', e);
+        const rawSel = (editor.getSelection() || '').trim();
+        if (rawSel) {
+          // ---- Define selection → new nested wiki-link note ----
+          const term = this._cleanTerm(rawSel);
+          if (!term) { new Notice('Select a term to define.'); return; }
+          // Turn the highlighted text into a wiki link in the origin note
+          // (skip if it is already a [[link]]).
+          if (!/^\[\[[\s\S]*\]\]$/.test(rawSel)) {
+            editor.replaceSelection(`[[${term}]]`);
           }
-        });
-        modal.open();
-      },
-    });
+          const { target, created } = await this._createOrOpenLinkedNote(term);
+          if (!target) return;
+          if (!created) {
+            // Don't clobber an existing definition — just open it.
+            const existing = (await this.app.vault.read(target)).trim();
+            if (existing.length > 0) { new Notice('Note already exists — opened it.'); return; }
+          }
+          await this._generateDefinitionInto(target, origin);
+          return;
+        }
 
-    this.addCommand({
-      id: 'test-api-roundtrip-log-only',
-      name: 'Test API roundtrip (log only)',
-      callback: async () => {
-        try {
-          const file = this.app.workspace.getActiveFile();
-          if (!file) { new Notice('Open a note to test.'); return; }
-          const ctx = await this.app.vault.read(file);
-          const originLink = this._computeOriginLinktext(file, file);
-          const prompt = this.buildPrompt(file.basename, this._truncateContext(ctx), originLink);
-          new Notice('Testing API…');
-          const out = await this.queryCopilot(prompt);
-          console.log('[Contextual Wiki Definitions] Test output:', out);
-          new Notice(out ? 'API OK — see console' : 'API failed — see console');
-        } catch (err) {
-          console.error('Test API failed', err);
-          new Notice('Test failed (see console)');
+        // ---- No selection → regenerate the current note ----
+        const hasDistinctOrigin = this.previousFile && this.previousFile.path !== origin.path;
+        if (hasDistinctOrigin) {
+          await this.regenerateForCurrentNote();
+        } else {
+          // Fold in the old "pick origin" command: ask only when needed.
+          const files = this.app.vault.getMarkdownFiles().filter((f) => f.path !== origin.path);
+          new OriginNoteSuggestModal(this.app, files, async (picked) => {
+            await this.regenerateForCurrentNote(picked);
+          }).open();
         }
       },
     });
@@ -575,26 +560,31 @@ ORIGINATING NOTE CONTEXT:
 ${context}`;
   }
 
-  async regenerateForCurrentNote() {
+  async regenerateForCurrentNote(originOverride) {
     const target = this.app.workspace.getActiveFile();
     if (!target || target.extension !== 'md') return;
 
-    const origin = (this.previousFile && this.previousFile.path !== target.path)
-      ? this.previousFile
-      : null;
+    const origin = originOverride
+      || ((this.previousFile && this.previousFile.path !== target.path) ? this.previousFile : null);
+    // Fall back to the note's own content as context when no distinct origin is known.
+    await this._generateDefinitionInto(target, origin || target);
+  }
+
+  /**
+   * Shared generation core: read the origin's content as context, ask the model
+   * for a definition, sanitize + write it into `target`, then kick off async
+   * Vault Zettelkasten enrichment. On API failure, writes the local fallback
+   * template so the note is never left empty. Used by both the regenerate path
+   * and the "define selection" path.
+   */
+  async _generateDefinitionInto(target, originFile) {
+    if (!target || target.extension !== 'md') return;
+    const source = originFile || target;
     let context = '';
-    try {
-      if (origin) {
-        context = await this.app.vault.read(origin);
-      } else {
-        // Fallback: use current note content if no distinct origin is known
-        context = await this.app.vault.read(target);
-      }
-    } catch (_) {}
+    try { context = await this.app.vault.read(source); } catch (_) {}
 
     const term = target.basename;
-    const originFile = origin || target;
-    const originLink = this._computeOriginLinktext(originFile, target);
+    const originLink = this._computeOriginLinktext(source, target);
     const prompt = this.buildPrompt(term, this._truncateContext(context), originLink, this._zkPlaceholderTraits());
     new Notice('Generating definition…');
     let definition = await this.queryCopilot(prompt);
@@ -603,7 +593,7 @@ ${context}`;
       definition = this._ensureSourceContextFromLine(definition, originLink);
       await this.app.vault.modify(target, definition);
       new Notice('Definition inserted.');
-      this._enrichWithZettelkastenTraitsAsync(target, originFile);
+      this._enrichWithZettelkastenTraitsAsync(target, source);
     } else {
       try {
         const fallback = this._buildLocalTemplate(term, originLink, this._truncateContext(context));
@@ -614,6 +604,52 @@ ${context}`;
         new Notice('Definition generation failed (see console).');
       }
     }
+  }
+
+  /**
+   * Normalize highlighted text into a safe wiki-link term / note title:
+   * strip any wrapping [[ ]], collapse whitespace/newlines, and drop
+   * characters that are illegal in note names or that would break the link.
+   */
+  _cleanTerm(raw) {
+    return (raw || '')
+      .replace(/^\[\[|\]\]$/g, '')
+      .replace(/[\r\n]+/g, ' ')
+      .replace(/[\[\]#\^|\\/:*?"<>]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  /**
+   * Create (or locate) the definition note for `term` inside the fixed
+   * definitions folder (see settings), then open it. Marks the path as
+   * recently-processed so the file-open auto-trigger does not also try to
+   * generate (avoids double generation). The wiki link in the origin note
+   * still resolves by basename, so it keeps working after the user moves the
+   * note elsewhere. Returns { target, created }.
+   */
+  async _createOrOpenLinkedNote(term) {
+    const folder = this._resolveDefinitionsFolder();
+    await this._ensureFolderExists(folder);
+    const desired = this._normalizeVaultPath(
+      folder ? path.posix.join(folder, `${term}.md`) : `${term}.md`
+    );
+    let target = this.app.vault.getAbstractFileByPath(desired);
+    const created = !target;
+    if (!target) {
+      try {
+        target = await this.app.vault.create(desired, '');
+      } catch (e) {
+        console.error('Contextual Wiki Definitions: failed to create linked note', e);
+        new Notice('Could not create the linked note (see console).');
+        return { target: null, created: false };
+      }
+    }
+    if (!target || target.extension !== 'md') return { target: null, created: false };
+    // Suppress the file-open auto-trigger for this note; we generate directly.
+    this._markProcessed(target.path);
+    try { await this.app.workspace.getLeaf(true).openFile(target); } catch (_) {}
+    return { target, created };
   }
 
   _computeOriginLinktext(originFile, targetFile) {
@@ -971,6 +1007,7 @@ ${safeContext}`;
       allowCodeBlocks: false, // SECURITY: Default OFF - strip all code blocks
       allowRawHTML: false, // SECURITY: Default OFF - strip HTML tags
       maxOutputLength: 60000, // SECURITY: Cap output to prevent huge writes
+      definitionsFolder: 'Contextual Wiki Definitions', // All new definition notes are created/relocated here
       customApiBaseUrl: '', // FORK: When set, replaces Brevilabs endpoints with this OpenAI-compatible base URL
       customApiModel: ''    // FORK: Model name to send to custom endpoint (e.g. "llama3.2", "gpt-4o-mini"); empty falls back to "gpt-4o-mini"
     }, loaded);  }
@@ -1022,19 +1059,25 @@ ${safeContext}`;
     return text.length > max ? text.slice(0, max) : text;
   }
 
-  async _ensureNewWikiLinkNoteInOriginFolder(file, origin) {
-    if (!file || file.extension !== 'md' || !origin || origin.extension !== 'md') {
+  /**
+   * Relocate a freshly-created wiki-link note into the fixed definitions
+   * folder (see settings) so every new definition lands in one place. No-op if
+   * it's already there or if a same-named note already exists at the target.
+   */
+  async _ensureNoteInDefinitionsFolder(file) {
+    if (!file || file.extension !== 'md') {
       return file;
     }
 
-    const originFolder = this._getFolderPath(origin);
+    const folder = this._resolveDefinitionsFolder();
     const currentFolder = this._getFolderPath(file);
-    if (originFolder === currentFolder) {
+    if (folder === currentFolder) {
       return file;
     }
+    await this._ensureFolderExists(folder);
 
-    const desiredPath = originFolder
-      ? path.posix.join(originFolder, `${file.basename}.md`)
+    const desiredPath = folder
+      ? path.posix.join(folder, `${file.basename}.md`)
       : `${file.basename}.md`;
     const normalizedDesiredPath = this._normalizeVaultPath(desiredPath);
     const normalizedCurrentPath = this._normalizeVaultPath(file.path);
@@ -1051,8 +1094,34 @@ ${safeContext}`;
       const renamed = await this.app.fileManager.renameFile(file, normalizedDesiredPath);
       return renamed || file;
     } catch (err) {
-      console.error('Contextual Wiki Definitions: failed to relocate new wiki link note', err);
+      console.error('Contextual Wiki Definitions: failed to move new note to definitions folder', err);
       return file;
+    }
+  }
+
+  /**
+   * The vault-relative folder where all new definition notes are placed.
+   * Defaults to "Contextual Wiki Definitions"; trims surrounding slashes.
+   */
+  _resolveDefinitionsFolder() {
+    const raw = (this.settings.definitionsFolder || 'Contextual Wiki Definitions').trim();
+    return this._normalizeVaultPath(raw.replace(/^\/+|\/+$/g, ''));
+  }
+
+  /**
+   * Ensure `folderPath` (which may be nested, e.g. "Inbox/Defs") exists,
+   * creating each missing segment. Safe to call repeatedly.
+   */
+  async _ensureFolderExists(folderPath) {
+    if (!folderPath) return;
+    if (this.app.vault.getAbstractFileByPath(folderPath)) return;
+    let cur = '';
+    for (const part of folderPath.split('/')) {
+      if (!part) continue;
+      cur = cur ? `${cur}/${part}` : part;
+      if (!this.app.vault.getAbstractFileByPath(cur)) {
+        try { await this.app.vault.createFolder(cur); } catch (_) {}
+      }
     }
   }
 
@@ -1153,6 +1222,17 @@ class ContextualDefinitionSettingTab extends PluginSettingTab {
         .setValue(this.plugin.settings.requireOriginLinkToTrigger)
         .onChange(async (value) => {
           this.plugin.settings.requireOriginLinkToTrigger = value;
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
+      .setName('Definitions folder')
+      .setDesc('All new definition notes are created/relocated into this vault folder (created automatically if missing). You can then move them wherever you like; the wiki link still resolves by name. Default: "Contextual Wiki Definitions".')
+      .addText(text => text
+        .setPlaceholder('Contextual Wiki Definitions')
+        .setValue(this.plugin.settings.definitionsFolder || '')
+        .onChange(async (value) => {
+          this.plugin.settings.definitionsFolder = value.trim();
           await this.plugin.saveSettings();
         }));
 
