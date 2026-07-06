@@ -2,6 +2,28 @@
 
 ---
 
+## SearXNG gate close-out — Phases 1–2 (2026-07-06; STOP at checkpoint before Phase 3)
+
+**Phase 1 — composition test** (extend `tests/core/phase30-workflow-engine.test.js`, reuse its harness):
+- [ ] STUB searchFn OFFLINE via `require.cache` override of `openclaw-bridge/mcp/searxng-mcp/searchfn.js`
+  (no production seam); beforeEach install + record calls, afterEach restore.
+- [ ] Mission via canned `agentSpawner.spawnMission` → `{ok:true, subtask_results:[{subtask_id,output_path}]}`
+  pointing at temp files (cited text = density-pass; uncited prose = density-fail).
+- [ ] (a) density-fail → searchFn 0× + `result.error.code === "PHASE30_QUALITY_BELOW_THRESHOLD"`.
+- [ ] (b) pass → `result.ok`, `artifacts.quality_report.section_coverage` w/ per-section tiers, searchFn 1×/section.
+- [ ] (c) one section zero → `result.error.code === "PHASE30_CITATION_COVERAGE_ZERO"` (throw propagates through dispatch).
+- [ ] (d) query passed to searchFn contains the primary subject (from inputs.therapeutic_area).
+
+**Phase 2 — arXiv/preprint grade fix** (`grade.js` only):
+- [ ] preprint predicate = `c.subtype === "preprint" || c.type === "arxiv"` (confirmed vs connector grammar; no re-port).
+- [ ] order: A = url-source AND NOT preprint; B = (url-source preprint) OR (text-source); C = primary_domain; D = else.
+- [ ] update any adapter test that assumed url-preprint→A; ADD url-arXiv → B (not A, not D). Keep T1–T9 green.
+- [ ] DEFER (board flag): off-domain preprints = relevance, not grading.
+
+**Checkpoint:** full suite + lint + footprint + lessons + board Log → STOP. Phase 3 only after "continue".
+
+---
+
 ## Operational Readiness Report
 
 Audited 2026-03-30. Every pipeline was tested with real commands. Nothing was fixed — observe and report only.

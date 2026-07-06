@@ -657,6 +657,38 @@ function createWorkflowEngine(options = {}) {
       });
     }
 
+    // SECTION-LEVEL citation-coverage gate (fail-closed ONLY at zero distinct primary sources).
+    // Runs ONLY when the cheap local density check passed, so a report that already fails density
+    // never spends any searches. Complementary to verifyReportCitations (which grounds cited IDs
+    // against fetched IDs on the mission step): this measures EXTERNAL primary-source coverage per
+    // section. Fail-soft on infra (SearXNG unreachable -> section UNCHECKED); fail-closed on a genuine
+    // zero-coverage section. Helpers are required lazily so a connector problem can never break module
+    // load and is only touched on a density-passing quality-audit step.
+    let sectionCoverage = [];
+    if (pass) {
+      const { runSectionGate, assertCoverageOrThrow } = require("../mcp/searxng-mcp/section-gate.js");
+      const { searchFn } = require("../mcp/searxng-mcp/searchfn.js");
+      const { runCitationGate } = require("../mcp/searxng-mcp/index.js");
+      const enrichedInputs = applyInputSchemaDefaults(workflowDef, inputs);
+      const primarySubject = String(
+        enrichedInputs.indication || enrichedInputs.condition || enrichedInputs.disease
+        || enrichedInputs.therapeutic_area || enrichedInputs.topic || ""
+      ).trim();
+      const coverage = await runSectionGate({
+        subtasks: subtaskResults,
+        primarySubject,
+        searchFn,
+        runGate: runCitationGate,
+        readFile: fs.readFileSync,
+        maxResults: Number(step.max_results) || 8,
+        log: logger
+      });
+      // Throws PHASE30_CITATION_COVERAGE_ZERO (caught by the per-step try/catch) if any section
+      // genuinely returned zero distinct primary sources; otherwise records per-section tiers.
+      assertCoverageOrThrow(coverage);
+      sectionCoverage = coverage.section_coverage;
+    }
+
     return {
       ok: pass,
       overall_confidence: Math.round(overallConfidence * 1000) / 1000,
@@ -665,7 +697,8 @@ function createWorkflowEngine(options = {}) {
       verified_claims: verifiedClaims,
       min_verified_citations: minVerifiedCitations,
       threshold,
-      pass
+      pass,
+      section_coverage: sectionCoverage
     };
   }
 
@@ -816,7 +849,10 @@ function createWorkflowEngine(options = {}) {
               threshold: result.threshold,
               // executeQualityAuditStep returns the pass boolean as `ok`; older code read
               // `result.pass` (always undefined → note-gen always saw pass:undefined).
-              pass: result.ok !== undefined ? result.ok : result.pass
+              pass: result.ok !== undefined ? result.ok : result.pass,
+              // Per-section external primary-source coverage tiers (additive; deliverable can render
+              // Sparse/Moderate/Comprehensive per section).
+              section_coverage: result.section_coverage || []
             };
             if (!result.ok) {
               const error = new Error(`Quality audit failed: confidence ${result.overall_confidence} below threshold ${result.threshold}`);

@@ -1,6 +1,6 @@
 "use strict";
 
-const { describe, it, beforeEach } = require("node:test");
+const { describe, it, beforeEach, afterEach } = require("node:test");
 const assert = require("node:assert/strict");
 const os = require("node:os");
 const fs = require("node:fs");
@@ -239,6 +239,123 @@ describe("Phase 30: Workflow Engine — cancelWorkflow", () => {
     assert.throws(
       () => engine.cancelWorkflow("wf-not-found"),
       (err) => err.message.includes("not found")
+    );
+  });
+});
+
+describe("Phase 30: Workflow Engine — section citation-coverage gate (executeQualityAuditStep wiring)", () => {
+  // Stub the connector-backed searchFn OFFLINE by overriding require.cache for searchfn.js — no live
+  // SearXNG call, no production-only injection seam. executeQualityAuditStep lazily requires the same
+  // resolved path, so the override is what it gets.
+  const searchfnPath = require.resolve("../../openclaw-bridge/mcp/searxng-mcp/searchfn.js");
+  let searchCalls;
+  let searchImpl;
+  let savedCacheEntry;
+
+  // Two distinct primary-source (grade-C clinicaltrials.gov) results → distinct count 2 → not THIN → no retry.
+  const PRIMARY_SOURCES = {
+    results: [
+      { title: "Trial A", url: "https://clinicaltrials.gov/study/NCT01111111", content: "", score: 1, engine: "crossref", citations: [] },
+      { title: "Trial B", url: "https://clinicaltrials.gov/study/NCT02222222", content: "", score: 1, engine: "crossref", citations: [] }
+    ]
+  };
+  // Density-PASS section text. The density check just counts lines matching its regex; "FAERS" trips
+  // it but is NOT an extractable citation id — so the mission step's grounded-ratio gate and the
+  // re-resolution slice (which resolve real PMIDs/NCTs/DOIs against a live registry) see nothing to
+  // block. That isolates THIS test to the section-coverage gate. Plus a distinctive marker phrase.
+  const CITED = (marker) => [
+    "The FAERS pharmacovigilance dataset was analyzed for adverse events.",
+    "A second FAERS review examined signal detection across cohorts.",
+    "FAERS-based analysis confirmed the safety profile in patients.",
+    "Additional FAERS records supported the observed adverse-event trend.",
+    "A fifth FAERS query aggregated case reports for the therapy.",
+    `${marker} Syndrome was the distinctive focus of this section analysis.`
+  ].join("\n");
+  // Density-FAIL section text: prose with no database identifiers → 0 verified claims.
+  const UNCITED = [
+    "This section contains general narrative prose about the condition.",
+    "It intentionally includes no database identifiers of any kind.",
+    "The discussion remains qualitative without any specific citations."
+  ].join("\n");
+
+  function writeSections(texts) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "phase30-sections-"));
+    return texts.map((text, i) => {
+      const p = path.join(dir, `section-${i}.md`);
+      fs.writeFileSync(p, text, "utf8");
+      return { subtask_id: `sub-${i}`, output_path: p };
+    });
+  }
+
+  function gateWorkflowDef() {
+    return {
+      schema_version: "phase30-workflow-v1",
+      workflow_template_id: "wf-gate-composition",
+      name: "Section Gate Composition Test",
+      auto_approve: true,
+      pipeline: [
+        { step_id: "step_research", type: "mission", mission_template_id: "biomedical_drug_discovery", depends_on: [] },
+        { step_id: "quality_check", type: "quality_audit", depends_on: ["step_research"], confidence_threshold: 0.5 }
+      ]
+    };
+  }
+
+  function engineWithSubtasks(subtaskResults) {
+    const researchRuntime = makeMockResearchRuntime({
+      agentSpawner: { spawnMission: async () => ({ ok: true, subtask_results: subtaskResults }) }
+    });
+    return createWorkflowEngine({ researchRuntime, monetizationRuntime: makeMockMonetizationRuntime(), logger: makeMockLogger() });
+  }
+
+  const runInputs = { inputs: { therapeutic_area: "heart failure" } };
+
+  beforeEach(() => {
+    searchCalls = [];
+    searchImpl = async () => PRIMARY_SOURCES;
+    const stub = async (query, params) => { searchCalls.push({ query, params }); return searchImpl(query, params); };
+    savedCacheEntry = require.cache[searchfnPath];
+    require.cache[searchfnPath] = { id: searchfnPath, filename: searchfnPath, loaded: true, exports: { searchFn: stub }, children: [], paths: [] };
+  });
+
+  afterEach(() => {
+    if (savedCacheEntry) require.cache[searchfnPath] = savedCacheEntry;
+    else delete require.cache[searchfnPath];
+  });
+
+  it("(a) DENSITY-FIRST: a density-fail short-circuits — section gate NOT invoked, throws PHASE30_QUALITY_BELOW_THRESHOLD", async () => {
+    const engine = engineWithSubtasks(writeSections([UNCITED, UNCITED]));
+    const result = await engine.executeWorkflow(gateWorkflowDef(), runInputs);
+    assert.equal(result.ok, false);
+    assert.equal(result.error.code, "PHASE30_QUALITY_BELOW_THRESHOLD");
+    assert.equal(searchCalls.length, 0, "section gate must not run when the density check already fails");
+  });
+
+  it("(b) PASS PATH: density-pass + sources → completes, per-section tiers surfaced, searchFn once per section", async () => {
+    const engine = engineWithSubtasks(writeSections([CITED("Alphamarker"), CITED("Betamarker")]));
+    const result = await engine.executeWorkflow(gateWorkflowDef(), runInputs);
+    assert.equal(result.ok, true, result.error && JSON.stringify(result.error));
+    const cov = result.artifacts.quality_report.section_coverage;
+    assert.ok(Array.isArray(cov) && cov.length === 2, "per-section coverage populated");
+    assert.ok(cov.every((s) => s.checked === true && s.gate_status === "pass" && s.coverage_tier));
+    assert.equal(searchCalls.length, 2, "one search per section (2 distinct sources → no THIN retry)");
+  });
+
+  it("(c) FAIL-CLOSED PROPAGATION: one section returns zero sources → PHASE30_CITATION_COVERAGE_ZERO through the dispatch", async () => {
+    searchImpl = async (query) => (/Betamarker/i.test(String(query)) ? { results: [] } : PRIMARY_SOURCES);
+    const engine = engineWithSubtasks(writeSections([CITED("Alphamarker"), CITED("Betamarker")]));
+    const result = await engine.executeWorkflow(gateWorkflowDef(), runInputs);
+    assert.equal(result.ok, false);
+    assert.equal(result.error.code, "PHASE30_CITATION_COVERAGE_ZERO");
+  });
+
+  it("(d) SUBJECT DERIVATION: the query passed to searchFn reflects the workflow primary subject", async () => {
+    const engine = engineWithSubtasks(writeSections([CITED("Alphamarker"), CITED("Gammamarker")]));
+    const result = await engine.executeWorkflow(gateWorkflowDef(), runInputs);
+    assert.equal(result.ok, true, result.error && JSON.stringify(result.error));
+    assert.ok(searchCalls.length >= 1);
+    assert.ok(
+      searchCalls.every((c) => /heart failure/i.test(String(c.query))),
+      "every section query must carry the primary subject: " + searchCalls.map((c) => c.query).join(" | ")
     );
   });
 });

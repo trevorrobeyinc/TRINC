@@ -1,0 +1,85 @@
+# Template for the private, loopback-only SearXNG instance behind this connector.
+# The REAL file lives on the INTERNAL volume at ~/.config/searxng/settings.yml
+# (mode 600, with a generated secret) so a launchd user-agent can read it.
+# Generate a secret with:  openssl rand -hex 32
+use_default_settings: true
+
+general:
+  instance_name: "trevclaw-searxng"
+  debug: false
+  enable_metrics: false
+
+server:
+  base_url: "http://127.0.0.1:8890/"
+  port: 8890
+  bind_address: "127.0.0.1"
+  secret_key: "REPLACE_WITH_openssl_rand_-hex_32"
+  limiter: false            # no Valkey/Redis; no bot-detection gate on local JSON calls
+  public_instance: false
+  image_proxy: false
+
+search:
+  safe_search: 0
+  autocomplete: ""
+  formats:
+    - html
+    - json                  # <-- enables the JSON API the connector calls
+
+outgoing:
+  request_timeout: 6.0
+  max_request_timeout: 12.0
+  pool_connections: 100
+  pool_maxsize: 20
+
+# --- Curated biomedical / scholarly engine tuning ---------------------------------
+# Partial overrides merge onto SearXNG defaults by NAME (use_default_settings: true):
+# only the fields below change; engine module / shortcut / category are inherited.
+# Scholarly sources are weighted UP (surface for topic:"science" queries + rank higher);
+# rate-limited / CAPTCHA-prone consumer engines are disabled. Per-engine timeouts must
+# stay <= outgoing.max_request_timeout (12.0). NOTE: crossref + openalex ship disabled by
+# default, so they are explicitly enabled here. (pubmedcentral / openaire as named in some
+# guides are NOT separate engines in current SearXNG — OpenAIRE ships as `openairepublications`
+# and OpenAlex covers the open-access corpus; PubMed's `pubmed` engine is the biomedical core.)
+engines:
+  - name: pubmed
+    weight: 3.0
+    timeout: 8.0
+  - name: semantic scholar
+    weight: 2.5
+    timeout: 6.0
+  # NEW engine (not a SearXNG default): Europe PMC via json_engine. Carries PMID/PMCID/DOI +
+  # abstracts + preprints; url_prefix builds a resolvable https://doi.org/<doi> per result.
+  - name: europepmc
+    engine: json_engine
+    shortcut: epmc
+    categories: [science]
+    paging: false
+    search_url: https://www.ebi.ac.uk/europepmc/webservices/rest/search?query={query}&format=json&resultType=core&pageSize=10
+    results_query: resultList/result
+    url_query: doi
+    url_prefix: https://doi.org/
+    title_query: title
+    content_query: abstractText
+    content_html_to_text: true
+    weight: 2.5
+    timeout: 8.0
+    disabled: false
+  - name: crossref
+    disabled: false
+    weight: 2.0
+    timeout: 10.0
+  - name: openalex
+    disabled: false
+    weight: 2.0
+    timeout: 8.0
+    # mailto: "you@example.com"   # optional: OpenAlex polite pool
+  - name: openairepublications
+    weight: 1.5
+    timeout: 6.0
+  - name: arxiv
+    weight: 1.0
+    timeout: 6.0
+  - name: brave
+    disabled: true
+  - name: google scholar
+    disabled: true

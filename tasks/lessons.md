@@ -35,3 +35,166 @@
 - **ARCHITECTURE.md is already stale** (still lists TrevNodus, chrome-devtools, backend emulator :8789)
   and self-declares the root `CLAUDE.md` as the source of truth. Only the targeted topology line was
   edited; unrelated drift was intentionally left alone (out of scope).
+
+# SearXNG citation-gate v1 — Step 1 (adapter) lessons — 2026-07-06
+
+- **The handoff spec (written by Chat) diverges from the real engine — but only Step-2 wiring cares.**
+  The spec's `step_type: "breadth"|"depth"` **does not exist** in the workflow engine (step types are
+  `mission|quality_audit|dataset|offer|approve|export`); `connector-registry.json` is **audit-only at
+  runtime** (never `require`d — `adapter_status` is bookkeeping); and there is **no generic
+  "spawn adapter by registry path"** seam. None of that blocks Step 1: the adapter is a self-contained
+  `GateInput→GateOutput` module whose connector call is injected + stubbed, so it builds/tests in full
+  isolation. These divergences are **Step-2 wiring decisions** — resolve before touching run-workflow.
+
+- **Real wiring seam = `localFetchers`, not a subprocess.** Engine adapters (`chembl-mcp`, `pubmed-mcp`)
+  are in-process CJS factories `createXMcp()→{execute,isAvailable}`, and non-ToolUniverse fetchers are
+  registered as `localFetchers: { tool_name: (args)=>result }` in `scripts/_workflow-runtime.js` (see
+  `ctgov_stopped_trials`). Step 2 should wire the gate through that seam / into `executeQualityAuditStep`,
+  which today is a pure in-process file-regex check (returns `{ok,...}`; caller throws
+  `PHASE30_QUALITY_BELOW_THRESHOLD`). Fail-closed in this engine = **throw a coded Error** → the per-step
+  try/catch marks the workflow failed. Mirror that (`verifyReportCitations` in `citation-gate.js` is the
+  pattern), don't invent a new failure channel.
+
+- **Restricted-globals lint scans COMMENTS too** (`rg` over `openclaw-bridge/`, pattern
+  `Date.now(|new Date(|Math.random(|randomUUID(`). Two of my JSDoc lines *documented* the ban by writing
+  the literal tokens → false-positive lint hits. Fix: describe the ban as "no wall-clock / RNG globals"
+  without the literal `X(` forms. The adapter itself is genuinely pure (cluster ids from canonical keys,
+  union-find with `Math.min/max` — both allowed).
+
+- **The whole-tree restricted-globals lint is ALREADY RED on this branch** — 4 PRE-EXISTING violations in
+  `core/workflow-engine.js` (`new Date()` ×2), `core/role-router.js`, `core/operator-approve-gate.js`
+  (`Date.now()`), `mcp/citation-reresolver/citation-reresolver.js` (`new Date()`). All unmodified by me
+  (empty `git status`). Flagged for the operator; NOT fixed (out of Step-1 scope; `workflow-engine.js` is
+  high-blast-radius). My adapter dir greps clean.
+
+- **G4 no-over-merge is the load-bearing dedup invariant** and had to be re-ported (no shared
+  `canonicalUrl`/`dedupe` exists in `openclaw-bridge/` — only in the connector's `robust.js`). Cluster
+  keys = canonical URL **+ url-derived citation ids only**; text-derived ids never merge. Kept in
+  `cluster.js` with a "keep in sync with the connector" note — a future drift risk to watch (same class
+  as the connector↔engine citation-grammar drift).
+
+- **`adapter_status` enum is `wired`/`missing`/`scaffold-only`, not `present`** (spec said "present").
+  Step 3 sets searxng-search `missing → wired`.
+
+# SearXNG citation-gate v1 — Steps 2 & 3 (section-gate wiring) lessons — 2026-07-06
+
+- **A `subtask_results[]` element carries NO subject/label field.** Keys are `ok, task_id, status,
+  output_path, metadata_path, manifest_path, token_count, provider, model, subtask_id, agent_id,
+  mission_id`. `task_definition.description` lives in the `metadata_path` sidecar, but subtask
+  descriptions come from a pluggable `spawnPlanner.buildPlan` whose fallback is `` `${mission} (${role})` ``
+  — **role-suffix only**, an unreliable per-section differentiator. So per-section queries are derived
+  from each section's **output text** (top capitalized key-terms, deterministic) + the workflow primary
+  subject (`indication||condition||disease||therapeutic_area||topic`). Output text genuinely differs per
+  role-section → distinct, section-specific queries. Watch: a future `spawnPlanner` that sets real
+  per-step descriptions would let us prefer `metadata.description`; for now text-derivation is the teeth.
+
+- **The engine step type is `quality_audit` (step_id `quality_check`), and `executeQualityAuditStep` is a
+  factory closure** — `logger`, `safeString`, `applyInputSchemaDefaults`, `fs` are all in scope; it is NOT
+  module-exported, so the section-gate logic lives in a separate, injectable `section-gate.js`
+  (`runSectionGate`/`assertCoverageOrThrow`/`deriveSectionQuery`) that the engine calls — that's what
+  makes it offline-testable with a stubbed `searchFn`.
+
+- **Density-first composition is load-bearing for cost.** The existing regex density check runs UNCHANGED
+  and FIRST; the section gate (which makes live SearXNG calls) runs ONLY on density-pass. A report that
+  already fails density throws `PHASE30_QUALITY_BELOW_THRESHOLD` with zero searches spent.
+
+- **Infra-vs-zero-coverage hinges on the adapter's error contract.** `runCitationGate` throws if the
+  **pass-1** `searchFn` throws (its retry-only fail-soft is unchanged), and RETURNS `gate_status:"fail"`
+  on a genuine zero-result. So in `runSectionGate`: caught throw = infra → section `checked:false` (never
+  fails the step); returned `"fail"` = real zero-coverage → collect → `assertCoverageOrThrow` throws
+  `PHASE30_CITATION_COVERAGE_ZERO`. This exactly mirrors the engine's fail-soft-on-infra /
+  fail-closed-on-fabrication posture.
+
+- **Lazy-require the connector at the seam, never at module top.** `searchfn.js` lazy-`require`s the
+  connector's `search()` on first call, so a connector problem surfaces as a caught infra error (section
+  UNCHECKED) instead of breaking `workflow-engine.js` module load for ALL workflows. Verified the module
+  still loads after the edit. The require resolves the external-volume SOURCE copy (not the staged copy);
+  interactive-node/`claude -p` safe, NOT launchd-safe.
+
+- **The restricted-globals lint scans comments AND is already red from 4 PRE-EXISTING hits**
+  (`workflow-engine.js` ×2 at lines 333/354, `role-router.js`, `operator-approve-gate.js`,
+  `citation-reresolver.js`). My additive edit to `workflow-engine.js` added ZERO new hits (still exactly 2,
+  both pre-existing). New adapter files are clean. Kept comments free of the literal `X(` token forms.
+
+# SearXNG gate — Phase 3 scaffolding-leak investigation (proposal only) — 2026-07-06
+
+- **The scaffolding leak is a MODEL-ECHO problem, not a string-concat bug.** `output.md` is written
+  purely from `completion.text` (`agent-engine.js:414` → `saveOutput`; `research-output-manager`
+  renders `String(output).trim()+"\n"`, no prompt ref; llm-adapter pipes prompt to stdin, reads only
+  `parsed.result`). The engine never stitches prompt text into the file. The model echoes it because
+  `buildPrompt` (`agent-engine.js:107-171`) assembles ONE undelimited block — role + citation rules +
+  zero-fabrication + `LIVE DATABASE CONTEXT` + `--- DOC N: <path> ---` doc bodies, joined by plain
+  `\n` — with no fence separating instructions from the deliverable and no anti-echo directive.
+
+- **Two leak classes need different fixes.** (1) VERBATIM artifacts (`LIVE DATABASE CONTEXT` sentence,
+  DOC banners, tool-prefetch `Source:/Query:/Retrieved:` footers) CAN be exact-matched → a conservative
+  post-gen strip is safe. (2) PARAPHRASED headers (`Synthesis Confidence Statement`, `Action Required
+  Before Delivery`, `Live Data Quality Assessment`) exist in NO template/config — the model invented
+  them from the prompt's concepts → a regex strip would risk deleting REAL analysis (`Failure Mode
+  Signals`/graveyard content is a legitimate stop-reason-archaeology topic). So the ROOT fix is the
+  prompt structure (fence + anti-echo directive in `buildPrompt`), NOT a strip. Proposal paused for review.
+
+- **A downstream workaround is not a source fix.** The section-gate `STOPWORDS` list stops leaked words
+  polluting SEARCH QUERIES but never touches the deliverable — the defect lived one layer up the whole time.
+
+# SearXNG gate — Phases 1–2 (composition test + preprint grade) lessons — 2026-07-06
+
+- **Stub the lazily-required dependency via `require.cache`, not a production seam.**
+  `executeQualityAuditStep` does `require("../mcp/searxng-mcp/searchfn.js")` lazily; a test overrides
+  `require.cache[require.resolve(".../searchfn.js")].exports = { searchFn: stub }` (save + restore in
+  before/afterEach). Same resolved absolute path → the engine gets the stub. No `createWorkflowEngine`
+  injection seam needed. This is how to offline-test wiring buried inside a factory closure.
+
+- **The mission step's OTHER citation gates block synthetic ids before the quality step.**
+  `executeMissionStep` runs grounded-ratio (`PHASE30_CITATION_UNVERIFIED`) AND re-resolution
+  (`PHASE30_CITATION_UNRESOLVED`, which resolves cited PMIDs/NCTs/DOIs against a LIVE registry). A
+  composition test that feeds real-looking ids to reach density-pass gets blocked there first. Fix:
+  use density-matching tokens that are NOT extractable citation ids — `FAERS`/`PubChem` trip the
+  density regex but carry no resolvable id, isolating the test to the section-coverage gate.
+
+- **A preprint is a real source but not peer-reviewed → grade B, never A.** The connector grammar
+  tags preprints two ways: `type === "arxiv"` (no subtype) and `subtype === "preprint"` (bioRxiv/
+  medRxiv 10.1101 / Research Square / ChemRxiv DOIs) — BOTH checks required. Grade-label accuracy
+  only; a B preprint still counts toward hasAB/Comprehensive (tier behavior unchanged). Do NOT
+  re-port the grammar to detect this — read the tags, check `subtype`/`type` on the already-emitted
+  citation object.
+
+- **Off-domain preprint = relevance, not grading.** An arXiv CS paper surfacing for a clinical query
+  is a domain-fit problem a keyword gate can't solve; it's a separate lever from the A/B/C/D label.
+  Flagged as a future item, not folded into the grade fix.
+
+# SearXNG section-gate — key-term extractor sharpening lessons — 2026-07-06
+
+- **Stubs can't catch a blunt extractor; a live run on REAL structured text did.** The section-gate
+  tests all passed on clean domain-term fixtures, but a live e2e run against real LLM section text
+  exposed that `topKeyTerms` grabbed table-headers (COMPLETED/Phase II), literal citation IDs
+  (NCT02686749), and leaked prompt scaffolding (TRAINING KNOWLEDGE) over real domain terms. Lesson:
+  for text-processing heuristics, a real-data diagnostic is worth more than any number of clean-fixture
+  unit tests — keep `scripts/diag/searxng-section-gate-e2e.mjs` and re-run it after any extractor change.
+
+- **Rank by NET-DISTINCTIVE token count, not raw word-count.** "Prefer multi-word phrases" taken
+  literally lets a 4-word mostly-boilerplate phrase beat a 1-word distinctive drug name. Ranking by
+  `meaningful.length` (tokens surviving stopword/ID/subject filters) achieves "rare multi-word wins"
+  (SGLT2 inhibitor empagliflozin = 3) without being fooled by common-word padding; frequency becomes a
+  tiebreak only. Fully deterministic — no wall-clock/RNG (still under the openclaw-bridge/ lint).
+
+- **A small LOCAL id-regex set beats re-porting the connector grammar.** Stripping citation-ID tokens
+  (NCT/PMID/DOI/CHEMBL/…) needs only a handful of anchored token shapes; re-porting the connector's
+  grammar would create another cluster.js-style drift pair. Keep it small and local.
+
+- **Whole-phrase emission leaks adjacent stoplisted tokens.** Emitting the whole capitalized phrase means
+  a stoplisted token next to a distinctive one still rides into the query ("Live Data Quality Assessment",
+  trailing "This"). Emitting meaningful-only tokens is the fix (deferred — next increment). And mc-first
+  ranking surfaces multi-word *report-workflow* phrases ("Action Required Before Delivery") that escape a
+  vocab stoplist — a phrase-level stoplist or a "looks like a workflow instruction" filter is the follow-up.
+
+- **The gate tuning is downstream of a real report-quality bug:** agent/prompt scaffolding
+  (LIVE DATABASE CONTEXT / TRAINING KNOWLEDGE / "Action Required Before Delivery" / "Synthesis Confidence
+  Statement") is bleeding into the mission's *deliverable* text (from the tool-prefetch injection + role
+  prompt scaffolding). Sharpening the extractor stops it polluting *queries* but not the *report*. Flagged
+  on the board as a separate mission-pipeline finding.
+
+- **Registry is declarative** — flipping searxng-search to `adapter_status:"wired"` +
+  `execution_surface:"subprocess-mcp"` + bare `suggested_adapter_path` wires nothing at runtime (the file
+  is audit-only); the real wiring is the `executeQualityAuditStep` edit. `npm run audit:connectors` always
+  exits 0 (informational).
