@@ -135,6 +135,8 @@ The AWS correspondence file (`correspondence-2026-05.md`) records the thread but
 
 The five **unauthenticated** claude.ai connectors are a loose end (recommend: authenticate the ones with a clear research use — Owkin, Synthesize Bio — or stop listing them). AWS console work is done through the Claude-for-Chrome extension in a dedicated AWS-only profile (out of scope for product data flow). Full mapping: [`../../CONNECTOR-ALIGNMENT.md`](../../CONNECTOR-ALIGNMENT.md).
 
+> **Update 2026-07-01 (post-audit):** the engine-internal **Google Drive** connector was fully removed at operator request — the `gdrive-subprocess` + `gdrive-host` entries in `connector-registry.json`, the `openclaw-bridge/mcp/gdrive-mcp/` adapter, and the `google_drive` credential block are gone (the `GOOGLE_DRIVE_*` env-stripping security guards in the subprocess spawners were intentionally kept). The claude.ai-level *Google Drive/Calendar* connector referenced above is a separate layer and is unaffected. The dated audit body above is preserved as the 2026-06-10 snapshot.
+
 ---
 
 ## 6. Where earlier readings were wrong (kept for honesty)

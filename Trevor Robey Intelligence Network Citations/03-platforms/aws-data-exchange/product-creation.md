@@ -92,7 +92,7 @@ ADX versioning is **revision-based**: a data set is a series of immutable revisi
 3. **Schema changes are announced.** Any schema (MAJOR) change is communicated via the listing's **"What's New"** entry *and* a versioned `data-dictionary.pdf` shipped in the same revision.
 4. **Revision access rules.** When attaching the data set to the product, set revision access so subscribers receive new revisions per the chosen policy (e.g., all finalized revisions). For the static free sample this is effectively one revision; paid/subscription tiers use ongoing revisions.
 5. **Provenance is never stripped.** Citation/attribution columns are part of the schema contract — a revision that drops provenance is invalid by definition (also a DSA prohibition).
-6. **Integrity gate before finalize.** The cross-file `signal_id` invariant (§1.3) and a "no fabricated citation" check (every identifier resolves in its source database) must pass *before* a revision is finalized. This is the runtime-grounding / zero-fabrication mandate enforced at the packaging boundary.
+6. **Integrity gate before finalize.** The cross-file `signal_id` invariant (§1.3) and a "no fabricated citation" check (every cited identifier is a real, resolvable public-domain reference, grounded against the source records retrieved when the deliverable was produced) must pass *before* a revision is finalized. This enforces the citation-grounding / zero-fabrication discipline at the packaging boundary.
 
 ### 2.2 Free sample versioning specifics
 
@@ -102,7 +102,7 @@ ADX versioning is **revision-based**: a data set is a series of immutable revisi
 ### 2.3 Revision build checklist (per release)
 
 - [ ] Regenerate/refresh CSV(s); re-run cross-file integrity check (every `signal_id` present in both files).
-- [ ] Re-verify every identifier resolves in its source DB (no fabricated citation).
+- [ ] Re-verify every cited identifier is a real, resolvable public-domain reference (no fabricated citation).
 - [ ] Regenerate Parquet mirror from the *same* CSV (paid tiers); confirm row counts match.
 - [ ] Render report PDF + `data-dictionary.pdf`; confirm text is selectable.
 - [ ] Create revision → import assets → set revision comment `vX.Y` + change summary → **Finalize**.
@@ -222,7 +222,7 @@ ADX/AWS Marketplace surfaces a listing lifecycle through these statuses. The bui
 - [ ] `signal-register.csv` present, 10 signals, 16 columns — **staged (2,879 B)**
 - [ ] `citation-index.csv` present, 29 citation rows, 5 columns — **staged (3,053 B on disk)**
 - [ ] Cross-file `signal_id` integrity invariant verified
-- [ ] No-fabricated-citation check: every identifier resolves in its source DB
+- [ ] No-fabricated-citation check: every cited identifier is a real, resolvable public-domain reference
 - [ ] **Report PDF for the free pack rendered** — *PENDING (not staged)*
 - [ ] `data-dictionary.pdf` rendered from MD — *PENDING MD→PDF*
 - [ ] Parquet mirrors — *paid tiers only; not required for the free pack*

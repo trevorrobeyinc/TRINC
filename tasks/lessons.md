@@ -116,6 +116,26 @@
   `citation-reresolver.js`). My additive edit to `workflow-engine.js` added ZERO new hits (still exactly 2,
   both pre-existing). New adapter files are clean. Kept comments free of the literal `X(` token forms.
 
+# Live validation of the fence fix + HTTPS gate — 2026-07-07
+
+- **A live run proves what units can't — and it confirmed the fence works.** The fenced `buildPrompt`
+  actually stopped the model echoing scaffolding: a real `clinical-trial-landscape`/heart-failure
+  mission's deliverables had ZERO hits for `TRAINING KNOWLEDGE` / `LIVE DATABASE CONTEXT` /
+  `Action Required Before Delivery` / `Synthesis Confidence Statement` / `--- DOC N ---`, and the report
+  headers were all legitimate domain sections. Citation density did NOT regress (34/34 grounded, ratio
+  1.0; quality density pass) — the fence's "provenance lives in inline citations" framing reinforced,
+  not suppressed, citations.
+
+- **"Make sure the gate holds over HTTPS" = prove the searchFn actually reaches :8891 with the CA, and
+  count sections CHECKED — a silent UNCHECKED means the gate no-op'd.** Pre-flight ran the gate's REAL
+  path (connector `searchFn`) and showed it succeeds over `:8891` WITH `NODE_EXTRA_CA_CERTS`=mkcert CA
+  and fails cleanly WITHOUT it (no plaintext fallback). `run-workflow.js` self-execs with that CA, so no
+  fix was needed. The live run's `section_coverage` had all 3 sections `checked:true` (zero UNCHECKED) —
+  that, plus zero `:8890` in the log, is what "the gate held over HTTPS" actually means.
+
+- **BSD `find -newermt` silently returns nothing on macOS** — don't use it to prove file freshness; it
+  gave a false "0 fresh files". Use `stat -f %Sm` for real mtimes.
+
 # Scaffolding-leak fix (Option A: prompt fence) — 2026-07-06
 
 - **Fix a model-echo leak at the prompt structure, not with a post-hoc strip.** In `agent-engine.js`

@@ -1,11 +1,32 @@
 import { Notice, Plugin } from "obsidian";
 import { spawn, type ChildProcess, execSync } from "child_process";
-import { existsSync } from "fs";
+import { existsSync, mkdirSync, appendFileSync } from "fs";
+import { homedir } from "os";
+import { join, resolve, dirname } from "path";
 import { BRIDGE_IPC_FD, DEFAULT_SETTINGS, PLUGIN_ID } from "./constants";
 import type { BridgeLauncherSettings, BridgeStatus } from "./types";
 import { BridgeLauncherSettingTab } from "./settings";
 import { ConsoleCapture } from "./consoleCapture";
 import { attachLauncherIpcServer } from "./launcherIpcServer";
+
+/**
+ * Append a security-audit event to the shared internal-disk JSONL sink
+ * (~/Library/Logs/trevclaw/audit.jsonl, overridable via TREVCLAW_AUDIT_LOG) so the
+ * OSSEC/Falcon detection plane sees bridge subprocess lifecycle. Never throws.
+ */
+function emitLauncherAudit(event: Record<string, unknown>): void {
+  try {
+    const override = process.env.TREVCLAW_AUDIT_LOG;
+    const file = override && override.trim()
+      ? resolve(override.trim())
+      : join(homedir(), "Library", "Logs", "trevclaw", "audit.jsonl");
+    mkdirSync(dirname(file), { recursive: true });
+    const line = `${JSON.stringify({ ts: new Date().toISOString(), kind: "trevclaw_audit", source: "obsidian-bridge-launcher", ...event })}\n`;
+    appendFileSync(file, line);
+  } catch {
+    // never throw out of audit emit
+  }
+}
 
 export default class BridgeLauncherPlugin extends Plugin {
   settings!: BridgeLauncherSettings;
@@ -217,6 +238,12 @@ export default class BridgeLauncherPlugin extends Plugin {
 
     this.startedAt = Date.now();
     const pid = this.child.pid;
+    emitLauncherAudit({
+      eventType: "EXEC_START",
+      pid,
+      command: `${this.settings.nodePath} dist/index.js --transport=https`,
+      port: this.settings.bridgePort,
+    });
 
     if (this.capture) {
       this.detachIpcServer = attachLauncherIpcServer(this.child, {
@@ -234,6 +261,7 @@ export default class BridgeLauncherPlugin extends Plugin {
     });
     this.child.on("exit", (code, signal) => {
       const detail = `exit code=${code} signal=${signal ?? ""}`;
+      emitLauncherAudit({ eventType: "EXEC_EXIT", pid, code, signal });
       console.log(`[bridge-launcher] bridge exited: ${detail}`);
       if (this.detachIpcServer) {
         this.detachIpcServer();

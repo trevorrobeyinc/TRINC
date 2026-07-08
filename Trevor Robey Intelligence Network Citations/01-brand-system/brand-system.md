@@ -137,6 +137,32 @@ curl -sS https://trevorobeyinc.com | grep -c "IBM+Plex"     # must be 1
 - **Cold email + 2-page sample teaser**: header uses the wordmark with accent underline.
 - **Datarade / marketplace listing PDF deliverable**: cover page primary wordmark, citation tables in `data-mono` token.
 
+## Personal brand (founder voice)
+
+Trevor's **personal / founder brand** — distinct from the company tagline, and it does **not**
+replace it. Full detail: [`personal-brand.md`](./personal-brand.md).
+
+**Lockup:**
+
+> **Truth Seeker, Receipt Keeper.**
+> *Real data beats sweet hallucination. You decide.*
+
+- Handle (line 1): who he is — the "receipts" are the citations/evidence.
+- Tagline (line 2), or on its own: **Real data beats sweet hallucination. You decide.**
+
+**Company vs. founder (do not mix):**
+- **Company voice** keeps the business tagline — *"Every claim, sourced. Every risk, named. In days, not weeks."* — in the landing-page hero, marketplace listings, OFFERINGS / README / product-catalog, and legal docs.
+- **Founder voice** uses the personal brand — in the personal email signature, LinkedIn personal profile, "about the founder" blurbs, a founder's-note / author byline on deliverables, and personal outbound sign-offs.
+
+**Personal email signature (founder voice):**
+
+```
+Trevor Robey
+Founder, Trevor Robey, INC. (Intelligence Network Citations)
+Truth Seeker, Receipt Keeper. — Real data beats sweet hallucination. You decide.
+trevor@trevorobeyinc.com · https://trevorobeyinc.com
+```
+
 ## Open items
 
 - IBM Plex isn't installed locally on the user's macOS — Figma file falls back to Inter for previews, but the production site loads Plex correctly via Google Fonts CDN. To match Figma to the live site, install IBM Plex Sans + IBM Plex Mono from https://www.ibm.com/plex/ and reload the Figma file.

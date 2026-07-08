@@ -71,7 +71,6 @@ terms when using outputs derived from these databases.
 | ICD-10 | World Health Organization (WHO) | `icd10-mcp` |
 | Owkin pathology | Owkin platform | `owkin-mcp` |
 | HuggingFace Hub | HuggingFace, Inc. (metadata queries only — no model weights downloaded or run) | `huggingface-mcp`, ToolUniverse |
-| Google Drive | Google LLC (operator-supplied accounts and content only) | `gdrive-mcp` |
 
 ## What is NOT in this project's stack
 

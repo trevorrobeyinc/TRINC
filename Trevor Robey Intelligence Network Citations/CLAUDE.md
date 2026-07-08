@@ -77,14 +77,18 @@ node scripts/generate-offer.js --source mission-XXX --product-line research_pack
 node scripts/approve-release.js --offer-id offer-XXX --confirm
 node scripts/export-release.js --offer-id offer-XXX --format zip --confirm
 
-# Deploy landing page updates to Cloudflare Workers (project: openclaw-landing-deploy)
-# 1. Re-stage clean deploy folder
-rm -rf /Users/trevorrobey/openclaw-landing-deploy && mkdir -p /Users/trevorrobey/openclaw-landing-deploy
-cp workspace/collateral/landing-page/index.html /Users/trevorrobey/openclaw-landing-deploy/
-# 2. Deploy via dashboard: https://dash.cloudflare.com/f3b10bacc7e94c72e445b078433aa1d4/workers/services/view/openclaw-landing-deploy/production
-#    -> "New deployment" -> drag /Users/trevorrobey/openclaw-landing-deploy/ -> Deploy
-# 3. Or via Wrangler (interactive): cd /Users/trevorrobey/openclaw-landing-deploy && npx --yes wrangler@latest deploy
-#    (wrangler.jsonc already in folder pins name=openclaw-landing-deploy, assets=.)
+# Deploy landing page updates to Cloudflare Workers — LIVE WORKER = shy-grass-fccd
+# (The staging FOLDER is named "openclaw-landing-deploy" — a legacy prefix — but its wrangler.jsonc
+#  pins name="shy-grass-fccd", which is the worker that serves trevorobeyinc.com. Verified 2026-06-30
+#  against the live wrangler.jsonc. A separate Cloudflare worker literally named "openclaw-landing-deploy",
+#  if it exists, is NOT the live site — it is for something else.)
+# 1. Copy the page source(s) into the served assets dir (assets.directory = ./public):
+cp workspace/collateral/landing-page/index.html  /Users/myhome/openclaw-landing-deploy/public/
+cp workspace/collateral/landing-page/intake.html /Users/myhome/openclaw-landing-deploy/public/   # -> /intake.html
+# 2. Deploy via dashboard: https://dash.cloudflare.com/f3b10bacc7e94c72e445b078433aa1d4/workers/services/view/shy-grass-fccd/production
+#    -> "New deployment" -> drag /Users/myhome/openclaw-landing-deploy/ -> Deploy
+# 3. Or via Wrangler: cd /Users/myhome/openclaw-landing-deploy && npx --yes wrangler@latest deploy
+#    (wrangler.jsonc pins name="shy-grass-fccd", assets.directory="./public")
 
 # Distribute workflow output to all platforms
 node scripts/distribute.js --workflow-id <id> --targets all --confirm
@@ -308,9 +312,9 @@ GitHub's built-in secret scanning provides push protection for provider-specific
 
 - **Live URL**: https://trevorobeyinc.com (also https://www.trevorobeyinc.com)
 - **Source**: `workspace/collateral/landing-page/index.html` (self-contained, zero dependencies)
-- **Hosting**: Cloudflare Workers static-assets, project name `openclaw-landing-deploy` under Cloudflare account `f3b10bacc7e94c72e445b078433aa1d4`. Domain `trevorobeyinc.com` is on Cloudflare Registrar; custom domain attached via Worker Settings → Domains & Routes (cookie-auth Universal SSL, no API key, no GitHub). Verified serving production traffic 2026-05-06.
+- **Hosting**: Cloudflare Workers static-assets. **Live worker = `shy-grass-fccd`** (Cloudflare account `f3b10bacc7e94c72e445b078433aa1d4`), deployed from the local staging folder `/Users/myhome/openclaw-landing-deploy/` (served assets live in its `public/` subdir). The folder's legacy name `openclaw-landing-deploy` is NOT the worker name — the folder's `wrangler.jsonc` pins `name = "shy-grass-fccd"` (verified 2026-06-30 against the live file; a separate worker literally named `openclaw-landing-deploy`, if any, is for something else). Domain `trevorobeyinc.com` is on Cloudflare Registrar; custom domain attached via Worker Settings → Domains & Routes (cookie-auth Universal SSL, no API key, no GitHub). Verified serving production traffic 2026-05-06.
 - **Old URL (retired)**: https://trevorrobeyinc.github.io — superseded by trevorobeyinc.com on 2026-04-26. The GitHub Pages repo can be archived.
-- **Deployment**: Re-stage `/Users/trevorrobey/openclaw-landing-deploy/` from `workspace/collateral/landing-page/`, drag into Cloudflare dashboard's "New deployment" UI, or `cd /Users/trevorrobey/openclaw-landing-deploy && npx --yes wrangler@latest deploy` (the wrangler.jsonc in that folder pins `name = "openclaw-landing-deploy"` and `assets.directory = "."`). Site updates within ~30 seconds. The earlier reference to a `shy-grass-fccd` worker was stale — that name does not serve trevorobeyinc.com.
+- **Deployment**: Copy the page source(s) from `workspace/collateral/landing-page/` into `/Users/myhome/openclaw-landing-deploy/public/`, then drag the `/Users/myhome/openclaw-landing-deploy/` folder into the **`shy-grass-fccd`** project's "New deployment" UI, or `cd /Users/myhome/openclaw-landing-deploy && npx --yes wrangler@latest deploy` (the wrangler.jsonc pins `name = "shy-grass-fccd"` and `assets.directory = "./public"`). Site updates within ~30 seconds. **Correction (2026-06-30):** the live worker IS `shy-grass-fccd` — an earlier note here wrongly called it "stale" and credited `openclaw-landing-deploy` (that is only the folder name). Confirmed against the live `wrangler.jsonc`; this also matches `README.brand.md`, `brand-system.md`, and the brand spec.
 - **Workflow**: Edit source HTML in this repo, copy to Pages repo, push. Site updates within ~60 seconds.
 
 ### Brand Identity

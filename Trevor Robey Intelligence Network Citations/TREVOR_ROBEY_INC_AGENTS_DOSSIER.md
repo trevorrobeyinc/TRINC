@@ -49,7 +49,7 @@ Originally framed as a "governed, local-first biomedical research and dataset pa
 In plain English:
 
 - It runs six prebuilt biomedical research workflows (`drug-discovery-full`, `pharmacovigilance-report`, `clinical-trial-landscape`, `target-validation-pack`, `rare-disease-brief`, `general-research-pack`) end-to-end via a single command.
-- It pulls live evidence from ToolUniverse (~2,116 biomedical tools, Apache-2.0, Harvard MIMS / Zitnik Lab) plus eight project MCP servers (ChEMBL, ClinicalTrials.gov, PubMed, HuggingFace Hub, NPI Registry, ICD-10, Owkin pathology, Google Drive).
+- It pulls live evidence from ToolUniverse (~2,116 biomedical tools, Apache-2.0, Harvard MIMS / Zitnik Lab) plus seven project MCP servers (ChEMBL, ClinicalTrials.gov, PubMed, HuggingFace Hub, NPI Registry, ICD-10, Owkin pathology).
 - It produces ZIP release bundles containing a multi-section research report (40 KB+ typical), a citation-index CSV in which every row carries a real identifier (PMID, NCT, ChEMBL CID, DOI), an executive summary, a provenance manifest, structured metadata, and (as of 2026-06-12) a Citation Integrity & Provenance ledger plus, for indication missions, a Graveyard Memo with protocol amendment-risk band (see "Citation-integrity layer + cost-avoidance deliverables" below).
 - It tracks evidence after export so the operator can prove what was shipped, where it went, and what happened next.
 - It is designed to help the operator turn research work into monetizable outputs without crossing the repo's manual-only external-action boundary.
@@ -146,7 +146,7 @@ flowchart TD
 | **Mock provider** | Test / CI | Active | Deterministic; required for offline `npm test`. |
 | **ToolUniverse** (subprocess) | Biomedical tool surface | Active | ~2,116 tools, Apache-2.0, Harvard MIMS / Zitnik Lab; vendored at `vendor/tooluniverse/`; Phase 29 verified. |
 | **Scholar Gateway (Semantic Scholar)** | First-class literature lane | Active | `SemanticScholar_search_papers` is wired into the role prefetch map for `scout`, `analyst`, `literature_reviewer`, and `competitive_intel_analyst` — runs alongside PubMed/EuropePMC for every literature-aware role, not as a fallback. Complementary in-process JS MCP at `openclaw-bridge/mcp/semantic-scholar-mcp.js`; full vendored toolset (7 tools: search_papers, get_paper, get_pdf_snippets, get_recommendations, get_author, search_authors, etc.) at `vendor/tooluniverse/src/tooluniverse/tools/SemanticScholar_*.py`. Smoke tests under `audit/evidence/mcp-live/semantic-scholar-*.json`. See `config/tool-prefetch-map.json` for current wiring. |
-| **Project MCP servers** | Domain tool surface | Active | 8 servers under `openclaw-bridge/mcp/`: `chembl-mcp`, `clinicaltrials-gov-mcp`, `pubmed-mcp`, `huggingface-mcp` (metadata only), `npi-mcp`, `icd10-mcp`, `owkin-mcp`, `gdrive-mcp`. |
+| **Project MCP servers** | Domain tool surface | Active | 7 servers under `openclaw-bridge/mcp/`: `chembl-mcp`, `clinicaltrials-gov-mcp`, `pubmed-mcp`, `huggingface-mcp` (metadata only), `npi-mcp`, `icd10-mcp`, `owkin-mcp`. |
 
 No HuggingFace model weights are downloaded or run. The `huggingface-mcp` server queries Hub metadata only. OpenBioLLM-Llama3-8B was named in earlier planning but is not part of this stack. The local models — Ollama `qwen2.5:7b-instruct` and LM Studio `qwen/qwen3.5-9b` — are now used **only** as per-role **helper** pre-passes + fallbacks (scout, and analyst/synthesizer respectively); the three core roles reason on Claude Opus 4.8.
 

@@ -32,7 +32,6 @@ These are the `subprocess-mcp` (12) + `tooluniverse-tool` (4) connectors. They a
 | **icd10** | Indication mapping for Patient Brief deliverables | none |
 | **huggingface-metadata** | Dataset/model-card metadata (metadata only) | optional HF_TOKEN |
 | **owkin** | Digital-pathology biomarker context | vendor-issued |
-| **gdrive-subprocess** | Delivery-pack staging / seed-doc ingest | OAuth (done) |
 | **scrape** | Whitelisted-host scraping when no API exists | none |
 | **newsletter-publisher** | Marketing-pack distribution — **Phase 24, disabled** | vendor-issued |
 | **notion-sync** | Prospect-tracking handoff — **Phase 24, disabled** | OAuth (done) |
@@ -43,7 +42,7 @@ These are the `subprocess-mcp` (12) + `tooluniverse-tool` (4) connectors. They a
 
 Available to you in a Claude chat, **not** to the workflow engine. Many are richer versions of Table A sources (use them for hands-on research; don't assume a report used them).
 
-- **Richer biomedical duplicates of Table A:** pubmed-fulltext (PMC full text), clinicaltrials-enriched (endpoint analysis), open-targets-graphql, drug-search-admet (ADMET + mechanism), biorxiv-medrxiv, icd10-host-enriched, npi-host-validate, huggingface-host-rich, tooluniverse-host, gdrive-host, semantic-search-host.
+- **Richer biomedical duplicates of Table A:** pubmed-fulltext (PMC full text), clinicaltrials-enriched (endpoint analysis), open-targets-graphql, drug-search-admet (ADMET + mechanism), biorxiv-medrxiv, icd10-host-enriched, npi-host-validate, huggingface-host-rich, tooluniverse-host, semantic-search-host.
 - **Specialty research:** synthesize-bio (generative genomics GEM-1), tavily (open-web search past training cutoff), research-memory (Qdrant pack memory `:6433`).
 - **Pipeline plumbing:** obsidian-bridge (`:8798` vault read/write — how notes get written), scheduled-tasks, mcp-registry.
 - **Operator tools (not product data):** github, gmail (manual-confirm outbound drafts), filesystem-sandboxed, sequential-thinking, context7-library-docs.

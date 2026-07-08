@@ -29,17 +29,8 @@
   ],
   "license": "MIT",
   "author": "Trevor Robey <trevor@trevorobeyinc.com>",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/trevoralexanderrobey/TrevClaw-Obsidianodus.git",
-    "directory": "Copilot-Everything/bridges/obsidian-stdio-adapter"
-  },
-  "homepage": "https://github.com/trevoralexanderrobey/TrevClaw-Obsidianodus#readme",
   "engines": {
     "node": ">=20"
-  },
-  "publishConfig": {
-    "access": "public"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1"

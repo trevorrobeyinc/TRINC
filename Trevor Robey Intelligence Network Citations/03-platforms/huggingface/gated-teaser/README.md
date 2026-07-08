@@ -50,7 +50,7 @@ extra_gated_button_content: Request access
 
 > **Produced by Trevor Robey, INC. (Trevor Robey Intelligence Network Citations LLC) — https://trevorobeyinc.com.** *INC = Intelligence Network Citations.* Contact: trevor@trevorobeyinc.com
 
-**Every claim in this dataset resolves to a public-domain identifier.** This is a free, citation-traced sample of the kind of pharmacovigilance signal synthesis we produce for biotech investors, pharma BD/CI, and drug-safety teams: each adverse-event signal is paired with the PubMed PMID, ClinicalTrials.gov NCT, DOI, RxNorm, and MedDRA identifiers that support it, so any analyst can independently replay the evidence.
+**Every claim in this dataset resolves to a public-domain identifier.** This is a free, citation-traced sample of the kind of pharmacovigilance signal synthesis we produce for biotech investors, pharma BD/CI, and drug-safety teams: each adverse-event signal is paired with the PubMed PMID, ClinicalTrials.gov NCT, DOI, RxNorm, and MedDRA identifiers that support it, so any analyst can independently verify the evidence.
 
 *Tagline: Every claim, sourced. Every risk, named. In days, not weeks.*
 
@@ -76,7 +76,7 @@ Mostly US-Government public-domain (FDA AEMS/OpenFDA, ClinicalTrials.gov, RxNorm
 
 ## Want the full version?
 
-This sample is one redacted slice. Production deliverables (per-asset **Investor Pre-Mortem**, **Failed Trial Archaeology**, full **Pharmacovigilance Pack**) ship with hundreds of resolved citations and a per-delivery Reproducibility Manifest, in days. → **https://trevorobeyinc.com** · **trevor@trevorobeyinc.com**
+This sample is one redacted slice. Production deliverables (per-asset **Investor Pre-Mortem**, **Failed Trial Archaeology**, full **Pharmacovigilance Pack**) ship with hundreds of grounded, retraction-screened citations and a graded citation-integrity ledger, in days. → **https://trevorobeyinc.com** · **trevor@trevorobeyinc.com**
 
 ---
 

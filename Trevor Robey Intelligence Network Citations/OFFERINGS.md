@@ -2,7 +2,7 @@
 
 > *Every claim, sourced. Every risk, named. In days, not weeks.*
 >
-> Citation-traced biomedical due diligence for biotech investors and pharma BD. Five days. Zero hallucinations. Audit trail included.
+> Citation-traced biomedical due diligence for biotech investors and pharma BD. Five days. Every citation grounded and retraction-screened. Audit trail included.
 >
 > Powered by OpenClaw (open-source agent framework).
 
@@ -16,7 +16,7 @@
 | Tactical | Trial Design Benchmark Pack | Comparative Phase 3 structure analysis vs 10–20 comparable programs. | Biotech R&D, pharma CI | **$4,950** |
 | Tactical | Cross-Silo Connector Report | Hidden mechanistic links across ChEMBL/PubMed/CT.gov as repurposing opportunities. | Pharma R&D, biotech partnerships | **$9,950 – $24,950** |
 | Tactical | Plain-Language Patient Brief | Regulatory-compliant PLS at 8th-grade health-literacy level (EU CTR 536/2014). | Patient Advocacy Groups, trial sponsors | **$2,500** |
-| Tactical (demoted) | Pharmacovigilance Pack | Safety-signal + AEMS/FAERS analysis with reproducibility manifest. Existing marketplace listings preserved. | Mid-market pharma safety teams | $2,500 – $4,950 |
+| Tactical (demoted) | Pharmacovigilance Pack | Safety-signal + AEMS/FAERS analysis with a graded citation-integrity ledger. Existing marketplace listings preserved. | Mid-market pharma safety teams | $2,500 – $4,950 |
 
 ## ICPs
 
@@ -54,4 +54,4 @@ trevor-robey-inc is powered by **OpenClaw** (open-source agent framework). OpenC
 
 ## Source
 
-Demand-Validation Report (2026-04-30): `/Users/trevorrobey/Downloads/Trevor Robey Inc. — 2026 Demand-Validation Report.md`. Locked decisions and per-file diff plan: `/Users/trevorrobey/.claude/plans/users-trevorrobey-trevclaw-obsidianodus-merry-spark.md` and `/tmp/rebrand-diffs-2026-04-30.md`.
+Demand-Validation Report (2026-04-30); locked decisions and per-file diff plan. *(Original source files lived on the operator's prior, since-wiped machine — `~/Downloads/…Demand-Validation Report.md`, `~/.claude/plans/…merry-spark.md`, `/tmp/rebrand-diffs-2026-04-30.md` — and are not on the current machine; retained here as provenance only. The offering ladder above is the canonical carry-forward.)*

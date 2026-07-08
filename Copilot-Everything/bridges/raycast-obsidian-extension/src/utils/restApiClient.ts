@@ -2,11 +2,11 @@
  * Thin client for the Obsidian Local REST API community plugin.
  * Plugin: https://obsidian.md/plugins?id=obsidian-local-rest-api
  *
- * The plugin's listener uses an mkcert-issued cert on
- * https://127.0.0.1:27124 by default. We attach an undici dispatcher that trusts
- * the mkcert root CA and KEEPS certificate verification ON (audit RF-1). For
- * non-loopback hosts the helper still throws rather than reaching out over a
- * public network.
+ * The plugin's listener on https://127.0.0.1:27124 serves the plugin's OWN self-signed
+ * cert (CN "Obsidian Local REST API", SAN 127.0.0.1) — NOT an mkcert-issued one. We attach
+ * an undici dispatcher that trusts the mkcert root CA PLUS that exact cert, pinned from the
+ * plugin's data.json, and KEEPS certificate verification ON (audit RF-1). For non-loopback
+ * hosts the helper still throws rather than reaching out over a public network.
  */
 
 import { getPreferenceValues } from "@raycast/api";
@@ -22,10 +22,8 @@ interface ExtensionPreferences {
 
 const DEFAULT_BASE_URL = "https://127.0.0.1:27124";
 
-// Trust the mkcert root CA and VERIFY the cert (audit RF-1) instead of disabling TLS.
-const localhostAgent = createLoopbackTlsAgent();
-
 let cachedDiscoveredKey: string | undefined;
+let cachedLocalhostAgent: ReturnType<typeof createLoopbackTlsAgent> | undefined;
 
 // Fall back to the Local REST API plugin's own data.json so the workflow runs
 // hands-free even when the obsidianRestApiKey preference is left blank.
@@ -53,10 +51,44 @@ async function discoverApiKeyFromPlugin(): Promise<string> {
   return cachedDiscoveredKey;
 }
 
+/**
+ * Dispatcher that trusts the mkcert root CA PLUS the Local REST API plugin's own listener
+ * cert, PINNED from the plugin's data.json (crypto.cert). The plugin serves a self-signed
+ * cert (CN "Obsidian Local REST API", SAN 127.0.0.1) that mkcert never issued — without the
+ * pin every request dies in TLS verification as a generic "fetch failed". Verification
+ * stays ON; only this exact cert (plus mkcert-issued ones) is accepted.
+ */
+async function getLocalhostAgent(): Promise<ReturnType<typeof createLoopbackTlsAgent>> {
+  if (cachedLocalhostAgent) {
+    return cachedLocalhostAgent;
+  }
+  const extraCaPems: string[] = [];
+  try {
+    const vaults = await getVaultsFromPreferencesOrObsidianJson();
+    for (const vault of vaults) {
+      const dataPath = path.join(vault.path, ".obsidian", "plugins", "obsidian-local-rest-api", "data.json");
+      if (!fs.existsSync(dataPath)) {
+        continue;
+      }
+      const cert = JSON.parse(fs.readFileSync(dataPath, "utf8"))?.crypto?.cert;
+      if (typeof cert === "string" && cert.includes("BEGIN CERTIFICATE")) {
+        extraCaPems.push(cert);
+      }
+    }
+  } catch {
+    // Best-effort — fall back to mkcert-only trust (verification stays on).
+  }
+  cachedLocalhostAgent = createLoopbackTlsAgent(extraCaPems);
+  return cachedLocalhostAgent;
+}
+
 async function getRestApiConfig(): Promise<{ baseUrl: string; apiKey: string }> {
   const prefs = getPreferenceValues<ExtensionPreferences>();
   const baseUrl = (prefs.obsidianRestApiBaseUrl ?? DEFAULT_BASE_URL).replace(/\/$/, "");
-  const apiKey = prefs.obsidianRestApiKey?.trim() || (await discoverApiKeyFromPlugin());
+  // The plugin's data.json is authoritative for the CURRENT key — the plugin can regenerate
+  // it, and a hand-copied preference goes stale and produces 401s. Prefer live discovery;
+  // the preference is the fallback for setups where the plugin's data.json isn't readable.
+  const apiKey = (await discoverApiKeyFromPlugin()) || prefs.obsidianRestApiKey?.trim() || "";
   if (!apiKey) {
     throw new Error(
       "Obsidian Local REST API key is not set. Configure it in the Raycast extension preferences.",
@@ -85,6 +117,7 @@ async function restApiFetch(path: string, init: RequestInit = {}): Promise<Respo
       `restApiFetch refuses to skip TLS verification for non-loopback host: ${baseUrl}`,
     );
   }
+  const localhostAgent = await getLocalhostAgent();
   const fullUrl = baseUrl + path;
   // Obsidian's REST API drops briefly when Obsidian reloads; retry transient
   // connection failures, but never retry an actual HTTP error response.

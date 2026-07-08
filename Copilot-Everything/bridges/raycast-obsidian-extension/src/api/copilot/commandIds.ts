@@ -5,6 +5,10 @@ const refreshPromptRegistryCommandCandidates = [
 ] as const;
 
 const summarizeCommandCandidates = [
+  // Headless "-to-note" variant (Copilot fork, 2026-07-06): runs the Summarize template with NO
+  // modal and writes "<note basename> — Summarize.md" into the plugin's customCommandNoteFolder
+  // (default obsidian-copilot-summaries). Preferred; the modal variants below are fallbacks.
+  "copilot:summarize-to-note",
   "copilot:summarize",
   "copilot:summarize-active-note",
   "copilot:summarize.md",
@@ -31,5 +35,7 @@ export function getRefreshPromptRegistryCommandCandidates(): string[] {
 }
 
 export function getSummarizeCommandCandidates(): string[] {
-  return [getCopilotCommandId("Summarize"), ...summarizeCommandCandidates];
+  // Keep the headless -to-note variant first; dedupe since getCopilotCommandId("Summarize")
+  // resolves to the same "copilot:summarize" already present in the fallback list.
+  return [...new Set([...summarizeCommandCandidates, getCopilotCommandId("Summarize")])];
 }

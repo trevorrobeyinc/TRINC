@@ -22,15 +22,15 @@ Last updated: 2026-05-07
 
 Compliance posture: the wordmark "Trevor Robey, INC." is paired with the disclosure above on every customer-facing surface (website, marketplace listings, MSAs, SOWs, NDAs, invoices, AWS Data Exchange seller profile, Datarade vendor profile, plugin UI strings). This satisfies Cal. Bus. & Prof. Code §17910.5(a) (fictitious-business-name disclosure) and avoids Cal. Corp. Code §17701.08(e) which bars "Inc." inside an LLC's legal name.
 
-Filing record: [`../trevor-robey-inc/00-business-formation/llc/certificate-of-formation.md`](00-business-formation/llc/certificate-of-formation.md).
+Filing record: [`00-business-formation/llc/certificate-of-formation.md`](00-business-formation/llc/certificate-of-formation.md).
 
-Dependent updates that fire on CA SOS approval: SOS Entity Number → AWS Marketplace seller profile → Datarade vendor profile → bank verification (Mercury) → tax interview (W-9 + AWS) → MSA/SOW/NDA legal-entity blanks. See [`../trevor-robey-inc/00-business-formation/llc/certificate-of-formation.md` §"Surfaces affected by formation"](00-business-formation/llc/certificate-of-formation.md) for the full list.
+Dependent updates that fire on CA SOS approval: SOS Entity Number → AWS Marketplace seller profile → Datarade vendor profile → bank verification (Mercury) → tax interview (W-9 + AWS) → MSA/SOW/NDA legal-entity blanks. See [`00-business-formation/llc/certificate-of-formation.md` §"Surfaces affected by formation"](00-business-formation/llc/certificate-of-formation.md) for the full list.
 
 ---
 
 ## 0b. Repo topology (as of 2026-05-07)
 
-This repo is a **member of the TrevClaw-Obsidianodus monorepo**, now **local-only** at `/Users/trevorrobey/TrevClaw-Obsidianodus` (the private GitHub remote was **deleted 2026-05-26**; **no git remotes** — durable backup is a `git bundle --all` at `~/TrevClaw-Obsidianodus.bundle`). The previous standalone GitHub remote `https://github.com/trevoralexanderrobey/trevor-robey-inc-agents` is the rollback anchor (tag `pre-monorepo-consolidation-2026-05-07` at SHA `8e782a0`); archive pending. All run paths below are relative to the monorepo root (`/Users/trevorrobey/TrevClaw-Obsidianodus/trevor-robey-inc-agents/`); legacy absolute paths under `/Users/trevorrobey/Code/trevor-robey-inc-agents/` are preserved via back-symlink during the transition.
+This repo is a **member of the TrevClaw-Obsidianodus monorepo**, now **local-only** at `/Volumes/ExtraCurricular/TrevClaw-Obsidianodus` (the private GitHub remote was **deleted 2026-05-26**; **no git remotes** — durable backup is a `git bundle --all` in `~/Downloads/`, e.g. `TrevClaw-Obsidianodus-FULL-backup-*.bundle`). The previous standalone GitHub remote `https://github.com/trevoralexanderrobey/trevor-robey-inc-agents` is the rollback anchor (tag `pre-monorepo-consolidation-2026-05-07` at SHA `8e782a0`); archive pending. All run paths below are relative to this folder inside the monorepo (`/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations/`). *(Historical: the pre-consolidation location was `~/Code/trevor-robey-inc-agents/` on the prior machine; both `trevor-robey-inc-agents/` and `trevor-robey-inc/` were flat-merged into this folder 2026-05-19 — those folder names no longer exist.)*
 
 ToolUniverse is a pinned submodule at [`vendor/tooluniverse/`](vendor/tooluniverse) (SHA `3833b0e`, v1.1.10).
 
@@ -52,7 +52,7 @@ ToolUniverse is a pinned submodule at [`vendor/tooluniverse/`](vendor/tooluniver
 
 **First listing tier**: free Pharmacovigilance Signal Synthesis Sample Pack (10 ICI-class adverse-event signals, 29 verified-identifier rows). Paid Investor Pre-Mortem and Failed Trial Archaeology dossiers list separately after the free tier publishes and validates the seller profile.
 
-Working doc: [`../trevor-robey-inc/05-launch-plan/week-3-may11-may15/aws-listing-go-live.md`](05-launch-plan/week-3-may11-may15/aws-listing-go-live.md).
+Working doc: [`05-launch-plan/week-3-may11-may15/aws-listing-go-live.md`](05-launch-plan/week-3-may11-may15/aws-listing-go-live.md).
 
 ---
 

@@ -3,11 +3,13 @@
 /**
  * Runtime configuration for the SearXNG search connector.
  *
- * The connector talks to a local, loopback-only SearXNG instance over plaintext
- * HTTP (127.0.0.1). This is consistent with how the monorepo treats third-party
- * loopback upstreams (Miyo / Qdrant / Ollama / LM Studio) — the HTTPS-only
- * invariant governs TCP listeners *owned by monorepo code*, and this stdio MCP
- * server binds no TCP port of its own.
+ * The connector talks to the local SearXNG instance through the in-monorepo
+ * HTTPS TLS proxy at https://127.0.0.1:8891 (launchd
+ * `com.trevorrobey.searxng-tls-proxy` → plaintext upstream :8890), the same
+ * treatment as Miyo/Qdrant/Ollama/LM Studio. The 2026-07-06 hardening removed
+ * the previous ":8890 plaintext loopback" carve-out. The process must run
+ * with NODE_EXTRA_CA_CERTS pointing at the mkcert root CA so `fetch` trusts
+ * the proxy; this stdio MCP server still binds no TCP port of its own.
  *
  * @module config
  */
@@ -18,9 +20,9 @@ function stripTrailingSlash(u) {
 }
 
 const CONFIG = Object.freeze({
-  /** Base URL of the local SearXNG instance. Override with SEARXNG_BASE_URL. */
+  /** Base URL of the local SearXNG HTTPS proxy. Override with SEARXNG_BASE_URL. */
   searxngBaseUrl: stripTrailingSlash(
-    process.env.SEARXNG_BASE_URL || "http://127.0.0.1:8890"
+    process.env.SEARXNG_BASE_URL || "https://127.0.0.1:8891"
   ),
 
   /** Per-request timeout (ms) when calling the SearXNG JSON API. */

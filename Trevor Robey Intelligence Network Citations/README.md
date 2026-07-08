@@ -8,7 +8,7 @@ The runtime engine behind **Trevor Robey, INC.** — citation-traced biomedical 
 
 A single command (`node scripts/run-workflow.js --template <id>`) runs one of six biomedical workflows that feed concrete commercial offerings: **Investor Pre-Mortem** (primary, $9,950–$19,950) and **Failed Trial Archaeology** (flanking, $14,950) drive premium revenue; **Conference Synthesis Brief**, **Trial Design Benchmark Pack**, **Cross-Silo Connector Report**, **Plain-Language Patient Brief**, and **Pharmacovigilance Pack** serve tactical demand.
 
-Workflows pull live evidence from ToolUniverse (~2,116 tools, Apache-2.0, Harvard MIMS / Zitnik Lab) plus eight project MCP servers (ChEMBL, ClinicalTrials.gov, PubMed, HuggingFace Hub, NPI Registry, ICD-10, Owkin, Google Drive), and produce ZIP release bundles whose citation-index CSV has a real PMID / NCT / ChEMBL CID / DOI in **every** row — verified at quality-gate time, not flagged as a warning. Every cited identifier in an assembled report is additionally checked against the source records **actually retrieved at runtime** (a report-level grounding gate) and every cited DOI is retraction-screened against Crossref before the report can ship — see [Citation Integrity Layer](#citation-integrity-layer) below.
+Workflows pull live evidence from ToolUniverse (~2,116 tools, Apache-2.0, Harvard MIMS / Zitnik Lab) plus seven project MCP servers (ChEMBL, ClinicalTrials.gov, PubMed, HuggingFace Hub, NPI Registry, ICD-10, Owkin), and produce ZIP release bundles whose citation-index CSV has a real PMID / NCT / ChEMBL CID / DOI in **every** row — verified at quality-gate time, not flagged as a warning. Every cited identifier in an assembled report is additionally checked against the source records **actually retrieved at runtime** (a report-level grounding gate) and every cited DOI is retraction-screened against Crossref before the report can ship — see [Citation Integrity Layer](#citation-integrity-layer) below.
 
 ### What this is
 
@@ -22,7 +22,7 @@ Workflows pull live evidence from ToolUniverse (~2,116 tools, Apache-2.0, Harvar
 - **Not a publishing bot.** External publication, marketplace submission, customer delivery, login automation, and browser automation are manual-only by architectural design — a feature for regulated buyers, not a limitation.
 - **Not a PHI processor.** All queried sources are public biomedical databases. The system does not host, transmit, or process Protected Health Information.
 
-Concrete offerings, ICPs, and pricing live in `../TrevClaw-Obsidianodus/trevor-robey-inc/OFFERINGS.md` (canonical) and [REVENUE_PLAYBOOK.md](REVENUE_PLAYBOOK.md). Target buyers, posture, and full upstream attribution stack are in [TREVOR_ROBEY_INC_AGENTS_DOSSIER.md](TREVOR_ROBEY_INC_AGENTS_DOSSIER.md) and [NOTICE.md](NOTICE.md).
+Concrete offerings, ICPs, and pricing live in [`OFFERINGS.md`](OFFERINGS.md) (canonical) and [REVENUE_PLAYBOOK.md](REVENUE_PLAYBOOK.md). Target buyers, posture, and full upstream attribution stack are in [TREVOR_ROBEY_INC_AGENTS_DOSSIER.md](TREVOR_ROBEY_INC_AGENTS_DOSSIER.md) and [NOTICE.md](NOTICE.md).
 
 Runtime requirement:
 - Node `22.13.1` is required and enforced through `engines`, `devEngines`, `.npmrc` `engine-strict=true`, and `scripts/verify-node-runtime.js`.

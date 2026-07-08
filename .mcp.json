@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "searxng-search": {
+      "command": "/Users/myhome/.nvm/versions/node/v22.13.1/bin/node",
+      "args": [
+        "/Users/myhome/.claude/mcp-servers/searxng-search/src/server.js"
+      ],
+      "env": {
+        "SEARXNG_BASE_URL": "https://127.0.0.1:8891",
+        "NODE_EXTRA_CA_CERTS": "/Users/myhome/Library/Application Support/mkcert/rootCA.pem"
+      }
+    }
+  }
+}

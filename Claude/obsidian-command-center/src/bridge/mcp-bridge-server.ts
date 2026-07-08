@@ -13,7 +13,7 @@ const HOST = "127.0.0.1";
 // every enabled plugin's commands — that allows lateral pivot (e.g. to runjs =
 // arbitrary in-process JS). Restrict to this plugin's own command namespace by
 // default. Add specific reviewed command IDs to ALLOWED_COMMAND_IDS to extend.
-const ALLOWED_COMMAND_PREFIXES = ["openclaw-command-center:"];
+const ALLOWED_COMMAND_PREFIXES = ["command-center:"];
 const ALLOWED_COMMAND_IDS: string[] = [];
 function isCommandAllowed(commandId: string): boolean {
   if (ALLOWED_COMMAND_IDS.includes(commandId)) return true;
@@ -779,7 +779,7 @@ export class McpBridgeServer {
               id: {
                 type: "string",
                 description:
-                  "Obsidian command ID (e.g. 'openclaw-command-center:run-workflow')",
+                  "Obsidian command ID (e.g. 'command-center:run-workflow')",
               },
               vault: { type: "string" },
             },

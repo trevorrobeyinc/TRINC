@@ -80,11 +80,23 @@ function stripFrontmatter(markdown: string): string {
  * instruction body (YAML frontmatter stripped) and substitute the source content for its `{}`
  * placeholder. This reproduces the reference-note format exactly, instead of re-wrapping the template
  * in a different "fill the {{placeholders}}" framing (which is what made the output drift).
+ *
+ * When a `noteTitle` is known (e.g. the video title from the source URL), pin it up front: the faithful
+ * prompt otherwise carries ONLY the transcript, so the template's `# <Original Note Title>` heading —
+ * which it tells the model to take from "its H1 or filename" — gets invented from the transcript. One
+ * leading directive line keeps that heading equal to the real title without re-framing the fill.
  */
-function buildFaithfulTemplatePrompt(templateContent: string, sourceText: string): string {
+function buildFaithfulTemplatePrompt(templateContent: string, sourceText: string, noteTitle?: string): string {
   const body = stripFrontmatter(templateContent).trim();
   const source = sourceText.trim();
-  return body.includes("{}") ? body.replace("{}", source) : `${body}\n\nSource content:\n${source}`;
+  const filled = body.includes("{}") ? body.replace("{}", source) : `${body}\n\nSource content:\n${source}`;
+
+  const title = noteTitle?.trim();
+  if (!title) {
+    return filled;
+  }
+  const titleDirective = `The source note's title is exactly: ${title}\nUse this EXACT text for the "# <Original Note Title>" heading required by the template below — do not add a timestamp, append "Summary", or invent a different title.`;
+  return `${titleDirective}\n\n${filled}`;
 }
 
 const defaultAnthropicModel = "claude-sonnet-4-6";
@@ -134,7 +146,7 @@ export async function generateTemplateSummaryText(params: {
     throw new Error(`Summary template is empty: ${params.templatePath}`);
   }
 
-  const prompt = buildFaithfulTemplatePrompt(templateContent, params.sourceText);
+  const prompt = buildFaithfulTemplatePrompt(templateContent, params.sourceText, params.sourceTitle);
 
   const apiKey = params.anthropicApiKey?.trim();
   if (apiKey) {

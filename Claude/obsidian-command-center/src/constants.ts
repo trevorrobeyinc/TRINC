@@ -2,12 +2,12 @@ import type { OpenClawSettings } from "./types";
 
 export const VIEW_TYPE_WORKFLOW = "openclaw-workflow-status";
 
-export const PLUGIN_ID = "openclaw-command-center";
+export const PLUGIN_ID = "command-center";
 
 export const DEFAULT_SETTINGS: OpenClawSettings = {
-  openclawPath: "/Users/myhome/Code/trevor-robey-inc-agents",
+  openclawPath: "/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations",
   zettelkastenServerPath:
-    "/Users/myhome/Code/Claude/Medical-Zettelkasten-MCP/src/server.js",
+    "/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Claude/Medical-Zettelkasten-MCP/src/server.js",
   nodePath: "/Users/myhome/.nvm/versions/node/v22.13.1/bin/node",
   vaultOutputFolder: "OpenClaw",
   autoGenerateNotes: true,
@@ -31,7 +31,7 @@ export const DEFAULT_SETTINGS: OpenClawSettings = {
   // Trevorobeyinc Research Memory MCP — auto-ingest hook (added 2026-04-26).
   autoIngestToResearchMemory: true,
   researchMemoryCliPath:
-    "/Users/myhome/Code/Claude/trevorobeyinc-research-memory-mcp/dist/cli.js",
+    "/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Claude/trevorobeyinc-research-memory-mcp/dist/cli.js",
   researchMemoryDefaultClient: "trevorobeyinc",
   researchMemoryTimeoutMs: 60000,
 };

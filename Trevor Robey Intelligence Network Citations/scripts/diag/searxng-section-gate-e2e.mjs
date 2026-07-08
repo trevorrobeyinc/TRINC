@@ -23,6 +23,9 @@ const { deriveSectionQuery } = require(path.join(MCP, "section-gate.js"));
 const { runCitationGate } = require(path.join(MCP, "index.js"));
 const { searchFn } = require(path.join(MCP, "searchfn.js"));
 
+// Liveness ping of the raw SearXNG process (plaintext upstream still listens on :8890).
+// The section gate itself reaches SearXNG through the connector, which as of 2026-07-06 uses
+// the HTTPS TLS proxy at https://127.0.0.1:8891 (see Claude/searxng-search-mcp/src/config.js).
 const SEARXNG = "http://127.0.0.1:8890";
 const PRIMARY_SUBJECT = "heart failure"; // therapeutic_area from the real run (clinical-trial-landscape)
 const MAX_RESULTS = 8; // engine default (step.max_results || 8)

@@ -2,7 +2,8 @@
 
 A free, self-hosted, **Tavily-style AI web-search connector** for Claude Desktop and
 Claude Code. It pairs a private, **Docker-free** [SearXNG](https://docs.searxng.org)
-metasearch instance (running on `127.0.0.1:8890`) with a small stdio MCP server that
+metasearch instance (bound to `127.0.0.1:8890`, reached over HTTPS via the in-monorepo
+TLS proxy at `127.0.0.1:8891`) with a small stdio MCP server that
 exposes three Tavily-compatible tools:
 
 | Tool | What it does |
@@ -20,18 +21,22 @@ aggregates Google, Bing, DuckDuckGo, Startpage, Brave, Wikipedia, and ~200 other
 ## Architecture
 
 ```
-Claude Desktop chat ─┐
-                     ├─[MCP stdio]→ searxng-search (this server, Node) ─[HTTP loopback]→ SearXNG :8890 ─→ the web
-Claude Code       ───┘                                                └─[direct HTTP]→ pages (extract/map)
+Claude Desktop chat ─┐                                    ┌─[HTTPS]→ searxng-tls-proxy :8891 ─[HTTP loopback]→ SearXNG :8890 ─→ the web
+                     ├─[MCP stdio]→ searxng-search (Node) ─┤
+Claude Code       ───┘                                    └─[direct HTTP]→ pages (extract/map)
 ```
 
 - **No Docker.** SearXNG is a native Python app in a `uv` venv on the internal volume
   (`~/.local/share/searxng/`), run by a launchd user-agent.
-- **Loopback-only.** SearXNG binds `127.0.0.1:8890`, `limiter: false` (no Valkey/Redis),
-  `public_instance: false`. The connector reaches it over plaintext loopback — consistent
-  with how the monorepo treats third-party loopback upstreams (Miyo/Qdrant/Ollama/LM Studio).
-  This stdio MCP server binds **no TCP port** of its own, so the HTTPS-only invariant
-  (which governs monorepo-owned TCP listeners) does not apply to it.
+- **HTTPS to SearXNG (2026-07-06).** SearXNG binds `127.0.0.1:8890`, `limiter: false`
+  (no Valkey/Redis), `public_instance: false`. The connector no longer reaches it over
+  plaintext: as of 2026-07-06 the `:8890` plaintext-loopback carve-out was removed and
+  SearXNG is wrapped by the in-monorepo TLS proxy `com.trevorrobey.searxng-tls-proxy`
+  (`https://127.0.0.1:8891` → `:8890`), the same treatment as Miyo/Qdrant/Ollama/LM Studio.
+  The connector default `searxngBaseUrl` is now `https://127.0.0.1:8891`, so the launching
+  process **must set `NODE_EXTRA_CA_CERTS`** to the mkcert root CA (the Claude MCP configs
+  set it; the engine's `run-workflow.js` self-execs with it). This stdio MCP server still
+  binds **no TCP port** of its own.
 - **Internal-volume rule.** Everything launchd executes (venv python, `settings.yml`)
   lives on the internal volume — a launchd agent cannot read `/Volumes/ExtraCurricular`
   (TCC `EPERM`). Only this connector's JS (which Claude Desktop/Code launches, not launchd)
@@ -112,7 +117,8 @@ never the external-volume repo path (see "TCC / staging").
 
 ```bash
 claude mcp add searxng-search --scope user \
-  -e SEARXNG_BASE_URL=http://127.0.0.1:8890 \
+  -e SEARXNG_BASE_URL=https://127.0.0.1:8891 \
+  -e "NODE_EXTRA_CA_CERTS=$HOME/Library/Application Support/mkcert/rootCA.pem" \
   -- /Users/myhome/.nvm/versions/node/v22.13.1/bin/node \
      /Users/myhome/.claude/mcp-servers/searxng-search/src/server.js
 ```
@@ -123,7 +129,10 @@ claude mcp add searxng-search --scope user \
 "searxng-search": {
   "command": "/Users/myhome/.nvm/versions/node/v22.13.1/bin/node",
   "args": ["/Users/myhome/.claude/mcp-servers/searxng-search/src/server.js"],
-  "env": { "SEARXNG_BASE_URL": "http://127.0.0.1:8890" }
+  "env": {
+    "SEARXNG_BASE_URL": "https://127.0.0.1:8891",
+    "NODE_EXTRA_CA_CERTS": "/Users/myhome/Library/Application Support/mkcert/rootCA.pem"
+  }
 }
 ```
 
@@ -140,15 +149,18 @@ tail -f ~/.local/share/searxng/searxng.log
 launchctl kickstart -k gui/$(id -u)/com.trevorrobey.searxng
 launchctl bootout    gui/$(id -u)/com.trevorrobey.searxng
 
-# health check
+# health check — plaintext upstream (liveness of the SearXNG process itself)
 curl -s 'http://127.0.0.1:8890/search?q=test&format=json' | head -c 120
+# health check — through the HTTPS proxy (the path the connector actually uses)
+curl -s --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" \
+  'https://127.0.0.1:8891/search?q=test&format=json' | head -c 120
 ```
 
 ## Config (env vars on the MCP server)
 
 | Var | Default | Meaning |
 |-----|---------|---------|
-| `SEARXNG_BASE_URL` | `http://127.0.0.1:8890` | Local SearXNG base URL |
+| `SEARXNG_BASE_URL` | `https://127.0.0.1:8891` | SearXNG base URL — the in-monorepo HTTPS TLS proxy (→ plaintext upstream :8890). Requires `NODE_EXTRA_CA_CERTS` at the mkcert root CA. |
 | `SEARXNG_SEARCH_TIMEOUT_MS` | `15000` | Search request timeout |
 | `SEARXNG_FETCH_TIMEOUT_MS` | `12000` | Per-URL fetch timeout (extract/map) |
 | `SEARXNG_MAX_EXTRACT_CHARS` | `20000` | Char cap per extracted page |

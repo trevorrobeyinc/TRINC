@@ -15,6 +15,7 @@ Three active layers (backend-emulator retired 2026-04-11, deleted from monorepo 
 | Qdrant (via TLS proxy) | `scripts/qdrant-tls-proxy.mjs` → Miyo-bundled Qdrant | 6433 → 6333 | Local vector DB (collection `miyo`) via in-monorepo HTTPS proxy at :6433 forwarding to plaintext :6333. Fallback chunk retrieval for ZK service. |
 | LM Studio (via TLS proxy) | `scripts/lm-studio-tls-proxy.mjs` → external LM Studio app | 1235 → 1234 | Local OpenAI-compatible inference via in-monorepo HTTPS proxy at :1235 forwarding to plaintext :1234. |
 | Ollama (via TLS proxy) | `scripts/ollama-tls-proxy.mjs` → external Ollama daemon | 11435 → 11434 | Local Ollama inference via in-monorepo HTTPS proxy at :11435 forwarding to plaintext :11434. |
+| SearXNG (via TLS proxy) | `scripts/searxng-tls-proxy.mjs` → external SearXNG (launchd) | 8891 → 8890 | Local private metasearch via in-monorepo HTTPS proxy at :8891 forwarding to plaintext :8890 (JSON API for the `searxng-search` MCP connector). |
 
 > The retired backend emulator on :8789 (`/v1/self-host/*`, `/v0/*` exact-self-host orchestration) and its `exact_backend_emulator` plugin runtime mode are gone. ZettelkastenService now runs in-process inside the `vault-zettelkasten` Obsidian plugin (Claude/obsidian-vault-zettelkasten/). The Raycast extension's `src/api/backend-emulator/` client was deleted with the emulator.
 
@@ -145,7 +146,7 @@ All in `scripts/`. Key ones:
 - `plugin-reload.sh` — Reload plugin in Obsidian
 - `dev-build.sh` / `dev-deploy.sh` — Plugin dev workflow
 - `lib.sh` — Shared constants and utilities (WORKSPACE_ROOT, PRODUCTION_VAULT, etc.)
-- `install-tls-proxies.sh` — Stage the four `*-tls-proxy.mjs` (Miyo/Qdrant/LM Studio/Ollama) to `~/.local/share/trevclaw-tls-proxies/` and repoint + reload their launchd units. Required because launchd's TCC context can't read scripts on the external `/Volumes/ExtraCurricular` volume. Re-run after editing any proxy script.
+- `install-tls-proxies.sh` — Stage the five `*-tls-proxy.mjs` (Miyo/Qdrant/LM Studio/Ollama/SearXNG) to `~/.local/share/trevclaw-tls-proxies/` and repoint + reload their launchd units. Required because launchd's TCC context can't read scripts on the external `/Volumes/ExtraCurricular` volume. Re-run after editing any proxy script.
 
 ## MCP Bridge Contract
 

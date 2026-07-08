@@ -30,7 +30,7 @@ Trevor Robey | Trevor Robey, INC. — citation-traced biomedical due diligence |
 
 Hi [First Name],
 
-Quick follow-up — I wanted to share that our pharmacovigilance datasets contain 135+ verified citations per report, each traceable to a PMID, NCT, or PubChem CID. No hallucinated references.
+Quick follow-up — I wanted to share that our pharmacovigilance datasets contain 135+ verified citations per report, each traceable to a PMID, NCT, or PubChem CID and grounded against the evidence actually retrieved (any ungrounded citation is flagged, not hidden).
 
 Happy to send the data dictionary so your team can evaluate schema fit before any commitment.
 
@@ -46,7 +46,7 @@ Trevor Robey | Trevor Robey, INC. — citation-traced biomedical due diligence |
 
 Hi [First Name],
 
-Last note — I've attached a 2-page sample from our recent ICI pharmacovigilance signal synthesis showing the citation-backed methodology and data structure. Every identifier resolves in its source database.
+Last note — I've attached a 2-page sample from our recent ICI pharmacovigilance signal synthesis showing the citation-backed methodology and data structure. Every identifier is a real public-domain reference you can look up in its source database.
 
 Full product details and schema specifications: https://trevorrobeyinc.github.io
 

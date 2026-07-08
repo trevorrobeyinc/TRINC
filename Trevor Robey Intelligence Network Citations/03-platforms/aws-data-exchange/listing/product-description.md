@@ -109,7 +109,7 @@ Paid deliverables can be delivered into your own AWS environment — Amazon S3 b
 
 ### About the provider
 
-Trevor Robey, INC. delivers citation-traced biomedical due-diligence reports and datasets for biotech investors and pharma business-development, competitive-intelligence, and safety teams. Every cited claim resolves to a real PubMed PMID, ClinicalTrials.gov NCT, ChEMBL ID, or DOI; sources are public-domain biomedical databases.
+Trevor Robey, INC. delivers citation-traced biomedical due-diligence reports and datasets for biotech investors and pharma business-development, competitive-intelligence, and safety teams. Every cited claim is grounded in a real PubMed PMID, ClinicalTrials.gov NCT, ChEMBL ID, or DOI you can verify yourself; sources are public-domain biomedical databases.
 
 Contact: trevor@trevorobeyinc.com · https://trevorobeyinc.com
 

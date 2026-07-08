@@ -74,7 +74,7 @@ Regulatory-compliant Plain Language Summary of a trial (EU CTR 536/2014 or equiv
 
 ### 7. Pharmacovigilance Pack (tactical)
 
-Existing safety-signal + AEMS/FAERS analysis with reproducibility manifest. Retains existing Datarade / HuggingFace listings.
+Existing safety-signal + AEMS/FAERS analysis with a graded citation-integrity ledger. Retains existing Datarade / HuggingFace listings.
 
 - **Citation Density**: 135+ verified references
 - **Data Sources**: AEMS (daily real-time updates since 2026-03-11), DailyMed, EudraVigilance, PubMed

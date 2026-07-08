@@ -430,6 +430,16 @@ export const CommandSettings: React.FC = () => {
           placeholder="copilot/copilot-custom-prompts"
         />
         <SettingItem
+          type="text"
+          title="Command Note Output Folder"
+          description="Folder where the headless '<command> → New Note' variants save their result notes (no modal, no confirmation)"
+          value={settings.customCommandNoteFolder}
+          onChange={(value) => {
+            updateSetting("customCommandNoteFolder", value);
+          }}
+          placeholder="obsidian-copilot-summaries"
+        />
+        <SettingItem
           type="switch"
           title="Custom Prompt Templating"
           description="Process variables like {activenote}, {foldername}, or {#tag} in prompts. Disable for raw prompts."

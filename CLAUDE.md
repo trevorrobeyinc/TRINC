@@ -36,7 +36,7 @@ Hosting: **local-only as of 2026-05-26.** The private GitHub remote `trevoralexa
 |------|------|-----------|
 | `Claude/` | Central hub: Medical Zettelkasten MCP, Command Center plugin, Trevor Robey Inc Research Memory MCP, Obsidian-bridge launcher, vault-zettelkasten plugin | `Claude/CLAUDE.md` |
 | `Copilot-Everything/` | Obsidian integration: plugin fork (vendored at `repos/obsidian-copilot-mcp/`), MCP bridge (:8798), Miyo TLS proxy (:8743) | `Copilot-Everything/CLAUDE.md` |
-| `Trevor Robey Intelligence Network Citations/` | **Single merged business folder.** Contains BOTH (a) the citation-traced biomedical due-diligence **engine** (powered by OpenClaw; six workflow templates → Investor Pre-Mortem $9,950–$19,950, Failed Trial Archaeology $14,950, tactical SKUs; role-routed LLM providers, ToolUniverse subprocess ~2,116 tools v1.1.10 at `vendor/tooluniverse`, eight project MCP servers, `node scripts/run-workflow.js`) AND (b) the **brand canon** (LLC formation paperwork, six-SKU offering ladder, `trevor-robey-inc Commercial Launch Playbook.md`, `OFFERINGS.md`, `REVENUE_PLAYBOOK.md`, `NOTICE.md`, dossier). Engine deep-dive: `Trevor Robey Intelligence Network Citations/CLAUDE.md`; brand entry: `README.brand.md`. | `Trevor Robey Intelligence Network Citations/CLAUDE.md` |
+| `Trevor Robey Intelligence Network Citations/` | **Single merged business folder.** Contains BOTH (a) the citation-traced biomedical due-diligence **engine** (powered by OpenClaw; six workflow templates → Investor Pre-Mortem $9,950–$19,950, Failed Trial Archaeology $14,950, tactical SKUs; role-routed LLM providers, ToolUniverse subprocess ~2,116 tools v1.1.10 at `vendor/tooluniverse`, seven project MCP servers, `node scripts/run-workflow.js`) AND (b) the **brand canon** (LLC formation paperwork, six-SKU offering ladder, `trevor-robey-inc Commercial Launch Playbook.md`, `OFFERINGS.md`, `REVENUE_PLAYBOOK.md`, `NOTICE.md`, dossier). Engine deep-dive: `Trevor Robey Intelligence Network Citations/CLAUDE.md`; brand entry: `README.brand.md`. | `Trevor Robey Intelligence Network Citations/CLAUDE.md` |
 
 ### Submodule
 
@@ -74,11 +74,11 @@ Claude Desktop (heavy-lift code/file operator)
   ├── [MCP stdio] → obsidian-bridge adapter → [HTTPS :8798] → Canonical MCP Bridge
   └── [MCP stdio] → filesystem server
 
-Command Center plugin (workflow dispatch + monitoring, Obsidian plugin at obsidian-openclaw-command-center/)
-  ├── [child_process.spawn()] → trevor-robey-inc-agents/scripts/run-workflow.js
+Command Center plugin (workflow dispatch + monitoring, Obsidian plugin at obsidian-command-center/)
+  ├── [child_process.spawn()] → Trevor Robey Intelligence Network Citations/scripts/run-workflow.js
   │                              ├── per-role LLM routing via config/role-provider-map.json (2026-06-11): scout→Ollama (qwen2.5:7b-instruct, :11434 boot-persistent), analyst+synthesizer→Claude Code, default→Claude Code; each non-claude route falls back to claude-code. --operator-approve is YubiKey-gated. Per-role identity/memory under config/agents/<role>/{SOUL.md,AGENTS.md,sessions/}
   │                              ├── ToolUniverse subprocess (vendor/tooluniverse, ~2,116 tools)
-  │                              └── 8 project MCP servers (chembl, clinicaltrials-gov, pubmed, huggingface metadata-only, npi, icd10, owkin, gdrive)
+  │                              └── 7 project MCP servers (chembl, clinicaltrials-gov, pubmed, huggingface metadata-only, npi, icd10, owkin)
   ├── [child_process.spawn()] → trevorobeyinc-research-memory CLI (auto-ingest pack to Qdrant)
   ├── [MCP stdio] → Medical Zettelkasten MCP (post-workflow graph analysis)
   ├── [HTTP :8742] → Miyo semantic search
@@ -108,6 +108,8 @@ Biomedical Workflow Observability Stack (optional, Docker Compose)
 | 11481 | Traefik analyst proxy (optional) | HTTP | trevor-robey-inc-agents | Docker Compose |
 | 9090 | Prometheus (optional) | HTTP | trevor-robey-inc-agents | Docker Compose |
 | 3001 | Grafana (optional) | HTTP | trevor-robey-inc-agents | Docker Compose |
+| 8891 | SearXNG TLS proxy (HTTPS terminator → :8890) | HTTPS | Copilot-Everything | launchd `com.trevorrobey.searxng-tls-proxy` |
+| 8890 | SearXNG (private metasearch; plaintext upstream — only the proxy at :8891 should reach it. JSON API for the Tavily-style `searxng-search` MCP connector — Docker-free, third-party upstream like Miyo/Qdrant/Ollama/LM Studio) | HTTP | Claude (`Claude/searxng-search-mcp`) | launchd `com.trevorrobey.searxng` |
 
 > **:8798 vs :8799 disambiguation**: `:8798` is the **canonical** Obsidian MCP bridge — every operator (Claude Desktop, Cowork, the Command Center plugin) reads/writes the vault through it. As of 2026-05-03, ownership migrated from PM2 to the `obsidian-bridge-launcher` Obsidian plugin (`Claude/obsidian-bridge-launcher/`), which spawns the bridge as a child process tied to Obsidian's lifecycle: bridge dies when Obsidian quits. `:8799` is the **additive** Command Center bridge owned by the Obsidian plugin lifecycle — it exposes biomedical-workflow tools to the plugin's own UI and only exists while Obsidian is running. Different scopes (canonical vault access vs. workflow tools), but both now share Obsidian's lifecycle. Trade-off: vault is unreachable to Claude Desktop / Cowork / Raycast when Obsidian is closed (acceptable for "Obsidian is always open" workflows).
 
@@ -123,7 +125,7 @@ All HTTPS services use mkcert certificates at `~/.local/share/mkcert/localhost.p
 
 1. **Obsidian** — opening Obsidian loads two bridge-owning plugins:
    - `obsidian-bridge-launcher` spawns the canonical MCP bridge child process on :8798 (HTTPS).
-   - `openclaw-command-center` starts the additive bridge on :8799 (HTTPS) and dispatches workflow runs that spawn `trevor-robey-inc-agents/scripts/run-workflow.js` on demand.
+   - `command-center` starts the additive bridge on :8799 (HTTPS) and dispatches workflow runs that spawn `Trevor Robey Intelligence Network Citations/scripts/run-workflow.js` on demand.
    Both bridges die when Obsidian quits.
 2. **PM2 ecosystem** (no apps as of 2026-05-03 — `mcp-bridge` migrated to obsidian-bridge-launcher; the file is preserved for the canonical-pattern reference and `bridge-start.sh` is still usable for manual / dev invocation).
 3. **launchd: `com.trevorrobey.miyo-tls-proxy`** (added 2026-05-07) — wraps Miyo's plaintext :8742 with HTTPS on :8743 using the existing mkcert pair. RunAtLoad + KeepAlive on crash. Logs to `~/.miyo-tls-proxy.log`. Reload after edits with `launchctl unload ~/Library/LaunchAgents/com.trevorrobey.miyo-tls-proxy.plist && launchctl load ~/Library/LaunchAgents/com.trevorrobey.miyo-tls-proxy.plist`.
@@ -150,9 +152,9 @@ cd "/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Trevor Robey Intelligence Net
 
 ## Trevor Robey Inc Agents Product Stack (summary)
 
-Authoritative narrative lives in `trevor-robey-inc-agents/{NOTICE.md,TREVOR_ROBEY_INC_AGENTS_DOSSIER.md,REVENUE_PLAYBOOK.md,README.md}`. Quick reference here:
+Authoritative narrative lives in `Trevor Robey Intelligence Network Citations/{NOTICE.md,TREVOR_ROBEY_INC_AGENTS_DOSSIER.md,REVENUE_PLAYBOOK.md,README.md}`. Quick reference here:
 
-**Brand hierarchy.** Current legal status (verified 2026-05-06): California LLC formation **filed at bizfileOnline 2026-05-06** (receipt B20260217250); CA SOS approval pending (2-3 business days). Upon approval, the legal entity is **Trevor Robey Intelligence Network Citations LLC**, a California limited liability company. The brand wordmark is **"Trevor Robey, INC."** where **INC = Intelligence Network Citations** (a backronym, not a corporate suffix). Customer-facing materials pair the wordmark with the disclosure: *"Trevor Robey, INC. is the wordmark of Trevor Robey Intelligence Network Citations LLC, a California limited liability company."* Commercial brand slug: `trevor-robey-inc` (unchanged — not a regulated entity name). Domain `trevorobeyinc.com` and email `trevor@trevorobeyinc.com` unchanged. Engine credit: "Powered by OpenClaw" — the open-source agent framework, not a brand owned by the operator. The retired homebrew `openclaw.ai` consumer "Personal AI assistant" is unrelated and remains disambiguated where it appears. **Compliance note**: Cal. Corp. Code §17701.08(e) bars "Inc." inside LLC names — that's why the legal name spells the words out. Cal. Bus. & Prof. Code §17910.5(a) restricts "Inc." in fictitious business names to incorporated entities — the wordmark+disclosure pattern handles this by making the entity status explicit. Filing record: [`trevor-robey-inc/00-business-formation/llc/certificate-of-formation.md`](trevor-robey-inc/00-business-formation/llc/certificate-of-formation.md).
+**Brand hierarchy.** Current legal status (verified 2026-05-06): California LLC formation **filed at bizfileOnline 2026-05-06** (receipt B20260217250); CA SOS approval pending (2-3 business days). Upon approval, the legal entity is **Trevor Robey Intelligence Network Citations LLC**, a California limited liability company. The brand wordmark is **"Trevor Robey, INC."** where **INC = Intelligence Network Citations** (a backronym, not a corporate suffix). Customer-facing materials pair the wordmark with the disclosure: *"Trevor Robey, INC. is the wordmark of Trevor Robey Intelligence Network Citations LLC, a California limited liability company."* Commercial brand slug: `trevor-robey-inc` (unchanged — not a regulated entity name). Domain `trevorobeyinc.com` and email `trevor@trevorobeyinc.com` unchanged. Engine credit: "Powered by OpenClaw" — the open-source agent framework, not a brand owned by the operator. The retired homebrew `openclaw.ai` consumer "Personal AI assistant" is unrelated and remains disambiguated where it appears. **Compliance note**: Cal. Corp. Code §17701.08(e) bars "Inc." inside LLC names — that's why the legal name spells the words out. Cal. Bus. & Prof. Code §17910.5(a) restricts "Inc." in fictitious business names to incorporated entities — the wordmark+disclosure pattern handles this by making the entity status explicit. Filing record: [`Trevor Robey Intelligence Network Citations/00-business-formation/llc/certificate-of-formation.md`](Trevor%20Robey%20Intelligence%20Network%20Citations/00-business-formation/llc/certificate-of-formation.md).
 
 **Tagline**: *Every claim, sourced. Every risk, named. In days, not weeks.*
 **Elevator**: *Citation-traced biomedical due diligence for biotech investors and pharma BD. Five days. Zero hallucinations. Audit trail included.*
@@ -166,7 +168,7 @@ Authoritative narrative lives in `trevor-robey-inc-agents/{NOTICE.md,TREVOR_ROBE
 | LM Studio (`qwen/qwen3.5-9b`) | — (staged for analyst) | **Installed; model UNLOADED** (server :1234 via TLS proxy :1235). Route staged in `_recommended_after_install`; analyst reverted to claude-code 2026-06-11 for 16 GB stability |
 | Mock provider | CI / deterministic tests | Active |
 
-ToolUniverse subprocess (Apache-2.0, Harvard MIMS / Zitnik Lab; `vendor/tooluniverse/`) provides ~2,116 biomedical tools. Eight project MCP servers under `openclaw-bridge/mcp/` cover ChEMBL, ClinicalTrials.gov, PubMed, HuggingFace Hub (metadata-only — no model weights downloaded), NPI Registry, ICD-10, Owkin pathology, Google Drive.
+ToolUniverse subprocess (Apache-2.0, Harvard MIMS / Zitnik Lab; `vendor/tooluniverse/`) provides ~2,116 biomedical tools. Seven project MCP servers under `openclaw-bridge/mcp/` cover ChEMBL, ClinicalTrials.gov, PubMed, HuggingFace Hub (metadata-only — no model weights downloaded), NPI Registry, ICD-10, Owkin pathology.
 
 **Pricing tiers (2026-04-30)**: Investor Pre-Mortem $9,950 anchor / $14,950 standard / $19,950 custom (with KOL primary research) · Failed Trial Archaeology $14,950 · tactical SKUs $4,950 (Conference Synthesis Brief, Trial Design Benchmark Pack) · Cross-Silo Connector Report $9,950–$24,950 · Plain-Language Patient Brief $2,500. Pharmacovigilance Pack retained as tactical SKU (existing marketplace listings preserved). Full breakdown in `REVENUE_PLAYBOOK.md` §2.
 
@@ -184,7 +186,7 @@ pm2 logs
 pm2 restart all
 ```
 
-Logs: `~/.pm2/logs/` (PM2-managed mcp-bridge). Per-workflow biomedical-pipeline subprocess logs land under `trevor-robey-inc-agents/workspace/audit/`. The legacy `~/Claude/.logs/openclaw-bridge-*.log` files (from the now-removed homebrew gateway) are stale and safe to ignore.
+Logs: `~/.pm2/logs/` (PM2-managed mcp-bridge). Per-workflow biomedical-pipeline subprocess logs land under `Trevor Robey Intelligence Network Citations/workspace/audit/`. The legacy `~/Claude/.logs/openclaw-bridge-*.log` files (from the now-removed homebrew gateway) are stale and safe to ignore.
 
 ## Workspace-Specific References
 
@@ -192,8 +194,8 @@ Logs: `~/.pm2/logs/` (PM2-managed mcp-bridge). Per-workflow biomedical-pipeline 
 |-------|-------|
 | Plugin runtime modes, Obsidian CLI, MCP bridge contract, Zettelkasten endpoints | `Copilot-Everything/CLAUDE.md` |
 | Web app cloning toolkit, workspace conventions | `Claude/CLAUDE.md` |
-| Research workflows, phase system, commercial operations, dataset pipelines | `trevor-robey-inc-agents/CLAUDE.md` |
-| LLM provider config, code patterns, git conventions, token efficiency | `trevor-robey-inc-agents/CLAUDE.md` |
+| Research workflows, phase system, commercial operations, dataset pipelines | `Trevor Robey Intelligence Network Citations/CLAUDE.md` |
+| LLM provider config, code patterns, git conventions, token efficiency | `Trevor Robey Intelligence Network Citations/CLAUDE.md` |
 | Subprojects (Medical Zettelkasten MCP, Command Center) | `Claude/CLAUDE.md` |
 
 ## Rules
@@ -213,12 +215,15 @@ work here engages **CrowdStrike Falcon (MCP/API)** as one coordinated unit, with
 stack-specialized depth from
 `~/.claude/skills/security-orchestration/references/trevclaw-stack-profile.md`.
 
+CrowdStrike/Falcon reference docs are mirrored offline at `~/Security Everything/crowdstrike-docs/`
+(README.md is the map). Consult before hitting the network.
+
 - **Read-only recon first**, then cross-correlate, then **strict propose-only**:
   every console-mutating Falcon action is surfaced for an explicitly
   typed, per-item authorization before apply. "Go" never authorizes a mutation.
 - The first hardening any review should produce is the one already named in the
   HTTPS-only section below as not-yet-implemented: restrict loopback
-  :8742/:6333/:1234/:11434 to the proxy UIDs (Falcon `firewall` module is a
+  :8742/:6333/:1234/:11434/:8890 to the proxy UIDs (Falcon `firewall` module is a
   candidate vehicle).
 - Never weaken Falcon Custom-IOA rule 1. Infra-security only — no PHI is hosted
   or processed.
@@ -236,13 +241,13 @@ Every network-facing TCP listener owned by code in this monorepo MUST be HTTPS. 
 
 **Canonical HTTPS-required pattern** (copy this when writing a new bridge): see [Copilot-Everything/bridges/obsidian-copilot-bridge/src/server/httpTransport.ts](Copilot-Everything/bridges/obsidian-copilot-bridge/src/server/httpTransport.ts) — it throws if `transport.tls` is unset, reads the mkcert pair, calls `https.createServer`, and asserts `instanceof https.Server` post-construction.
 
-**Per-package guards:** `npm run lint:transport` exists in `Copilot-Everything/bridges/obsidian-copilot-bridge` and `Claude/obsidian-openclaw-command-center`. Run it before any commit that touches a bridge file. (The `bridges/raycast-obsidian-mcp` package was deleted 2026-05-09 in the bridge consolidation.)
+**Per-package guards:** `npm run lint:transport` exists in `Copilot-Everything/bridges/obsidian-copilot-bridge` and `Claude/obsidian-command-center`. Run it before any commit that touches a bridge file. (The `bridges/raycast-obsidian-mcp` package was deleted 2026-05-09 in the bridge consolidation.)
 
 **Monorepo-wide guard:** `bash scripts/lint-transport-monorepo.sh --strict` walks all source files across the three workspaces and exits non-zero on any forbidden pattern. Run as part of pre-commit / CI.
 
 **Out of scope** (the only remaining plain HTTP carve-out): MCP browser-automation tools (Playwright MCP `--isolated` and Claude in Chrome are the two surviving browser surfaces as of 2026-05-12 per `~/.local/share/browser-tools/CONTEXT-HANDOFF-browser-mcp-downsize.md`; claude-preview, computer-use, etc.) that talk to local browser instances over plaintext loopback. No other plaintext loopback is acceptable. The LM Studio and Ollama plaintext upstreams (:1234, :11434) were pulled OUT of this carve-out on 2026-05-11 — see the HTTPS proxy table below.
 
-**Wrapped in HTTPS by in-monorepo proxies:** Miyo (2026-05-07), Qdrant (2026-05-08), LM Studio (2026-05-11), Ollama (2026-05-11). All four are third-party loopback services that the operator pulled OUT of the plaintext carve-out, citing the same defense-in-depth concerns: advancing localhost-targeting attack classes (DNS rebinding, browser-based localhost probing, malicious npm postinstall scripts). All four are wrapped using the same canonical pattern — a single `.mjs` file at the `Copilot-Everything/scripts/` level, owned by a dedicated launchd unit, throwing on cert load failure with no plaintext fallback path:
+**Wrapped in HTTPS by in-monorepo proxies:** Miyo (2026-05-07), Qdrant (2026-05-08), LM Studio (2026-05-11), Ollama (2026-05-11), SearXNG (2026-07-06). All five are third-party loopback services that the operator pulled OUT of the plaintext carve-out, citing the same defense-in-depth concerns: advancing localhost-targeting attack classes (DNS rebinding, browser-based localhost probing, malicious npm postinstall scripts). All five are wrapped using the same canonical pattern — a single `.mjs` file at the `Copilot-Everything/scripts/` level, owned by a dedicated launchd unit, throwing on cert load failure with no plaintext fallback path:
 
 | Service | Plaintext upstream | HTTPS proxy | Proxy script | launchd unit |
 |---|---|---|---|---|
@@ -250,10 +255,11 @@ Every network-facing TCP listener owned by code in this monorepo MUST be HTTPS. 
 | Qdrant (Miyo-bundled child process, no TLS config exposed) | `http://127.0.0.1:6333` | `https://127.0.0.1:6433` | [`Copilot-Everything/scripts/qdrant-tls-proxy.mjs`](Copilot-Everything/scripts/qdrant-tls-proxy.mjs) | `com.trevorrobey.qdrant-tls-proxy` |
 | LM Studio (`/Applications/LM Studio.app`, OpenAI-compatible server, no TLS config exposed) | `http://127.0.0.1:1234` | `https://127.0.0.1:1235` | [`Copilot-Everything/scripts/lm-studio-tls-proxy.mjs`](Copilot-Everything/scripts/lm-studio-tls-proxy.mjs) | `com.trevorrobey.lm-studio-tls-proxy` |
 | Ollama (`brew services ollama` or `/Applications/Ollama.app`, no TLS config exposed) | `http://127.0.0.1:11434` | `https://127.0.0.1:11435` | [`Copilot-Everything/scripts/ollama-tls-proxy.mjs`](Copilot-Everything/scripts/ollama-tls-proxy.mjs) | `com.trevorrobey.ollama-tls-proxy` |
+| SearXNG (`python -m searx.webapp` via werkzeug, no TLS config exposed) | `http://127.0.0.1:8890` | `https://127.0.0.1:8891` | [`Copilot-Everything/scripts/searxng-tls-proxy.mjs`](Copilot-Everything/scripts/searxng-tls-proxy.mjs) | `com.trevorrobey.searxng-tls-proxy` |
 
-All monorepo consumers (Copilot plugin's `MiyoServiceDiscovery`, Command Center's `miyo-client.ts`, `trevorobeyinc-research-memory-mcp/src/qdrant.ts`, `obsidian-vault-zettelkasten/src/{constants,settings,adapters/{miyo-client,qdrant-client,model-gateway}}.ts`, `trevor-robey-inc-agents/config/llm-providers.json`) now point at the HTTPS proxies. The plaintext upstream ports keep listening (we can't make Miyo, Qdrant, LM Studio, or Ollama stop), but the documented architecture no longer routes through them. The next hardening step (not yet implemented) is `pf` rules restricting :8742, :6333, :1234, and :11434 inbound to the proxy UIDs only.
+All monorepo consumers (Copilot plugin's `MiyoServiceDiscovery`, Command Center's `miyo-client.ts`, `trevorobeyinc-research-memory-mcp/src/qdrant.ts`, `obsidian-vault-zettelkasten/src/{constants,settings,adapters/{miyo-client,qdrant-client,model-gateway}}.ts`, `trevor-robey-inc-agents/config/llm-providers.json`, and the `searxng-search` connector's `config.js` — consumed by both the Claude MCP surfaces and the openclaw-bridge engine adapter) now point at the HTTPS proxies. The plaintext upstream ports keep listening (we can't make Miyo, Qdrant, LM Studio, Ollama, or SearXNG stop), but the documented architecture no longer routes through them. The next hardening step (not yet implemented) is `pf` rules restricting :8742, :6333, :1234, :11434, and :8890 inbound to the proxy UIDs only.
 
-> **launchd ↔ external-volume gotcha (2026-06-03).** This monorepo lives on `/Volumes/ExtraCurricular` (external). A launchd user-agent's TCC context **cannot read scripts on that volume**, so after the machine wipe all four proxy units died at startup with `EPERM` opening their `.mjs` (an interactive shell *can* read it, which masks the problem). Fix: [`Copilot-Everything/scripts/install-tls-proxies.sh`](Copilot-Everything/scripts/install-tls-proxies.sh) stages the four proxy scripts to `~/.local/share/trevclaw-tls-proxies/` (internal volume) and repoints each plist's `ProgramArguments` there, then reloads via `launchctl bootout`/`bootstrap`. The repo copies under `Copilot-Everything/scripts/` remain source-of-truth — **re-run the installer after editing any `*-tls-proxy.mjs`** to re-sync the staged copy. This changes only *where launchd reads the proxy source from*; transport behavior (throw-on-cert-failure, no plaintext fallback) is unchanged.
+> **launchd ↔ external-volume gotcha (2026-06-03).** This monorepo lives on `/Volumes/ExtraCurricular` (external). A launchd user-agent's TCC context **cannot read scripts on that volume**, so after the machine wipe all proxy units died at startup with `EPERM` opening their `.mjs` (an interactive shell *can* read it, which masks the problem). Fix: [`Copilot-Everything/scripts/install-tls-proxies.sh`](Copilot-Everything/scripts/install-tls-proxies.sh) stages the five proxy scripts to `~/.local/share/trevclaw-tls-proxies/` (internal volume) and repoints each plist's `ProgramArguments` there, then reloads via `launchctl bootout`/`bootstrap`. The repo copies under `Copilot-Everything/scripts/` remain source-of-truth — **re-run the installer after editing any `*-tls-proxy.mjs`** to re-sync the staged copy. This changes only *where launchd reads the proxy source from*; transport behavior (throw-on-cert-failure, no plaintext fallback) is unchanged.
 
 Predecessor of qdrant-tls-proxy: a separate subproject at `Claude/qdrant-tls-proxy/` (with its own package.json + PM2 ownership) was deleted 2026-05-08 — wrong pattern, never wired in. The single-file launchd pattern above replaces it.
 
@@ -276,7 +282,10 @@ Predecessor of qdrant-tls-proxy: a separate subproject at `Claude/qdrant-tls-pro
 
 > Per the global `~/.claude/CLAUDE.md` "Browser MCP Strategy and Context Persistence" rule, every Claude Code session that calls a browser MCP non-trivially appends a structured summary block below. Newest entries at the top. The two surviving browser surfaces are **Playwright MCP (`--isolated`)** and **Claude in Chrome**. See the global rule for the entry format, importance filter, and timing.
 
-_No entries yet — populate from the next browser-using session._
+- 2026-07-02 · claude-in-chrome · mirror docs.crowdstrike.com console docs (US-2 SSO) · Fluid
+  Topics `/api/khub` mirror; captured the CrowdStrike APIs publication tree; full 3,120-pub crawl
+  abandoned (rate-limit 403s + auto-mode flagged the page→localhost relay as exfil). Public corpus
+  built separately under `crowdstrike-docs/`.
 
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,

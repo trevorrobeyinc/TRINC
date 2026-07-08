@@ -9,6 +9,7 @@ import { buildFailure } from "./errors";
 import { AppError } from "./errors";
 import { ERROR_CODES } from "./errorCodes";
 import { buildMetricsSnapshot } from "./httpMetricsEndpoint";
+import { auditLog } from "../observability/auditLog";
 
 function getToken(req: IncomingMessage): string | undefined {
   const headerToken = req.headers["x-mcp-token"];
@@ -36,6 +37,15 @@ function json(res: ServerResponse, statusCode: number, payload: unknown): void {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   res.setHeader("Cache-Control", "no-store");
   res.end(body);
+}
+
+function auditAuthFailure(error: unknown, remote: string): void {
+  const code = (error as { code?: string })?.code;
+  if (code === ERROR_CODES.AUTH_REPLAY_DETECTED || code === ERROR_CODES.AUTH_TIMESTAMP_INVALID) {
+    auditLog.emit({ eventType: "REPLAY_REJECT", errorCode: code, source: "obsidian-copilot-bridge", remote });
+  } else if (code === ERROR_CODES.AUTH_INVALID) {
+    auditLog.emit({ eventType: "AUTH_FAIL", errorCode: code, source: "obsidian-copilot-bridge", remote });
+  }
 }
 
 export function createRequestListener(runtime: RuntimeContext): (req: IncomingMessage, res: ServerResponse) => void {
@@ -68,6 +78,7 @@ export function createRequestListener(runtime: RuntimeContext): (req: IncomingMe
       try {
         verifyAuthToken(runtime.config.security.authToken, getToken(req));
       } catch (error) {
+        auditAuthFailure(error, req.socket.remoteAddress ?? "unknown");
         json(res, 401, buildFailure(error));
         return;
       }
@@ -79,6 +90,7 @@ export function createRequestListener(runtime: RuntimeContext): (req: IncomingMe
       try {
         verifyAuthToken(runtime.config.security.authToken, getToken(req));
       } catch (error) {
+        auditAuthFailure(error, req.socket.remoteAddress ?? "unknown");
         json(res, 401, buildFailure(error));
         return;
       }
@@ -139,6 +151,7 @@ export function createRequestListener(runtime: RuntimeContext): (req: IncomingMe
       const response = await dispatchToolRequest(runtime, body);
       json(res, response.ok ? 200 : 400, response);
     } catch (error) {
+      auditAuthFailure(error, remote);
       json(res, 401, buildFailure(error));
     }
   };
