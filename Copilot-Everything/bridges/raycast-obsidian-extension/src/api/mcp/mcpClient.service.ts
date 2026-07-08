@@ -3,6 +3,7 @@ import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { getPreferenceValues } from "@raycast/api";
+import { createLoopbackTlsAgent } from "../../utils/loopbackTlsAgent";
 import type { MCPToolRequest, ToolResult } from "./contracts";
 
 interface MCPPreferences {
@@ -24,6 +25,18 @@ interface MCPServerConfigFile {
   };
 }
 
+// Loopback bridge uses an mkcert-issued cert. Trust the mkcert root CA and VERIFY the
+// cert (audit RF-1) instead of disabling verification.
+const localhostAgent = createLoopbackTlsAgent();
+function isLoopbackEndpoint(endpoint: string): boolean {
+  try {
+    const host = new URL(endpoint).hostname;
+    return host === "127.0.0.1" || host === "localhost" || host === "::1";
+  } catch {
+    return false;
+  }
+}
+
 function bodyHash(body: string): string {
   return createHash("sha256").update(body, "utf8").digest("hex");
 }
@@ -33,6 +46,7 @@ function loadConfigFile(configPath?: string): MCPServerConfigFile | null {
     configPath?.trim(),
     path.resolve(process.cwd(), "mcp-server/config/obsidian-cli-mcp.local.json"),
     path.resolve(process.cwd(), "../mcp-server/config/obsidian-cli-mcp.local.json"),
+    "/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json",
   ].filter((value): value is string => Boolean(value));
 
   for (const candidate of new Set(candidates)) {
@@ -90,22 +104,39 @@ export class MCPClient {
     };
 
     if (this.transport === "http") {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
-
-      try {
-        const response = await fetch(`${this.endpoint}/mcp/tool`, {
-          method: "POST",
-          headers,
-          body: payload,
-          signal: controller.signal,
-        });
-
-        const text = await response.text();
-        return JSON.parse(text) as ToolResult<TOutput>;
-      } finally {
-        clearTimeout(timeout);
+      // The launcher respawns the bridge when Obsidian reloads, leaving a brief
+      // window where :8798 refuses connections. Retry transient fetch failures.
+      let lastError: unknown;
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        if (attempt > 0) {
+          await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+        }
+        const retryHeaders = {
+          ...headers,
+          "X-MCP-Timestamp": String(Date.now()),
+          "X-MCP-Nonce": randomUUID(),
+        };
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+        try {
+          const response = await fetch(`${this.endpoint}/mcp/tool`, {
+            method: "POST",
+            headers: retryHeaders,
+            body: payload,
+            signal: controller.signal,
+            // @ts-expect-error: undici's `dispatcher` is not in lib.dom.d.ts but is
+            // supported by Node 18+'s global fetch (which Raycast uses).
+            dispatcher: isLoopbackEndpoint(this.endpoint) ? localhostAgent : undefined,
+          });
+          const text = await response.text();
+          return JSON.parse(text) as ToolResult<TOutput>;
+        } catch (error) {
+          lastError = error;
+        } finally {
+          clearTimeout(timeout);
+        }
       }
+      throw lastError;
     }
 
     const text = await this.callOverSocket(payload, headers);

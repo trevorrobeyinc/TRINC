@@ -6,6 +6,7 @@ const path = require("node:path");
 const { canonicalize, safeString } = require("../../workflows/governance-automation/common.js");
 const { validateTaskDefinition } = require("./task-definition-schema.js");
 const { enrichWithWikiLinks } = require("./wiki-link-enricher.js");
+const { extractCitations, deduplicateCitations, crossCheckCitations } = require("./citation-extractor.js");
 
 const SYNTHESIZER_TASK_ID_PATTERN = /synth|report_generator|integrator/i;
 
@@ -55,12 +56,28 @@ function walkDirFiles(dirPath) {
   return out;
 }
 
+function isWithinAllowedRoot(absPath) {
+  const roots = String(process.env.OPENCLAW_INPUT_ROOTS || "")
+    .split(":")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((r) => path.resolve(r));
+  roots.push(path.resolve(process.env.OPENCLAW_ROOT || process.cwd()));
+  return roots.some((root) => absPath === root || absPath.startsWith(root + path.sep));
+}
+
 function loadInputs(inputs) {
   const normalized = Array.isArray(inputs) ? inputs : [];
   const loaded = [];
   for (const input of normalized) {
     const inputPath = path.resolve(safeString(input.path || input));
     if (!inputPath || !fs.existsSync(inputPath)) {
+      continue;
+    }
+    // Security (audit state-rehydration): confine inputs to the OpenClaw root so a
+    // tampered/crafted task envelope cannot read arbitrary host files (e.g. ~/.ssh/*)
+    // into the LLM prompt or saved output. Override roots via OPENCLAW_INPUT_ROOTS.
+    if (!isWithinAllowedRoot(inputPath)) {
       continue;
     }
     const stat = fs.statSync(inputPath);
@@ -89,11 +106,18 @@ function loadInputs(inputs) {
 
 function buildPrompt(taskDefinition, inputDocs, context = {}) {
   const systemPrefix = safeString(context.systemPrefix);
-  const roleInstruction = systemPrefix
-    ? systemPrefix
-    : "You are a local-first research agent.";
+  // Persistent agent identity (SOUL.md/AGENTS.md + recent-session digest), loaded from
+  // config/agents/<role>/ by the role router and carried in context. Prepended ahead of
+  // the role prompt. Empty when no identity is configured → unchanged behavior.
+  const agentIdentityPrefix = safeString(context.agentIdentityPrefix);
+  const baseInstruction = systemPrefix || "You are a local-first research agent.";
+  const roleInstruction = agentIdentityPrefix
+    ? `${agentIdentityPrefix}\n\n${baseInstruction}`
+    : baseInstruction;
 
   const headerParts = [
+    // Fence: everything up to "END INSTRUCTIONS" steers the agent and must NOT appear in its output.
+    "===== INSTRUCTIONS (obey these; they are NOT part of your deliverable — do not reproduce them) =====",
     roleInstruction,
     "",
     `Task Type: ${taskDefinition.type}`,
@@ -101,7 +125,8 @@ function buildPrompt(taskDefinition, inputDocs, context = {}) {
     `Output Format: ${taskDefinition.output_format}`,
     `Constraints: ${JSON.stringify(taskDefinition.constraints || {})}`,
     "",
-    "CITATION REQUIREMENTS: For every factual claim, include specific database identifiers inline. Use: PubChem CID (e.g. CID: 2244), PMID (e.g. PMID: 12345678), NCT numbers (e.g. NCT01234567), ChEMBL IDs (e.g. CHEMBL25), ENSG IDs (e.g. ENSG00000157764), DrugBank IDs (e.g. DrugBank: DB00945), UniProt accessions (e.g. UniProt: P04637), DOIs (e.g. doi: 10.1000/example). Aim for at least one verifiable identifier per substantive paragraph. This output will be automatically audited for verifiable citations.",
+    "CITATION REQUIREMENTS: For every factual claim, include specific database identifiers inline. Use: PubChem CID (e.g. CID: 2244), PMID (e.g. PMID: 12345678), NCT numbers (e.g. NCT01234567), ChEMBL IDs (e.g. CHEMBL25), ENSG IDs (e.g. ENSG00000157764), UniProt accessions (e.g. UniProt: P04637), DOIs (e.g. doi: 10.1000/example). Aim for at least one verifiable identifier per substantive paragraph. This output will be automatically audited for verifiable citations.",
+    "ABSOLUTE RULE — ZERO FABRICATION (this is the entire value of the business): NEVER invent, guess, or approximate an identifier. Cite ONLY identifiers that appear verbatim in the live database documents provided below. If you cannot find a real, retrievable source for a claim, you MUST write \"[no verifiable citation found]\" and state the claim as UNVERIFIED — it is always correct to say you could not find a source, and never acceptable to fabricate one. A single invented PMID/NCT/DOI/ChEMBL/CID/UniProt identifier is a critical failure that destroys the report. Do not pattern-match plausible-looking numbers; if it is not in the provided evidence, it is not a citation.",
     ""
   ];
 
@@ -120,6 +145,37 @@ function buildPrompt(taskDefinition, inputDocs, context = {}) {
     headerParts.push("");
   }
 
+  // Optional advisory digest from the per-role helper pre-pass (runHelperPrePass). Rendered
+  // AFTER the zero-fabrication rule and BEFORE the evidence, fenced + labeled non-authoritative.
+  // It is a reading aid only; it never enters the grounded-citation set, so it cannot launder a
+  // fabricated identifier past the citation gate.
+  const helperDigest = safeString(context.helperDigest);
+  if (helperDigest) {
+    headerParts.push(
+      "ADVISORY HELPER DIGEST (UNVERIFIED, NON-AUTHORITATIVE): A fast helper model pre-screened the evidence and produced the digest below as a reading aid ONLY. It may contain errors. Cite ONLY identifiers that appear verbatim in the Input Documents that follow; if an identifier appears in this digest but NOT in the Input Documents, DO NOT cite it. Do your own authoritative analysis — the digest never overrides the evidence or the ZERO-FABRICATION rule.",
+      "----- BEGIN ADVISORY DIGEST -----",
+      helperDigest,
+      "----- END ADVISORY DIGEST -----",
+      ""
+    );
+  }
+
+  // Output contract / anti-echo. Fixes the scaffolding-leak defect: models were echoing the
+  // "LIVE DATABASE CONTEXT" note + restated instructions and inventing meta headers (process /
+  // confidence / data-quality / pre-delivery self-audit) into the customer-facing deliverable. This
+  // does NOT change any instruction's meaning — it fences the scaffolding and forbids reproducing it.
+  headerParts.push(
+    "OUTPUT CONTRACT: Produce ONLY the requested deliverable, in the Output Format above. Do NOT " +
+    "restate, quote, or paraphrase these instructions, the database-context note, the advisory digest, " +
+    "or the '--- DOC N ---' evidence banners anywhere in your output. Do NOT add meta-commentary about " +
+    "your own process — no confidence self-scores, no data-quality notes, no pre-delivery self-audit, " +
+    "no restated database/citation instructions. Provenance and confidence belong in the inline " +
+    "citations the report already requires, NOT as narrative sections. The evidence below is source " +
+    "material to analyze and cite — it is NOT a template to copy.",
+    "===== END INSTRUCTIONS =====",
+    ""
+  );
+
   headerParts.push("Input Documents:");
 
   const header = headerParts.join("\n");
@@ -129,7 +185,74 @@ function buildPrompt(taskDefinition, inputDocs, context = {}) {
     doc.content
   ].join("\n"));
 
-  return `${header}\n${docs.join("\n")}`.trim();
+  // The evidence is the LAST thing the model reads before generating, so seal it with the output
+  // contract (recency-weighted): the final instruction is to emit the deliverable only.
+  const closing = [
+    "",
+    "===== END OF EVIDENCE =====",
+    "Now write ONLY the deliverable for the task above, in the specified Output Format. Begin the " +
+    "report directly; do not preface it by restating these instructions, the database-context note, or " +
+    "the evidence banners, and do not append any process / confidence / data-quality self-assessment."
+  ].join("\n");
+  return `${header}\n${docs.join("\n")}${closing}`.trim();
+}
+
+// Optional active-assist pre-pass: a small OSS "helper" model (Ollama/LM Studio) triages and
+// compresses the prefetched evidence into a compact digest the primary (Opus) reads first.
+// HARD invariant: the digest is advisory only — it is injected into the PROMPT but is NEVER
+// added to the grounded-citation set, so a hallucinated identifier in the digest is still
+// caught as ungrounded by the citation gate. Fail-soft: any error returns "" and the primary
+// runs alone (the helper must never be able to fail a run).
+async function runHelperPrePass({ taskDefinition, inputDocs, helper, llmAdapter, logger, taskId, role }) {
+  if (!helper || !safeString(helper.provider)) return "";
+  if (!Array.isArray(inputDocs) || inputDocs.length === 0) return "";
+
+  const evidence = inputDocs
+    .map((doc, index) => `--- DOC ${index + 1}: ${(doc && doc.rel) || "doc"} ---\n${(doc && doc.content) || ""}`)
+    .join("\n");
+
+  const helperPrompt = [
+    `You are a fast PRE-PASS assistant helping a senior ${role || "research"} agent.`,
+    "Your ONLY job is to triage and compress the evidence below into a compact, well-organized digest the senior agent will read before doing its own authoritative analysis.",
+    "HARD RULES:",
+    "- NEVER invent, guess, or alter any identifier (PMID, NCT, DOI, ChEMBL, CID, UniProt, ENSG). Copy identifiers VERBATIM from the evidence.",
+    "- Do NOT add any fact or identifier that is not present in the evidence below.",
+    "- Do NOT write the final report or draw final conclusions. Just organize: group related records, note which sources bear on which sub-questions, surface candidate claims with the verbatim source identifier each rests on, and flag duplicates or gaps.",
+    "- If the evidence is thin or empty, say so plainly in one line.",
+    "OUTPUT: a short bulleted digest (relevance notes, each followed by the verbatim source identifier(s) it rests on).",
+    "",
+    `Senior agent's task: ${safeString(taskDefinition && taskDefinition.description)}`,
+    "",
+    "EVIDENCE:",
+    evidence
+  ].join("\n");
+
+  try {
+    const res = await llmAdapter.complete(helperPrompt, {
+      taskId: `${taskId}:helper`,
+      provider: helper.provider,
+      model: safeString(helper.model),
+      // No fallbackProvider on purpose: the helper is optional. If it errors, we skip it.
+      maxTokens: Number(helper.maxTokens) > 0 ? Number(helper.maxTokens) : 1024
+    });
+    const digest = safeString(res && res.text);
+    logger.info({
+      event: "helper_prepass_complete",
+      role,
+      helper_provider: helper.provider,
+      helper_model: safeString(helper.model),
+      digest_chars: digest.length
+    });
+    return digest;
+  } catch (err) {
+    logger.warn({
+      event: "helper_prepass_skipped",
+      role,
+      helper_provider: helper.provider,
+      error: safeString(err && err.message)
+    });
+    return "";
+  }
 }
 
 function buildOrchestratedTaskDefinition(taskEnvelope = {}, defaults = {}) {
@@ -240,6 +363,10 @@ function createAgentEngine(options = {}) {
     try {
       setStatus(taskId, "executing");
       const inputDocs = loadInputs(normalizedTask.inputs);
+      // Live ToolUniverse-fetched identifiers — the ground-truth set for the report-level
+      // citation gate (Slice 1). Persisted into this task's metadata so the workflow engine
+      // can verify the assembled report against what was actually fetched at runtime.
+      let fetchedCitationIds = [];
 
       // WS1: Inject live ToolUniverse data before prompt construction
       if (context.toolPrefetch && typeof context.toolPrefetch.prefetchForRole === "function") {
@@ -250,6 +377,9 @@ function createAgentEngine(options = {}) {
               roleName, context.workflowInputs || {}
             );
             inputDocs.push(...toolDocs);
+            fetchedCitationIds = deduplicateCitations(
+              extractCitations(toolDocs.map((d) => (d && d.content) || "").join("\n\n"))
+            ).map((c) => String(c.id));
             if (toolDocs.length > 0) {
               logger.info({
                 event: "tool_prefetch_injected",
@@ -263,14 +393,47 @@ function createAgentEngine(options = {}) {
               role: roleName,
               error: safeString(prefetchError && prefetchError.message)
             });
+            // Surface the limitation into the prompt so the model knows it is running WITHOUT
+            // live-database grounding and must not invent identifiers.
+            inputDocs.push({
+              rel: "LIVE-DATA-LIMITATION-NOTICE",
+              content: "DATA LIMITATION NOTICE: live biomedical-database prefetch FAILED for this task, so no runtime-fetched records were injected below. Do NOT fabricate database identifiers (PMID / NCT / DOI / ChEMBL / CID / UniProt); cite only sources you can state with high confidence and explicitly flag any claim that lacks a verifiable citation."
+            });
           }
         }
       }
 
-      const prompt = buildPrompt(normalizedTask, inputDocs, context);
+      // Grounded-citation set = every identifier present in this agent's input context (live
+      // prefetch records + upstream sections). Any identifier in the OUTPUT but not here is
+      // "ungrounded" — introduced by the model rather than the fetched evidence. This is the
+      // signal that protects the zero-fabrication brand promise.
+      const groundedCitationIds = deduplicateCitations(
+        extractCitations(inputDocs.map((d) => (d && d.content) || "").join("\n\n"))
+      ).map((c) => String(c.id));
+
+      // Optional helper pre-pass (active assist): a small OSS model triages/compresses the
+      // evidence for the primary backend. Advisory only — groundedCitationIds above is computed
+      // from inputDocs BEFORE this runs and is NOT expanded by the digest, so the helper can
+      // never launder a fabricated citation past the gate. Fail-soft (returns "" on any error).
+      let helperDigest = "";
+      if (context.helper) {
+        helperDigest = await runHelperPrePass({
+          taskDefinition: normalizedTask,
+          inputDocs,
+          helper: context.helper,
+          llmAdapter,
+          logger,
+          taskId,
+          role: safeString(context.agentRole)
+        });
+      }
+
+      const prompt = buildPrompt(normalizedTask, inputDocs, { ...context, helperDigest });
 
       const completion = await llmAdapter.complete(prompt, {
         taskId,
+        provider: safeString(context.provider),
+        fallbackProvider: safeString(context.fallbackProvider),
         model: safeString(context.model),
         maxTokens: Number(config.maxTokensPerRequest || 0)
       });
@@ -301,6 +464,33 @@ function createAgentEngine(options = {}) {
         }
       }
 
+      // Zero-fabrication audit: cross-check the output's citations against the grounded set.
+      const citationCheck = crossCheckCitations(outputText, groundedCitationIds);
+      logger.info({
+        event: "citation_verification",
+        task_id: taskId,
+        role: safeString(context.agentRole),
+        cited: citationCheck.total,
+        grounded: citationCheck.verified_count,
+        ungrounded: citationCheck.unverified_count,
+        grounded_ratio: citationCheck.verified_ratio
+      });
+      if (citationCheck.total > 0 && citationCheck.unverified_count > 0) {
+        logger.warn({
+          event: "citation_verification_ungrounded",
+          task_id: taskId,
+          role: safeString(context.agentRole),
+          ungrounded_count: citationCheck.unverified_count,
+          sample: citationCheck.unverified.slice(0, 8).map((c) => `${c.type}:${c.id}`)
+        });
+      }
+      const citationVerification = {
+        cited: citationCheck.total,
+        grounded: citationCheck.verified_count,
+        ungrounded: citationCheck.unverified_count,
+        grounded_ratio: citationCheck.verified_ratio
+      };
+
       const completedAt = normalizeIso(timeProvider.nowIso());
       const outputWrite = outputManager.saveOutput(taskId, outputText, {
         status: "completed",
@@ -313,7 +503,9 @@ function createAgentEngine(options = {}) {
         duration_ms: Number(completion.durationMs || 0),
         token_count: Number(completion.tokenCount || 0),
         task_definition: normalizedTask,
-        provider_info: llmAdapter.getProviderInfo()
+        provider_info: llmAdapter.getProviderInfo(),
+        citation_verification: citationVerification,
+        fetched_citation_ids: fetchedCitationIds
       });
 
       const rlhfResult = await governanceBridge.generateRLHFEntry(taskId, {
@@ -340,6 +532,8 @@ function createAgentEngine(options = {}) {
         token_count: Number(completion.tokenCount || 0),
         task_definition: normalizedTask,
         provider_info: llmAdapter.getProviderInfo(),
+        citation_verification: citationVerification,
+        fetched_citation_ids: fetchedCitationIds,
         rlhf_local_mirror_path: safeString(rlhfResult.local_mirror_path)
       });
 
@@ -446,5 +640,8 @@ function createAgentEngine(options = {}) {
 }
 
 module.exports = {
-  createAgentEngine
+  createAgentEngine,
+  // Exported for unit testing the multi-agent helper pre-pass + prompt assembly.
+  buildPrompt,
+  runHelperPrePass
 };

@@ -1,6 +1,6 @@
 "use strict";
 
-const WATERMARK = "Produced by OpenClaw Research Intelligence — https://trevorrobeyinc.github.io";
+const WATERMARK = "Produced by OpenClaw Research Intelligence — https://trevorobeyinc.com";
 
 function extractFindings(reportMarkdown) {
   if (!reportMarkdown) return [];
@@ -15,7 +15,7 @@ function extractFindings(reportMarkdown) {
       findings.push({
         section: title,
         content: body.slice(0, 2000),
-        has_citations: /\b(PMID|NCT\d|CID\s*:\s*\d|ChEMBL|DrugBank|UniProt|doi:\s*10\.)/i.test(body)
+        has_citations: /\b(PMID|NCT\d|CID\s*:\s*\d|ChEMBL|UniProt|doi:\s*10\.)/i.test(body)
       });
     }
   }
@@ -31,7 +31,7 @@ function transform(workflowOutput, options = {}) {
   const datasetMetadata = {
     title: `Biomedical Research Intelligence: ${templateId}`,
     subtitle: `Citation-backed research dataset with verified database identifiers`,
-    description: `Research intelligence produced by OpenClaw's deterministic 3-agent pipeline. Every claim is backed by verifiable identifiers (PMID, NCT, PubChem CID, DrugBank, UniProt, ChEMBL, DOI). ${WATERMARK}`,
+    description: `Research intelligence produced by OpenClaw's deterministic 3-agent pipeline. Every claim is backed by verifiable identifiers (PMID, NCT, PubChem CID, UniProt, ChEMBL, DOI). ${WATERMARK}`,
     id: `trevorrobeyinc/${templateId}-${workflowId}`.slice(0, 100),
     licenses: [{ name: "CC-BY-NC-4.0" }],
     keywords: ["biomedical", "pharmacovigilance", "drug-safety", "verified-citations", "research-intelligence"],
@@ -57,7 +57,7 @@ function transform(workflowOutput, options = {}) {
     "### Citation Index (data.csv)",
     "| Column | Description |",
     "|--------|-------------|",
-    "| type | Identifier type (PMID, NCT, CID, DrugBank, etc.) |",
+    "| type | Identifier type (PMID, NCT, CID, etc.) |",
     "| id | Database identifier value |",
     "| context | Surrounding text where the citation appears |",
     "",
@@ -68,7 +68,7 @@ function transform(workflowOutput, options = {}) {
     "CC-BY-NC-4.0",
     "",
     "## Contact",
-    "Trevor Robey | trevor@trevorobeyinc.com | https://trevorrobeyinc.github.io"
+    "Trevor Robey | trevor@trevorobeyinc.com | https://trevorobeyinc.com"
   ].join("\n");
 
   const findings = extractFindings(workflowOutput.report);

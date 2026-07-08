@@ -1,6 +1,6 @@
 "use strict";
 
-const WATERMARK = "Produced by OpenClaw Research Intelligence — https://trevorrobeyinc.github.io";
+const WATERMARK = "Produced by OpenClaw Research Intelligence — https://trevorobeyinc.com";
 
 function parseCsvPreview(csvContent, maxRows) {
   if (!csvContent) return "";
@@ -24,9 +24,9 @@ function transform(workflowOutput, options = {}) {
     category: "Healthcare & Life Sciences",
     format: "CSV + Markdown + JSON",
     license: "CC-BY-NC-4.0",
-    provider: "Trevor Robey Inc.",
+    provider: "Trevor Robey, INC.",
     contact: "trevor@trevorobeyinc.com",
-    website: "https://trevorrobeyinc.github.io"
+    website: "https://trevorobeyinc.com"
   };
 
   const dataDictionary = [
@@ -35,7 +35,7 @@ function transform(workflowOutput, options = {}) {
     "## Citation Index (data.csv)",
     "| Field | Type | Description |",
     "|-------|------|-------------|",
-    "| type | string | Identifier type: PMID, NCT, CID, DrugBank, UniProt, ChEMBL, DOI |",
+    "| type | string | Identifier type: PMID, NCT, CID, UniProt, ChEMBL, DOI |",
     "| id | string | Database identifier value |",
     "| context | string | Surrounding text where the citation appears |",
     "",

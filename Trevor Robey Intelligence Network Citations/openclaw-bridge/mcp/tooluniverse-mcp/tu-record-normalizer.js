@@ -27,17 +27,34 @@ function extractToolId(record) {
 }
 
 function extractTitle(record) {
+  // Tool-discovery record → description (preserved precedence); article
+  // (PubMed/SemanticScholar/EuropePMC) → title; trial → brief_title; else the tool id.
+  // Articles/trials have no `description`, so description-first does not affect them.
   if (record && typeof record.description === "string" && record.description.trim()) {
     return normalizeText(record.description, 2000);
   }
   if (record && typeof record.title === "string" && record.title.trim()) {
     return normalizeText(record.title, 2000);
   }
+  if (record && typeof record.brief_title === "string" && record.brief_title.trim()) {
+    return normalizeText(record.brief_title, 2000);
+  }
+  if (record && typeof record.official_title === "string" && record.official_title.trim()) {
+    return normalizeText(record.official_title, 2000);
+  }
   return normalizeText(extractToolId(record), 2000);
 }
 
 function extractAbstract(record, maxChars) {
   const limit = maxChars || MAX_ABSTRACT_CHARS;
+
+  // Real payload fields first: PubMed `abstract`, ClinicalTrials `brief_summary`.
+  if (record && typeof record.abstract === "string" && record.abstract.trim()) {
+    return stripHtml(record.abstract).slice(0, limit);
+  }
+  if (record && typeof record.brief_summary === "string" && record.brief_summary.trim()) {
+    return stripHtml(record.brief_summary).slice(0, limit);
+  }
 
   if (record && record.result !== undefined && record.result !== null) {
     const resultStr = truncateResult(record.result, limit);
@@ -53,6 +70,34 @@ function extractAbstract(record, maxChars) {
   }
 
   return "";
+}
+
+// Preserve the citation + bibliographic identifiers from the raw record so the
+// injected "Live Data" doc (rendered by tool-prefetch.js renderRecord) carries
+// real PMIDs / NCT IDs / DOIs / ChEMBL IDs the agent can cite, instead of dropping
+// them during normalization. Field names vary by source (e.g. ClinicalTrials uses
+// "NCT ID", PubMed uses pmid/pub_year).
+function extractIdentifiers(raw) {
+  const ids = {};
+  if (!raw || typeof raw !== "object") return ids;
+  const take = (val, max) => normalizeText(String(val), max);
+  const pmid = raw.pmid || raw.PMID;
+  if (pmid) ids.pmid = take(pmid, 64);
+  const nct = raw["NCT ID"] || raw.nctId || raw.nct_id || raw.nct;
+  if (nct) ids.nctId = take(nct, 64);
+  const doi = raw.doi || raw.DOI;
+  if (doi) ids.doi = take(doi, 256);
+  const chembl = raw.molecule_chembl_id || raw.chembl_id || raw.chemblId;
+  if (chembl) ids.chemblId = take(chembl, 64);
+  if (raw.pmcid) ids.pmcid = take(raw.pmcid, 64);
+  if (raw.url) ids.url = take(raw.url, 512);
+  if (raw.journal) ids.journal = take(raw.journal, 256);
+  const year = raw.pub_year || raw.year;
+  if (year) ids.year = take(year, 16);
+  if (raw.phase) ids.phase = take(Array.isArray(raw.phase) ? raw.phase.join("/") : raw.phase, 64);
+  const status = raw.overall_status || (typeof raw.status === "string" ? raw.status : "");
+  if (status) ids.status = take(status, 64);
+  return ids;
 }
 
 function extractAuthors(record) {
@@ -99,7 +144,8 @@ function normalizeToolRecord(rawRecord, options = {}) {
     authors: extractAuthors(rawRecord),
     citation_velocity: 0,
     published_at: extractPublishedAt(rawRecord),
-    retrieved_at: options.retrievedAt || timeProviderModule.nowIso()
+    retrieved_at: options.retrievedAt || timeProviderModule.nowIso(),
+    ...extractIdentifiers(rawRecord)
   };
 }
 
@@ -118,5 +164,6 @@ module.exports = {
   extractAbstract,
   extractAuthors,
   extractPublishedAt,
+  extractIdentifiers,
   MAX_ABSTRACT_CHARS
 };

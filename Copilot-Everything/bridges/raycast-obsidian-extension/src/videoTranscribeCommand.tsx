@@ -1,15 +1,32 @@
-import { Action, ActionPanel, Form, getPreferenceValues } from "@raycast/api";
-import {
-  runVideoTranscribeCommand,
-  VideoCommandPreferences,
-  VideoTranscribeFormValues,
-} from "@/tools/videoTranscribeFlow";
+import { Action, ActionPanel, Form, launchCommand, LaunchType, open, showToast, Toast } from "@raycast/api";
+import { VideoTranscribeFormValues } from "@/tools/videoTranscribeFlow";
 
 export default function Command() {
-  const prefs = getPreferenceValues<VideoCommandPreferences>();
-
+  // Hand the pipeline off to the no-view runner command: view-command JS dies when the
+  // Raycast window is dismissed (even by focus loss), which silently killed multi-minute
+  // runs mid-Whisper. The runner is kept alive by Raycast until its promise settles.
   async function handleSubmit(values: VideoTranscribeFormValues) {
-    await runVideoTranscribeCommand(values, prefs);
+    try {
+      await launchCommand({
+        name: "videoTranscribeRunnerCommand",
+        extensionName: "obsidian-bridge-fork",
+        ownerOrAuthorName: "marcjulian",
+        type: LaunchType.UserInitiated,
+        context: { values },
+      });
+    } catch {
+      // Dev builds can fail to resolve sibling commands via launchCommand ("No enabled
+      // command ... found"); the deeplink route delivers the same launchContext.
+      const context = encodeURIComponent(JSON.stringify({ values }));
+      await open(
+        `raycast://extensions/marcjulian/obsidian-bridge-fork/videoTranscribeRunnerCommand?launchType=userInitiated&context=${context}`
+      );
+    }
+    await showToast({
+      style: Toast.Style.Success,
+      title: "Pipeline started in background",
+      message: "Safe to close Raycast — progress in ~/.local/share/raycast-obsidian/video-transcribe.log",
+    });
   }
 
   return (
@@ -23,7 +40,14 @@ export default function Command() {
       <Form.TextField
         id="videoUrl"
         title="Video URL"
-        placeholder="https://youtube.com/watch?v=... or https://www.tiktok.com/@user/video/..."
+        placeholder="Paste a video URL — YouTube, TikTok, Wiley, etc. (or pick a local file below)"
+      />
+      <Form.FilePicker
+        id="videoFile"
+        title="Local Video File"
+        allowMultipleSelection={false}
+        canChooseDirectories={false}
+        info="Skips the download step entirely (no cookies, no YubiKey). Use for sources yt-dlp can't fetch — e.g. LinkedIn Learning via Downie."
       />
     </Form>
   );

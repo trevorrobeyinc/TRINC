@@ -1,0 +1,11 @@
+{
+  "schema_version": "phase34-role-provider-map-v1",
+  "_comment": "Authoritative role->backend routing for the multi-agent layer. Each role declares a PRIMARY backend (provider+model), an optional small `helper` model (active pre-pass that triages/compresses the prefetched evidence before the primary runs — fail-soft, never authoritative, can NEVER inject a citation: the citation gate's grounded set is computed from the fetched evidence only, not from the helper digest), and an emergency `fallback` provider. provider `local` == Ollama, `lm-studio` == LM Studio, `claude-code` == Claude (CLI, Claude Max subscription). 2026-06-22: scout/analyst/synthesizer promoted to Claude Opus 4.8 (claude-opus-4-8 — 1M context by default, no `[1m]` suffix); the open-source models are now per-role HELPERS only (qwen2.5:7b-instruct is scout's helper — kept on the back burner, not retired). Helper requires its local engine to be up (Ollama :11435 / LM Studio :1235); if down/unloaded the pre-pass is skipped and the primary runs alone.",
+  "default": { "provider": "claude-code", "model": "claude-sonnet-4-6", "fallback": "lm-studio" },
+  "roles": {
+    "scout":       { "provider": "claude-code", "model": "claude-opus-4-8", "helper": { "provider": "local",     "model": "qwen2.5:7b-instruct", "maxTokens": 1024 }, "fallback": "local" },
+    "analyst":     { "provider": "claude-code", "model": "claude-opus-4-8", "helper": { "provider": "lm-studio", "model": "qwen/qwen3.5-9b",     "maxTokens": 1024 }, "fallback": "lm-studio" },
+    "synthesizer": { "provider": "claude-code", "model": "claude-opus-4-8", "helper": { "provider": "lm-studio", "model": "qwen/qwen3.5-9b",     "maxTokens": 1024 }, "fallback": "lm-studio" }
+  },
+  "_memory_note": "All three core roles run on Claude Opus 4.8 via the claude-code CLI (flat-rate Claude Max subscription, no API key, 1M context). OSS models are demoted to small per-role helpers + emergency fallback: scout helper/fallback = Ollama qwen2.5:7b-instruct (the back-burner model); analyst/synthesizer helper/fallback = LM Studio qwen/qwen3.5-9b (load it with `lms server start --port 1234` + `lms load qwen/qwen3.5-9b`, else its helper pre-pass simply no-ops). Unmapped roles + `default` stay on claude-code/claude-sonnet-4-6."
+}

@@ -12,7 +12,7 @@ Hi [First Name],
 
 The high clinical attrition rate in Phase II/III usually traces back to incomplete pre-clinical target validation. Furthermore, attempting to accelerate discovery using standard LLMs has proven dangerous due to fabricated biological pathways and hallucinated citations.
 
-At trevor-robey-inc, we deliver Investor Pre-Mortems and target-validation dossiers that eradicate this risk. Our deterministic engine (powered by OpenClaw) synthesizes multi-omics and genetic targeting data with a 1.0 Quality Confidence Score.
+At trevor-robey-inc, we deliver Investor Pre-Mortems and target-validation dossiers that sharply reduce this risk. Our deterministic engine (powered by OpenClaw) synthesizes multi-omics and genetic targeting data with a 1.0 Quality Confidence Score.
 
 We do not generate "AI content." We provide structured, cryptographic data packages where every single target association is backed by an auditable array of primary literature (PMID).
 

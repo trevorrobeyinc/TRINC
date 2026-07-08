@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { getPreferenceValues } from "@raycast/api";
+import { createLoopbackTlsAgent } from "../../utils/loopbackTlsAgent";
 import type { MCPToolRequest, ToolResult } from "./contracts";
 
 interface RaycastObsidianMcpPreferences {
@@ -27,6 +28,18 @@ interface RaycastObsidianMcpConfigFile {
 const DEFAULT_ENDPOINT = "https://127.0.0.1:8798";
 const DEFAULT_TIMEOUT_MS = 20_000;
 
+// The bridge listens on loopback with an mkcert-issued cert. Trust the mkcert root CA and
+// VERIFY the cert (audit RF-1) instead of disabling verification.
+const localhostAgent = createLoopbackTlsAgent();
+function isLoopbackEndpoint(endpoint: string): boolean {
+  try {
+    const host = new URL(endpoint).hostname;
+    return host === "127.0.0.1" || host === "localhost" || host === "::1";
+  } catch {
+    return false;
+  }
+}
+
 function bodyHash(body: string): string {
   return createHash("sha256").update(body, "utf8").digest("hex");
 }
@@ -35,7 +48,7 @@ function loadConfigFile(configPath?: string): RaycastObsidianMcpConfigFile | nul
   const candidates = [
     configPath?.trim(),
     path.resolve(process.cwd(), "../raycast-obsidian-mcp/config/raycast-obsidian-mcp.local.json"),
-    "/Users/trevorrobey/THE Copilot in Obsidian Everything/bridges/raycast-obsidian-mcp/config/raycast-obsidian-mcp.local.json",
+    "/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json",
   ].filter((value): value is string => Boolean(value));
 
   for (const candidate of new Set(candidates)) {
@@ -77,38 +90,55 @@ export class RaycastObsidianMcpClient {
 
   async callTool<TInput, TOutput>(request: MCPToolRequest<TInput>): Promise<ToolResult<TOutput>> {
     const payload = JSON.stringify(request);
-    const timestamp = String(Date.now());
-    const nonce = randomUUID();
-    const headers = {
-      "Content-Type": "application/json",
-      "X-MCP-Token": this.token,
-      "X-MCP-Timestamp": timestamp,
-      "X-MCP-Nonce": nonce,
-      "X-MCP-Body-Sha256": bodyHash(payload),
-    };
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
-
-    try {
-      const response = await fetch(`${this.endpoint}/mcp/tool`, {
-        method: "POST",
-        headers,
-        body: payload,
-        signal: controller.signal,
-      });
-      const text = await response.text();
-      return JSON.parse(text) as ToolResult<TOutput>;
-    } finally {
-      clearTimeout(timeout);
+    // The launcher respawns the bridge whenever Obsidian reloads, leaving a brief
+    // window where :8798 refuses connections. Retry transient fetch failures so a
+    // run that lands in a restart window doesn't fail outright. All ops here are
+    // idempotent (create uses overwrite, read/append are safe to repeat).
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      if (attempt > 0) {
+        await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+      }
+      const headers = {
+        "Content-Type": "application/json",
+        "X-MCP-Token": this.token,
+        "X-MCP-Timestamp": String(Date.now()),
+        "X-MCP-Nonce": randomUUID(),
+        "X-MCP-Body-Sha256": bodyHash(payload),
+      };
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+      try {
+        const response = await fetch(`${this.endpoint}/mcp/tool`, {
+          method: "POST",
+          headers,
+          body: payload,
+          signal: controller.signal,
+          // @ts-expect-error: undici's `dispatcher` is not in lib.dom.d.ts but is
+          // supported by Node 18+'s global fetch (which Raycast uses).
+          dispatcher: isLoopbackEndpoint(this.endpoint) ? localhostAgent : undefined,
+        });
+        const text = await response.text();
+        return JSON.parse(text) as ToolResult<TOutput>;
+      } catch (error) {
+        lastError = error;
+      } finally {
+        clearTimeout(timeout);
+      }
     }
+    throw lastError;
   }
 
   async health(): Promise<{ ok: boolean; status?: string; ts?: string }> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
-      const response = await fetch(`${this.endpoint}/healthz`, { method: "GET", signal: controller.signal });
+      const response = await fetch(`${this.endpoint}/healthz`, {
+        method: "GET",
+        signal: controller.signal,
+        // @ts-expect-error: undici's `dispatcher` is not in lib.dom.d.ts.
+        dispatcher: isLoopbackEndpoint(this.endpoint) ? localhostAgent : undefined,
+      });
       return (await response.json()) as { ok: boolean; status?: string; ts?: string };
     } finally {
       clearTimeout(timeout);

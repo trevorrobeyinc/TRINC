@@ -22,15 +22,15 @@ Last updated: 2026-05-07
 
 Compliance posture: the wordmark "Trevor Robey, INC." is paired with the disclosure above on every customer-facing surface (website, marketplace listings, MSAs, SOWs, NDAs, invoices, AWS Data Exchange seller profile, Datarade vendor profile, plugin UI strings). This satisfies Cal. Bus. & Prof. Code §17910.5(a) (fictitious-business-name disclosure) and avoids Cal. Corp. Code §17701.08(e) which bars "Inc." inside an LLC's legal name.
 
-Filing record: [`../trevor-robey-inc/00-business-formation/llc/certificate-of-formation.md`](../trevor-robey-inc/00-business-formation/llc/certificate-of-formation.md).
+Filing record: [`00-business-formation/llc/certificate-of-formation.md`](00-business-formation/llc/certificate-of-formation.md).
 
-Dependent updates that fire on CA SOS approval: SOS Entity Number → AWS Marketplace seller profile → Datarade vendor profile → bank verification (Mercury) → tax interview (W-9 + AWS) → MSA/SOW/NDA legal-entity blanks. See [`../trevor-robey-inc/00-business-formation/llc/certificate-of-formation.md` §"Surfaces affected by formation"](../trevor-robey-inc/00-business-formation/llc/certificate-of-formation.md) for the full list.
+Dependent updates that fire on CA SOS approval: SOS Entity Number → AWS Marketplace seller profile → Datarade vendor profile → bank verification (Mercury) → tax interview (W-9 + AWS) → MSA/SOW/NDA legal-entity blanks. See [`00-business-formation/llc/certificate-of-formation.md` §"Surfaces affected by formation"](00-business-formation/llc/certificate-of-formation.md) for the full list.
 
 ---
 
 ## 0b. Repo topology (as of 2026-05-07)
 
-This repo is a **member of the TrevClaw-Obsidianodus monorepo**, now **local-only** at `/Users/trevorrobey/TrevClaw-Obsidianodus` (the private GitHub remote was **deleted 2026-05-26**; **no git remotes** — durable backup is a `git bundle --all` at `~/TrevClaw-Obsidianodus.bundle`). The previous standalone GitHub remote `https://github.com/trevoralexanderrobey/trevor-robey-inc-agents` is the rollback anchor (tag `pre-monorepo-consolidation-2026-05-07` at SHA `8e782a0`); archive pending. All run paths below are relative to the monorepo root (`/Users/trevorrobey/TrevClaw-Obsidianodus/trevor-robey-inc-agents/`); legacy absolute paths under `/Users/trevorrobey/Code/trevor-robey-inc-agents/` are preserved via back-symlink during the transition.
+This repo is a **member of the TrevClaw-Obsidianodus monorepo**, now **local-only** at `/Volumes/ExtraCurricular/TrevClaw-Obsidianodus` (the private GitHub remote was **deleted 2026-05-26**; **no git remotes** — durable backup is a `git bundle --all` in `~/Downloads/`, e.g. `TrevClaw-Obsidianodus-FULL-backup-*.bundle`). The previous standalone GitHub remote `https://github.com/trevoralexanderrobey/trevor-robey-inc-agents` is the rollback anchor (tag `pre-monorepo-consolidation-2026-05-07` at SHA `8e782a0`); archive pending. All run paths below are relative to this folder inside the monorepo (`/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations/`). *(Historical: the pre-consolidation location was `~/Code/trevor-robey-inc-agents/` on the prior machine; both `trevor-robey-inc-agents/` and `trevor-robey-inc/` were flat-merged into this folder 2026-05-19 — those folder names no longer exist.)*
 
 ToolUniverse is a pinned submodule at [`vendor/tooluniverse/`](vendor/tooluniverse) (SHA `3833b0e`, v1.1.10).
 
@@ -52,13 +52,13 @@ ToolUniverse is a pinned submodule at [`vendor/tooluniverse/`](vendor/tooluniver
 
 **First listing tier**: free Pharmacovigilance Signal Synthesis Sample Pack (10 ICI-class adverse-event signals, 29 verified-identifier rows). Paid Investor Pre-Mortem and Failed Trial Archaeology dossiers list separately after the free tier publishes and validates the seller profile.
 
-Working doc: [`../trevor-robey-inc/05-launch-plan/week-3-may11-may15/aws-listing-go-live.md`](../trevor-robey-inc/05-launch-plan/week-3-may11-may15/aws-listing-go-live.md).
+Working doc: [`05-launch-plan/week-3-may11-may15/aws-listing-go-live.md`](05-launch-plan/week-3-may11-may15/aws-listing-go-live.md).
 
 ---
 
 ## 0. Hero Positioning
 
-**What we sell.** Citation-traced biomedical due diligence dossiers — every claim PMID / NCT / ChEMBL CID / DOI verified at quality-gate time, not flagged as a warning. Refund-backed citation-audit SLA. Powered by OpenClaw (open-source agent framework).
+**What we sell.** Citation-traced biomedical due diligence dossiers — every cited PMID / NCT / ChEMBL CID / DOI is grounded in the source records actually retrieved at runtime and DOI retraction-screened (Crossref) at a report-level gate, not flagged as a warning. Refund-backed citation-audit SLA. Powered by OpenClaw (open-source agent framework).
 
 **Headline offerings (2026-04-30 ladder).**
 
@@ -68,7 +68,7 @@ Working doc: [`../trevor-robey-inc/05-launch-plan/week-3-may11-may15/aws-listing
 
 **Why us, not McKinsey, ChatGPT, Causaly, or AlphaSense.** Four reasons, in order of how often they close deals:
 
-1. **Citation traceability is enforced as a gate, not a warning.** Outputs without verifiable PMID / NCT / ChEMBL CID / DOI fail the build. Regulated buyers need that signal, not a "looks good" note.
+1. **Citation traceability is enforced as a gate, not a warning.** A report-level citation gate cross-checks every cited PMID / NCT / ChEMBL CID / DOI against the source records actually retrieved at runtime; reports whose grounded ratio falls below threshold, or that cite a Crossref-retracted DOI, fail the build. Regulated buyers need that signal, not a "looks good" note.
 2. **Speed SLA**: 5–10 business days for Investor Pre-Mortem, 24–48 hours for Conference Synthesis. McKinsey runs 2–6 weeks at $150K–$750K. We run a fifth of the time at a tenth of the price.
 3. **Manual-only external-action boundary.** Agents prepare, package, and produce evidence — they never autonomously publish, post, transact, log in, or browse. Pharma compliance treats that as a feature.
 4. **Defensible chain of custody.** Powered by OpenClaw with clean-room governance posture (`cleanRoomDerivative: true`), deterministic provenance manifests, and cryptographically chained post-export evidence ledgers. Every artifact is audit-ready.
@@ -91,8 +91,9 @@ Research Input  ──>  Mission (Phase 18)  ──>  Dataset (Phase 19-20)  ─
 
 | Provider | Role | Status | Notes |
 |----------|------|--------|-------|
-| **Claude Code** (MCP bridge) | Primary LLM | **Active** | `claude -p` stdin pipe, claude-sonnet-4-6, authenticated via Claude Max Pro |
-| **LM Studio** (local) | Fallback LLM | **Active** | Runs qwen2.5-coder-7b-instruct on localhost:1234 |
+| **Claude Code** (MCP bridge) | Primary LLM (analyst, synthesizer, default) | **Active** | `claude -p` stdin pipe, claude-sonnet-4-6, flat Claude Max 20× subscription |
+| **Ollama** (local) | scout's backend | **Active + boot-persistent** | qwen2.5:7b-instruct on :11434 (via :11435 TLS proxy) — the only local model |
+| **LM Studio** (local) | staged for analyst | **Installed; model unloaded** | qwen/qwen3.5-9b on :1234 (via :1235 proxy); analyst routes to claude-code for 16 GB stability |
 | **Mock** | Testing | Active | Used for CI and deterministic tests |
 | **ToolUniverse** (MCP) | Biomedical tools | **Active** | 700+ tools via Harvard MIMS, Phase 29 verified |
 
@@ -115,6 +116,27 @@ Available workflow templates: `drug-discovery-full`, `pharmacovigilance-report`,
 4. **Approve release** — `node scripts/approve-release.js --offer-id offer-XXX --confirm`
 5. **Export ZIP** — `node scripts/export-release.js --offer-id offer-XXX --format zip --confirm`
 6. **Upload manually** — Take the ZIP from `workspace/releases/` and submit to your chosen platform
+
+### Citation-integrity layer (post-research engine)
+
+A zero-fabrication citation-integrity layer runs inside the mission pipeline (engages only when there is fetched ground truth):
+
+- **Grounding, not just presence.** The agent-engine persists the citation identifiers *actually retrieved at runtime* by tool-prefetch (plus a per-task verification block) into research-output metadata, and the buildPrompt carries an ABSOLUTE-RULE "ZERO FABRICATION" clause (never invent a PMID/NCT/DOI; emit `[no verifiable citation found]` instead).
+- **Report-level gate.** `workflow-engine.executeMissionStep` cross-checks every identifier cited in the assembled report against the union of runtime-fetched ids. A cite is *grounded* if it was present in fetched evidence, else *ungrounded*. The gate hard-fails (`PHASE30_CITATION_UNVERIFIED`) when the grounded ratio falls below `minGroundedCitationRatio` (default 0.34); surviving ungrounded cites are annotated inline `[UNVERIFIED]`. It writes `citation-verification.json` + `report-annotated.md` to the workflow dir.
+- **DOI retraction screen.** Each cited DOI is checked against Crossref (`/works/{DOI}` — `is-retracted-by` / update-type "retraction"). Any retracted citation hard-stops the report (`PHASE30_CITATION_RETRACTED`). Fail-soft: a Crossref error yields no retractions, so a network blip can never wrongly block a report.
+
+This layer grounds citations against the source records retrieved at runtime and retraction-screens DOIs against Crossref. It does **not** independently re-resolve each citation against its live source database — grounded means present in the fetched evidence, not externally re-verified.
+
+### Stopped-trial archaeology ingestion
+
+A local fetcher (`ctgov-supplemental`, tool name `ctgov_stopped_trials`, routed through a local-fetcher seam in tool-prefetch) searches ClinicalTrials.gov API v2 for TERMINATED / WITHDRAWN / SUSPENDED trials in a condition, returning each trial's `whyStopped` stop-reason text plus protocol change-history (version count + most-amended modules). Each record is NCT-traced (grounded cite) and session-cached.
+
+### New mission-bundle deliverables
+
+On a gate-passing mission, two cost-avoidance deliverables are sealed into the release bundle (registered in `manifest.json`, sealed in `checksums.txt`):
+
+- **`deliverables/citation-integrity.md`** — a graded provenance ledger (grade A/B/C/D from the grounded ratio; F + "BLOCKED" on any retraction; N/A if nothing cited), rendered from the citation-verification block. It is the report's audit-trail spine.
+- **`deliverables/graveyard-memo.md`** — a memo of prior terminated/withdrawn/suspended programs in the indication, each NCT-traced with the sponsor's stated stop reason (or an explicit "(none stated by sponsor)" — never invented), protocol churn, and a resolvable `clinicaltrials.gov/study/<NCT>` link, plus a protocol amendment-risk band (LOW/MODERATE/HIGH) from the change-history version counts. Rendered deterministically from the fetched records (no LLM), so every claim is verifiable. Fully fail-soft and bounded — an absent fetcher, empty indication, or fetch error simply omits it and never blocks a passing report.
 
 ---
 
@@ -228,8 +250,8 @@ Default provider: **Claude Code** (`claude -p` stdin pipe, claude-sonnet-4-6)
 | Provider | Strength | Recommended For |
 |----------|----------|-----------------|
 | **Claude Code** (Sonnet/Opus) | Best reasoning, domain knowledge, synthesis quality | All production tiers, especially Premium/Enterprise |
-| LM Studio (qwen2.5-coder-7b) | Fast, good structured output | Development, testing, rapid iteration |
-| LM Studio (mistral-nemo-12b) | Strong reasoning, good instruction following | Fallback when Claude unavailable |
+| Ollama (qwen2.5:7b-instruct) | Fast local triage; scout's live backend | scout role (literature discovery) |
+| LM Studio (qwen/qwen3.5-9b) | Larger local model; installed but unloaded | staged for analyst — flip back when RAM allows |
 
 Claude Code is the single highest-impact quality driver. Enterprise buyers require the synthesis depth that only large frontier models deliver.
 
@@ -242,6 +264,7 @@ Before submitting any product to a marketplace:
 - [ ] **Run with Claude Code provider** — Use `claude-code` for all production tiers
 - [ ] **Review report** — Verify report.md is 40KB+ with traceable citations throughout
 - [ ] **Verify citation CSV** — Every row should have a real identifier (PMID, NCT, CID, DOI)
+- [ ] **Confirm the citation gate passed** — Check `citation-integrity.md` / `citation-verification.json`: grounded ratio at or above `minGroundedCitationRatio` (default 0.34), no `PHASE30_CITATION_UNVERIFIED` / `PHASE30_CITATION_RETRACTED`, and any `[UNVERIFIED]` annotations reviewed
 - [ ] **Check store copy** — store-copy.md should read like buyer-facing marketing
 - [ ] **Validate schema** — All rows pass `dataset-validator.js` without errors
 - [ ] **Export and inspect ZIP** — Open the release ZIP, verify all expected files present
@@ -513,9 +536,33 @@ These restrictions are baked into the architecture and surface in product ToS, s
 - **Outputs are research artifacts.** Not validated for clinical decision support, pharmaceutical prescribing, regulatory submission, or any professional medical use. Buyers in regulated workflows are responsible for independent verification, validation, and compliance.
 - **No PHI hosted or processed.** All queried sources are public biomedical databases. The system does not host, transmit, or process Protected Health Information. HIPAA exposure is therefore architectural-zero, but buyers using outputs alongside their own PHI remain solely responsible for upstream PHI handling.
 - **Manual-only external actions.** External publication, marketplace submission, customer delivery, and authentication actions are operator-controlled. The system never logs in, browses, transacts, or publishes autonomously. This is a feature for regulated buyers; do not soften it in sales conversations.
-- **Provenance and audit-readiness.** Every release bundle includes a deterministic provenance manifest. Phase 22 submission evidence and Phase 28 delivery evidence are append-only chain-hashed ledgers. Buyers receive audit-ready chain of custody, not a rendered PDF claim of one.
+- **Provenance and audit-readiness.** Every release bundle includes a deterministic provenance manifest, plus a `citation-integrity.md` provenance ledger grading how well the report's cited identifiers are grounded in the source records actually retrieved at runtime (DOIs additionally retraction-screened against Crossref) — not an independent re-resolution of each citation against its live source database. Phase 22 submission evidence and Phase 28 delivery evidence are append-only chain-hashed ledgers. Buyers receive audit-ready chain of custody, not a rendered PDF claim of one.
 - **Upstream data licensing.** Some sources (notably DrugBank) require commercial licenses for redistribution. The pricing tiers above assume buyer holds the appropriate downstream licenses where required; the project does not relicense or sublicense upstream data.
 
 Sales boilerplate disclaimer for outbound emails / landing-page footer:
 
 > "Trevor Robey Inc Agents (the code stack) produces biomedical research artifacts for informational purposes only. Outputs are not validated for clinical decision support and must not be used as the sole basis for prescribing, diagnostic, or regulatory decisions. Buyers are responsible for compliance with the licensing terms of all upstream data sources cited in deliverables. The legal entity providing these deliverables is Trevor Robey Intelligence Network Citations LLC, a California limited liability company, operating under the wordmark 'Trevor Robey, INC.' where INC = Intelligence Network Citations."
+
+---
+
+## Continuation — 2026-06-10 (reality alignment + corrected channel state)
+
+> Added after the 2026-06-10 business-reality audit ([`audit/business-reality-2026-06/00-audit-report.md`](audit/business-reality-2026-06/00-audit-report.md)). The §0c "AWS listing progress" snapshot above is from 2026-05-07 and is now stale; the corrected state is here. Engine ground truth: [`SYSTEM-REALITY.md`](SYSTEM-REALITY.md). Opinions tagged *(recommendation)*.
+
+**Corrected channel state (supersedes §0c):**
+
+| Channel | State (2026-06-10) |
+|---|---|
+| Datarade | Submitted 2026-05-11 → **DECLINED 2026-05-20** ("business not yet established"). Re-apply after establishment proof; no product rework. |
+| AWS Data Exchange | Rejected 2026-05-03; appeal trail **unverified** — no AWS seller emails found in Zoho or Gmail on 2026-06-10; escalation threshold (2026-06-02) passed unactioned. AWS *account* access is set up (SSO + 2 YubiKeys). **Verify-first** before any send — see [`03-platforms/aws-data-exchange/correspondence-2026-05.md`](03-platforms/aws-data-exchange/correspondence-2026-05.md). |
+| HuggingFace | Unblocked, **not pushed** — fastest path to a live citable artifact. |
+| Snowflake (free) | ~1-day approval, **not done**. |
+| Gumroad | Parked. |
+
+**Revenue baseline: $0 · live listings: 0 · discovery calls/NDAs/deals: 0** ([`12-pipeline-tracking/kpis-end-of-month.md`](12-pipeline-tracking/kpis-end-of-month.md)).
+
+**Two corrections to the strategy above:**
+1. *(recommendation)* The lead revenue motion right now is **direct sale**, not marketplaces — both gated channels (Datarade, AWS) declined once and require an "establishment" track record this business doesn't have yet. Direct closed deals *create* that track record, which then re-opens both gates. Marketplaces are a lead-source/credibility layer, not the near-term revenue source.
+2. **DrugBank**: the §14 line "the pricing tiers assume buyer holds the appropriate downstream licenses" is not sufficient on its own — **no DrugBank data may ship and no "DrugBank-licensed pack" may be advertised** until a commercial license is signed. See [`09-source-licenses/drugbank-stop-ship-unless-licensed.md`](09-source-licenses/drugbank-stop-ship-unless-licensed.md).
+
+**Next moves:** the revised 30-day plan lives in [`trevor-robey-inc Commercial Launch Playbook.md`](trevor-robey-inc%20Commercial%20Launch%20Playbook.md) → "REVISED 30-DAY PLAN — 2026-06-10 → 2026-07-10."

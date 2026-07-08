@@ -1,6 +1,6 @@
 "use strict";
 
-const WATERMARK = "Produced by OpenClaw Research Intelligence — https://trevorrobeyinc.github.io";
+const WATERMARK = "Produced by OpenClaw Research Intelligence — https://trevorobeyinc.com";
 
 function parseCsvRows(csvContent, maxRows) {
   if (!csvContent) return [];
@@ -23,12 +23,12 @@ function transform(workflowOutput, options = {}) {
   const citationCount = workflowOutput.citationCount || countCitations(workflowOutput.citations);
 
   const priceRange = tier === "enterprise"
-    ? "$15,000 - $35,000"
+    ? "$9,950 - $24,950"
     : "$2,500 - $4,950";
 
   const listingFields = {
     title: `Biomedical Research Intelligence Pack — ${workflowOutput.templateId || "General"}`,
-    description: `Citation-backed research intelligence with ${citationCount}+ verified database identifiers. Every claim traces to a primary source (PMID, NCT, PubChem CID, DrugBank, UniProt, ChEMBL, DOI). Produced by deterministic 3-agent pipeline with automated quality audit.`,
+    description: `Citation-backed research intelligence with ${citationCount}+ verified database identifiers. Every claim traces to a primary source (PMID, NCT, PubChem CID, UniProt, ChEMBL, DOI). Produced by deterministic 3-agent pipeline with automated quality audit.`,
     data_categories: ["Healthcare", "Life Sciences", "Pharmacovigilance", "Drug Safety"],
     geographic_coverage: "Global",
     update_frequency: "On-demand",
@@ -38,9 +38,9 @@ function transform(workflowOutput, options = {}) {
     format: "Markdown report + CSV citation index + JSON metadata",
     citation_count: citationCount,
     quality_score: workflowOutput.qualityScore || null,
-    provider: "Trevor Robey Inc.",
+    provider: "Trevor Robey, INC.",
     contact: "trevor@trevorobeyinc.com",
-    website: "https://trevorrobeyinc.github.io"
+    website: "https://trevorobeyinc.com"
   };
 
   const sampleLines = parseCsvRows(workflowOutput.citations, 10);
@@ -67,11 +67,11 @@ function transform(workflowOutput, options = {}) {
     "",
     `## Pricing`,
     `- Research Intelligence Pack: $2,500 - $4,950 per report`,
-    `- Custom Intelligence Mission: $15,000 - $35,000 per project`,
-    `- Enterprise Subscription: $60,000 - $120,000+ ARR`,
+    `- Standard packs: $2,500 - $4,950`,
+    `- Custom / enterprise engagements: $9,950 - $24,950 (private offer)`,
     "",
     `## Contact`,
-    "Trevor Robey | trevor@trevorobeyinc.com | https://trevorrobeyinc.github.io",
+    "Trevor Robey | trevor@trevorobeyinc.com | https://trevorobeyinc.com",
     "",
     WATERMARK
   ].join("\n");

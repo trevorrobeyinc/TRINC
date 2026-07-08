@@ -20,7 +20,7 @@
 #
 # Logs:
 #   Event log (one line per real upgrade event):
-#     /Users/trevorrobey/THE Copilot in Obsidian Everything/logs/copilot-update-watcher.log
+#     /Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Copilot-Everything/logs/copilot-update-watcher.log
 #   Diagnostic stdout/stderr (full launchd output):
 #     ~/Library/Logs/copilot-fork-update-watcher.{out,err}.log
 #
@@ -31,7 +31,7 @@
 set -euo pipefail
 
 # Absolute paths — launchd has no cwd and minimal PATH.
-WORKSPACE="/Users/trevorrobey/TrevClaw-Obsidianodus/Copilot-Everything"
+WORKSPACE="/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Copilot-Everything"
 SYNC_SCRIPT="$WORKSPACE/scripts/sync-copilot-fork.sh"
 DEPLOY_MANIFEST="/Volumes/ExtraCurricular/My Digital Garden/.obsidian/plugins/copilot/manifest.json"
 EVENT_LOG="$WORKSPACE/logs/copilot-update-watcher.log"

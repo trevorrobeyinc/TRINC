@@ -146,7 +146,15 @@ function createResearchOutputManager(options = {}) {
         : {},
       error_code: safeString(metadata.error_code),
       error_message: safeString(metadata.error_message),
-      rlhf_local_mirror_path: safeString(metadata.rlhf_local_mirror_path)
+      rlhf_local_mirror_path: safeString(metadata.rlhf_local_mirror_path),
+      // Citation-verification fields (Slice 1): the live-fetched identifier set + the per-task
+      // grounded/ungrounded summary, so the report-level citation gate can read its ground truth.
+      fetched_citation_ids: Array.isArray(metadata.fetched_citation_ids)
+        ? metadata.fetched_citation_ids.map((x) => String(x))
+        : [],
+      citation_verification: isPlainObject(metadata.citation_verification)
+        ? canonicalize(metadata.citation_verification)
+        : {}
     });
     writeJson(metadataPath, normalizedMetadata);
 

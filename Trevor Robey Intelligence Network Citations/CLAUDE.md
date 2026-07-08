@@ -77,14 +77,18 @@ node scripts/generate-offer.js --source mission-XXX --product-line research_pack
 node scripts/approve-release.js --offer-id offer-XXX --confirm
 node scripts/export-release.js --offer-id offer-XXX --format zip --confirm
 
-# Deploy landing page updates to Cloudflare Workers (project: openclaw-landing-deploy)
-# 1. Re-stage clean deploy folder
-rm -rf /Users/trevorrobey/openclaw-landing-deploy && mkdir -p /Users/trevorrobey/openclaw-landing-deploy
-cp workspace/collateral/landing-page/index.html /Users/trevorrobey/openclaw-landing-deploy/
-# 2. Deploy via dashboard: https://dash.cloudflare.com/f3b10bacc7e94c72e445b078433aa1d4/workers/services/view/openclaw-landing-deploy/production
-#    -> "New deployment" -> drag /Users/trevorrobey/openclaw-landing-deploy/ -> Deploy
-# 3. Or via Wrangler (interactive): cd /Users/trevorrobey/openclaw-landing-deploy && npx --yes wrangler@latest deploy
-#    (wrangler.jsonc already in folder pins name=openclaw-landing-deploy, assets=.)
+# Deploy landing page updates to Cloudflare Workers — LIVE WORKER = shy-grass-fccd
+# (The staging FOLDER is named "openclaw-landing-deploy" — a legacy prefix — but its wrangler.jsonc
+#  pins name="shy-grass-fccd", which is the worker that serves trevorobeyinc.com. Verified 2026-06-30
+#  against the live wrangler.jsonc. A separate Cloudflare worker literally named "openclaw-landing-deploy",
+#  if it exists, is NOT the live site — it is for something else.)
+# 1. Copy the page source(s) into the served assets dir (assets.directory = ./public):
+cp workspace/collateral/landing-page/index.html  /Users/myhome/openclaw-landing-deploy/public/
+cp workspace/collateral/landing-page/intake.html /Users/myhome/openclaw-landing-deploy/public/   # -> /intake.html
+# 2. Deploy via dashboard: https://dash.cloudflare.com/f3b10bacc7e94c72e445b078433aa1d4/workers/services/view/shy-grass-fccd/production
+#    -> "New deployment" -> drag /Users/myhome/openclaw-landing-deploy/ -> Deploy
+# 3. Or via Wrangler: cd /Users/myhome/openclaw-landing-deploy && npx --yes wrangler@latest deploy
+#    (wrangler.jsonc pins name="shy-grass-fccd", assets.directory="./public")
 
 # Distribute workflow output to all platforms
 node scripts/distribute.js --workflow-id <id> --targets all --confirm
@@ -127,7 +131,23 @@ node scripts/distribute.js --workflow-id <id> --targets datarade,kaggle,training
 
 Phases 1-33 are implemented. Phase 26 bridge consolidation is complete (execution router, principal context, fail-closed enforcement). Phase 29 (Harvard ToolUniverse biomedical MCP) is active — startup integrity hooked into MCP init chain (warn-on-failure, non-blocking), 58/58 tests passing, 2,116 biomedical tools (vendor/tooluniverse v1.1.10) accessible via MCP. Phase 30 (Workflow Engine) provides single-command end-to-end orchestration with 6 workflow templates, 6 specialized agent roles, and quality auditor. Phase 31 (Enterprise Delivery) adds Research REST API, scheduled workflows, and usage metering. Phase 33 (Claude Code MCP Provider) replaces LM Studio as the primary LLM provider — Claude Code runs via `claude -p` stdin pipe using the user's authenticated session (Claude Max Pro), producing biomedical output with real verifiable citations that pass quality gates.
 
-**ToolUniverse Live Pre-Fetch**: When workflows run, the tool-prefetch module (`openclaw-bridge/core/tool-prefetch.js`) queries ToolUniverse SMCP for each agent role before prompt construction. Results are injected as synthetic input documents marked `tooluniverse://`. The LLM prompt includes a LIVE DATABASE CONTEXT instruction prioritizing live data over training knowledge. Role-to-tool mappings configured in `config/tool-prefetch-map.json`. Graceful degradation: if ToolUniverse is unavailable, workflows continue with parametric-only output.
+**ToolUniverse Live Pre-Fetch**: When workflows run, the tool-prefetch module (`openclaw-bridge/core/tool-prefetch.js`) queries ToolUniverse SMCP for each agent role before prompt construction. Results are injected as synthetic input documents marked `tooluniverse://`. The LLM prompt includes a LIVE DATABASE CONTEXT instruction prioritizing live data over training knowledge. Role-to-tool mappings configured in `config/tool-prefetch-map.json`. Graceful degradation: if ToolUniverse is unavailable, workflows continue with parametric-only output. In addition to ToolUniverse, `createToolPrefetch` accepts a `localFetchers` seam for in-process fetchers that are not ToolUniverse tools (see Citation Integrity Layer below).
+
+### Citation Integrity Layer
+
+Citations are **grounded in the source records actually retrieved at runtime + DOI retraction-screened (Crossref)** — they are not independently re-resolved against a live external database. The layer has these components:
+
+- **Citation gate** (`openclaw-bridge/core/citation-gate.js`, wired into `agent-engine.js` and `workflow-engine.js`): `agent-engine` persists `fetched_citation_ids` (the identifiers actually retrieved at runtime by tool-prefetch) plus a per-task `citation_verification` block into research-output metadata, and `buildPrompt` carries an ABSOLUTE-RULE "ZERO FABRICATION" clause (never invent a PMID/NCT/DOI — say `[no verifiable citation found]` instead). `workflow-engine.executeMissionStep` runs a report-level gate (`verifyReportCitations`) that cross-checks every identifier cited in the assembled report against the union of runtime-fetched ids: a cited id is "grounded" if it was present in fetched evidence, else "ungrounded" (likely model-introduced). It hard-fails / refuses to ship (`PHASE30_CITATION_UNVERIFIED`) when the grounded ratio falls below `minGroundedCitationRatio` (`config/agent-config.json`; default `0.34`). It writes `citation-verification.json` + `report-annotated.md` to the workflow dir, annotating surviving ungrounded cites inline `[UNVERIFIED]`. Engages only when there is fetched ground truth.
+- **Retraction screen** (`openclaw-bridge/mcp/crossref-retraction/crossref-retraction.js`): checks each cited DOI against Crossref `/works/{DOI}` (`relation.is-retracted-by` or update-to type "retraction"). A report citing any retracted paper hard-stops (`PHASE30_CITATION_RETRACTED`). Fail-soft — a Crossref error yields no retractions, so a network blip can never wrongly block a report. Wired into the gate via `researchRuntime`.
+- **DOI extraction** (`openclaw-bridge/core/citation-extractor.js`): the DOI regex stops at non-DOI terminators and strips trailing sentence punctuation after capture (a DOI never ends in `.`/`,`/`;`/`:`), preventing trailing `]]`/`;`/`.` from inflating/duplicating DOIs and deflating the grounded ratio.
+
+**Stop-reason archaeology + change-history corpus**: `openclaw-bridge/mcp/ctgov-supplemental/ctgov-supplemental.js` is a local fetcher (not ToolUniverse) that searches ClinicalTrials.gov API v2 for TERMINATED/WITHDRAWN/SUSPENDED trials in a condition, returning each trial's `whyStopped` text plus protocol change-history (version count + most-amended modules) from the internal history endpoint. It has a session cache and is routed into role prefetch through the `localFetchers` seam in `tool-prefetch.js` under tool name `ctgov_stopped_trials`; each record is NCT-traced (grounded cite).
+
+**Integrity-driven deliverables** (shipped in every mission bundle, registered in `manifest.json` and sealed in `checksums.txt`):
+- `deliverables/citation-integrity.md` — `openclaw-bridge/monetization/integrity-rating.js` `buildIntegrityReport(citation_verification)` renders a graded provenance ledger (grade A/B/C/D from the grounded ratio; F + "BLOCKED" if any retraction; N/A if nothing cited). It is the report's audit-trail spine.
+- `deliverables/graveyard-memo.md` — `openclaw-bridge/monetization/graveyard-memo.js` `buildGraveyardMemo(stoppedTrials, {indication})` renders a memo of prior terminated/withdrawn/suspended programs in the indication, each NCT-traced, with the sponsor's stated stop reason (or an explicit "(none stated by sponsor)" — never invented), protocol churn, and a resolvable `clinicaltrials.gov/study/<NCT>` link. `buildAmendmentRisk(stoppedTrials)` adds a protocol amendment-risk band (LOW/MODERATE/HIGH) from the change-history median/max version count + most-amended modules. Both are rendered deterministically from the fetched records (no LLM), so every claim is verifiable.
+
+Wiring: on a gate-passing mission, `workflow-engine.executeMissionStep` re-fetches the indication's stopped trials (session-cache hit, no extra CT.gov call), builds both memos (fully fail-soft + bounded — an absent fetcher / empty indication / fetch error simply omits them and never blocks a passing report), persists `graveyard-memo.md` to the workflow dir, and attaches them to the result; `executeOfferStep` threads them into `source_context`; the deliverable-packager ships `graveyard-memo.md` and registers `artifactRefs.graveyard_memo`. `_workflow-runtime` exposes the same `ctgovSupplemental` + `crossrefRetraction` instances on `researchRuntime`.
 
 **Scholar Gateway (Semantic Scholar) — first-class literature lane**: The `SemanticScholar_search_papers` tool from ToolUniverse is the canonical scholar-gateway connector. It is wired into the prefetch map for **scout**, **analyst**, **literature_reviewer**, and **competitive_intel_analyst** roles — every role that consumes peer-reviewed literature pulls Semantic Scholar abstracts and citation context alongside PubMed and EuropePMC, not as a fallback. Complementary scholar paths exist (`openclaw-bridge/mcp/semantic-scholar-mcp.js` in-process JS, `openclaw-bridge/mcp/arxiv-mcp.js`, plus 7 vendored ToolUniverse `SemanticScholar_*` tools at `vendor/tooluniverse/src/tooluniverse/tools/`); when adding new literature-aware roles, add Semantic Scholar to the prefetch entry by default rather than treating it as optional. Live-MCP smoke tests at `audit/evidence/mcp-live/semantic-scholar-*.json`.
 
@@ -158,6 +178,7 @@ Key phases for daily work:
 - **Provenance tracking**: Every produced row includes source metadata
 - **Immutable config after boot**
 - **Fail-closed execution**: Missing router or missing principal context results in job denied
+- **Fail-closed citations**: A report whose grounded-citation ratio is below `minGroundedCitationRatio` refuses to ship (`PHASE30_CITATION_UNVERIFIED`); a report citing any retracted DOI hard-stops (`PHASE30_CITATION_RETRACTED`). The retraction screen is fail-soft (a Crossref error never wrongly blocks). See Citation Integrity Layer.
 - **Enterprise brand consistency**: All buyer-facing materials use Bloomberg Terminal dark aesthetic (#0a0a0f bg, #4a90d9 accent), verified-citation messaging, "Trevor Robey, INC." wordmark (INC = Intelligence Network Citations) over the Trevor Robey Intelligence Network Citations LLC legal entity
 - **Offering ladder (2026-04-30)**: Investor Pre-Mortem primary ($9,950 / $14,950 / $19,950), Failed Trial Archaeology flanking ($14,950), tactical SKUs ($4,950 Conference Synthesis Brief, $4,950 Trial Design Benchmark Pack, $9,950–$24,950 Cross-Silo Connector Report, $2,500 Plain-Language Patient Brief), Pharmacovigilance Pack tactical demoted ($2,500–$4,950). Tactical SKUs sold via landing-page mailto and manual ZIP; primary SKUs via direct outbound and discovery calls. Existing Datarade / HuggingFace / AWS marketplace listings preserved at tactical-tier prices.
 
@@ -291,9 +312,9 @@ GitHub's built-in secret scanning provides push protection for provider-specific
 
 - **Live URL**: https://trevorobeyinc.com (also https://www.trevorobeyinc.com)
 - **Source**: `workspace/collateral/landing-page/index.html` (self-contained, zero dependencies)
-- **Hosting**: Cloudflare Workers static-assets, project name `openclaw-landing-deploy` under Cloudflare account `f3b10bacc7e94c72e445b078433aa1d4`. Domain `trevorobeyinc.com` is on Cloudflare Registrar; custom domain attached via Worker Settings → Domains & Routes (cookie-auth Universal SSL, no API key, no GitHub). Verified serving production traffic 2026-05-06.
+- **Hosting**: Cloudflare Workers static-assets. **Live worker = `shy-grass-fccd`** (Cloudflare account `f3b10bacc7e94c72e445b078433aa1d4`), deployed from the local staging folder `/Users/myhome/openclaw-landing-deploy/` (served assets live in its `public/` subdir). The folder's legacy name `openclaw-landing-deploy` is NOT the worker name — the folder's `wrangler.jsonc` pins `name = "shy-grass-fccd"` (verified 2026-06-30 against the live file; a separate worker literally named `openclaw-landing-deploy`, if any, is for something else). Domain `trevorobeyinc.com` is on Cloudflare Registrar; custom domain attached via Worker Settings → Domains & Routes (cookie-auth Universal SSL, no API key, no GitHub). Verified serving production traffic 2026-05-06.
 - **Old URL (retired)**: https://trevorrobeyinc.github.io — superseded by trevorobeyinc.com on 2026-04-26. The GitHub Pages repo can be archived.
-- **Deployment**: Re-stage `/Users/trevorrobey/openclaw-landing-deploy/` from `workspace/collateral/landing-page/`, drag into Cloudflare dashboard's "New deployment" UI, or `cd /Users/trevorrobey/openclaw-landing-deploy && npx --yes wrangler@latest deploy` (the wrangler.jsonc in that folder pins `name = "openclaw-landing-deploy"` and `assets.directory = "."`). Site updates within ~30 seconds. The earlier reference to a `shy-grass-fccd` worker was stale — that name does not serve trevorobeyinc.com.
+- **Deployment**: Copy the page source(s) from `workspace/collateral/landing-page/` into `/Users/myhome/openclaw-landing-deploy/public/`, then drag the `/Users/myhome/openclaw-landing-deploy/` folder into the **`shy-grass-fccd`** project's "New deployment" UI, or `cd /Users/myhome/openclaw-landing-deploy && npx --yes wrangler@latest deploy` (the wrangler.jsonc pins `name = "shy-grass-fccd"` and `assets.directory = "./public"`). Site updates within ~30 seconds. **Correction (2026-06-30):** the live worker IS `shy-grass-fccd` — an earlier note here wrongly called it "stale" and credited `openclaw-landing-deploy` (that is only the folder name). Confirmed against the live `wrangler.jsonc`; this also matches `README.brand.md`, `brand-system.md`, and the brand spec.
 - **Workflow**: Edit source HTML in this repo, copy to Pages repo, push. Site updates within ~60 seconds.
 
 ### Brand Identity

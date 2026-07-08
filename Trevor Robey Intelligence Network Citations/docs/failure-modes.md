@@ -614,3 +614,24 @@ Handling:
 - Session validation returns `valid: false` and `token_valid: false`.
 - Access checks fail closed even if session record remains present.
 - Operator may explicitly invalidate session for immutable audit trail continuity.
+
+## Phase 30 Citation Grounding Unverified
+Detection:
+- Report-level gate (`verifyReportCitations`) cross-checks every identifier cited in the assembled report against the union of identifiers actually retrieved at runtime by tool-prefetch (`fetched_citation_ids`).
+- A cited identifier is "grounded" if it was present in fetched evidence, otherwise "ungrounded" (likely model-introduced).
+- Grounded ratio falls below `minGroundedCitationRatio` (agent-config default `0.34`).
+- Gate engages only when there is fetched ground truth to check against.
+
+Handling:
+- Fail closed with `PHASE30_CITATION_UNVERIFIED`; refuse to ship the report.
+- Write `citation-verification.json` and `report-annotated.md` to the workflow dir; surviving ungrounded cites are annotated inline `[UNVERIFIED]`.
+- Grounding means the cite was present in the source records retrieved at runtime (plus DOI retraction screening); it does not mean each citation was independently re-resolved against its live external source database.
+
+## Phase 30 Retracted Citation
+Detection:
+- Each cited DOI is checked against Crossref (`/works/{DOI}`, `relation.is-retracted-by` or `update-to` type `retraction`).
+- The report cites at least one retracted paper.
+
+Handling:
+- Hard-stop with `PHASE30_CITATION_RETRACTED`.
+- Fail-soft on Crossref errors: a lookup failure yields no retractions, so a network blip can never wrongly block a report.

@@ -37,6 +37,12 @@ function sleep(ms) {
 
 function createToolPrefetch(options = {}) {
   const toolUniverseMcp = options.toolUniverseMcp;
+  // Slice 2 — local-fetcher seam: tool_name -> async(args) => records[]. Lets the role prefetch
+  // call corpora ToolUniverse doesn't surface (ClinicalTrials.gov stop-reason archaeology,
+  // change-history, retraction checks) through the SAME prefetch path. A tool_name found here is
+  // routed to the local fetcher instead of ToolUniverse; its records flow through renderRecord
+  // and into the citation gate's fetched_citation_ids exactly like ToolUniverse results.
+  const localFetchers = isPlainObject(options.localFetchers) ? options.localFetchers : {};
   const logger = isPlainObject(options.logger) ? options.logger : { info() {}, warn() {}, error() {} };
   const rootDir = options.rootDir || process.cwd();
   const timeProvider = options.timeProvider && typeof options.timeProvider.nowMs === "function"
@@ -88,7 +94,9 @@ function createToolPrefetch(options = {}) {
         reject(new Error(`Tool call timed out after ${timeoutMs}ms`));
       }, timeoutMs);
 
-      toolUniverseMcp.execute(input, {})
+      ((input && input.tool_name && typeof localFetchers[input.tool_name] === "function")
+        ? Promise.resolve().then(() => localFetchers[input.tool_name](input.arguments || {}))
+        : toolUniverseMcp.execute(input, {}))
         .then((result) => {
           clearTimeout(timer);
           resolve(result);
@@ -111,6 +119,10 @@ function createToolPrefetch(options = {}) {
     const lines = [];
     if (title) lines.push(`### ${title}`);
     if (meta.length) lines.push(`*${meta.join(" · ")}*`);
+    if (record.whyStopped || record.why_stopped) lines.push(`**Stopped:** ${record.whyStopped || record.why_stopped}`);
+    if (record.changeSummary && record.changeSummary.versions) {
+      lines.push(`**Protocol history:** ${record.changeSummary.versions} versions; most-amended: ${(record.changeSummary.amended_modules || []).join(", ")} (${record.changeSummary.first}–${record.changeSummary.last})`);
+    }
     if (record.abstract) lines.push(record.abstract);
     if (record.description) lines.push(record.description);
     if (record.doi) lines.push(`doi: ${record.doi}`);
@@ -200,10 +212,37 @@ function createToolPrefetch(options = {}) {
         }
 
         if (action === "executeTool" && isPlainObject(input.arguments)) {
-          const hasEmptyRequired = Object.values(input.arguments).some((v) => {
-            return typeof v === "string" && v.trim().length === 0;
+          // Operator-authorized live query (2026-06-10): drug-specific template vars
+          // (compound_name/indication/therapeutic_area) are absent for topic-only
+          // workflows like general-research-pack, leaving the free-text search fields
+          // empty. Fall back to the `topic` input so PubMed/ClinicalTrials/Semantic
+          // Scholar/EuropePMC are actually queried instead of skipped.
+          const topic = safeString(workflowInputs && workflowInputs.topic);
+          const PRIMARY_TEXT_FIELDS = ["query", "query_term"];
+          if (topic) {
+            for (const field of PRIMARY_TEXT_FIELDS) {
+              if (typeof input.arguments[field] === "string" && input.arguments[field].trim().length === 0) {
+                input.arguments[field] = topic;
+              }
+            }
+          }
+          // Drop empty/whitespace secondary args (condition, intervention, drugName,
+          // medicinalproduct, ...) so an absent field no longer blocks an otherwise
+          // usable query.
+          for (const key of Object.keys(input.arguments)) {
+            const value = input.arguments[key];
+            if (typeof value === "string" && value.trim().length === 0) {
+              delete input.arguments[key];
+            }
+          }
+          // Skip only when nothing queryable remains — i.e. no non-empty string arg.
+          // This still gracefully skips tools that can't be driven by a free-text
+          // topic (e.g. OpenTargets drugName, FAERS medicinalproduct) when those are
+          // the only args and were empty.
+          const hasQueryable = Object.values(input.arguments).some((v) => {
+            return typeof v === "string" && v.trim().length > 0;
           });
-          if (hasEmptyRequired) {
+          if (!hasQueryable) {
             logger.info({
               event: "tool_prefetch_skipped_empty_args",
               role,
@@ -214,6 +253,15 @@ function createToolPrefetch(options = {}) {
         }
 
         const result = await callWithTimeout(input, PER_CALL_TIMEOUT_MS);
+        if (process.env.OPENCLAW_TRACE) {
+          const _d = result && result.data;
+          logger.info({
+            event: "trace_tu_call", role, tool_name: input.tool_name, action, query: resolvedQuery,
+            result_status: result && result.status,
+            data_kind: Array.isArray(_d) ? `array[${_d.length}]` : (_d && typeof _d === "object" ? `object{${Object.keys(_d).join(",")}}` : typeof _d),
+            result_keys: result && typeof result === "object" ? Object.keys(result).join(",") : ""
+          });
+        }
         const labelBase = input.tool_name || `${action}-${resolvedQuery.replace(/\s+/g, "-").slice(0, 40)}`;
         const labelQuery = resolvedQuery || JSON.stringify(input.arguments || {}).slice(0, 120);
         const doc = formatToolResult(labelBase, result, labelQuery);
@@ -232,6 +280,15 @@ function createToolPrefetch(options = {}) {
       if (i < queries.length - 1) {
         await sleep(RATE_LIMIT_MS);
       }
+    }
+
+    if (results.length === 0 && queries.length > 0) {
+      logger.warn({
+        event: "tool_prefetch_zero_docs",
+        role,
+        query_count: queries.length,
+        note: "queries ran but returned no documents — the agent prompt will lack live-data grounding, so citations may be model-generated rather than runtime-verified"
+      });
     }
 
     setCache(cacheKey, results);

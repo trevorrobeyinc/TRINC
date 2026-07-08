@@ -2,6 +2,28 @@
 
 ---
 
+## SearXNG gate close-out — Phases 1–2 (2026-07-06; STOP at checkpoint before Phase 3)
+
+**Phase 1 — composition test** (extend `tests/core/phase30-workflow-engine.test.js`, reuse its harness):
+- [ ] STUB searchFn OFFLINE via `require.cache` override of `openclaw-bridge/mcp/searxng-mcp/searchfn.js`
+  (no production seam); beforeEach install + record calls, afterEach restore.
+- [ ] Mission via canned `agentSpawner.spawnMission` → `{ok:true, subtask_results:[{subtask_id,output_path}]}`
+  pointing at temp files (cited text = density-pass; uncited prose = density-fail).
+- [ ] (a) density-fail → searchFn 0× + `result.error.code === "PHASE30_QUALITY_BELOW_THRESHOLD"`.
+- [ ] (b) pass → `result.ok`, `artifacts.quality_report.section_coverage` w/ per-section tiers, searchFn 1×/section.
+- [ ] (c) one section zero → `result.error.code === "PHASE30_CITATION_COVERAGE_ZERO"` (throw propagates through dispatch).
+- [ ] (d) query passed to searchFn contains the primary subject (from inputs.therapeutic_area).
+
+**Phase 2 — arXiv/preprint grade fix** (`grade.js` only):
+- [ ] preprint predicate = `c.subtype === "preprint" || c.type === "arxiv"` (confirmed vs connector grammar; no re-port).
+- [ ] order: A = url-source AND NOT preprint; B = (url-source preprint) OR (text-source); C = primary_domain; D = else.
+- [ ] update any adapter test that assumed url-preprint→A; ADD url-arXiv → B (not A, not D). Keep T1–T9 green.
+- [ ] DEFER (board flag): off-domain preprints = relevance, not grading.
+
+**Checkpoint:** full suite + lint + footprint + lessons + board Log → STOP. Phase 3 only after "continue".
+
+---
+
 ## Operational Readiness Report
 
 Audited 2026-03-30. Every pipeline was tested with real commands. Nothing was fixed — observe and report only.
@@ -79,6 +101,80 @@ Full report: `workspace/audit/phase30-31-validation-report.md`
 - [ ] **ToolUniverse tools not invoked during missions** — LLM adapter does plain text completion. No function-calling protocol. Roles get prompts mentioning tools but can't call them. (2-4 weeks)
 - [ ] **7B model insufficient for Premium tier** — Generic output, no real citations, no database IDs. Need Claude/GPT-4 for Premium/Enterprise. (30 min config + API key)
 - [ ] **Create WORKFLOW_CATALOG.md** — Referenced in plan but never created. (1 hr)
+
+---
+
+## Post-Research Engine — Citation Integrity Layer (SHIPPED 2026-06-12)
+
+Zero-fabrication citation-integrity layer + cost-avoidance deliverables. All shipped and
+unit-tested (316/316), and live-verified on an armed heart-failure run (workflow 6/6 steps,
+grounded ratio 1.0, 8 stopped trials retrieved, integrity grade A, both new deliverables
+sealed in the release bundle). Citations are **grounded in the source records actually
+retrieved at runtime + DOI retraction-screened (Crossref)** — they are NOT independently
+re-resolved against a live external database (per-citation external re-resolution is not built).
+
+### Shipped
+
+- [x] **Citation gate** — `openclaw-bridge/core/citation-gate.js` + `agent-engine.js` +
+  `workflow-engine.js`. agent-engine persists `fetched_citation_ids` (identifiers actually
+  retrieved at runtime by tool-prefetch) + a per-task `citation_verification` block into
+  research-output metadata; `buildPrompt` carries an ABSOLUTE-RULE "ZERO FABRICATION" clause
+  (never invent a PMID/NCT/DOI; emit `[no verifiable citation found]` instead).
+  `workflow-engine.executeMissionStep` runs a report-level gate (`verifyReportCitations`)
+  that cross-checks every cited identifier against the union of runtime-fetched ids: a cited
+  id is "grounded" if present in fetched evidence, else "ungrounded" (likely model-introduced).
+  Hard-fails (`PHASE30_CITATION_UNVERIFIED`) when the grounded ratio is below
+  `minGroundedCitationRatio` (agent-config default 0.34); engages only when there is fetched
+  ground truth. Writes `citation-verification.json` + `report-annotated.md` to the workflow
+  dir; surviving ungrounded cites are annotated inline `[UNVERIFIED]`.
+- [x] **Retraction screen** — `openclaw-bridge/mcp/crossref-retraction/crossref-retraction.js`.
+  Checks each cited DOI against Crossref `/works/{DOI}` (`relation.is-retracted-by` or
+  update-to type "retraction"). A report citing any retracted paper hard-stops
+  (`PHASE30_CITATION_RETRACTED`). Fail-soft: Crossref errors yield no retractions, so a
+  network blip can never wrongly block a report. Wired into the gate via `researchRuntime`.
+- [x] **Corpora ingestion: stop-reason archaeology + change-history** —
+  `openclaw-bridge/mcp/ctgov-supplemental/ctgov-supplemental.js`, a local fetcher (not
+  ToolUniverse) that searches ClinicalTrials.gov API v2 for TERMINATED/WITHDRAWN/SUSPENDED
+  trials in a condition, returning each trial's `whyStopped` text plus protocol change-history
+  (version count + most-amended modules) from the internal history endpoint. Has a session
+  cache. Routed into role prefetch via a new local-fetcher seam in `tool-prefetch.js`
+  (`createToolPrefetch` `options.localFetchers`), tool_name `ctgov_stopped_trials`. Each record
+  is NCT-traced (grounded cite).
+- [x] **Citation Integrity ledger deliverable** — `openclaw-bridge/monetization/integrity-rating.js`.
+  `buildIntegrityReport(citation_verification)` renders a graded provenance ledger (grade
+  A/B/C/D from the grounded ratio; F + "BLOCKED" if any retraction; N/A if nothing cited),
+  shipped as `deliverables/citation-integrity.md` in every mission bundle (registered in
+  `manifest.json` + sealed in `checksums.txt`).
+- [x] **Graveyard memo + amendment-risk deliverable** —
+  `openclaw-bridge/monetization/graveyard-memo.js`. `buildGraveyardMemo(stoppedTrials,{indication})`
+  renders `deliverables/graveyard-memo.md`: prior terminated/withdrawn/suspended programs in the
+  indication, each NCT-traced, with the sponsor's stated stop reason (or explicit
+  "(none stated by sponsor)" — never invented), protocol churn, and a resolvable
+  `clinicaltrials.gov/study/<NCT>` link. `buildAmendmentRisk(stoppedTrials)` renders a protocol
+  amendment-risk band (LOW/MODERATE/HIGH) from change-history median/max version count +
+  most-amended modules. Rendered deterministically from fetched records (no LLM). Wiring:
+  `executeMissionStep` re-fetches the indication's stopped trials (session-cache hit) on a
+  gate-passing mission, builds both memos (fail-soft + bounded — absent fetcher/empty
+  indication/fetch error simply omits them and never blocks a passing report), persists
+  `graveyard-memo.md`, threads them through `executeOfferStep` source_context; the
+  deliverable-packager ships `graveyard-memo.md` and registers `artifactRefs.graveyard_memo`.
+- [x] **DOI extraction fix** — `openclaw-bridge/core/citation-extractor.js`. The DOI regex now
+  stops at non-DOI terminators and strips trailing sentence punctuation after capture, so
+  trailing `]]` / `;` / `.` is no longer captured (had deflated the grounded ratio and
+  duplicated DOIs). Live: raised the same deliverable's integrity grade from C/0.69 to A/1.0.
+
+### New error codes / config / deliverables
+
+- New error codes: `PHASE30_CITATION_UNVERIFIED`, `PHASE30_CITATION_RETRACTED`.
+- New config: `minGroundedCitationRatio` (agent-config; default 0.34).
+- New mission-bundle deliverables: `deliverables/citation-integrity.md`,
+  `deliverables/graveyard-memo.md`.
+- Tests (316/316): `tests/core/{citation-extractor,citation-gate,ctgov-supplemental,crossref-retraction,integrity-rating,graveyard-memo,phase19-deliverable-packager}.test.js`.
+
+> Note on quality gap #80 ("no real citations, no database IDs"): citations cited in an
+> assembled report are now gated against runtime-fetched ground truth and DOI
+> retraction-screened, and stopped-trial corpora records are NCT-traced. This does not by
+> itself supply a live LLM (gap #1) — the gate engages only when there IS fetched ground truth.
 
 ---
 

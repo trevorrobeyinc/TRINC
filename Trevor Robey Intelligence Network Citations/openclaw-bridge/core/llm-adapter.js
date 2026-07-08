@@ -194,7 +194,7 @@ async function callLmStudio(prompt, providerConfig) {
   // the call fails, surface a structured diagnostic via tls-diagnostic.js —
   // NEVER fall back to http://.
   const endpoint = safeString(providerConfig.endpoint) || "https://127.0.0.1:1235/v1/chat/completions";
-  const model = safeString(providerConfig.model) || "qwen2.5-coder-7b-instruct";
+  const model = safeString(providerConfig.model) || "qwen/qwen3.5-9b";
 
   const requestBody = {
     model,
@@ -295,9 +295,15 @@ async function callClaudeCode(prompt, providerConfig, logger) {
 
   try {
     const stdout = await new Promise((resolve, reject) => {
+      // Hardening (audit gdrive-oauth / F-SUB2): don't propagate the high-value
+      // Google refresh token / client secret into the claude subprocess.
+      const claudeEnv = { ...process.env };
+      for (const k of Object.keys(claudeEnv)) {
+        if (/^GOOGLE_DRIVE_|^GOOGLE_CLIENT_SECRET$/i.test(k)) delete claudeEnv[k];
+      }
       const child = spawnChild(claudeCommand, args, {
         stdio: ["pipe", "pipe", "pipe"],
-        env: { ...process.env },
+        env: claudeEnv,
         cwd: process.cwd()
       });
 
@@ -397,7 +403,14 @@ function createLLMAdapter(options = {}) {
 
   async function complete(prompt, completionOptions = {}) {
     const promptText = String(prompt || "");
-    const model = safeString(completionOptions.model) || defaultModel;
+    // Per-call provider override → enables per-role backend routing (multi-agent layer).
+    // When no override is supplied, falls back to the adapter's bound provider, so existing
+    // single-provider behavior is unchanged. getProviderInfo() still reports the bound default.
+    const callProvider = safeString(completionOptions.provider) || provider;
+    const callConfig = callProvider === provider
+      ? providerConfig
+      : resolveProviderConfig(options.config, callProvider);
+    const model = safeString(completionOptions.model) || safeString(callConfig.model) || defaultModel;
     const skillsContext = completionOptions.skillsContext && typeof completionOptions.skillsContext === "object"
       ? canonicalize(completionOptions.skillsContext)
       : { local_skills: [], hosted_skill_refs: [] };
@@ -446,22 +459,23 @@ function createLLMAdapter(options = {}) {
     }
 
     let result;
-    if (provider === "mock") {
+    try {
+    if (callProvider === "mock") {
       const mock = buildMockResponse(promptText, model);
       result = { text: mock.text, tokenCount: Math.floor(mock.tokenCount), raw: mock.raw, model };
-    } else if (provider === "local") {
-      result = await callLocalOllama(promptText, { ...providerConfig, model });
-    } else if (provider === "openai") {
-      result = await callOpenAi(promptText, { ...providerConfig, model });
-    } else if (provider === "anthropic") {
-      result = await callAnthropic(promptText, { ...providerConfig, model });
-    } else if (provider === "lm-studio") {
-      result = await callLmStudio(promptText, { ...providerConfig, model });
-    } else if (provider === "openrouter") {
-      result = await callOpenRouter(promptText, { ...providerConfig, model });
-    } else if (provider === "claude-code") {
+    } else if (callProvider === "local") {
+      result = await callLocalOllama(promptText, { ...callConfig, model });
+    } else if (callProvider === "openai") {
+      result = await callOpenAi(promptText, { ...callConfig, model });
+    } else if (callProvider === "anthropic") {
+      result = await callAnthropic(promptText, { ...callConfig, model });
+    } else if (callProvider === "lm-studio") {
+      result = await callLmStudio(promptText, { ...callConfig, model });
+    } else if (callProvider === "openrouter") {
+      result = await callOpenRouter(promptText, { ...callConfig, model });
+    } else if (callProvider === "claude-code") {
       try {
-        result = await callClaudeCode(promptText, { ...providerConfig, model }, logger);
+        result = await callClaudeCode(promptText, { ...callConfig, model }, logger);
       } catch (ccErr) {
         const fallback = ccErr.details && safeString(ccErr.details.fallbackProvider);
         if (fallback) {
@@ -485,7 +499,18 @@ function createLLMAdapter(options = {}) {
         }
       }
     } else {
-      throw makeError("PHASE14_LLM_PROVIDER_UNSUPPORTED", `Unsupported provider '${provider}'`);
+      throw makeError("PHASE14_LLM_PROVIDER_UNSUPPORTED", `Unsupported provider '${callProvider}'`);
+    }
+    } catch (dispatchErr) {
+      // Role-level fallback: if a routed backend (local/lm-studio/...) errors and the caller
+      // supplied a fallbackProvider, retry once on it. Keeps a per-role local route resilient
+      // — a down Ollama/LM Studio degrades to claude-code instead of failing the run.
+      const fb = safeString(completionOptions.fallbackProvider);
+      if (fb && fb !== callProvider) {
+        logger.warn({ event: "provider_role_fallback", from: callProvider, to: fb, error: dispatchErr && dispatchErr.message });
+        return complete(prompt, { ...completionOptions, provider: fb, fallbackProvider: "" });
+      }
+      throw dispatchErr;
     }
 
     const completedAt = Number(timeProvider.nowMs());
@@ -496,7 +521,7 @@ function createLLMAdapter(options = {}) {
         taskId: safeString(completionOptions.taskId),
         prompt: promptText,
         response: safeString(result.text),
-        provider,
+        provider: callProvider,
         model,
         duration: durationMs,
         tokenCount: Math.max(0, Number.parseInt(String(result.tokenCount || 0), 10) || 0),
@@ -509,11 +534,11 @@ function createLLMAdapter(options = {}) {
       });
     }
 
-    logger.info({ event: "phase14_llm_complete", provider, model, duration_ms: durationMs });
+    logger.info({ event: "phase14_llm_complete", provider: callProvider, model, duration_ms: durationMs });
 
     return {
       text: safeString(result.text),
-      provider,
+      provider: callProvider,
       model,
       skillsContext,
       durationMs,

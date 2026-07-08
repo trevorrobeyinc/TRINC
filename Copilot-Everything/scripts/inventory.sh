@@ -73,7 +73,7 @@ const inventory = {
     runtimePluginBundle: `${workspaceRoot}/deploy/obsidian/plugins/copilot-mcp`,
   },
   relatedAssets: searchPatterns.flatMap((pattern) =>
-    run("find", [workspaceRoot, productionVault, "/Users/trevorrobey", "-maxdepth", "4", "-iname", pattern])
+    run("find", [workspaceRoot, productionVault, "/Users/myhome", "-maxdepth", "4", "-iname", pattern])
   ),
   symlinks: run("find", [workspaceRoot, "-type", "l"]),
 };

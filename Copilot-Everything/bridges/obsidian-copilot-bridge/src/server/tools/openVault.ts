@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { RuntimeContext } from "../context";
 import type { BackendId, ToolResult } from "../../types";
 import { executeBackendOperation } from "./common";
+import { guardVaultRelativePath } from "../../fs/pathGuard";
 
 const schema = z.object({
   vault: z.string().min(1),
@@ -22,7 +23,9 @@ export async function openVaultTool(
   };
 
   if (payload.path) {
-    mappedInput.path = payload.path;
+    // Security (audit VW-5): confine the open path to the configured vault root.
+    const guarded = guardVaultRelativePath(runtime.config.allowedVaultRoots[0], payload.path);
+    mappedInput.path = guarded.relativePath;
   }
   if (payload.paneType) {
     mappedInput.paneType = payload.paneType;

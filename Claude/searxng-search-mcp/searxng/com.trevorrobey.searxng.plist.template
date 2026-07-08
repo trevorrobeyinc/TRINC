@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Boot-persistent launchd unit for the private SearXNG instance.
+  __HOME__ is substituted with the real home path by install-service.sh.
+  ALL paths resolve to the INTERNAL volume (~/.local/share, ~/.config) — a launchd
+  user-agent cannot read the external /Volumes/ExtraCurricular volume (TCC EPERM).
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.trevorrobey.searxng</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>__HOME__/.local/share/searxng/venv/bin/python</string>
+        <string>-m</string>
+        <string>searx.webapp</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>__HOME__/.local/share/searxng/searxng-src</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>SEARXNG_SETTINGS_PATH</key>
+        <string>__HOME__/.config/searxng/settings.yml</string>
+        <key>PYTHONUNBUFFERED</key>
+        <string>1</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ProcessType</key>
+    <string>Background</string>
+
+    <key>StandardOutPath</key>
+    <string>__HOME__/.local/share/searxng/searxng.log</string>
+    <key>StandardErrorPath</key>
+    <string>__HOME__/.local/share/searxng/searxng.log</string>
+</dict>
+</plist>

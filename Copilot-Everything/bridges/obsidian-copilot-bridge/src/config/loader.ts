@@ -9,7 +9,20 @@ const schema = z.object({
   transport: z
     .object({
       mode: z.enum(["http", "uds", "pipe"]).optional(),
-      host: z.string().default("127.0.0.1"),
+      host: z
+        .string()
+        .default("127.0.0.1")
+        .refine(
+          (h) =>
+            process.env.OBSIDIAN_BRIDGE_ALLOW_NONLOOPBACK === "1" ||
+            h === "127.0.0.1" ||
+            h === "::1" ||
+            h === "localhost",
+          {
+            message:
+              "transport.host must be loopback (127.0.0.1/::1/localhost); set OBSIDIAN_BRIDGE_ALLOW_NONLOOPBACK=1 to override (audit TB-1)",
+          }
+        ),
       port: z.number().int().min(1).max(65535).default(8798),
       udsPath: z.string().default("/tmp/obsidian-mcp-bridge.sock"),
       pipeName: z.string().default("obsidian-mcp-bridge"),
@@ -92,15 +105,25 @@ function resolveConfigPath(): string {
 }
 
 function ensureStrongToken(token: string): number {
+  // Security (audit AR-2): true entropy CANNOT be measured from the string itself — it is a
+  // property of how the token was generated. The old formula floor(log2(unique^len)) credited
+  // length as entropy (so "ab" repeated passed) and overflowed to Infinity for long tokens.
+  // Instead, reject obviously-weak tokens via length + character diversity and require the
+  // token to be CSPRNG-generated.
+  const length = token.length;
   const unique = new Set(token).size;
-  const entropyEstimate = Math.floor(Math.log2(Math.pow(unique || 1, token.length)));
-  if (entropyEstimate < 128) {
+  const MIN_LENGTH = 32; // ~>=24 random bytes once hex/base64-encoded
+  const MIN_DISTINCT = 12; // rejects low-diversity / repeated-pattern strings
+  if (length < MIN_LENGTH || unique < MIN_DISTINCT) {
     throw new AppError(
       ERROR_CODES.AUTH_TOKEN_WEAK,
-      "MCP auth token does not meet the minimum estimated entropy requirement (128 bits)."
+      `MCP auth token is too weak (length=${length}, distinct chars=${unique}). ` +
+        "Generate it with a CSPRNG (>=24 random bytes, e.g. `openssl rand -hex 32`)."
     );
   }
-  return entropyEstimate;
+  // Conservative reporting estimate ONLY (not a security guarantee): per-char entropy is
+  // bounded by log2(distinct) and capped at 6 bits/char; no Math.pow (cannot overflow).
+  return Math.floor(length * Math.min(Math.log2(unique), 6));
 }
 
 function defaultTransportMode(): "uds" | "pipe" {

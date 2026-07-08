@@ -4,7 +4,7 @@ Long-term vector memory of Trevorobeyinc research packs. Stdio MCP server backed
 
 ## Architecture
 
-Full design spec: [/Users/trevorrobey/.claude/plans/trevorobeyinc-research-memory-mcp.md](/Users/trevorrobey/.claude/plans/trevorobeyinc-research-memory-mcp.md)
+Full design spec: [/Users/myhome/.claude/plans/trevorobeyinc-research-memory-mcp.md](/Users/myhome/.claude/plans/trevorobeyinc-research-memory-mcp.md)
 
 ## Tools exposed
 
@@ -42,13 +42,13 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` → `mc
 
 ```json
 "trevorobeyinc-research-memory": {
-  "command": "/Users/trevorrobey/.nvm/versions/node/v22.13.1/bin/node",
-  "args": ["/Users/trevorrobey/Claude/trevorobeyinc-research-memory-mcp/dist/index.js"],
+  "command": "/Users/myhome/.nvm/versions/node/v22.13.1/bin/node",
+  "args": ["/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Claude/trevorobeyinc-research-memory-mcp/dist/index.js"],
   "env": {
     "QDRANT_URL": "https://127.0.0.1:6433",
     "QDRANT_COLLECTION": "trevorobeyinc-packs",
     "EMBED_MODEL": "Xenova/nomic-embed-text-v1",
-    "LOG_FILE": "/Users/trevorrobey/Claude/.logs/research-memory.log"
+    "LOG_FILE": "/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Claude/.logs/research-memory.log"
   }
 }
 ```

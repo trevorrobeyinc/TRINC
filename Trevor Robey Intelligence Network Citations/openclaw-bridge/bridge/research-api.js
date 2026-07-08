@@ -379,8 +379,42 @@ function createResearchApi(options) {
   // Webhook callback (fire-and-forget)
   // -------------------------------------------------------------------
 
+  // Security (audit F-N1): SSRF guard for the caller-supplied webhook target.
+  // https-only; reject loopback/private/link-local/metadata + literal IPv6.
+  function isWebhookTargetAllowed(u) {
+    if (u.protocol !== "https:") return false;
+    const host = String(u.hostname || "").toLowerCase().replace(/^\[|\]$/g, "");
+    if (!host) return false;
+    if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".internal") || host.endsWith(".local")) return false;
+    const m = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+    if (m) {
+      const o = m.slice(1).map(Number);
+      if (o.some((x) => x > 255)) return false;
+      const a = o[0], b = o[1];
+      if (a === 127 || a === 10 || a === 0) return false;
+      if (a === 169 && b === 254) return false;
+      if (a === 192 && b === 168) return false;
+      if (a === 172 && b >= 16 && b <= 31) return false;
+      if (a >= 224) return false;
+      return true;
+    }
+    if (host.includes(":")) return false;
+    return true;
+  }
+
   function fireWebhook(webhookUrl, record) {
     if (!webhookUrl) return;
+    let parsedHook;
+    try {
+      parsedHook = new URL(webhookUrl);
+    } catch {
+      logger.error({ event: "phase31_webhook_blocked", workflow_id: record.workflow_id, reason: "invalid_url" });
+      return;
+    }
+    if (!isWebhookTargetAllowed(parsedHook)) {
+      logger.error({ event: "phase31_webhook_blocked", workflow_id: record.workflow_id, reason: "ssrf_guard" });
+      return;
+    }
 
     const payload = JSON.stringify({
       event: "workflow.completed",
@@ -396,9 +430,8 @@ function createResearchApi(options) {
     logger.info({ event: "phase31_webhook_fire", workflow_id: record.workflow_id, url: webhookUrl });
 
     try {
-      const url = new URL(webhookUrl);
-      const mod = url.protocol === "https:" ? require("node:https") : require("node:http");
-      const req = mod.request(url, {
+      const mod = require("node:https");
+      const req = mod.request(parsedHook, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

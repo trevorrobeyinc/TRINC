@@ -82,18 +82,47 @@ class ToolUniverseMcp extends BaseMcp {
     }
 
     if (result && typeof result === "object") {
+      const listOpts = {
+        maxAbstractChars: this.maxAbstractChars,
+        retrievedAt: this.timeProvider.nowIso()
+      };
+
       if (Array.isArray(result.tools)) {
-        return normalizeToolList(result.tools, {
-          maxAbstractChars: this.maxAbstractChars,
-          retrievedAt: this.timeProvider.nowIso()
-        });
+        return normalizeToolList(result.tools, listOpts);
       }
 
       if (Array.isArray(result.results)) {
-        return normalizeToolList(result.results, {
-          maxAbstractChars: this.maxAbstractChars,
-          retrievedAt: this.timeProvider.nowIso()
-        });
+        return normalizeToolList(result.results, listOpts);
+      }
+
+      // ToolUniverse SMCP wraps tool output as { status, data, metadata }. The actual
+      // records live under `data` (PubMed/SemanticScholar/EuropePMC: data is an array)
+      // or one level deeper (ClinicalTrials: data.studies; others: data.results/articles/
+      // records/hits). Without this, every executeTool result fell through to the
+      // single-hollow-record branch and the payload + identifiers were dropped.
+      if (Array.isArray(result.data)) {
+        return normalizeToolList(result.data, listOpts);
+      }
+      if (result.data && typeof result.data === "object") {
+        for (const key of ["studies", "results", "articles", "records", "hits", "trials"]) {
+          if (Array.isArray(result.data[key])) {
+            return normalizeToolList(result.data[key], listOpts);
+          }
+        }
+        // Resilience for tools whose envelope nests the row list under an unlisted key:
+        // if EXACTLY ONE property is an array, treat it as the records rather than dropping
+        // to a single hollow record (which silently loses the payload + identifiers). We
+        // require exactly one to avoid mis-picking a metadata array (e.g. warnings/errors).
+        const arrayProps = Object.values(result.data).filter(Array.isArray);
+        if (arrayProps.length === 1) {
+          return normalizeToolList(arrayProps[0], listOpts);
+        }
+      }
+      // A successful call that simply returned no rows → empty, not a hollow record.
+      if (result.status === "success" &&
+          (result.data === undefined || result.data === null ||
+           (Array.isArray(result.data) && result.data.length === 0))) {
+        return [];
       }
 
       const executionId = input.action === "executeTool"

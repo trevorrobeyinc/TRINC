@@ -5,6 +5,7 @@ import type { BackendId, Operation, ToolResult } from "../types";
 import { buildFailure } from "./errors";
 import { AppError } from "./errors";
 import { ERROR_CODES } from "./errorCodes";
+import { auditLog } from "../observability/auditLog";
 import { openVaultTool } from "./tools/openVault";
 import { createNoteTool } from "./tools/createNote";
 import { appendNoteTool } from "./tools/appendNote";
@@ -54,6 +55,16 @@ const handlers: Record<string, ToolHandler> = {
   obsidian_dev_console_eval: devConsoleEvalTool,
 };
 
+// Security (audit DT-3): tools denied when the bridge is in read-only mode.
+const READ_ONLY_BLOCKED_TOOLS = new Set<string>([
+  "obsidian_create_note",
+  "obsidian_append_note",
+  "obsidian_execute_command",
+  "obsidian_open_vault",
+  "research_publish",
+  "obsidian_dev_console_eval",
+]);
+
 function laneForOperation(operation: Operation | undefined): "interactive" | "mutating" {
   if (operation === "create_note" || operation === "append_note") {
     return "mutating";
@@ -67,12 +78,30 @@ function waitTimeoutForOperation(operation: Operation | undefined): number {
 
 export async function dispatchToolRequest(runtime: RuntimeContext, rawBody: string): Promise<ToolResult<unknown>> {
   const requestId = randomUUID();
+  const startedAt = Date.now();
+  let auditTool = "unknown";
 
   try {
     const parsedBody = requestSchema.parse(JSON.parse(rawBody));
+    auditTool = parsedBody.tool;
+    auditLog.emit({
+      eventType: "TOOL_CALLED",
+      requestId,
+      tool: parsedBody.tool,
+      operation: parsedBody.operation,
+      source: "obsidian-copilot-bridge",
+    });
 
     if (parsedBody.tool === "obsidian_health") {
-      return await obsidianHealthTool(runtime, requestId);
+      const health = await obsidianHealthTool(runtime, requestId);
+      auditLog.emit({
+        eventType: "TOOL_COMPLETED",
+        requestId,
+        tool: parsedBody.tool,
+        result: "success",
+        durationMs: Date.now() - startedAt,
+      });
+      return health;
     }
 
     const handler = handlers[parsedBody.tool];
@@ -80,13 +109,46 @@ export async function dispatchToolRequest(runtime: RuntimeContext, rawBody: stri
       throw new AppError(ERROR_CODES.INTERNAL_ERROR, `Unknown tool '${parsedBody.tool}'.`);
     }
 
+    // Security (audit DT-3): central read-only kill-switch covering every
+    // mutating/execution tool (not just create/append).
+    if (runtime.config.readOnlyMode && READ_ONLY_BLOCKED_TOOLS.has(parsedBody.tool)) {
+      auditLog.emit({
+        eventType: "READ_ONLY_DENY",
+        requestId,
+        tool: parsedBody.tool,
+        result: "failure",
+        source: "obsidian-copilot-bridge",
+      });
+      throw new AppError(
+        ERROR_CODES.NO_CAPABLE_BACKEND,
+        `Tool '${parsedBody.tool}' is disabled while the bridge is in read-only mode.`
+      );
+    }
+
     const lane = laneForOperation(parsedBody.operation);
     const waitTimeoutMs = waitTimeoutForOperation(parsedBody.operation);
 
-    return await runtime.scheduler.enqueue(lane, waitTimeoutMs, async () =>
+    const result = await runtime.scheduler.enqueue(lane, waitTimeoutMs, async () =>
       await handler(runtime, requestId, parsedBody.epochId, parsedBody.backendHint, parsedBody.input)
     );
+    auditLog.emit({
+      eventType: "TOOL_COMPLETED",
+      requestId,
+      tool: parsedBody.tool,
+      operation: parsedBody.operation,
+      result: (result as { ok?: boolean })?.ok === false ? "failure" : "success",
+      durationMs: Date.now() - startedAt,
+    });
+    return result;
   } catch (error) {
+    auditLog.emit({
+      eventType: "TOOL_FAILED",
+      requestId,
+      tool: auditTool,
+      result: "failure",
+      errorCode: (error as { code?: string })?.code,
+      durationMs: Date.now() - startedAt,
+    });
     return buildFailure(error, { requestId, durationMs: 0 });
   }
 }

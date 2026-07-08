@@ -93,6 +93,10 @@ export interface CopilotSettings {
   generateAIChatTitleOnSave: boolean;
   autoAddActiveContentToContext: boolean;
   customPromptsFolder: string;
+  /**
+   * Vault folder where headless "<command> → New Note" runs write their result notes.
+   */
+  customCommandNoteFolder: string;
   indexVaultToVectorStore: string;
   chatNoteContextPath: string;
   chatNoteContextTags: string[];
@@ -616,6 +620,10 @@ export function sanitizeSettings(settings: CopilotSettings): CopilotSettings {
   const promptsFolder = (settingsToSanitize.customPromptsFolder || "").trim();
   sanitizedSettings.customPromptsFolder =
     promptsFolder.length > 0 ? promptsFolder : DEFAULT_SETTINGS.customPromptsFolder;
+
+  const commandNoteFolder = (settingsToSanitize.customCommandNoteFolder || "").trim();
+  sanitizedSettings.customCommandNoteFolder =
+    commandNoteFolder.length > 0 ? commandNoteFolder : DEFAULT_SETTINGS.customCommandNoteFolder;
 
   // Ensure projectsFolder falls back to default when empty/whitespace.
   // Reason: reject path traversal segments ("..") and absolute paths to prevent

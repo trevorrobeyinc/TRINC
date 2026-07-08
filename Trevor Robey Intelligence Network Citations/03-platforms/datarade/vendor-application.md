@@ -1,9 +1,11 @@
 # Datarade Vendor Application — Trevor Robey Intelligence Network Citations LLC
 
-**Submission target**: https://datarade.ai/company/contact/data-providers
-**Drafted**: 2026-04-26 · **Updated**: 2026-05-06 (LLC formation filed) · **Submit by**: Tue 2026-04-28 (or after CA SOS approval — recommended to attach stamped Articles)
+> **Status (2026-06-10): SUBMITTED → DECLINED. Do not treat this as un-submitted.** The intake form was **submitted 2026-05-11** (brand-current Sample Pack + Data Dictionary; HubSpot CDN UUID `f2e8abb3-7742-4ffe-aa8e-00e5f0f0d1dc`) and cleared intake; the **2026-05-20 onboarding call ended in a decline — reason: "the business is not yet established"** (no operating track record), not a product problem. Re-apply after establishment proof (CA SOS LLC approval + a few dated closed-deal engagements); no collateral rework needed. Per-call record: [`onboarding-call-notes.md`](onboarding-call-notes.md). The "Submit by 2026-04-28" line below was a pre-submission target and is now historical.
 
-Paste-ready blocks mapped to Datarade's intake form. Each `##` heading corresponds to a form field.
+**Submission target**: https://datarade.ai/company/contact/data-providers
+**Drafted**: 2026-04-26 · **Updated**: 2026-05-06 (LLC formation filed) · **Original submit target (historical)**: Tue 2026-04-28 · **Actually submitted**: 2026-05-11 · **Outcome**: declined 2026-05-20 ("not yet established")
+
+Paste-ready blocks mapped to Datarade's intake form. Each `##` heading corresponds to a form field. *(Note: a "typo'd contact email" in legacy collateral is tracked separately on `go-live-checklist.md` gate #1 — confirm the address before any resubmission.)*
 
 ---
 
@@ -64,7 +66,7 @@ Six pack templates, each delivered as PDF + structured Parquet/CSV appendix with
 - **Standard tier**: secure email delivery of signed/encrypted PDF + structured Parquet/CSV appendix within 72 hours of order confirmation
 - **Custom tier**: native cloud delivery via Snowflake share, AWS S3 pre-signed URL, Google BigQuery shared dataset, or SFTP secure transfer
 - **Enterprise tier**: API access (REST/JSON), private dataset endpoint, SLA-backed
-- All tiers include a Reproducibility Manifest (per-citation resolution proof — every PMID, NCT, RxCUI, ChEMBL ID, PubChem CID, UniProt ID, and DOI checked against source databases at delivery time)
+- All tiers include a Citation-Integrity Ledger — a graded provenance ledger in which every cited PMID, NCT, RxCUI, ChEMBL ID, PubChem CID, UniProt ID, and DOI is grounded against the source records retrieved at runtime, and cited DOIs are retraction-screened against Crossref *(grounding + retraction screening, not per-citation external re-resolution)*
 
 ## Pricing model (2026-04-30 ladder)
 
@@ -84,7 +86,7 @@ One-off, custom, and subscription billing supported. Off-platform fulfillment �
 
 - **Public 2-page teaser** (no NDA) — Pharmacovigilance Signal Synthesis on Immune Checkpoint Inhibitors. Available on request via the trevorobeyinc.com landing page CTA or by direct email to trevor@trevorobeyinc.com.
 - **Full 48-page redacted sample deliverable** — same topic, full structure, available post-NDA (Common Paper Mutual NDA template, 3-day signature turnaround typical).
-- Both samples reflect the production output format including the Source License Register and Reproducibility Manifest appendices.
+- Both samples reflect the production output format including the Source License Register and Citation-Integrity Ledger appendices.
 
 ## Update frequency
 
@@ -100,7 +102,7 @@ One-off, custom, and subscription billing supported. Off-platform fulfillment �
 | **CCPA** | No California consumer personal information processed or sold. |
 | **HIPAA** | No PHI in deliverables. Pharmacovigilance reports use de-identified, aggregate-only signal data. BAA available for healthcare entity buyers. |
 | **PHI / PII screening** | Microsoft Presidio (HIPAA Safe Harbor 18-PHI-type recognizer set) run on every deliverable pre-publication. Pass condition: zero high-confidence matches outside cited paper authors. |
-| **Citation reproducibility** | Every PMID, NCT, RxCUI, ChEMBL ID, PubChem CID, UniProt ID, and DOI is automatically validated at build-time via NCBI E-utilities, Crossref, and Unpaywall. Manifest attached to every pack. |
+| **Citation integrity** | Every cited PMID, NCT, RxCUI, ChEMBL ID, PubChem CID, UniProt ID, and DOI is grounded at build-time against the source records retrieved at runtime; cited DOIs are retraction-screened against Crossref. A graded citation-integrity ledger is attached to every pack. *(Grounding + Crossref retraction screening — not per-citation external re-resolution against each live source database.)* |
 | **Source licensing** | See Source License Register below. |
 
 ## Source license register
@@ -118,7 +120,7 @@ Proactive disclosure of every source database used and its license terms.
 | UniProt | CC BY 4.0 | ✅ Included with attribution string |
 | ChEMBL | CC BY-SA 3.0 | ✅ Included as derived analyses with version cited (e.g., ChEMBL_36, Sept 2025); raw rows not redistributed |
 | OpenTargets, GARD, Orphanet, HPA | Open-license, public | ✅ Included |
-| **DrugBank** | Commercial-license-required | ❌ **NOT INCLUDED**. Commercial DrugBank-licensed pack available under separate engagement — contact trevor@trevorobeyinc.com. |
+| **DrugBank** | Commercial-license-required | ❌ **NOT INCLUDED** — no DrugBank data ships in any pack. The project does **not** currently hold a DrugBank commercial license, so do not advertise a "DrugBank-licensed pack." If a buyer needs DrugBank-derived fields, that is a separate engagement contingent on first signing a DrugBank commercial license. See [`../../09-source-licenses/drugbank-stop-ship-unless-licensed.md`](../../09-source-licenses/drugbank-stop-ship-unless-licensed.md). |
 | EudraVigilance (public reports) | Public reports only — no licensed extracts | ✅ Public-portion only |
 
 This register ships in every deliverable as an appendix.
@@ -127,21 +129,21 @@ This register ships in every deliverable as an appendix.
 
 ### ✅ Variant B — Hedge fund / alt-data framing (PASTE THIS into Datarade's free-text "describe your data" field)
 
-> Citation-traced biomedical due diligence for biotech-focused alt-data and quant teams. Every claim — pipeline phase, adverse event ROR, target-disease evidence score, trial enrollment trend — resolves to public-domain identifiers (NCT, PMID, AEMS report IDs) with timestamped Reproducibility Manifests so every claim is independently replayable, refund-backed citation-audit SLA. Lead offering: Investor Pre-Mortem (per-asset risk dossier; trial design + comparable failures + KOL sentiment + IP runway) at $9,950 anchor / $14,950 standard / $19,950 custom (with KOL primary research), 5–10 business day Speed SLA. Tactical SKUs $2,500–$4,950 (Pharmacovigilance Pack, Conference Synthesis Brief, Trial Design Benchmark Pack, Plain-Language Patient Brief). Cross-Silo Connector Report $9,950–$24,950. Custom enterprise engagements with cloud-data-platform delivery via discovery call.
+> Citation-traced biomedical due diligence for biotech-focused alt-data and quant teams. Every claim — pipeline phase, adverse event ROR, target-disease evidence score, trial enrollment trend — traces to public-domain identifiers (NCT, PMID, AEMS report IDs), each grounded against the source records retrieved at runtime and delivered with a graded citation-integrity ledger, refund-backed citation-audit SLA. Lead offering: Investor Pre-Mortem (per-asset risk dossier; trial design + comparable failures + KOL sentiment + IP runway) at $9,950 anchor / $14,950 standard / $19,950 custom (with KOL primary research), 5–10 business day Speed SLA. Tactical SKUs $2,500–$4,950 (Pharmacovigilance Pack, Conference Synthesis Brief, Trial Design Benchmark Pack, Plain-Language Patient Brief). Cross-Silo Connector Report $9,950–$24,950. Custom enterprise engagements with cloud-data-platform delivery via discovery call.
 
-**Why this one for Datarade**: alt-data quants close in 2–6 weeks vs 3–9 months for pharma procurement; the Reproducibility Manifest + public-domain-citations differentiator is strongest in this audience; price-per-deal sits in the solo-operator-friendly $15K–$50K sweet spot. Targets: Citadel Surveyor + Data Strategies Group, Point72 MI-Data, RA Capital QR&S.
+**Why this one for Datarade**: alt-data quants close in 2–6 weeks vs 3–9 months for pharma procurement; the citation-integrity-ledger + public-domain-citations differentiator is strongest in this audience; price-per-deal sits in the solo-operator-friendly $15K–$50K sweet spot. Targets: Citadel Surveyor + Data Strategies Group, Point72 MI-Data, RA Capital QR&S.
 
 ### Repurposed for Week 2 cold-email outreach (NOT for Datarade)
 
 #### Variant A — for pharma CI directors
 
-> Trevor Robey, INC. (Trevor Robey Intelligence Network Citations LLC) produces citation-backed biomedical research packs for pharma CI, biotech R&D, and life-sciences consulting buyers. Every claim resolves to a verifiable identifier in public-domain primary sources — PMID, NCT, RxCUI, ChEMBL, UniProt, PubChem CID, DOI — with a reproducibility manifest attached. Six pack templates from drug discovery to pharmacovigilance, $2,500–$4,950 per single-topic Standard pack, $15,000–$35,000 Custom Missions, $60K+ ARR Enterprise. 72-hour secure delivery; Snowflake / AWS / BigQuery for Custom and above.
+> Trevor Robey, INC. (Trevor Robey Intelligence Network Citations LLC) produces citation-backed biomedical research packs for pharma CI, biotech R&D, and life-sciences consulting buyers. Every claim traces to a public-domain identifier — PMID, NCT, RxCUI, ChEMBL, UniProt, PubChem CID, DOI — grounded against the source records retrieved at runtime, with a graded citation-integrity ledger attached. Six pack templates from drug discovery to pharmacovigilance, $2,500–$4,950 per single-topic Standard pack, $15,000–$35,000 Custom Missions, $60K+ ARR Enterprise. 72-hour secure delivery; Snowflake / AWS / BigQuery for Custom and above.
 
 **Use for**: AbbVie (Director, Competitive & Strategic Insights — Oncology), AstraZeneca (Senior Director, Competitive Intelligence — Oncology R&D), GSK (Head of Global CI Oncology).
 
 #### Variant C — for boutique consultancy / academic
 
-> Citation-backed biomedical research synthesis priced for boutique life-sciences consultancies, academic researchers, and biotech pre-IND teams who need verifiable evidence packs without enterprise-database overhead. Each pack ships with 135+ to 289+ resolved citations across PubMed, ClinicalTrials.gov, AEMS, ChEMBL, RxNorm, UniProt, and PubChem. Six standardized templates from drug discovery to rare disease briefs, $2,500–$4,950 per Standard pack, 72-hour secure delivery. No paywalled-source dependencies — every cited identifier resolves in its source database.
+> Citation-backed biomedical research synthesis priced for boutique life-sciences consultancies, academic researchers, and biotech pre-IND teams who need verifiable evidence packs without enterprise-database overhead. Each pack ships with 135+ to 289+ grounded citations across PubMed, ClinicalTrials.gov, AEMS, ChEMBL, RxNorm, UniProt, and PubChem. Six standardized templates from drug discovery to rare disease briefs, $2,500–$4,950 per Standard pack, 72-hour secure delivery. No paywalled-source dependencies — every cited identifier is a public-domain reference grounded in the evidence retrieved at runtime.
 
 **Use for**: ClearView Healthcare Partners, Trinity Life Sciences, Clarivate.
 

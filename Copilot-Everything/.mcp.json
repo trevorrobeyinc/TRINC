@@ -1,17 +1,17 @@
 {
   "mcpServers": {
     "zettelkasten-graph": {
-      "command": "/Users/trevorrobey/.nvm/versions/node/v22.13.1/bin/node",
-      "args": ["/Users/trevorrobey/Code/Claude/Medical-Zettelkasten-MCP/src/server.js"],
-      "cwd": "/Users/trevorrobey/Code/Claude/Medical-Zettelkasten-MCP"
+      "command": "${HOME}/.nvm/versions/node/v22.13.1/bin/node",
+      "args": ["/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Claude/Medical-Zettelkasten-MCP/src/server.js"],
+      "cwd": "/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Claude/Medical-Zettelkasten-MCP"
     },
     "obsidian-bridge": {
-      "command": "/Users/trevorrobey/.nvm/versions/node/v22.13.1/bin/node",
+      "command": "${HOME}/.nvm/versions/node/v22.13.1/bin/node",
       "args": [
-        "/Users/trevorrobey/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-stdio-adapter/index.mjs"
+        "/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-stdio-adapter/index.mjs"
       ],
       "env": {
-        "NODE_EXTRA_CA_CERTS": "/Users/trevorrobey/Library/Application Support/mkcert/rootCA.pem"
+        "NODE_EXTRA_CA_CERTS": "${HOME}/Library/Application Support/mkcert/rootCA.pem"
       }
     }
   }

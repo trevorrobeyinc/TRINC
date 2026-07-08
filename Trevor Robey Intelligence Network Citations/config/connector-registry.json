@@ -221,23 +221,6 @@
       "suggested_adapter_path": "openclaw-bridge/mcp/owkin-mcp/",
       "health_check": "owkin_pathology_query reachability ping"
     },
-    "gdrive-subprocess": {
-      "tool_prefix": "openclaw-bridge/mcp/gdrive-mcp/",
-      "execution_surface": "subprocess-mcp",
-      "auth": "oauth-handshake-completed",
-      "tools": ["gdrive_read_file", "gdrive_list_files"],
-      "purpose": "Google Drive read access for delivery-pack staging and seed-document ingestion",
-      "bound_roles": ["report_generator"],
-      "bound_workflow_steps": [
-        { "workflow_template_id": "drug-discovery-full", "step_id": "export" },
-        { "workflow_template_id": "pharmacovigilance-report", "step_id": "export" }
-      ],
-      "business_value": "high",
-      "adapter_status": "wired",
-      "adapter_priority": "n/a",
-      "suggested_adapter_path": "openclaw-bridge/mcp/gdrive-mcp/",
-      "health_check": "gdrive_list_files of a known folder id returns metadata"
-    },
     "scrape": {
       "tool_prefix": "openclaw-bridge/mcp/scrape-mcp/",
       "execution_surface": "subprocess-mcp",
@@ -305,7 +288,21 @@
       "execution_surface": "claude-host-mcp",
       "auth": "api-key-env:TAVILY_API_KEY (key provisioned at Claude-host level)",
       "tools": ["tavily_search", "tavily_extract", "tavily_crawl", "tavily_map", "tavily_research"],
-      "purpose": "AI-optimized open-web search and extraction past Claude training cutoff. Required for the no-hallucinations gate — every claim that references an external product/company/URL/process is verified through Tavily before being asserted.",
+      "purpose": "SUPERSEDED 2026-07-04 by `searxng-search` (local, key-free, no per-call billing). Kept for history only — the no-hallucinations-gate role and its quality_check bindings moved to searxng-search. Was: AI-optimized open-web search/extraction to verify external product/company/URL/process claims before assertion.",
+      "bound_roles": [],
+      "bound_workflow_steps": [],
+      "business_value": "superseded",
+      "adapter_status": "missing",
+      "adapter_priority": "none",
+      "suggested_adapter_path": "openclaw-bridge/mcp/tavily-mcp/ (do not build — superseded by searxng-mcp)",
+      "health_check": "n/a (superseded by searxng-search)"
+    },
+    "searxng-search": {
+      "tool_prefix": "mcp__searxng-search__",
+      "execution_surface": "subprocess-mcp",
+      "auth": "none (local, key-free — private SearXNG reached over HTTPS via the in-monorepo TLS proxy https://127.0.0.1:8891, launchd com.trevorrobey.searxng-tls-proxy → plaintext upstream :8890 launchd com.trevorrobey.searxng; process needs NODE_EXTRA_CA_CERTS at the mkcert root CA)",
+      "tools": ["search", "extract", "map"],
+      "purpose": "Free, local, no-key open-web + scholarly search/extraction — the key-free replacement for Tavily's no-hallucinations gate. Tuned to biomedical engines (PubMed/Semantic Scholar/Crossref/OpenAlex/OpenAIRE/arXiv via topic:'science') and returns an additive citations[] array (pmid/doi/nct/pmcid/chembl/drugbank/uniprot) on each result, so the gate can assert every external claim maps to >=1 grounded citation id using the same grammar as openclaw-bridge/core/citation-extractor.js. In-house connector at Claude/searxng-search-mcp.",
       "bound_roles": ["scout", "quality_auditor", "report_generator"],
       "bound_workflow_steps": [
         { "workflow_template_id": "drug-discovery-full", "step_id": "quality_check" },
@@ -316,10 +313,10 @@
         { "workflow_template_id": "general-research-pack", "step_id": "quality_check" }
       ],
       "business_value": "load-bearing",
-      "adapter_status": "missing",
-      "adapter_priority": "high",
-      "suggested_adapter_path": "openclaw-bridge/mcp/tavily-mcp/",
-      "health_check": "tavily_search({query: 'FDA approval pembrolizumab 2024', max_results: 1}) returns at least one result with URL"
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "openclaw-bridge/mcp/searxng-mcp/",
+      "health_check": "search({query: 'FDA approval pembrolizumab 2024', topic: 'science', max_results: 1}) returns at least one result with URL"
     },
     "open-targets-graphql": {
       "tool_prefix": "mcp__deb8af66-16fd-4ea2-a9ad-8a2f7add60b7__",
@@ -618,20 +615,6 @@
       "adapter_status": "needs-investigation",
       "adapter_priority": "low",
       "suggested_adapter_path": "n/a — identify vendor first",
-      "health_check": "n/a"
-    },
-    "gdrive-host": {
-      "tool_prefix": "mcp__0840a1ec-a0e0-4c6b-b013-360df7265035__",
-      "execution_surface": "claude-host-mcp",
-      "auth": "oauth-handshake-completed",
-      "tools": ["read_file_content", "create_file", "copy_file", "search_files", "list_recent_files", "get_file_metadata", "get_file_permissions", "download_file_content"],
-      "purpose": "Google Drive file management at the Claude-host level. Richer than subprocess gdrive-mcp. Operator-side.",
-      "bound_roles": [],
-      "bound_workflow_steps": [],
-      "business_value": "chat-supervisory-only",
-      "adapter_status": "subprocess-equivalent-exists",
-      "adapter_priority": "low",
-      "suggested_adapter_path": "subprocess gdrive-mcp/ already exists; extend if richer ops needed",
       "health_check": "n/a"
     }
   },

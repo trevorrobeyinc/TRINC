@@ -1,7 +1,9 @@
 {
-  "schemaVersion": "phase14-agent-config-v1",
+  "schemaVersion": "phase34-agent-config-v2",
   "defaultProvider": "claude-code",
   "defaultModel": "claude-sonnet-4-6",
+  "agentStateDir": "config/agents",
+  "roleProviderMap": "config/role-provider-map.json",
   "inputDir": "workspace/research-input/",
   "outputDir": "workspace/research-output/",
   "interactionLogPath": "security/interaction-log.json",

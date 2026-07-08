@@ -9,7 +9,7 @@
 # ---------------
 # This monorepo lives on an external volume (/Volumes/ExtraCurricular/...). On
 # modern macOS, a launchd user-agent's TCC context is NOT granted read access to
-# removable / external volumes, even when the interactive Terminal is. The four
+# removable / external volumes, even when the interactive Terminal is. The five
 # proxy launchd units therefore die at startup with:
 #
 #   Error: EPERM: operation not permitted, open '/Volumes/.../<name>-tls-proxy.mjs'
@@ -34,7 +34,7 @@ LAUNCH_AGENTS="$HOME/Library/LaunchAgents"
 PLIST_BUDDY="/usr/libexec/PlistBuddy"
 
 # launchd label suffix == proxy script basename stem
-UNITS=(miyo qdrant lm-studio ollama)
+UNITS=(miyo qdrant lm-studio ollama searxng)
 
 mkdir -p "$STAGE_DIR"
 

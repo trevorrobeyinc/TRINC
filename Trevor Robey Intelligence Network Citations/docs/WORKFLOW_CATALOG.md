@@ -129,6 +129,25 @@ node scripts/run-workflow.js --template rare-disease-brief \
 | ToolUniverse categories | Monarch, OMIM, OrphaNet, GDC |
 | Model tier | Premium/Enterprise (Claude required for quality gate) |
 
+## Citation Integrity Layer (Phase 30 post-research engine, 2026-06-12)
+
+Every mission now runs a zero-fabrication citation-integrity layer on top of the pipeline above. Citations are **grounded in the source records actually retrieved at runtime + DOI retraction-screened (Crossref)** — they are not independently re-resolved against each source's live external database.
+
+- **Citation gate (report-level).** `agent-engine` persists the citation identifiers actually retrieved at runtime (`fetched_citation_ids`) plus a per-task `citation_verification` block, and `buildPrompt` carries an ABSOLUTE-RULE "ZERO FABRICATION" clause (never invent a PMID/NCT/DOI; emit `[no verifiable citation found]` instead). `workflow-engine.executeMissionStep` cross-checks every identifier cited in the assembled report against the union of runtime-fetched ids: a cite is **grounded** if present in fetched evidence, else **ungrounded** (likely model-introduced). The step HARD-FAILS (`PHASE30_CITATION_UNVERIFIED`) when the grounded ratio falls below `minGroundedCitationRatio` (agent-config default `0.34`). It writes `citation-verification.json` + `report-annotated.md` to the workflow dir, annotating surviving ungrounded cites inline as `[UNVERIFIED]`. Engages only when there is fetched ground truth.
+- **Retraction screen.** Each cited DOI is checked against Crossref (`is-retracted-by` / update-to type `retraction`). A report citing any retracted paper HARD-STOPS (`PHASE30_CITATION_RETRACTED`). Fail-soft: a Crossref error yields no retractions, so a network blip can never wrongly block a report.
+- **Stop-reason corpora ingestion.** A local fetcher (`tool_name` `ctgov_stopped_trials`, routed through the tool-prefetch local-fetcher seam) queries ClinicalTrials.gov API v2 for TERMINATED/WITHDRAWN/SUSPENDED trials in a condition, returning each trial's `whyStopped` text plus protocol change-history (version count + most-amended modules). Each record is NCT-traced.
+
+### New mission-bundle deliverables
+
+| Deliverable | Source | Contents |
+|-------------|--------|----------|
+| `deliverables/citation-integrity.md` | `integrity-rating.js` | Graded provenance ledger (grade A/B/C/D from grounded ratio; F + "BLOCKED" on any retraction; N/A if nothing cited). The report's audit-trail spine. |
+| `deliverables/graveyard-memo.md` | `graveyard-memo.js` | Prior terminated/withdrawn/suspended programs in the indication, each NCT-traced with the sponsor's stated stop reason (or an explicit "(none stated by sponsor)" — never invented), protocol churn, and a resolvable `clinicaltrials.gov/study/<NCT>` link; plus a protocol amendment-risk band (LOW/MODERATE/HIGH). Rendered deterministically from fetched records (no LLM). |
+
+Both are registered in `manifest.json` and sealed in `checksums.txt`. The graveyard memo / amendment-risk build runs on a gate-PASSING mission and is fully fail-soft + bounded — an absent fetcher, empty indication, or fetch error simply omits it and never blocks a passing report.
+
+**New error codes:** `PHASE30_CITATION_UNVERIFIED`, `PHASE30_CITATION_RETRACTED`.
+
 ## Model Quality Matrix
 
 | Template | 7B Local (qwen2.5-coder) | Claude Code (claude-sonnet-4-6) | Notes |

@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trevor Robey, INC. — Client Intake</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --color-bg-base:        #0a0a0f;
+  --color-surface-raised: #12121a;
+  --color-border-subtle:  #1e1e2a;
+  --color-text-primary:   #e8e8ec;
+  --color-text-muted:     #8888a0;
+  --color-accent-primary: #4a90d9;
+  --color-accent-hover:   #5da0e9;
+  --color-error:          #c0392b;
+  --font-body:            "IBM Plex Sans", "Inter", "Helvetica Neue", Arial, sans-serif;
+  --font-data:            "IBM Plex Mono", "JetBrains Mono", "SF Mono", "Fira Code", "Consolas", monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.container {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ---------- HEADER ---------- */
+.site-header {
+  background: var(--color-surface-raised);
+  border-bottom: 1px solid var(--color-border-subtle);
+  padding: 20px 24px;
+}
+.site-header-inner {
+  max-width: 1080px;
+  margin: 0 auto;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.wordmark {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 18px;
+  color: var(--color-text-primary);
+}
+.wordmark-sub {
+  font-family: var(--font-data);
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+.header-contact {
+  font-family: var(--font-data);
+  font-size: 13px;
+  color: var(--color-accent-primary);
+  text-decoration: none;
+}
+
+/* ---------- TITLE BLOCK ---------- */
+.title-block {
+  padding-top: 32px;
+  padding-bottom: 24px;
+}
+.section-label {
+  font-family: var(--font-data);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--color-text-muted);
+}
+.pillar-strip {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0;
+  border: 1px solid var(--color-border-subtle);
+  margin-bottom: 24px;
+  margin-top: 16px;
+}
+.pillar-cell {
+  padding: 20px 24px;
+  border-right: 1px solid var(--color-border-subtle);
+}
+.pillar-cell:last-child { border-right: none; }
+.pillar-label {
+  font-family: var(--font-data);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--color-text-muted);
+  margin-bottom: 8px;
+}
+.pillar-heading {
+  font-family: var(--font-body);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: 6px;
+}
+.pillar-proof {
+  font-family: var(--font-data);
+  font-size: 12px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+.tagline {
+  font-family: var(--font-data);
+  font-size: 15px;
+  color: var(--color-accent-primary);
+  margin-bottom: 12px;
+}
+.framing {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* ---------- GRID ---------- */
+.main-grid {
+  display: grid;
+  grid-template-columns: 58fr 40fr;
+  gap: 40px;
+  padding-bottom: 40px;
+}
+
+/* ---------- FORM SECTIONS ---------- */
+.form-section-header {
+  font-family: var(--font-data);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border-subtle);
+  padding-bottom: 8px;
+  margin-bottom: 16px;
+  margin-top: 36px;
+}
+.form-section-header.first { margin-top: 0; }
+
+/* radio cards */
+.radio-card {
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-base);
+  padding: 16px 20px;
+  cursor: pointer;
+  display: block;
+  margin-bottom: 8px;
+}
+.radio-card input { position: absolute; opacity: 0; width: 1px; height: 1px; overflow: hidden; }
+.radio-card.card-selected {
+  border-color: var(--color-accent-primary);
+  background: #13131e;
+}
+.rc-label {
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.rc-sku {
+  font-family: var(--font-data);
+  font-size: 12px;
+  color: var(--color-accent-primary);
+  margin-top: 4px;
+}
+.rc-desc {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-top: 4px;
+}
+.sku-summary {
+  font-family: var(--font-data);
+  font-size: 12px;
+  color: var(--color-accent-primary);
+  margin-top: 12px;
+  display: none;
+}
+
+/* field labels + inputs */
+label.field-label, .field-label {
+  display: block;
+  font-family: var(--font-data);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--color-text-muted);
+  margin-bottom: 6px;
+  margin-top: 18px;
+}
+input, textarea, select {
+  background: var(--color-bg-base);
+  border: 1px solid var(--color-border-subtle);
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: 10px 12px;
+  width: 100%;
+  display: block;
+}
+textarea { font-family: var(--font-body); resize: vertical; }
+input:focus, textarea:focus, select:focus {
+  border-color: var(--color-accent-primary);
+  outline: none;
+}
+input.input-error, textarea.input-error, select.input-error {
+  border-color: var(--color-error);
+}
+.field-note {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  margin-top: 4px;
+}
+.field-error {
+  font-size: 11px;
+  color: var(--color-error);
+  font-family: var(--font-data);
+  display: none;
+  margin-top: 4px;
+}
+.entity-placeholder {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+}
+.section-error {
+  font-size: 11px;
+  color: var(--color-error);
+  font-family: var(--font-data);
+  display: none;
+  margin-bottom: 12px;
+}
+.field-group { display: none; }
+
+/* select wrapper */
+.select-wrapper { position: relative; }
+.select-wrapper select { appearance: none; -webkit-appearance: none; padding-right: 32px; }
+.select-arrow {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+  pointer-events: none;
+  font-size: 12px;
+}
+
+/* submit */
+#submit-btn {
+  background: var(--color-accent-primary);
+  color: #0a0a0f;
+  font-family: var(--font-data);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  border: none;
+  padding: 14px 28px;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 28px;
+}
+#submit-btn:hover { background: var(--color-accent-hover); }
+.submit-note {
+  font-family: var(--font-data);
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin-top: 10px;
+}
+
+/* ---------- HIGHLIGHTS ---------- */
+.highlights-col { position: sticky; top: 24px; align-self: start; }
+.panel {
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-subtle);
+  padding: 24px;
+  margin-bottom: 20px;
+}
+.panel-title {
+  font-family: var(--font-data);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--color-text-muted);
+  border-left: 3px solid var(--color-accent-primary);
+  padding-left: 10px;
+  margin-bottom: 14px;
+  display: block;
+}
+.panel-body {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-text-primary);
+  line-height: 1.6;
+}
+.panel-body p { margin-bottom: 12px; }
+.panel-body p:last-child { margin-bottom: 0; }
+.bullet {
+  display: block;
+  padding-left: 12px;
+  margin-bottom: 6px;
+}
+.panel-note {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  margin-top: 12px;
+  line-height: 1.5;
+}
+.panel-note.sm { font-size: 11px; }
+code {
+  font-family: var(--font-data);
+  font-size: 12px;
+  color: var(--color-accent-primary);
+  background: var(--color-bg-base);
+  padding: 1px 4px;
+}
+.h1-tagline {
+  font-family: var(--font-data);
+  font-size: 14px;
+  color: var(--color-accent-primary);
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: 14px;
+  margin-top: 14px;
+}
+.speed-sep {
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: 14px;
+  padding-bottom: 14px;
+  margin-top: 14px;
+}
+.mckinsey-line {
+  font-family: var(--font-data);
+  font-size: 12px;
+  color: var(--color-accent-primary);
+}
+
+/* grade table */
+.grade-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-top: 12px;
+}
+.grade-table td, .grade-table th {
+  padding: 6px 8px;
+  border: 1px solid var(--color-border-subtle);
+  text-align: left;
+}
+.grade-table th {
+  background: var(--color-bg-base);
+  font-family: var(--font-data);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--color-text-muted);
+}
+.grade-table td.grade-col {
+  font-family: var(--font-data);
+  color: var(--color-accent-primary);
+}
+
+/* ---------- FOOTER ---------- */
+.site-footer {
+  background: var(--color-surface-raised);
+  border-top: 1px solid var(--color-border-subtle);
+  padding: 32px 24px;
+  margin-top: 64px;
+}
+.footer-block {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-bottom: 10px;
+  line-height: 1.6;
+}
+.footer-contact {
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+/* ---------- MOBILE ---------- */
+@media (max-width: 899px) {
+  .main-grid { grid-template-columns: 1fr; }
+  .highlights-col { position: static; top: auto; }
+  .pillar-strip { grid-template-columns: 1fr; }
+  .pillar-cell { border-right: none; border-bottom: 1px solid var(--color-border-subtle); }
+  .pillar-cell:last-child { border-bottom: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="site-header">
+  <div class="site-header-inner">
+    <div>
+      <span class="wordmark">Trevor Robey, INC.</span>
+      <span class="wordmark-sub">&#8201;&mdash; Intelligence Network Citations</span>
+    </div>
+    <a class="header-contact" href="mailto:trevor@trevorobeyinc.com">trevor@trevorobeyinc.com</a>
+  </div>
+</header>
+<div style="border-top: 2px solid #4a90d9;"></div>
+<div style="border-top: 1px solid #1e1e2a;"></div>
+
+<!-- TITLE BLOCK -->
+<div class="container title-block">
+  <div class="section-label" style="margin-bottom:16px;">CLIENT INTAKE</div>
+
+  <div class="pillar-strip">
+    <div class="pillar-cell">
+      <div class="pillar-label">VERIFIABLE</div>
+      <div class="pillar-heading">Every claim, sourced.</div>
+      <div class="pillar-proof">Citation gate hard-fails on ungrounded identifiers &mdash; not a warning flag.</div>
+    </div>
+    <div class="pillar-cell">
+      <div class="pillar-label">FAST &amp; AFFORDABLE</div>
+      <div class="pillar-heading">In days, not weeks.</div>
+      <div class="pillar-proof">Investor Pre-Mortem: written 5&ndash;10 business day SLA. A fifth of McKinsey's time at a tenth of the price.</div>
+    </div>
+    <div class="pillar-cell">
+      <div class="pillar-label">EVERY RISK NAMED</div>
+      <div class="pillar-heading">Every risk, named.</div>
+      <div class="pillar-proof">NCT-traced graveyard memo &mdash; prior failures in the indication, sponsor stop reasons never invented.</div>
+    </div>
+  </div>
+
+  <div class="tagline">Every claim, sourced. Every risk, named. In days, not weeks.</div>
+  <div class="framing">Select the type of analysis you need &mdash; the form will show only the relevant entity fields and the corresponding capability evidence panel.</div>
+</div>
+
+<!-- MAIN GRID -->
+<div class="container">
+  <div class="main-grid">
+
+    <!-- LEFT: FORM -->
+    <div class="form-col">
+      <form id="intake-form" novalidate>
+
+        <!-- SECTION A -->
+        <div class="form-section-header first">// 01 &mdash; WHAT DO YOU NEED?</div>
+        <span class="section-error" id="error-question-type"></span>
+
+        <label class="radio-card" data-value="drug-discovery-full">
+          <input type="radio" name="question_type" value="drug-discovery-full">
+          <div class="rc-label">De-risk a specific asset</div>
+          <div class="rc-sku">Investor Pre-Mortem &middot; $9,950 / $14,950 / $19,950</div>
+          <div class="rc-desc">Per-asset risk dossier: trial design, comparable failures, IP runway. Every claim PMID/NCT/ChEMBL-traced.</div>
+        </label>
+
+        <label class="radio-card" data-value="clinical-trial-landscape">
+          <input type="radio" name="question_type" value="clinical-trial-landscape">
+          <div class="rc-label">Why did programs fail in this space?</div>
+          <div class="rc-sku">Failed Trial Archaeology &middot; $14,950</div>
+          <div class="rc-desc">Structured post-mortem of Phase 2/3 terminations in a mechanism or indication. NCT-indexed failure pattern matrix with sponsor stop reasons.</div>
+        </label>
+
+        <label class="radio-card" data-value="pharmacovigilance-report">
+          <input type="radio" name="question_type" value="pharmacovigilance-report">
+          <div class="rc-label">Safety signal or adverse event review</div>
+          <div class="rc-sku">Pharmacovigilance Pack &middot; $2,500&ndash;$4,950</div>
+          <div class="rc-desc">FAERS, DailyMed, RxNorm scan at runtime. Reproducibility manifest included; every signal entry carries a source identifier.</div>
+        </label>
+
+        <label class="radio-card" data-value="target-validation-pack">
+          <input type="radio" name="question_type" value="target-validation-pack">
+          <div class="rc-label">Validate or score a target</div>
+          <div class="rc-sku">Cross-Silo Connector Report &middot; $9,950&ndash;$24,950</div>
+          <div class="rc-desc">OpenTargets, UniProt, HPA, InterPro &mdash; four orthogonal evidence streams. PPI network mapping included.</div>
+        </label>
+
+        <label class="radio-card" data-value="rare-disease-brief">
+          <input type="radio" name="question_type" value="rare-disease-brief">
+          <div class="rc-label">Rare disease landscape</div>
+          <div class="rc-sku">Rare Disease Brief / Plain-Language Patient Brief &middot; $2,500+</div>
+          <div class="rc-desc">Orphan drug pipeline, genetic basis, OMIM/OrphaNet intelligence. Plain-language patient brief at 8th-grade health-literacy level available.</div>
+        </label>
+
+        <label class="radio-card" data-value="general-research-pack">
+          <input type="radio" name="question_type" value="general-research-pack">
+          <div class="rc-label">General biomedical research question</div>
+          <div class="rc-sku">General Research Pack &middot; Quoted on request</div>
+          <div class="rc-desc">Topic not fitting the above categories &mdash; scope and pricing discussed directly.</div>
+        </label>
+
+        <div class="sku-summary" id="sku-summary"></div>
+
+        <!-- SECTION B -->
+        <div class="form-section-header">// 02 &mdash; BIOMEDICAL ENTITY</div>
+        <span class="section-error" id="error-entity"></span>
+        <div class="entity-placeholder" id="entity-placeholder">Select an engagement type above to see the relevant entity fields.</div>
+
+        <div class="field-group" data-for="drug-discovery-full">
+          <label class="field-label" for="f-compound_name">COMPOUND / ASSET NAME</label>
+          <input type="text" id="f-compound_name" name="compound_name" placeholder="e.g. Sotorasib, BMS-986325, MRTX849">
+          <div class="field-note">Used to query ChEMBL, PubMed, and ClinicalTrials.gov at runtime</div>
+          <label class="field-label" for="f-indication">INDICATION / TARGET DISEASE</label>
+          <input type="text" id="f-indication" name="indication" placeholder="e.g. KRAS G12C NSCLC, HER2+ breast cancer">
+          <div class="field-note">Scopes the trial landscape and comparable failure set</div>
+        </div>
+
+        <div class="field-group" data-for="clinical-trial-landscape">
+          <label class="field-label" for="f-therapeutic_area">THERAPEUTIC AREA</label>
+          <input type="text" id="f-therapeutic_area" name="therapeutic_area" placeholder="e.g. oncology &ndash; KRAS, metabolic disease">
+          <div class="field-note">Scopes the failed-trial corpus in ClinicalTrials.gov</div>
+          <label class="field-label" for="f-phase_filter">CLINICAL TRIAL PHASE (OPTIONAL)</label>
+          <input type="text" id="f-phase_filter" name="phase_filter" placeholder="e.g. Phase 3, Phase 2/3">
+          <div class="field-note">Limits ClinicalTrials.gov stop-reason query to this phase</div>
+        </div>
+
+        <div class="field-group" data-for="pharmacovigilance-report">
+          <label class="field-label" for="f-drug_class">DRUG CLASS OR COMPOUND</label>
+          <input type="text" id="f-drug_class" name="drug_class" placeholder="e.g. NSAID, PD-1 inhibitor, GLP-1 agonist">
+          <div class="field-note">Used to scope FAERS and DailyMed safety queries</div>
+        </div>
+
+        <div class="field-group" data-for="target-validation-pack">
+          <label class="field-label" for="f-target_gene">TARGET GENE / PROTEIN</label>
+          <input type="text" id="f-target_gene" name="target_gene" placeholder="e.g. KRAS, EGFR, BRCA1">
+          <div class="field-note">Queried across OpenTargets, UniProt, HPA, and InterPro</div>
+          <label class="field-label" for="f-disease_context">DISEASE CONTEXT (OPTIONAL)</label>
+          <input type="text" id="f-disease_context" name="disease_context" placeholder="e.g. pancreatic adenocarcinoma">
+          <div class="field-note">Narrows OpenTargets genetic association filter</div>
+        </div>
+
+        <div class="field-group" data-for="rare-disease-brief">
+          <label class="field-label" for="f-disease_name">RARE DISEASE NAME OR OMIM ID</label>
+          <input type="text" id="f-disease_name" name="disease_name" placeholder="e.g. Friedreich's Ataxia, OMIM:229300">
+          <div class="field-note">Queried against OMIM, OrphaNet, and ClinicalTrials.gov</div>
+          <label class="field-label" for="f-focus_area">FOCUS AREA (OPTIONAL)</label>
+          <input type="text" id="f-focus_area" name="focus_area" placeholder="e.g. orphan drug pipeline, genetic basis">
+          <div class="field-note">Focuses synthesis scope</div>
+        </div>
+
+        <div class="field-group" data-for="general-research-pack">
+          <label class="field-label" for="f-topic">RESEARCH TOPIC OR QUESTION</label>
+          <input type="text" id="f-topic" name="topic" placeholder="Free-form question or topic">
+        </div>
+
+        <!-- SECTION C -->
+        <div class="form-section-header">// 03 &mdash; SCOPE</div>
+        <label class="field-label" for="f-turnaround">DESIRED TURNAROUND</label>
+        <div class="select-wrapper">
+          <select id="f-turnaround" name="turnaround">
+            <option value="" disabled selected>Select...</option>
+            <option value="standard">Standard (5&ndash;10 business days)</option>
+            <option value="expedited">Expedited (discuss timeline)</option>
+            <option value="flexible">Flexible / no deadline</option>
+          </select>
+          <span class="select-arrow">&#9662;</span>
+        </div>
+        <label class="field-label" for="f-notes">ADDITIONAL CONTEXT OR CONSTRAINTS</label>
+        <textarea id="f-notes" name="notes" rows="4" placeholder="Prior work, specific concerns, internal deal code, target filing date..."></textarea>
+
+        <!-- SECTION D -->
+        <div class="form-section-header">// 04 &mdash; CONTACT</div>
+        <label class="field-label" for="f-contact_name">FULL NAME</label>
+        <input type="text" id="f-contact_name" name="contact_name">
+        <span class="field-error" data-for-field="contact_name"></span>
+        <label class="field-label" for="f-contact_org">ORGANIZATION</label>
+        <input type="text" id="f-contact_org" name="contact_org">
+        <span class="field-error" data-for-field="contact_org"></span>
+        <label class="field-label" for="f-contact_email">EMAIL</label>
+        <input type="email" id="f-contact_email" name="contact_email">
+        <span class="field-error" data-for-field="contact_email"></span>
+        <label class="field-label" for="f-contact_role">ROLE / TITLE (OPTIONAL)</label>
+        <input type="text" id="f-contact_role" name="contact_role">
+        <div class="field-note">Helps route to the right SKU tier</div>
+
+        <!-- SUBMIT -->
+        <button type="button" id="submit-btn">SEND INTAKE REQUEST</button>
+        <p class="submit-note">This opens your email client with all fields pre-filled. No data is transmitted to any server.</p>
+        <p class="submit-note">Citation-Audit SLA &mdash; refund-backed.</p>
+      </form>
+    </div>
+
+    <!-- RIGHT: HIGHLIGHTS -->
+    <div class="highlights-col">
+
+      <!-- H1 -->
+      <div class="panel" id="panel-h1">
+        <span class="panel-title">GROUNDED-CITATION GATE &mdash; WHAT SHIPS AND WHAT DOESN'T</span>
+        <div class="panel-body">
+          <p>Every cited identifier (PMID, NCT, ChEMBL CID, DOI) is cross-checked against the union of identifiers actually returned by live database tool calls during the same run &mdash; not model memory. If the grounded-citation ratio falls below the configured threshold, the report hard-fails <code>PHASE30_CITATION_UNVERIFIED</code> and does not ship.</p>
+          <p>Cited DOIs are screened against Crossref's retraction record before delivery. A report citing any confirmed retracted paper hard-stops <code>PHASE30_CITATION_RETRACTED</code>. The screen is fail-soft: a Crossref network error yields <code>checked:false</code> and does not wrongly block a passing report.</p>
+          <div class="panel-note">Retraction screening applies to cited DOIs only &mdash; PMIDs and NCTs are not routed through Crossref.</div>
+          <div class="h1-tagline">Every claim, sourced. Every risk, named. In days, not weeks.</div>
+        </div>
+      </div>
+
+      <!-- H_SPEED -->
+      <div class="panel" id="panel-hspeed">
+        <span class="panel-title">SPEED &amp; COST &mdash; WHAT THE NUMBERS ACTUALLY SAY</span>
+        <div class="panel-body">
+          <span class="bullet">&middot; Investor Pre-Mortem: written 5&ndash;10 business day Speed SLA &mdash; $9,950 / $14,950 / $19,950</span>
+          <span class="bullet">&middot; Conference Synthesis Brief: 24&ndash;48 hours (500+ ASCO/ESMO/AACR abstracts synthesized) &mdash; $4,950</span>
+          <span class="bullet">&middot; Failed Trial Archaeology: days, not weeks &mdash; $14,950</span>
+          <span class="bullet">&middot; Pharmacovigilance Pack &mdash; $2,500&ndash;$4,950</span>
+          <span class="bullet">&middot; Cross-Silo Connector Report &mdash; $9,950&ndash;$24,950</span>
+          <span class="bullet">&middot; Other SKUs: timeline confirmed at intake; no written Speed SLA outside Investor Pre-Mortem</span>
+          <div class="speed-sep">
+            <span class="mckinsey-line">McKinsey runs 2&ndash;6 weeks at $150K&ndash;$750K. We run a fifth of the time at a tenth of the price.</span>
+          </div>
+          <div class="panel-note sm">The 5&ndash;10 business day Speed SLA applies to Investor Pre-Mortem deliveries only. Conference Synthesis Brief 24&ndash;48 hr claim is SKU-specific (OFFERINGS.md). The McKinsey comparison is sourced from the internal revenue playbook &mdash; not independently verified. Timelines for other SKUs are confirmed at intake.</div>
+        </div>
+      </div>
+
+      <!-- H2 -->
+      <div class="panel" id="panel-h2" style="display:none;">
+        <span class="panel-title">CITATION-INTEGRITY GRADE &mdash; SHIPPED WITH EVERY REPORT</span>
+        <div class="panel-body">
+          <span class="bullet">&middot; Every bundle includes a <code>citation-integrity.md</code> provenance ledger &mdash; a deterministic (no LLM) grade computed from the grounding gate's output</span>
+          <span class="bullet">&middot; Grade <code>F / BLOCKED</code> if any cited DOI is confirmed retracted via Crossref; <code>N/A</code> if nothing is cited</span>
+          <span class="bullet">&middot; The ledger lists every unverified identifier annotated inline &mdash; reviewable by your legal or compliance team</span>
+          <table class="grade-table">
+            <thead>
+              <tr><th>Grade</th><th>Grounded ratio</th><th>Meaning</th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="grade-col">A</td><td>&ge; 90%</td><td>All major claims traceable to retrieved records</td></tr>
+              <tr><td class="grade-col">B</td><td>75&ndash;89%</td><td>Solid provenance; minor unverified cites annotated</td></tr>
+              <tr><td class="grade-col">C</td><td>50&ndash;74%</td><td>Acceptable; unverified cites flagged [UNVERIFIED]</td></tr>
+              <tr><td class="grade-col">D</td><td>&lt; 50%</td><td>Many citations not grounded in fetched evidence</td></tr>
+              <tr><td class="grade-col">F / BLOCKED</td><td>any retraction</td><td>Retracted DOI cited &mdash; delivery blocked</td></tr>
+            </tbody>
+          </table>
+          <div class="panel-note sm">The grounded-citation ratio measures citations found in the runtime-fetched evidence set &mdash; not independent re-resolution against each live external database. The threshold is a delivery floor, not a quality target.</div>
+        </div>
+      </div>
+
+      <!-- H3 -->
+      <div class="panel" id="panel-h3" style="display:none;">
+        <span class="panel-title">GRAVEYARD MEMO &mdash; EVERY PRIOR FAILURE, TRACED</span>
+        <div class="panel-body">
+          <span class="bullet">&middot; Every Failed Trial Archaeology bundle ships a <code>graveyard-memo.md</code>: a structured memo of terminated, withdrawn, and suspended programs in the indication, fetched from ClinicalTrials.gov API v2 at run time</span>
+          <span class="bullet">&middot; Each entry includes the sponsor's stated stop reason &mdash; or an explicit "(none stated by sponsor)" when ClinicalTrials.gov has no text; stop reasons are never invented</span>
+          <span class="bullet">&middot; Protocol amendment-risk band (LOW / MODERATE / HIGH) derived from ClinicalTrials.gov change-history version counts across comparable stopped programs &mdash; a historical signal, not a forecast</span>
+          <span class="bullet">&middot; Every NCT resolves to a live <code>clinicaltrials.gov/study/NCT...</code> link</span>
+          <span class="bullet">&middot; Rendered deterministically from live CT.gov records &mdash; no LLM narration of stop reasons</span>
+        </div>
+      </div>
+
+      <!-- H4 -->
+      <div class="panel" id="panel-h4" style="display:none;">
+        <span class="panel-title">SAFETY SIGNALS FROM LIVE DATABASES &mdash; NOT MODEL RECALL</span>
+        <div class="panel-body">
+          <span class="bullet">&middot; The pharmacovigilance workflow queries FAERS, DailyMed, RxNorm, and DrugSafetyAnalyzer at runtime via ToolUniverse (~2,116 biomedical tools, Harvard MIMS, Apache-2.0)</span>
+          <span class="bullet">&middot; Adverse event signals are sourced from the databases actually queried at runtime &mdash; not interpolated from training data</span>
+          <span class="bullet">&middot; A Reproducibility Manifest ships with every bundle: each cited identifier stamped VERIFIED / UNRESOLVED / UNCHECKED with its HTTP status and resolved URL</span>
+          <div class="panel-note sm">The Reproducibility Manifest confirms identifier resolution &mdash; not the scientific correctness of the underlying evidence.</div>
+        </div>
+      </div>
+
+      <!-- H5 -->
+      <div class="panel" id="panel-h5" style="display:none;">
+        <span class="panel-title">FOUR ORTHOGONAL EVIDENCE STREAMS &mdash; OPENTARGETS, UNIPROT, HPA, INTERPRO</span>
+        <div class="panel-body">
+          <span class="bullet">&middot; Target validation queries four independent databases in parallel: Open Targets (genetic association), UniProt (protein function + disease annotation), Human Protein Atlas (tissue/cell expression), InterPro (domain/family classification)</span>
+          <span class="bullet">&middot; Confidence threshold for association inclusion: <code>0.7</code> &mdash; higher than clinical-trial or pharmacovigilance workflows</span>
+          <span class="bullet">&middot; PPI network mapping via ToolUniverse molecular interaction tools</span>
+          <span class="bullet">&middot; Identifiers introduced by OSS triage models that are not present in the runtime-fetched evidence are still caught as ungrounded by the citation gate</span>
+        </div>
+      </div>
+
+      <!-- H6 -->
+      <div class="panel" id="panel-h6">
+        <span class="panel-title">WHAT YOU RECEIVE &mdash; SEALED, AUDITABLE BUNDLE</span>
+        <div class="panel-body">
+          <span class="bullet">&middot; Full research report with inline <code>[UNVERIFIED]</code> annotations on any citation not grounded in runtime-fetched records</span>
+          <span class="bullet">&middot; <code>citation-integrity.md</code> &mdash; A&ndash;F graded provenance ledger</span>
+          <span class="bullet">&middot; <code>graveyard-memo.md</code> &mdash; NCT-traced failure archaeology (indication-scoped reports)</span>
+          <span class="bullet">&middot; <code>reproducibility-manifest.json</code> &mdash; per-identifier resolution record with HTTP status and resolved URL</span>
+          <span class="bullet">&middot; <code>checksums.txt</code> + <code>manifest.json</code> &mdash; SHA-256 seals on all deliverable files</span>
+          <span class="bullet">&middot; Delivered as a ZIP via secure email; enterprise handoff to Snowflake, AWS Data Exchange, or BigQuery available</span>
+          <span class="bullet">&middot; Citation-Audit SLA &mdash; refund-backed</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer class="site-footer">
+  <div class="container">
+    <p class="footer-block">Trevor Robey, INC. is the wordmark of Trevor Robey Intelligence Network Citations LLC, a California limited liability company (California Secretary of State Entity No. B20260217250). INC = Intelligence Network Citations. Powered by OpenClaw open-source agent framework.</p>
+    <p class="footer-block">Reports are research artifacts produced using AI-assisted research synthesis with human editorial oversight; every cited identifier is a real public identifier you can verify in its source database. For research and informational use only &mdash; not clinical decision support, and not a basis for prescribing, diagnostic, or regulatory decisions. No PHI is hosted, transmitted, or processed. All data sources queried are public biomedical databases.</p>
+    <p class="footer-block">External publication, marketplace submission, customer delivery, and authentication actions remain manual-only by architectural design; the system does not act autonomously on external systems.</p>
+    <p class="footer-block">Citations are grounded in the retrieved source records + DOI retraction-screened via Crossref &mdash; they are not independently re-resolved against each live external database.</p>
+    <p class="footer-contact"><a href="mailto:trevor@trevorobeyinc.com">trevor@trevorobeyinc.com</a> &middot; trevorobeyinc.com</p>
+  </div>
+</footer>
+
+<script>
+const QUESTION_TYPE_MAP = {
+  "drug-discovery-full": {
+    label:    "De-risk a specific asset",
+    sku:      "Investor Pre-Mortem",
+    price:    "$9,950 / $14,950 / $19,950",
+    required: ["compound_name", "indication"],
+    optional: [],
+  },
+  "clinical-trial-landscape": {
+    label:    "Why did programs fail in this space?",
+    sku:      "Failed Trial Archaeology",
+    price:    "$14,950",
+    required: ["therapeutic_area"],
+    optional: ["phase_filter"],
+  },
+  "pharmacovigilance-report": {
+    label:    "Safety signal or adverse event review",
+    sku:      "Pharmacovigilance Pack",
+    price:    "$2,500\u2013$4,950",
+    required: ["drug_class"],
+    optional: [],
+  },
+  "target-validation-pack": {
+    label:    "Validate or score a target",
+    sku:      "Cross-Silo Connector Report",
+    price:    "$9,950\u2013$24,950",
+    required: ["target_gene"],
+    optional: ["disease_context"],
+  },
+  "rare-disease-brief": {
+    label:    "Rare disease landscape",
+    sku:      "Rare Disease Brief / Plain-Language Patient Brief",
+    price:    "$2,500+",
+    required: ["disease_name"],
+    optional: ["focus_area"],
+  },
+  "general-research-pack": {
+    label:    "General biomedical research question",
+    sku:      "General Research Pack",
+    price:    "Quoted on request",
+    required: ["topic"],
+    optional: [],
+  },
+};
+
+const PANEL_VISIBILITY = {
+  "drug-discovery-full":      ["h2"],
+  "clinical-trial-landscape": ["h2", "h3"],
+  "pharmacovigilance-report": ["h4"],
+  "target-validation-pack":   ["h5"],
+  "rare-disease-brief":       [],
+  "general-research-pack":    [],
+};
+
+const CONDITIONAL_PANELS = ["h2", "h3", "h4", "h5"];
+
+function $(sel, ctx) { return (ctx || document).querySelector(sel); }
+function $all(sel, ctx) { return Array.prototype.slice.call((ctx || document).querySelectorAll(sel)); }
+
+function hideConditionalPanels() {
+  CONDITIONAL_PANELS.forEach(function (id) {
+    var el = document.getElementById("panel-" + id);
+    if (el) el.style.display = "none";
+  });
+}
+
+function hideAllFieldGroups() {
+  $all(".field-group").forEach(function (g) { g.style.display = "none"; });
+}
+
+function clearFieldErrors() {
+  $all(".field-error").forEach(function (s) { s.style.display = "none"; s.textContent = ""; });
+  $all(".input-error").forEach(function (i) { i.classList.remove("input-error"); });
+  $all(".section-error").forEach(function (s) { s.style.display = "none"; s.textContent = ""; });
+}
+
+function onRadioChange() {
+  var checked = $('input[name="question_type"]:checked');
+  if (!checked) return;
+  var value = checked.value;
+  var info = QUESTION_TYPE_MAP[value];
+
+  // SKU summary
+  var summary = document.getElementById("sku-summary");
+  summary.textContent = "Selected: " + info.sku + " \u2014 " + info.price;
+  summary.style.display = "block";
+
+  // field groups
+  hideAllFieldGroups();
+  $all('.field-group[data-for="' + value + '"]').forEach(function (g) { g.style.display = "block"; });
+  document.getElementById("entity-placeholder").style.display = "none";
+
+  // panels
+  hideConditionalPanels();
+  (PANEL_VISIBILITY[value] || []).forEach(function (id) {
+    var el = document.getElementById("panel-" + id);
+    if (el) el.style.display = "block";
+  });
+
+  // card highlight
+  $all(".radio-card").forEach(function (c) { c.classList.remove("card-selected"); });
+  var card = checked.closest(".radio-card");
+  if (card) card.classList.add("card-selected");
+
+  clearFieldErrors();
+}
+
+function turnaroundLabel(v) {
+  if (v === "standard") return "Standard (5\u201310 business days)";
+  if (v === "expedited") return "Expedited (discuss timeline)";
+  if (v === "flexible")  return "Flexible / no deadline";
+  return "Not specified";
+}
+
+function val(name) {
+  var el = $('[name="' + name + '"]');
+  return el ? el.value.trim() : "";
+}
+
+function showFieldError(name, msg) {
+  var input = $('[name="' + name + '"]');
+  if (input) input.classList.add("input-error");
+  var span = $('.field-error[data-for-field="' + name + '"]');
+  if (span) { span.textContent = msg; span.style.display = "block"; }
+}
+
+function onSubmit() {
+  clearFieldErrors();
+  var hasError = false;
+  var firstErrorEl = null;
+
+  var checked = $('input[name="question_type"]:checked');
+  if (!checked) {
+    var qErr = document.getElementById("error-question-type");
+    qErr.textContent = "Please select an engagement type.";
+    qErr.style.display = "block";
+    hasError = true;
+    if (!firstErrorEl) firstErrorEl = qErr;
+  }
+
+  ["contact_name", "contact_org", "contact_email"].forEach(function (name) {
+    if (!val(name)) {
+      showFieldError(name, "Required");
+      hasError = true;
+      if (!firstErrorEl) firstErrorEl = $('[name="' + name + '"]');
+    }
+  });
+
+  var email = val("contact_email");
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    showFieldError("contact_email", "Enter a valid email address");
+    hasError = true;
+    if (!firstErrorEl) firstErrorEl = $('[name="contact_email"]');
+  }
+
+  if (checked) {
+    var info = QUESTION_TYPE_MAP[checked.value];
+    var anyFilled = info.required.some(function (f) { return val(f) !== ""; });
+    if (!anyFilled) {
+      var eErr = document.getElementById("error-entity");
+      eErr.textContent = "Enter at least one entity field for the selected analysis type";
+      eErr.style.display = "block";
+      hasError = true;
+      if (!firstErrorEl) firstErrorEl = eErr;
+    }
+  }
+
+  if (hasError) {
+    if (firstErrorEl && firstErrorEl.getBoundingClientRect) {
+      var rect = firstErrorEl.getBoundingClientRect();
+      window.scrollTo({ top: window.pageYOffset + rect.top - 80, behavior: "smooth" });
+    }
+    return;
+  }
+
+  // Build mailto
+  var info = QUESTION_TYPE_MAP[checked.value];
+  var org = val("contact_org");
+  var subject = "[Intake] " + info.sku + " \u2014 " + org;
+
+  var entityLines = [];
+  function addEntity(label, name) {
+    var v = val(name);
+    if (v) entityLines.push(label + v);
+  }
+  addEntity("Compound / asset:     ", "compound_name");
+  addEntity("Indication:           ", "indication");
+  addEntity("Therapeutic area:     ", "therapeutic_area");
+  addEntity("Phase filter:         ", "phase_filter");
+  addEntity("Drug class:           ", "drug_class");
+  addEntity("Target gene:          ", "target_gene");
+  addEntity("Disease context:      ", "disease_context");
+  addEntity("Rare disease:         ", "disease_name");
+  addEntity("Focus area:           ", "focus_area");
+  addEntity("Research topic:       ", "topic");
+
+  var body =
+"Trevor Robey, INC. \u2014 Client Intake\n" +
+"===================================\n" +
+"\n" +
+"QUESTION TYPE\n" +
+"-------------\n" +
+"Client selection: " + info.label + "\n" +
+"Engine template:  " + checked.value + "\n" +
+"SKU:              " + info.sku + "\n" +
+"Price range:      " + info.price + "\n" +
+"\n" +
+"BIOMEDICAL ENTITIES\n" +
+"-------------------\n" +
+(entityLines.length ? entityLines.join("\n") + "\n" : "") +
+"\n" +
+"SCOPE\n" +
+"-----\n" +
+"Desired turnaround:   " + turnaroundLabel(val("turnaround")) + "\n" +
+"Additional context:\n" +
+(val("notes") || "") + "\n" +
+"\n" +
+"CONTACT\n" +
+"-------\n" +
+"Name:          " + val("contact_name") + "\n" +
+"Organization:  " + org + "\n" +
+"Email:         " + val("contact_email") + "\n" +
+"Role / title:  " + (val("contact_role") || "") + "\n" +
+"\n" +
+"---\n" +
+"Trevor Robey, INC. is the wordmark of Trevor Robey Intelligence Network Citations LLC,\n" +
+"a California limited liability company. trevor@trevorobeyinc.com";
+
+  window.location.href = "mailto:trevor@trevorobeyinc.com?subject=" +
+    encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
+
+  var btn = document.getElementById("submit-btn");
+  btn.textContent = "OPENING YOUR EMAIL CLIENT...";
+  btn.style.pointerEvents = "none";
+  btn.style.opacity = "0.6";
+  setTimeout(function () {
+    btn.textContent = "SEND INTAKE REQUEST";
+    btn.style.pointerEvents = "";
+    btn.style.opacity = "";
+  }, 2000);
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+  hideAllFieldGroups();
+  document.getElementById("entity-placeholder").style.display = "block";
+  hideConditionalPanels();
+  document.getElementById("sku-summary").style.display = "none";
+
+  $all('input[name="question_type"]').forEach(function (r) {
+    r.addEventListener("change", onRadioChange);
+  });
+  document.getElementById("submit-btn").addEventListener("click", onSubmit);
+});
+</script>
+</body>
+</html>

@@ -163,3 +163,82 @@ When adding new `actionType` values to mission templates or step definitions, al
 - Source: error
 - Related Files: config/autonomy-ladder.json, config/mission-templates.json, openclaw-bridge/core/role-router.js
 - Tags: rbac, autonomy-ladder, governance
+
+---
+
+## LRN-20260612-001 citation_grounding_not_blind_trust
+
+**Logged**: 2026-06-12T00:00:00Z
+**Priority**: high
+**Status**: resolved
+**Area**: backend
+
+### Summary
+The zero-fabrication brand requires that report citations be checked against the source records actually retrieved at runtime — not trusted because the model emitted them. A report-level citation gate was added on top of the per-task agent-engine controls.
+
+### Details
+The post-research engine added a CITATION-INTEGRITY layer:
+- `agent-engine.js` now persists `fetched_citation_ids` (the identifiers actually retrieved at runtime by tool-prefetch) plus a per-task `citation_verification` block into research-output metadata; `buildPrompt` carries an ABSOLUTE-RULE "ZERO FABRICATION" clause (never invent a PMID/NCT/DOI — say "[no verifiable citation found]" instead).
+- `workflow-engine.executeMissionStep` runs a REPORT-LEVEL gate (`verifyReportCitations` in `core/citation-gate.js`): every identifier cited in the assembled report is cross-checked against the UNION of runtime-fetched ids. A cited id is "grounded" if it was present in fetched evidence, else "ungrounded" (likely model-introduced). The gate HARD-FAILS (`PHASE30_CITATION_UNVERIFIED`) when the grounded ratio is below `minGroundedCitationRatio` (agent-config default 0.34), writes `citation-verification.json` + `report-annotated.md` (surviving ungrounded cites annotated inline `[UNVERIFIED]`), and engages only when there IS fetched ground truth.
+- A retraction screen (`mcp/crossref-retraction/crossref-retraction.js`) checks each cited DOI against Crossref `/works/{DOI}`; a report citing any retracted paper HARD-STOPS (`PHASE30_CITATION_RETRACTED`). Fail-soft: a Crossref network blip yields no retractions and can never wrongly block a report.
+
+HONESTY NOTE: citations are "grounded in the source records actually retrieved at runtime + DOI retraction-screened (Crossref)". They are NOT independently re-resolved/verified against each citation's live source database — that per-citation external re-resolution is not built yet (grounded != re-resolved).
+
+### Suggested Action
+Treat the report-level grounded ratio as the shippable integrity signal, and keep the ABSOLUTE-RULE clause in `buildPrompt` intact. When raising `minGroundedCitationRatio`, validate against a live armed run before promoting.
+
+### Metadata
+- Source: conversation
+- Related Files: openclaw-bridge/core/citation-gate.js, openclaw-bridge/core/agent-engine.js, openclaw-bridge/core/workflow-engine.js, openclaw-bridge/mcp/crossref-retraction/crossref-retraction.js
+- Tags: citations, zero-fabrication, citation-gate, retraction, error-codes
+
+---
+
+## LRN-20260612-002 doi_regex_overcapture_deflated_grounding
+
+**Logged**: 2026-06-12T00:00:00Z
+**Priority**: medium
+**Status**: resolved
+**Area**: backend
+
+### Summary
+A DOI regex that over-captured trailing punctuation deflated the grounded ratio and duplicated DOIs.
+
+### Details
+In `core/citation-extractor.js` the DOI regex was capturing trailing markdown/prose terminators (e.g. `]]`, `;`, `.`), which produced malformed and duplicated DOIs that no longer matched the fetched ground truth — deflating the grounded ratio. DOIs contain internal dots, so `.` can't be excluded in-pattern; the fix stops the pattern at non-DOI terminators and strips trailing sentence punctuation after capture (a DOI never ends in `. , ; :`). Confirmed live: the same deliverable's integrity grade rose from C/0.69 to A/1.0.
+
+### Suggested Action
+When matching identifiers that legitimately contain punctuation, prefer terminator-aware patterns plus a post-capture trim over excluding the character in-pattern. Re-measure the grounded ratio after any extractor change.
+
+### Metadata
+- Source: error
+- Related Files: openclaw-bridge/core/citation-extractor.js
+- Tags: citations, doi, regex, grounded-ratio
+
+---
+
+## LRN-20260612-003 stopped_trial_corpus_and_deterministic_deliverables
+
+**Logged**: 2026-06-12T00:00:00Z
+**Priority**: medium
+**Status**: resolved
+**Area**: backend
+
+### Summary
+Stop-reason archaeology was added as a local fetcher, and two new mission-bundle deliverables are rendered deterministically from fetched records (no LLM) so every claim is verifiable.
+
+### Details
+- `mcp/ctgov-supplemental/ctgov-supplemental.js` is a LOCAL FETCHER (not ToolUniverse) that searches ClinicalTrials.gov API v2 for TERMINATED/WITHDRAWN/SUSPENDED trials in a condition, returning each trial's `whyStopped` text plus protocol change-history (version count + most-amended modules). It has a session cache and is routed into role prefetch through a new local-fetcher seam in `tool-prefetch.js` (`createToolPrefetch` `options.localFetchers`, tool_name `ctgov_stopped_trials`). Each record is NCT-traced (grounded cite).
+- `monetization/integrity-rating.js` `buildIntegrityReport(citation_verification)` renders a graded provenance ledger (grade A/B/C/D from the grounded ratio; F + "BLOCKED" on any retraction; N/A if nothing cited), shipped as `deliverables/citation-integrity.md` in every mission bundle (registered in `manifest.json` + sealed in `checksums.txt`).
+- `monetization/graveyard-memo.js` renders `deliverables/graveyard-memo.md` (prior terminated/withdrawn/suspended programs in the indication, each NCT-traced, with the sponsor's stated stop reason or an explicit "(none stated by sponsor)" — never invented — protocol churn, and a resolvable clinicaltrials.gov link) and a protocol amendment-risk band (LOW/MODERATE/HIGH) from change-history median/max version count. Both are rendered DETERMINISTICALLY from fetched records (no LLM).
+- Wiring: on a gate-PASSING mission, `workflow-engine.executeMissionStep` re-fetches the indication's stopped trials (a session-cache hit — no extra CT.gov call) and builds both memos fully fail-soft and bounded (an absent fetcher / empty indication / fetch error simply omits them and never blocks a passing report); `executeOfferStep` threads them into `source_context`; the deliverable-packager ships `graveyard-memo.md` and registers the artifact refs. `_workflow-runtime` exposes the `ctgovSupplemental` + `crossrefRetraction` instances on `researchRuntime`.
+
+This was live-verified on an armed heart-failure run (workflow 6/6 steps, grounded ratio 1.0, 8 stopped trials retrieved, integrity grade A, both new deliverables sealed in the release bundle) — which also addresses the integration-path concern raised in LRN-20260331-001 (the gate and deliverables run on the real runtime path, not mocked).
+
+### Suggested Action
+Keep deterministic deliverables LLM-free so their claims stay verifiable. Local fetchers belong on the `localFetchers` seam, not ToolUniverse. Preserve the fail-soft/bounded wiring so a missing corpus never blocks an otherwise-passing report.
+
+### Metadata
+- Source: conversation
+- Related Files: openclaw-bridge/mcp/ctgov-supplemental/ctgov-supplemental.js, openclaw-bridge/core/tool-prefetch.js, openclaw-bridge/monetization/integrity-rating.js, openclaw-bridge/monetization/graveyard-memo.js, openclaw-bridge/core/workflow-engine.js
+- Tags: clinicaltrials, stopped-trials, deliverables, deterministic, monetization

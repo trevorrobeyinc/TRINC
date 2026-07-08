@@ -120,6 +120,67 @@
 > **separately** (daily-carry vs. off-site/safe). Canonical access doc updated:
 > [`account-access.md`](03-platforms/aws-data-exchange/account-access.md).
 
+> ### PROGRESS LOG — 2026-06-10 (AWS seller APPROVED, but disbursement blocked by stalled account review)
+>
+> **Channel state correction (operator-confirmed):**
+> - **AWS Marketplace / Data Exchange** 🟡→ **seller APPROVED.** The portal now shows
+>   the seller profile approved (this supersedes the May "rejected" framing — STATUS
+>   UPDATE row 2 above is now historical). **New blocker:** adding the **disbursement
+>   method** returns a console notification error — *"your account is still being
+>   reviewed"* — so payouts can't be configured and no paid listing can go live.
+>   **~34 days (since ~early May) with no response from AWS.** Net: approved seller +
+>   a secondary account review that is stuck and gating disbursement.
+>   **NEXT ACTION:** send the disbursement/account-review escalation letter (section
+>   **[6]** in [`03-platforms/aws-data-exchange/correspondence-2026-05.md`](03-platforms/aws-data-exchange/correspondence-2026-05.md))
+>   via the AWS Marketplace Management Portal → Support → Seller Operations →
+>   Account/Onboarding (acct `833390816446`, seller `trevor-robey-inc`). If no reply
+>   in 5–7 business days, request a phone callback. Free Pharmacovigilance sample is
+>   staged and uploads the moment the account clears.
+> - **Engine note (2026-06-10):** a live test run showed the OpenClaw workflow engine
+>   halts at a human-approval gate it cannot satisfy from any production path — see
+>   [`THE-WHOLE-SYSTEM.md`](THE-WHOLE-SYSTEM.md) §0a. Does not affect the AWS/GTM track,
+>   but it means no research report has been produced yet; fix is a small approval wire.
+
+> ### PROGRESS LOG — 2026-06-12 (engine: citation-integrity layer shipped + two new deliverables; first complete report produced)
+>
+> **Engine-capability change (product-relevant; not a channel-status change).** The
+> OpenClaw research engine gained a zero-fabrication **citation-integrity layer** and two
+> new cost-avoidance deliverables. All shipped, unit-tested, and live-verified on an armed
+> heart-failure run that completed end-to-end (the first complete report the engine has
+> produced — supersedes the 2026-06-10 "no research report produced yet" note above).
+> What this changes for the offering:
+> - **Citation grounding gate.** Every identifier cited in an assembled report is
+>   cross-checked at the report level against the union of source records the engine
+>   *actually retrieved at runtime*. A cited id is "grounded" if it was present in fetched
+>   evidence, else "ungrounded" (likely model-introduced). The engine **refuses to ship**
+>   when the grounded ratio falls below a configured floor (`minGroundedCitationRatio`,
+>   default 0.34; error `PHASE30_CITATION_UNVERIFIED`); surviving ungrounded cites are
+>   annotated inline `[UNVERIFIED]`. Engages only when there is fetched ground truth.
+>   The buildPrompt path also carries an ABSOLUTE-RULE "ZERO FABRICATION" clause (never
+>   invent a PMID/NCT/DOI; say "[no verifiable citation found]" instead).
+>   **Honest scope:** citations are **grounded in the source records actually retrieved at
+>   runtime + DOI retraction-screened (Crossref)** — they are NOT independently re-resolved
+>   against each live source database (that per-citation external re-resolution is not built).
+> - **Retraction screen.** Each cited DOI is checked against Crossref; a report citing any
+>   retracted paper hard-stops (`PHASE30_CITATION_RETRACTED`). Fail-soft — a Crossref network
+>   error yields no retractions and can never wrongly block a report.
+> - **NEW deliverable — `deliverables/citation-integrity.md`** (Citation Integrity &
+>   Provenance ledger): a graded provenance ledger (grade A/B/C/D from the grounded ratio;
+>   F/"BLOCKED" on any retraction) shipped in every mission bundle and sealed in the bundle
+>   checksums. It is the report's audit-trail spine — the concrete artifact behind this
+>   playbook's "audit trail included" / "refund-backed citation-audit SLA" claims.
+> - **NEW deliverable — `deliverables/graveyard-memo.md`** (Graveyard Memo + protocol
+>   Amendment-Risk): a memo of prior terminated/withdrawn/suspended programs in the
+>   indication, each NCT-traced with the sponsor's stated stop reason (or an explicit
+>   "(none stated by sponsor)" — never invented) and a resolvable
+>   clinicaltrials.gov/study/<NCT> link, plus a LOW/MODERATE/HIGH protocol amendment-risk
+>   band from trial change-history. Rendered deterministically from the fetched records
+>   (no LLM), so every claim is verifiable. This is the engine substance behind the
+>   **Failed Trial Archaeology** offering ($14,950).
+>
+> No GTM/channel impact — but the product now has the literal "every claim, sourced; audit
+> trail included" artifacts in-bundle. See [`THE-WHOLE-SYSTEM.md`](THE-WHOLE-SYSTEM.md).
+
 **Bottom line:** trevor-robey-inc enters a market that has been waiting for a citation-disciplined alternative — every claim PMID/NCT/ChEMBL-traced, refund-backed citation-audit SLA, audit-trail-included at investor-grade price. Two of Trevor's six "distribution platforms" (Outlier.ai, Mindrift.ai) are not marketplaces at all; the highest-leverage move in the next seven days is a Datarade vendor application paired with a gated HuggingFace teaser dataset — those two listings can be live by Friday May 1, 2026 with zero contractor spend. AWS Data Exchange should be initiated in parallel but treated as a 60–180 day enterprise channel, not a Week-1 revenue source. DrugBank must be removed from every public pack until a commercial license is signed, and FAERS is now AEMS with daily updates as of March 11, 2026 — the Pharmacovigilance Pack copy needs that update before any cold email goes out. The 12 named target accounts below all show concrete 2025–2026 buying signals. The lead public offering is **Investor Pre-Mortem** ($9,950 anchor / $14,950 standard / $19,950 custom with KOL primary research), positioned against McKinsey diligence ($150K–$750K, 2–6 weeks) and ChatGPT (free, 30%+ citation hallucination). Pharmacovigilance Pack remains as the tactical demonstration listing on Datarade and HuggingFace at the existing $2,500–$4,950 tier; it is no longer the lead product.
 
 ---
@@ -538,4 +599,47 @@ Strategy: publish executive summaries, methodological teardowns, visually compel
 1. **Bifurcated product suite.** Free executive summaries via Gumroad/LinkedIn for top-of-funnel + lead capture. Premium $1,500–$5,000+ data packs reserved for direct enterprise sales or syndicated aggregator listings.
 2. **Format agnosticism.** Move beyond static PDF — Excel models, CSV, API endpoints, eventually Snowflake/Databricks integration as buyers scale.
 3. **Strategic distribution alliances.** Don't rely solely on organic SEO. Submit to revenue-sharing platforms (ReportLinker, Datarade), explore tokenization on Ocean Protocol for proprietary data, actively bid on RFPs via BidNet Direct.
+
+---
+
+## POST-MORTEM — original 30-day plan (Apr 27 – May 22)
+
+> **Honest accounting (2026-06-10).** The original plan expired ~19 days ago. What actually happened vs. what was planned. Channel detail in the STATUS UPDATE / PROGRESS LOG entries above; full audit in [`audit/business-reality-2026-06/00-audit-report.md`](audit/business-reality-2026-06/00-audit-report.md).
+
+| Planned | What happened |
+|---|---|
+| Submit Datarade by ~Apr 28 → storefront live | Submitted **2026-05-11**; onboarding call 2026-05-20; **DECLINED** — "business not yet established." |
+| File AWS Data Exchange in parallel | App **rejected 2026-05-03**; AWS re-outreach; 2 operator emails; follow-up #3 drafted 2026-05-23 — **but the thread can't be found in any mailbox (2026-06-10) and escalation (2026-06-02) lapsed.** AWS *account* access set up (SSO + 2 YubiKeys, 2026-05-26/28). |
+| Push HuggingFace gated dataset live (~May 1) | **Not done.** |
+| Snowflake free listing (~1 day) | **Not done.** |
+| Cold outbound to 12 named accounts | **Not started** — `12-pipeline-tracking/*` all empty. |
+| Engage contracts attorney | Templates staged (Common Paper); no signed engagement recorded. |
+
+**Net:** product engine and collateral are ready; **commercial execution stalled at the channel gates.** $0 revenue, 0 live listings, 0 calls. The two gated marketplaces (Datarade, AWS) both want an "establishment" track record that doesn't exist yet — so the plan that led with them was sequenced backwards for a brand-new solo entity.
+
+---
+
+## REVISED 30-DAY PLAN — 2026-06-10 → 2026-07-10
+
+> **Strategy (2026-06-10):** artifact + direct outbound first. Get one live citable artifact out (zero gatekeeper), then run the **direct-sale motion** — which is both the real near-term revenue source *and* the "establishment" proof that re-opens Datarade and Snowflake. Marketplaces come last, with proof in hand. **All sends/submissions are operator-executed and manual** (per the manual-only external-action rule); this plan prepares the moves, it does not auto-execute them. Log every touch in [`12-pipeline-tracking/`](12-pipeline-tracking/).
+
+### Week 1 (Jun 10–16) — one live artifact + unblock the stall
+1. **Publish the free Pharmacovigilance sample pack on HuggingFace** as a gated dataset. It's the only channel with **zero review gate** → your first public, citable artifact and a lead-capture surface. Artifacts already staged in `workspace/aws-marketplace-listing/pharmacovigilance-sample-pack/`; reuse the brand-current Sample Pack + Data Dictionary from the Datarade submission (HubSpot UUID `f2e8abb3-…`). *(recommendation: this is the single highest-leverage move this week.)*
+2. **AWS — verify-first, do not blind-send.** Before sending follow-up #3: (a) check `trevorrobeyinc@gmail.com` (separate alias inbox); (b) sign into the AWS console (IAM Identity Center SSO, acct `833390816446`, [`03-platforms/aws-data-exchange/account-access.md`](03-platforms/aws-data-exchange/account-access.md)) and read the Marketplace/Data Exchange **case history** — the thread most likely lives there, not in email. If found, paste verbatim into [`correspondence-2026-05.md`](03-platforms/aws-data-exchange/correspondence-2026-05.md) then send follow-up #3 / file the Seller-Operations "Onboarding Request" case. If not found, treat AWS as **not actually in progress** and deprioritize behind outbound.
+
+### Week 2 (Jun 17–23) — direct outbound (the real revenue motion)
+3. **Cold outbound to the named target accounts** using existing templates ([`07-outbound/`](07-outbound/)). Lead with **Persona 1 (pharma CI)** — AstraZeneca, GSK, AbbVie — and **Persona 3 (target-discovery)** — Iambic, Recursion, Isomorphic — the clearest fit for citation-traced due diligence. Then Persona 2 quant (Point72, Citadel, RA Capital) and Persona 4 academic/boutique (ClearView, Trinity, Clarivate). **Goal: book ≥3 discovery calls.** Log every touch in [`12-pipeline-tracking/discovery-calls.md`](12-pipeline-tracking/discovery-calls.md). Outbound drafts can be staged via the gmail/zoho-mail connectors but **sent manually**.
+
+### Week 3 (Jun 24–30) — convert
+4. **Discovery call → NDA → SOW.** Common Paper Mutual NDA ([`08-contracts-legal/`](08-contracts-legal/)), then a scoped SOW for an **Investor Pre-Mortem ($9,950 anchor)** or **Failed Trial Archaeology ($14,950)**. Even one closed engagement is the establishment proof Datarade demanded. Record in [`nda-pipeline.md`](12-pipeline-tracking/nda-pipeline.md) → [`signed-deals.md`](12-pipeline-tracking/signed-deals.md). Before delivering: run the pre-publication gates (PHI screen, citation density, **DrugBank `DB\d{5}` gate** — [`09-source-licenses/drugbank-regex-gate.md`](09-source-licenses/drugbank-regex-gate.md)).
+
+### Week 4 (Jul 1–10) — re-approach gated channels with proof
+5. **Snowflake free citation-index listing** (~1-day approval) — gets inside the buyer surface where target accounts shop; route paid conversion off-platform.
+6. **Datarade re-apply** *only if* ≥1 dated engagement/testimonial now exists (it was declined for lack of establishment, not product — no rework needed).
+
+**Keep / defer:**
+- **Keep:** HuggingFace (live this week), direct outbound (the only motion that yields revenue + the establishment proof), Snowflake free listing, AWS (only after verify-first confirms a real thread).
+- **Defer:** Gumroad (no built-in audience), Kaggle / Databricks / Ocean Protocol / RFP channels (no buyer proximity for a $10–20K diligence product at $0 traction — revisit after the first 2–3 closed deals).
+
+**Success criteria by Jul 10:** 1 live HuggingFace artifact · ≥3 discovery calls logged · ≥1 NDA out · AWS thread verified (found or formally restarted) · ideally first signed SOW.
 4. **Embed in professional communities.** Persistent helpful presence in Slack + LinkedIn groups transitions an independent researcher from transactional vendor to indispensable strategic partner. This is the **async cred-building substitute for live calls**.

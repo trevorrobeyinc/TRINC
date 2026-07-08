@@ -12,6 +12,11 @@ const { INTERACTION_LOG_SCHEMA_VERSION, CHAIN_ZERO_HASH } = require("./interacti
 const timeProviderModule = require("./time-provider.js");
 const { createDatasetBuilder } = require("../dataset/dataset-builder.js");
 const { createDatasetOutputManager } = require("../dataset/dataset-output-manager.js");
+const { verifyReportCitations, annotateSubtaskOutputs, checkRetractions } = require("./citation-gate.js");
+const { extractCitations, deduplicateCitations } = require("./citation-extractor.js");
+const { createCitationReresolver } = require("../mcp/citation-reresolver/citation-reresolver.js");
+const { buildReproducibilityManifest, renderManifestMarkdown } = require("./reproducibility-manifest.js");
+const { buildGraveyardMemo, buildAmendmentRisk } = require("../monetization/graveyard-memo.js");
 
 function ensureDir(dirPath) {
   if (!fs.existsSync(dirPath)) {
@@ -206,9 +211,27 @@ function createWorkflowEngine(options = {}) {
       || researchRuntime.config.defaultProvider;
     const resolvedModel = researchRuntime.config.defaultModel;
 
+    // Phase-15 autonomy gate: research roles' execute_task requires an explicit
+    // human (operator) approval (role-router.js). The CLI surfaces this as the
+    // opt-in --operator-approve flag, which arrives here as context.operatorApproved.
+    // Default-off / fail-closed: when false, the gate blocks the mission exactly as
+    // before. We forward it through spawnMission's context (spread into the dispatch
+    // context by agent-spawner → spawn-orchestrator) WITHOUT altering the gate itself.
+    const operatorApproved = context.operatorApproved === true;
+    if (operatorApproved) {
+      logger.info({
+        event: "phase15_operator_approval_granted",
+        workflow_id: context.workflowId,
+        mission_id: missionEnvelope.mission_id,
+        operator_id: context.operatorId || "workflow-engine",
+        source: "cli_operator_approve_flag"
+      });
+    }
+
     const missionResult = await researchRuntime.agentSpawner.spawnMission(missionEnvelope, {
       confirm: true,
       operatorId: context.operatorId || "workflow-engine",
+      operatorApproved,
       provider: resolvedProvider,
       model: resolvedModel,
       ...approvals,
@@ -217,10 +240,211 @@ function createWorkflowEngine(options = {}) {
       workflowInputs: enrichedInputs
     });
 
+    // Slice 1 — report-level citation gate. Verify the assembled mission report against the
+    // UNION of runtime-fetched identifiers and HARD-FAIL when too many cited ids are ungrounded
+    // (present in the report but not in anything actually fetched = likely model-introduced).
+    // Protects the zero-fabrication brand promise. Engages only when there IS fetched ground
+    // truth (an empty fetch can't fail here — that is surfaced as tool_prefetch_zero_docs).
+    let citationVerification = null;
+    if (missionResult && missionResult.ok && Array.isArray(missionResult.subtask_results)) {
+      const cfgRatio = Number(researchRuntime.config.minGroundedCitationRatio);
+      const minGroundedRatio = Number.isFinite(cfgRatio) ? cfgRatio : 0.34;
+      const gate = verifyReportCitations({ subtaskResults: missionResult.subtask_results, minGroundedRatio });
+      // Literature-integrity: a report must never cite a RETRACTED paper. Fail-soft — Crossref
+      // errors yield no retractions, so a network issue can never wrongly block a report.
+      const retraction = await checkRetractions(
+        gate.reportText,
+        researchRuntime.crossrefRetraction && researchRuntime.crossrefRetraction.checkDois
+      );
+      const retractedCount = retraction.retracted.length;
+      const gatePass = gate.pass && retractedCount === 0;
+      logger.info({
+        event: "citation_gate",
+        mission_id: missionEnvelope.mission_id,
+        cited: gate.cited,
+        grounded: gate.grounded,
+        ungrounded: gate.ungrounded,
+        grounded_ratio: gate.grounded_ratio,
+        fetched_id_count: gate.fetched_id_count,
+        retracted: retractedCount,
+        pass: gatePass
+      });
+      try {
+        const gateDir = getWorkflowDir(context.workflowId);
+        ensureDir(gateDir);
+        fs.writeFileSync(
+          path.join(gateDir, "citation-verification.json"),
+          JSON.stringify({
+            mission_id: missionEnvelope.mission_id,
+            pass: gatePass, cited: gate.cited, grounded: gate.grounded, ungrounded: gate.ungrounded,
+            grounded_ratio: gate.grounded_ratio, min_grounded_ratio: gate.min_grounded_ratio,
+            fetched_id_count: gate.fetched_id_count, ungrounded_list: gate.ungrounded_list,
+            retracted: retraction.retracted, dois_checked: retraction.dois_checked || 0
+          }, null, 2)
+        );
+        if (gate.ungrounded > 0 || retractedCount > 0) {
+          fs.writeFileSync(path.join(gateDir, "report-annotated.md"), gate.annotatedReport);
+        }
+      } catch (persistError) {
+        logger.warn({ event: "citation_gate_persist_failed", error: safeString(persistError && persistError.message) });
+      }
+      citationVerification = {
+        pass: gatePass, cited: gate.cited, grounded: gate.grounded, ungrounded: gate.ungrounded,
+        grounded_ratio: gate.grounded_ratio, min_grounded_ratio: gate.min_grounded_ratio,
+        fetched_id_count: gate.fetched_id_count,
+        ungrounded_sample: gate.ungrounded_list.slice(0, 25).map((c) => `${c.type}:${c.id}`),
+        retracted: retraction.retracted
+      };
+      if (!gatePass) {
+        logger.error({
+          event: "citation_gate_failed",
+          mission_id: missionEnvelope.mission_id,
+          cited: gate.cited, ungrounded: gate.ungrounded, retracted: retractedCount, grounded_ratio: gate.grounded_ratio
+        });
+        const reason = retractedCount > 0
+          ? `the report cites ${retractedCount} RETRACTED paper(s) (${retraction.retracted.join(", ")})`
+          : `${gate.ungrounded}/${gate.cited} cited identifiers are ungrounded (grounded ratio ${gate.grounded_ratio} < ${minGroundedRatio})`;
+        const err = new Error(
+          `Citation gate failed: ${reason} — refusing to ship to protect the zero-fabrication / ` +
+          `citation-integrity guarantee. Annotated report written to the workflow dir.`
+        );
+        err.code = retractedCount > 0 ? "PHASE30_CITATION_RETRACTED" : "PHASE30_CITATION_UNVERIFIED";
+        err.citation_verification = citationVerification;
+        throw err;
+      }
+      // Passed, but some citations are still ungrounded → annotate the shipped sections in place
+      // so the bundle itself carries the [UNVERIFIED] marks (honesty over completeness).
+      if (gate.ungrounded > 0) {
+        try {
+          annotateSubtaskOutputs(missionResult.subtask_results, gate.fetchedIds);
+        } catch (annotateError) {
+          logger.warn({ event: "citation_gate_annotate_failed", error: safeString(annotateError && annotateError.message) });
+        }
+      }
+
+      // Slice 4 — citation RE-RESOLUTION + Reproducibility Manifest. The gate proved the cited ids
+      // are GROUNDED in fetched evidence; this independently RE-RESOLVES each one against its live
+      // source registry at delivery and records VERIFIED / UNRESOLVED / UNCHECKED in a manifest.
+      // Fail-soft on infra (network/throttle => UNCHECKED, never a false VERIFIED); fail-CLOSED on
+      // fabrication (a live "does-not-exist" => UNRESOLVED => BLOCK), mirroring the gate above.
+      try {
+        const cites = deduplicateCitations(extractCitations(gate.reportText || ""));
+        if (cites.length > 0) {
+          const startedAt = new Date().toISOString();
+          const reresolver = createCitationReresolver({
+            logger,
+            contactEmail: safeString(researchRuntime.config && researchRuntime.config.contactEmail) || "trevor@trevorobeyinc.com",
+            ncbiApiKey: safeString(researchRuntime.config && researchRuntime.config.ncbiApiKey) || process.env.NCBI_API_KEY || ""
+          });
+          const reresolved = await reresolver.resolveAll(cites);
+          const manifest = buildReproducibilityManifest({
+            reresolved,
+            retraction: { checked: true, retracted_dois: retraction.retracted },
+            gate: {
+              cited: gate.cited, grounded: gate.grounded, ungrounded: gate.ungrounded,
+              grounded_ratio: gate.grounded_ratio, min_grounded_ratio: gate.min_grounded_ratio, hardFail: false
+            },
+            groundedIds: gate.fetchedIds,
+            meta: {
+              reportId: missionEnvelope.mission_id,
+              deliveryId: context.workflowId,
+              resolverTableVersion: reresolver.RESOLVER_TABLE_VERSION,
+              asOf: startedAt.slice(0, 10),
+              startedAt,
+              completedAt: new Date().toISOString()
+            }
+          });
+          try {
+            const mdir = getWorkflowDir(context.workflowId);
+            ensureDir(mdir);
+            fs.writeFileSync(path.join(mdir, "reproducibility-manifest.json"), JSON.stringify(manifest, null, 2));
+            fs.writeFileSync(path.join(mdir, "reproducibility-manifest.md"), renderManifestMarkdown(manifest));
+          } catch (persistErr) {
+            logger.warn({ event: "reproducibility_manifest_persist_failed", error: safeString(persistErr && persistErr.message) });
+          }
+          logger.info({
+            event: "citation_reresolution",
+            mission_id: missionEnvelope.mission_id,
+            verified: manifest.summary.counts.verified,
+            unresolved: manifest.summary.counts.unresolved,
+            unchecked: manifest.summary.counts.unchecked,
+            decision: manifest.summary.delivery_decision
+          });
+          if (citationVerification) {
+            citationVerification.reproducibility = manifest.summary;
+            citationVerification.reproducibility_manifest = manifest;
+          }
+          if (manifest.summary.delivery_decision === "BLOCK") {
+            const err = new Error(
+              `Citation re-resolution failed: ${manifest.summary.counts.unresolved} cited identifier(s) did NOT resolve ` +
+              `in their live source registry — refusing to ship to protect the zero-fabrication guarantee. ` +
+              `See reproducibility-manifest.json in the workflow dir.`
+            );
+            err.code = "PHASE30_CITATION_UNRESOLVED";
+            err.citation_verification = citationVerification;
+            throw err;
+          }
+        }
+      } catch (reresolveError) {
+        // Re-throw our own hard-fail; swallow only infra errors (fail-soft) so a resolver bug never
+        // blocks a report the gate already passed.
+        if (reresolveError && reresolveError.code === "PHASE30_CITATION_UNRESOLVED") throw reresolveError;
+        logger.warn({ event: "citation_reresolution_failed", error: safeString(reresolveError && reresolveError.message) });
+      }
+    }
+
+    // Slice 3 v2 — structured kill-memo deliverables. For a passing mission, re-fetch the
+    // indication's stopped trials (a session-cache hit from the scout prefetch's call, so no extra
+    // CT.gov round-trip) and render the graveyard memo + protocol amendment-risk signal
+    // DETERMINISTICALLY from the records (NCT-traced, no LLM — the data IS the artifact). Fully
+    // fail-soft + bounded: an absent fetcher, an empty indication, or a fetch error simply omits
+    // the memos; it can never block a report that already cleared the citation gate.
+    let graveyardMemo = null;
+    let amendmentRisk = null;
+    if (missionResult && missionResult.ok) {
+      try {
+        const ctgov = researchRuntime.ctgovSupplemental;
+        const condition = safeString(
+          enrichedInputs.indication || enrichedInputs.condition || enrichedInputs.disease
+          || enrichedInputs.therapeutic_area || enrichedInputs.topic
+        ).trim();
+        if (ctgov && typeof ctgov.searchStoppedTrials === "function" && condition) {
+          const stopped = await ctgov.searchStoppedTrials({ condition });
+          const memo = buildGraveyardMemo(stopped, { indication: condition });
+          if (memo.count > 0) {
+            const risk = buildAmendmentRisk(stopped);
+            graveyardMemo = memo;
+            amendmentRisk = risk.sampled > 0 ? risk : null;
+            try {
+              const gdir = getWorkflowDir(context.workflowId);
+              ensureDir(gdir);
+              fs.writeFileSync(
+                path.join(gdir, "graveyard-memo.md"),
+                memo.markdown + (amendmentRisk ? "\n" + amendmentRisk.markdown : "")
+              );
+            } catch (persistErr) {
+              logger.warn({ event: "graveyard_memo_persist_failed", error: safeString(persistErr && persistErr.message) });
+            }
+            logger.info({
+              event: "graveyard_memo",
+              mission_id: missionEnvelope.mission_id,
+              stopped_count: memo.count,
+              amendment_band: amendmentRisk ? amendmentRisk.band : null
+            });
+          }
+        }
+      } catch (graveErr) {
+        logger.warn({ event: "graveyard_memo_failed", error: safeString(graveErr && graveErr.message) });
+      }
+    }
+
     return {
       ok: Boolean(missionResult && missionResult.ok),
       mission_id: missionEnvelope.mission_id,
-      mission_result: missionResult
+      mission_result: missionResult,
+      citation_verification: citationVerification,
+      graveyard_memo: graveyardMemo,
+      amendment_risk: amendmentRisk
     };
   }
 
@@ -287,6 +511,17 @@ function createWorkflowEngine(options = {}) {
       }
     }
 
+    // Slice 3: carry the citation gate's verification into the bundle so the packager can emit
+    // the Citation Integrity & Provenance ledger (the deliverable's audit-trail spine).
+    if (missionStep && missionStep.citation_verification && built && built.source_context) {
+      built.source_context.citation_verification = missionStep.citation_verification;
+    }
+    // Slice 3 v2: carry the structured kill-memo deliverables (graveyard memo + amendment-risk)
+    // into the bundle so the packager ships them as cost-avoidance artifacts.
+    if (missionStep && built && built.source_context) {
+      if (missionStep.graveyard_memo) built.source_context.graveyard_memo = missionStep.graveyard_memo;
+      if (missionStep.amendment_risk) built.source_context.amendment_risk = missionStep.amendment_risk;
+    }
     const tempBundleDir = monetizationRuntime.deliverablePackager.createBundleWorkspace(built.offer.offer_id);
     const artifactRefs = monetizationRuntime.deliverablePackager.writeDeliverables(tempBundleDir, built.offer, built.source_context);
     const generatedSubmission = monetizationRuntime.submissionPackGenerator.generateSubmissionPacks(tempBundleDir, built.offer, built.source_context);
@@ -422,6 +657,38 @@ function createWorkflowEngine(options = {}) {
       });
     }
 
+    // SECTION-LEVEL citation-coverage gate (fail-closed ONLY at zero distinct primary sources).
+    // Runs ONLY when the cheap local density check passed, so a report that already fails density
+    // never spends any searches. Complementary to verifyReportCitations (which grounds cited IDs
+    // against fetched IDs on the mission step): this measures EXTERNAL primary-source coverage per
+    // section. Fail-soft on infra (SearXNG unreachable -> section UNCHECKED); fail-closed on a genuine
+    // zero-coverage section. Helpers are required lazily so a connector problem can never break module
+    // load and is only touched on a density-passing quality-audit step.
+    let sectionCoverage = [];
+    if (pass) {
+      const { runSectionGate, assertCoverageOrThrow } = require("../mcp/searxng-mcp/section-gate.js");
+      const { searchFn } = require("../mcp/searxng-mcp/searchfn.js");
+      const { runCitationGate } = require("../mcp/searxng-mcp/index.js");
+      const enrichedInputs = applyInputSchemaDefaults(workflowDef, inputs);
+      const primarySubject = String(
+        enrichedInputs.indication || enrichedInputs.condition || enrichedInputs.disease
+        || enrichedInputs.therapeutic_area || enrichedInputs.topic || ""
+      ).trim();
+      const coverage = await runSectionGate({
+        subtasks: subtaskResults,
+        primarySubject,
+        searchFn,
+        runGate: runCitationGate,
+        readFile: fs.readFileSync,
+        maxResults: Number(step.max_results) || 8,
+        log: logger
+      });
+      // Throws PHASE30_CITATION_COVERAGE_ZERO (caught by the per-step try/catch) if any section
+      // genuinely returned zero distinct primary sources; otherwise records per-section tiers.
+      assertCoverageOrThrow(coverage);
+      sectionCoverage = coverage.section_coverage;
+    }
+
     return {
       ok: pass,
       overall_confidence: Math.round(overallConfidence * 1000) / 1000,
@@ -430,7 +697,8 @@ function createWorkflowEngine(options = {}) {
       verified_claims: verifiedClaims,
       min_verified_citations: minVerifiedCitations,
       threshold,
-      pass
+      pass,
+      section_coverage: sectionCoverage
     };
   }
 
@@ -557,6 +825,13 @@ function createWorkflowEngine(options = {}) {
           case "mission":
             result = await executeMissionStep(step, validated, inputs, stepResults, enrichedContext);
             if (result.mission_id) state.artifacts.mission_id = result.mission_id;
+            if (result.citation_verification) state.artifacts.citation_verification = result.citation_verification;
+            if (result.graveyard_memo) {
+              state.artifacts.graveyard = {
+                stopped_count: result.graveyard_memo.count,
+                amendment_band: result.amendment_risk ? result.amendment_risk.band : null
+              };
+            }
             break;
           case "dataset":
             result = await executeDatasetStep(step, validated, inputs, stepResults);
@@ -567,9 +842,17 @@ function createWorkflowEngine(options = {}) {
             result = await executeQualityAuditStep(step, validated, inputs, stepResults);
             state.artifacts.quality_report = {
               overall_confidence: result.overall_confidence,
+              citation_density_raw: result.citation_density_raw,
               total_claims: result.total_claims,
               verified_claims: result.verified_claims,
-              pass: result.pass
+              min_verified_citations: result.min_verified_citations,
+              threshold: result.threshold,
+              // executeQualityAuditStep returns the pass boolean as `ok`; older code read
+              // `result.pass` (always undefined → note-gen always saw pass:undefined).
+              pass: result.ok !== undefined ? result.ok : result.pass,
+              // Per-section external primary-source coverage tiers (additive; deliverable can render
+              // Sparse/Moderate/Comprehensive per section).
+              section_coverage: result.section_coverage || []
             };
             if (!result.ok) {
               const error = new Error(`Quality audit failed: confidence ${result.overall_confidence} below threshold ${result.threshold}`);

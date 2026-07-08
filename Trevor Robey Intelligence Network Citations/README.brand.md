@@ -6,7 +6,7 @@ Business workspace for **Trevor Robey, INC.** — citation-traced biomedical due
 
 This directory is the canonical home for everything the [`trevor-robey-inc Commercial Launch Playbook.md`](./trevor-robey-inc%20Commercial%20Launch%20Playbook.md) prescribes. Every folder below corresponds to a specific section of that playbook. Files are placeholders unless noted; fill them in as you work the 30-day plan.
 
-> **Status:** Real directory inside the `TrevClaw-Obsidianodus` monorepo (not a symlink, unlike `Claude/`, `Copilot-Everything/`, `trevor-robey-inc-agents/`).
+> **Status:** Real directory inside the `TrevClaw-Obsidianodus` monorepo — the consolidated **`Trevor Robey Intelligence Network Citations/`** folder (flat-merged 2026-05-19 from the former `trevor-robey-inc/` brand dir + `trevor-robey-inc-agents/` engine dir; those folder names no longer exist on disk).
 
 ---
 
@@ -38,6 +38,7 @@ This directory is the canonical home for everything the [`trevor-robey-inc Comme
 
 **Already populated (copied from existing collateral):**
 - `01-brand-system/brand-system.md` — full brand-system source-of-truth
+- `01-brand-system/personal-brand.md` — Trevor's personal/founder brand ("Truth Seeker, Receipt Keeper. — Real data beats sweet hallucination. You decide."), **distinct from the company tagline**; founder-voice surfaces only
 - `01-brand-system/landing-page/index.html` — production HTML for trevorobeyinc.com (inline SVG TR monogram lives here; this is the canonical "graphic file")
 - `01-brand-system/landing-page/assets/openclaw-pharmacovigilance-teaser.html` — rendered teaser HTML (open in Safari → Cmd+P → Save as PDF)
 - `02-product-packs/product-catalog.md`
@@ -69,11 +70,11 @@ These paths are referenced by other systems in the monorepo. Files were **copied
 
 | Original (do not move) | Used by |
 |---|---|
-| `/Users/trevorrobey/openclaw-landing-deploy/index.html` | Cloudflare Worker `shy-grass-fccd` deploys trevorobeyinc.com from here. (External to monorepo — not consolidated.) |
-| `/Users/trevorrobey/openclaw-landing-deploy/assets/openclaw-pharmacovigilance-teaser.html` | Same Cloudflare deploy. |
-| `trevor-robey-inc-agents/workspace/collateral/` (this monorepo) | Command Center plugin (powered by OpenClaw) reads from here. Path migrated from `/Users/trevorrobey/Code/trevor-robey-inc-agents/workspace/collateral/` during the 2026-05-07 monorepo consolidation. |
+| `~/openclaw-landing-deploy/index.html` — **STALE: prior machine; not found on current machine (2026-06-30) — confirm current deploy source** | Cloudflare Worker `shy-grass-fccd` deploys trevorobeyinc.com from here. (External to monorepo — not consolidated.) |
+| `~/openclaw-landing-deploy/assets/openclaw-pharmacovigilance-teaser.html` — **STALE: prior machine; confirm current path** | Same Cloudflare deploy. |
+| `Trevor Robey Intelligence Network Citations/workspace/collateral/` (this monorepo) | Command Center plugin (powered by OpenClaw) reads from here. (Path migrated from `~/Code/trevor-robey-inc-agents/workspace/collateral/` on the prior machine during the 2026-05-07 consolidation, then flat-merged into the current folder 2026-05-19.) |
 
-Edits to brand/landing copy should happen at `trevor-robey-inc-agents/workspace/collateral/` (now relative to this monorepo root); copy back into `01-brand-system/` here to keep the canonical brand kit in this folder current.
+Edits to brand/landing copy should happen at `Trevor Robey Intelligence Network Citations/workspace/collateral/` (relative to the monorepo root); copy back into `01-brand-system/` here to keep the canonical brand kit in this folder current.
 
 ---
 

@@ -256,10 +256,16 @@ function createToolUniverseProcessManager(options = {}) {
     logger.info({ event: "tu_spawn", command: pythonPath, args });
 
     return new Promise((resolve, reject) => {
+      // Hardening (audit gdrive-oauth / F-SUB2): don't propagate the high-value
+      // Google refresh token / client secret into the tool subprocess.
+      const childEnv = { ...process.env, PYTHONUNBUFFERED: "1" };
+      for (const k of Object.keys(childEnv)) {
+        if (/^GOOGLE_DRIVE_|^GOOGLE_CLIENT_SECRET$/i.test(k)) delete childEnv[k];
+      }
       const child = spawn(pythonPath, args, {
         stdio: ["pipe", "pipe", "pipe"],
         cwd: toolUniverseDir,
-        env: { ...process.env, PYTHONUNBUFFERED: "1" }
+        env: childEnv
       });
 
       const spawnTimer = setTimeout(() => {
@@ -292,6 +298,7 @@ function createToolUniverseProcessManager(options = {}) {
       performHandshake()
         .then(() => {
           ready = true;
+          restartCount = 0; // a healthy handshake resets the consecutive-restart budget
 
           healthTimer = setInterval(() => {
             sendRequest("list_tools", {}).catch((err) => {

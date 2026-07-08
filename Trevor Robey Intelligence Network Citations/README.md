@@ -8,7 +8,7 @@ The runtime engine behind **Trevor Robey, INC.** — citation-traced biomedical 
 
 A single command (`node scripts/run-workflow.js --template <id>`) runs one of six biomedical workflows that feed concrete commercial offerings: **Investor Pre-Mortem** (primary, $9,950–$19,950) and **Failed Trial Archaeology** (flanking, $14,950) drive premium revenue; **Conference Synthesis Brief**, **Trial Design Benchmark Pack**, **Cross-Silo Connector Report**, **Plain-Language Patient Brief**, and **Pharmacovigilance Pack** serve tactical demand.
 
-Workflows pull live evidence from ToolUniverse (~2,116 tools, Apache-2.0, Harvard MIMS / Zitnik Lab) plus eight project MCP servers (ChEMBL, ClinicalTrials.gov, PubMed, HuggingFace Hub, NPI Registry, ICD-10, Owkin, Google Drive), and produce ZIP release bundles whose citation-index CSV has a real PMID / NCT / ChEMBL CID / DOI in **every** row — verified at quality-gate time, not flagged as a warning.
+Workflows pull live evidence from ToolUniverse (~2,116 tools, Apache-2.0, Harvard MIMS / Zitnik Lab) plus seven project MCP servers (ChEMBL, ClinicalTrials.gov, PubMed, HuggingFace Hub, NPI Registry, ICD-10, Owkin), and produce ZIP release bundles whose citation-index CSV has a real PMID / NCT / ChEMBL CID / DOI in **every** row — verified at quality-gate time, not flagged as a warning. Every cited identifier in an assembled report is additionally checked against the source records **actually retrieved at runtime** (a report-level grounding gate) and every cited DOI is retraction-screened against Crossref before the report can ship — see [Citation Integrity Layer](#citation-integrity-layer) below.
 
 ### What this is
 
@@ -22,7 +22,7 @@ Workflows pull live evidence from ToolUniverse (~2,116 tools, Apache-2.0, Harvar
 - **Not a publishing bot.** External publication, marketplace submission, customer delivery, login automation, and browser automation are manual-only by architectural design — a feature for regulated buyers, not a limitation.
 - **Not a PHI processor.** All queried sources are public biomedical databases. The system does not host, transmit, or process Protected Health Information.
 
-Concrete offerings, ICPs, and pricing live in `../TrevClaw-Obsidianodus/trevor-robey-inc/OFFERINGS.md` (canonical) and [REVENUE_PLAYBOOK.md](REVENUE_PLAYBOOK.md). Target buyers, posture, and full upstream attribution stack are in [TREVOR_ROBEY_INC_AGENTS_DOSSIER.md](TREVOR_ROBEY_INC_AGENTS_DOSSIER.md) and [NOTICE.md](NOTICE.md).
+Concrete offerings, ICPs, and pricing live in [`OFFERINGS.md`](OFFERINGS.md) (canonical) and [REVENUE_PLAYBOOK.md](REVENUE_PLAYBOOK.md). Target buyers, posture, and full upstream attribution stack are in [TREVOR_ROBEY_INC_AGENTS_DOSSIER.md](TREVOR_ROBEY_INC_AGENTS_DOSSIER.md) and [NOTICE.md](NOTICE.md).
 
 Runtime requirement:
 - Node `22.13.1` is required and enforced through `engines`, `devEngines`, `.npmrc` `engine-strict=true`, and `scripts/verify-node-runtime.js`.
@@ -400,6 +400,30 @@ Supported platform submission packs remain manual-only:
 - Authoritative writes are append-only with per-offer file lock and atomic `temp + fsync + rename`.
 - Phase 28 verification integrity status is separate from release approval validity and release bundle hash validity.
 
+## Citation Integrity Layer
+
+A zero-fabrication citation-integrity layer enforces that every identifier cited in an assembled report is **grounded in the source records actually retrieved at runtime** and that no cited DOI is retracted. It engages only when there is fetched ground truth to check against.
+
+- **Runtime-grounding capture.** `agent-engine` persists the citation identifiers actually retrieved at runtime by tool-prefetch (`fetched_citation_ids`) plus a per-task `citation_verification` block into research-output metadata. The `buildPrompt` system prompt carries an ABSOLUTE-RULE "ZERO FABRICATION" clause: never invent a PMID / NCT / DOI; say `[no verifiable citation found]` instead.
+- **Report-level citation gate.** `workflow-engine.executeMissionStep` runs `verifyReportCitations` (`openclaw-bridge/core/citation-gate.js`), cross-checking every identifier cited in the assembled report against the union of runtime-fetched ids. A cited id is **grounded** if it was present in fetched evidence, otherwise **ungrounded** (likely model-introduced). The gate hard-fails with error code `PHASE30_CITATION_UNVERIFIED` when the grounded ratio falls below `minGroundedCitationRatio` (agent-config; default `0.34`). It writes `citation-verification.json` and `report-annotated.md` to the workflow dir; any surviving ungrounded cites are annotated inline `[UNVERIFIED]`.
+- **DOI retraction screen.** `openclaw-bridge/mcp/crossref-retraction/crossref-retraction.js` checks each cited DOI against Crossref `/works/{DOI}` (`relation.is-retracted-by` or an `update-to` of type `retraction`). A report citing any retracted paper hard-stops with error code `PHASE30_CITATION_RETRACTED`. Fail-soft: a Crossref error yields no retractions, so a network blip can never wrongly block a report.
+- **DOI extraction.** `openclaw-bridge/core/citation-extractor.js` stops DOI capture at non-DOI terminators and strips trailing sentence punctuation, so markdown/prose punctuation is no longer captured into (or duplicated across) DOIs.
+
+> Honesty note: citations are grounded in the source records actually retrieved at runtime and DOI retraction-screened against Crossref. They are **not** independently re-resolved against each citation's live external source database — that per-citation external resolver is still future work (see Future Roadmap).
+
+### Stop-reason archaeology (terminated/withdrawn/suspended trials)
+
+`openclaw-bridge/mcp/ctgov-supplemental/ctgov-supplemental.js` is a local fetcher (not ToolUniverse) that searches ClinicalTrials.gov API v2 for `TERMINATED` / `WITHDRAWN` / `SUSPENDED` trials in a condition, returning each trial's `whyStopped` text plus protocol change-history (version count + most-amended modules). It has a session cache and is routed into role prefetch through a local-fetcher seam in `tool-prefetch.js` (`createToolPrefetch` `options.localFetchers`, tool name `ctgov_stopped_trials`); each record is NCT-traced (a grounded cite).
+
+### Cost-avoidance deliverables
+
+On a gate-passing mission, two additional deliverables are sealed into the release bundle (registered in `manifest.json` and `checksums.txt`), both rendered deterministically (no LLM) from fetched records so every claim is verifiable:
+
+- `deliverables/citation-integrity.md` — a graded provenance ledger (`openclaw-bridge/monetization/integrity-rating.js`, `buildIntegrityReport`): grade A/B/C/D from the grounded ratio; F + `BLOCKED` if any retraction; N/A if nothing is cited. This is the report's audit-trail spine.
+- `deliverables/graveyard-memo.md` — a memo of prior terminated/withdrawn/suspended programs in the indication (`openclaw-bridge/monetization/graveyard-memo.js`, `buildGraveyardMemo`), each NCT-traced with the sponsor's stated stop reason (or an explicit `(none stated by sponsor)` — never invented), protocol churn, and a resolvable `clinicaltrials.gov/study/<NCT>` link. `buildAmendmentRisk` renders a protocol amendment-risk band (LOW/MODERATE/HIGH) from the change-history median/max version count and most-amended modules.
+
+Both memos are fully fail-soft and bounded: an absent fetcher, empty indication, or fetch error simply omits them and never blocks a passing report. `deliverable-packager` ships `graveyard-memo.md` and registers `artifactRefs.graveyard_memo`.
+
 ## Architecture
 
 Core research runtime:
@@ -411,6 +435,10 @@ Core research runtime:
 - `openclaw-bridge/core/agent-spawner.js`
 - `openclaw-bridge/core/spawn-planner.js`
 - `openclaw-bridge/core/spawn-orchestrator.js`
+- `openclaw-bridge/core/citation-gate.js`
+- `openclaw-bridge/core/citation-extractor.js`
+- `openclaw-bridge/mcp/ctgov-supplemental/ctgov-supplemental.js`
+- `openclaw-bridge/mcp/crossref-retraction/crossref-retraction.js`
 
 Phase 19/20 dataset runtime:
 - `openclaw-bridge/dataset/schema-engine.js`
@@ -439,6 +467,8 @@ Phase 19 monetization runtime:
 - `openclaw-bridge/monetization/manual-delivery-state-machine.js`
 - `openclaw-bridge/monetization/delivery-evidence-ledger.js`
 - `openclaw-bridge/monetization/delivery-evidence-manager.js`
+- `openclaw-bridge/monetization/integrity-rating.js`
+- `openclaw-bridge/monetization/graveyard-memo.js`
 
 ## Validation Commands
 ```bash
@@ -508,20 +538,41 @@ git config --local --unset core.hooksPath
 | 23 | Portfolio intelligence and commercialization decision support | Implemented |
 | 26A | Bridge streamable/auth principal prerequisite slice | Implemented |
 | 28 | Direct-delivery contracts and post-export delivery evidence governance | Implemented |
+| 29 | Harvard ToolUniverse biomedical MCP (2,116 tools) | Implemented — active, 58/58 tests |
+| 30 | Single-command workflow engine (6 templates, 6 roles) | Implemented |
+| 31 | Enterprise delivery: Research REST API + scheduled workflows + usage metering | Implemented + locally tested (34/34) — **not externally deployed** |
+| 33 | Claude Code MCP provider (default LLM; `claude -p` stdin pipe) + stateful multi-agent per-role routing | Implemented |
+
+> **Routing update (2026-06-11):** the engine now runs a **stateful multi-agent routing layer** (built + verified 2026-06-11), superseding the earlier "Claude Code runs all roles" framing. Per-role backend selection is driven by `config/role-provider-map.json` (`roles[role]` → template `provider_preference` → `default` = claude-code), and each role keeps persistent identity + memory under `config/agents/<role>/{SOUL.md,AGENTS.md,sessions/}`. Current routing:
+> **Updated 2026-06-22:** scout, analyst, and synthesizer now all run on **Claude Opus 4.8** via `claude-code` (`claude-opus-4-8`, 1M context by default — no `[1m]` suffix). The OSS models are demoted to small per-role **helper** pre-passes (cheap evidence triage before Opus; advisory-only, can't inject a citation; fail-soft) + fallbacks.
+> - **scout → claude-code / Opus 4.8.** Helper + fallback = Ollama `qwen2.5:7b-instruct` (retired as primary, kept on the back burner; :11434 via the :11435 TLS proxy).
+> - **analyst → claude-code / Opus 4.8.** Helper + fallback = LM Studio `qwen/qwen3.5-9b`.
+> - **synthesizer → claude-code / Opus 4.8.** Helper + fallback = LM Studio `qwen/qwen3.5-9b`.
+> - **unmapped / default → claude-code** (`claude-sonnet-4-6`); every non-claude route falls back to claude-code.
+> LM Studio stays installed (`qwen/qwen3.5-9b` on disk, server :1234 via the :1235 proxy, model currently unloaded) now serving as the analyst/synthesizer helper + fallback (load with `lms server start` + `lms load qwen/qwen3.5-9b`; helper pre-passes are fail-soft). `--operator-approve` is YubiKey-gated (`operator-approve-gate arm` = PIN + touch); `scripts/run-workflow.sh` sets `NODE_EXTRA_CA_CERTS` to the mkcert CA, and the Obsidian Command Center plugin spawns `--operator-approve` with that CA env. Claude Code billing is the Claude Max 20× subscription (flat, not per-token).
+
+> **Phase-status correction (2026-06-10):** this table previously stopped at Phase 28 and the roadmap called Phase 31 "planned." Per `CLAUDE.md`, Phases 1–33 are implemented. Phase 31 code and tests exist (`openclaw-bridge/bridge/research-api.js`, `tests/core/phase31-*.test.js`) but **no hosted instance serves customers** — "implemented" ≠ "deployed." Phases 24/25 are implemented but **disabled** in the research flow. See `SYSTEM-REALITY.md` for running-state ground truth.
 
 ## Future Roadmap
 
-Planned post-Phase 22 work is tracked in `future openclaw research agents phases to be implemented.` at the repository root.
+> **Correction (2026-06-10):** the "post-Phase 22" framing below is historical. The implementation wave through Phase 33 is done (see the table above and `CLAUDE.md`). What remains genuinely un-built / un-deployed: external deployment of the Phase 31 API, enabling the disabled Phase 24/25 connectors, full Phase 26 container consolidation, and the citation **resolver** gap in `SYSTEM-REALITY.md` §3.
 
-Current unresolved implementation wave:
-- Phase 24: operator sync and briefing MCP activation
-- Phase 25: credential broker and delegated session governance
-- Phase 26 (full): bridge runtime and execution-router consolidation
+Phase tracking notes are in `future openclaw research agents phases to be implemented.` at the repository root.
 
-Implemented ahead of the unresolved wave:
+Implemented but **disabled / not deployed** (do not assume these are live features):
+- Phase 24: operator sync and briefing MCP activation — implemented, disabled in the research flow
+- Phase 25: credential broker and delegated session governance — implemented, not active by default
+- Phase 31: enterprise Research REST API — implemented + tested, not externally deployed
+
+Genuinely future:
+- Phase 26 (full): bridge runtime and execution-router consolidation (container governance is scaffold-only today)
+- Per-citation external **resolver**/validator (PMID/NCT/ChEMBL/DOI → live re-resolved links + Reproducibility Manifest). The runtime-grounding gate and Crossref DOI retraction screen ship today (see [Citation Integrity Layer](#citation-integrity-layer)); independent external re-resolution of each citation against its live source database is the remaining gap — grounded is not the same as re-resolved.
+
+Implemented and active:
 - Phase 23: portfolio intelligence and commercialization decision support
 - Phase 26A: minimal bridge/auth/principal prerequisite slice
 - Phase 28: direct-delivery channels and post-export delivery evidence governance
+- Phase 29/30/33: ToolUniverse, workflow engine, Claude Code provider + stateful multi-agent per-role routing (scout/analyst/synthesizer → claude-code/Opus 4.8 with OSS helper pre-passes; default → claude-code; see the routing update above)
 
 Phase 23 reads approved release state together with Phase 22 submission evidence and Phase 28 delivery evidence to generate deterministic commercialization reports under `audit/evidence/phase23/` without introducing any new network, browser, or mutation paths.
 Phase 24 remains constrained to operator-only Notion/newsletter `prepare`/`commit`/`retry`/`reconcile` flows with deterministic local briefing artifacts under `audit/evidence/phase24/`; it does not enable those providers in `research.search` or `research.getPaper`.

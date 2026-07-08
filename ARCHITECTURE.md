@@ -2,7 +2,7 @@
 
 > **Brand note (2026-04-30):** This document describes the technical stack that powers **Trevor Robey, INC.** (the brand wordmark of **Trevor Robey Intelligence Network Citations LLC**, a California limited liability company filed 2026-05-06; bizfileOnline receipt B20260217250) — citation-traced biomedical due diligence. "OpenClaw" appears throughout as the open-source agent framework that the stack uses; it is not a brand owned by the operator. The retired homebrew `openclaw.ai` consumer assistant is unrelated and is disambiguated inline where it appears.
 
-> **Repo topology (2026-05-07):** the entire stack now lives in a single **local-only** monorepo at `/Users/trevorrobey/TrevClaw-Obsidianodus` (the private GitHub remote was **deleted 2026-05-26**; the repo now has **no git remotes** — durable backup is a `git bundle --all` at `~/TrevClaw-Obsidianodus.bundle`). The previously separate `Claude/`, `Copilot-Everything/`, and `trevor-robey-inc-agents/` sub-trees are first-class members of this repo. Submodule retained: `trevor-robey-inc-agents/vendor/tooluniverse` (mims-harvard/ToolUniverse, pinned at v1.1.10). Vendored fork: `Copilot-Everything/repos/obsidian-copilot-mcp/` at SHA `df61538` of logancyang/obsidian-copilot. The previous standalone GitHub remote `https://github.com/trevoralexanderrobey/trevor-robey-inc-agents` is the rollback anchor (tag `pre-monorepo-consolidation-2026-05-07` at SHA `8e782a0`); archive pending.
+> **Repo topology (2026-05-07; relocated + paths refreshed 2026-06-11):** the entire stack now lives in a single **local-only** monorepo at `/Volumes/ExtraCurricular/TrevClaw-Obsidianodus` (relocated here from `~/TrevClaw-Obsidianodus` after the 2026-05-31 machine wipe; the private GitHub remote was **deleted 2026-05-26**; the repo now has **no git remotes** — durable backup is a `git bundle --all` at `~/TrevClaw-Obsidianodus.bundle`). The previously separate `Claude/`, `Copilot-Everything/`, and the engine sub-tree (since **renamed `Trevor Robey Intelligence Network Citations/`**, formerly `trevor-robey-inc-agents/`) are first-class members of this repo. Submodule retained: `Trevor Robey Intelligence Network Citations/vendor/tooluniverse` (mims-harvard/ToolUniverse, pinned at v1.1.10). Vendored fork: `Copilot-Everything/repos/obsidian-copilot-mcp/` at SHA `df61538` of logancyang/obsidian-copilot. The previous standalone GitHub remote `https://github.com/trevoralexanderrobey/trevor-robey-inc-agents` is the rollback anchor (tag `pre-monorepo-consolidation-2026-05-07` at SHA `8e782a0`); archive pending.
 
 > **Status (2026-05-07):** This document captures the Phase-35 snapshot from 2026-04-12 and several components have been retired since: TrevNodus / InfraNodus-Visual (retired 2026-04-25), then on **2026-05-06 InfraNodus was fully removed from the stack** — no local clone, no webview handoff, no MCP server, no graph-sync hydrator package. Any "InfraNodus webview handoff" references below are also now historical. Other retirements: the backend emulator on :8789 (retired 2026-04-11), the persistent OpenClaw gateway on :18789 (removed 2026-04-27). The standalone trevor-robey-inc-agents GitHub repo was folded into TrevClaw-Obsidianodus on 2026-05-07. This file remains useful as a Phase-35 architectural reference; for current state see:
 > - `CLAUDE.md` (Repo Topology, Multi-Operator Topology, Unified Port Map)
@@ -12,7 +12,14 @@
 >
 > Retired sections below are marked inline.
 
-Canonical reference for the biomedical research intelligence stack as of Phase 35 (2026-04-12).
+> **Reality-correction banner (2026-06-10; provider routing updated 2026-06-11).** This is a historical Phase-35 *design* document. Read these before trusting the diagrams below:
+> - **Provider routing — NOW ACTIVE (2026-06-11), supersedes the earlier "not active" note.** The role→backend routing is **real** as of 2026-06-11 via **`config/role-provider-map.json`** (precedence: `roles[role]` → template `provider_preference` → `default` = claude-code; each non-claude route falls back to claude-code). Live routes: **scout → Ollama** (`local` provider, model `qwen2.5:7b-instruct`; Ollama serves :11434 as a **boot-persistent** launchd service, reached via the :11435 mkcert TLS proxy), **analyst → claude-code** (`claude-sonnet-4-6`), **synthesizer → claude-code**. So the old "Scout/Analyst/Synthesizer" diagram is now ~accurate **except analyst runs on claude-code, not LM Studio** (reverted 2026-06-11 for 16 GB stability so Ollama is the only local model). Persistent per-role **identity + session memory** now live under **`config/agents/<role>/`** (`SOUL.md` / `AGENTS.md` / `sessions/`), loaded into the agent prompt by `role-router.dispatch` and recorded after each run. LM Studio stays installed (`qwen/qwen3.5-9b` on disk, :1234 via the :1235 proxy) but its model is **unloaded**; analyst's lm-studio route is staged in `_recommended_after_install` for a one-line flip-back. The engine's `--operator-approve` is **YubiKey-gated** (`operator-approve-gate arm` = PIN + touch; one-shot, fail-closed); launch via `scripts/run-workflow.sh` (sets `NODE_EXTRA_CA_CERTS` for the local TLS proxies) or the Command Center plugin (now spawns `--operator-approve` + that CA env). claude-code billing = flat **Claude Max 20×** subscription. Full detail: vault `THE-WHOLE-SYSTEM.md` + `CHANGELOG.md` (2026-06-11 entries).
+> - **Execution model.** The container-execution governance under `openclaw-bridge/execution/` is an **un-invoked scaffold.** Workflows run as plain Node `child_process` spawns of `scripts/run-workflow.js`, not containers.
+> - **Citation-integrity layer — LIVE (2026-06-12).** The engine now ships a zero-fabrication citation pipeline. `agent-engine` persists the `fetched_citation_ids` actually retrieved at runtime by tool-prefetch plus a per-task `citation_verification` block into research-output metadata, and `buildPrompt` carries an ABSOLUTE-RULE "ZERO FABRICATION" clause (never invent a PMID/NCT/DOI — say "[no verifiable citation found]" instead). `workflow-engine.executeMissionStep` runs a **report-level gate** (`verifyReportCitations` in `openclaw-bridge/core/citation-gate.js`) that cross-checks every cited identifier against the union of runtime-fetched ids — a cited id is "grounded" if present in fetched evidence, else "ungrounded". The gate **hard-fails** (`PHASE30_CITATION_UNVERIFIED`) when the grounded ratio is below `minGroundedCitationRatio` (agent-config default 0.34), engaging only when fetched ground truth exists; it writes `citation-verification.json` + `report-annotated.md` (surviving ungrounded cites annotated inline `[UNVERIFIED]`). A **retraction screen** (`openclaw-bridge/mcp/crossref-retraction/`) checks each cited DOI against Crossref `/works/{DOI}` and hard-stops (`PHASE30_CITATION_RETRACTED`) on any retracted paper (fail-soft: a Crossref error yields no retractions, never wrongly blocking). **Honesty boundary:** citations are *grounded in the source records actually retrieved at runtime + DOI retraction-screened* — they are NOT independently re-resolved against each live source database (that per-citation external re-resolution is not built). A DOI-extraction fix (`citation-extractor.js`) now stops the DOI regex at non-DOI terminators and strips trailing sentence punctuation, fixing deflated/duplicated DOI counts.
+> - **Stop-reason corpora + cost-avoidance deliverables — LIVE (2026-06-12).** A local fetcher `openclaw-bridge/mcp/ctgov-supplemental/` (NOT ToolUniverse) searches ClinicalTrials.gov API v2 for TERMINATED/WITHDRAWN/SUSPENDED trials in a condition, returning each trial's `whyStopped` text plus protocol change-history (version count + most-amended modules) with a session cache; it is routed into role prefetch via a new local-fetcher seam in `tool-prefetch.js` (`createToolPrefetch` `options.localFetchers`, tool_name `ctgov_stopped_trials`), each record NCT-traced. Every mission bundle now ships two new deliverables, both registered in `manifest.json` and sealed in `checksums.txt`: **`deliverables/citation-integrity.md`** — a graded provenance ledger (`openclaw-bridge/monetization/integrity-rating.js`, `buildIntegrityReport`; grade A/B/C/D from the grounded ratio, F + "BLOCKED" on any retraction, N/A if nothing cited) — and **`deliverables/graveyard-memo.md`** (`openclaw-bridge/monetization/graveyard-memo.js`) — a memo of prior terminated/withdrawn/suspended programs, each NCT-traced with the sponsor's stated stop reason (or an explicit "(none stated by sponsor)", never invented) and a resolvable `clinicaltrials.gov/study/<NCT>` link, plus a protocol amendment-risk band (LOW/MODERATE/HIGH from change-history median/max version count). Both memos are rendered **deterministically from the fetched records (no LLM)**; on a gate-PASSING mission `executeMissionStep` re-fetches the stopped trials (session-cache hit), builds both memos fully fail-soft (an absent fetcher/empty indication/fetch error simply omits them and never blocks a passing report), and `deliverable-packager` ships them (artifactRefs `graveyard_memo`).
+> - For current ground truth (engine, channels, revenue, citation gap), see the vault doc **`Trevor Robey Intelligence Network Citations/SYSTEM-REALITY.md`**. The diagrams below are retained as design reference.
+
+Canonical **design** reference for the biomedical research intelligence stack, captured at Phase 35 (2026-04-12). The current-state header above — provider routing, repo topology, execution model — is refreshed to **2026-06-11**; for live ground truth see `Trevor Robey Intelligence Network Citations/THE-WHOLE-SYSTEM.md` and `SYSTEM-REALITY.md`.
 
 Supersedes `~/Claude/ARCHITECTURE.md` for full-stack view. That file remains useful for Command Center / Zettelkasten-specific internals.
 
@@ -37,9 +44,10 @@ User -> Obsidian Copilot Chat
     v
   OpenClaw Research Agents         <- child_process.spawn(), stdout JSON events
     |
-    +-- Scout      -> Ollama (:11434)     CLI model mgmt, fast iteration
-    +-- Analyst    -> LM Studio (:1234)   GUI, larger models, memory controls
-    +-- Synthesizer -> Claude Code        Claude-level reasoning, citations
+    +-- scout      -> Ollama (:11434, local) boot-persistent; the only local model [LIVE 2026-06-11]
+    +-- analyst    -> Claude Code            reverted from LM Studio 2026-06-11 (16GB stability)
+    +-- synthesizer -> Claude Code           citation-dense reasoning
+    +-- (routing: config/role-provider-map.json; identity+memory: config/agents/<role>/)
     +-- ToolUniverse (2,116 biomedical tools)
     +-- bioRxiv MCP (preprint search)
     +-- Medical Zettelkasten MCP (optional graph analysis)
@@ -69,15 +77,16 @@ User -> Obsidian Copilot Chat
 - **6 workflow templates**: general-research-pack, drug-discovery-full, pharmacovigilance-report, target-validation-pack, clinical-trial-landscape, rare-disease-brief
 - **6 agent roles**: literature_reviewer, safety_signal_detector, molecular_profiler, competitive_intel_analyst, quality_auditor, report_generator
 - **Parallel execution** (Phase 35): `computeTopologicalLevels()` groups steps by dependency level, runs each level via `Promise.allSettled()`. Steps with dependencies execute level-by-level.
-- **LLM routing** (Phase 35): Each role hits a specific backend for a specific reason:
+- **LLM routing** (live — updated 2026-06-11): per-role routing via `config/role-provider-map.json` (precedence `roles[role]` → template `provider_preference` → `default` = claude-code; each non-claude route falls back to claude-code):
 
-| Role | Provider | Port | Why |
-|------|----------|------|-----|
-| Scout | Ollama | 11434 | CLI model management for fast iteration on triage models |
-| Analyst | LM Studio | 1234 | GUI for loading/tuning larger 70B INT4 models with memory controls |
-| Synthesizer | Claude Code | N/A | Claude-level reasoning required for citation-dense output |
+| Role | Provider | Model | Endpoint / path | Notes |
+|------|----------|-------|-----------------|-------|
+| scout | Ollama (`local`) | qwen2.5:7b-instruct | :11434 (boot-persistent launchd) via :11435 mkcert TLS proxy | the only local model |
+| analyst | Claude Code | claude-sonnet-4-6 | `claude -p` | reverted from LM Studio 2026-06-11 for 16 GB stability |
+| synthesizer | Claude Code | claude-sonnet-4-6 | `claude -p` | heaviest reasoning / citation-dense output |
+| _unmapped + default_ | Claude Code | claude-sonnet-4-6 | `claude -p` | global default |
 
-- **Config**: `config/agent-config.json` -> `roleProviderMap`, `config/llm-providers.json` for provider endpoints
+- **Config**: `config/role-provider-map.json` (per-role routes) + `config/agent-config.json` (`defaultProvider`, `agentStateDir`, `roleProviderMap`; schema `phase34-agent-config-v2`) + `config/llm-providers.json` (provider endpoints). Persistent per-role identity + session memory under `config/agents/<role>/{SOUL.md,AGENTS.md,sessions/}`. LM Studio installed (`qwen/qwen3.5-9b`, :1234 via :1235 proxy) but model **unloaded**; analyst's route staged in `_recommended_after_install` for flip-back.
 - **Harvard ToolUniverse**: 2,116 biomedical MCP tools (Phase 29), pre-fetched per role via `config/tool-prefetch-map.json`
 - **Agentic tool-call loop** (Phase 34): iterative ToolUniverse calling via `<tool_call>` XML protocol
 - **bioRxiv MCP**: local CommonJS module, 4 tools (search, get, published, funder) via composite tool executor
@@ -370,7 +379,13 @@ pm2 status
 |   +-- core/workflow-engine.js                  # computeTopologicalLevels, parallel execution, metrics
 |   +-- core/prometheus-metrics.js               # prom-client metrics (Phase 35)
 |   +-- core/composite-tool-executor.js          # Routes tool calls + timing metrics
-|   +-- core/agent-engine.js                     # Passes role in complete() calls
+|   +-- core/agent-engine.js                     # Passes role; persists fetched_citation_ids + citation_verification
+|   +-- core/citation-gate.js                    # verifyReportCitations report-level grounded-ratio gate [2026-06-12]
+|   +-- core/citation-extractor.js               # Extracts cited ids; DOI-terminator fix [2026-06-12]
+|   +-- mcp/ctgov-supplemental/                  # Local CT.gov v2 stopped-trial / change-history fetcher [2026-06-12]
+|   +-- mcp/crossref-retraction/                 # Crossref DOI retraction screen (fail-soft) [2026-06-12]
+|   +-- monetization/integrity-rating.js         # buildIntegrityReport -> deliverables/citation-integrity.md [2026-06-12]
+|   +-- monetization/graveyard-memo.js           # buildGraveyardMemo + buildAmendmentRisk -> graveyard-memo.md [2026-06-12]
 |   +-- bridge/server.ts                         # Gateway HTTP server, /metrics endpoint
 |   +-- bridge/bridge-routing.js                 # Route types including METRICS
 +-- observability/

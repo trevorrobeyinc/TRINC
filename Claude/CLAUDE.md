@@ -2,6 +2,11 @@
 
 Central organizational workspace housing all Claude-assisted projects for the biomedical research intelligence stack.
 
+> **📌 Shared Continuity Board:** the cross-surface work log lives at the repo root —
+> [`../_continuity/CONTINUITY.md`](../_continuity/CONTINUITY.md). All four Claude surfaces (CLI
+> Claude Code, Desktop Claude Code, Cowork, Claude Chat) read it at session start and append on
+> progress/handoff. See [`../_continuity/README.md`](../_continuity/README.md).
+
 ## Why this workspace exists (vs `Copilot-Everything/`)
 
 The split is **ownership-based**, not artifact-type-based:
@@ -16,7 +21,7 @@ If you ever wonder "this Obsidian plugin is ours, why isn't it under `Copilot-Ev
 | Project | Path | Role |
 |---------|------|------|
 | Medical Zettelkasten MCP | `Medical-Zettelkasten-MCP/` | Algorithmic graph engine (10 MCP tools, stdio transport, no LLM) |
-| OpenClaw Command Center | `obsidian-openclaw-command-center/` | Obsidian plugin — agent dispatch, monitoring, vault notes. Owns the additive `:8799` HTTPS bridge (11 tools = 7 vault + 4 workflow). Directory rename to drop `openclaw` prefix is pending. |
+| OpenClaw Command Center | `obsidian-command-center/` | Obsidian plugin — agent dispatch, monitoring, vault notes. Owns the additive `:8799` HTTPS bridge (11 tools = 7 vault + 4 workflow). Directory renamed 2026-06-30; plugin id is now `command-center`. |
 | Obsidian Bridge Launcher | `obsidian-bridge-launcher/` | Obsidian plugin — spawns the canonical MCP bridge child process on `:8798` tied to Obsidian's plugin host lifecycle. Owns the fd-3 line-delimited JSON-RPC IPC channel (`BRIDGE_IPC_FD=3`) used for renderer-scope console capture and gated eval. Bridge **code** lives in `Copilot-Everything/bridges/obsidian-copilot-bridge/`; this plugin owns only the lifecycle. |
 | Obsidian Vault Zettelkasten | `obsidian-vault-zettelkasten/` | Obsidian plugin — hosts the in-process `ZettelkastenService` (LLM-driven, vault-grounded). Migrated here 2026-04-11 from the now-deleted backend emulator on `:8789`. Consumes Miyo via `:8743` HTTPS proxy, Qdrant via `:6433` HTTPS proxy, LM Studio via `:1235` HTTPS proxy. |
 | Trevor Robey INC Research Memory MCP | `trevorobeyinc-research-memory-mcp/` | Stdio MCP server. Qdrant-backed pack storage via `:6433` HTTPS proxy. Auto-ingested by the Command Center plugin after workflow completion. |
@@ -56,9 +61,9 @@ Tools exposed (stdio MCP, single Node entry at `claude-cli-bridge/index.mjs`):
 
 ## Multi-Operator Topology, Port Map, Startup Order
 
-**Canonical source of truth**: [`/Users/trevorrobey/TrevClaw-Obsidianodus/CLAUDE.md`](../CLAUDE.md) (root monorepo CLAUDE.md). It owns the operator-topology diagram, the unified port map (`:8798`, `:8799`, `:8743`, `:6433`, `:1235`, `:11435`, etc.), the TLS proxy table, and the startup order. This file used to duplicate that content; it is now stale-prone, so all questions about ports, protocols, ownership, or startup sequence MUST be answered from the root file.
+**Canonical source of truth**: [`/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/CLAUDE.md`](../CLAUDE.md) (root monorepo CLAUDE.md). It owns the operator-topology diagram, the unified port map (`:8798`, `:8799`, `:8743`, `:6433`, `:1235`, `:11435`, etc.), the TLS proxy table, and the startup order. This file used to duplicate that content; it is now stale-prone, so all questions about ports, protocols, ownership, or startup sequence MUST be answered from the root file.
 
-This workspace's role-within-the-topology, in one sentence: Claude Hub owns the Obsidian-plugin lifecycle for the two HTTPS bridges (`:8798` canonical via `obsidian-bridge-launcher`; `:8799` additive via `obsidian-openclaw-command-center`) and houses the stdio MCP servers that those plugins spawn (Medical Zettelkasten MCP, Research Memory MCP).
+This workspace's role-within-the-topology, in one sentence: Claude Hub owns the Obsidian-plugin lifecycle for the two HTTPS bridges (`:8798` canonical via `obsidian-bridge-launcher`; `:8799` additive via `obsidian-command-center`) and houses the stdio MCP servers that those plugins spawn (Medical Zettelkasten MCP, Research Memory MCP).
 
 ## Workspace Conventions
 
@@ -112,5 +117,4 @@ This workspace is the primary environment for cloning web apps into localhost se
 | Workspace | Path (relative to monorepo root) | Role |
 |-----------|----------------------------------|------|
 | Copilot-Everything | [`../Copilot-Everything/`](../Copilot-Everything/) | Obsidian plugin fork (vendored at `repos/obsidian-copilot-mcp/`), canonical MCP bridge (`bridges/obsidian-copilot-bridge/` → `:8798`), consolidated stdio adapter, ~~claude-cli-bridge~~ (retired 2026-05-31 → `Claude/.archive/`), four HTTPS TLS proxies (Miyo / Qdrant / LM Studio / Ollama). |
-| trevor-robey-inc-agents (powered by OpenClaw) | [`../trevor-robey-inc-agents/`](../trevor-robey-inc-agents/) | Citation-traced biomedical due diligence engine. On-demand subprocess via `node scripts/run-workflow.js` — no persistent gateway. (Path migrated from `/Users/trevorrobey/Code/trevor-robey-inc-agents` during the 2026-05-07 monorepo consolidation. Backend emulator at `:8789` retired 2026-04-11.) |
-| trevor-robey-inc (brand / commercial) | [`../trevor-robey-inc/`](../trevor-robey-inc/) | Brand canon, LLC formation paperwork, six-SKU offering ladder, REVENUE_PLAYBOOK, NOTICE. Authoritative customer-facing copy authority is the `trevor-robey-inc-brand-guardian` skill, not this folder. |
+| Trevor Robey Intelligence Network Citations (engine + brand) | [`../Trevor Robey Intelligence Network Citations/`](../Trevor%20Robey%20Intelligence%20Network%20Citations/) | Single consolidated folder — flat-merged 2026-05-19 from the two former siblings `trevor-robey-inc-agents/` (engine) + `trevor-robey-inc/` (brand); those folder names no longer exist on disk. Holds BOTH (a) the citation-traced biomedical due-diligence **engine** (on-demand subprocess `node scripts/run-workflow.js`, no persistent gateway; backend emulator at `:8789` retired 2026-04-11) AND (b) the **brand/commercial** project (LLC formation paperwork, six-SKU offering ladder, `OFFERINGS.md`, `REVENUE_PLAYBOOK.md`, `NOTICE.md`, numbered dirs `00-…15-`). Authoritative customer-facing copy authority is the `trevor-robey-inc-brand-guardian` skill, not this folder. |

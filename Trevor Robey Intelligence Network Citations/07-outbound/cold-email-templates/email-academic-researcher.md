@@ -12,9 +12,9 @@ Hi [First Name],
 
 A typical systematic review takes 3-6 months. Our autonomous research engine produces the same output in 72 hours with 200+ verified citations.
 
-I run Trevor Robey, INC. (Intelligence Network Citations) -- citation-traced biomedical due diligence (powered by the open-source OpenClaw agent framework). Every claim maps to a verifiable PMID, NCT, or RxNorm identifier; refund-backed citation-audit SLA. No hallucinated references.
+I run Trevor Robey, INC. (Intelligence Network Citations) -- citation-traced biomedical due diligence (powered by the open-source OpenClaw agent framework). Every claim maps to a real PMID, NCT, or RxNorm identifier, grounded against the evidence actually retrieved; refund-backed citation-audit SLA. Ungrounded citations are flagged, not hidden.
 
-Our tactical SKUs start at $2,500 (Plain-Language Patient Brief) and $4,950 (Conference Synthesis Brief, Trial Design Benchmark Pack); the lead Investor Pre-Mortem is $9,950 anchor / $14,950 standard / $19,950 custom. Each tactical pack is a 48+ page single-topic analysis with a citation index CSV and a methodology statement. Every identifier resolves in its source database.
+Our tactical SKUs start at $2,500 (Plain-Language Patient Brief) and $4,950 (Conference Synthesis Brief, Trial Design Benchmark Pack); the lead Investor Pre-Mortem is $9,950 anchor / $14,950 standard / $19,950 custom. Each tactical pack is a 48+ page single-topic analysis with a citation index CSV and a methodology statement. Every identifier is a real public-domain reference you can look up in its source database.
 
 Would it be useful to see a sample output so you can verify the citations yourself?
 
@@ -32,7 +32,7 @@ Hi [First Name],
 
 Quick follow-up -- our pharmacovigilance reports synthesize 135+ verified citations from OpenFDA AEMS (formerly AEMS, migrated to daily real-time updates Mar 11, 2026), DailyMed, and PubMed into a single structured output. The citation index CSV maps every claim to its source for independent verification.
 
-For context, our recent ICI adverse events report contained citations across 7 identifier types (PMID, NCT, RxNorm, PubChem CID, UniProt, ChEMBL, DOI). Every one resolves.
+For context, our recent ICI adverse events report contained citations across 7 identifier types (PMID, NCT, RxNorm, PubChem CID, UniProt, ChEMBL, DOI). Every one is a real public identifier you can look up.
 
 Happy to share a redacted sample so you can verify the citations yourself.
 

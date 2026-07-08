@@ -249,7 +249,8 @@ async function buildResearchRuntime(options = {}) {
   const roleRouter = createRoleRouter({
     logger,
     registry: agentRegistry,
-    autonomyLadder
+    autonomyLadder,
+    rootDir
   });
   const commsBus = createCommsBus({
     logger,

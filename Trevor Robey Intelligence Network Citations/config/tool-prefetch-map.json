@@ -8,6 +8,8 @@
         "arguments": { "query": "{{therapeutic_area}} {{indication}} {{compound_name}}", "limit": 8, "include_abstract": true } },
       { "action": "executeTool", "tool_name": "search_clinical_trials",
         "arguments": { "query_term": "{{therapeutic_area}} {{indication}} {{compound_name}}", "condition": "{{indication}}", "pageSize": 8 } },
+      { "action": "executeTool", "tool_name": "ctgov_stopped_trials", "optional": true,
+        "arguments": { "condition": "{{indication}}", "pageSize": 6 } },
       { "action": "executeTool", "tool_name": "OpenTargets_get_drug_id_description_by_name",
         "arguments": { "drugName": "{{compound_name}}" } }
     ],
@@ -47,6 +49,8 @@
     "competitive_intel_analyst": [
       { "action": "executeTool", "tool_name": "search_clinical_trials",
         "arguments": { "query_term": "{{indication}} {{drug_class}}", "condition": "{{indication}}", "pageSize": 10 } },
+      { "action": "executeTool", "tool_name": "ctgov_stopped_trials", "optional": true,
+        "arguments": { "condition": "{{indication}}", "pageSize": 8 } },
       { "action": "executeTool", "tool_name": "SemanticScholar_search_papers",
         "arguments": { "query": "{{indication}} {{drug_class}} clinical landscape", "limit": 6, "include_abstract": true } },
       { "action": "findTool", "query": "target {{indication}}" }

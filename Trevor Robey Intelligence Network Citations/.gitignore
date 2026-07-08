@@ -3,7 +3,8 @@ dist/
 build/
 .tmp/
 logs/
-.ci/npm-cache/_update-notifier-last-checked
+config/agents/*/sessions/
+.ci/npm-cache/
 openclaw-bridge/.bridge/
 openclaw-bridge/data/
 openclaw-bridge/logs/

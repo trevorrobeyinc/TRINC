@@ -19,6 +19,28 @@ Output paths:
 - `workspace/research-normalized/`
 - `workspace/research-index/`
 
+## Local-Fetcher Ingestion Seam (post-research engine, 2026-06-12)
+Separate from the connectors above, the active workflow research path
+(`openclaw-bridge/core/tool-prefetch.js`) gained a generic local-fetcher seam
+(`createToolPrefetch` `options.localFetchers`: `tool_name` → async fetcher) that runs alongside the
+ToolUniverse SMCP, so a local source plugs into role prefetch as a normal tool. Two local fetchers ship:
+- `openclaw-bridge/mcp/ctgov-supplemental/ctgov-supplemental.js` (tool `ctgov_stopped_trials`) —
+  searches ClinicalTrials.gov API v2 for TERMINATED/WITHDRAWN/SUSPENDED trials in a condition and
+  returns each trial's sponsor-stated `whyStopped` plus protocol change-history (version count +
+  most-amended modules, from the internal `/api/int/.../history` endpoint); session-cached; every
+  record NCT-traced. Fail-soft (network/parse error → `[]`, never breaks a run).
+- `openclaw-bridge/mcp/crossref-retraction/crossref-retraction.js` — checks each cited DOI against
+  Crossref `/works/{DOI}` for retraction; consumed by the report-level citation gate.
+
+These feed (a) the zero-fabrication citation gate (`core/citation-gate.js` `verifyReportCitations`, run
+in `workflow-engine.executeMissionStep`; hard-fails `PHASE30_CITATION_UNVERIFIED`, or
+`PHASE30_CITATION_RETRACTED` on a retracted DOI), and (b) the two new mission-bundle deliverables —
+`deliverables/citation-integrity.md` (graded provenance ledger) and `deliverables/graveyard-memo.md`
+(NCT-traced stopped-program memo + LOW/MODERATE/HIGH amendment-risk band) — both rendered
+deterministically from the fetched records (no LLM). Cited identifiers are thereby grounded in the
+source records actually retrieved at runtime + DOI retraction-screened; they are NOT independently
+re-resolved against a live external database.
+
 ## Determinism and Integrity
 - Canonical paper keys for stable dedupe.
 - Stable sorting of normalized records.

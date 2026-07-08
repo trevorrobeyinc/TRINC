@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-LOG_DIR="$HOME/Code/Claude/.logs"
+LOG_DIR="$HOME/Claude/.logs"
 EVENTS_LOG="$LOG_DIR/cc-bridge-monitor.events.jsonl"
 STATE_FILE="$LOG_DIR/.cc-bridge-last-state"
 mkdir -p "$LOG_DIR"

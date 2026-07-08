@@ -85,4 +85,8 @@ coverage/
 .nyc_output/
 test-results/
 playwright-report/
+
+# Captured vault-settings snapshots contain real userId / license key / encrypted
+# (enc_desk_) secrets — never track the settings file (audit CS-3).
+repos/.upstream-*-vault-snapshot/data.json
 # repos/obsidian-copilot-mcp/   # vendored into monorepo 2026-05-07; see repos/obsidian-copilot-mcp/UPSTREAM.md

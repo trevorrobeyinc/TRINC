@@ -18,6 +18,9 @@ describe("copilot command ids", () => {
 
   it("exposes known refresh and summarize command candidates", () => {
     expect(getRefreshPromptRegistryCommandCandidates()).toContain("copilot:refresh-prompts");
-    expect(getSummarizeCommandCandidates()[0]).toBe("copilot:summarize");
+    // The headless fork variant (writes the note with no modal) is preferred; the modal
+    // command stays available as a fallback for stock-plugin installs.
+    expect(getSummarizeCommandCandidates()[0]).toBe("copilot:summarize-to-note");
+    expect(getSummarizeCommandCandidates()).toContain("copilot:summarize");
   });
 });

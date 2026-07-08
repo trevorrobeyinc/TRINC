@@ -1,0 +1,6 @@
+{
+  "schema_version": "agent-profile-v1",
+  "role": "scout",
+  "recommended_route": { "provider": "local", "model": "<ollama-tag>", "fallback": "claude-code" },
+  "_note": "config/role-provider-map.json is authoritative at runtime; this is the intended target backend once Ollama is installed and the model id is confirmed."
+}

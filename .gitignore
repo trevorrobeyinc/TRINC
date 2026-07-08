@@ -135,6 +135,8 @@ Trevor Robey Intelligence Network Citations/workspace/audit/live-run-*.stderr
 Trevor Robey Intelligence Network Citations/workspace/runtime/cache/
 Trevor Robey Intelligence Network Citations/workspace/research-raw/
 Trevor Robey Intelligence Network Citations/workspace/research-output/_tmp/
+# Research-API payload logs (may contain unredacted request/response bodies)
+Trevor Robey Intelligence Network Citations/workspace/api-contracts/
 
 # -----------------------------------------------------------------------------
 # Validation gate run logs (Copilot-Everything)
