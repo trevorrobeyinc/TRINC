@@ -43,5 +43,15 @@
       "executionTimeoutMs": 600000,
       "fallbackProvider": "lm-studio"
     }
+  },
+  "promptGuard": {
+    "enabled": false,
+    "endpoint": "https://127.0.0.1:8000",
+    "scanPath": "/analyze/prompt",
+    "mode": "enforce",
+    "failOpen": true,
+    "timeoutMs": 8000,
+    "authTokenEnv": "LLM_GUARD_AUTH_TOKEN",
+    "_comment": "Phase 5 interim-AIDR prompt firewall (LLM Guard, github.com/protectai/llm-guard). DEFAULT OFF. When enabled, llm-adapter scans every assembled prompt (incl. injected tooluniverse:// tool-results) via the local LLM Guard service BEFORE it reaches any LLM provider. mode=enforce blocks on is_valid:false; mode=monitor logs only (recommended soak before enforce). failOpen:true => a down/erroring service ALLOWS the prompt (never cripple research). Token via env LLM_GUARD_AUTH_TOKEN or promptGuard.authToken in the gitignored llm-providers.local.json. HTTPS-only; TLS verified via NODE_EXTRA_CA_CERTS."
   }
 }

@@ -5,6 +5,7 @@ const path = require("node:path");
 
 const { canonicalize, safeString, sha256 } = require("../../workflows/governance-automation/common.js");
 const { throwWithDiagnostic } = require("./tls-diagnostic.js");
+const { resolveGuardConfig, scanPrompt } = require("./prompt-guard.js");
 
 function isPlainObject(value) {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
@@ -381,6 +382,19 @@ function createLLMAdapter(options = {}) {
   const defaultModel = safeString(providerConfig.model)
     || (provider === "mock" ? "mock-v1" : "unknown");
 
+  // Phase 5 — interim-AIDR prompt-firewall gate (LLM Guard). Default OFF; resolved
+  // once at construction. When enabled, complete() scans every assembled prompt
+  // (incl. injected tool-prefetch results) before it reaches the provider.
+  const guardConfig = resolveGuardConfig(process.cwd(), options.promptGuard);
+  if (guardConfig.enabled) {
+    logger.info({
+      event: "phase5_llm_guard_enabled",
+      endpoint: guardConfig.endpoint,
+      mode: guardConfig.mode,
+      fail_open: guardConfig.failOpen
+    });
+  }
+
   async function complete(prompt, completionOptions = {}) {
     const promptText = String(prompt || "");
     const model = safeString(completionOptions.model) || defaultModel;
@@ -388,6 +402,48 @@ function createLLMAdapter(options = {}) {
       ? canonicalize(completionOptions.skillsContext)
       : { local_skills: [], hosted_skill_refs: [] };
     const startedAt = Number(timeProvider.nowMs());
+
+    // Phase 5 — interim-AIDR prompt-firewall gate. Scan the fully-assembled prompt
+    // (template + inputs + injected tooluniverse:// tool-results) BEFORE any provider
+    // call. FAIL-OPEN on transport errors (research must not break on a control hiccup);
+    // block on is_valid:false in enforce mode. Logs only sha256(prompt) + scanner scores.
+    if (guardConfig.enabled) {
+      let verdict = null;
+      try {
+        verdict = await scanPrompt(promptText, guardConfig);
+      } catch (guardErr) {
+        logger.warn({
+          event: "phase5_llm_guard_unavailable",
+          fail_open: guardConfig.failOpen,
+          error: safeString(guardErr && guardErr.message),
+          prompt_hash: sha256(promptText)
+        });
+        if (!guardConfig.failOpen) {
+          throw makeError(
+            "PHASE5_LLM_GUARD_UNAVAILABLE",
+            "LLM Guard unreachable and fail-open disabled; refusing to send prompt",
+            { taskId: safeString(completionOptions.taskId) }
+          );
+        }
+      }
+      if (verdict && verdict.isValid === false) {
+        logger.warn({
+          event: "phase5_llm_guard_flagged",
+          mode: guardConfig.mode,
+          flagged: verdict.flagged,
+          prompt_hash: sha256(promptText)
+        });
+        if (guardConfig.mode === "enforce") {
+          throw makeError(
+            "PHASE5_LLM_GUARD_BLOCKED",
+            "Prompt blocked by LLM Guard prompt firewall (is_valid=false)",
+            { flagged: verdict.flagged, taskId: safeString(completionOptions.taskId) }
+          );
+        }
+      } else if (verdict) {
+        logger.info({ event: "phase5_llm_guard_pass", prompt_hash: sha256(promptText) });
+      }
+    }
 
     let result;
     if (provider === "mock") {

@@ -1,6 +1,6 @@
 {
   "name": "obsidian-copilot",
-  "version": "3.3.2",
+  "version": "3.3.3",
   "description": "Your AI Copilot: Chat with Your Second Brain, Learn Faster, Work Smarter.",
   "main": "main.js",
   "scripts": {
@@ -19,7 +19,8 @@
     "test": "jest --testPathIgnorePatterns=src/integration_tests/",
     "test:integration": "jest src/integration_tests/",
     "prepare": "husky",
-    "prompt:debug": "node scripts/printPromptDebug.js"
+    "prompt:debug": "node scripts/printPromptDebug.js",
+    "test:vault": "bash scripts/test-vault.sh"
   },
   "keywords": [],
   "author": "Logan Yang",

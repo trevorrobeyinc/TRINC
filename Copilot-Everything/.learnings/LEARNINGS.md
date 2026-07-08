@@ -382,3 +382,28 @@ Upstream v3.2.8 → v3.3.2 was 51 commits, touching many files. A line-by-line d
 - Plugin-only (~30s): stop Obsidian, copy 3 files from `Copilot-Everything/repos/.upstream-vNNN-vault-snapshot/` back to vault's `.obsidian/plugins/copilot/`, restart.
 - Full repo: `git reset --hard pre-copilot-fork-refresh-YYYY-MM-DD`.
 
+## [LRN-20260523-001] error
+
+**Logged**: 2026-05-23T04:25:00Z
+**Priority**: high
+**Status**: pending
+**Area**: copilot-fork
+
+### Summary
+The deployed Copilot fork got silently **wiped by Obsidian's community-plugin auto-update — twice**. Root cause: the fork was versioned `3.3.2-mcp.1`. In semver, an `X.Y.Z-suffix` string is a **pre-release** of `X.Y.Z`, which sorts BELOW the plain `X.Y.Z`. So `3.3.2-mcp.1` < `3.3.2` < `3.3.3`, and the moment upstream published stock `3.3.3`, Obsidian's updater saw it as strictly newer than our installed `3.3.2-mcp.1` and overwrote the fork with stock — taking the in-plugin MCP feature with it. (The vault `data.json` mcp section + `_keychainOnly` + the Falcon rule group all SURVIVED — only the plugin code itself was replaced.)
+
+### Fix (applied 2026-05-23)
+1. **Version the fork to EXACTLY match the upstream tag it is based on** — `3.3.3`, never `3.3.3-mcp.1`. Then auto-update sees "installed == latest", no update fires, fork stays put until upstream actually releases a higher version. The fork is distinguished from stock by `manifest.json` description ("MCP-first … fork by Trevor Robey"), not by version.
+2. **Recommend the user disable auto-update for Copilot** (Obsidian → Community plugins → turn off auto-update, globally or per-plugin). This is the real durable fix — with auto-update off the fork is never overwritten regardless of versioning. Re-sync becomes a deliberate build+deploy via UPSTREAM.md.
+
+### Why "version exactly = upstream tag" works AND is safe
+- Equal versions → Obsidian's updater treats it as up-to-date → no overwrite.
+- When upstream goes to 3.3.4, auto-update WILL fire again (if enabled) — which is why #2 (disable auto-update) is the belt to #1's suspenders.
+- A higher fake version (e.g. `3.99.3`) would also prevent auto-update but breaks the "Update available" UX and confuses re-sync; matching exactly is cleaner.
+
+### Re-sync cost is low
+v3.3.2 → v3.3.3 had only `src/constants.ts` changed on our 8-file patch surface; the other 7 patches re-applied byte-for-byte. `tsc` build passed first try. The wipe-and-reapply pattern from LRN-20260519-001 handles this in ~15 min. Local REST API plugin also bumped 4.0.2 → 4.1.0 in the same window — verified bridge-compatible by smoke test (no fork/bridge change needed; the bridge talks to :27124, the fork does not).
+
+### Rule
+Any vendored Obsidian-plugin fork that shadows a community plugin MUST be versioned == the upstream tag (no prerelease/build suffix), AND the user should disable auto-update for that plugin. A prerelease suffix guarantees eventual silent overwrite.
+
