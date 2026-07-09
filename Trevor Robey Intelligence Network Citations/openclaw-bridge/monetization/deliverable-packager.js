@@ -501,7 +501,7 @@ function createDeliverablePackager(options = {}) {
       // artifact, built deterministically from the citation gate's verification (the product spine).
       if (sourceContext.citation_verification) {
         const integrityPath = path.join(deliverablesDir, "citation-integrity.md");
-        writeText(integrityPath, buildIntegrityReport(sourceContext.citation_verification).markdown);
+        writeText(integrityPath, buildIntegrityReport(sourceContext.citation_verification, sourceContext.section_coverage).markdown);
         artifactRefs.citation_integrity = relativeFrom(bundleDir, integrityPath);
         // Reproducibility Manifest — per-citation live re-resolution result, shipped beside the
         // integrity ledger so a subscriber can re-run the listed URLs and reproduce the verdicts.

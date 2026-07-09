@@ -8,7 +8,14 @@
 // provenance, so this ledger is the moat. It is DETERMINISTIC (no LLM narration), so the
 // integrity claim is itself verifiable.
 
-function buildIntegrityReport(citationVerification = {}) {
+/** "mission-abc:subtask:1" → "subtask 1"; plain ids pass through. */
+function shortSection(id) {
+  const s = String(id || "section");
+  const parts = s.split(":");
+  return parts.length > 1 ? parts.slice(1).join(" ") : s;
+}
+
+function buildIntegrityReport(citationVerification = {}, sectionCoverage = []) {
   const cv = citationVerification || {};
   const cited = Math.max(0, Number(cv.cited) || 0);
   const grounded = Math.max(0, Number(cv.grounded) || 0);
@@ -67,6 +74,32 @@ function buildIntegrityReport(citationVerification = {}) {
       ...ungroundedSample.map((s) => `- ${s}`)
     );
   }
+  // Per-section external primary-source coverage (from the SearXNG citation-coverage gate). Surfaces
+  // the Sparse/Moderate/Comprehensive tier for each report section into the customer-facing ledger —
+  // "how well-corroborated is each section" is a selling point, not just an internal artifact.
+  const coverage = Array.isArray(sectionCoverage) ? sectionCoverage : [];
+  if (coverage.length > 0) {
+    lines.push(
+      "",
+      "## Source coverage by section",
+      "",
+      "Independent primary-source coverage retrieved for each report section at generation time. **Sparse / Moderate / Comprehensive** reflects how many distinct primary sources corroborate the section; a section marked *not checked* could not be verified against live search (e.g. the search backend was unreachable) and was not failed on that basis.",
+      "",
+      "| Section | Coverage | Distinct primary sources |",
+      "| --- | --- | --- |"
+    );
+    for (const s of coverage) {
+      const label = shortSection(s && s.section_id);
+      if (s && s.checked === false) {
+        lines.push(`| ${label} | not checked | — |`);
+      } else {
+        const tier = (s && s.coverage_tier) || (s && s.gate_status === "fail" ? "None" : "—");
+        const n = s && Number.isFinite(s.distinct_source_count) ? s.distinct_source_count : 0;
+        lines.push(`| ${label} | ${tier} | ${n} |`);
+      }
+    }
+  }
+
   lines.push("");
   return { grade, verdict, markdown: lines.join("\n") };
 }

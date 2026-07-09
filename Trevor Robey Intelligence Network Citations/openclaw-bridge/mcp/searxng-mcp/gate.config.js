@@ -40,5 +40,32 @@ module.exports = {
     "patentscope.wipo.int",
     "ebi.ac.uk",
     "doi.org", // DOI resolver → publisher primary
+    // --- extended 2026-07-07: additional top-tier primary/authoritative sources ---
+    // broader US gov / library (covers dailymed, medlineplus, pubmed subdomains via subdomain match)
+    "nih.gov",
+    "nlm.nih.gov",
+    "medlineplus.gov",
+    // national + international clinical-trial registries (each record is a resolvable primary source)
+    "clinicaltrialsregister.eu", // EU CTR / EudraCT
+    "euclinicaltrials.eu", // EU CTIS
+    "isrctn.com",
+    "anzctr.org.au",
+    "chictr.org.cn",
+    "umin.ac.jp",
+    "ctri.nic.in",
+    // major medicines regulators (labels / assessment reports)
+    "mhra.gov.uk",
+    "tga.gov.au",
+    "pmda.go.jp",
+    "canada.ca", // Health Canada (health-products; broad but authoritative gov domain)
+    // authoritative guidelines / evidence synthesis
+    "nice.org.uk",
+    "cochranelibrary.com",
+    // primary bio-data repositories + DOI/registry metadata
+    "crossref.org",
+    "uniprot.org",
+    "rcsb.org", // Protein Data Bank
+    "ensembl.org",
+    "genome.gov",
   ],
 };

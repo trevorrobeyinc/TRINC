@@ -522,6 +522,15 @@ function createWorkflowEngine(options = {}) {
       if (missionStep.graveyard_memo) built.source_context.graveyard_memo = missionStep.graveyard_memo;
       if (missionStep.amendment_risk) built.source_context.amendment_risk = missionStep.amendment_risk;
     }
+    // Slice 3 v3: carry the per-section coverage tiers from the upstream quality_audit step (the only
+    // step result that carries a section_coverage[]), so the packager can surface Sparse/Moderate/
+    // Comprehensive per section in the integrity ledger. Fail-soft: absent → ledger just omits it.
+    if (built && built.source_context) {
+      const qa = [...stepResults.values()].find(
+        (r) => r && Array.isArray(r.section_coverage) && r.section_coverage.length > 0
+      );
+      if (qa) built.source_context.section_coverage = qa.section_coverage;
+    }
     const tempBundleDir = monetizationRuntime.deliverablePackager.createBundleWorkspace(built.offer.offer_id);
     const artifactRefs = monetizationRuntime.deliverablePackager.writeDeliverables(tempBundleDir, built.offer, built.source_context);
     const generatedSubmission = monetizationRuntime.submissionPackGenerator.generateSubmissionPacks(tempBundleDir, built.offer, built.source_context);
