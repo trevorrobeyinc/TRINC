@@ -7,13 +7,24 @@
 // Produces the Reproducibility Manifest (JSON) + a human Markdown render, and the truthful
 // delivery_decision that controls which strength of public claim the packager may emit.
 //
-// Delivery-decision policy (fail-closed on CLAIMS, fail-soft on infrastructure):
-//   BLOCK              — any UNRESOLVED citation (a live DB says the id does not exist = the
-//                        fabrication signature), any retracted DOI, or a gate hard-fail.
-//   DELIVER_WITH_FLAGS — ships, but only the count-scoped "UNCHECKED-honest" claim is allowed,
-//                        when unchecked_ratio > max_unchecked_ratio.
-//   DELIVER            — full-strength claim allowed ONLY at 100% VERIFIED (0 unresolved, 0 unchecked,
-//                        no retractions, gate passes).
+// Delivery-decision policy (fail-closed on CLAIMS, fail-soft on infrastructure). ONLY BLOCK stops a
+// report from shipping; DELIVER and DELIVER_WITH_FLAGS BOTH ship — the difference is purely which
+// strength of public claim the packager may emit. So `block_reasons` is reserved for HARD stops; a
+// soft disclosure that merely restricts the claim goes in `flag_reasons` (Q8 — a report that ships
+// must never list a "block reason").
+//   BLOCK              — hard stop, does NOT ship: any UNRESOLVED citation (a live registry says the id
+//                        does not exist = the fabrication signature), any retracted DOI/PMID, or a
+//                        gate hard-fail.
+//   DELIVER_WITH_FLAGS — SHIPS; only the count-scoped "UNCHECKED-honest" claim is allowed, because
+//                        unchecked_ratio > max_unchecked_ratio. The report is still fully GROUNDED —
+//                        some ids just could not be independently re-resolved at delivery (network).
+//   DELIVER            — SHIPS; the full-strength "every cited id independently re-resolved" claim is
+//                        allowed ONLY at 100% VERIFIED (0 unresolved, 0 unchecked, no retractions,
+//                        gate passes).
+// Q8 policy: max_unchecked_ratio defaults to 0, and this is DOCTRINE-REQUIRED, not a tunable quality
+// dial — the full-strength DELIVER claim asserts "every id was re-resolved," so any tolerance > 0
+// would let that claim appear when it is untrue (a label overclaim). To earn more clean DELIVERs,
+// make the re-resolver more resilient (retry transient timeouts) — never lower this bar.
 
 const DECISION = Object.freeze({ DELIVER: "DELIVER", DELIVER_WITH_FLAGS: "DELIVER_WITH_FLAGS", BLOCK: "BLOCK" });
 const NETWORK_UNCHECKED = new Set(["network_error", "timeout", "rate_limited", "http_5xx"]);
@@ -26,6 +37,8 @@ function buildReproducibilityManifest(input = {}) {
   const gate = input.gate || null;
   const meta = input.meta || {};
   const thresholds = {
+    // Q8: 0 is doctrine-required (see header) — any unchecked id forfeits the full-strength DELIVER
+    // claim. Overridable via input.thresholds for tests; a production value > 0 would overclaim.
     max_unchecked_ratio: Number.isFinite(input.thresholds && input.thresholds.max_unchecked_ratio)
       ? input.thresholds.max_unchecked_ratio : 0,
     block_on_unresolved: input.thresholds && input.thresholds.block_on_unresolved === false ? false : true,
@@ -71,6 +84,7 @@ function buildReproducibilityManifest(input = {}) {
   const retracted_dois = Array.isArray(retraction.retracted_dois) ? retraction.retracted_dois : [];
   const retracted_pmids = Array.isArray(retraction.retracted_pmids) ? retraction.retracted_pmids : [];
   const block_reasons = [];
+  const flag_reasons = []; // Q8: soft disclosures that RESTRICT the claim but still SHIP (never block)
   if (thresholds.block_on_unresolved && counts.unresolved > 0) block_reasons.push("unresolved_present");
   if (retracted_dois.length > 0) block_reasons.push("retracted_doi");
   if (retracted_pmids.length > 0) block_reasons.push("retracted_pmid");
@@ -81,7 +95,7 @@ function buildReproducibilityManifest(input = {}) {
     delivery_decision = DECISION.BLOCK;
   } else if (unchecked_ratio > thresholds.max_unchecked_ratio) {
     delivery_decision = DECISION.DELIVER_WITH_FLAGS;
-    block_reasons.push("unchecked_over_threshold");
+    flag_reasons.push("unchecked_over_threshold");
   } else {
     delivery_decision = DECISION.DELIVER;
   }
@@ -101,6 +115,7 @@ function buildReproducibilityManifest(input = {}) {
     unchecked_ratio,
     delivery_decision,
     block_reasons,
+    flag_reasons,
     retraction_screen: { checked: Boolean(retraction.checked), retracted_dois, retracted_pmids },
     gate_crosscheck: gate
       ? {
@@ -125,7 +140,12 @@ function renderManifestMarkdown(manifest) {
   const lines = [];
   lines.push("# Reproducibility Manifest");
   lines.push("");
-  lines.push(`Delivery decision: **${s.delivery_decision || "n/a"}**` + (Array.isArray(s.block_reasons) && s.block_reasons.length ? ` (${s.block_reasons.join(", ")})` : ""));
+  lines.push(`Delivery decision: **${s.delivery_decision || "n/a"}**`
+    + (Array.isArray(s.block_reasons) && s.block_reasons.length ? ` — blocked: ${s.block_reasons.join(", ")}` : "")
+    + (Array.isArray(s.flag_reasons) && s.flag_reasons.length ? ` — flags: ${s.flag_reasons.join(", ")}` : ""));
+  if (s.delivery_decision === "DELIVER_WITH_FLAGS") {
+    lines.push("> This report SHIPS. DELIVER_WITH_FLAGS means some cited identifiers could not be independently re-resolved at delivery time (a network/throttle limit at re-resolution, NOT a defect): the report remains fully GROUNDED — every cited id was present in the runtime-fetched evidence. Only an UNRESOLVED id (a live registry says it does not exist) or a retraction blocks delivery.");
+  }
   if (s.as_of) lines.push(`As of: ${s.as_of}`);
   lines.push("");
   lines.push(`Citations re-resolved at delivery: **${c.verified} VERIFIED · ${c.unresolved} UNRESOLVED · ${c.unchecked} UNCHECKED** of ${c.total} (verified ratio ${s.verified_ratio}).`);

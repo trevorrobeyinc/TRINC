@@ -372,9 +372,27 @@ search mislabeled as an honest zero — both FIXED (re-gated on `groundedCitatio
 phase30 gate green. Residual Q3 follow-up: a citation-shaped token echoed in a query string can launder
 into the id set (pre-existing extractor quirk, broader than this feature) — logged, not fixed here.
 
+**Q8 — RESOLVED (2026-07-10, seventh pass): 0 is correct and doctrine-REQUIRED, and the real bug was a
+mislabel.** Investigation showed `delivery_decision` gates nothing in code except BLOCK
+(`workflow-engine.js:446`) — `DELIVER` and `DELIVER_WITH_FLAGS` ship identically; the threshold only
+sets a manifest *label* / claim strength. The design intent (`reproducibility-manifest.js` header) is
+that `DELIVER` = the full-strength "every cited id independently re-resolved" claim, allowed only at
+100% verified. So `max_unchecked_ratio = 0` is **doctrine-required, not a tunable quality dial** — any
+tolerance > 0 would let that claim appear when it is untrue (a label overclaim). Kept 0; documented the
+rationale in code; a test pins that an explicit override is honored but the default is 0. **The genuine
+bug Q8 pointed at:** `unchecked_over_threshold` (a soft flag on a report that SHIPS) was pushed into
+`block_reasons` and rendered in the customer-facing manifest as if it blocked. Fixed: split
+`flag_reasons` (soft, ships) from `block_reasons` (hard stop); a shipping report now carries no block
+reason, and the manifest markdown adds an explicit "This report SHIPS … NOT a defect … still fully
+GROUNDED" clarification for DELIVER_WITH_FLAGS. `block_reasons` has no consumer outside the manifest, so
+the split is contained. 38 tests + lint + phase30 gate green. **Follow-up (honest lever):** to earn more
+clean DELIVERs, make the re-resolver retry transient timeouts (reduce UNCHECKED by re-resolving more) —
+never by lowering the bar.
+
 ### 🟡 STILL STAGED
-4. **Remaining questionnaire items** Q8, Q10–Q14, Q16–Q38 (Q1–Q7 + Q9 all resolved; Q15 with the
-   operator's attorney). The remainder are largely **operator/business/legal decisions** — Q10 approval
+4. **Remaining questionnaire items** Q10–Q14, Q16–Q38 (Q1–Q9 all resolved; Q15 with the operator's
+   attorney). The remainder are almost entirely **operator/business/legal decisions** — Q10 approval
    posture, Q13–Q20 SLA/liability/refund, Q21–Q26 product scope/ICP, Q27–Q33 marketplace-copy claims,
-   Q34–Q38 data-coverage/licensing — which need the operator's answer, not an engine change. Q8
-   (`max_unchecked_ratio` for the re-resolution DELIVER decision) is the next code-actionable item.
+   Q34–Q38 data-coverage/licensing — which need the operator's answer, not an engine change. Q11/Q12
+   (quality_audit "confidence" term / citation-shape check) and Q37 (full-text scan on the manual-ZIP
+   path) are the only remaining *code-actionable* items; the rest are yours to decide.

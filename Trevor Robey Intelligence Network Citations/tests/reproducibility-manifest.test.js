@@ -23,10 +23,23 @@ test("any UNRESOLVED -> BLOCK (the fabrication signature)", () => {
   assert.ok(m.summary.block_reasons.includes("unresolved_present"));
 });
 
-test("UNCHECKED over default 0 tolerance -> DELIVER_WITH_FLAGS", () => {
+test("UNCHECKED over default 0 tolerance -> DELIVER_WITH_FLAGS (a soft FLAG, not a block)", () => {
   const m = buildReproducibilityManifest({ reresolved: [cit("PMID", "1", "VERIFIED"), cit("ChEMBL", "CHEMBL25", "UNCHECKED", "rate_limited")], meta: META });
   assert.equal(m.summary.delivery_decision, "DELIVER_WITH_FLAGS");
-  assert.ok(m.summary.block_reasons.includes("unchecked_over_threshold"));
+  // Q8: unchecked_over_threshold is a FLAG (the report still SHIPS), NOT a block reason.
+  assert.ok(m.summary.flag_reasons.includes("unchecked_over_threshold"));
+  assert.deepEqual(m.summary.block_reasons, [], "a report that SHIPS must carry no block_reasons");
+  const md = renderManifestMarkdown(m);
+  assert.match(md, /flags: unchecked_over_threshold/);
+  assert.match(md, /This report SHIPS/);
+});
+
+test("Q8: max_unchecked_ratio is honored when overridden — default 0 is the doctrine-required floor", () => {
+  const cits = [cit("PMID", "1", "VERIFIED"), cit("ChEMBL", "CHEMBL25", "UNCHECKED", "rate_limited")]; // 0.5 unchecked
+  // Default 0 forfeits the clean DELIVER claim for any unchecked id.
+  assert.equal(buildReproducibilityManifest({ reresolved: cits, meta: META }).summary.delivery_decision, "DELIVER_WITH_FLAGS");
+  // A deliberate override is respected (0.5 <= 0.6) — but a production value > 0 would overclaim (see header).
+  assert.equal(buildReproducibilityManifest({ reresolved: cits, thresholds: { max_unchecked_ratio: 0.6 }, meta: META }).summary.delivery_decision, "DELIVER");
 });
 
 test("retracted DOI -> BLOCK", () => {
