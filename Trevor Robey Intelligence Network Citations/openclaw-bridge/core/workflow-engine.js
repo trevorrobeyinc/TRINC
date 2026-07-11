@@ -17,6 +17,7 @@ const { extractCitations, deduplicateCitations } = require("./citation-extractor
 const { createCitationReresolver } = require("../mcp/citation-reresolver/citation-reresolver.js");
 const { buildReproducibilityManifest, renderManifestMarkdown } = require("./reproducibility-manifest.js");
 const { buildGraveyardMemo, buildAmendmentRisk } = require("../monetization/graveyard-memo.js");
+const { buildSearchCoverageLedger, collectSearchCoverage } = require("../monetization/search-coverage-ledger.js");
 
 function ensureDir(dirPath) {
   if (!fs.existsSync(dirPath)) {
@@ -246,6 +247,7 @@ function createWorkflowEngine(options = {}) {
     // Protects the zero-fabrication brand promise. Engages only when there IS fetched ground
     // truth (an empty fetch can't fail here — that is surfaced as tool_prefetch_zero_docs).
     let citationVerification = null;
+    let searchCoverageLedger = null; // Q5: the deterministic Search-Coverage Ledger (honest-zero deliverable)
     if (missionResult && missionResult.ok && Array.isArray(missionResult.subtask_results)) {
       // Q7: the grounded floor is a required, config-owned value (config/agent-config.json). Fail
       // CLOSED — if it is missing or malformed, use the strict shared default and WARN loudly; never
@@ -261,6 +263,14 @@ function createWorkflowEngine(options = {}) {
         });
       }
       const gate = verifyReportCitations({ subtaskResults: missionResult.subtask_results, minGroundedRatio });
+      // Q5: the deterministic Search-Coverage Ledger — the honest-zero deliverable, built from the
+      // per-search outcomes captured in each subtask's metadata sidecar. Available whether the gate
+      // PASSES (a coverage appendix) or BLOCKS on INSUFFICIENT_EVIDENCE (the honest-zero IS the
+      // shippable artifact). No LLM — every row is a real runtime search outcome.
+      searchCoverageLedger = buildSearchCoverageLedger(
+        collectSearchCoverage(missionResult.subtask_results),
+        { topic: safeString((context.workflowInputs || {}).topic) || safeString((context.workflowInputs || {}).indication) }
+      );
       // Literature-integrity: a report must never cite a RETRACTED paper. Cited DOIs are screened
       // against Crossref and cited PMIDs against PubMed — neither source alone is sufficient
       // (Crossref lacks an `update-to` relation on some older retracted records; PMID-only
@@ -317,6 +327,10 @@ function createWorkflowEngine(options = {}) {
         if (gate.ungrounded > 0 || retractedCount > 0) {
           fs.writeFileSync(path.join(gateDir, "report-annotated.md"), gate.annotatedReport);
         }
+        // Q5: always persist the honest-zero ledger to the workflow dir (blocked runs surface it here).
+        if (searchCoverageLedger && searchCoverageLedger.markdown) {
+          fs.writeFileSync(path.join(gateDir, "search-coverage.md"), searchCoverageLedger.markdown);
+        }
       } catch (persistError) {
         logger.warn({ event: "citation_gate_persist_failed", error: safeString(persistError && persistError.message) });
       }
@@ -325,7 +339,8 @@ function createWorkflowEngine(options = {}) {
         grounded_ratio: gate.grounded_ratio, min_grounded_ratio: gate.min_grounded_ratio,
         fetched_id_count: gate.fetched_id_count,
         ungrounded_sample: gate.ungrounded_list.slice(0, 25).map((c) => `${c.type}:${c.id}`),
-        retracted: retraction.retracted
+        retracted: retraction.retracted,
+        search_coverage: searchCoverageLedger ? searchCoverageLedger.summary : null
       };
       if (!gatePass) {
         logger.error({
@@ -337,7 +352,7 @@ function createWorkflowEngine(options = {}) {
         if (retractedCount > 0) {
           reason = `the report cites ${retractedCount} RETRACTED paper(s) (${retraction.retracted.join(", ")})`;
         } else if (gate.verdict === "INSUFFICIENT_EVIDENCE") {
-          reason = "no runtime evidence was fetched (fetched_id_count=0) — the findings cannot be verified against any source, so this is a recorded honest-zero, not a silent pass";
+          reason = "no runtime evidence was fetched (fetched_id_count=0) — the findings cannot be verified against any source, so this is a recorded honest-zero, not a silent pass. See search-coverage.md in the workflow dir for the per-source zero-result record";
         } else if (gate.verdict === "NO_CITATIONS") {
           reason = "evidence was fetched but the report cites nothing to ground — a due-diligence deliverable must trace its claims to sources";
         } else {
@@ -355,6 +370,7 @@ function createWorkflowEngine(options = {}) {
               ? "PHASE30_CITATION_NONE"
               : "PHASE30_CITATION_UNVERIFIED";
         err.citation_verification = citationVerification;
+        err.search_coverage = searchCoverageLedger ? searchCoverageLedger.summary : null;
         throw err;
       }
       // Passed, but some citations are still ungrounded → annotate the shipped sections in place
@@ -497,7 +513,8 @@ function createWorkflowEngine(options = {}) {
       mission_result: missionResult,
       citation_verification: citationVerification,
       graveyard_memo: graveyardMemo,
-      amendment_risk: amendmentRisk
+      amendment_risk: amendmentRisk,
+      search_coverage_ledger: searchCoverageLedger
     };
   }
 
@@ -574,6 +591,8 @@ function createWorkflowEngine(options = {}) {
     if (missionStep && built && built.source_context) {
       if (missionStep.graveyard_memo) built.source_context.graveyard_memo = missionStep.graveyard_memo;
       if (missionStep.amendment_risk) built.source_context.amendment_risk = missionStep.amendment_risk;
+      // Q5: carry the Search-Coverage Ledger into the bundle so the packager ships the honest-zero.
+      if (missionStep.search_coverage_ledger) built.source_context.search_coverage_ledger = missionStep.search_coverage_ledger;
     }
     // Slice 3 v3: carry the per-section coverage tiers from the upstream quality_audit step (the only
     // step result that carries a section_coverage[]), so the packager can surface Sparse/Moderate/

@@ -375,6 +375,7 @@ function createAgentEngine(options = {}) {
       // citation gate (Slice 1). Persisted into this task's metadata so the workflow engine
       // can verify the assembled report against what was actually fetched at runtime.
       let fetchedCitationIds = [];
+      let searchCoverage = []; // Q5: per-search outcome log for the deterministic Search-Coverage Ledger
 
       // WS1: Inject live ToolUniverse data before prompt construction
       if (context.toolPrefetch && typeof context.toolPrefetch.prefetchForRole === "function") {
@@ -385,6 +386,7 @@ function createAgentEngine(options = {}) {
               roleName, context.workflowInputs || {}
             );
             inputDocs.push(...toolDocs);
+            searchCoverage = Array.isArray(toolDocs.coverage) ? toolDocs.coverage : [];
             fetchedCitationIds = deduplicateCitations(
               extractCitations(toolDocs.map((d) => (d && d.content) || "").join("\n\n"))
             ).map((c) => String(c.id));
@@ -513,7 +515,8 @@ function createAgentEngine(options = {}) {
         task_definition: normalizedTask,
         provider_info: llmAdapter.getProviderInfo(),
         citation_verification: citationVerification,
-        fetched_citation_ids: fetchedCitationIds
+        fetched_citation_ids: fetchedCitationIds,
+        search_coverage: searchCoverage
       });
 
       const rlhfResult = await governanceBridge.generateRLHFEntry(taskId, {
@@ -542,6 +545,7 @@ function createAgentEngine(options = {}) {
         provider_info: llmAdapter.getProviderInfo(),
         citation_verification: citationVerification,
         fetched_citation_ids: fetchedCitationIds,
+        search_coverage: searchCoverage,
         rlhf_local_mirror_path: safeString(rlhfResult.local_mirror_path)
       });
 

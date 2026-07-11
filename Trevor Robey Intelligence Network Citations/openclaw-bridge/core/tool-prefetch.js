@@ -134,6 +134,18 @@ function createToolPrefetch(options = {}) {
     return lines.join("\n") + "\n\n";
   }
 
+  // Q5: honest record count for the Search-Coverage Ledger — how many records the source actually
+  // returned (0 = a genuine zero-result, never a guess). Handles local-fetcher arrays and the MCP
+  // {status,data} shape alike; an empty/absent payload counts as zero.
+  function countReturnedRecords(result) {
+    const payload = result && typeof result === "object" && !Array.isArray(result) && ("data" in result)
+      ? result.data : result;
+    if (Array.isArray(payload)) return payload.length;
+    if (payload && typeof payload === "object") return Object.keys(payload).length > 0 ? 1 : 0;
+    if (payload == null || payload === "") return 0;
+    return 1;
+  }
+
   function formatToolResult(toolName, result, query) {
     const now = timeProvider.nowIso();
     let content = `## Live Data: ${toolName}\n\n`;
@@ -183,6 +195,7 @@ function createToolPrefetch(options = {}) {
     }
 
     const results = [];
+    const coverage = []; // Q5: per-search outcome log for the deterministic Search-Coverage Ledger
     const totalStart = timeProvider.nowMs();
 
     for (let i = 0; i < queries.length; i++) {
@@ -195,6 +208,7 @@ function createToolPrefetch(options = {}) {
       const action = safeString(queryDef.action) || "findTool";
       const rawQuery = safeString(queryDef.query) || "";
       const resolvedQuery = resolveTemplate(rawQuery, workflowInputs);
+      const covSource = safeString(queryDef.tool_name) || action || "unknown source";
 
       try {
         const input = { action };
@@ -208,6 +222,7 @@ function createToolPrefetch(options = {}) {
 
         if (action === "executeTool" && !input.tool_name) {
           logger.warn({ event: "tool_prefetch_executeTool_missing_tool_name", role });
+          coverage.push({ role, source: covSource, action, query: resolvedQuery, status: "skipped", records: 0 });
           continue;
         }
 
@@ -248,6 +263,7 @@ function createToolPrefetch(options = {}) {
               role,
               tool_name: input.tool_name
             });
+            coverage.push({ role, source: covSource, action, query: resolvedQuery, status: "skipped", records: 0 });
             continue;
           }
         }
@@ -266,6 +282,11 @@ function createToolPrefetch(options = {}) {
         const labelQuery = resolvedQuery || JSON.stringify(input.arguments || {}).slice(0, 120);
         const doc = formatToolResult(labelBase, result, labelQuery);
         results.push(doc);
+        const recordCount = countReturnedRecords(result);
+        coverage.push({
+          role, source: covSource, action, query: resolvedQuery,
+          status: recordCount > 0 ? "returned" : "empty", records: recordCount
+        });
       } catch (err) {
         logger.warn({
           event: "tool_prefetch_call_failed",
@@ -274,6 +295,7 @@ function createToolPrefetch(options = {}) {
           query: resolvedQuery,
           error: safeString(err && err.message)
         });
+        coverage.push({ role, source: covSource, action, query: resolvedQuery, status: "failed", records: 0 });
       }
 
       // Rate limit between sequential calls
@@ -291,6 +313,10 @@ function createToolPrefetch(options = {}) {
       });
     }
 
+    // Q5: attach the per-search outcome log (non-enumerable so it never spreads/serializes as an
+    // array element) so the Search-Coverage Ledger can render the honest-zero. Stored by reference
+    // in the cache, so a cache hit preserves it too.
+    Object.defineProperty(results, "coverage", { value: coverage, enumerable: false, configurable: true });
     setCache(cacheKey, results);
 
     logger.info({

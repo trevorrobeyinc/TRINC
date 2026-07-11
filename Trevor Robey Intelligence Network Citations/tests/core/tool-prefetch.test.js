@@ -64,6 +64,33 @@ describe("tool-prefetch", () => {
       }
     });
 
+    it("captures per-search coverage (returned / empty / failed) for the Search-Coverage Ledger (Q5)", async () => {
+      // Drive the first three executed searches to distinct outcomes; the rest fall back to the
+      // mock default (1 record → returned). Skips (empty args) don't consume the response queue.
+      const mcp = createMockToolUniverseMcp([
+        [{ id: "a" }, { id: "b" }],  // 2 records -> "returned"
+        [],                          // 0 records -> "empty" (the honest-zero)
+        new Error("upstream 503")    // throws     -> "failed"
+      ]);
+      const prefetch = createToolPrefetch({ toolUniverseMcp: mcp, logger, rootDir: ROOT_DIR });
+      const docs = await prefetch.prefetchForRole("scout", {
+        topic: "glioblastoma", compound_name: "temozolomide",
+        indication: "glioblastoma", therapeutic_area: "oncology"
+      });
+
+      assert.ok(Array.isArray(docs.coverage), "docs.coverage should be an array");
+      assert.ok(docs.coverage.length >= 3, "should record every attempted search");
+      const valid = new Set(["returned", "empty", "failed", "skipped"]);
+      for (const c of docs.coverage) {
+        assert.ok(valid.has(c.status), `status '${c.status}' should be valid`);
+        assert.ok(Number.isInteger(c.records) && c.records >= 0, "records is a non-negative integer");
+        assert.ok(typeof c.source === "string" && c.source.length > 0, "each search is source-labeled");
+      }
+      assert.ok(docs.coverage.some((c) => c.status === "returned" && c.records === 2), "2-record search -> returned");
+      assert.ok(docs.coverage.some((c) => c.status === "empty" && c.records === 0), "empty search -> recorded honest-zero");
+      assert.ok(docs.coverage.some((c) => c.status === "failed"), "throwing search -> recorded as failed");
+    });
+
     it("returns empty array for unknown role", async () => {
       const mcp = createMockToolUniverseMcp();
       const prefetch = createToolPrefetch({ toolUniverseMcp: mcp, logger, rootDir: ROOT_DIR });

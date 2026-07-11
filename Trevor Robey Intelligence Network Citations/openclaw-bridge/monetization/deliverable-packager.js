@@ -524,6 +524,15 @@ function createDeliverablePackager(options = {}) {
         writeText(graveyardPath, sourceContext.graveyard_memo.markdown + amendmentMd);
         artifactRefs.graveyard_memo = relativeFrom(bundleDir, graveyardPath);
       }
+      // Slice 5 (Q5): the Search-Coverage Ledger — the honest-zero deliverable, rendered
+      // deterministically from the runtime per-search outcomes (no LLM). Present whenever real
+      // searches ran; an all-zero run still ships it as the truthful "here is exactly what each
+      // source returned, including the zeros" record that the never-hallucinate doctrine requires.
+      if (sourceContext.search_coverage_ledger && safeString(sourceContext.search_coverage_ledger.markdown)) {
+        const coveragePath = path.join(deliverablesDir, "search-coverage.md");
+        writeText(coveragePath, sourceContext.search_coverage_ledger.markdown);
+        artifactRefs.search_coverage = relativeFrom(bundleDir, coveragePath);
+      }
       artifactRefs.sample_preview = relativeFrom(bundleDir, previewPath);
 
     } else {

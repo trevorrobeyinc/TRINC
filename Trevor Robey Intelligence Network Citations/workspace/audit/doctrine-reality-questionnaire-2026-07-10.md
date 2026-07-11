@@ -315,9 +315,19 @@ has changed hands yet.
    `scripts/lint-restricted-globals.sh` now PASSES. 54 touched-file tests green. Bonus: timestamps are
    now honored by the deterministic-time test hooks.
 
+### ✅ DONE (2026-07-10, third pass)
+3. **Q5 — deterministic Search-Coverage Ledger — BUILT + WIRED + VERIFIED.** New module
+   `openclaw-bridge/monetization/search-coverage-ledger.js` (mirrors `graveyard-memo.js`: pure
+   function, no LLM, fail-soft) renders `deliverables/search-coverage.md` — a per-source table of
+   every runtime search and exactly what it returned, with an explicit **zero-result (honest-negative)**
+   section and a separate **failed (source unreachable)** section (a transport failure ≠ an honest
+   zero). Data path: `tool-prefetch.js` captures per-search outcomes (returned/empty/failed/skipped
+   + record count) → persisted in each task's metadata sidecar (`search_coverage`, same channel as
+   `fetched_citation_ids`) → `collectSearchCoverage` aggregates → rendered by the packager AND written
+   to the workflow dir on the **INSUFFICIENT_EVIDENCE block path**, so a zero-evidence run now *ships*
+   the honest-zero instead of only erroring. Verified: 9 ledger unit tests + a full capture-path test
+   (prefetch → `.coverage`) + 45 green across the affected suites; lint + phase30 gate pass.
+
 ### 🟡 STILL STAGED
-3. **Q5 — deterministic Search-Coverage ledger:** render an authoritative honest-zero deliverable
-   from the prefetch record (like `graveyard-memo.js`), so a blocked run still ships a truthful
-   "these databases returned N hits" artifact instead of only erroring.
 4. **Q9 quality_audit step** for `general-research-pack` (above).
-5. **Remaining questionnaire items** Q2–Q3, Q5–Q6, Q8, Q10–Q14, Q16–Q38.
+5. **Remaining questionnaire items** Q2–Q3, Q6, Q8, Q10–Q14, Q16–Q38.
