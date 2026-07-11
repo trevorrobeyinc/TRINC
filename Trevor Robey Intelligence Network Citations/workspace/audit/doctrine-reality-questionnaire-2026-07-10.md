@@ -334,6 +334,47 @@ has changed hands yet.
    the honest-zero instead of only erroring. Verified: 9 ledger unit tests + a full capture-path test
    (prefetch → `.coverage`) + 45 green across the affected suites; lint + phase30 gate pass.
 
+### Remaining-item resolutions (2026-07-10, fifth pass)
+
+**Q2 — RESOLVED by Q1 (no code change needed).** Q2 asked whether a report citing zero identifiers
+should trigger an explicit BLOCK/flagged state rather than silently skipping the
+re-resolution/reproducibility-manifest layer. The Q1 three-state gate already does this, and better
+than either option Q2 posed:
+- **Explicit block:** evidence fetched + zero citations → verdict `NO_CITATIONS` → hard-block
+  `PHASE30_CITATION_NONE` (`workflow-engine.js:356,369–374`). Zero evidence (with or without
+  citations) → `INSUFFICIENT_EVIDENCE` block. There is no silent zero-citation ship path for any real
+  template (all `evidenceRequired` by default).
+- **Delivery-decision record IS written (Q2's core fear closed):** the persist step writes
+  `citation-verification.json` (carrying `verdict`, `pass:false`) at `:307` AND `search-coverage.md`
+  at `:332` **before** the throw at `:374`. So a blocked zero-citation run leaves a full
+  delivery-decision record — the opposite of "ship with zero identifiers and no delivery-decision
+  record at all."
+- **The `if (cites.length > 0)` re-resolution guard (`:393`) is now belt-and-suspenders:** it sits
+  AFTER the gate throw, so it is only reached on a gate PASS, which for every real template
+  guarantees `cites.length > 0`.
+- **One inert residual (documented, not built):** the only path still matching Q2's "silent skip"
+  concern is a template that sets `evidenceRequired:false` AND produces zero citations — it would pass
+  the gate and skip the manifest with no flag. No template sets that opt-out today (YAGNI: not
+  guarding a non-existent config). If the opt-out is ever enabled, add a zero-citation flag at the
+  re-resolution guard. Cross-ref `[[verify-live-files-not-claudemd]]`.
+
+**Q3 + Q6 — DONE (2026-07-10, sixth pass).** Both concern the same asymmetry: a prefetch that
+FAILED injected a "DATA LIMITATION NOTICE" but a prefetch that SUCCEEDED-but-returned-nothing injected
+nothing — leaving the model to fill the gap from training memory. Fix in `agent-engine.js`: after
+`groundedCitationIds` is computed, an honest-zero **`ZERO-RESULTS NOTICE`** is injected when the ENTIRE
+grounded set (own prefetch + upstream) is empty AND ≥1 query genuinely completed empty; an all-FAILED
+prefetch instead gets a **limitation** notice ("INCONCLUSIVE, not evidence of absence"), never honest-zero.
+New test `tests/core/zero-results-notice.test.js` (6 cases). **This shipped through a full review cycle:**
+a 4-lens adversarial review caught two HIGH bugs in the first cut — (A) false "no evidence" on unmapped
+final-report roles (report_generator/quality_auditor) that run on upstream evidence, and (B) a FAILED
+search mislabeled as an honest zero — both FIXED (re-gated on `groundedCitationIds`; `failed` split from
+`empty`) and a second adversarial pass confirmed both closed with no new defect. 41 tests + lint +
+phase30 gate green. Residual Q3 follow-up: a citation-shaped token echoed in a query string can launder
+into the id set (pre-existing extractor quirk, broader than this feature) — logged, not fixed here.
+
 ### 🟡 STILL STAGED
-4. **Remaining questionnaire items** Q2–Q3, Q6, Q8, Q10–Q14, Q16–Q38 (all five priority questions
-   Q1/Q4/Q7/Q9/Q15 are now resolved; Q15 stays with the operator's attorney).
+4. **Remaining questionnaire items** Q8, Q10–Q14, Q16–Q38 (Q1–Q7 + Q9 all resolved; Q15 with the
+   operator's attorney). The remainder are largely **operator/business/legal decisions** — Q10 approval
+   posture, Q13–Q20 SLA/liability/refund, Q21–Q26 product scope/ICP, Q27–Q33 marketplace-copy claims,
+   Q34–Q38 data-coverage/licensing — which need the operator's answer, not an engine change. Q8
+   (`max_unchecked_ratio` for the re-resolution DELIVER decision) is the next code-actionable item.

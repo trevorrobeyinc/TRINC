@@ -386,10 +386,12 @@ function createAgentEngine(options = {}) {
               roleName, context.workflowInputs || {}
             );
             inputDocs.push(...toolDocs);
-            searchCoverage = Array.isArray(toolDocs.coverage) ? toolDocs.coverage : [];
             fetchedCitationIds = deduplicateCitations(
               extractCitations(toolDocs.map((d) => (d && d.content) || "").join("\n\n"))
             ).map((c) => String(c.id));
+            // Assign coverage only AFTER extraction so that if extraction ever threw, searchCoverage
+            // stays empty and the honest-zero block below cannot double-fire with the catch's notice.
+            searchCoverage = Array.isArray(toolDocs.coverage) ? toolDocs.coverage : [];
             if (toolDocs.length > 0) {
               logger.info({
                 event: "tool_prefetch_injected",
@@ -420,6 +422,34 @@ function createAgentEngine(options = {}) {
       const groundedCitationIds = deduplicateCitations(
         extractCitations(inputDocs.map((d) => (d && d.content) || "").join("\n\n"))
       ).map((c) => String(c.id));
+
+      // Q3/Q6 (hardened after adversarial review): warn the model about missing live evidence ONLY when
+      // it is honest to do so. Gate on the ENTIRE grounded set (this role's prefetch PLUS any upstream
+      // inputs) being empty — so a synthesis/report role running on rich upstream evidence never gets a
+      // false "no evidence" notice (review finding A). And split a genuine EMPTY (a query that completed
+      // and returned nothing) from a FAILED query (timeout/outage): only the former is an honest zero;
+      // the latter is inconclusive and gets the limitation notice, never the honest-zero wording (Q6 /
+      // review finding B). A search is counted from the Search-Coverage record captured by tool-prefetch.
+      if (groundedCitationIds.length === 0) {
+        const empties = searchCoverage.filter((c) => c && (c.status === "returned" || c.status === "empty")).length;
+        const failed = searchCoverage.filter((c) => c && c.status === "failed").length;
+        if (empties > 0) {
+          logger.warn({ event: "tool_prefetch_zero_hit", role: safeString(context.agentRole), empties, failed });
+          const failNote = failed > 0
+            ? `(${failed} other source ${failed === 1 ? "query" : "queries"} could not be reached and are inconclusive.) `
+            : "";
+          inputDocs.push({
+            rel: "ZERO-RESULTS-NOTICE",
+            content: `ZERO-RESULTS NOTICE: the live biomedical databases were queried for this task and returned NO groundable records — ${empties} source ${empties === 1 ? "query" : "queries"} completed and each returned nothing citable (a genuine empty result, distinct from a prefetch failure). ${failNote}No runtime-fetched identifiers are available. Do NOT fabricate database identifiers (PMID / NCT / DOI / ChEMBL / CID / UniProt) and do NOT substitute remembered facts to fill the gap. Report the absence plainly as a finding — name the sources searched and state that they returned nothing.`
+          });
+        } else if (failed > 0) {
+          logger.warn({ event: "tool_prefetch_all_failed", role: safeString(context.agentRole), failed });
+          inputDocs.push({
+            rel: "LIVE-DATA-LIMITATION-NOTICE",
+            content: `DATA LIMITATION NOTICE: every live biomedical database query for this task FAILED to complete (${failed} source ${failed === 1 ? "query" : "queries"} unreachable — timeout / rate-limit / outage), so no runtime-fetched records are available. This is INCONCLUSIVE, not evidence of absence. Do NOT fabricate database identifiers (PMID / NCT / DOI / ChEMBL / CID / UniProt) and do NOT substitute remembered facts; explicitly flag any claim that lacks a verifiable citation.`
+          });
+        }
+      }
 
       // Optional helper pre-pass (active assist): a small OSS model triages/compresses the
       // evidence for the primary backend. Advisory only — groundedCitationIds above is computed
