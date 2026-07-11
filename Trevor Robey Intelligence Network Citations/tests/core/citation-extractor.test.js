@@ -14,6 +14,32 @@ describe("citation-extractor", () => {
       assert.equal(pmids[1].id, "23456789");
     });
 
+    it("extracts a legitimate SHORT (sub-6-digit) historical PMID (e.g. PMID 1, a real 1975 paper)", () => {
+      const pmids = extractCitations("An early method: PMID: 1. See also PMID: 54321.")
+        .filter(c => c.type === "PMID").map(c => c.id);
+      assert.deepEqual(pmids, ["1", "54321"], "short PMIDs were invisible under the old \\d{6,9} bound");
+    });
+
+    it("extracts a future 9- and 10-digit PMID (upper bound raised past the 8-digit present)", () => {
+      const pmids = extractCitations("PMID: 123456789 and PMID: 1234567890")
+        .filter(c => c.type === "PMID").map(c => c.id);
+      assert.deepEqual(pmids, ["123456789", "1234567890"]);
+    });
+
+    it("DROPS an 11+ digit run rather than truncating it to a wrong 10-digit id", () => {
+      // The old \d{6,9} captured a 9-digit PREFIX of a longer run — a different, possibly-real PMID.
+      // The `(?!\d)` lookahead refuses any prefix of a longer digit run, so an over-long id is
+      // dropped (honest) rather than mis-captured (dangerous).
+      const pmids = extractCitations("PMID: 12345678901234").filter(c => c.type === "PMID").map(c => c.id);
+      assert.deepEqual(pmids, [], "no truncated id leaks through");
+    });
+
+    it("stops a PMID at the first non-digit and keeps a following citation intact", () => {
+      const pmids = extractCitations("PMID: 12345678v2, then PMID: 87654321.")
+        .filter(c => c.type === "PMID").map(c => c.id);
+      assert.deepEqual(pmids, ["12345678", "87654321"]);
+    });
+
     it("extracts NCT identifiers", () => {
       const citations = extractCitations("Trial NCT00012345 is relevant.");
       assert.equal(citations.length, 1);
@@ -59,6 +85,22 @@ describe("citation-extractor", () => {
       assert.ok(dois.includes("10.1038/nature12373"), "trailing period stripped");
       assert.ok(dois.includes("10.1016/j.cell.2020.05.001"), "internal dots kept, trailing period stripped");
       assert.ok(!dois.some((d) => d.endsWith(".")), "no extracted DOI ends in a period");
+    });
+
+    it("captures Elsevier/Lancet DOIs with BALANCED internal parens (not truncated at the first ')')", () => {
+      const dois = extractCitations(
+        "Wakefield doi: 10.1016/S0140-6736(97)11096-0 and Surgisphere https://doi.org/10.1016/S0140-6736(20)31180-6"
+      ).filter((c) => c.type === "DOI").map((c) => c.id);
+      assert.ok(dois.includes("10.1016/S0140-6736(97)11096-0"), "parenthesized DOI kept whole");
+      assert.ok(dois.includes("10.1016/S0140-6736(20)31180-6"));
+      assert.ok(!dois.some((d) => d === "10.1016/S0140-6736(97"), "not truncated at the paren");
+    });
+
+    it("trims an UNBALANCED trailing ')' from prose wrapping but keeps a balanced one", () => {
+      const wrapped = extractCitations("(see doi: 10.1234/foo).").filter((c) => c.type === "DOI").map((c) => c.id);
+      assert.deepEqual(wrapped, ["10.1234/foo"], "wrapping paren + period both trimmed");
+      const parenDoi = extractCitations("(doi: 10.1016/S0140-6736(97)11096-0)").filter((c) => c.type === "DOI").map((c) => c.id);
+      assert.deepEqual(parenDoi, ["10.1016/S0140-6736(97)11096-0"], "balanced internal parens survive, wrapper trimmed");
     });
 
     it("returns empty array for text with no citations", () => {

@@ -112,6 +112,24 @@ async function buildWorkflowRuntime(options = {}) {
   } catch (err) {
     logger.warn({ event: "crossref_retraction_init_failed", error: err.message });
   }
+  // Companion PMID screen (PubMed). Crossref's `update-to` relation is absent on some older
+  // retracted records, and PMID-only citations never reach the DOI screen at all — so the gate
+  // screens both identifier classes. Fail-soft: an init failure just leaves the screen absent.
+  try {
+    const { createPubmedRetraction } = require("../openclaw-bridge/mcp/pubmed-retraction/pubmed-retraction.js");
+    const ncbiApiKey = (researchRuntime.config && researchRuntime.config.ncbiApiKey) || process.env.NCBI_API_KEY || "";
+    researchRuntime.pubmedRetraction = createPubmedRetraction({
+      logger,
+      contactEmail: (researchRuntime.config && researchRuntime.config.contactEmail) || undefined,
+      ncbiApiKey,
+      // Throttle every eutils request to NCBI's polite-use ceiling (3 req/sec anonymous, 10 with a
+      // key) so the DOI→PMID escalation can't burst itself into a 429 storm that degrades the
+      // retraction screen to INCOMPLETE. A small margin under the exact limit.
+      minRequestIntervalMs: ncbiApiKey ? 110 : 350
+    });
+  } catch (err) {
+    logger.warn({ event: "pubmed_retraction_init_failed", error: err.message });
+  }
 
   const monetizationRuntime = buildMonetizationRuntime({
     rootDir

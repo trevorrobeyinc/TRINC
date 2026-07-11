@@ -65,10 +65,15 @@ function buildReproducibilityManifest(input = {}) {
     && counts.unchecked === counts.total
     && citations.every((c) => NETWORK_UNCHECKED.has((c.evidence && c.evidence.reason) || ""));
 
+  // Retractions are screened per identifier class (DOIs via Crossref, PMIDs via PubMed). Keep the
+  // classes distinct: merging them into `retracted_dois` mislabels a retracted PMID as a DOI in a
+  // customer-facing, checksum-sealed document. Either class blocks delivery.
   const retracted_dois = Array.isArray(retraction.retracted_dois) ? retraction.retracted_dois : [];
+  const retracted_pmids = Array.isArray(retraction.retracted_pmids) ? retraction.retracted_pmids : [];
   const block_reasons = [];
   if (thresholds.block_on_unresolved && counts.unresolved > 0) block_reasons.push("unresolved_present");
   if (retracted_dois.length > 0) block_reasons.push("retracted_doi");
+  if (retracted_pmids.length > 0) block_reasons.push("retracted_pmid");
   if (gate && gate.hardFail) block_reasons.push("gate_fail");
 
   let delivery_decision;
@@ -96,7 +101,7 @@ function buildReproducibilityManifest(input = {}) {
     unchecked_ratio,
     delivery_decision,
     block_reasons,
-    retraction_screen: { checked: Boolean(retraction.checked), retracted_dois },
+    retraction_screen: { checked: Boolean(retraction.checked), retracted_dois, retracted_pmids },
     gate_crosscheck: gate
       ? {
           cited: gate.cited == null ? null : gate.cited,
@@ -124,7 +129,14 @@ function renderManifestMarkdown(manifest) {
   if (s.as_of) lines.push(`As of: ${s.as_of}`);
   lines.push("");
   lines.push(`Citations re-resolved at delivery: **${c.verified} VERIFIED · ${c.unresolved} UNRESOLVED · ${c.unchecked} UNCHECKED** of ${c.total} (verified ratio ${s.verified_ratio}).`);
-  if (s.retraction_screen) lines.push(`Retraction screen: ${s.retraction_screen.checked ? "checked" : "not checked"}; retracted DOIs: ${(s.retraction_screen.retracted_dois || []).length}.`);
+  if (s.retraction_screen) {
+    const rd = (s.retraction_screen.retracted_dois || []).length;
+    const rp = (s.retraction_screen.retracted_pmids || []).length;
+    lines.push(
+      `Retraction screen: ${s.retraction_screen.checked ? "checked" : "INCOMPLETE — not every cited identifier could be screened"}; `
+      + `retracted DOIs: ${rd}; retracted PMIDs: ${rp}.`
+    );
+  }
   if (s.environment && s.environment.offline) lines.push("> NOTE: verification could not reach any registry this run (offline) — no identifier is reported VERIFIED.");
   lines.push("");
   lines.push("| Type | Identifier | Status | HTTP | Resolved URL | Checked (UTC) |");

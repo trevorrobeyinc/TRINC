@@ -250,11 +250,17 @@ function createWorkflowEngine(options = {}) {
       const cfgRatio = Number(researchRuntime.config.minGroundedCitationRatio);
       const minGroundedRatio = Number.isFinite(cfgRatio) ? cfgRatio : 0.34;
       const gate = verifyReportCitations({ subtaskResults: missionResult.subtask_results, minGroundedRatio });
-      // Literature-integrity: a report must never cite a RETRACTED paper. Fail-soft — Crossref
-      // errors yield no retractions, so a network issue can never wrongly block a report.
+      // Literature-integrity: a report must never cite a RETRACTED paper. Cited DOIs are screened
+      // against Crossref and cited PMIDs against PubMed — neither source alone is sufficient
+      // (Crossref lacks an `update-to` relation on some older retracted records; PMID-only
+      // citations never reach the DOI screen). Fail-soft — a network error on either screen yields
+      // no retractions, so a network issue can never wrongly block a report.
       const retraction = await checkRetractions(
         gate.reportText,
-        researchRuntime.crossrefRetraction && researchRuntime.crossrefRetraction.checkDois
+        researchRuntime.crossrefRetraction && researchRuntime.crossrefRetraction.checkDois,
+        researchRuntime.pubmedRetraction && researchRuntime.pubmedRetraction.checkPmids,
+        // DOI→PMID escalation closes Crossref's blind spot for DOI-only citations (Wakefield class).
+        researchRuntime.pubmedRetraction && researchRuntime.pubmedRetraction.resolveDoisToPmids
       );
       const retractedCount = retraction.retracted.length;
       const gatePass = gate.pass && retractedCount === 0;
@@ -267,6 +273,10 @@ function createWorkflowEngine(options = {}) {
         grounded_ratio: gate.grounded_ratio,
         fetched_id_count: gate.fetched_id_count,
         retracted: retractedCount,
+        retraction_screen_checked: Boolean(retraction.checked),
+        dois_checked: retraction.dois_checked || 0,
+        pmids_checked: retraction.pmids_checked || 0,
+        unscreened: retraction.unscreened || 0,
         pass: gatePass
       });
       try {
@@ -279,7 +289,18 @@ function createWorkflowEngine(options = {}) {
             pass: gatePass, cited: gate.cited, grounded: gate.grounded, ungrounded: gate.ungrounded,
             grounded_ratio: gate.grounded_ratio, min_grounded_ratio: gate.min_grounded_ratio,
             fetched_id_count: gate.fetched_id_count, ungrounded_list: gate.ungrounded_list,
-            retracted: retraction.retracted, dois_checked: retraction.dois_checked || 0
+            retracted: retraction.retracted,
+            retracted_dois: retraction.retracted_dois || [],
+            retracted_pmids: retraction.retracted_pmids || [],
+            retracted_dois_via_pmid: retraction.retracted_dois_via_pmid || [],
+            unflagged_notice_dois: retraction.unflagged_notice_dois || [],
+            retraction_screen_checked: Boolean(retraction.checked),
+            dois_checked: retraction.dois_checked || 0,
+            pmids_checked: retraction.pmids_checked || 0,
+            dois_escalated_via_pmid: retraction.dois_escalated_via_pmid || 0,
+            dois_cited: retraction.dois_cited || 0,
+            pmids_cited: retraction.pmids_cited || 0,
+            unscreened: retraction.unscreened || 0
           }, null, 2)
         );
         if (gate.ungrounded > 0 || retractedCount > 0) {
@@ -339,7 +360,15 @@ function createWorkflowEngine(options = {}) {
           const reresolved = await reresolver.resolveAll(cites);
           const manifest = buildReproducibilityManifest({
             reresolved,
-            retraction: { checked: true, retracted_dois: retraction.retracted },
+            // `checked` must reflect whether the screens actually covered every cited identifier —
+            // hardcoding `true` made the manifest claim a retraction screen that a rate-limited or
+            // unreachable source may have skipped entirely. DOI and PMID retractions stay in their
+            // own fields so a retracted PMID is never mislabeled as a DOI in the sealed manifest.
+            retraction: {
+              checked: Boolean(retraction.checked),
+              retracted_dois: retraction.retracted_dois || [],
+              retracted_pmids: retraction.retracted_pmids || []
+            },
             gate: {
               cited: gate.cited, grounded: gate.grounded, ungrounded: gate.ungrounded,
               grounded_ratio: gate.grounded_ratio, min_grounded_ratio: gate.min_grounded_ratio, hardFail: false
