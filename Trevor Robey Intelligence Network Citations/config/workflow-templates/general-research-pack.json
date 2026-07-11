@@ -28,6 +28,7 @@
       "step_id": "quality_check",
       "type": "quality_audit",
       "depends_on": ["research"],
+      "description_template": "Quality gate: citation-density confidence (>= 0.6) plus >= 5 verified citations and per-section primary-source coverage; halts the run (PHASE30_QUALITY_BELOW_THRESHOLD) if the report is under-evidenced.",
       "confidence_threshold": 0.6,
       "verification_tools": ["PubMed", "ClinicalTrials.gov", "EuropePMC", "SemanticScholar"]
     },
