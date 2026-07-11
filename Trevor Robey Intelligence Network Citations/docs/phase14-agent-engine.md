@@ -114,9 +114,14 @@ Report-level citation gate (`workflow-engine.executeMissionStep` → `verifyRepo
 - Cross-checks every identifier cited in the assembled report against the UNION of
   runtime-fetched ids. A cited id is "grounded" if present in fetched evidence, else
   "ungrounded" (likely model-introduced).
-- HARD-FAILS (`PHASE30_CITATION_UNVERIFIED`) when the grounded ratio is below
-  `minGroundedCitationRatio` (agent-config default `0.34`). Engages only when there is fetched
-  ground truth.
+- Returns a MULTI-STATE verdict (never a silent pass) — only PASS ships (per the never-hallucinate
+  doctrine, operator ruling 2026-07-10): **PASS** (grounded ratio ≥ `minGroundedCitationRatio`, a
+  REQUIRED value in `config/agent-config.json` = `0.75`, the B-grade floor, read fail-closed —
+  missing/invalid → strict `0.75` default + warning via the exported `DEFAULT_MIN_GROUNDED_RATIO`);
+  **UNVERIFIED** (`PHASE30_CITATION_UNVERIFIED`, ratio below the floor); **INSUFFICIENT_EVIDENCE**
+  (`PHASE30_CITATION_INSUFFICIENT_EVIDENCE` — ZERO runtime evidence was fetched, an honest-zero that
+  now BLOCKS instead of auto-passing); **NO_CITATIONS** (`PHASE30_CITATION_NONE` — evidence fetched
+  but the report cited nothing).
 - Writes `citation-verification.json` and `report-annotated.md` to the workflow dir; surviving
   ungrounded cites are annotated inline `[UNVERIFIED]`.
 

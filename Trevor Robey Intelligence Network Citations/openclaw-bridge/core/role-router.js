@@ -4,6 +4,7 @@ const { safeString, canonicalize } = require("../../workflows/governance-automat
 const { createAgentContextLoader } = require("./agent-context-loader.js");
 const { createRoleProviderRouter } = require("./role-provider-router.js");
 const { createAgentSessionRecorder } = require("./agent-session-recorder.js");
+const timeProviderModule = require("./time-provider.js");
 
 function createRoleRouter(options = {}) {
   const logger = options.logger && typeof options.logger === "object" ? options.logger : { info() {}, warn() {}, error() {} };
@@ -116,7 +117,7 @@ function createRoleRouter(options = {}) {
         provider: enrichedContext.provider,
         model: enrichedContext.model,
         topic: safeString((context.workflowInputs || {}).topic),
-        completed_at: new Date().toISOString()
+        completed_at: timeProviderModule.nowIso()
       });
     } catch (recErr) {
       logger.warn({ event: "agent_session_record_skipped", role, error: recErr && recErr.message });

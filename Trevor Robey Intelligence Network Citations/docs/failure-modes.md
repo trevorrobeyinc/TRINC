@@ -619,11 +619,15 @@ Handling:
 Detection:
 - Report-level gate (`verifyReportCitations`) cross-checks every identifier cited in the assembled report against the union of identifiers actually retrieved at runtime by tool-prefetch (`fetched_citation_ids`).
 - A cited identifier is "grounded" if it was present in fetched evidence, otherwise "ungrounded" (likely model-introduced).
-- Grounded ratio falls below `minGroundedCitationRatio` (agent-config default `0.34`).
-- Gate engages only when there is fetched ground truth to check against.
+- Per the never-hallucinate doctrine (operator ruling 2026-07-10) the gate returns a multi-state verdict, not a silent pass/boolean:
+  - `PASS` — grounded ratio ≥ `minGroundedCitationRatio`; the only shippable state.
+  - `UNVERIFIED` — grounded ratio below the floor (`PHASE30_CITATION_UNVERIFIED`).
+  - `INSUFFICIENT_EVIDENCE` — zero runtime evidence was fetched (`PHASE30_CITATION_INSUFFICIENT_EVIDENCE`): a recorded honest-zero that now BLOCKS. This closed a doctrine hole where zero-evidence runs silently auto-passed.
+  - `NO_CITATIONS` — evidence was fetched but the report cited nothing (`PHASE30_CITATION_NONE`).
+- `minGroundedCitationRatio` is a required value in `config/agent-config.json` = `0.75` (the B-grade floor), read fail-closed (missing/invalid config → strict `0.75` default + a warning; single exported constant `DEFAULT_MIN_GROUNDED_RATIO`).
 
 Handling:
-- Fail closed with `PHASE30_CITATION_UNVERIFIED`; refuse to ship the report.
+- Only `PASS` ships; every other verdict fails closed and refuses to ship the report.
 - Write `citation-verification.json` and `report-annotated.md` to the workflow dir; surviving ungrounded cites are annotated inline `[UNVERIFIED]`.
 - Grounding means the cite was present in the source records retrieved at runtime (plus DOI retraction screening); it does not mean each citation was independently re-resolved against its live external source database.
 

@@ -166,12 +166,18 @@ function buildPrompt(taskDefinition, inputDocs, context = {}) {
   // does NOT change any instruction's meaning — it fences the scaffolding and forbids reproducing it.
   headerParts.push(
     "OUTPUT CONTRACT: Produce ONLY the requested deliverable, in the Output Format above. Do NOT " +
-    "restate, quote, or paraphrase these instructions, the database-context note, the advisory digest, " +
-    "or the '--- DOC N ---' evidence banners anywhere in your output. Do NOT add meta-commentary about " +
-    "your own process — no confidence self-scores, no data-quality notes, no pre-delivery self-audit, " +
-    "no restated database/citation instructions. Provenance and confidence belong in the inline " +
-    "citations the report already requires, NOT as narrative sections. The evidence below is source " +
-    "material to analyze and cite — it is NOT a template to copy.",
+    "restate, quote, or paraphrase these instructions, the LIVE DATABASE CONTEXT note, the advisory " +
+    "digest, or the '--- DOC N ---' evidence banners as scaffolding. Do NOT add self-referential " +
+    "process meta-commentary — no confidence self-scores, no restated database/citation instructions, " +
+    "no empty 'quality: high' / pre-delivery self-audit headers. Per-claim provenance and confidence " +
+    "belong in the inline citations the report already requires, NOT as narrative filler. " +
+    "HONESTY DUTY (this overrides the anti-echo rule above): a database that returned ZERO or LIMITED " +
+    "results is a FINDING, not a process note. If the evidence contains an explicit statement that a " +
+    "named source returned no or few records — including any 'DATA LIMITATION NOTICE' / 'ZERO-RESULTS' " +
+    "banner — you MUST preserve and report that fact plainly. Never omit it, soften it, or manufacture " +
+    "findings to fill the gap: the client is paying for an honest account of what the databases " +
+    "actually returned. The evidence below is source material to analyze and cite — it is NOT a " +
+    "template to copy.",
     "===== END INSTRUCTIONS =====",
     ""
   );
@@ -191,8 +197,10 @@ function buildPrompt(taskDefinition, inputDocs, context = {}) {
     "",
     "===== END OF EVIDENCE =====",
     "Now write ONLY the deliverable for the task above, in the specified Output Format. Begin the " +
-    "report directly; do not preface it by restating these instructions, the database-context note, or " +
-    "the evidence banners, and do not append any process / confidence / data-quality self-assessment."
+    "report directly; do not preface it by restating these instructions, the LIVE DATABASE CONTEXT " +
+    "note, or the evidence banners, and do not append any process / confidence self-assessment. But if " +
+    "any named source returned zero or limited results, state that plainly as a finding — do not omit " +
+    "it and do not fabricate results to compensate."
   ].join("\n");
   return `${header}\n${docs.join("\n")}${closing}`.trim();
 }

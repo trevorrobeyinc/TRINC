@@ -58,7 +58,10 @@ citation-extractor.js ................. regex pulls PMID / NCT / ChEMBL / DOI / 
       ▼
 citation-gate.js (verifyReportCitations)
       │   grounded = cited id ∈ union(fetched_citation_ids); else ungrounded
+      │   grounded ratio ≥ minGroundedCitationRatio (0.75)  → PASS (the ONLY shippable state)
       │   grounded ratio < minGroundedCitationRatio  → HARD-FAIL  PHASE30_CITATION_UNVERIFIED
+      │   zero runtime evidence fetched (honest-zero, now BLOCKS) → HARD-FAIL  PHASE30_CITATION_INSUFFICIENT_EVIDENCE
+      │   evidence fetched but report cited nothing → HARD-FAIL  PHASE30_CITATION_NONE
       │   any cited DOI retracted (crossref-retraction.js) → HARD-STOP  PHASE30_CITATION_RETRACTED
       │   writes citation-verification.json + report-annotated.md ([UNVERIFIED] inline)
       │
@@ -113,7 +116,7 @@ Paths are under `openclaw-bridge/` unless noted. Confirm with `grep -rn <symbol>
 | `core/operator-approve-gate.js` | YubiKey consent for `--operator-approve`. | One-shot, TTL 300s, nonce-rotated, fail-closed; arm via `operator-approve-gate arm`. Test bypass: `OPENCLAW_APPROVE_GATE=0`. |
 | `core/agent-context-loader.js` / `core/agent-session-recorder.js` | Load/persist per-role identity + memory. | Reads/writes `config/agents/<role>/{SOUL.md, AGENTS.md, sessions/}`. |
 | `core/citation-extractor.js` | Regex extraction of identifiers. | PMID / NCT / ChEMBL / DOI / UniProt / CID. DOI regex stops at non-DOI terminators + strips trailing punctuation (don't regress this). |
-| `core/citation-gate.js` | **Report-level grounding gate.** | `verifyReportCitations`: cited ids vs union(fetched). `< minGroundedCitationRatio` → `PHASE30_CITATION_UNVERIFIED`; writes `citation-verification.json` + `report-annotated.md`. Engages only when there IS fetched ground truth. |
+| `core/citation-gate.js` | **Report-level grounding gate (multi-state verdict — only PASS ships).** | `verifyReportCitations`: cited ids vs union(fetched). PASS (ratio ≥ `minGroundedCitationRatio`); `PHASE30_CITATION_UNVERIFIED` (below floor); `PHASE30_CITATION_INSUFFICIENT_EVIDENCE` (zero runtime evidence — an honest-zero that now **BLOCKS**, no longer silently auto-passes); `PHASE30_CITATION_NONE` (evidence fetched but report cited nothing). Writes `citation-verification.json` + `report-annotated.md`. |
 | `mcp/crossref-retraction/crossref-retraction.js` | DOI retraction screen. | Crossref `/works/{DOI}` (`is-retracted-by` / update-to `retraction`) → `PHASE30_CITATION_RETRACTED`. **Fail-soft** (a network blip yields no retractions). |
 | `mcp/ctgov-supplemental/ctgov-supplemental.js` | Stop-reason archaeology (local fetcher, NOT ToolUniverse). | Tool `ctgov_stopped_trials`; CT.gov API v2 TERMINATED/WITHDRAWN/SUSPENDED + `whyStopped` + change-history; session-cached; wired via `tool-prefetch.js` `localFetchers` seam. |
 | `monetization/integrity-rating.js` | Renders the provenance ledger. | `buildIntegrityReport(citation_verification)` → `deliverables/citation-integrity.md` (A/B/C/D; F+BLOCKED on retraction; N/A if nothing cited). |
@@ -147,7 +150,7 @@ contract; the code that produces each file is in `dataset/` and `monetization/`.
 
 | File | Controls |
 |---|---|
-| `config/agent-config.json` | `defaultProvider` (claude-code), `defaultModel` (⚠️ stale sonnet — see §0), dirs, `taskTimeoutMs`, `maxTokensPerRequest`, `requireSupervisorApproval`, `minGroundedCitationRatio` (default **0.34**; the citation-gate threshold — confirm in-file/code). |
+| `config/agent-config.json` | `defaultProvider` (claude-code), `defaultModel` (⚠️ stale sonnet — see §0), dirs, `taskTimeoutMs`, `maxTokensPerRequest`, `requireSupervisorApproval`, `minGroundedCitationRatio` (**0.75** — `config/agent-config.json`; required, read fail-closed → strict `0.75` default + warning if missing/invalid; the citation-gate threshold / B-grade floor). |
 | `config/role-provider-map.json` | **Live** per-role LLM routing (SoT for who runs what). |
 | `config/llm-providers.json` | Provider endpoints (claude-code / lm-studio `:1235` / ollama `:11435` / mock / anthropic-disabled) + cache TTL. |
 | `config/tool-prefetch-map.json` | Role → which tools/connectors are prefetched. Defers to the connector registry for binding intent. |

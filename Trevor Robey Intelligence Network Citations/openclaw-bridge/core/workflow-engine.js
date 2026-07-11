@@ -12,7 +12,7 @@ const { INTERACTION_LOG_SCHEMA_VERSION, CHAIN_ZERO_HASH } = require("./interacti
 const timeProviderModule = require("./time-provider.js");
 const { createDatasetBuilder } = require("../dataset/dataset-builder.js");
 const { createDatasetOutputManager } = require("../dataset/dataset-output-manager.js");
-const { verifyReportCitations, annotateSubtaskOutputs, checkRetractions } = require("./citation-gate.js");
+const { verifyReportCitations, annotateSubtaskOutputs, checkRetractions, DEFAULT_MIN_GROUNDED_RATIO } = require("./citation-gate.js");
 const { extractCitations, deduplicateCitations } = require("./citation-extractor.js");
 const { createCitationReresolver } = require("../mcp/citation-reresolver/citation-reresolver.js");
 const { buildReproducibilityManifest, renderManifestMarkdown } = require("./reproducibility-manifest.js");
@@ -247,8 +247,19 @@ function createWorkflowEngine(options = {}) {
     // truth (an empty fetch can't fail here — that is surfaced as tool_prefetch_zero_docs).
     let citationVerification = null;
     if (missionResult && missionResult.ok && Array.isArray(missionResult.subtask_results)) {
+      // Q7: the grounded floor is a required, config-owned value (config/agent-config.json). Fail
+      // CLOSED — if it is missing or malformed, use the strict shared default and WARN loudly; never
+      // silently fall back to a laxer number (the old 0.34 fallback quietly undercut the config).
       const cfgRatio = Number(researchRuntime.config.minGroundedCitationRatio);
-      const minGroundedRatio = Number.isFinite(cfgRatio) ? cfgRatio : 0.34;
+      let minGroundedRatio = cfgRatio;
+      if (!Number.isFinite(cfgRatio)) {
+        minGroundedRatio = DEFAULT_MIN_GROUNDED_RATIO;
+        logger.warn({
+          event: "min_grounded_ratio_unconfigured",
+          using: DEFAULT_MIN_GROUNDED_RATIO,
+          note: "config/agent-config.json minGroundedCitationRatio missing/invalid — failing closed to the strict default"
+        });
+      }
       const gate = verifyReportCitations({ subtaskResults: missionResult.subtask_results, minGroundedRatio });
       // Literature-integrity: a report must never cite a RETRACTED paper. Cited DOIs are screened
       // against Crossref and cited PMIDs against PubMed — neither source alone is sufficient
@@ -286,7 +297,7 @@ function createWorkflowEngine(options = {}) {
           path.join(gateDir, "citation-verification.json"),
           JSON.stringify({
             mission_id: missionEnvelope.mission_id,
-            pass: gatePass, cited: gate.cited, grounded: gate.grounded, ungrounded: gate.ungrounded,
+            pass: gatePass, verdict: gate.verdict, cited: gate.cited, grounded: gate.grounded, ungrounded: gate.ungrounded,
             grounded_ratio: gate.grounded_ratio, min_grounded_ratio: gate.min_grounded_ratio,
             fetched_id_count: gate.fetched_id_count, ungrounded_list: gate.ungrounded_list,
             retracted: retraction.retracted,
@@ -310,7 +321,7 @@ function createWorkflowEngine(options = {}) {
         logger.warn({ event: "citation_gate_persist_failed", error: safeString(persistError && persistError.message) });
       }
       citationVerification = {
-        pass: gatePass, cited: gate.cited, grounded: gate.grounded, ungrounded: gate.ungrounded,
+        pass: gatePass, verdict: gate.verdict, cited: gate.cited, grounded: gate.grounded, ungrounded: gate.ungrounded,
         grounded_ratio: gate.grounded_ratio, min_grounded_ratio: gate.min_grounded_ratio,
         fetched_id_count: gate.fetched_id_count,
         ungrounded_sample: gate.ungrounded_list.slice(0, 25).map((c) => `${c.type}:${c.id}`),
@@ -322,14 +333,27 @@ function createWorkflowEngine(options = {}) {
           mission_id: missionEnvelope.mission_id,
           cited: gate.cited, ungrounded: gate.ungrounded, retracted: retractedCount, grounded_ratio: gate.grounded_ratio
         });
-        const reason = retractedCount > 0
-          ? `the report cites ${retractedCount} RETRACTED paper(s) (${retraction.retracted.join(", ")})`
-          : `${gate.ungrounded}/${gate.cited} cited identifiers are ungrounded (grounded ratio ${gate.grounded_ratio} < ${minGroundedRatio})`;
+        let reason;
+        if (retractedCount > 0) {
+          reason = `the report cites ${retractedCount} RETRACTED paper(s) (${retraction.retracted.join(", ")})`;
+        } else if (gate.verdict === "INSUFFICIENT_EVIDENCE") {
+          reason = "no runtime evidence was fetched (fetched_id_count=0) — the findings cannot be verified against any source, so this is a recorded honest-zero, not a silent pass";
+        } else if (gate.verdict === "NO_CITATIONS") {
+          reason = "evidence was fetched but the report cites nothing to ground — a due-diligence deliverable must trace its claims to sources";
+        } else {
+          reason = `${gate.ungrounded}/${gate.cited} cited identifiers are ungrounded (grounded ratio ${gate.grounded_ratio} < ${minGroundedRatio})`;
+        }
         const err = new Error(
-          `Citation gate failed: ${reason} — refusing to ship to protect the zero-fabrication / ` +
-          `citation-integrity guarantee. Annotated report written to the workflow dir.`
+          `Citation gate failed [${gate.verdict}]: ${reason} — refusing to ship to protect the ` +
+          `zero-fabrication / citation-integrity guarantee. Annotated report written to the workflow dir.`
         );
-        err.code = retractedCount > 0 ? "PHASE30_CITATION_RETRACTED" : "PHASE30_CITATION_UNVERIFIED";
+        err.code = retractedCount > 0
+          ? "PHASE30_CITATION_RETRACTED"
+          : gate.verdict === "INSUFFICIENT_EVIDENCE"
+            ? "PHASE30_CITATION_INSUFFICIENT_EVIDENCE"
+            : gate.verdict === "NO_CITATIONS"
+              ? "PHASE30_CITATION_NONE"
+              : "PHASE30_CITATION_UNVERIFIED";
         err.citation_verification = citationVerification;
         throw err;
       }
@@ -351,7 +375,7 @@ function createWorkflowEngine(options = {}) {
       try {
         const cites = deduplicateCitations(extractCitations(gate.reportText || ""));
         if (cites.length > 0) {
-          const startedAt = new Date().toISOString();
+          const startedAt = timeProviderModule.nowIso();
           const reresolver = createCitationReresolver({
             logger,
             contactEmail: safeString(researchRuntime.config && researchRuntime.config.contactEmail) || "trevor@trevorobeyinc.com",
@@ -380,7 +404,7 @@ function createWorkflowEngine(options = {}) {
               resolverTableVersion: reresolver.RESOLVER_TABLE_VERSION,
               asOf: startedAt.slice(0, 10),
               startedAt,
-              completedAt: new Date().toISOString()
+              completedAt: timeProviderModule.nowIso()
             }
           });
           try {

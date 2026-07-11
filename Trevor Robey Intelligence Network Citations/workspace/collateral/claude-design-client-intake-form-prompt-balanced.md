@@ -15,8 +15,8 @@ This form represents a real commercial product with a real, codebase-backed audi
 - Do NOT write "amendment-risk band is predictive." It is a historical signal derived from median protocol version counts of past stopped trials.
 - Do NOT write "reports in hours." The turnaround claim is "days, not weeks"; the specific SLA is a written Speed SLA on Investor Pre-Mortem deliveries only — not other SKUs.
 - Do NOT write "the Reproducibility Manifest proves scientific correctness." It confirms the identifier resolves — not that the scientific reasoning or attribution is correct.
-- Do NOT claim the grounding ratio threshold guarantees quality. The configured default minimum threshold (0.34, set in workflow-engine.js) is a delivery floor, not a quality target. A passing report may still have a majority of cited identifiers not in the fetched evidence.
-- Do NOT say the 0.34 threshold value comes from citation-gate.js. The citation-gate.js function-level default is 0.5; the 0.34 value is the configured runtime default set in workflow-engine.js from researchRuntime.config.minGroundedCitationRatio.
+- Do NOT claim the grounding ratio threshold guarantees quality. The minimum grounded-citation ratio (0.75, a required value in `config/agent-config.json`, read fail-closed) is a delivery floor, not a quality target. A passing report may still contain some cited identifiers that are not in the fetched evidence — those surviving ungrounded cites are annotated inline `[UNVERIFIED]`.
+- Do NOT describe the threshold as two different defaults. The former split (a `citation-gate.js` function-level default vs. a separate `workflow-engine.js` runtime default) is obsolete — both were reconciled into one exported constant, `DEFAULT_MIN_GROUNDED_RATIO`. There is now a single floor: `minGroundedCitationRatio` = 0.75, a required value in `config/agent-config.json`, read fail-closed (missing/invalid config → strict 0.75 default + a warning).
 - Do NOT use adjectives like "revolutionary," "cutting-edge," "best-in-class," "industry-leading," "unprecedented," "powerful," or any marketing hyperbole. Brand voice: technical, citation-dense, zero marketing hyperbole. Lead with verifiability, not AI.
 - The tagline "Every claim, sourced. Every risk, named. In days, not weeks." may appear verbatim in the page title block (hero pillar strip) and at the bottom of Panel H1 only — do not repeat it elsewhere.
 - Do NOT say "AI-powered" as a feature claim. Cite the methodology instead: ToolUniverse, PubMed, ClinicalTrials.gov, Crossref DOI screen.
@@ -399,7 +399,7 @@ Grade-band table (sharp borders, no border-radius, header in muted monospace 10p
 
 Grade column cells: `font-family: var(--font-data); color: var(--color-accent-primary);`
 
-Note on grade D: the D row intentionally shows `< 50%` (not "34–49%") because the grading code has no 34% lower bound — D is the else branch for anything below 0.5. The configured workflow gate (default minimum 0.34, set in workflow-engine.js) may block before the report reaches a D grade, but that threshold is configurable and is not encoded into the grading logic itself.
+Note on grade D: the D row intentionally shows `< 50%` because the grading code puts no lower bound on D — D is the else branch for anything below 0.5 (the C/D grade boundary in `integrity-rating.js`). The configured workflow gate (minimum grounded ratio 0.75 — the B-grade floor — in `config/agent-config.json`; required, read fail-closed) blocks any report below 0.75, so a shipped report never actually reaches a C or D grade; but that floor is a delivery gate, not part of the grading logic itself, which still defines the full A–F band.
 
 Below the table, a qualifier note in 11px muted font-data (MANDATORY — do not omit):
 `The grounded-citation ratio measures citations found in the runtime-fetched evidence set — not independent re-resolution against each live external database. The threshold is a delivery floor, not a quality target.`
@@ -687,7 +687,7 @@ FINAL CHECKLIST — VERIFY BEFORE OUTPUTTING THE HTML
 - [ ] H4 qualifier note present: "The Reproducibility Manifest confirms identifier resolution — not the scientific correctness of the underlying evidence."
 - [ ] Tagline appears in the page title block (below the three-pillar strip) and at the bottom of H1 only — not repeated elsewhere
 - [ ] No marketing adjectives (revolutionary, cutting-edge, best-in-class, industry-leading, unprecedented, powerful) anywhere in the output
-- [ ] The threshold value "0.34" does not appear in any user-visible copy (it is a configurable internal parameter, not a public-facing claim; the prompt says "configured threshold" without specifying the value)
+- [ ] No raw threshold number (e.g. "0.75") appears in any user-visible copy (it is an internal config parameter, not a public-facing claim; the prompt says "configured threshold" without specifying the value)
 - [ ] Speed SLA never described as "refund-backed" — only the Citation-Audit SLA carries that qualifier; the two must never be conflated
 - [ ] No competitor prices invented beyond the single grounded McKinsey comparison ("2–6 weeks at $150K–$750K")
 - [ ] "a fifth of the time at a tenth of the price" is the only permitted McKinsey ratio comparison — not paraphrased or rounded

@@ -63,7 +63,7 @@ function transform(workflowOutput, options = {}) {
     "- Every factual claim backed by verifiable database identifiers",
     "- Automated quality audit with citation density scoring",
     "- Deterministic 3-agent pipeline (scout → analyst → synthesizer)",
-    "- No AI hallucination risk: all identifiers resolve in their source databases",
+    "- Citation-integrity gated: every cited identifier is cross-checked against the evidence fetched at runtime and screened for retractions; anything unverifiable is flagged [UNVERIFIED], never silently shipped",
     "",
     `## Pricing`,
     `- Research Intelligence Pack: $2,500 - $4,950 per report`,

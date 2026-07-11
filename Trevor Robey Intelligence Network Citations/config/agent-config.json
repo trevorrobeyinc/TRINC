@@ -9,6 +9,7 @@
   "interactionLogPath": "security/interaction-log.json",
   "taskTimeoutMs": 120000,
   "maxTokensPerRequest": 4000,
+  "minGroundedCitationRatio": 0.75,
   "rlhfAutoGenerate": true,
   "requireSupervisorApproval": true,
   "statusIndexFile": "tasks-index.json"

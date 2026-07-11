@@ -9,13 +9,26 @@
 // (hallucinated) citation. This is the enforcement backbone of the zero-fabrication brand
 // promise: a report whose citations can't be traced to fetched evidence does not ship.
 //
-// Safety invariant: the gate only FAILS when there IS fetched ground truth (fetched_id_count > 0)
-// AND the report cites identifiers AND too few are grounded. A missing/empty fetch yields no
-// ground truth, so it can never hard-fail here (that case is surfaced separately as
-// tool_prefetch_zero_docs) — preventing false failures when prefetch returned nothing.
+// Doctrine (operator ruling 2026-07-10 — "never hallucinate; be completely honest about whether
+// there were any hits in the database"): the gate returns a THREE-STATE verdict, not a silent
+// boolean. When evidence is required (the default for every shipping template):
+//   • PASS                  — evidence was fetched, the report cites it, and the grounded ratio meets
+//                             the configured floor (config/agent-config.json minGroundedCitationRatio).
+//   • INSUFFICIENT_EVIDENCE — NO runtime evidence was fetched. "Cannot verify" is now a RECORDED,
+//                             NON-SHIPPABLE verdict — never a silent pass. (This case previously
+//                             auto-passed; that was the doctrine hole this ruling closes. It is still
+//                             surfaced upstream as tool_prefetch_zero_docs, but now it also BLOCKS.)
+//   • NO_CITATIONS          — evidence was fetched but the report cites nothing to ground.
+//   • UNVERIFIED            — evidence + citations present, but too few cited ids are grounded.
+// Only PASS is shippable. A template may opt out with evidenceRequired:false (none do today).
 
 const fs = require("node:fs");
 const { extractCitations, deduplicateCitations, crossCheckCitations } = require("./citation-extractor.js");
+
+// Q7: the grounded-citation floor. config/agent-config.json `minGroundedCitationRatio` is the source
+// of truth; this is the fail-CLOSED fallback (strict, not lax) used only when that config is absent
+// or malformed. Kept here so citation-gate and workflow-engine agree on ONE number by construction.
+const DEFAULT_MIN_GROUNDED_RATIO = 0.75;
 
 function escapeRegExp(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -88,13 +101,29 @@ function annotateSubtaskOutputs(subtaskResults, fetchedIds, opts = {}) {
 function verifyReportCitations(opts = {}) {
   const subtaskResults = opts.subtaskResults;
   const readFile = opts.readFile;
-  const threshold = Number.isFinite(opts.minGroundedRatio) ? opts.minGroundedRatio : 0.5;
+  const threshold = Number.isFinite(opts.minGroundedRatio) ? opts.minGroundedRatio : DEFAULT_MIN_GROUNDED_RATIO;
+  const evidenceRequired = opts.evidenceRequired !== false; // Q1: default true — every shipping template needs evidence
   const fetchedIds = collectFetchedIds(subtaskResults, readFile);
   const reportText = collectReportText(subtaskResults, readFile);
   const x = crossCheckCitations(reportText, fetchedIds);
-  const pass = fetchedIds.length === 0 || x.total === 0 || x.verified_ratio >= threshold;
+  const hasEvidence = fetchedIds.length > 0;
+  const hasCitations = x.total > 0;
+  // Q1 three-state verdict — zero-evidence / zero-citation are RECORDED as non-shippable, not auto-passed.
+  let verdict;
+  if (hasEvidence && hasCitations) {
+    verdict = x.verified_ratio >= threshold ? "PASS" : "UNVERIFIED";
+  } else if (!evidenceRequired) {
+    verdict = "PASS"; // template explicitly declares evidence optional
+  } else if (!hasEvidence) {
+    verdict = "INSUFFICIENT_EVIDENCE"; // expected runtime evidence, fetched none — cannot verify, so cannot ship
+  } else {
+    verdict = "NO_CITATIONS"; // evidence existed but the report cited nothing to ground
+  }
+  const pass = verdict === "PASS";
   return {
     pass,
+    verdict,
+    evidence_required: evidenceRequired,
     cited: x.total,
     grounded: x.verified_count,
     ungrounded: x.unverified_count,
@@ -290,6 +319,7 @@ async function checkRetractions(reportText, checkDois, checkPmids, doiToPmid) {
 }
 
 module.exports = {
+  DEFAULT_MIN_GROUNDED_RATIO,
   collectFetchedIds,
   collectReportText,
   annotateUngrounded,

@@ -19,6 +19,7 @@ const os = require("node:os");
 const path = require("node:path");
 const crypto = require("node:crypto");
 const { execFileSync } = require("node:child_process");
+const timeProviderModule = require("./time-provider.js");
 
 const TTL_MS = 300 * 1000;
 
@@ -77,7 +78,7 @@ function verifyAndConsumeOperatorApproval(logger) {
   try { stat = fs.statSync(armed); }
   catch { return { ok: false, reason: "not armed — run: operator-approve-gate arm (YubiKey PIN + touch)" }; }
 
-  const ageMs = Date.now() - stat.mtimeMs;
+  const ageMs = timeProviderModule.nowMs() - stat.mtimeMs;
   if (ageMs > TTL_MS) {
     try { fs.unlinkSync(armed); } catch { /* best effort */ }
     return { ok: false, reason: `armed token expired (${Math.round(ageMs / 1000)}s > 300s) — re-run: operator-approve-gate arm` };
