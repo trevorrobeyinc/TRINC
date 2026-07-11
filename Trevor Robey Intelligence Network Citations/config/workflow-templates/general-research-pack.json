@@ -25,9 +25,16 @@
       "dataset_type": "retrieval_qa"
     },
     {
+      "step_id": "quality_check",
+      "type": "quality_audit",
+      "depends_on": ["research"],
+      "confidence_threshold": 0.6,
+      "verification_tools": ["PubMed", "ClinicalTrials.gov", "EuropePMC", "SemanticScholar"]
+    },
+    {
       "step_id": "build_dataset",
       "type": "dataset",
-      "depends_on": ["research"],
+      "depends_on": ["quality_check"],
       "dataset_type": "retrieval_qa",
       "quality_threshold": 0.3
     },

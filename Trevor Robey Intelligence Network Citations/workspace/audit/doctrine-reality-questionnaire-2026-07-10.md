@@ -284,10 +284,16 @@ process-meta (confidence self-scores, restated scaffolding, empty "quality: high
 FINDING that MUST be preserved, and the `DATA LIMITATION NOTICE` / `ZERO-RESULTS` banner is explicitly
 exempted from the "don't reproduce banners" clause. The closing seal was updated to match.
 
-**Q9 — PARTIAL.** The false "LLM-only (no ToolUniverse)" description in `general-research-pack.json`
+**Q9 — DONE.** The false "LLM-only (no ToolUniverse)" description in `general-research-pack.json`
 is corrected, and it's now marked *not for sale as a general/non-biomedical product*. Grounding
 safety falls out of Q1 automatically (a non-biomedical topic → zero evidence → `INSUFFICIENT_EVIDENCE`
-→ BLOCK). **Staged:** adding an explicit `quality_audit` step to the template pipeline.
+→ BLOCK). **And (2026-07-10, fourth pass) the missing `quality_audit` step is added** — a `quality_check`
+step (`type: quality_audit`, `depends_on: [research]`, `confidence_threshold: 0.6` to match the
+survey-style `clinical-trial-landscape`, not the 0.7 drug/target templates) now sits between `research`
+and `build_dataset` (whose `depends_on` was repointed to it), giving general-research-pack the SAME
+citation-density + section-coverage gate the 5 specialists have. A failing audit throws
+`PHASE30_QUALITY_BELOW_THRESHOLD` and halts. Verified: 43 tests (phase33 + phase30-schema +
+phase30-workflow-engine) + phase30 policy gate green.
 
 **Q33 (bonus) — DONE.** Removed the indefensible "No AI hallucination risk" absolute claim from
 `datarade-format-adapter.js`; replaced with an honest citation-integrity-gated statement.
@@ -329,5 +335,5 @@ has changed hands yet.
    (prefetch → `.coverage`) + 45 green across the affected suites; lint + phase30 gate pass.
 
 ### 🟡 STILL STAGED
-4. **Q9 quality_audit step** for `general-research-pack` (above).
-5. **Remaining questionnaire items** Q2–Q3, Q6, Q8, Q10–Q14, Q16–Q38.
+4. **Remaining questionnaire items** Q2–Q3, Q6, Q8, Q10–Q14, Q16–Q38 (all five priority questions
+   Q1/Q4/Q7/Q9/Q15 are now resolved; Q15 stays with the operator's attorney).

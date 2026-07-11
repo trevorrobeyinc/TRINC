@@ -111,6 +111,11 @@
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 > Copy the **Entry template** at the bottom.
 
+### 2026-07-10 · Desktop Claude Code · Q9 quality_audit step added to general-research-pack — all 5 priority questions now resolved
+- **general-research-pack was the ONLY template missing a `quality_audit` step** (the 5 specialists all have one). Added a `quality_check` step (`type: quality_audit`, `depends_on: [research]`, `confidence_threshold: 0.6` — matching the survey-style `clinical-trial-landscape`, not the 0.7 drug/target templates) between `research` and `build_dataset`, and repointed `build_dataset.depends_on` → `["quality_check"]`. It now gets the same citation-density + SearXNG section-coverage gate; a failing audit throws `PHASE30_QUALITY_BELOW_THRESHOLD` and halts.
+- **Config-only change** (one JSON file). Verified: 43 tests (phase33 provider + phase30-schema + phase30-workflow-engine) + phase30 policy gate + lint all green.
+- **Doctrine follow-through complete:** the operator's five priority answers Q1 (three-state gate), Q4 (honest-negatives), Q7 (0.75 floor), Q5 (search-coverage ledger), Q9 (quality_audit) are all shipped; Q15 (contracts) stays with the operator's attorney. Uncommitted (YubiKey); not deployed.
+
 ### 2026-07-10 · Desktop Claude Code · Q5 Search-Coverage Ledger — the honest-zero deliverable, BUILT + WIRED + VERIFIED
 - **The doctrine now ships as a deliverable, not just a block.** New `openclaw-bridge/monetization/search-coverage-ledger.js` (mirrors `graveyard-memo.js`: pure, no-LLM, fail-soft) renders `deliverables/search-coverage.md` — a per-source table of every runtime search and exactly what it returned, with an explicit **zero-result (honest-negative)** section kept separate from **failed/unreachable** sources.
 - **End-to-end wiring:** `tool-prefetch.js` captures each search's outcome (returned/empty/failed/skipped + count) → persisted in every task's metadata sidecar (`search_coverage`, same channel as `fetched_citation_ids`) → `collectSearchCoverage` aggregates in `workflow-engine.js` → rendered + sealed by `deliverable-packager.js`, AND written to the workflow dir on the `PHASE30_CITATION_INSUFFICIENT_EVIDENCE` block path. A zero-evidence run now **ships** the honest-zero instead of only erroring.
