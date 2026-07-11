@@ -9,7 +9,7 @@
   "scripts": {
     "start": "node src/server.js",
     "test": "node test/smoke.mjs",
-    "test:unit": "node --test test/citation-grammar.test.mjs test/citation-grammar.drift.test.mjs test/robust.test.mjs test/rerank.test.mjs",
+    "test:unit": "node --test test/citation-grammar.test.mjs test/citation-grammar.drift.test.mjs test/robust.test.mjs test/rerank.test.mjs test/metadata-doi.test.mjs test/ssrf.test.mjs",
     "smoke": "node test/smoke.mjs"
   },
   "dependencies": {
@@ -19,7 +19,7 @@
     "turndown": "^7.2.0",
     "zod": "3.24.1"
   },
-  "author": "Trevor Robey — Trevor Robey Inc.",
+  "author": "Trevor Robey \u2014 Trevor Robey Inc.",
   "license": "UNLICENSED",
   "private": true
 }

@@ -9,7 +9,7 @@
 
 const { CONFIG } = require("./config.js");
 const { TTLCache, retry, dedupe } = require("./robust.js");
-const { extractCitations } = require("./citation-grammar.js");
+const { extractCitations, normalizeDoi, classifyDoi } = require("./citation-grammar.js");
 const { rerank } = require("./rerank.js");
 
 /** SearXNG natively supports these time_range values; Tavily also allows "week". */
@@ -97,6 +97,22 @@ function hostOf(url) {
 function hostMatchesDomain(host, domain) {
   const d = String(domain).toLowerCase().replace(/^www\./, "");
   return host === d || host.endsWith("." + d);
+}
+
+/**
+ * Append a SearXNG engine-supplied `doi` to an already-harvested `citations` array, in place.
+ * No-op when the field is absent/malformed or that DOI was already found in the url/title/snippet
+ * (the text-derived hit keeps its stronger "url"/"text" provenance). Never throws.
+ */
+function addMetadataDoi(citations, rawDoi) {
+  if (!Array.isArray(citations) || !rawDoi || typeof rawDoi !== "string") return;
+  const id = normalizeDoi(rawDoi);
+  if (!/^10\.\d{4,9}\//.test(id)) return; // not a DOI — ignore rather than emit a bogus id
+  if (citations.some((c) => c.type === "doi" && c.id === id)) return;
+  const c = { type: "doi", id, source: "metadata" };
+  const subtype = classifyDoi(id);
+  if (subtype) c.subtype = subtype;
+  citations.push(c);
 }
 
 /**
@@ -192,6 +208,13 @@ async function search(params) {
       category: r.category || null,
     };
     const citations = extractCitations(row);
+    // Scholarly engines (pubmed/crossref/openalex/semantic scholar/…) render the `paper.html`
+    // template and return the record's DOI as a STRUCTURED field, which is often absent from the
+    // url, title and snippet — measured at 15% of science results (61/409 across six queries).
+    // Harvesting only text/url therefore made `min_citations>=1` silently discard real, cited
+    // papers. Provenance is "metadata": the engine asserted it, we did not read it off the page.
+    // `dedupe` keys result identity on source==="url" only, so this can never collapse two rows.
+    addMetadataDoi(citations, r.doi);
     if (citations.length) row.citations = citations; // additive only — never removes a field
     return row;
   });
@@ -267,4 +290,4 @@ function summarizeInfoboxes(infoboxes) {
   }));
 }
 
-module.exports = { search, hostOf, hostMatchesDomain };
+module.exports = { search, hostOf, hostMatchesDomain, addMetadataDoi };

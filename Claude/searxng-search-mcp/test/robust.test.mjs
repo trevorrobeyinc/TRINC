@@ -29,6 +29,26 @@ test("TTLCache: hit within TTL, miss after expiry, FIFO eviction at capacity", a
   assert.equal(d.get("k3"), 3);
 });
 
+test("TTLCache: updating an existing key at capacity evicts nobody", () => {
+  // Regression: set() used to run its eviction loop before checking whether the key was already
+  // present, so refreshing a cached value at capacity dropped an unrelated entry and left the cache
+  // under-full. Reachable in the connector when two concurrent searches for the same url both miss
+  // and both set(). Returned data was never wrong — the cost was an avoidable upstream refetch.
+  const c = new TTLCache(10000, 2);
+  c.set("a", 1);
+  c.set("b", 2);
+  c.set("b", 22); // update, not insert
+  assert.equal(c.get("a"), 1, "updating 'b' must not evict 'a'");
+  assert.equal(c.get("b"), 22);
+  assert.equal(c.map.size, 2, "cache must stay at capacity, not shrink");
+  // A genuinely new key at capacity still evicts exactly one, oldest-first. The refreshed 'b' keeps
+  // its original insertion position, so 'a' (older) is the one that goes — FIFO, not LRU.
+  c.set("c", 3);
+  assert.equal(c.get("a"), undefined);
+  assert.equal(c.get("b"), 22);
+  assert.equal(c.get("c"), 3);
+});
+
 test("retry: returns immediately on success (one attempt)", async () => {
   let calls = 0;
   const out = await retry(async () => { calls++; return "ok"; }, { attempts: 3, sleep: noSleep });

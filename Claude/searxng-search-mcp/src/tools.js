@@ -25,7 +25,8 @@ const TOOLS = [
       "Europe PMC, Semantic Scholar, Crossref, OpenAlex, OpenAIRE, arXiv). Each result may carry " +
       "an additive citations[] array of {type,id,source} ids harvested from its text " +
       "(pmid/doi/nct/pmcid/chembl/drugbank/uniprot/arxiv/geo/sra/bioproject/biosample/rrid); source is 'url' " +
-      "(page-identity, high confidence) or 'text' (from title/snippet), and preprint DOIs carry " +
+      "(page-identity, high confidence), 'text' (from title/snippet), or 'metadata' (a DOI the " +
+      "scholarly engine returned as a structured field), and preprint DOIs carry " +
       "subtype:'preprint'. Set min_citations>=1 to keep only results that carry a citation id. " +
       "Set include_raw_content:true to also fetch and clean the full page text of each hit.",
     inputSchema: {
@@ -100,7 +101,9 @@ const TOOLS = [
     description:
       "Fetch one or more URLs and return clean, readable content (markdown or plain text), " +
       "with boilerplate/nav/ads stripped via Mozilla Readability. Tavily-compatible: returns " +
-      "results[] and failed_results[]. Use to read pages found via `search`.",
+      "results[] and failed_results[]. Use to read pages found via `search`. Only public http(s) " +
+      "targets are fetched: loopback/private/link-local destinations are refused (reported in " +
+      "failed_results[]), including via redirect, unless allowlisted server-side.",
     inputSchema: {
       type: "object",
       properties: {
@@ -131,7 +134,8 @@ const TOOLS = [
     description:
       "Discover URLs within a single website. Fetches the given page, collects same-domain " +
       "links, and (optionally, with `query`) augments them via a site-scoped SearXNG search. " +
-      "Use to enumerate a site's pages before extracting the relevant ones.",
+      "Use to enumerate a site's pages before extracting the relevant ones. Only public http(s) " +
+      "targets are fetched: loopback/private/link-local destinations are refused.",
     inputSchema: {
       type: "object",
       properties: {

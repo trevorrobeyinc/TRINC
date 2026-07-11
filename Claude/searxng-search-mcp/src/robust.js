@@ -37,11 +37,17 @@ class TTLCache {
   }
 
   set(key, value, ttlMs = this.ttl) {
-    // Evict oldest while at capacity (Map preserves insertion order).
-    while (this.map.size >= this.max) {
-      const oldest = this.map.keys().next().value;
-      if (oldest === undefined) break;
-      this.map.delete(oldest);
+    // Only a NEW key grows the map, so only a new key can require eviction. Without this guard,
+    // re-setting an existing key at capacity evicts an unrelated entry and leaves the cache below
+    // `max`. `Map.set` on an existing key preserves its original insertion position, which is what
+    // the FIFO policy wants: refreshing a value must not promote it past older entries.
+    if (!this.map.has(key)) {
+      // Evict oldest while at capacity (Map preserves insertion order).
+      while (this.map.size >= this.max) {
+        const oldest = this.map.keys().next().value;
+        if (oldest === undefined) break;
+        this.map.delete(oldest);
+      }
     }
     this.map.set(key, { value, expiresAt: Date.now() + Math.max(0, Number(ttlMs) || 0) });
     return value;
@@ -57,7 +63,12 @@ function defaultIsRetryable(err) {
   if (!err) return false;
   if (err.name === "AbortError") return false; // a per-attempt timeout: don't multiply latency
   const status = err.status;
-  if (status === undefined || status === null) return true; // generic network/DNS/socket error
+  // Status-less means the request never produced an HTTP status: a network/DNS/socket failure, or a
+  // parse error off a truncated body. Both are treated as transient because `retry` re-invokes `fn`,
+  // which issues a FRESH request — it never reparses the same bytes, so a retry can genuinely differ.
+  // (A permanent server-side misconfiguration arrives here with a status instead, e.g. SearXNG
+  // answers 403 when `format=json` is not enabled — already non-retryable via the check below.)
+  if (status === undefined || status === null) return true;
   return status === 429 || (status >= 500 && status < 600);
 }
 

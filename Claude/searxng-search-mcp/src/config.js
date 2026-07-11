@@ -40,6 +40,20 @@ const CONFIG = Object.freeze({
     Math.trunc(Number(process.env.SEARXNG_EXTRACT_CONCURRENCY)) || 4
   ),
 
+  /**
+   * Hostnames exempt from the `extract`/`map` SSRF guard (see src/ssrf.js). Comma-separated, and
+   * matched against the HOSTNAME AS WRITTEN in the url — not the address it resolves to — because
+   * that is what an operator can actually predict. Empty by default: no private/loopback target is
+   * reachable unless deliberately named here, e.g.
+   *   SEARXNG_EXTRACT_ALLOW_HOSTS="localhost,127.0.0.1"
+   */
+  extractAllowHosts: Object.freeze(
+    String(process.env.SEARXNG_EXTRACT_ALLOW_HOSTS || "")
+      .split(",")
+      .map((h) => h.trim().toLowerCase().replace(/^\[/, "").replace(/\]$/, ""))
+      .filter(Boolean)
+  ),
+
   /** Browser-like UA so content sites don't reject the fetch outright. */
   userAgent:
     process.env.SEARXNG_USER_AGENT ||

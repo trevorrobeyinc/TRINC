@@ -12,6 +12,7 @@ const { Readability, isProbablyReaderable } = require("@mozilla/readability");
 const TurndownService = require("turndown");
 const { CONFIG } = require("./config.js");
 const { hostOf } = require("./searxng.js");
+const { assertUrlAllowed, MAX_REDIRECTS } = require("./ssrf.js");
 
 const turndown = new TurndownService({
   headingStyle: "atx",
@@ -21,22 +22,41 @@ const turndown = new TurndownService({
 // Drop noise that never carries article content.
 turndown.remove(["script", "style", "noscript", "iframe", "svg", "form"]);
 
-/** Fetch a URL with a timeout + browser-like UA. Returns { ok, status, contentType, text }. */
+/**
+ * Fetch a URL with a timeout + browser-like UA. Returns { ok, status, contentType, text }.
+ *
+ * Every hop is SSRF-checked (see src/ssrf.js): redirects are followed MANUALLY so that a public url
+ * cannot 302 into loopback. The timeout spans the whole redirect chain, not each hop. Throws on a
+ * blocked target — callers record that in `failed_results` / `errors`, so a refusal is visible
+ * rather than silent.
+ */
 async function fetchUrl(url) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), CONFIG.fetchTimeoutMs);
   try {
-    const res = await fetch(url, {
-      redirect: "follow",
-      headers: {
-        "User-Agent": CONFIG.userAgent,
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      },
-      signal: controller.signal,
-    });
-    const contentType = res.headers.get("content-type") || "";
-    const text = await res.text();
-    return { ok: res.ok, status: res.status, contentType, text };
+    let current = String(url);
+    for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+      await assertUrlAllowed(current);
+      const res = await fetch(current, {
+        redirect: "manual",
+        headers: {
+          "User-Agent": CONFIG.userAgent,
+          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        },
+        signal: controller.signal,
+      });
+
+      const location = res.status >= 300 && res.status < 400 ? res.headers.get("location") : null;
+      if (!location) {
+        const contentType = res.headers.get("content-type") || "";
+        const text = await res.text();
+        return { ok: res.ok, status: res.status, contentType, text };
+      }
+      // Release the socket; we never read a redirect body.
+      await res.body?.cancel().catch(() => {});
+      current = new URL(location, current).toString(); // resolve relative Location, re-check next loop
+    }
+    throw new Error(`too many redirects (>${MAX_REDIRECTS})`);
   } finally {
     clearTimeout(timer);
   }
