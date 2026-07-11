@@ -35,12 +35,20 @@ const STOPWORDS = new Set(
     "trial", "trials", "study", "studies", "condition", "conditions", "eligibility", "criteria", "design",
     "primary", "secondary", "date", "doc", "estimated", "actual", "start", "completion", "location",
     "locations", "country", "recruitment", "sponsors",
+    // report-structure / workflow-scaffolding fragments that ride into section headings (observed in
+    // the live run: "Source Discovery Set Scope", "Semantic Scholar", "Emerging ... Beyond", "Handoff")
+    "set", "scope", "beyond", "handoff", "semantic", "scholar", "emerging", "discovery", "coverage",
     // citation-ID type-names (the identifiers themselves are stripped separately, below)
     "id", "pmid", "pmc", "nct", "doi", "cid", "chembl", "drugbank", "ensg", "uniprot", "gse", "gsm", "rrid",
     // leaked prompt scaffolding
     "training", "knowledge", "live", "database", "context", "instruction", "prioritize", "prioritizing",
   ].map((s) => s.toLowerCase())
 );
+
+// Multi-word workflow/process directives that agents write as section headings — never a search
+// subject. Dropped whole (they'd otherwise survive the token stoplist since each word alone is common).
+const PROCESS_PHRASE =
+  /\b(action required|before delivery|synthesis confidence|confidence statement|(data )?quality assessment|failure mode|coverage gap|source discovery|competitor analysis|trial intelligence|research output|executive summary|handoff to)\b/i;
 
 // A capitalized word or run of capitalized words (proper-noun / acronym / entity), 1-4 words.
 const CAP_PHRASE = /\b([A-Z][A-Za-z0-9-]+(?:\s+[A-Z][A-Za-z0-9-]+){0,3})\b/g;
@@ -96,15 +104,20 @@ function topKeyTerms(text, k, excludeTokens) {
       );
     });
     if (meaningful.length === 0) continue;
-    const key = phrase.toLowerCase();
+    // Emit ONLY the distinctive tokens, not the whole phrase — this drops ride-along stopwords/roman
+    // numerals ("The", "Set", "III") that sat next to a real term. Dedup on the emitted term so
+    // "The Semantic Scholar" and "Semantic Scholar" collapse.
+    const term = meaningful.join(" ");
+    if (PROCESS_PHRASE.test(term)) continue; // whole workflow-directive heading → not a subject
+    const key = term.toLowerCase();
     const rec = stats.get(key);
     if (rec) rec.count += 1;
-    else stats.set(key, { phrase, count: 1, first: m.index, mc: meaningful.length, words: origTokens.length });
+    else stats.set(key, { term, count: 1, first: m.index, mc: meaningful.length });
   }
   return [...stats.values()]
-    .sort((a, b) => b.mc - a.mc || b.words - a.words || b.count - a.count || a.first - b.first)
+    .sort((a, b) => b.mc - a.mc || b.count - a.count || a.first - b.first)
     .slice(0, k)
-    .map((r) => r.phrase);
+    .map((r) => r.term);
 }
 
 /**

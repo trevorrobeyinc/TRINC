@@ -15,6 +15,8 @@
 // endpoints 200-echo bogus CIDs. Every resolver parses the body per its 2026-06-19
 // live-verified success criterion. ChEMBL is identifier-resolution ONLY (no data values).
 
+const timeProviderModule = require("../../core/time-provider.js");
+
 const STATUS = Object.freeze({ VERIFIED: "VERIFIED", UNRESOLVED: "UNRESOLVED", UNCHECKED: "UNCHECKED" });
 const RESOLVER_TABLE_VERSION = "2026-06-19";
 
@@ -52,7 +54,7 @@ function createCitationReresolver(options = {}) {
   const timeoutMs = Number(options.timeoutMs) || 15_000;
   const contactEmail = options.contactEmail || "trevor@trevorobeyinc.com";
   const ncbiApiKey = options.ncbiApiKey || "";
-  const nowIso = typeof options.nowIso === "function" ? options.nowIso : () => new Date().toISOString();
+  const nowIso = typeof options.nowIso === "function" ? options.nowIso : () => timeProviderModule.nowIso();
   const cache = new Map(); // per-run only: `${type}:${ID}` -> result
 
   const UA = `TRINC/1.0 (mailto:${contactEmail})`;

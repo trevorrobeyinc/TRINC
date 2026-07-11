@@ -55,19 +55,26 @@ execution path; the topology primitives above are unchanged.
   cross-checks every cited identifier against the union of runtime-fetched ids. Citations are
   grounded in the source records actually retrieved at runtime and cited DOIs are
   retraction-screened against Crossref (`crossref-retraction.js`); citations are NOT
-  independently re-resolved against their live source databases. The gate HARD-FAILS below the
-  configured grounded ratio (`minGroundedCitationRatio`, default `0.34`) and on any retracted DOI.
+  independently re-resolved against their live source databases. Per the never-hallucinate
+  doctrine (operator ruling 2026-07-10) the gate returns a MULTI-STATE verdict, not a silent
+  pass: `PASS` (grounded ratio >= `minGroundedCitationRatio`, the ONLY shippable state);
+  `UNVERIFIED` when the ratio is below the floor (`PHASE30_CITATION_UNVERIFIED`);
+  `INSUFFICIENT_EVIDENCE` when ZERO runtime evidence was fetched
+  (`PHASE30_CITATION_INSUFFICIENT_EVIDENCE` — a recorded honest-zero that now BLOCKS, closing the
+  doctrine hole where zero-evidence runs silently auto-passed); `NO_CITATIONS` when evidence was
+  fetched but the report cited nothing (`PHASE30_CITATION_NONE`); and a hard stop on any retracted
+  DOI (`PHASE30_CITATION_RETRACTED`). Only `PASS` ships.
 - On a gate-passing mission the step builds two deliverables deterministically (no LLM) from the
   fetched records and ships them in the mission bundle: `deliverables/citation-integrity.md`
   (graded provenance ledger) and `deliverables/graveyard-memo.md` (prior stopped programs +
   protocol amendment-risk). Both are fail-soft and never block a passing report.
 
-New error codes: `PHASE30_CITATION_UNVERIFIED`, `PHASE30_CITATION_RETRACTED`.
+New error codes: `PHASE30_CITATION_UNVERIFIED`, `PHASE30_CITATION_INSUFFICIENT_EVIDENCE`, `PHASE30_CITATION_NONE`, `PHASE30_CITATION_RETRACTED`.
 
 ## Config
 - `config/agent-topology.json`
 - `config/autonomy-ladder.json`
-- `minGroundedCitationRatio` (agent-config; default `0.34`)
+- `minGroundedCitationRatio` (`config/agent-config.json`; required, fail-closed; `0.75` — the B-grade floor)
 
 ## Verification
 ```bash

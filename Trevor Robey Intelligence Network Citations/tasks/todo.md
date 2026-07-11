@@ -123,10 +123,16 @@ re-resolved against a live external database (per-citation external re-resolutio
   `workflow-engine.executeMissionStep` runs a report-level gate (`verifyReportCitations`)
   that cross-checks every cited identifier against the union of runtime-fetched ids: a cited
   id is "grounded" if present in fetched evidence, else "ungrounded" (likely model-introduced).
-  Hard-fails (`PHASE30_CITATION_UNVERIFIED`) when the grounded ratio is below
-  `minGroundedCitationRatio` (agent-config default 0.34); engages only when there is fetched
-  ground truth. Writes `citation-verification.json` + `report-annotated.md` to the workflow
-  dir; surviving ungrounded cites are annotated inline `[UNVERIFIED]`.
+  Returns a MULTI-STATE verdict (never a silent pass): **PASS** (grounded ratio ≥
+  `minGroundedCitationRatio`) — the only shippable state; **UNVERIFIED**
+  (`PHASE30_CITATION_UNVERIFIED`, ratio below the floor); **INSUFFICIENT_EVIDENCE**
+  (`PHASE30_CITATION_INSUFFICIENT_EVIDENCE`, ZERO runtime evidence fetched — a recorded
+  honest-zero that now BLOCKS, closing the doctrine hole where zero-evidence runs silently
+  auto-passed); **NO_CITATIONS** (`PHASE30_CITATION_NONE`, evidence fetched but nothing cited).
+  The floor is a required value in `config/agent-config.json` = 0.75 (the B-grade floor), read
+  fail-closed (missing/invalid → strict 0.75 default + a warning). Writes
+  `citation-verification.json` + `report-annotated.md` to the workflow dir; surviving
+  ungrounded cites are annotated inline `[UNVERIFIED]`.
 - [x] **Retraction screen** — `openclaw-bridge/mcp/crossref-retraction/crossref-retraction.js`.
   Checks each cited DOI against Crossref `/works/{DOI}` (`relation.is-retracted-by` or
   update-to type "retraction"). A report citing any retracted paper hard-stops
@@ -165,8 +171,9 @@ re-resolved against a live external database (per-citation external re-resolutio
 
 ### New error codes / config / deliverables
 
-- New error codes: `PHASE30_CITATION_UNVERIFIED`, `PHASE30_CITATION_RETRACTED`.
-- New config: `minGroundedCitationRatio` (agent-config; default 0.34).
+- New error codes: `PHASE30_CITATION_UNVERIFIED`, `PHASE30_CITATION_INSUFFICIENT_EVIDENCE`,
+  `PHASE30_CITATION_NONE`, `PHASE30_CITATION_RETRACTED`.
+- New config: `minGroundedCitationRatio` — 0.75 (config/agent-config.json; required, fail-closed).
 - New mission-bundle deliverables: `deliverables/citation-integrity.md`,
   `deliverables/graveyard-memo.md`.
 - Tests (316/316): `tests/core/{citation-extractor,citation-gate,ctgov-supplemental,crossref-retraction,integrity-rating,graveyard-memo,phase19-deliverable-packager}.test.js`.
@@ -174,7 +181,8 @@ re-resolved against a live external database (per-citation external re-resolutio
 > Note on quality gap #80 ("no real citations, no database IDs"): citations cited in an
 > assembled report are now gated against runtime-fetched ground truth and DOI
 > retraction-screened, and stopped-trial corpora records are NCT-traced. This does not by
-> itself supply a live LLM (gap #1) — the gate engages only when there IS fetched ground truth.
+> itself supply a live LLM (gap #1) — but a run that fetched ZERO runtime evidence no longer
+> auto-passes; it now BLOCKS (`PHASE30_CITATION_INSUFFICIENT_EVIDENCE`).
 
 ---
 

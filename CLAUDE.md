@@ -282,6 +282,14 @@ Predecessor of qdrant-tls-proxy: a separate subproject at `Claude/qdrant-tls-pro
 
 > Per the global `~/.claude/CLAUDE.md` "Browser MCP Strategy and Context Persistence" rule, every Claude Code session that calls a browser MCP non-trivially appends a structured summary block below. Newest entries at the top. The two surviving browser surfaces are **Playwright MCP (`--isolated`)** and **Claude in Chrome**. See the global rule for the entry format, importance filter, and timing.
 
+- 2026-07-09 · claude-in-chrome · complete Parker Dewey Career Launcher profile (app.parkerdewey.com, logged-in)
+  per the "Completing Your profile" onboarding email · added 239-char personal statement, GPA 4.0
+  (from Strayer GPS dashboard PDF — President's List), and 3 experience entries sourced from the
+  trevorrobeyinc.github.io portfolio (Trevor Robey Inc. founder 2025–, freelance digital marketer
+  2020–, e-commerce 2016–2020); resume/location/affiliations were already set. Gotcha: profile-page
+  read_page (interactive) silently omitted lower form controls — scroll + find() located them.
+  07-10 follow-up: added LinkedIn URL (linkedin.com/in/trevor-robey) to Resume/CV page; Parker Dewey
+  web session had expired → user signed in themselves (password entry stays hand-off).
 - 2026-07-02 · claude-in-chrome · mirror docs.crowdstrike.com console docs (US-2 SSO) · Fluid
   Topics `/api/khub` mirror; captured the CrowdStrike APIs publication tree; full 3,120-pub crawl
   abandoned (rate-limit 403s + auto-mode flagged the page→localhost relay as exfil). Public corpus

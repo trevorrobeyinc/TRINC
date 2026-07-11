@@ -958,6 +958,19 @@ document.addEventListener("DOMContentLoaded", function () {
     r.addEventListener("change", onRadioChange);
   });
   document.getElementById("submit-btn").addEventListener("click", onSubmit);
+
+  // Deep-link preselect: /intake?type=drug-discovery-full (used by the pricing CTAs).
+  // Ignored silently if the param is absent or not a known engagement type.
+  try {
+    var preset = new URLSearchParams(window.location.search).get("type");
+    if (preset && Object.prototype.hasOwnProperty.call(QUESTION_TYPE_MAP, preset)) {
+      var radio = $('input[name="question_type"][value="' + preset + '"]');
+      if (radio) {
+        radio.checked = true;
+        onRadioChange();
+      }
+    }
+  } catch (e) { /* no-op: preselect is a convenience, never a hard dependency */ }
 });
 </script>
 </body>

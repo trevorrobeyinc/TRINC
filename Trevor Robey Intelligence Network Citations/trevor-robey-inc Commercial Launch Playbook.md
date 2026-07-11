@@ -152,10 +152,17 @@
 > - **Citation grounding gate.** Every identifier cited in an assembled report is
 >   cross-checked at the report level against the union of source records the engine
 >   *actually retrieved at runtime*. A cited id is "grounded" if it was present in fetched
->   evidence, else "ungrounded" (likely model-introduced). The engine **refuses to ship**
->   when the grounded ratio falls below a configured floor (`minGroundedCitationRatio`,
->   default 0.34; error `PHASE30_CITATION_UNVERIFIED`); surviving ungrounded cites are
->   annotated inline `[UNVERIFIED]`. Engages only when there is fetched ground truth.
+>   evidence, else "ungrounded" (likely model-introduced). Per the never-hallucinate doctrine
+>   (operator ruling 2026-07-10) the report-level gate (`verifyReportCitations`) returns a
+>   **multi-state verdict**, not a silent pass: **PASS** (grounded ratio ≥ the floor — the only
+>   shippable state); **UNVERIFIED** (ratio below the floor; `PHASE30_CITATION_UNVERIFIED`);
+>   **INSUFFICIENT_EVIDENCE** (zero runtime evidence was fetched; `PHASE30_CITATION_INSUFFICIENT_EVIDENCE`
+>   — a recorded honest-zero that now **BLOCKS**, closing the doctrine hole where zero-evidence runs
+>   silently auto-passed); and **NO_CITATIONS** (evidence fetched but the report cited nothing;
+>   `PHASE30_CITATION_NONE`). The floor `minGroundedCitationRatio` is now a **required** value in
+>   `config/agent-config.json` = **0.75** (the B-grade floor), read fail-closed (missing/invalid →
+>   strict 0.75 default + a warning) and replacing the old hardcoded 0.34/0.5 defaults. Only **PASS**
+>   ships; surviving ungrounded cites are annotated inline `[UNVERIFIED]`.
 >   The buildPrompt path also carries an ABSOLUTE-RULE "ZERO FABRICATION" clause (never
 >   invent a PMID/NCT/DOI; say "[no verifiable citation found]" instead).
 >   **Honest scope:** citations are **grounded in the source records actually retrieved at

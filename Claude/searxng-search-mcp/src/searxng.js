@@ -204,6 +204,19 @@ async function search(params) {
   if (minCites > 0) {
     deduped = deduped.filter((r) => Array.isArray(r.citations) && r.citations.length >= minCites);
   }
+  // Off-domain-preprint relevance lever: on biomedical (science) queries, demote arXiv-hosted results
+  // BELOW peer-reviewed / on-domain ones before the top-N cut — arXiv is overwhelmingly CS/physics/math
+  // (off-domain for clinical queries). bioRxiv/medRxiv (biomedical preprints) are NOT touched. Stable:
+  // preserves SearXNG's ranking within each group; a pure reorder (does not drop or rescore anything).
+  if (topic === "science") {
+    const isArxiv = (r) =>
+      hostOf(r.url) === "arxiv.org" ||
+      (Array.isArray(r.citations) && r.citations.some((c) => c && c.type === "arxiv"));
+    const arxiv = deduped.filter(isArxiv);
+    if (arxiv.length > 0 && arxiv.length < deduped.length) {
+      deduped = deduped.filter((r) => !isArxiv(r)).concat(arxiv);
+    }
+  }
   let results = deduped.slice(0, limit);
   // fail-soft: returns `results` unchanged if disabled/anomalous. Per-call `rerank` overrides the env default.
   results = await rerank(

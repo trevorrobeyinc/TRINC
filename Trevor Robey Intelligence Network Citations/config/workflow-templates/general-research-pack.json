@@ -2,7 +2,7 @@
   "schema_version": "phase30-workflow-v1",
   "workflow_template_id": "general-research-pack",
   "name": "General Research Pack",
-  "description": "General-purpose research workflow for any topic: mission execution, dataset build, offer packaging, approval, and ZIP export. LLM-only (no ToolUniverse).",
+  "description": "General-purpose research workflow: mission execution, dataset build, offer packaging, approval, and ZIP export. Runs the standard biomedical prefetch + citation-integrity gate; a topic that yields no groundable biomedical evidence is BLOCKED by the gate (INSUFFICIENT_EVIDENCE), not shipped. Not for sale as a general/non-biomedical research product — see Q9/Q26.",
   "auto_approve": true,
   "provider_preference": {
     "primary": "claude-code",

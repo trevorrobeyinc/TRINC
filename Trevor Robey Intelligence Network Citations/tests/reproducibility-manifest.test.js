@@ -35,6 +35,23 @@ test("retracted DOI -> BLOCK", () => {
   assert.ok(m.summary.block_reasons.includes("retracted_doi"));
 });
 
+test("retracted PMID -> BLOCK, and is labeled a PMID (never merged into retracted_dois)", () => {
+  const m = buildReproducibilityManifest({ reresolved: [cit("PMID", "9500320", "VERIFIED")], retraction: { checked: true, retracted_dois: [], retracted_pmids: ["9500320"] }, meta: META });
+  assert.equal(m.summary.delivery_decision, "BLOCK");
+  assert.ok(m.summary.block_reasons.includes("retracted_pmid"));
+  assert.deepEqual(m.summary.retraction_screen.retracted_dois, [], "a retracted PMID is not a retracted DOI");
+  assert.deepEqual(m.summary.retraction_screen.retracted_pmids, ["9500320"]);
+  assert.match(renderManifestMarkdown(m), /retracted DOIs: 0; retracted PMIDs: 1\./);
+});
+
+// An outage must degrade the CLAIM, not silently read as a clean screen, in the sealed manifest.
+test("retraction screen incomplete -> manifest says INCOMPLETE, and still DELIVERs", () => {
+  const m = buildReproducibilityManifest({ reresolved: [cit("PMID", "1", "VERIFIED")], retraction: { checked: false, retracted_dois: [], retracted_pmids: [] }, meta: META });
+  assert.equal(m.summary.retraction_screen.checked, false);
+  assert.equal(m.summary.delivery_decision, "DELIVER", "an unreachable source must never block a passing report");
+  assert.match(renderManifestMarkdown(m), /Retraction screen: INCOMPLETE/);
+});
+
 test("gate hard-fail -> BLOCK", () => {
   const m = buildReproducibilityManifest({ reresolved: [cit("PMID", "1", "VERIFIED")], gate: { hardFail: true, cited: 10, grounded: 2, grounded_ratio: 0.2, min_grounded_ratio: 0.34 }, meta: META });
   assert.equal(m.summary.delivery_decision, "BLOCK");
