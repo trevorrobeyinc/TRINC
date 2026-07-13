@@ -4,7 +4,7 @@
  * SearXNG citation gate — engine-side adapter (spec §1–§3). FAIL-CLOSED ONLY AT ZERO.
  *
  * Consumes the `searxng-search` connector's ALREADY-CITED output (`results[].citations[]` with
- * `source:"url"|"text"`) and adds: grade (A/B/C/D) → dedup + distinct-count → coverage tier →
+ * `source:"url"|"metadata"|"text"`) and adds: grade (A/B/C/D) → dedup + distinct-count → coverage tier →
  * gate decision → one breadth reformulation retry. It does NOT re-extract citations and does NOT
  * require() the connector's grammar — consuming the connector's output keeps a single source of
  * citation truth and sidesteps cross-volume/require drift.
@@ -40,7 +40,7 @@ const GateInput = z.object({
 const Citation = z.object({
   type: z.string(),
   id: z.string(),
-  source: z.enum(["url", "text"]),
+  source: z.enum(["url", "metadata", "text"]),
   subtype: z.string().optional(),
 });
 
@@ -80,7 +80,10 @@ function normalizeAndGrade(raw, config) {
       const out = {
         type: String(c.type),
         id: String(c.id),
-        source: c.source === "url" ? "url" : "text", // provenance is mandatory; default to the weaker claim
+        // Preserve the connector's three provenances (url/metadata = record-identity, text = mention);
+        // any unrecognized value defaults to the weaker "text" claim. Was url-or-else-text, which
+        // silently demoted a scholarly engine's structured-DOI ("metadata") to a snippet mention.
+        source: c.source === "url" || c.source === "metadata" ? c.source : "text",
       };
       if (c.subtype) out.subtype = String(c.subtype);
       return out;

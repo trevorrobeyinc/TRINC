@@ -4,9 +4,10 @@
  * searchFn — the connector-backed search seam injected into the section citation gate.
  *
  * Wraps the `searxng-search` connector's `search()` so the gate consumes the connector's
- * already-cited output (each result carries `citations[].source:"url"|"text"` provenance, which the
- * grade A/B split depends on). The gate must NEVER re-extract via the engine's citation-extractor —
- * only the connector emits per-citation provenance.
+ * already-cited output (each result carries `citations[].source:"url"|"metadata"|"text"` provenance,
+ * which the grade A/B split depends on — url/metadata are record-identity, text is a mention). The
+ * gate must NEVER re-extract via the engine's citation-extractor — only the connector emits
+ * per-citation provenance.
  *
  * The connector is `require`d LAZILY (first call), so:
  *   - a connector problem surfaces as a CAUGHT infra error at call time (→ section marked UNCHECKED,
