@@ -12,9 +12,9 @@ Hi [First Name],
 
 With the 2026-2030 patent super-cliff putting intense pressure on competitive positioning, I noticed [Company Name] is aggressively expanding its pipeline.
 
-Manual literature and registry reviews are simply too slow to map competitor biosimilar strategies effectively. We've built an autonomous engine that generates deterministic "Clinical Trial Landscape" and "Rare Disease Brief" data packs.
+Manual literature and registry reviews are simply too slow to map competitor biosimilar strategies effectively. We've built an autonomous, citation-traced engine that generates "Clinical Trial Landscape" and "Rare Disease Brief" data packs.
 
-We deliver 1.0 confidence, machine-readable market intelligence with massive citation density. Every strategic insight is anchored to a real public identifier (NCT, PubChem) and grounded against the records actually retrieved, sharply reducing the "AI hallucination" risk found in typical aggregator tools.
+We deliver machine-readable market intelligence with high citation density. Every strategic insight is anchored to a real public identifier (NCT, PubChem) and grounded against the records actually retrieved, sharply reducing the "AI hallucination" risk found in typical aggregator tools.
 
 Would you be opposed to a brief review of how our secure data delivery via AWS could accelerate your team's synthesis time for your upcoming quarterly portfolio review?
 
@@ -30,7 +30,7 @@ Trevor Robey | Trevor Robey, INC. — citation-traced biomedical due diligence |
 
 Hi [First Name],
 
-To give you a sense of depth — our clinical trial landscape reports synthesize 180+ verified citations from ClinicalTrials.gov, PubMed, and WHO ICTRP into a single structured output. Your team gets executive-ready insights where every claim traces to its source.
+To give you a sense of depth — our clinical trial landscape reports synthesize citations grounded in retrieved evidence (count varies by topic) from ClinicalTrials.gov, PubMed, and WHO ICTRP into a single structured output. Your team gets executive-ready insights where every claim traces to its source.
 
 Happy to share a sample report outline if useful.
 

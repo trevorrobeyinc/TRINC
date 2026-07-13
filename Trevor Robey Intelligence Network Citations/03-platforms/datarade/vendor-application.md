@@ -40,15 +40,15 @@ Select all that apply on the Datarade form:
 
 Six pack templates, each delivered as PDF + structured Parquet/CSV appendix with full citation manifest:
 
-1. **Drug Discovery Intelligence Pack** — compound profiling, ADMET properties, target-compound mapping, molecular interaction networks, competitive landscape. ~200+ verified citations per report. Sources: PubChem, ChEMBL, RxNorm, OpenFDA, UniProt.
+1. **Drug Discovery Intelligence Pack** — compound profiling, ADMET properties, target-compound mapping, molecular interaction networks, competitive landscape. citations per report (count varies by topic; each grounded in retrieved evidence). Sources: PubChem, ChEMBL, RxNorm, OpenFDA, UniProt.
 
-2. **Pharmacovigilance Safety Report** — adverse event signal detection, AEMS (formerly FAERS, daily updates since Aug 2025) disproportionality analysis (ROR, PRR), drug interaction profiling, clinical action recommendations. ~135+ verified citations per report. Sources: OpenFDA AEMS, DailyMed, RxNorm, PubMed, EudraVigilance public reports.
+2. **Pharmacovigilance Safety Report** — adverse event signal detection, AEMS (formerly FAERS, daily updates since Aug 2025) disproportionality analysis (ROR, PRR), drug interaction profiling, clinical action recommendations. citations per report (count varies by topic; each grounded in retrieved evidence). Sources: OpenFDA AEMS, DailyMed, RxNorm, PubMed, EudraVigilance public reports.
 
-3. **Clinical Trial Landscape Analysis** — global trial registry mapping, competitive pipeline, phase transition probability, endpoint benchmarking. ~180+ verified citations per report. Sources: ClinicalTrials.gov (NCT IDs), PubMed, WHO ICTRP.
+3. **Clinical Trial Landscape Analysis** — global trial registry mapping, competitive pipeline, phase transition probability, endpoint benchmarking. citations per report (count varies by topic; each grounded in retrieved evidence). Sources: ClinicalTrials.gov (NCT IDs), PubMed, WHO ICTRP.
 
-4. **Target Validation Intelligence Pack** — target-disease association evidence scoring, pathway analysis, PPI network mapping, validation matrix. ~289+ verified citations per report. Sources: OpenTargets, UniProt, HPA, PubMed, ChEMBL, RxNorm.
+4. **Target Validation Intelligence Pack** — target-disease association evidence scoring, pathway analysis, PPI network mapping, validation matrix. citations per report (count varies by topic; each grounded in retrieved evidence). Sources: OpenTargets, UniProt, HPA, PubMed, ChEMBL, RxNorm.
 
-5. **Rare Disease Research Brief** — orphan drug mapping, genetic disease profiling, rare disease intelligence. ~150+ verified citations per report. Sources: GARD, Orphanet, PubMed, ClinicalTrials.gov.
+5. **Rare Disease Research Brief** — orphan drug mapping, genetic disease profiling, rare disease intelligence. citations per report (count varies by topic; each grounded in retrieved evidence). Sources: GARD, Orphanet, PubMed, ClinicalTrials.gov.
 
 6. **General Research Pack** — custom-topic research synthesis on any biomedical question. Sources: full public-domain stack from packs 1–5.
 

@@ -42,8 +42,8 @@ Multi-omics target validation intelligence mapping target-disease associations w
 
 ## Provenance & Trust
 
-- 1.0 Quality Confidence Score — every target association backed by auditable PMID/CID arrays
-- Deterministic extraction eliminates hallucination risk entirely
+- Citation-integrity gated — every cited target association is grounded in retrieved evidence (auditable PMID/CID); ungrounded citations are flagged `[UNVERIFIED]`, not asserted
+- Citation-grounding checks catch model-introduced identifiers — ungrounded citations are flagged `[UNVERIFIED]`, not asserted
 - Phase 28 cryptographic evidence ledger for compliance auditing
 
 ---

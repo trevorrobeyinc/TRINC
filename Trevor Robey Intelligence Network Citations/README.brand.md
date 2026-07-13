@@ -17,7 +17,7 @@ This directory is the canonical home for everything the [`trevor-robey-inc Comme
 | [`trevor-robey-inc Commercial Launch Playbook.md`](./trevor-robey-inc%20Commercial%20Launch%20Playbook.md) | (root file) | The 30-day source of truth. Moved here from `~/Downloads`. Renamed from "OpenClaw Commercial Launch Playbook.md" on 2026-04-30. |
 | `00-business-formation/` | §5 items 7–10 | LLC, banking, insurance, tax, compliance (OFAC, HIPAA, GDPR, conflicts log). |
 | `01-brand-system/` | (Trevor Robey, INC. brand wordmark) | TR monogram logo, IBM Plex typography, color tokens, landing-page HTML, marketplace listing visuals. |
-| `02-product-packs/` | §3 + §7.4 + §4 Week 2 / Week 4 | Six pack templates (Pharmacovigilance, Drug Discovery, Target Validation, Market Overview, Full Market, Enterprise Deep Dive, Custom). |
+| _(product-pack collateral)_ | §3 + §7.4 | Product one-pagers, teasers, catalog, and samples live in `workspace/collateral/`. The duplicate `02-product-packs/` tree (un-rebranded, carrying stale overclaims) was removed 2026-07-13. |
 | `03-platforms/` | §2 + §7.7 | Datarade, AWS Data Exchange, HuggingFace gated dataset, Kaggle SEO breadcrumb, rejected channels (Outlier/Mindrift), tier-1 aggregators, tier-2 cloud-native, tier-3 creator-centric, tier-4 Web3. |
 | `04-pricing-benchmarks/` | §3 | trevor-robey-inc pricing ladder ($9,950 / $14,950 / $19,950 anchors + tactical SKUs) + five competitor benchmarks (GlobalData, DealForma, Citeline, Cortellis, Definitive Healthcare). |
 | `05-launch-plan/` | §4 | Week-by-week, day-by-day execution plan from Mon Apr 27 to Fri May 22, plus contractor budget. |
@@ -41,11 +41,8 @@ This directory is the canonical home for everything the [`trevor-robey-inc Comme
 - `01-brand-system/personal-brand.md` — Trevor's personal/founder brand ("Truth Seeker, Receipt Keeper. — Real data beats sweet hallucination. You decide."), **distinct from the company tagline**; founder-voice surfaces only
 - `01-brand-system/landing-page/index.html` — production HTML for trevorobeyinc.com (inline SVG TR monogram lives here; this is the canonical "graphic file")
 - `01-brand-system/landing-page/assets/openclaw-pharmacovigilance-teaser.html` — rendered teaser HTML (open in Safari → Cmd+P → Save as PDF)
-- `02-product-packs/product-catalog.md`
-- `02-product-packs/pharmacovigilance/samples/*.md` — 2-page teaser + sample deliverable
-- `02-product-packs/pharmacovigilance/pharmacovigilance-report-onepager.md`
-- `02-product-packs/target-validation/target-validation-onepager.md` + `target-validation-matrix.md`
-- `02-product-packs/enterprise-deep-dive/enterprise-data-teaser.md`
+- `workspace/collateral/catalog/product-catalog.md` — product catalog (the `02-product-packs/` duplicate was removed 2026-07-13; this is the canonical copy)
+- `workspace/collateral/one-pagers/*.md`, `workspace/collateral/teasers/*.md` — one-pagers + teasers
 - `03-platforms/datarade/vendor-application.md` — paste-ready Datarade application (Tue Apr 28 submission)
 - `03-platforms/{datarade,aws-data-exchange,huggingface,kaggle-seo-breadcrumb}/*setup*.md` — platform-specific setup guides
 - `07-outbound/cold-email-templates/email-{ci-director,quant-analyst,target-discovery,academic-researcher}.md`

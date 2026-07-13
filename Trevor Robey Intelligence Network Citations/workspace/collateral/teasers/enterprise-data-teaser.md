@@ -1,6 +1,6 @@
 # TREVOR ROBEY INC AGENTS: ENTERPRISE BIOMEDICAL DATA ASSETS
 
-**Cryptographically Verified. Deterministically Synthesized. SEC & FDA Compliant.**
+**Cryptographically sealed. Citation-grounded. Retraction-screened.**
 
 ## Executive Overview
 
@@ -22,7 +22,7 @@ In an era defined by the 2026-2030 pharmaceutical patent super-cliff and the pro
 
 ## The Trevor Robey Inc Agents Infrastructure Advantage
 
-- **Zero Hallucination Tolerance:** Our autonomous engine enforces a strict 1.0 Quality Confidence Score. Every data point is deterministically mapped and features massive citation density (PubChem, NCT, PMID). If a claim cannot be directly cited to a verified source, it is excluded from the dataset.
+- **Citation-integrity gate:** the engine cross-checks every cited identifier against the evidence retrieved at runtime (PubChem, NCT, PMID, DOI, and more). A report whose grounded-citation ratio falls below threshold refuses to ship, and any surviving ungrounded citation is flagged `[UNVERIFIED]` rather than asserted.
 - **Phase 28 Direct-Delivery Ledger:** Designed for rigorous regulatory compliance. All data deliveries are accompanied by a cryptographically hashed, immutable evidence ledger, guaranteeing pristine data provenance and mitigating Material Non-Public Information (MNPI) audit risk for institutional buyers.
 - **Frictionless Ingestion:** Native delivery via Snowflake Secure Data Sharing, AWS Data Exchange, and Google Cloud BigQuery Analytics Hub, requiring zero manual ETL overhead.
 

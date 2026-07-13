@@ -208,11 +208,11 @@ Screen share the sample deliverable:
 
 **"We already use GlobalData / Evaluate / Citeline."**
 
-> "Those are excellent platforms for broad coverage. Where we complement them is depth on specific research questions — when you need 200+ citations synthesized into a structured output on a single topic in 48 hours, not a dashboard you browse. Think of us as the special ops team your CI platform calls when it needs deep intelligence on a specific compound or safety signal."
+> "Those are excellent platforms for broad coverage. Where we complement them is depth on specific research questions — when you need citations (count varies by topic) synthesized into a structured output on a single topic in 48 hours, not a dashboard you browse. Think of us as the special ops team your CI platform calls when it needs deep intelligence on a specific compound or safety signal."
 
 **"How is this different from ChatGPT / Perplexity?"**
 
-> "General-purpose LLMs hallucinate citations at a rate of 30-70%. Every dossier we deliver passes automated citation verification as a build-time gate — if an identifier doesn't resolve in its source database, it's excluded. Our outputs carry 200+ verified citations with a cryptographic provenance chain and a refund-backed citation-audit SLA. We deliver structured due-diligence dossiers, not chat responses."
+> "General-purpose LLMs hallucinate citations at a rate of 30-70%. Every dossier we deliver passes automated citation verification as a build-time gate — if a cited identifier can not be grounded in the retrieved evidence, it is flagged [UNVERIFIED] rather than asserted. Our outputs carry citations grounded in retrieved evidence (count varies by topic) with a cryptographic provenance chain and a refund-backed citation-audit SLA. We deliver structured due-diligence dossiers, not chat responses."
 
 **"The price is high for data."**
 
@@ -224,7 +224,7 @@ Screen share the sample deliverable:
 
 ### Close (2 minutes)
 
-> "Based on what you've described, I think the best next step is a focused pilot mission on [topic they mentioned]. We'll produce a full deliverable — 40+ pages, 200+ verified citations, structured data in whatever format your team needs. You verify the citations, evaluate the quality, and we go from there. Can we get that started this week?"
+> "Based on what you've described, I think the best next step is a focused pilot mission on [topic they mentioned]. We'll produce a full deliverable — 40+ pages, citations grounded in retrieved evidence (count varies by topic), structured data in whatever format your team needs. You verify the citations, evaluate the quality, and we go from there. Can we get that started this week?"
 
 ---
 

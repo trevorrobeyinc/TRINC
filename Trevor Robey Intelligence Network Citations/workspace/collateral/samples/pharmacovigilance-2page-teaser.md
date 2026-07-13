@@ -62,7 +62,7 @@ Check any identifier above in its source database. It resolves.
 
 | Engagement | Price | Delivery |
 |-----------|-------|----------|
-| Research Intelligence Pack (Standard) | $2,500 - $4,950 per report | Single-topic report, 200+ citations, 72-hour secure email delivery |
+| Research Intelligence Pack (Standard) | $2,500 - $4,950 per report | Single-topic report, citations (count varies by topic), 72-hour secure email delivery |
 | Premium Intelligence Pack | $4,950 - $14,950 per report | Standard + appendix, methodology statement, schema definition, enhanced QA, longer SLA |
 | Custom Intelligence Mission | $15,000 - $35,000 per project | Bespoke build with private delivery (Snowflake / AWS / BigQuery / secure transfer) + provenance package |
 | Enterprise Subscription | $60,000 - $120,000+ ARR | Recurring delivery, native cloud integration, usage metering, SLA |

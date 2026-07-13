@@ -53,7 +53,7 @@ This report is produced through a deterministic multi-agent research pipeline wh
 - Append-only evidence ledger with SHA-256 chain-hashed integrity verification
 - Automated quality auditing with cross-reference validation before release
 
-> *This is a redacted sample. Full deliverables include 48+ pages of analysis with 200+ verified citations. Contact: trevor@trevorobeyinc.com*
+> *This is a redacted sample. Full deliverables include 48+ pages of analysis with citations grounded in retrieved evidence (count varies by topic). Contact: trevor@trevorobeyinc.com*
 
 ---
 
@@ -82,7 +82,7 @@ This report consolidates pharmacovigilance signals across two compound cohorts -
 | 5 (Moderate) | Pembrolizumab pneumonitis | 1547545 | PRR 6.4 (95% CI: 4.8-8.5) | DailyMed SPL verification |
 | [+2 additional signals in full report] | | | | |
 
-> *This is a redacted sample. Full deliverables include 48+ pages of analysis with 200+ verified citations. Contact: trevor@trevorobeyinc.com*
+> *This is a redacted sample. Full deliverables include 48+ pages of analysis with citations grounded in retrieved evidence (count varies by topic). Contact: trevor@trevorobeyinc.com*
 
 ---
 
@@ -122,7 +122,7 @@ This report consolidates pharmacovigilance signals across two compound cohorts -
 
 [Full report includes 4 additional detailed signal analyses: VPA myelosuppression, disulfiram CYP2E1, chloroquine QTc, pembrolizumab pneumonitis, metformin lactic acidosis, and mebendazole hepatotoxicity]
 
-> *This is a redacted sample. Full deliverables include 48+ pages of analysis with 200+ verified citations. Contact: trevor@trevorobeyinc.com*
+> *This is a redacted sample. Full deliverables include 48+ pages of analysis with citations grounded in retrieved evidence (count varies by topic). Contact: trevor@trevorobeyinc.com*
 
 ---
 
@@ -144,7 +144,7 @@ This report consolidates pharmacovigilance signals across two compound cohorts -
 
 Every identifier in this report is independently verifiable in its source database. For example: PMID: 30232222 resolves to the ICI-associated myocarditis systematic review in the Journal of the American College of Cardiology (2018).
 
-> *This is a redacted sample. Full deliverables include 48+ pages of analysis with 200+ verified citations. Contact: trevor@trevorobeyinc.com*
+> *This is a redacted sample. Full deliverables include 48+ pages of analysis with citations grounded in retrieved evidence (count varies by topic). Contact: trevor@trevorobeyinc.com*
 
 ---
 
@@ -169,7 +169,7 @@ Every identifier in this report is independently verifiable in its source databa
 
 Full deliverable contains 42 citation rows across 7 identifier types with source task attribution and context snippets.
 
-> *This is a redacted sample. Full deliverables include 48+ pages of analysis with 200+ verified citations. Contact: trevor@trevorobeyinc.com*
+> *This is a redacted sample. Full deliverables include 48+ pages of analysis with citations grounded in retrieved evidence (count varies by topic). Contact: trevor@trevorobeyinc.com*
 
 ---
 
@@ -211,7 +211,7 @@ Dynamic data masking enforced on EVIDENCE_SCORE and PRIMARY_PMID_ARRAY for non-e
 | Structured JSON API | POST /api/v1/research | Enterprise Subscription |
 | JSONL export | Webhook delivery | Enterprise Subscription |
 
-> *This is a redacted sample. Full deliverables include 48+ pages of analysis with 200+ verified citations. Contact: trevor@trevorobeyinc.com*
+> *This is a redacted sample. Full deliverables include 48+ pages of analysis with citations grounded in retrieved evidence (count varies by topic). Contact: trevor@trevorobeyinc.com*
 
 ---
 
@@ -224,7 +224,7 @@ Dynamic data masking enforced on EVIDENCE_SCORE and PRIMARY_PMID_ARRAY for non-e
 Single-topic research report with full citation backing:
 
 - Single-topic research report (48+ pages)
-- 200+ verified citations across all identifier types
+- citations grounded in retrieved evidence (count varies by topic) across all identifier types
 - Citation index CSV with full provenance
 - Methodology statement
 - 72-hour delivery via secure email

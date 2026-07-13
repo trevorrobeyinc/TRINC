@@ -12,7 +12,7 @@ Hi [First Name],
 
 The high clinical attrition rate in Phase II/III usually traces back to incomplete pre-clinical target validation. Furthermore, attempting to accelerate discovery using standard LLMs has proven dangerous due to fabricated biological pathways and hallucinated citations.
 
-At trevor-robey-inc, we deliver Investor Pre-Mortems and target-validation dossiers that sharply reduce this risk. Our deterministic engine (powered by OpenClaw) synthesizes multi-omics and genetic targeting data with a 1.0 Quality Confidence Score.
+At trevor-robey-inc, we deliver Investor Pre-Mortems and target-validation dossiers that sharply reduce this risk. Our citation-traced engine (powered by OpenClaw) synthesizes multi-omics and genetic targeting data behind a citation-integrity gate that blocks ungrounded citations below threshold.
 
 We do not generate "AI content." We provide structured, cryptographic data packages where every single target association is backed by an auditable array of primary literature (PMID).
 
@@ -30,7 +30,7 @@ Trevor Robey | Trevor Robey, INC. — citation-traced biomedical due diligence |
 
 Hi [First Name],
 
-Quick context — our target validation dossiers contain 289+ verified citations from OpenTargets, UniProt, HPA, ChEMBL, and RxNorm. Every target-disease association includes an evidence score computed from citation density, study quality weighting, and replication count.
+Quick context — our target validation dossiers contain citations grounded in retrieved evidence (count varies by topic) from OpenTargets, UniProt, HPA, ChEMBL, and RxNorm. Every target-disease association includes an evidence score computed from citation density, study quality weighting, and replication count.
 
 Happy to share the full data dictionary (column definitions, masking policies, integration notes) so your bioinformatics team can evaluate fit.
 

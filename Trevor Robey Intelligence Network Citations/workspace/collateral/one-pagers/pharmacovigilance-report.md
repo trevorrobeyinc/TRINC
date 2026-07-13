@@ -42,7 +42,7 @@ Comprehensive pharmacovigilance intelligence synthesized from global adverse eve
 
 ## Provenance & Trust
 
-- Zero hallucination architecture — claims without citations are excluded
+- Citation-integrity architecture — every cited identifier is grounded against retrieved evidence; ungrounded citations are flagged `[UNVERIFIED]` and a report below the grounded-citation threshold refuses to ship
 - Append-only evidence ledger with chain-hashed integrity verification
 - Every citation includes a verifiable identifier (PMID, NCT, CID, DOI)
 

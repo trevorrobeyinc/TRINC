@@ -1,6 +1,6 @@
 # Trevor Robey Inc Agents — Biomedical Intelligence Product Catalog
 
-**Cryptographically Verified. Deterministically Synthesized. Zero Hallucination.**
+**Only the truth. Findings are never fabricated to fit the research — every citation is grounded in real retrieved evidence, or flagged and never presented as fact. A report that can't trace its citations to evidence does not ship.**
 
 ---
 
@@ -10,7 +10,7 @@
 
 Comprehensive compound intelligence synthesizing pharmacological profiles, mechanism-of-action analysis, drug interaction networks, and repurposing opportunities.
 
-- **Citation Density**: 200+ verified references per report
+- **Citation Density**: cited references grounded in retrieved evidence (count varies by topic)
 - **Data Sources**: PubMed, PubChem, ChEMBL, RxNorm, UniProt
 - **Platforms**: Datarade, Snowflake, AWS Data Exchange
 - **Pricing**: $2,500 (standard) | $4,950 (premium) | Enterprise subscription available
@@ -21,7 +21,7 @@ Comprehensive compound intelligence synthesizing pharmacological profiles, mecha
 
 Global adverse event signal detection parsed from regulatory registries and peer-reviewed safety literature.
 
-- **Citation Density**: 135+ verified references per report
+- **Citation Density**: cited references grounded in retrieved evidence (count varies by topic)
 - **Data Sources**: AEMS (formerly AEMS, migrated to daily real-time updates Mar 11, 2026), DailyMed, EudraVigilance, PubMed
 - **Platforms**: Datarade, AWS Data Exchange
 - **Pricing**: $2,500 (standard) | $4,950 (premium) | Enterprise subscription available
@@ -32,7 +32,7 @@ Global adverse event signal detection parsed from regulatory registries and peer
 
 Systematic mapping of global clinical trial registries with competitive pipeline intelligence and phase transition probability modeling.
 
-- **Citation Density**: 180+ verified references per report
+- **Citation Density**: cited references grounded in retrieved evidence (count varies by topic)
 - **Data Sources**: ClinicalTrials.gov (NCT), PubMed, WHO ICTRP
 - **Platforms**: Datarade, AWS Data Exchange, Google Cloud BigQuery
 - **Pricing**: $2,500 (standard) | $4,950 (premium) | Enterprise subscription available
@@ -43,7 +43,7 @@ Systematic mapping of global clinical trial registries with competitive pipeline
 
 Multi-omics target-disease association mapping with deterministic genetic evidence scoring and molecular pathway analysis.
 
-- **Citation Density**: 289+ verified references per report
+- **Citation Density**: cited references grounded in retrieved evidence (count varies by topic)
 - **Data Sources**: OpenTargets, UniProt, HPA, PubMed, ChEMBL, RxNorm
 - **Platforms**: Datarade, Snowflake, AWS Data Exchange
 - **Pricing**: $2,500 (standard) | $4,950 (premium) | Enterprise subscription available
@@ -54,7 +54,7 @@ Multi-omics target-disease association mapping with deterministic genetic eviden
 
 Focused intelligence on orphan drug pipelines, rare disease patient registries, and therapeutic development landscapes for underserved indications.
 
-- **Citation Density**: 150+ verified references per report
+- **Citation Density**: cited references grounded in retrieved evidence (count varies by topic)
 - **Data Sources**: GARD, Orphanet, PubMed, ClinicalTrials.gov
 - **Platforms**: Datarade
 - **Pricing**: $2,500 (standard) | $4,950 (premium)
@@ -63,7 +63,7 @@ Focused intelligence on orphan drug pipelines, rare disease patient registries, 
 
 ### 6. General Research Pack (`general-research-pack`)
 
-Customizable research synthesis on any biomedical or life sciences topic with the same citation-dense, zero-hallucination methodology.
+Customizable research synthesis on any biomedical or life sciences topic with the same citation-integrity-gated methodology — every citation grounded in retrieved evidence or flagged, never fabricated.
 
 - **Citation Density**: Varies by topic
 - **Data Sources**: PubMed, PubChem, ClinicalTrials.gov, and topic-specific databases
@@ -91,10 +91,10 @@ Customizable research synthesis on any biomedical or life sciences topic with th
 
 ## Why Trevor Robey Inc Agents
 
-- **Zero Hallucination**: 1.0 Quality Confidence Score — every claim citation-backed
-- **Cryptographic Provenance**: Phase 28 evidence ledger for SEC/FDA compliance
-- **Frictionless Ingestion**: Native delivery via Snowflake, AWS, BigQuery — zero ETL
-- **Deterministic Methodology**: Multi-agent pipeline with automated quality auditing
+- **Citation-integrity gate**: every cited identifier is cross-checked against the evidence retrieved at runtime; a report whose grounded-citation ratio falls below threshold refuses to ship, and any surviving ungrounded citation is flagged `[UNVERIFIED]` rather than asserted
+- **Cryptographic provenance**: a chain-hashed evidence ledger — an auditable trail from input to deliverable
+- **Frictionless ingestion**: delivered as a self-contained bundle (ZIP; AWS Data Exchange where listed)
+- **Audited methodology**: multi-agent pipeline with automated citation-integrity + quality auditing
 
 ---
 

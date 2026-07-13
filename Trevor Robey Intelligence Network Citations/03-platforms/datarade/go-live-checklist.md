@@ -15,22 +15,11 @@
 | ✅ | Pre-call talking points written | 2026-05-11 | `~/Downloads/datarade-onboarding-talking-points-2026-05-11.md` |
 | ✅ | **Form SUBMITTED** | 2026-05-11 | Confirmed by Trevor 2026-05-11 |
 | ✅ | **Brand defect: contact email typo `trevor@trevorrobey.com` → canon `trevor@trevorobeyinc.com` swept across 28 files (52 instances)** | 2026-05-11 | `sed -i ''` global replace; verified zero remaining instances |
-| ✅ | **Gumroad PV teaser PDF regenerated** (canon email now in rendered artifact) | 2026-05-11 | [`../../03-platforms/gumroad/products/pv-ici-teaser/trevor-robey-inc-pharmacovigilance-teaser.pdf`](../gumroad/products/pv-ici-teaser/trevor-robey-inc-pharmacovigilance-teaser.pdf) (146 KB, regen'd from corrected `teaser-source.md`) |
 | ✅ | **Meeting time reconciled to 10:30 AM** (master playbook §2 row 1 was 8:30 AM — corrected) | 2026-05-11 | Confirmed by Trevor 2026-05-11 |
 
 ## Open gates (in priority order)
 
-### #1 — Stale OpenClaw-era branding in PV teaser PDF 🟡 MEDIUM
-
-`trevor-robey-inc-pharmacovigilance-teaser.pdf` titles itself *"OpenClaw Pharmacovigilance Intelligence – Sample Output"* — pre-rebrand language brand-guardian explicitly polices. Email is now correct (regenerated 2026-05-11) but the title was deliberately not rewritten in the same pass. To fix: update line 1 of [`teaser-source.md`](../gumroad/products/pv-ici-teaser/teaser-source.md) to a brand-current title (e.g. *"Pharmacovigilance Intelligence — ICI Sample Output"*) and re-run the pandoc + Chrome-headless render pipeline.
-
-**Sibling file**: `OpenClaw-Pharmacovigilance-Teaser.pdf` next to it is the older artifact (same content, stale brand wordmark in filename); recommend deletion or archiving once the regen above lands.
-
-### #2 — Republish to Gumroad if the corrected PDF needs to live on the public storefront 🟡 MEDIUM
-
-The PDF in this repo is now canon-correct. If Gumroad has a published listing with the old PDF, Trevor needs to upload the regenerated file into the Gumroad product page. (Per master playbook §2 row 4, Gumroad is currently SIGNED UP, PARKED — so no public listing is exposing the old PDF right now. Re-check before the operator un-parks Gumroad.)
-
-### #3 — Storefront copy + product listings (post-approval) 🟢 BLOCKED BY MAY 20 CALL
+### #1 — Storefront copy + product listings (post-approval) 🟢 BLOCKED BY MAY 20 CALL
 
 | Item | Pointer |
 |---|---|

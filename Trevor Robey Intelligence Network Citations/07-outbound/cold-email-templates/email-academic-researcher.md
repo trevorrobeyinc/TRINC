@@ -6,11 +6,11 @@
 
 ## Email 1
 
-**Subject:** Your systematic review in 72 hours / 200+ verified citations
+**Subject:** Your systematic review in 72 hours / citations grounded in retrieved evidence (count varies by topic)
 
 Hi [First Name],
 
-A typical systematic review takes 3-6 months. Our autonomous research engine produces the same output in 72 hours with 200+ verified citations.
+A typical systematic review takes 3-6 months. Our autonomous research engine produces the same output in 72 hours with citations grounded in retrieved evidence (count varies by topic).
 
 I run Trevor Robey, INC. (Intelligence Network Citations) -- citation-traced biomedical due diligence (powered by the open-source OpenClaw agent framework). Every claim maps to a real PMID, NCT, or RxNorm identifier, grounded against the evidence actually retrieved; refund-backed citation-audit SLA. Ungrounded citations are flagged, not hidden.
 
@@ -30,7 +30,7 @@ Trevor Robey | Trevor Robey, INC. — citation-traced biomedical due diligence |
 
 Hi [First Name],
 
-Quick follow-up -- our pharmacovigilance reports synthesize 135+ verified citations from OpenFDA AEMS (formerly AEMS, migrated to daily real-time updates Mar 11, 2026), DailyMed, and PubMed into a single structured output. The citation index CSV maps every claim to its source for independent verification.
+Quick follow-up -- our pharmacovigilance reports synthesize citations grounded in retrieved evidence (count varies by topic) from OpenFDA AEMS (formerly AEMS, migrated to daily real-time updates Mar 11, 2026), DailyMed, and PubMed into a single structured output. The citation index CSV maps every claim to its source for independent verification.
 
 For context, our recent ICI adverse events report contained citations across 7 identifier types (PMID, NCT, RxNorm, PubChem CID, UniProt, ChEMBL, DOI). Every one is a real public identifier you can look up.
 

@@ -6,7 +6,7 @@
 
 ### Persona 1: CI Director
 
-> Hi [First Name] — I build citation-backed pharma intelligence (pharmacovigilance, pipeline analysis) with 200+ verified citations per report. Every PMID and NCT resolves. Given your CI role at [Company], thought you'd want to evaluate the output.
+> Hi [First Name] — I build citation-backed pharma intelligence (pharmacovigilance, pipeline analysis) with citations per report (count varies by topic; each grounded in retrieved evidence). Every PMID and NCT resolves. Given your CI role at [Company], thought you'd want to evaluate the output.
 
 ### Persona 2: Quantitative Analyst / Alt Data
 
@@ -14,7 +14,7 @@
 
 ### Persona 3: Target Discovery Scientist
 
-> Hi [First Name] — I engineer target validation data packs with 289+ verified citations from OpenTargets, UniProt, ChEMBL, and RxNorm. Every target-disease association traces to a primary PMID. Worth a look if you're evaluating external validation data.
+> Hi [First Name] — I engineer target validation data packs with citations grounded in retrieved evidence (count varies by topic) from OpenTargets, UniProt, ChEMBL, and RxNorm. Every target-disease association traces to a primary PMID. Worth a look if you're evaluating external validation data.
 
 ### Persona 4: Academic Researcher / Boutique Consultancy
 
@@ -46,7 +46,7 @@
 
 ### Persona 3: Target Discovery Scientist
 
-> Thanks for connecting, [First Name]. To give you a concrete sense of our output — our target validation dossiers contain 289+ citations from OpenTargets, UniProt, HPA, ChEMBL, and RxNorm. Every target-disease association includes a deterministic evidence score computed from citation density, study quality, and replication count.
+> Thanks for connecting, [First Name]. To give you a concrete sense of our output — our target validation dossiers contain citations (count varies by topic) from OpenTargets, UniProt, HPA, ChEMBL, and RxNorm. Every target-disease association includes a deterministic evidence score computed from citation density, study quality, and replication count.
 >
 > The goal is to reduce pre-clinical attrition risk by providing structured, auditable validation data where every association traces to its primary literature.
 >
@@ -56,7 +56,7 @@
 
 ### Persona 4: Academic Researcher / Boutique Consultancy
 
-> Thanks for connecting, [First Name]. Quick context -- we deliver citation-traced asset-risk dossiers from $9,950 (Investor Pre-Mortem), $14,950 (Failed Trial Archaeology), and tactical SKUs from $2,500 (Plain-Language Patient Brief) to $4,950 (Conference Synthesis Brief, Trial Design Benchmark Pack). Each output is 48+ pages with 200+ verified citations, a citation index CSV, and a methodology statement.
+> Thanks for connecting, [First Name]. Quick context -- we deliver citation-traced asset-risk dossiers from $9,950 (Investor Pre-Mortem), $14,950 (Failed Trial Archaeology), and tactical SKUs from $2,500 (Plain-Language Patient Brief) to $4,950 (Conference Synthesis Brief, Trial Design Benchmark Pack). Each output is 48+ pages with citations grounded in retrieved evidence (count varies by topic), a citation index CSV, and a methodology statement.
 >
 > Your team would get a complete single-topic synthesis in 72 hours instead of months of manual literature review. Every identifier (PMID, NCT, RxNorm) resolves in its source database.
 >

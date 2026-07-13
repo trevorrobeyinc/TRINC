@@ -15,7 +15,6 @@
 > | 1 | **Datarade** | 🔴 REJECTED 2026-05-20 — the onboarding/sales call (2026-05-20 10:30 AM, Google Meet) ended in a **decline; reason given: the business is not yet established** (too new / no operating track record). The intake form had been ✅ SUBMITTED 2026-05-11 (brand-current Sample Pack PDF + Data Dictionary, HubSpot CDN UUID `f2e8abb3-7742-4ffe-aa8e-00e5f0f0d1dc`) and cleared intake fine — the block is vendor establishment, not the product. The `app.monda.ai` vendor portal stays gated behind that bar. | **Re-apply once "established":** target CA SOS LLC approval + a handful of closed direct-sale engagements (dated revenue / testimonials) as track-record proof, then resubmit — no product/collateral rework needed. Interim: run paid commerce off-platform via direct sale; keep marketplace presence through the two free listings (HuggingFace row 3, Snowflake row 5). |
 > | 2 | **AWS Marketplace + AWS Data Exchange** | 🟡 AWAITING REPLY (follow-up #3 sent 2026-05-23) — initially REJECTED 2026-05-03 ("proposed solution does not currently meet these criteria"; likely cause: no AWS-native angle in seller profile + Software-products classification mismatch for a data-product business). **AWS then reached back out to assist toward approval.** Operator sent **2 emails to the AWS management team** (~2026-05-09 and ~2026-05-11); **no reply since — ~2 weeks of silence as of 2026-05-23**. **Follow-up #3 drafted 2026-05-23** (to be sent from `trevor@trevorobeyinc.com`, re-stating readiness and asking for the specific next step); draft + full thread now logged at [`03-platforms/aws-data-exchange/correspondence-2026-05.md`](03-platforms/aws-data-exchange/correspondence-2026-05.md). Listing artifacts (DSA, dataset CSVs, listing copy, MANIFEST) remain staged in [`trevor-robey-inc-agents/workspace/aws-marketplace-listing/pharmacovigilance-sample-pack/`](workspace/aws-marketplace-listing/pharmacovigilance-sample-pack/) and need no rework when approval lands. **Account access is now established** (2026-05-26): account `833390816446` via IAM Identity Center SSO + YubiKey FIDO2, ReadOnly for the AI / Admin for the operator — [`account-access.md`](03-platforms/aws-data-exchange/account-access.md). | Send the 2026-05-23 follow-up, then allow ~5–7 business days. If still silent by ~2026-06-02, escalate via the AWS Marketplace Seller Operations "Contact Us" case form (subcategory "Onboarding Request"). On any reply that triggers a wizard step, follow the 8-step upload sequence in [`MANIFEST.md`](workspace/aws-marketplace-listing/pharmacovigilance-sample-pack/MANIFEST.md). Paste all 3 email texts into the correspondence file as they go out / arrive. |
 > | 3 | **HuggingFace gated dataset** | 🟢 UNBLOCKED — no review gate, instant signup. Top-of-funnel only (no native commerce layer). | Push live this week per Section 2 #3. Lead capture, not direct revenue. |
-> | **4** | **Gumroad** | 🟡 SIGNED UP, PARKED — operator decided 2026-05-04 to defer Gumroad until brand has more establishment. Gumroad has zero built-in audience — requires self-driven traffic, which is the bottleneck for a brand-new business. Account remains open for tactical micro-commitment teasers when outbound starts converting. | Park; revisit when trevorobeyinc.com landing page + outbound is generating consistent traffic. |
 > | **5** | **Snowflake Marketplace** ⭐ NEW — added 2026-05-04 | 🟢 PARTIALLY UNBLOCKED — free-listing path is ~1 business day approval. Paid-listing monetization requires a Partner Manager vetting call (Datarade-shape gate). | **NEXT ACTION** — publish a FREE citation-index listing within 1 business day to get inside the marketplace where Section 1 target accounts (AstraZeneca, GSK, AbbVie, biotech investor data teams) actively shop. Route paid conversion off-platform via direct sale until the operator is ready for the paid-listing vetting call. |
 >
 > **Trade-off named explicitly:** No channel exists that has BOTH (a) Datarade-grade buyer audience AND (b) zero gate AND (c) on-platform paid commerce. Snowflake free-listing is the best feasible point on that curve — gets the operator inside the audience surface within ~1 day, while paid commerce continues via direct sale (the Demand-Validation Report's primary motion anyway).
@@ -287,30 +286,6 @@ HF Hub does not have a native paid-dataset commerce layer. There is no Stripe ch
 - **Time-to-first-listing:** **<1 day** (free signup → upload → gate).
 - **Time-to-first-revenue:** **Indeterminate** — depends entirely on outbound conversion of access-requesters. **No published solo-operator HF gated-dataset revenue case study was located.**
 
-### #4 Gumroad — fastest paid-channel onboarding while Datarade is in review (added 2026-05-04)
-
-Gumroad was previously cataloged in §7.7 Tier 3 (creator-centric) but not promoted to Section 2 because Datarade was the assumed primary paid channel. With Datarade in review and AWS rejected, Gumroad becomes the active paid channel: it accepts the existing Pharmacovigilance Pack PDF and any other tactical-tier deliverables (Plain-Language Patient Brief $2,500, Conference Synthesis Brief $4,950, Trial Design Benchmark Pack $4,950) as direct downloads with zero qualification gate. Gumroad has been a Merchant of Record since January 2025 (https://surecart.com/blog/where-to-sell-digital-products/) — it handles global sales tax collection and remittance, eliminating one of the heaviest pieces of solo-operator commercial-launch overhead.
-
-- **Onboarding URL:** https://gumroad.com/start-selling — free signup, no review gate, no business-history requirement (verified 2026-05-04).
-- **File formats:** PDF, ZIP, MP4, EPUB, MP3, Excel, CSV, plus license-key delivery and stream-only video. Per-product up-to-16GB.
-- **Vendor verification:** Email verification only at signup. Stripe-grade KYC is triggered at first payout (bank account or PayPal) — runs automatically, not a manual review gate.
-- **Payouts:** Direct deposit (US/UK/EU/AU/CA bank) or PayPal. Weekly or monthly cadence; minimum $10 balance.
-- **Revenue share / fees:** **10% + $0.50 per direct sale** (customer arrives via your link, your site, your social) plus payment processing ~2.9% + $0.30. **30% per Discover-marketplace sale** (customer finds product through Gumroad's own marketplace). At a $9,950 Investor Pre-Mortem teaser priced at $99 the all-in fee is ~$13.20 (13.3% effective); at the $2,500 Pharmacovigilance Pack the effective rate is ~10.7%. Sources: https://www.swell.is/content/gumroad-pricing, https://www.wearefounders.uk/gumroad-fees-2026-what-sellers-actually-pay-per-sale/.
-- **Time-to-first-listing:** **<30 minutes** end-to-end (signup → product create → file upload → price → publish). One-click publish from finished asset.
-- **Time-to-first-revenue:** Same-day if outbound is already running. The Demand-Validation Report's direct-sale primary motion (Investor Pre-Mortem via outbound + discovery call) can route a $99 teaser purchase through Gumroad as the qualification micro-commitment before the discovery call — Gumroad's customer-email-passthrough means the lead lands in the operator's inbox immediately.
-
-**First-day deliverables to list (in this order):**
-
-1. **Pharmacovigilance Pack — Teaser** ($49–$99) — already-rebranded redacted teaser PDF at `/Users/trevorrobey/TrevClaw-Obsidianodus/trevor-robey-inc/03-platforms/gumroad/products/pv-ici-teaser/trevor-robey-inc-pharmacovigilance-teaser.pdf`. Cover image: regenerate from canonical logo PNG at 1280×720 per `canonical_logo_asset.md`.
-2. **Investor Pre-Mortem — Sample Chapter / Methodology Brief** ($99–$199) — extract one chapter from a synthetic Pre-Mortem run as the bait-asset; positions the $9,950 anchor without giving the full deliverable.
-3. **Plain-Language Patient Brief — Sample** ($25–$49) — lowest-friction SKU; tests the impulse-buy / professional-network share path.
-
-**Strategic positioning vs Datarade and AWS DX:**
-
-- Gumroad is NOT a substitute for Datarade for the $9,950–$19,950 Investor Pre-Mortem anchor or the $14,950 Failed Trial Archaeology — those still close via direct-sale + discovery call (with Datarade as the lead-source layer once approved).
-- Gumroad IS the right home for tactical-SKU one-off downloads ($2,500 and below tier) and for **micro-commitment teaser products** ($49–$199) that qualify discovery-call leads.
-- Discover-marketplace 30% rate is steep — keep Discover OFF and drive all traffic via direct links from trevorobeyinc.com, LinkedIn, and outbound emails.
-
 ### #5 Snowflake Marketplace — fastest audience-exposure channel after Datarade is gated and AWS is rejected (added 2026-05-04)
 
 Snowflake Marketplace was previously cataloged in §7.7 Tier 2 as a cloud-native enterprise marketplace but not promoted to Section 2 because Datarade was assumed primary and Snowflake's paid-listing vetting was assumed equivalent to Datarade's. That assessment was correct for paid listings but missed the free-listing path: free listings on Snowflake Marketplace approve in **~1 business day** ([provider workflows docs](https://docs.snowflake.com/en/collaboration/provider-listings-workflows)). That path puts trevor-robey-inc inside the marketplace where the Section 1 target accounts (AstraZeneca, AbbVie, GSK, plus biotech investor data teams at Citadel/RA Capital/Point72) actively shop for data products — without waiting on Datarade's review or AWS's reapply window.
@@ -560,7 +535,6 @@ Average pre-publication production cost for a high-quality market/academic asset
 
 #### Tier 3 — Creator-centric platforms (high autonomy, favorable revenue splits)
 
-**Gumroad**: digital-goods marketplace — **no monthly subscription fee, flat 10% commission**, weekly/monthly payouts to bank or PayPal, supports PDF/ZIP/MP4/Excel/CSV. Built-in discount codes + internal affiliate network. Success requires external traffic generation (LinkedIn, TikTok, SEO blogs). Documented case: $1,518 from 132 sales at 5% conversion through organic content alone. Advanced sellers add schema markup, backlink acquisition, AI-powered SEO. Affiliate program lets industry influencers sell packs in exchange for commission.
 
 **Substack & Patreon**: subscription/recurring revenue. Mix of free macro-analysis + gated premium deep-dives behind paywall builds predictable MRR. Bypasses algorithmic social feeds.
 
@@ -597,13 +571,13 @@ Average pre-publication production cost for a high-quality market/academic asset
 - **Marketing Research & Insights Group** — 35,000+ members
 - **Competitive/Market Intelligence Professionals** — direct access to corporate strategy + due-diligence analysts
 
-Strategy: publish executive summaries, methodological teardowns, visually compelling data charts on the main feed with `#MarketingStrategy`, `#DigitalMarketing`, `#CompetitiveIntelligence`. Dual purpose — capture organic attention + warm prospects before a transactional landing page or Gumroad checkout.
+Strategy: publish executive summaries, methodological teardowns, visually compelling data charts on the main feed with `#MarketingStrategy`, `#DigitalMarketing`, `#CompetitiveIntelligence`. Dual purpose — capture organic attention + warm prospects before a transactional landing page.
 
 ### 7.10 Strategic synthesis (operationalized)
 
 **Four operating principles distilled from the supplementary research:**
 
-1. **Bifurcated product suite.** Free executive summaries via Gumroad/LinkedIn for top-of-funnel + lead capture. Premium $1,500–$5,000+ data packs reserved for direct enterprise sales or syndicated aggregator listings.
+1. **Bifurcated product suite.** Free executive summaries via LinkedIn for top-of-funnel + lead capture. Premium $1,500–$5,000+ data packs reserved for direct enterprise sales or syndicated aggregator listings.
 2. **Format agnosticism.** Move beyond static PDF — Excel models, CSV, API endpoints, eventually Snowflake/Databricks integration as buyers scale.
 3. **Strategic distribution alliances.** Don't rely solely on organic SEO. Submit to revenue-sharing platforms (ReportLinker, Datarade), explore tokenization on Ocean Protocol for proprietary data, actively bid on RFPs via BidNet Direct.
 
@@ -646,7 +620,7 @@ Strategy: publish executive summaries, methodological teardowns, visually compel
 
 **Keep / defer:**
 - **Keep:** HuggingFace (live this week), direct outbound (the only motion that yields revenue + the establishment proof), Snowflake free listing, AWS (only after verify-first confirms a real thread).
-- **Defer:** Gumroad (no built-in audience), Kaggle / Databricks / Ocean Protocol / RFP channels (no buyer proximity for a $10–20K diligence product at $0 traction — revisit after the first 2–3 closed deals).
+- **Defer:** Kaggle / Databricks / Ocean Protocol / RFP channels (no buyer proximity for a $10–20K diligence product at $0 traction — revisit after the first 2–3 closed deals).
 
 **Success criteria by Jul 10:** 1 live HuggingFace artifact · ≥3 discovery calls logged · ≥1 NDA out · AWS thread verified (found or formally restarted) · ideally first signed SOW.
 4. **Embed in professional communities.** Persistent helpful presence in Slack + LinkedIn groups transitions an independent researcher from transactional vendor to indispensable strategic partner. This is the **async cred-building substitute for live calls**.

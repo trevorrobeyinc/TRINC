@@ -30,7 +30,7 @@ Trevor Robey | Trevor Robey, INC. — citation-traced biomedical due diligence |
 
 Hi [First Name],
 
-Quick follow-up — I wanted to share that our pharmacovigilance datasets contain 135+ verified citations per report, each traceable to a PMID, NCT, or PubChem CID and grounded against the evidence actually retrieved (any ungrounded citation is flagged, not hidden).
+Quick follow-up — I wanted to share that our pharmacovigilance datasets contain citations per report (count varies by topic; each grounded in retrieved evidence), each traceable to a PMID, NCT, or PubChem CID and grounded against the evidence actually retrieved (any ungrounded citation is flagged, not hidden).
 
 Happy to send the data dictionary so your team can evaluate schema fit before any commitment.
 

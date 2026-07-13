@@ -430,9 +430,29 @@ canonical one-word "DrugBank"/contiguous `DB#####`, both caught.
 > commit. Verified by stashing this work: the failures persist without it. That is the searxng-mcp
 > section-gate owner's to fix, not part of the doctrine questionnaire.
 
-### 🟢 CODE-ACTIONABLE QUESTIONNAIRE ITEMS: ALL DONE
-Q1–Q9, Q11, Q12, Q37 are resolved. Everything remaining is an **operator/business/legal decision**, not
-an engine change: **Q10** (approval posture on the $9,950+ tiers), **Q13–Q20** (SLA / liability / refund
-teeth), **Q21–Q26** (product scope / ICP), **Q27–Q33** (marketplace-copy claims sweep), **Q34–Q36, Q38**
-(data-coverage / licensing / SOW placeholders). **Q15** stays with the operator's attorney. These need
-your answers; I can analyze and recommend on any of them, but I can't decide them for you.
+**Q27–Q33 — DONE (2026-07-13, marketplace-copy sweep, on the operator's answers).** Applied the
+never-overclaim doctrine to the live marketing. **Absolute overclaims cleared everywhere** —
+"Zero Hallucination," "1.0 Quality Confidence Score," the phantom "Public Hallucination Audit v1
+(100 questions, 5 systems)" (Q32), "SEC & FDA Compliant" (contradicts NOTICE.md), "Deterministically
+Synthesized," and "if an identifier doesn't resolve, it's excluded" → honest citation-integrity language
+(the vocabulary that already lived in OFFERINGS.md's Citation-Integrity Gate). **Q28** — deleted the
+un-rebranded `02-product-packs/` duplicate + the stale `collateral/outbound/` duplicate + the entire
+**Gumroad** tree (operator: not using Gumroad), and purged Gumroad from the strategy docs (Launch
+Playbook channel §4 + scattered mentions, Datarade go-live-checklist); `README.brand.md` repo-map
+repointed. **Q30** — every customer-facing static "N+ verified citations" figure → "count varies by
+topic; each grounded in retrieved evidence" ("verified" → "grounded/cited"). **Q31/Q33** — the density
+score is no longer sold as "confidence"/"1.0" (ties to the Q11/Q12 engine fix). **The guarantee is
+KEPT, not removed:** at the operator's direction it is now the *lead* brand commitment, phrased as the
+engine-enforced output-integrity promise ("Zero-Fabrication Guarantee — only the truth; findings are
+never fabricated to fit the research; a report that can't trace its citations doesn't ship") so it is a
+defensible selling point rather than an attackable absolute. Footprint: 18 files edited, 39 deleted.
+**Residual (noted, optional):** individual one-pagers are honest but don't yet *lead* with the
+guarantee; internal docs (README/CHANGELOG/DOSSIER/REVENUE_PLAYBOOK) keep historical run-record figures
+(not buyer-facing); the DEPLOYED site (`shy-grass-fccd`) is a separate operator-gated deploy.
+
+### 🟢 CODE-ACTIONABLE + MARKETPLACE-COPY ITEMS: ALL DONE
+Q1–Q9, Q11, Q12, Q27–Q33, Q37 are resolved. Everything remaining is a pure **operator/business/legal
+decision**: **Q10** (approval posture on the $9,950+ tiers), **Q13–Q20** (SLA / liability / refund
+teeth), **Q21–Q26** (product scope / ICP), **Q34–Q36, Q38** (data-coverage / licensing / SOW
+placeholders). **Q15** stays with the operator's attorney. These need your answers; I can analyze and
+recommend on any of them, but I can't decide them for you.

@@ -29,9 +29,9 @@
 
 ## Brand Commitments
 
+- **The Zero-Fabrication Guarantee — only the truth.** Findings are never fabricated to fit what the research is looking for. Every cited identifier is grounded in real evidence actually retrieved for the report, or it is flagged `[UNVERIFIED]` and never presented as fact; if the evidence isn't there, the report says so rather than inventing a result. A report whose citations can't be traced to retrieved evidence does not ship. This is **enforced by the engine at generation time**, not a promise on paper — see the Citation-Integrity Gate below.
 - **Citation-Audit SLA** on every deliverable — refund-backed
 - **Citation-Integrity Gate** — every cited identifier in the assembled report is cross-checked against the source records actually retrieved at runtime; citations are graded "grounded" (present in retrieved evidence) vs "ungrounded" (likely model-introduced). The report refuses to ship when the grounded ratio falls below threshold, and surviving ungrounded cites are annotated inline `[UNVERIFIED]`. Cited DOIs are screened against Crossref for retractions, and any report citing a retracted paper hard-stops. (Citations are grounded in the retrieved source records + DOI retraction-screened — they are not independently re-resolved against each live external database.)
-- **Public Hallucination Audit**: trevor-robey-inc Hallucination Audit v1 (100 questions, 5 systems, methodology open-source)
 - **Speed SLA**: 5–10 business days for Investor Pre-Mortem (written guarantee)
 
 ### Bundle deliverables (shipped)
