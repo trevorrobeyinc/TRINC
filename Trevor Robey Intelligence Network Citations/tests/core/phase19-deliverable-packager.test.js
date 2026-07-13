@@ -116,6 +116,61 @@ test("phase19 deliverable packager writes deterministic manifests and checksums"
   assert.equal(firstChecksums, secondChecksums);
 });
 
+test("Q37: a prose 'DrugBank' mention in the report body blocks the primary manual-ZIP bundle (full-text parity with AWS-DX)", async () => {
+  const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "openclaw-phase19-q37-"));
+  const packager = createDeliverablePackager({ rootDir: tmp });
+  const fixture = createMissionFixture();
+  const bundle = packager.createBundleWorkspace(fixture.offer.offer_id);
+  // A bare prose mention with NO typed DrugBank citation — the old citation-TYPE-only check missed this.
+  const ctx = {
+    ...fixture.sourceContext,
+    artifacts: [{
+      task_id: "t1",
+      output_rel: "workspace/research-output/t1/output.md",
+      output_full: "The target resembles entries catalogued in DrugBank, though we cite only public sources (PMID: 12345678)."
+    }]
+  };
+  assert.throws(
+    () => packager.writeDeliverables(bundle, fixture.offer, ctx),
+    /DrugBank/i,
+    "a prose DrugBank mention must fail the license gate on the primary path"
+  );
+});
+
+test("Q37: a bare DrugBank accession id (DB#####) in the report body also blocks the primary path", async () => {
+  const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "openclaw-phase19-q37b-"));
+  const packager = createDeliverablePackager({ rootDir: tmp });
+  const fixture = createMissionFixture();
+  const bundle = packager.createBundleWorkspace(fixture.offer.offer_id);
+  const ctx = {
+    ...fixture.sourceContext,
+    artifacts: [{
+      task_id: "t1",
+      output_rel: "workspace/research-output/t1/output.md",
+      output_full: "Prior work referenced DB00945 in the mechanism discussion."
+    }]
+  };
+  assert.throws(() => packager.writeDeliverables(bundle, fixture.offer, ctx), /DrugBank/i);
+});
+
+test("Q37: bundle-wide seal scan catches DrugBank in an offer-derived header (not just artifact bodies)", async () => {
+  const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "openclaw-phase19-q37c-"));
+  const packager = createDeliverablePackager({ rootDir: tmp });
+  const fixture = createMissionFixture();
+  // Artifacts are CLEAN (the research-branch input gate passes), but the offer TITLE — which derives
+  // from the user's mission description — names DrugBank. It ships in the report/preview headers; only
+  // the bundle-wide seal scan in finalizeBundle catches it.
+  const offer = { ...fixture.offer, offer_title: "DrugBank vs ChEMBL Coverage Demo" };
+  const bundle = packager.createBundleWorkspace(offer.offer_id);
+  const refs = packager.writeDeliverables(bundle, offer, fixture.sourceContext);
+  packager.writeBundleRoot(bundle, offer, fixture.sourceContext, refs, {}, createPublisherAdapterSnapshot(offer.platform_targets));
+  assert.throws(
+    () => packager.finalizeBundle(bundle),
+    /DrugBank/i,
+    "the seal scan must catch a DrugBank offer title that ships in a deliverable header"
+  );
+});
+
 test("phase19 deliverable packager ships the graveyard memo + amendment-risk when present (Slice 3 v2)", async () => {
   const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "openclaw-phase19-packager-graveyard-"));
   const packager = createDeliverablePackager({ rootDir: tmp });

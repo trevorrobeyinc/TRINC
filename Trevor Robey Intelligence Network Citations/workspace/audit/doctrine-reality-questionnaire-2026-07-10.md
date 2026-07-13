@@ -407,10 +407,32 @@ no test asserted the old strings, so the rename is contained. 32 tests + lint + 
 Follow-up (optional polish): rename the internal `verified_claims` var (a misnomer — it counts
 citation-shaped lines) — left as a clarifying comment to avoid artifact-schema churn.
 
-### 🟡 STILL STAGED
-4. **Remaining questionnaire items** Q10, Q13–Q38 (Q1–Q9, Q11, Q12 resolved; Q15 with the operator's
-   attorney). The remainder are almost entirely **operator/business/legal decisions** — Q10 approval
-   posture, Q13–Q20 SLA/liability/refund, Q21–Q26 product scope/ICP, Q27–Q33 marketplace-copy claims,
-   Q34–Q38 data-coverage/licensing — which need the operator's answer, not an engine change. **Q37**
-   (full-text DrugBank scan on the manual-ZIP path, currently citation-type-only) is the last purely
-   *code-actionable* item; the rest are yours to decide.
+**Q37 — DONE (2026-07-12, ninth pass): the manual-ZIP path now has a DrugBank license gate — and the
+gap was bigger than the audit described.** Investigation found the citation-type scan the audit cited
+(`deliverable-packager.js`) was in the DATASET branch only; the **RESEARCH branch — which ships the
+$9,950–$19,950 report.md SKUs — had NO DrugBank/ChEMBL-activity screen at all.** Fix: (1) a fail-closed
+`assertShippable` (citation types + full report text) at the TOP of the research branch, before any
+deliverable is written; (2) upgraded the dataset branch's scan to the same; (3) after a **2-lens
+adversarial review** found the input-scan still missed content that ships but isn't in the artifacts —
+`offer_title` (which derives from the user's mission description → a task *about* "DrugBank" shipped it
+in the report header) and the after-the-fact submission packs — added a **bundle-wide seal scan** in
+`finalizeBundle` that runs `assertNoBannedContent` on **every** shipped file's content before checksums
+are sealed. That is the comprehensive gate (gate on shipped bytes, any source). 3 regression tests
+(prose DrugBank, `DB#####` id, offer-title-via-seal-scan) + the existing clean-report tests; 15 tests +
+lint + phase30 policy gate green. **Documented residual (LOW, per the review):** non-canonical spellings
+("drug bank", "Drug-Bank", "DB-00945") evade the regex — left unfixed because broadening it would
+false-positive on legit prose ("a drug bank of compounds") and DrugBank only enters via LLM prose as the
+canonical one-word "DrugBank"/contiguous `DB#####`, both caught.
+
+> ⚠️ **Unrelated pre-existing RED (not this work):** `tests/core/phase30-workflow-engine.test.js` fails
+> 6/14 on the **section-gate / searchFn** assertions — traced to the parallel CLI session's committed
+> `d62242c` ("recognize connector metadata DOI provenance in the section gate"), which predates the Q11/Q12
+> commit. Verified by stashing this work: the failures persist without it. That is the searxng-mcp
+> section-gate owner's to fix, not part of the doctrine questionnaire.
+
+### 🟢 CODE-ACTIONABLE QUESTIONNAIRE ITEMS: ALL DONE
+Q1–Q9, Q11, Q12, Q37 are resolved. Everything remaining is an **operator/business/legal decision**, not
+an engine change: **Q10** (approval posture on the $9,950+ tiers), **Q13–Q20** (SLA / liability / refund
+teeth), **Q21–Q26** (product scope / ICP), **Q27–Q33** (marketplace-copy claims sweep), **Q34–Q36, Q38**
+(data-coverage / licensing / SOW placeholders). **Q15** stays with the operator's attorney. These need
+your answers; I can analyze and recommend on any of them, but I can't decide them for you.

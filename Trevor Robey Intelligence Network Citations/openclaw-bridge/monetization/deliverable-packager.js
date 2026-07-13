@@ -281,7 +281,13 @@ function createDeliverablePackager(options = {}) {
     const allText = artifacts.map((a) => a.output_full || a.output_excerpt || "").join("\n");
     const citations = extractCitations(allText);
     const uniqueCitations = deduplicateCitations(citations);
-    allowlist.assertNoBannedCitationTypes(uniqueCitations); // fail closed: no DrugBank in shipped citations
+    // Q37: parity with the AWS-DX path (aws-data-exchange-format-adapter.js). The PRIMARY manual-ZIP
+    // path — which ships the highest-value SKUs — previously checked only citation TYPES here, so a
+    // bare prose "DrugBank" mention or a DB##### id in the report body slipped through. assertShippable
+    // adds the full-text scan (assertNoBannedContent over the report content) alongside the
+    // citation-type check; fail-closed (throws LicenseComplianceError) so a non-compliant bundle
+    // cannot ship. `allText` is the same artifact-output content report.md is assembled from.
+    allowlist.assertShippable({ citations: uniqueCitations, text: allText });
     const sampleCitation = uniqueCitations[0] || { type: "PMID", id: "00000000" };
 
     return canonicalize({
@@ -443,6 +449,19 @@ function createDeliverablePackager(options = {}) {
     const artifactRefs = {};
 
     if (safeString(sourceContext.source_kind) === "mission") {
+      // Q37: license shipment gate FIRST on the PRIMARY research path (report.md — the highest-value
+      // SKUs). This branch previously had NO DrugBank / ChEMBL-activity screen at all; only the dataset
+      // branch's schema render did. Fail-closed FULL scan (citation types + the full report text, so a
+      // bare prose "DrugBank" mention or a DB##### id is caught, not just typed citations) — a
+      // non-compliant research bundle cannot ship. Runs before any deliverable is written. Mirrors the
+      // AWS-DX path (aws-data-exchange-format-adapter.js).
+      const licenseScanText = (Array.isArray(sourceContext.artifacts) ? sourceContext.artifacts : [])
+        .map((a) => a.output_full || a.output_excerpt || "").join("\n");
+      allowlist.assertShippable({
+        citations: deduplicateCitations(extractCitations(licenseScanText)),
+        text: licenseScanText
+      });
+
       const reportPath = path.join(deliverablesDir, "report.md");
       const appendixPath = path.join(deliverablesDir, "evidence-appendix.md");
       const tablesPath = path.join(deliverablesDir, "tables.csv");
@@ -758,9 +777,17 @@ function createDeliverablePackager(options = {}) {
         if (["manifest.json", "checksums.txt", "release-approval.json"].includes(rel) || rel.startsWith("delivery-evidence/")) {
           continue;
         }
+        // Q37: bundle-wide license scan on EVERY shipped file's content, at the seal choke point. This
+        // catches DrugBank / DB##### content from ANY source — the report body, offer-derived headers
+        // (offer_title comes from the user's mission description), submission packs, and dynamically
+        // sourced deliverables — not just the raw artifacts the research-branch pre-check reads.
+        // Fail-closed BEFORE checksums are sealed, so a non-compliant bundle can never be hashed into a
+        // shippable manifest.
+        const shippedContent = fs.readFileSync(fullPath, "utf8");
+        allowlist.assertNoBannedContent(shippedContent);
         files.push(canonicalize({
           file: rel,
-          sha256: hashFile(fullPath)
+          sha256: sha256(shippedContent)
         }));
       }
     }
