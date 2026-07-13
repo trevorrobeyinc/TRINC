@@ -720,9 +720,13 @@ function createWorkflowEngine(options = {}) {
       }
     }
 
-    // Confidence uses citation density per 100 lines, capped at 1.0.
-    // A report with 10+ citations per 100 lines of content achieves full confidence.
-    // This rewards meaningful citation density without requiring every line to have a citation.
+    // Q11/Q12: this score is citation DENSITY, not verification. `verifiedClaims` here counts lines
+    // matching a citation SHAPE (the regex above) — a "citation-shaped line," NOT a verified identifier.
+    // It is EXPLICITLY SEPARATE from the truth-based grounding gate (citation-gate.js `grounded_ratio`),
+    // which checks each cited id against the evidence actually fetched. This density check is a cheap
+    // heuristic that the writing is citation-dense; it never asserts an id is real. Surfaced to buyers as
+    // "citation density" (deliverable-packager methodology), never as "confidence"/verification.
+    // Density per 100 lines, capped at 1.0; 10+ citation-shaped lines per 100 → full score.
     const citationDensity = totalClaims > 0 ? (verifiedClaims / totalClaims) * 10 : 0;
     const overallConfidence = Math.min(1.0, citationDensity);
     const pass = overallConfidence >= threshold && verifiedClaims >= minVerifiedCitations;

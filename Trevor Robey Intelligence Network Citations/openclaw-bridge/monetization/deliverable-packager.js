@@ -107,7 +107,7 @@ function createDeliverablePackager(options = {}) {
       "",
       "1. **Literature Review** — Systematic scan of peer-reviewed sources with citation extraction",
       "2. **Deep Analysis** — Pharmacological, molecular, or safety signal analysis with quantitative data",
-      "3. **Integrated Synthesis** — Cross-validated findings with contradiction resolution and confidence scoring",
+      "3. **Integrated Synthesis** — Cross-validated findings with contradiction resolution and citation-density scoring",
       "",
       "All outputs pass automated quality auditing that enforces citation density thresholds and cross-reference verification before release.",
       "",
@@ -254,9 +254,9 @@ function createDeliverablePackager(options = {}) {
       "All outputs pass automated quality auditing before release:",
       "",
       "- **Citation density threshold**: Minimum citations per 1,000 characters of output",
-      "- **Cross-reference verification**: Citations mentioned in synthesis must appear in source agent outputs",
-      "- **Confidence scoring**: Weighted formula combining citation density, source diversity, and agent consensus",
-      "- **Quality gate**: Reports below threshold are flagged for operator review before release",
+      "- **Cross-reference verification (grounding)**: every identifier cited in the report is checked against the source records actually retrieved for it — the truth-based gate, graded in the Citation Integrity ledger (grounded_ratio).",
+      "- **Citation-density score**: a separate, shape-based heuristic — the fraction of content lines carrying a citation-shaped reference. It measures how citation-dense the writing is, NOT whether the identifiers were verified (that is the grounding gate above).",
+      "- **Quality gate**: reports below the citation-density threshold are flagged for operator review before release.",
       "",
       "## Provenance Chain",
       "",
@@ -333,7 +333,7 @@ function createDeliverablePackager(options = {}) {
         fields: [
           { name: "findings", type: "array", description: "Array of research sections with role, content, and citations" },
           { name: "citations_summary", type: "object", description: "Citation counts by type and total unique identifiers" },
-          { name: "confidence", type: "object", description: "Quality confidence score with citation density and pass/fail" },
+          { name: "citation_density", type: "object", description: "Citation-density score (a shape-based heuristic: fraction of content lines carrying a citation-shaped reference) and pass/fail. This is NOT identifier verification — see the Citation Integrity ledger (grounded_ratio) for grounding." },
           { name: "provenance", type: "object", description: "Chain hash, interaction count, and agent roles" }
         ]
       },

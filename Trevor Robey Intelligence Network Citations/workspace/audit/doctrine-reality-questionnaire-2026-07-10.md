@@ -389,10 +389,28 @@ the split is contained. 38 tests + lint + phase30 gate green. **Follow-up (hones
 clean DELIVERs, make the re-resolver retry transient timeouts (reduce UNCHECKED by re-resolving more) —
 never by lowering the bar.
 
+**Q11 + Q12 — DONE (2026-07-10, eighth pass): the density score is no longer called "confidence," the
+false-formula claim is gone, and the density-vs-verification separation is explicit.** The quality_audit
+score is pure citation-*density* (fraction of content lines matching a citation *shape* — the regex
+`NCT\d{8}` / `PMID:\d+` / DOI / … in `workflow-engine.js`), independent of whether any id was verified;
+only `grounded_ratio` (citation-gate) ties to real verification, and it already ships client-facing in
+the Citation Integrity ledger (`integrity-rating.js`). Fixes: **Q11** — `deliverable-packager.js` no
+longer labels the density score "confidence" (renamed to "citation-density score"; schema field
+`confidence` → `citation_density`), and the **false methodology claim** ("Confidence scoring: Weighted
+formula combining citation density, source diversity, and agent consensus") is replaced with an honest
+description (it is *only* density; there is no diversity/consensus weighting). **Q12** — rather than
+duplicate the grounding gate, the two checks are now **explicitly documented as independent**: a code
+comment in `executeQualityAuditStep` states this is a shape-based density heuristic (a "citation-shaped
+line," NOT a verified id), separate from the truth-based `grounded_ratio` gate; the methodology text
+cross-references the grounding gate as the verification metric. No payload used the `confidence` key and
+no test asserted the old strings, so the rename is contained. 32 tests + lint + phase30 gate green.
+Follow-up (optional polish): rename the internal `verified_claims` var (a misnomer — it counts
+citation-shaped lines) — left as a clarifying comment to avoid artifact-schema churn.
+
 ### 🟡 STILL STAGED
-4. **Remaining questionnaire items** Q10–Q14, Q16–Q38 (Q1–Q9 all resolved; Q15 with the operator's
+4. **Remaining questionnaire items** Q10, Q13–Q38 (Q1–Q9, Q11, Q12 resolved; Q15 with the operator's
    attorney). The remainder are almost entirely **operator/business/legal decisions** — Q10 approval
    posture, Q13–Q20 SLA/liability/refund, Q21–Q26 product scope/ICP, Q27–Q33 marketplace-copy claims,
-   Q34–Q38 data-coverage/licensing — which need the operator's answer, not an engine change. Q11/Q12
-   (quality_audit "confidence" term / citation-shape check) and Q37 (full-text scan on the manual-ZIP
-   path) are the only remaining *code-actionable* items; the rest are yours to decide.
+   Q34–Q38 data-coverage/licensing — which need the operator's answer, not an engine change. **Q37**
+   (full-text DrugBank scan on the manual-ZIP path, currently citation-type-only) is the last purely
+   *code-actionable* item; the rest are yours to decide.
