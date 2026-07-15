@@ -608,13 +608,13 @@
       "execution_surface": "claude-host-mcp",
       "auth": "vendor-issued",
       "tools": ["semanticSearch"],
-      "purpose": "Generic semantic search connector. Underspecified at host level — needs investigation before binding.",
+      "purpose": "Academic-corpus semantic search (schema-inspected 2026-07-12): returns full-text passages with DOI/author-year citation metadata, start/end_year filters, topN<=20, includeRetractedContent flag. FUNCTIONALLY REDUNDANT with searxng-search (topic:'science'), scholar-sidekick, and the Consensus connector — no unique capability found that justifies binding. Vendor is NOT identified by the schema and NOT found in the public MCP registry; this is a claude.ai-host connector sending queries to an unattributed third-party endpoint (data-egress unknown). SECURITY: identify the publisher/URL in claude.ai -> Settings -> Connectors; keep-and-label ONLY if it is a recognized, intended vendor, otherwise remove. Deliberately NOT probed with a live query (that is the egress being investigated).",
       "bound_roles": [],
       "bound_workflow_steps": [],
-      "business_value": "unknown",
+      "business_value": "none-identified — redundant with 3 already-wired scholarly connectors",
       "adapter_status": "needs-investigation",
       "adapter_priority": "low",
-      "suggested_adapter_path": "n/a — identify vendor first",
+      "suggested_adapter_path": "do not adapt — operator identifies vendor in claude.ai settings, then keep-and-label or remove",
       "health_check": "n/a"
     }
   },

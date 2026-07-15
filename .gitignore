@@ -169,3 +169,11 @@ Copilot-Everything/configs/validation/*-nohup.log
 # -----------------------------------------------------------------------------
 Claude/.logs/.cc-bridge-last-state
 Claude/.logs/cc-bridge-monitor.events.jsonl
+
+# -----------------------------------------------------------------------------
+# Unrelated migrated project — "PVA Mobility Equipment Loan Closet" (AppSheet
+# prototype). Its contents were copied out to trevorrobeyinc/trevorrobeyinc.github.io;
+# this loose local copy does not belong in the biomedical monorepo. Ignored so it
+# stops showing as untracked debt. Safe to delete the local dir once confirmed migrated.
+# -----------------------------------------------------------------------------
+/pva-loan-closet/
