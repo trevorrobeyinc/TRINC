@@ -61,11 +61,17 @@ function isBlockedIpv4(ip) {
   return false;
 }
 
-/** `::ffff:127.0.0.1` / `::ffff:7f00:1` → "127.0.0.1"; null when not an IPv4-mapped address. */
+/**
+ * Extract the embedded IPv4 from an IPv6 that carries one in its low 32 bits, else null. Covers BOTH
+ * the modern IPv4-MAPPED form (`::ffff:127.0.0.1` / `::ffff:7f00:1`) AND the deprecated IPv4-COMPATIBLE
+ * form (`::127.0.0.1`, which `new URL()` canonicalizes to `::7f00:1`) — both must inherit the IPv4
+ * block policy or they become an SSRF bypass. `::` and `::1` carry no embedded dotted/hex-PAIR IPv4,
+ * so they do NOT match here and stay handled as unspecified/loopback by isBlockedIpv6.
+ */
 function toMappedIpv4(s) {
-  const dotted = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/.exec(s);
+  const dotted = /^::(?:ffff:)?(\d{1,3}(?:\.\d{1,3}){3})$/.exec(s);
   if (dotted) return dotted[1];
-  const hex = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(s);
+  const hex = /^::(?:ffff:)?([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(s);
   if (hex) {
     const hi = parseInt(hex[1], 16);
     const lo = parseInt(hex[2], 16);
@@ -94,6 +100,28 @@ function isBlockedAddress(ip) {
 }
 
 /**
+ * `dns.lookup` honors NO AbortSignal (node:dns ignores it — verified), and the abort budget in
+ * extract.js's `fetchUrl` is wired only to the subsequent `fetch()`, NOT to this pre-fetch
+ * resolution. So a hung / black-holed resolver would hang extract/map (and search with
+ * include_raw_content) indefinitely, wedging a concurrency lane until the server is restarted.
+ * Race the lookup against a timer so the CALLER's wait is bounded — the orphaned lookup itself
+ * can't be cancelled, but the tool call recovers instead of dangling forever.
+ */
+function lookupWithTimeout(host, ms) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error(`blocked: DNS lookup for "${host}" timed out after ${ms}ms`)),
+      ms
+    );
+  });
+  return Promise.race([
+    dns.lookup(host, { all: true, verbatim: true }),
+    timeout,
+  ]).finally(() => clearTimeout(timer));
+}
+
+/**
  * Throw unless `rawUrl` is an http(s) url whose hostname resolves exclusively to public addresses.
  * Returns the parsed URL on success. Blocks if ANY resolved address is non-public (a name with one
  * public and one private A record must not be reachable).
@@ -117,7 +145,8 @@ async function assertUrlAllowed(rawUrl, allowHosts = CONFIG.extractAllowHosts) {
   if (allowHosts.includes(host)) return u; // explicit operator opt-in
 
   // `dns.lookup` resolves IP literals to themselves, so literal and named hosts share one path.
-  const addrs = await dns.lookup(host, { all: true, verbatim: true });
+  // Bounded (see lookupWithTimeout) so a hung resolver can't dangle the whole extract/map call.
+  const addrs = await lookupWithTimeout(host, CONFIG.fetchTimeoutMs);
   if (!addrs.length) throw new Error(`blocked: "${host}" did not resolve`);
   const bad = addrs.find((a) => isBlockedAddress(a.address));
   if (bad) {

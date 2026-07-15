@@ -8,6 +8,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
+// Short DNS/fetch budget so the hung-resolver test rejects fast (config reads this at load). Literal
+// and localhost lookups used by the other tests still resolve well within it.
+process.env.SEARXNG_FETCH_TIMEOUT_MS = "300";
 const { assertUrlAllowed, isBlockedAddress, normalizeHost, toMappedIpv4 } = require("../src/ssrf.js");
 
 const rejects = (p, re) => assert.rejects(p, (e) => re.test(e.message), `expected /${re.source}/`);
@@ -55,6 +58,31 @@ test("toMappedIpv4: unwraps both IPv4-mapped spellings, ignores plain v6", () =>
   assert.equal(toMappedIpv4("::ffff:192.168.0.1"), "192.168.0.1");
   assert.equal(toMappedIpv4("::ffff:7f00:1"), "127.0.0.1");
   assert.equal(toMappedIpv4("2606:4700::1111"), null);
+});
+
+test("isBlockedAddress: deprecated IPv4-COMPATIBLE IPv6 (::a.b.c.d, no ffff:) inherits the IPv4 block", () => {
+  // `new URL('http://[::127.0.0.1]/')` canonicalizes to `::7f00:1` — must still be blocked.
+  assert.equal(isBlockedAddress("::7f00:1"), true); // ::127.0.0.1
+  assert.equal(isBlockedAddress("::a9fe:a9fe"), true); // ::169.254.169.254 (metadata)
+  assert.equal(isBlockedAddress("::c0a8:1"), true); // ::192.168.0.1
+  assert.equal(isBlockedAddress("::808:808"), false); // ::8.8.8.8 genuinely routes public → allowed
+  assert.equal(toMappedIpv4("::7f00:1"), "127.0.0.1"); // and the ::-form now unwraps
+});
+
+test("assertUrlAllowed: the ::a.b.c.d loopback literal is refused (was an SSRF bypass)", async () => {
+  await rejects(assertUrlAllowed("http://[::127.0.0.1]:9999/"), /non-public address/);
+});
+
+test("assertUrlAllowed: a hung DNS resolver is bounded by fetchTimeoutMs, not left dangling forever", async () => {
+  const dns = require("node:dns").promises;
+  const orig = dns.lookup;
+  dns.lookup = () => new Promise(() => {}); // never settles — simulates a black-holed resolver
+  try {
+    // Without the timeout race this would hang indefinitely and time out the whole test run.
+    await rejects(assertUrlAllowed("http://never-resolves.invalid.example/"), /DNS lookup .* timed out/);
+  } finally {
+    dns.lookup = orig;
+  }
 });
 
 test("normalizeHost: lowercases and strips IPv6 brackets", () => {

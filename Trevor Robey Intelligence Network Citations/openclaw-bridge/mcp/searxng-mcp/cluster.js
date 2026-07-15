@@ -3,10 +3,18 @@
 /**
  * URL canonicalization + distinct-source clustering for the citation gate.
  *
- * The semantics are PORTED from the connector's `Claude/searxng-search-mcp/src/robust.js`
- * (`canonicalUrl` + `dedupe`) — kept here as a self-contained copy because the engine cannot
- * require() across to that package at runtime, and there is no shared URL-dedup util in
- * `openclaw-bridge/`. KEEP THESE SEMANTICS IN SYNC with the connector's robust.js.
+ * The `canonicalUrl` + `hostOf` PRIMITIVES are byte-for-byte copies of the connector's
+ * `Claude/searxng-search-mcp/src/{robust,searxng}.js` — duplicated deliberately to keep this
+ * clustering primitive self-contained. (The engine CAN require() across to that package at runtime —
+ * searchfn.js does exactly that for `search()` — but the gate's URL canonicalization should not
+ * couple to the connector's internal module layout; there is also no shared URL-dedup util in
+ * `openclaw-bridge/`.) Keep the CANONICALIZATION in sync with robust.js's `canonicalUrl`.
+ *
+ * The MERGE POLICY is INTENTIONALLY *not* identical to the connector's `dedupe`: `dedupe` is a
+ * single-pass greedy first-survivor collapse, whereas `clusterResults` below is a full transitive
+ * UNION-FIND — the more thorough distinct-source count the coverage tier needs. Do NOT "fix" this
+ * clustering to match dedupe's greedy pass; the divergence is by design (they can differ on
+ * transitive A-B-C chains, and union-find is the correct behavior here).
  *
  * G4 invariant (no over-merge): results merge into one source only when they share a canonical
  * URL or a URL-DERIVED citation id. A text-derived citation (a review that merely CITES a paper's

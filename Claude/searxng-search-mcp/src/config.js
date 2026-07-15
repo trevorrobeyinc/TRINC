@@ -19,6 +19,21 @@ function stripTrailingSlash(u) {
   return u.replace(/\/+$/, "");
 }
 
+/**
+ * Parse a numeric env var, falling back to `def` on a non-finite/negative value (a typo like
+ * `SEARXNG_SEARCH_TIMEOUT_MS=abc` → NaN), and on `0` unless `allowZero`. Guards AFTER `Number()`:
+ * the old `Number(process.env.X || def)` only substituted the default for an UNSET var, so a garbage
+ * value propagated as NaN and a literal "0" as 0 — either of which makes `setTimeout(fn, ms)` fire
+ * immediately (breaking every request) or an `n > cap` truncation check fail open. Matches the
+ * guard-after-Number pattern already used for extractConcurrency.
+ */
+function numEnv(raw, def, { allowZero = false } = {}) {
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) return def;
+  if (n === 0 && !allowZero) return def;
+  return n;
+}
+
 const CONFIG = Object.freeze({
   /** Base URL of the local SearXNG HTTPS proxy. Override with SEARXNG_BASE_URL. */
   searxngBaseUrl: stripTrailingSlash(
@@ -26,13 +41,13 @@ const CONFIG = Object.freeze({
   ),
 
   /** Per-request timeout (ms) when calling the SearXNG JSON API. */
-  searchTimeoutMs: Number(process.env.SEARXNG_SEARCH_TIMEOUT_MS || 15000),
+  searchTimeoutMs: numEnv(process.env.SEARXNG_SEARCH_TIMEOUT_MS, 15000),
 
   /** Per-URL timeout (ms) when fetching a page for `extract` / `map`. */
-  fetchTimeoutMs: Number(process.env.SEARXNG_FETCH_TIMEOUT_MS || 12000),
+  fetchTimeoutMs: numEnv(process.env.SEARXNG_FETCH_TIMEOUT_MS, 12000),
 
   /** Cap on extracted characters per page (keeps tool output LLM-sized). */
-  maxExtractChars: Number(process.env.SEARXNG_MAX_EXTRACT_CHARS || 20000),
+  maxExtractChars: numEnv(process.env.SEARXNG_MAX_EXTRACT_CHARS, 20000),
 
   /** Concurrency when extracting several URLs at once (clamped to a sane >=1 integer). */
   extractConcurrency: Math.max(
@@ -62,18 +77,18 @@ const CONFIG = Object.freeze({
 
   /* -------- Robustness layer (all fail-soft; safe to leave at defaults) -------- */
 
-  /** Search-response cache TTL (ms). 0 disables caching. */
-  cacheTtlMs: Number(process.env.SEARXNG_CACHE_TTL_MS ?? 300000),
+  /** Search-response cache TTL (ms). 0 disables caching (allowZero). */
+  cacheTtlMs: numEnv(process.env.SEARXNG_CACHE_TTL_MS, 300000, { allowZero: true }),
 
   /** Max cached search responses (FIFO eviction beyond this). */
-  cacheMaxEntries: Number(process.env.SEARXNG_CACHE_MAX_ENTRIES ?? 500),
+  cacheMaxEntries: numEnv(process.env.SEARXNG_CACHE_MAX_ENTRIES, 500, { allowZero: true }),
 
   /** Total attempts for the SearXNG fetch (1 = no retry). Retries only transient 429/5xx/network. */
   retryAttempts: Math.max(1, Math.trunc(Number(process.env.SEARXNG_RETRY_ATTEMPTS ?? 3)) || 1),
 
   /** Retry backoff base / cap (ms). Full-jitter between attempts. */
-  retryBaseMs: Number(process.env.SEARXNG_RETRY_BASE_MS ?? 400),
-  retryCapMs: Number(process.env.SEARXNG_RETRY_CAP_MS ?? 8000),
+  retryBaseMs: numEnv(process.env.SEARXNG_RETRY_BASE_MS, 400),
+  retryCapMs: numEnv(process.env.SEARXNG_RETRY_CAP_MS, 8000),
 
   /* -------- Optional local-LLM reranking (OFF by default) -------- */
 
@@ -87,7 +102,7 @@ const CONFIG = Object.freeze({
   rerankModel: process.env.SEARXNG_RERANK_MODEL || "qwen2.5:7b-instruct",
 
   /** Hard timeout (ms) for a rerank call; on expiry we keep native ordering. */
-  rerankTimeoutMs: Number(process.env.SEARXNG_RERANK_TIMEOUT_MS ?? 4000),
+  rerankTimeoutMs: numEnv(process.env.SEARXNG_RERANK_TIMEOUT_MS, 4000),
 });
 
-module.exports = { CONFIG };
+module.exports = { CONFIG, numEnv };

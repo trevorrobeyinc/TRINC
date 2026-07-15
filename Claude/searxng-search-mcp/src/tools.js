@@ -48,7 +48,10 @@ const TOOLS = [
         },
         time_range: {
           type: "string",
-          enum: ["day", "month", "year"],
+          // "week" is a Tavily-compat legacy value the handler accepts and coerces to "day" (see
+          // searxng.js). It MUST appear here to match the zod schema below (which already lists it) —
+          // otherwise the advertised contract is stricter than what the server enforces.
+          enum: ["day", "week", "month", "year"],
           description:
             "Recency filter. SearXNG honors day/month/year exactly. (A legacy 'week' value is " +
             "still accepted and coerced to 'day'; the response echoes applied_time_range.)",

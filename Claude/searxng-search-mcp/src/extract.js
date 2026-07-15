@@ -8,7 +8,7 @@
  */
 
 const { JSDOM, VirtualConsole } = require("jsdom");
-const { Readability, isProbablyReaderable } = require("@mozilla/readability");
+const { Readability } = require("@mozilla/readability");
 const TurndownService = require("turndown");
 const { CONFIG } = require("./config.js");
 const { hostOf } = require("./searxng.js");

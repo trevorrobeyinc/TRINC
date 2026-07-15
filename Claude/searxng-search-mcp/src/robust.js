@@ -106,6 +106,8 @@ async function retry(fn, opts = {}) {
       await sleep(rand() * ceiling);
     }
   }
+  // Unreachable: attempts>=1 means the final iteration's catch always throws (retryable-exhausted or
+  // non-retryable). Kept as a defensive fallback so `retry` can never implicitly return undefined.
   throw lastErr;
 }
 
