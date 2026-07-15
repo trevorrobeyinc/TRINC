@@ -105,6 +105,13 @@ credentials.json
 *.swp
 *.swo
 *~
+
+# -----------------------------------------------------------------------------
+# Claude Code per-machine local overrides — permissions allowlist, enabled MCP
+# servers, etc. Machine-specific, not shared. (The shared .claude/settings.json,
+# agents, and skills stay tracked; only the *.local.json override is ignored.)
+# -----------------------------------------------------------------------------
+.claude/settings.local.json
 .project
 .classpath
 
