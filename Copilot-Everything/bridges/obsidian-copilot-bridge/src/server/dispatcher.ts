@@ -15,6 +15,7 @@ import { obsidianHealthTool } from "./tools/obsidianHealth";
 import { executeCommandTool } from "./tools/executeCommand";
 import { miyoSearchContextTool } from "./tools/miyoSearchContext";
 import { researchPublishTool } from "./tools/researchPublish";
+import { researchNotifyTool } from "./tools/researchNotify";
 import {
   devConsoleLogsTool,
   devConsoleErrorsTool,
@@ -48,6 +49,10 @@ const handlers: Record<string, ToolHandler> = {
   obsidian_execute_command: executeCommandTool,
   miyo_search_context: miyoSearchContextTool,
   research_publish: researchPublishTool,
+  // Emit-only companion to research_publish (no vault write): broadcasts a
+  // research_arrived bubble for a note the caller already created. Called by
+  // the Command Center plugin after it generates its workflow notes.
+  research_notify: researchNotifyTool,
   // Renderer-side dev console / debugging — backed by launcher IPC, NOT CDP.
   // Replaces the retired `obsidian-devtools` chrome-devtools-mcp path on :8315.
   obsidian_dev_console_logs: devConsoleLogsTool,

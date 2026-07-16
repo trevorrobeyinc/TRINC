@@ -8,7 +8,7 @@ import type {
 } from "./types";
 import { DEFAULT_SETTINGS, VIEW_TYPE_WORKFLOW } from "./constants";
 import { OpenClawSettingTab } from "./settings";
-import { OpenClawRunner } from "./subprocess/openclaw-runner";
+import { OpenClawRunner, notifyResearchArrived } from "./subprocess/openclaw-runner";
 import { WorkflowTracker } from "./workflow/workflow-tracker";
 import { WorkflowModal } from "./workflow/workflow-modal";
 import { WorkflowStatusView } from "./views/workflow-sidebar";
@@ -350,6 +350,26 @@ export default class OpenClawPlugin extends Plugin {
           1 + notes.agentPaths.length + (notes.qualityPath ? 1 : 0) + (notes.datasetPath ? 1 : 0);
         console.log("[OpenClaw:Main] Notes generated:", noteCount);
         new Notice(`Created ${noteCount} research notes.`);
+
+        // Auto-bubble: tell the Copilot chat a research run arrived. Emit-only
+        // (research_notify → :8798 `research` SSE), linking to the overview note
+        // we just created — it never re-writes the output, so no duplication.
+        // Fail-soft: a notify failure must not block note delivery or the rest
+        // of the completion pipeline (Miyo scan, Zettelkasten, memory ingest).
+        try {
+          await notifyResearchArrived({
+            taskId: result.workflow_id || "workflow",
+            title: `${result.template_id || "Research"} complete — ${noteCount} notes`,
+            mainNotePath: notes.overviewPath,
+            vault: this.app.vault.getName(),
+          });
+          console.log("[OpenClaw:Main] research_notify emitted → Copilot chat bubble");
+        } catch (notifyErr: unknown) {
+          console.warn(
+            "[OpenClaw:Main] research_notify failed (non-fatal):",
+            notifyErr instanceof Error ? notifyErr.message : String(notifyErr)
+          );
+        }
 
         // Phase 3.5: Trigger Miyo rescan and wait for indexing
         if (this.settings.miyoEnabled) {
