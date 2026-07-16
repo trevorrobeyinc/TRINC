@@ -141,6 +141,58 @@ export const MCP_TOOL_CATALOG: Record<string, McpCatalogEntry> = {
       idempotencyKey: args.idempotencyKey,
     }),
   },
+  // ── OpenClaw research-engine control surface ──────────────────────
+  // Served by the Command Center bridge (:8799), which spawns run-workflow.js.
+  // Completed-run output is pushed back into chat via the :8798 bridge's
+  // `research` SSE stream (see McpEventBridge), so these tools drive the engine
+  // while results arrive asynchronously as chat bubbles.
+  obsidian_openclaw_run_workflow: {
+    toolName: "obsidian_openclaw_run_workflow",
+    displayName: "Run OpenClaw Research Workflow",
+    description:
+      "Start an OpenClaw research-engine workflow via the Command Center bridge. Launches a real, compute-costing run (typically 5-10 minutes); monitor with obsidian_openclaw_status and read output with obsidian_openclaw_results (results also arrive as a chat bubble when the run finishes).",
+    // Mutating: launches a real research run (spawns run-workflow.js, consumes compute).
+    isMutating: true,
+    schema: z.object({
+      template: z
+        .string()
+        .min(1)
+        .describe("Workflow template id (use obsidian_openclaw_templates to list available ids)"),
+      inputs: z
+        .record(z.string())
+        .optional()
+        .describe("Template inputs as string key/value pairs (e.g. { indication: 'NSCLC' })"),
+    }),
+    buildInput: (args) => ({
+      template: args.template,
+      inputs: args.inputs ?? {},
+    }),
+  },
+  obsidian_openclaw_status: {
+    toolName: "obsidian_openclaw_status",
+    displayName: "OpenClaw Workflow Status",
+    description:
+      "Check the status (idle / running / completed) of the current or most recent OpenClaw research workflow.",
+    isMutating: false,
+    schema: z.object({}),
+    buildInput: () => ({}),
+  },
+  obsidian_openclaw_results: {
+    toolName: "obsidian_openclaw_results",
+    displayName: "OpenClaw Workflow Results",
+    description: "Fetch the results of the most recent completed OpenClaw research workflow.",
+    isMutating: false,
+    schema: z.object({}),
+    buildInput: () => ({}),
+  },
+  obsidian_openclaw_templates: {
+    toolName: "obsidian_openclaw_templates",
+    displayName: "OpenClaw Workflow Templates",
+    description: "List the OpenClaw research workflow templates available to run.",
+    isMutating: false,
+    schema: z.object({}),
+    buildInput: () => ({}),
+  },
 };
 
 export function getMcpCatalogEntry(toolName: string): McpCatalogEntry | undefined {

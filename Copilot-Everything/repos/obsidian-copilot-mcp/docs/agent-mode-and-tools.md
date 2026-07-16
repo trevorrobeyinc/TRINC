@@ -109,6 +109,16 @@ Fetches the transcript of a YouTube video.
 - **No extra setup needed**: Just include the URL in your message
 - **Self-host option**: Use your own Supadata API key for transcription in self-host mode
 
+#### OpenClaw Research Engine (MCP)
+When the OpenClaw research bridge is connected (Settings → Copilot → MCP servers), the agent can drive your local research engine directly from chat:
+
+- **Run Research Workflow** — starts a research run from a template (e.g. clinical-trial landscape, drug-discovery pack). Runs take several minutes and use real compute, so trigger them deliberately. Under the default confirmation policy the run starts immediately; switch the MCP confirmation policy to "prompt on writes" if you'd rather confirm first.
+- **Workflow Status** — checks whether a run is idle, running, or finished.
+- **Workflow Results** — fetches the output of the most recent finished run.
+- **List Workflow Templates** — lists the research templates you can run.
+
+When result-push is enabled, a finished run also drops its result into the chat automatically with a link to the generated note.
+
 ---
 
 ## Tool Settings

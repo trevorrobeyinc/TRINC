@@ -31,6 +31,15 @@ Three active layers (backend-emulator retired 2026-04-11, deleted from monorepo 
 
 These are not interchangeable.
 
+> **Correction (2026-07-16, verified against the fork source `repos/obsidian-copilot-mcp`):**
+> `direct_plugin_mcp`, `exact_backend_emulator`, and `production_official` are **conceptual labels
+> only** — none exists as a literal runtime toggle in the current fork. The real live settings are
+> `enableSelfHostMode`, `backendMode` (e.g. `hosted`), `defaultChainType` (e.g. `copilot_plus`), and
+> `enableAutonomousAgent`. The plugin's actual MCP capability is: agent mode (`enableAutonomousAgent`,
+> Copilot-Plus-gated) → a hard-coded tool catalog (`src/mcp/catalog.ts`) → authenticated HTTP
+> `POST /mcp/tool` to a configured bridge (:8798 vault tools + `research` SSE; :8799 OpenClaw
+> research-workflow tools). Treat the mode names above as historical intent, not code.
+
 Current nuance:
 
 - the intended official-plugin target runtime is still direct MCP plus native Miyo
