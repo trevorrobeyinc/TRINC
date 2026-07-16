@@ -27,9 +27,9 @@ export interface VaultZKSettings {
 }
 
 export const DEFAULT_SETTINGS: VaultZKSettings = {
-  llmProvider: "lm-studio",
-  llmBaseUrl: "https://127.0.0.1:1235/v1",
-  llmModelName: "qwen2.5-coder-7b-instruct",
+  llmProvider: "ollama",
+  llmBaseUrl: "https://127.0.0.1:11435",
+  llmModelName: "qwen2.5:7b-instruct",
   llmApiKey: "",
   llmTemperature: 0.7,
   llmMaxTokens: 2048,

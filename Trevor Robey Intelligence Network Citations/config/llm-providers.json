@@ -5,15 +5,9 @@
       "enabled": true,
       "model": "mock-v1"
     },
-    "lm-studio": {
-      "enabled": true,
-      "endpoint": "https://127.0.0.1:1235/v1/chat/completions",
-      "model": "qwen/qwen3.5-9b",
-      "temperature": 0.7,
-      "maxTokens": 2048
-    },
     "local": {
-      "enabled": true,
+      "enabled": false,
+      "_comment": "Ollama (:11435). 2026-07-16 (Option B): retained on the machine for Obsidian Copilot + vault-zettelkasten, but NOT used by the engine — the engine is 100% Claude. Set enabled:true (and add a helper/fallback in role-provider-map.json) to re-add Ollama as an engine helper. LM Studio was removed entirely.",
       "endpoint": "https://127.0.0.1:11435/api/generate",
       "model": "qwen2.5:7b-instruct"
     },
@@ -41,7 +35,7 @@
       "maxTokens": 8192,
       "claudeCommand": "claude",
       "executionTimeoutMs": 600000,
-      "fallbackProvider": "lm-studio"
+      "fallbackProvider": ""
     }
   },
   "promptGuard": {

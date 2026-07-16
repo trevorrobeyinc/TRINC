@@ -111,7 +111,6 @@ LEGITIMATE_NON_TCP=(
 LEGITIMATE_OUTBOUND_PLAINTEXT=(
   "Copilot-Everything/scripts/miyo-tls-proxy.mjs"
   "Copilot-Everything/scripts/qdrant-tls-proxy.mjs"
-  "Copilot-Everything/scripts/lm-studio-tls-proxy.mjs"
   "Copilot-Everything/scripts/ollama-tls-proxy.mjs"
   "Copilot-Everything/scripts/searxng-tls-proxy.mjs"
 )

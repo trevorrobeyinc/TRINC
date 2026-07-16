@@ -34,7 +34,8 @@ LAUNCH_AGENTS="$HOME/Library/LaunchAgents"
 PLIST_BUDDY="/usr/libexec/PlistBuddy"
 
 # launchd label suffix == proxy script basename stem
-UNITS=(miyo qdrant lm-studio ollama searxng)
+# (lm-studio removed 2026-07-16 — LM Studio decommissioned; Ollama kept for the Obsidian side)
+UNITS=(miyo qdrant ollama searxng)
 
 mkdir -p "$STAGE_DIR"
 
