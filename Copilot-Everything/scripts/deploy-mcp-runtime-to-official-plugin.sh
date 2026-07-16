@@ -90,13 +90,13 @@ else
       };
     })()' | sed '1s/^=> //')"
 
-    if echo "$VERIFY_OUTPUT" | jq -e '.toolNames | index("mcp_shared-obsidian-mcp_obsidian_health") != null' >/dev/null 2>&1; then
+    if echo "$VERIFY_OUTPUT" | jq -e '.toolNames | index("mcp_local-obsidian-mcp_obsidian_health") != null' >/dev/null 2>&1; then
       break
     fi
     sleep 2
   done
 
-  echo "$VERIFY_OUTPUT" | jq -e '.toolNames | index("mcp_shared-obsidian-mcp_obsidian_health") != null' >/dev/null \
+  echo "$VERIFY_OUTPUT" | jq -e '.toolNames | index("mcp_local-obsidian-mcp_obsidian_health") != null' >/dev/null \
     || die "Official plugin runtime overlay did not expose the shared MCP tool."
 fi
 
