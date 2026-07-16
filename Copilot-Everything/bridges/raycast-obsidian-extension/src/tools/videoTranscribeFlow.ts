@@ -185,21 +185,32 @@ function resolveYtDlpPath(prefs: VideoCommandPreferences): string {
   return "yt-dlp";
 }
 
-function resolveWhisperPath(prefs: VideoCommandPreferences): string {
+async function resolveWhisperPathOrThrow(prefs: VideoCommandPreferences): Promise<string> {
   const configured = prefs.whisperPath?.trim();
   if (configured) {
     if (configured === "whisper" || existsSync(configured)) {
       return configured;
     }
+    // A set-but-missing path (typo / moved binary) is NOT swallowed silently — it self-heals to a
+    // known candidate below, but the ignored value is logged so the mistake stays visible.
+    await appendRunLog(`WARNING: configured Whisper Path does not exist, ignoring it: ${configured}`);
   }
 
   for (const candidate of defaultWhisperPathCandidates) {
     if (existsSync(candidate)) {
+      if (configured) {
+        await appendRunLog(`Whisper Path fell back to a known binary: ${candidate}`);
+      }
       return candidate;
     }
   }
 
-  return "whisper";
+  throw new Error(
+    `Whisper executable not found. Set "Whisper Path" in the Video Download & Transcribe command ` +
+      `preferences to your whisper-ctranslate2 binary ` +
+      `(e.g. /Users/myhome/.local/venvs/fwhisper/bin/whisper-ctranslate2). ` +
+      `Tried: ${[configured, ...defaultWhisperPathCandidates].filter(Boolean).join(", ")}`
+  );
 }
 
 function resolveGpgPath(): string {
@@ -536,8 +547,7 @@ async function extractTranscriptFromSubtitle(sidecarPath: string): Promise<strin
   return srtToPlainText(srtContent);
 }
 
-async function transcribeWithWhisper(videoFilePath: string, prefs: VideoCommandPreferences, tempDir: string): Promise<string> {
-  const whisperPath = resolveWhisperPath(prefs);
+async function transcribeWithWhisper(videoFilePath: string, whisperPath: string, prefs: VideoCommandPreferences, tempDir: string): Promise<string> {
   const whisperModel = prefs.whisperModel?.trim() || "medium";
   const outputDir = path.join(tempDir, "whisper-output");
   await fs.mkdir(outputDir, { recursive: true });
@@ -978,6 +988,10 @@ export async function runVideoTranscribeCommand(
     const ytDlpPath = resolveYtDlpPath(prefs);
 
     await appendRunLog(`RUN START ${localVideoPath ? `file=${localVideoPath}` : `url=${videoUrl}`}`);
+    // Fail fast — verify a usable Whisper binary BEFORE the (slow) download, so a misconfigured
+    // Whisper Path errors in ~1s with an actionable message instead of failing cryptically after
+    // the video has already downloaded. Whisper is this command's transcription engine.
+    const whisperBinary = await resolveWhisperPathOrThrow(prefs);
 
     let artifacts: string[];
     let primaryVideoFile: string;
@@ -1068,7 +1082,7 @@ export async function runVideoTranscribeCommand(
       await appendRunLog("no usable subtitles — whisper fallback starting");
       const whisperTmpDir = path.join(os.tmpdir(), "raycast-obsidian", "whisper", timestamp);
       await fs.mkdir(whisperTmpDir, { recursive: true });
-      transcriptText = normalizeExtractedText(await transcribeWithWhisper(primaryVideoFile, prefs, whisperTmpDir));
+      transcriptText = normalizeExtractedText(await transcribeWithWhisper(primaryVideoFile, whisperBinary, prefs, whisperTmpDir));
       await appendRunLog("whisper transcription OK");
     } else {
       await appendRunLog(`transcript from subtitles (${subtitleFiles.length} sidecar(s))`);
