@@ -92,6 +92,7 @@ Bind a hotkey to **Contextual Wiki Definitions: Define selection or regenerate d
 ### Click-to-define (automatic)
 - Type a wiki link like `[[Your Term]]` in a note, then click it.
 - When the empty note opens, the plugin inserts a completed definition template using the origin note as context. (Governed by the "Auto-insert on file open" setting.)
+- **Graph / Local Graph clicks are supported too (v1.4.0).** Clicking a node in the Graph or Local Graph view counts as an intentional "define this," so the note is generated even when the note you were last reading isn't the one that links the term. The plugin first tries to use a note that actually links the term as context; if none does, it falls back to the note you were last viewing (usually the same topical neighbourhood). With "Require origin link to trigger" ON, normal empty notes (e.g. a fresh daily note) are still skipped — only wiki-link and graph-node opens generate.
 
 ## How it works (technical)
 - Listens to `file-open` events; when an empty Markdown file opens, it treats the previously active note as the origin context.
@@ -126,7 +127,7 @@ By default, the plugin sanitizes all API responses before writing them to your n
 - Error responses are logged with truncated bodies (first 300 chars) to reduce sensitive data exposure.
 
 ## Troubleshooting
-- Nothing happens: ensure the new note is empty and you clicked a freshly created wiki link.
+- Nothing happens: ensure the new note is empty and you clicked a freshly created wiki link. (Since v1.4.0, clicking a node in the Graph / Local Graph view also triggers generation — you no longer need the previously-open note to contain the link.)
 - API errors: verify your Copilot license key in settings and that you have network access.
 - Double insertion: if you undo/redo and the note becomes empty again, the plugin may re-trigger on reopen.
 

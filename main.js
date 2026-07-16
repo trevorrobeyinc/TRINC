@@ -57,6 +57,38 @@ module.exports = class ContextualWikiDefinitions extends Plugin {
     this._attemptCounts = new Map();
     this._inFlightGenerations = new Set(); // Track files currently being generated
 
+    // GRAPH-AWARE TRIGGER: track the previously-active leaf so we can tell when a
+    // note was opened by clicking a node in the Graph / Local Graph view. Graph
+    // clicks don't guarantee the previously-active NOTE links the term, so the
+    // origin-link gate would otherwise silently skip them and leave a blank note.
+    // We record the opened note by BASENAME (which survives the later move into
+    // the definitions folder) plus a timestamp, and read it back after the
+    // deferred generation kicks in (see _wasOpenedFromGraph).
+    this._prevLeafType = null;
+    this._graphOpenedBasename = null;
+    this._graphOpenedAt = 0;
+    this.registerEvent(
+      this.app.workspace.on('active-leaf-change', (leaf) => {
+        let type = null;
+        let base = null;
+        try {
+          type = leaf && leaf.view && typeof leaf.view.getViewType === 'function'
+            ? leaf.view.getViewType()
+            : null;
+          const f = leaf && leaf.view && leaf.view.file;
+          base = f && f.basename ? f.basename : null;
+        } catch (_) {}
+        const prev = this._prevLeafType;
+        this._prevLeafType = type;
+        // A markdown note became active and the leaf we just left was a graph view
+        // → this note was reached by a graph-node click.
+        if (type === 'markdown' && base && (prev === 'localgraph' || prev === 'graph')) {
+          this._graphOpenedBasename = base;
+          this._graphOpenedAt = Date.now();
+        }
+      })
+    );
+
     this.registerEvent(
       this.app.workspace.on('file-open', async (file) => {
         const origin = this.previousFile;
@@ -115,24 +147,43 @@ module.exports = class ContextualWikiDefinitions extends Plugin {
               this._inFlightGenerations.delete(file.path);
               return;
             }
-            const context = await this.app.vault.read(origin);
+            let effectiveOrigin = origin;
+            let context = await this.app.vault.read(origin);
             if (this.settings.requireOriginLinkToTrigger) {
               const hasOriginLink = this._originHasLinkToTerm(origin, file, context);
               if (!hasOriginLink) {
-                this._inFlightGenerations.delete(file.path);
-                return;
+                // The previously-active note doesn't link this term. Decide whether
+                // this is still an intentional "define this" action:
+                //   1) Some OTHER note actually links the term (e.g. a Local Graph
+                //      neighbour) → use THAT note as the origin/context.
+                //   2) The note was opened from a Graph / Local Graph view → treat
+                //      it as intentional and generate with best-available context.
+                // Otherwise (an unrelated empty note opened normally, e.g. a fresh
+                // daily note) → skip, preserving the original safety behaviour.
+                const linker = this._findNoteLinkingTerm(file.basename, file.path);
+                const fromGraph = this._wasOpenedFromGraph(file);
+                if (linker) {
+                  effectiveOrigin = linker;
+                  try { context = await this.app.vault.read(linker); } catch (_) {}
+                } else if (!fromGraph) {
+                  this._inFlightGenerations.delete(file.path);
+                  return;
+                }
+                // fromGraph && !linker → keep the previously-active note as
+                // best-effort context (it's usually the topical neighbourhood you
+                // were browsing) and generate anyway.
               }
             }
             this._markProcessed(file.path);
             const term = file.basename;
-            const originLink = this._computeOriginLinktext(origin, file);
+            const originLink = this._computeOriginLinktext(effectiveOrigin, file);
             const prompt = this.buildPrompt(term, this._truncateContext(context), originLink, this._zkPlaceholderTraits());
             new Notice('Generating definition…');
             let definition = await this.queryCopilot(prompt);
             if (definition) {              definition = this._sanitizeOutput(definition);              definition = this._ensureSourceContextFromLine(definition, originLink);              await this.app.vault.modify(file, definition);
               this._attemptCounts.delete(file.path);              this._inFlightGenerations.delete(file.path);
               new Notice('Definition inserted.');
-              this._enrichWithZettelkastenTraitsAsync(file, origin);
+              this._enrichWithZettelkastenTraitsAsync(file, effectiveOrigin);
             } else {
               // Do not show an error yet; retry once after a short delay
               const key = file.path;
@@ -142,8 +193,8 @@ module.exports = class ContextualWikiDefinitions extends Plugin {
               if (count <= 1) {
                 setTimeout(async () => {
                   try {
-                    const freshCtx = await this.app.vault.read(origin);
-                    const retryOriginLink = this._computeOriginLinktext(origin, file);
+                    const freshCtx = await this.app.vault.read(effectiveOrigin);
+                    const retryOriginLink = this._computeOriginLinktext(effectiveOrigin, file);
                     const retryPrompt = this.buildPrompt(term, this._truncateContext(freshCtx), retryOriginLink, this._zkPlaceholderTraits());
                     let second = await this.queryCopilot(retryPrompt);
                     if (second) {
@@ -153,17 +204,38 @@ module.exports = class ContextualWikiDefinitions extends Plugin {
                       this._attemptCounts.delete(key);
                       this._inFlightGenerations.delete(file.path);
                       new Notice('Definition inserted.');
-                      this._enrichWithZettelkastenTraitsAsync(file, origin);
+                      this._enrichWithZettelkastenTraitsAsync(file, effectiveOrigin);
                     } else {
-                      this._attemptCounts.delete(key); // Clean up on permanent failure
+                      // BUG FIX: both the first attempt and this retry returned empty.
+                      // Previously this branch only showed a toast and left the note
+                      // BLANK (the count>1 fallback path below is unreachable). Write
+                      // the local fallback template so the note is never left empty.
+                      try {
+                        const fallback = this._buildLocalTemplate(term, retryOriginLink, this._truncateContext(freshCtx));
+                        await this.app.vault.modify(file, fallback);
+                        new Notice('Inserted local fallback definition (API failed).');
+                      } catch (e2) {
+                        console.error('Failed to insert fallback template (retry)', e2);
+                        new Notice('Definition generation failed (see console).');
+                      }
+                      this._attemptCounts.delete(key);
                       this._inFlightGenerations.delete(file.path);
-                      new Notice('Definition generation failed (see console).');
                     }
                   } catch (e) {
                     console.error('Retry generation failed', e);
+                    // Last resort: still try the local fallback so a thrown error
+                    // (e.g. a transient vault read failure) doesn't leave it blank.
+                    try {
+                      const retryOriginLink2 = this._computeOriginLinktext(effectiveOrigin, file);
+                      const fallback = this._buildLocalTemplate(term, retryOriginLink2, this._truncateContext(context));
+                      await this.app.vault.modify(file, fallback);
+                      new Notice('Inserted local fallback definition (API failed).');
+                    } catch (e3) {
+                      console.error('Failed to insert fallback template (retry-catch)', e3);
+                      new Notice('Definition generation failed (see console).');
+                    }
                     this._attemptCounts.delete(key); // Clean up on error
                     this._inFlightGenerations.delete(file.path);
-                    new Notice('Definition generation failed (see console).');
                   }
                 }, 1000);
               } else {
@@ -755,6 +827,70 @@ ${safeContext}`;
       const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const re = new RegExp(`!?\\[\\[${escaped}(?:[\\]|#]|$)`, 'i');
       return re.test(raw);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /**
+   * Find a markdown note anywhere in the vault that links to `term` (matched by
+   * basename), checking both resolved and unresolved links in the metadata cache.
+   * Used as a better origin/context source when a note is reached from the Graph
+   * view and the previously-active note isn't the one that actually links the term
+   * (e.g. the term is linked by a graph *neighbour*). Returns a TFile or null;
+   * skips `excludePath` (the target note itself).
+   */
+  _findNoteLinkingTerm(term, excludePath) {
+    try {
+      if (!term) return null;
+      const wanted = term.toLowerCase();
+      const mc = this.app.metadataCache;
+      const pickFile = (src) => {
+        if (!src || src === excludePath) return null;
+        const f = this.app.vault.getAbstractFileByPath(src);
+        return (f && f.extension === 'md') ? f : null;
+      };
+      // resolvedLinks: { sourcePath: { targetPath: count } }
+      const resolved = (mc && mc.resolvedLinks) ? mc.resolvedLinks : {};
+      for (const src of Object.keys(resolved)) {
+        for (const tgt of Object.keys(resolved[src])) {
+          const base = tgt.split('/').pop().replace(/\.md$/i, '');
+          if (base.toLowerCase() === wanted) {
+            const f = pickFile(src);
+            if (f) return f;
+          }
+        }
+      }
+      // unresolvedLinks: { sourcePath: { linkText: count } } — for links whose
+      // target note doesn't exist yet (the common case right before creation).
+      const unresolved = (mc && mc.unresolvedLinks) ? mc.unresolvedLinks : {};
+      for (const src of Object.keys(unresolved)) {
+        for (const lt of Object.keys(unresolved[src])) {
+          const base = lt.split('#')[0].split('|')[0].split('/').pop();
+          if (base && base.toLowerCase() === wanted) {
+            const f = pickFile(src);
+            if (f) return f;
+          }
+        }
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /**
+   * True when `file` was opened by clicking a node in the Graph / Local Graph view.
+   * The 'active-leaf-change' listener (see onload) records the basename + time when
+   * a markdown note becomes active directly after a graph leaf. We match by basename
+   * (it survives the note's relocation into the definitions folder) within a short
+   * recency window, so this stays correct regardless of how long the graph was open.
+   */
+  _wasOpenedFromGraph(file) {
+    try {
+      if (!file || !file.basename) return false;
+      return this._graphOpenedBasename === file.basename
+        && (Date.now() - (this._graphOpenedAt || 0) < 8000);
     } catch (_) {
       return false;
     }
