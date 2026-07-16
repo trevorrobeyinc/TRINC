@@ -56,9 +56,3 @@ export interface BackendResult {
   durationMs: number;
   parsed?: unknown;
 }
-
-export interface PlannerHint {
-  operation: Operation;
-  backendHint?: BackendId;
-  epochId?: number;
-}

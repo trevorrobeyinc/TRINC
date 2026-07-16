@@ -75,6 +75,31 @@ async function reconcileAppendMarker(
   return markerRegexForKey(key).test(readResult.data.slice(-16_384));
 }
 
+/**
+ * Await the append marker, converting a wait failure into an ambiguous-ledger
+ * entry and rethrowing (a stale-selection error propagates untouched). Shared
+ * by the STARTED/AMBIGUOUS reconciliation path and the post-append path so the
+ * catch behavior stays in one place.
+ */
+async function awaitAppendMarkerOrMarkAmbiguous(
+  runtime: RuntimeContext,
+  payload: z.infer<typeof schema>,
+  requestId: string,
+  epochId: number | undefined,
+  backendHint: BackendId | undefined,
+  key: string
+): Promise<boolean> {
+  try {
+    return await waitForAppendMarker(runtime, payload, requestId, epochId, backendHint, key);
+  } catch (error) {
+    if (isStaleSelectionError(error)) {
+      throw error;
+    }
+    runtime.ledger.ambiguous("append_note", key, String(error));
+    throw error;
+  }
+}
+
 async function waitForAppendMarker(
   runtime: RuntimeContext,
   payload: z.infer<typeof schema>,
@@ -164,16 +189,14 @@ export async function appendNoteTool(
   }
 
   if (hadExistingEntry && (existing.state === "STARTED" || existing.state === "AMBIGUOUS")) {
-    let found = false;
-    try {
-      found = await waitForAppendMarker(runtime, payload, requestId, epochId, backendHint, key);
-    } catch (error) {
-      if (isStaleSelectionError(error)) {
-        throw error;
-      }
-      runtime.ledger.ambiguous("append_note", key, String(error));
-      throw error;
-    }
+    const found = await awaitAppendMarkerOrMarkAmbiguous(
+      runtime,
+      payload,
+      requestId,
+      epochId,
+      backendHint,
+      key
+    );
 
     if (found) {
       runtime.ledger.reconcile(
@@ -242,16 +265,14 @@ export async function appendNoteTool(
     return result;
   }
 
-  let found = false;
-  try {
-    found = await waitForAppendMarker(runtime, payload, requestId, epochId, backendHint, key);
-  } catch (error) {
-    if (isStaleSelectionError(error)) {
-      throw error;
-    }
-    runtime.ledger.ambiguous("append_note", key, String(error));
-    throw error;
-  }
+  const found = await awaitAppendMarkerOrMarkAmbiguous(
+    runtime,
+    payload,
+    requestId,
+    epochId,
+    backendHint,
+    key
+  );
 
   if (!found) {
     runtime.ledger.ambiguous("append_note", key, "marker_not_found");

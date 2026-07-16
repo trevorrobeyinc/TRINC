@@ -14,11 +14,7 @@ export interface ServerConfig {
       keyPath: string;
     };
   };
-  obsidianCliBinary: string;
   cliStability: {
-    probeTimeoutMs: number;
-    launchTimeoutMs: number;
-    readinessPollIntervalMs: number;
     requiredVaultNames: string[];
   };
   timeouts: {

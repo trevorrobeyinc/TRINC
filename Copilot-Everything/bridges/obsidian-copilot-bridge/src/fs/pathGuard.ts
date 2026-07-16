@@ -46,6 +46,21 @@ function containsPath(root: string, candidate: string): boolean {
   return c === r || c.startsWith(`${r}/`);
 }
 
+/**
+ * Throw PATH_OUTSIDE_VAULT if a resolved candidate escapes the vault root.
+ * Shared by the three symlink/segment/realpath checks in canonicalizeCandidate
+ * so the vault-escape throw lives in exactly one place. (guardVaultRelativePath
+ * keeps its own throw — its error metadata additionally reports relativePath.)
+ */
+function assertInsideVault(rootReal: string, candidate: string): void {
+  if (!containsPath(rootReal, candidate)) {
+    throw new AppError(ERROR_CODES.PATH_OUTSIDE_VAULT, "Resolved path escapes the configured vault root.", false, {
+      vaultRoot: rootReal,
+      resolved: candidate,
+    });
+  }
+}
+
 function canonicalizeCandidate(rootReal: string, candidate: string): string {
   const rel = path.relative(rootReal, candidate);
   const segments = rel.split(path.sep).filter(Boolean);
@@ -56,33 +71,18 @@ function canonicalizeCandidate(rootReal: string, candidate: string): string {
     if (fs.existsSync(next)) {
       const stat = fs.lstatSync(next);
       const resolved = stat.isSymbolicLink() ? fs.realpathSync.native(next) : next;
-      if (!containsPath(rootReal, resolved)) {
-        throw new AppError(ERROR_CODES.PATH_OUTSIDE_VAULT, "Resolved path escapes the configured vault root.", false, {
-          vaultRoot: rootReal,
-          resolved,
-        });
-      }
+      assertInsideVault(rootReal, resolved);
       current = resolved;
       continue;
     }
 
     current = next;
-    if (!containsPath(rootReal, current)) {
-      throw new AppError(ERROR_CODES.PATH_OUTSIDE_VAULT, "Resolved path escapes the configured vault root.", false, {
-        vaultRoot: rootReal,
-        resolved: current,
-      });
-    }
+    assertInsideVault(rootReal, current);
   }
 
   if (fs.existsSync(current)) {
     const real = fs.realpathSync.native(current);
-    if (!containsPath(rootReal, real)) {
-      throw new AppError(ERROR_CODES.PATH_OUTSIDE_VAULT, "Resolved path escapes the configured vault root.", false, {
-        vaultRoot: rootReal,
-        resolved: real,
-      });
-    }
+    assertInsideVault(rootReal, real);
     return real;
   }
 

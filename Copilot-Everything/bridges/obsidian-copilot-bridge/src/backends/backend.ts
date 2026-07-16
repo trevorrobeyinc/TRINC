@@ -16,11 +16,3 @@ export interface Backend {
   probe(): Promise<BackendCapabilities>;
   execute(op: Operation, input: unknown, ctx: ExecutionContext): Promise<BackendResult>;
 }
-
-export interface SelectionPolicy {
-  operation: Operation;
-  requiredBackend?: BackendId;
-  preferLowerLatency: boolean;
-  requirePostWriteVerification: boolean;
-  requireIdempotencyDurability: boolean;
-}

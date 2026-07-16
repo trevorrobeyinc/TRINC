@@ -32,12 +32,8 @@ const schema = z.object({
       }).optional(),
     })
     .default({}),
-  obsidianCliBinary: z.string().default("obsidian"),
   cliStability: z
     .object({
-      probeTimeoutMs: z.number().int().min(1000).default(20_000),
-      launchTimeoutMs: z.number().int().min(1000).default(20_000),
-      readinessPollIntervalMs: z.number().int().min(100).default(500),
       requiredVaultNames: z.array(z.string().min(1)).min(1).default(["My Digital Garden"]),
     })
     .default({}),

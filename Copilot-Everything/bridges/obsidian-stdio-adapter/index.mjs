@@ -438,6 +438,21 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: TOOLS,
 }));
 
+/**
+ * Map a bridge call result to the MCP tool-result shape. Success omits isError;
+ * a failure carries isError:true with the bridge error code/message. Shared by
+ * the raycast-profile helper and the standard tool path.
+ */
+function toMcpResult(result) {
+  if (result.ok) {
+    return { content: [{ type: "text", text: JSON.stringify(result.data, null, 2) }] };
+  }
+  return {
+    content: [{ type: "text", text: `Error [${result.error?.code}]: ${result.error?.message}` }],
+    isError: true,
+  };
+}
+
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
@@ -461,13 +476,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         id: "daily-notes",
       });
       const result = await callBridge(payload);
-      if (result.ok) {
-        return { content: [{ type: "text", text: JSON.stringify(result.data, null, 2) }] };
-      }
-      return {
-        content: [{ type: "text", text: `Error [${result.error?.code}]: ${result.error?.message}` }],
-        isError: true,
-      };
+      return toMcpResult(result);
     } catch (err) {
       return { content: [{ type: "text", text: `Adapter error: ${err.message}` }], isError: true };
     }
@@ -476,27 +485,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     const payload = buildBridgePayload(name, args || {});
     const result = await callBridge(payload);
-
-    if (result.ok) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(result.data, null, 2),
-          },
-        ],
-      };
-    }
-
-    return {
-      content: [
-        {
-          type: "text",
-          text: `Error [${result.error?.code}]: ${result.error?.message}`,
-        },
-      ],
-      isError: true,
-    };
+    return toMcpResult(result);
   } catch (err) {
     return {
       content: [

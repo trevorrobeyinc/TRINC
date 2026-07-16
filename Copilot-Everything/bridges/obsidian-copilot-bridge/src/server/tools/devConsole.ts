@@ -52,49 +52,35 @@ function requireIpc(runtime: RuntimeContext, requestId: string): void {
 const startedAt = () => Date.now();
 const elapsed = (s: number) => Date.now() - s;
 
-export async function devConsoleLogsTool(
-  runtime: RuntimeContext,
-  requestId: string,
-  epochId: number | undefined,
-  _backendHint: BackendId | undefined,
-  rawInput: unknown
-): Promise<ToolResult<LogsResponse>> {
-  const t0 = startedAt();
-  try {
-    requireIpc(runtime, requestId);
-    const input = logsInputSchema.parse(rawInput ?? {});
-    const result = (await runtime.launcherIpc!.request("console.logs", input, 5000)) as LogsResponse;
-    return {
-      ok: true,
-      data: result,
-      meta: { requestId, durationMs: elapsed(t0), epochId, consistencyHint: "n/a" },
-    };
-  } catch (error) {
-    return buildFailure(error, { requestId, durationMs: elapsed(t0), epochId });
-  }
+// The logs and errors tools are identical apart from the launcher IPC channel
+// they read; a single factory keeps their behavior in lockstep. Both named
+// exports are retained (the dispatcher imports them by name).
+function makeConsoleReadTool(channel: "console.logs" | "console.errors") {
+  return async function (
+    runtime: RuntimeContext,
+    requestId: string,
+    epochId: number | undefined,
+    _backendHint: BackendId | undefined,
+    rawInput: unknown
+  ): Promise<ToolResult<LogsResponse>> {
+    const t0 = startedAt();
+    try {
+      requireIpc(runtime, requestId);
+      const input = logsInputSchema.parse(rawInput ?? {});
+      const result = (await runtime.launcherIpc!.request(channel, input, 5000)) as LogsResponse;
+      return {
+        ok: true,
+        data: result,
+        meta: { requestId, durationMs: elapsed(t0), epochId, consistencyHint: "n/a" },
+      };
+    } catch (error) {
+      return buildFailure(error, { requestId, durationMs: elapsed(t0), epochId });
+    }
+  };
 }
 
-export async function devConsoleErrorsTool(
-  runtime: RuntimeContext,
-  requestId: string,
-  epochId: number | undefined,
-  _backendHint: BackendId | undefined,
-  rawInput: unknown
-): Promise<ToolResult<LogsResponse>> {
-  const t0 = startedAt();
-  try {
-    requireIpc(runtime, requestId);
-    const input = logsInputSchema.parse(rawInput ?? {});
-    const result = (await runtime.launcherIpc!.request("console.errors", input, 5000)) as LogsResponse;
-    return {
-      ok: true,
-      data: result,
-      meta: { requestId, durationMs: elapsed(t0), epochId, consistencyHint: "n/a" },
-    };
-  } catch (error) {
-    return buildFailure(error, { requestId, durationMs: elapsed(t0), epochId });
-  }
-}
+export const devConsoleLogsTool = makeConsoleReadTool("console.logs");
+export const devConsoleErrorsTool = makeConsoleReadTool("console.errors");
 
 export async function devConsoleEvalTool(
   runtime: RuntimeContext,
