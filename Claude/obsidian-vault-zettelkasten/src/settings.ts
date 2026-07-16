@@ -19,7 +19,6 @@ export class VaultZKSettingTab extends PluginSettingTab {
       .setDesc("LLM provider for Zettelkasten analysis")
       .addDropdown((d) =>
         d
-          .addOption("lm-studio", "LM Studio")
           .addOption("ollama", "Ollama")
           .addOption("openai", "OpenAI")
           .setValue(this.plugin.settings.llmProvider)
@@ -31,10 +30,10 @@ export class VaultZKSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Base URL")
-      .setDesc("API endpoint (e.g. https://127.0.0.1:1235/v1 — LM Studio via TLS proxy)")
+      .setDesc("API endpoint (e.g. https://127.0.0.1:11435 — Ollama via TLS proxy)")
       .addText((t) =>
         t
-          .setPlaceholder("https://127.0.0.1:1235/v1")
+          .setPlaceholder("https://127.0.0.1:11435")
           .setValue(this.plugin.settings.llmBaseUrl)
           .onChange(async (v) => {
             this.plugin.settings.llmBaseUrl = v;
