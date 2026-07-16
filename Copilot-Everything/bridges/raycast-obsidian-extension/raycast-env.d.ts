@@ -224,24 +224,13 @@ declare namespace Preferences {
   export type RunActionCommand = ExtensionPreferences & {}
   /** Preferences accessible in the `aiSummarizeCommand` command */
   export type AiSummarizeCommand = ExtensionPreferences & {}
-  /** Preferences accessible in the `videoTranscribeCommand` command */
-  export type VideoTranscribeCommand = ExtensionPreferences & {
-  /** Whisper Path - Path to the whisper executable. Defaults to the faster-whisper (whisper-ctranslate2) engine; the original openai-whisper CLI at /opt/homebrew/bin/whisper also works. */
+  /** Preferences accessible in the `videoTranscribeRunnerCommand` command */
+  export type VideoTranscribeRunnerCommand = ExtensionPreferences & {
+  /** Whisper Path - Path to the whisper executable. Defaults to the faster-whisper (whisper-ctranslate2) engine. */
   "whisperPath": string,
   /** Whisper Model - Whisper model size (tiny, base, small, medium, large). medium is the recommended accuracy/speed balance. */
   "whisperModel": "tiny" | "base" | "small" | "medium" | "large",
-  /** Raycast-Obsidian MCP Endpoint - Obsidian MCP bridge URL. Defaults to the canonical multi-operator obsidian-copilot-bridge daemon on :8798. (The legacy standalone raycast-obsidian-mcp daemon at :18799 was retired 2026-05-09; this preference now points at the consolidated bridge.) */
-  "raycastObsidianMcpEndpoint": string,
-  /** Raycast-Obsidian MCP Auth Token - Auth token for the canonical obsidian-copilot-bridge daemon. If empty, the client reads it from the bridge's local config file. */
-  "raycastObsidianMcpAuthToken"?: string,
-  /** Raycast-Obsidian MCP Config Path - Path to the canonical bridge's config file (used to auto-discover endpoint + auth token). */
-  "raycastObsidianMcpConfigPath": string,
-  /** Raycast-Obsidian MCP Request Timeout (ms) - HTTPS request timeout for the canonical bridge. */
-  "raycastObsidianMcpRequestTimeoutMs": string
-}
-  /** Preferences accessible in the `videoTranscribeRunnerCommand` command */
-  export type VideoTranscribeRunnerCommand = ExtensionPreferences & {
-  /** Raycast-Obsidian MCP Endpoint - Obsidian MCP bridge URL (mirrors the Video Download & Transcribe preference). */
+  /** Raycast-Obsidian MCP Endpoint - Obsidian MCP bridge URL. Defaults to the canonical multi-operator obsidian-copilot-bridge daemon on :8798. */
   "raycastObsidianMcpEndpoint": string,
   /** Raycast-Obsidian MCP Auth Token - Auth token for the canonical obsidian-copilot-bridge daemon. If empty, read from the bridge's local config file. */
   "raycastObsidianMcpAuthToken"?: string,
@@ -314,10 +303,11 @@ declare namespace Arguments {
   export type RunActionCommand = {}
   /** Arguments passed to the `aiSummarizeCommand` command */
   export type AiSummarizeCommand = {}
-  /** Arguments passed to the `videoTranscribeCommand` command */
-  export type VideoTranscribeCommand = {}
   /** Arguments passed to the `videoTranscribeRunnerCommand` command */
-  export type VideoTranscribeRunnerCommand = {}
+  export type VideoTranscribeRunnerCommand = {
+  /** Video URL or local file path */
+  "videoUrl": string
+}
   /** Arguments passed to the `pdfSummarizeCommand` command */
   export type PdfSummarizeCommand = {}
   /** Arguments passed to the `copilotPromptsCommand` command */

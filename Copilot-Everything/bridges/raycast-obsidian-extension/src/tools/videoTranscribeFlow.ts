@@ -206,7 +206,7 @@ async function resolveWhisperPathOrThrow(prefs: VideoCommandPreferences): Promis
   }
 
   throw new Error(
-    `Whisper executable not found. Set "Whisper Path" in the Video Download & Transcribe command ` +
+    `Whisper executable not found. Set "Whisper Path" in the Video Pipeline Runner command ` +
       `preferences to your whisper-ctranslate2 binary ` +
       `(e.g. /Users/myhome/.local/venvs/fwhisper/bin/whisper-ctranslate2). ` +
       `Tried: ${[configured, ...defaultWhisperPathCandidates].filter(Boolean).join(", ")}`
