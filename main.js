@@ -332,7 +332,7 @@ module.exports = class ContextualWikiDefinitions extends Plugin {
   }
 
   _zkPlaceholder() {
-    return '*(populating in background — refresh the note in ~60s to see populated content)*';
+    return '*(populating in background — Vault Zettelkasten traits can take several minutes on the local model; each section updates automatically when its trait finishes)*';
   }
 
   /**
@@ -371,15 +371,19 @@ module.exports = class ContextualWikiDefinitions extends Plugin {
       orphanRescue:   () => vz.api.orphanRescue(req),
     };
 
-    const withTimeout = (p, label, ms = 60000) =>
-      Promise.race([
-        p,
-        new Promise((_, rej) => setTimeout(() => rej(new Error(`${label} timeout after ${ms}ms`)), ms)),
-      ]);
-
+    // MEASURED 2026-07-16 (console-mirror timeline): the five traits complete
+    // SERIALLY through the local Ollama queue — 123.6s / 177.3s / 228.8s /
+    // 332.5s / 380.1s for one run. The old 60s Promise.race rejected before ANY
+    // of them landed and permanently discarded all five results. New design:
+    // never discard — each trait's own promise updates its section whenever it
+    // settles (even minutes later). A checkpoint timer only refreshes the
+    // placeholder wording so the reader knows it's still working.
+    const CHECKPOINT_MS = 180000;
     for (const { key, heading } of this._zkSectionMap()) {
-      withTimeout(calls[key](), key)
+      let settled = false;
+      calls[key]()
         .then(async (result) => {
+          settled = true;
           const body = (result && result.content) ? String(result.content).trim() : '';
           if (!body) {
             await this._replaceSectionInNote(targetFile, heading, '*(unavailable — Vault Zettelkasten returned no signal)*');
@@ -389,9 +393,19 @@ module.exports = class ContextualWikiDefinitions extends Plugin {
           await this._replaceSectionInNote(targetFile, heading, body);
         })
         .catch(async (err) => {
+          settled = true;
           console.warn(`[CWD] async ${key} failed:`, err && err.message ? err.message : err);
-          await this._replaceSectionInNote(targetFile, heading, '*(unavailable — VZ trait timed out or errored)*');
+          await this._replaceSectionInNote(targetFile, heading, '*(unavailable — VZ trait errored)*');
         });
+      setTimeout(() => {
+        if (settled) return;
+        console.log(`[CWD] async ${key} still running after ${Math.round(CHECKPOINT_MS / 1000)}s — section will update when it finishes`);
+        this._replaceSectionInNote(
+          targetFile,
+          heading,
+          '*(Vault Zettelkasten is still working on this section — it updates automatically when finished)*'
+        ).catch(() => {});
+      }, CHECKPOINT_MS);
     }
   }
 
@@ -900,11 +914,17 @@ ${safeContext}`;
    * NETWORKING: HTTP request wrapper using Obsidian requestUrl with fetch fallback
    * Prefers requestUrl for better Obsidian integration, falls back to fetch if unavailable
    */
-  async _makeRequest(url, options) {    // Prefer Obsidian requestUrl if available (better integration, mobile support)
+  async _makeRequest(url, options) {
+    // Configurable timeout, default 180s. The old hard 30s ceiling was the cause
+    // of "pending"-only fallback notes: a full Feynman-Metaphor generation on
+    // copilot-plus-flash measured 106.6s end-to-end (2026-07-16), so EVERY real
+    // request was aborted mid-flight → null → local fallback template.
+    const timeoutMs = Math.max(10000, Number(this.settings && this.settings.apiTimeoutMs) || 180000);
+    // Prefer Obsidian requestUrl if available (better integration, mobile support)
     if (typeof requestUrl !== 'undefined' && requestUrl) {
       try {        // requestUrl doesn't support AbortController, so use Promise.race for timeout
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Request timeout')), 30000);
+          setTimeout(() => reject(new Error('Request timeout')), timeoutMs);
         });
 
         const requestPromise = requestUrl({
@@ -965,8 +985,13 @@ ${safeContext}`;
       }
     }
 
-    // Fallback to fetch (for compatibility or if requestUrl unavailable)    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
+    // Fallback to fetch (for compatibility or if requestUrl unavailable).
+    // BUG FIX: the AbortController declaration was previously trapped inside the
+    // trailing comment above (smushed-line artifact), so `controller` was never
+    // declared and this whole fallback path threw ReferenceError. Latent in
+    // Obsidian (requestUrl exists there) but real for any environment without it.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const res = await fetch(url, {
         ...options,
@@ -1029,7 +1054,10 @@ ${safeContext}`;
             continue;
           }
 
-          preferredEndpoint = endpoint;
+          // Only remember an endpoint as preferred when it actually succeeded.
+          // (Previously a dead endpoint's 404, returned from the last loop slot,
+          // was promoted to preferred and led the NEXT attempt's ordering.)
+          if (res.ok) preferredEndpoint = endpoint;
           return res;
         } catch (e) {
           lastErr = e;
@@ -1047,55 +1075,13 @@ ${safeContext}`;
       ? ((this.settings.customApiModel || '').trim() || 'gpt-4o-mini')
       : 'copilot-plus-flash';
 
-    try {
-      // Attempt 1: JSON, non-stream
-      let res = await call({ model: modelName, stream: false, accept: 'application/json' });
-      if (!res.ok) {
-        // SECURITY: Reduce sensitive logging - only log status + short snippet
-        const errorText = await res.text();
-        const snippet = errorText ? errorText.slice(0, 300) : '';
-        console.error('Copilot non-OK response (1)', res.status, snippet + (errorText && errorText.length > 300 ? '...' : ''));
-      } else {
-        const ct1 = (res.headers.get('content-type') || '').toLowerCase();
-        const text1 = await res.text();
-        // BUG FIX: Handle null/undefined text responses
-        if (!text1) {
-          // Silently continue to next attempt
-        } else {
-          try {
-            const data1 = JSON.parse(text1);
-            const msg1 = data1 && data1.choices && data1.choices[0] && data1.choices[0].message;
-            if (msg1 && msg1.content) return msg1.content.trim();
-            // Silently continue to next attempt - don't log warnings for expected fallback behavior
-          } catch (e1) {
-            if (ct1.includes('text/event-stream') || (text1 && text1.startsWith('data:'))) {
-            let out = '';
-            for (const rawLine of text1.split('\n')) {
-              const line = rawLine.trim();
-              if (!line.startsWith('data:')) continue;
-              const payload = line.slice(5).trim();
-              if (!payload || payload === '[DONE]') continue;
-              try {
-                const evt = JSON.parse(payload);
-                const choice = evt.choices && evt.choices[0];
-                const delta = choice && (choice.delta || choice.message);
-                const chunk = delta && (delta.content || '');
-                if (chunk) out += chunk;
-              } catch (_) {}
-            }
-            if (out.trim()) return out.trim();
-            }
-            // Silently continue to next attempt - don't log parse errors for expected fallback behavior
-          }
-        }
-      }
-
-      // Attempt 2: SSE stream
-      try {
-        res = await call({ model: modelName, stream: true, accept: 'text/event-stream,*/*' });
-        const text2 = await res.text();
-        let out2 = '';
-        for (const rawLine of text2.split('\n')) {
+    // Parse either an SSE body ("data:" lines) or a plain JSON chat completion
+    // into the message content. Shared by every attempt below.
+    const extractContent = (text) => {
+      if (!text) return '';
+      if (text.includes('data:')) {
+        let out = '';
+        for (const rawLine of text.split('\n')) {
           const line = rawLine.trim();
           if (!line.startsWith('data:')) continue;
           const payload = line.slice(5).trim();
@@ -1105,23 +1091,58 @@ ${safeContext}`;
             const choice = evt.choices && evt.choices[0];
             const delta = choice && (choice.delta || choice.message);
             const chunk = delta && (delta.content || '');
-            if (chunk) out2 += chunk;
+            if (chunk) out += chunk;
           } catch (_) {}
         }
-        if (out2.trim()) return out2.trim();
+        if (out.trim()) return out.trim();
+      }
+      try {
+        const data = JSON.parse(text);
+        const msg = data && data.choices && data.choices[0] && data.choices[0].message;
+        if (msg && msg.content) return msg.content.trim();
+      } catch (_) {}
+      return '';
+    };
+
+    try {
+      // Attempt 1: SSE stream FIRST. Measured 2026-07-16 (console-mirror
+      // timeline): the same generation that HUNG past the 180s timeout as a
+      // non-stream request completed in ~66s via SSE — streaming is the fast,
+      // reliable path on this backend, so it now leads. Each attempt is
+      // isolated so one thrown error can't skip the remaining fallbacks.
+      try {
+        const res1 = await call({ model: modelName, stream: true, accept: 'text/event-stream,*/*' });
+        const text1 = await res1.text();
+        const out1 = extractContent(text1);
+        if (out1) return out1;
+        if (!res1.ok) {
+          // SECURITY: Reduce sensitive logging - only log status + short snippet
+          const snippet = text1 ? text1.slice(0, 300) : '';
+          console.error('Copilot non-OK response (stream)', res1.status, snippet);
+        }
+      } catch (e1) {
+        console.warn('Copilot stream attempt failed:', e1 && e1.message ? e1.message : e1);
+      }
+
+      // Attempt 2: JSON, non-stream (the old primary; now the fallback)
+      try {
+        const res2 = await call({ model: modelName, stream: false, accept: 'application/json' });
+        const text2 = await res2.text();
+        const out2 = extractContent(text2);
+        if (out2) return out2;
+        if (!res2.ok) {
+          const snippet = text2 ? text2.slice(0, 300) : '';
+          console.error('Copilot non-OK response (json)', res2.status, snippet);
+        }
       } catch (e2) {
-        // Silently continue to next attempt
+        console.warn('Copilot json attempt failed:', e2 && e2.message ? e2.message : e2);
       }
 
       // Attempt 3: JSON, non-stream, non-flash model
       try {
-        res = await call({ model: 'copilot-plus', stream: false, accept: 'application/json' });
-        const text3 = await res.text();
-        try {
-          const data3 = JSON.parse(text3);
-          const msg3 = data3 && data3.choices && data3.choices[0] && data3.choices[0].message;
-          if (msg3 && msg3.content) return msg3.content.trim();
-        } catch (_) {}
+        const res3 = await call({ model: 'copilot-plus', stream: false, accept: 'application/json' });
+        const out3 = extractContent(await res3.text());
+        if (out3) return out3;
       } catch (e3) {
         // Silently continue - only log if all attempts fail
       }
@@ -1143,6 +1164,7 @@ ${safeContext}`;
       allowCodeBlocks: false, // SECURITY: Default OFF - strip all code blocks
       allowRawHTML: false, // SECURITY: Default OFF - strip HTML tags
       maxOutputLength: 60000, // SECURITY: Cap output to prevent huge writes
+      apiTimeoutMs: 180000, // Full Feynman generations measured >100s on copilot-plus-flash; 30s was aborting every real request
       definitionsFolder: 'Contextual Wiki Definitions', // All new definition notes are created/relocated here
       customApiBaseUrl: '', // FORK: When set, replaces Brevilabs endpoints with this OpenAI-compatible base URL
       customApiModel: ''    // FORK: Model name to send to custom endpoint (e.g. "llama3.2", "gpt-4o-mini"); empty falls back to "gpt-4o-mini"
@@ -1403,6 +1425,20 @@ class ContextualDefinitionSettingTab extends PluginSettingTab {
           const num = parseInt(value, 10);
           if (!isNaN(num) && num > 0) {
             this.plugin.settings.maxOutputLength = num;
+            await this.plugin.saveSettings();
+          }
+        }));
+
+    new Setting(containerEl)
+      .setName('API timeout (seconds)')
+      .setDesc('How long to wait for the definition API before writing the local fallback template. Full Feynman generations can take 1–2 minutes on copilot-plus-flash; minimum 10, default 180.')
+      .addText(text => text
+        .setPlaceholder('180')
+        .setValue(String(Math.round((this.plugin.settings.apiTimeoutMs || 180000) / 1000)))
+        .onChange(async (value) => {
+          const num = parseInt(value, 10);
+          if (!isNaN(num) && num >= 10) {
+            this.plugin.settings.apiTimeoutMs = num * 1000;
             await this.plugin.saveSettings();
           }
         }));

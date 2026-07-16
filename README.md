@@ -123,7 +123,9 @@ By default, the plugin sanitizes all API responses before writing them to your n
 ### Network Requests
 - The plugin uses Obsidian's `requestUrl()` API when available (better integration, mobile support).
 - Falls back to standard `fetch()` if `requestUrl()` is unavailable or fails.
-- All requests timeout after 30 seconds.
+- Requests time out after a configurable "API timeout" (default 180 seconds — full Feynman generations were measured at ~107s on copilot-plus-flash, so the old 30s ceiling aborted every real request and produced fallback-template "pending" notes).
+- **Streaming first (v1.4.2):** the API is tried in SSE-streaming mode first, then non-stream, then the non-flash model. Measured on 2026-07-16: the identical generation that hung past 180s as a non-stream request completed in ~66s via SSE.
+- **Zettelkasten sections fill progressively (v1.4.2):** the five Vault Zettelkasten trait sections are computed serially by the local model and can take several minutes each (measured 2–6.5 min per run). Results are never discarded — each section updates automatically whenever its trait finishes; after 3 minutes a section still in progress says so explicitly.
 - Error responses are logged with truncated bodies (first 300 chars) to reduce sensitive data exposure.
 
 ## Troubleshooting
