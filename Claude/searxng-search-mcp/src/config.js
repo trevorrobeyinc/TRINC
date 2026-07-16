@@ -5,9 +5,9 @@
  *
  * The connector talks to the local SearXNG instance through the in-monorepo
  * HTTPS TLS proxy at https://127.0.0.1:8891 (launchd
- * `com.trevorrobey.searxng-tls-proxy` → plaintext upstream :8890), the same
+ * `com.trevorrobey.searxng-tls-proxy` → plaintext upstream on port 8890), the same
  * treatment as Miyo/Qdrant/Ollama/LM Studio. The 2026-07-06 hardening removed
- * the previous ":8890 plaintext loopback" carve-out. The process must run
+ * the previous "port-8890 plaintext loopback" carve-out. The process must run
  * with NODE_EXTRA_CA_CERTS pointing at the mkcert root CA so `fetch` trusts
  * the proxy; this stdio MCP server still binds no TCP port of its own.
  *

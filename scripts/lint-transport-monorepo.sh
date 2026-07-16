@@ -30,8 +30,9 @@
 #      as "UDS/pipe outbound (structural exempt)".
 #
 #   3. PLAINTEXT-UPSTREAM-PORT references:
-#      - Direct hits on :8742, :6333, :1234, :11434 in source — these should
-#        route through the HTTPS proxies on :8743, :6433, :1235, :11435.
+#      - Direct hits on :8742, :6333, :1234, :11434, :8890 in source — these
+#        should route through the HTTPS proxies on :8743, :6433, :1235, :11435,
+#        :8891.
 #
 # Exemptions:
 #   - UDS / Windows-pipe transports legitimately use http.createServer because
@@ -76,7 +77,19 @@ OUTBOUND_PATTERNS='http\.request\(|http\.get\(|fetch\(["'"'"']http://|axios\.(ge
 # These should route through the HTTPS proxies on :8743/:6433/:1235/:11435.
 # Trailing `([^0-9]|$)` anchor prevents :1234 from matching :12345 (e.g. PMID
 # identifiers like [PMID:12345]) and prevents :11434 from matching :114340.
-PLAINTEXT_PORT_PATTERNS='(:8742|:6333|:1234|:11434)([^0-9]|$)'
+#
+# SearXNG :8890 is guarded (2026-07-15) alongside the original four. SearXNG
+# became the 5th wrapped service (HTTPS proxy on :8891, added 2026-07-06); its
+# proxy is exempted in LEGITIMATE_OUTBOUND_PLAINTEXT below. The 5 pre-existing
+# benign references were resolved at their source before the guard was enabled
+# (none was ever a real plaintext data path):
+#   - Claude/searxng-search-mcp/src/config.js — reworded to "port 8890" prose
+#     (the live connection was and is https://127.0.0.1:8891, never plaintext).
+#   - "Trevor Robey Intelligence Network Citations"/scripts/diag/searxng-section-gate-e2e.mjs
+#     — a diagnostic that deliberately probes the RAW upstream for liveness; its
+#     one real plaintext line carries an outbound-carve-out marker (permanent by
+#     design), the prose comments were reworded.
+PLAINTEXT_PORT_PATTERNS='(:8742|:6333|:1234|:11434|:8890)([^0-9]|$)'
 
 # Carve-out marker (matches both // and # comment styles).
 CARVE_OUT_MARKER='lint-transport:[[:space:]]*outbound-carve-out'
@@ -87,21 +100,20 @@ CARVE_OUT_MARKER='lint-transport:[[:space:]]*outbound-carve-out'
 LEGITIMATE_NON_TCP=(
   "Copilot-Everything/bridges/obsidian-copilot-bridge/src/server/udsTransport.ts"
   "Copilot-Everything/bridges/obsidian-copilot-bridge/src/server/windowsPipeTransport.ts"
-  "Copilot-Everything/bridges/raycast-obsidian-mcp/src/server/udsTransport.ts"
-  "Copilot-Everything/bridges/raycast-obsidian-mcp/src/server/windowsPipeTransport.ts"
 )
 
 # Files that LEGITIMATELY make plaintext outbound calls because they ARE the
 # canonical "wrap" pattern from Principle I — they terminate HTTPS on the
 # proxy port and forward to the plaintext upstream. Their `http.request()`
-# and direct `:8742`/`:6333`/`:1234`/`:11434` references are the whole point.
-# These files are exempt from OUTBOUND and PLAINTEXT_PORT scans only — they
-# remain subject to LISTENER (inbound) scanning.
+# and direct `:8742`/`:6333`/`:1234`/`:11434`/`:8890` references are the whole
+# point. These files are exempt from OUTBOUND and PLAINTEXT_PORT scans only —
+# they remain subject to LISTENER (inbound) scanning.
 LEGITIMATE_OUTBOUND_PLAINTEXT=(
   "Copilot-Everything/scripts/miyo-tls-proxy.mjs"
   "Copilot-Everything/scripts/qdrant-tls-proxy.mjs"
   "Copilot-Everything/scripts/lm-studio-tls-proxy.mjs"
   "Copilot-Everything/scripts/ollama-tls-proxy.mjs"
+  "Copilot-Everything/scripts/searxng-tls-proxy.mjs"
 )
 
 cd "$ROOT" || { echo "cannot cd to $ROOT" >&2; exit 2; }
@@ -118,6 +130,9 @@ done < <(find \
     -type f \
     \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.mjs' -o -name '*.cjs' \) \
     -not -path '*/node_modules/*' \
+    -not -path '*/.venv/*' \
+    -not -path '*/venv/*' \
+    -not -path '*/site-packages/*' \
     -not -path '*/dist/*' \
     -not -path '*/build/*' \
     -not -path '*/.git/*' \
@@ -259,7 +274,7 @@ fi
 if [ "$port_hits" -gt 0 ]; then
   echo
   echo "--- PLAINTEXT-UPSTREAM-PORT references ---"
-  echo "(swap to HTTPS proxy: :8742->:8743, :6333->:6433, :1234->:1235, :11434->:11435)"
+  echo "(swap to HTTPS proxy: :8742->:8743, :6333->:6433, :1234->:1235, :11434->:11435, :8890->:8891)"
   printf '%b\n' "$port_report"
 fi
 
@@ -288,11 +303,12 @@ What to do (read this — do NOT downgrade to HTTP):
            on the same line and register the entry with a concrete deadline.
 
   3. PLAINTEXT-UPSTREAM-PORT references: swap to the corresponding HTTPS proxy
-     port. The four wrapped services and their proxy ports:
+     port. The five wrapped services and their proxy ports:
        :8742 (Miyo)        -> :8743
        :6333 (Qdrant)      -> :6433
        :1234 (LM Studio)   -> :1235
        :11434 (Ollama)     -> :11435
+       :8890 (SearXNG)     -> :8891
 
   4. UDS / Windows-pipe transport: if the hit is a filesystem-path transport,
      add the file path to LEGITIMATE_NON_TCP in this script after explicit

@@ -1,6 +1,6 @@
 /**
  * DIAGNOSTIC (read-only, NOT wired into any workflow) — live end-to-end sanity check of the
- * section-level citation-coverage gate against the REAL SearXNG at 127.0.0.1:8890.
+ * section-level citation-coverage gate against the REAL SearXNG at 127.0.0.1 (port 8890).
  *
  * It runs the section gate exactly as the engine's executeQualityAuditStep does — same
  * `deriveSectionQuery` (from section-gate.js), same `runCitationGate` invocation, same
@@ -23,10 +23,13 @@ const { deriveSectionQuery } = require(path.join(MCP, "section-gate.js"));
 const { runCitationGate } = require(path.join(MCP, "index.js"));
 const { searchFn } = require(path.join(MCP, "searchfn.js"));
 
-// Liveness ping of the raw SearXNG process (plaintext upstream still listens on :8890).
+// Liveness ping of the raw SearXNG process (plaintext upstream still listens on port 8890).
 // The section gate itself reaches SearXNG through the connector, which as of 2026-07-06 uses
 // the HTTPS TLS proxy at https://127.0.0.1:8891 (see Claude/searxng-search-mcp/src/config.js).
-const SEARXNG = "http://127.0.0.1:8890";
+// The raw-upstream probe below is PERMANENT by design (not migration debt, no deadline): it
+// deliberately isolates upstream-process liveness from the proxy/connector layer; routing it
+// via :8891 would test a different thing and require mkcert CA trust in this diagnostic.
+const SEARXNG = "http://127.0.0.1:8890"; // lint-transport: outbound-carve-out
 const PRIMARY_SUBJECT = "heart failure"; // therapeutic_area from the real run (clinical-trial-landscape)
 const MAX_RESULTS = 8; // engine default (step.max_results || 8)
 
