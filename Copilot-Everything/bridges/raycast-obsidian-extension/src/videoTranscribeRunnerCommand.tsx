@@ -12,7 +12,14 @@ import {
  * JS context dies when its window is dismissed (even by focus loss), which silently killed
  * runs mid-Whisper. Not meant to be invoked directly from the root search.
  */
-export default async function Command(props: LaunchProps<{ launchContext: { values?: VideoTranscribeFormValues } }>) {
+export default async function Command(
+  props: LaunchProps<{
+    launchContext: {
+      values?: VideoTranscribeFormValues;
+      whisper?: { whisperPath?: string; whisperModel?: string };
+    };
+  }>,
+) {
   const values = props.launchContext?.values;
   if (!values) {
     await showToast({
@@ -23,6 +30,14 @@ export default async function Command(props: LaunchProps<{ launchContext: { valu
     return;
   }
 
+  // Whisper settings are configured on the Video Download & Transcribe command and arrive via
+  // launchContext (this no-view runner's getPreferenceValues cannot see that command's prefs).
   const prefs = getPreferenceValues<VideoCommandPreferences>();
-  await runVideoTranscribeCommand(values, prefs);
+  const whisper = props.launchContext?.whisper;
+  const mergedPrefs: VideoCommandPreferences = {
+    ...prefs,
+    ...(whisper?.whisperPath ? { whisperPath: whisper.whisperPath } : {}),
+    ...(whisper?.whisperModel ? { whisperModel: whisper.whisperModel } : {}),
+  };
+  await runVideoTranscribeCommand(values, mergedPrefs);
 }

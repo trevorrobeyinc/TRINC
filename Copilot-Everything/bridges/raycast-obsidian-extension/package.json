@@ -216,44 +216,6 @@
       "required": false
     },
     {
-      "name": "whisperPath",
-      "title": "Whisper Path",
-      "description": "Path to whisper executable",
-      "type": "textfield",
-      "default": "/opt/homebrew/bin/whisper",
-      "required": false
-    },
-    {
-      "name": "whisperModel",
-      "title": "Whisper Model",
-      "description": "Whisper model size (tiny, base, small, medium, large)",
-      "type": "dropdown",
-      "default": "medium",
-      "data": [
-        {
-          "title": "Tiny (fastest)",
-          "value": "tiny"
-        },
-        {
-          "title": "Base",
-          "value": "base"
-        },
-        {
-          "title": "Small",
-          "value": "small"
-        },
-        {
-          "title": "Medium (recommended)",
-          "value": "medium"
-        },
-        {
-          "title": "Large",
-          "value": "large"
-        }
-      ],
-      "required": false
-    },
-    {
       "name": "videoDownloadFolder",
       "title": "Video Download Folder",
       "description": "Folder in vault for video downloads",
@@ -340,15 +302,6 @@
       "description": "Optional OCR page limit. Use 0 for all pages.",
       "type": "textfield",
       "default": "0",
-      "required": false
-    },
-    {
-      "name": "cleanupSourceVideo",
-      "title": "Cleanup Source Video",
-      "label": "Delete local .mp4 after note creation",
-      "description": "When enabled, the generated note links to YouTube instead of embedding the local video file.",
-      "type": "checkbox",
-      "default": false,
       "required": false
     },
     {
@@ -1091,6 +1044,44 @@
       "description": "Download/transcribe video locally, then summarize in the background via Obsidian Copilot's headless Summarize → New Note (extension-side summarizer only as last resort).",
       "mode": "view",
       "preferences": [
+        {
+          "name": "whisperPath",
+          "title": "Whisper Path",
+          "description": "Path to the whisper executable. Defaults to the faster-whisper (whisper-ctranslate2) engine; the original openai-whisper CLI at /opt/homebrew/bin/whisper also works.",
+          "type": "textfield",
+          "default": "/Users/myhome/.local/venvs/fwhisper/bin/whisper-ctranslate2",
+          "required": false
+        },
+        {
+          "name": "whisperModel",
+          "title": "Whisper Model",
+          "description": "Whisper model size (tiny, base, small, medium, large). medium is the recommended accuracy/speed balance.",
+          "type": "dropdown",
+          "default": "medium",
+          "data": [
+            {
+              "title": "Tiny (fastest)",
+              "value": "tiny"
+            },
+            {
+              "title": "Base",
+              "value": "base"
+            },
+            {
+              "title": "Small",
+              "value": "small"
+            },
+            {
+              "title": "Medium (recommended)",
+              "value": "medium"
+            },
+            {
+              "title": "Large",
+              "value": "large"
+            }
+          ],
+          "required": false
+        },
         {
           "name": "raycastObsidianMcpEndpoint",
           "title": "Raycast-Obsidian MCP Endpoint",

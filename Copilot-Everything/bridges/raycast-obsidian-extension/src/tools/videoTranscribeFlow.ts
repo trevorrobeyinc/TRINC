@@ -49,7 +49,16 @@ interface ProcessExecutionError extends Error {
 const defaultExecPathEntries = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin", "/usr/sbin", "/sbin"] as const;
 const videoExtensions = [".mp4", ".mkv", ".webm", ".mov", ".m4v"] as const;
 const defaultYtDlpPathCandidates = ["/opt/homebrew/bin/yt-dlp", "/usr/local/bin/yt-dlp"] as const;
-const defaultWhisperPathCandidates = ["/opt/homebrew/bin/whisper", "/usr/local/bin/whisper"] as const;
+// Fallback binaries when the Whisper Path preference is empty. Lead with the faster-whisper
+// (whisper-ctranslate2) venv — the current engine and the command-pref default. The legacy
+// openai-whisper paths remain last-ditch (harmless if reinstalled; openai-whisper was retired
+// 2026-07-15 since whisper-ctranslate2 supersedes it and dropped the ffmpeg dependency).
+const defaultWhisperPathCandidates = [
+  "/Users/myhome/.local/venvs/fwhisper/bin/whisper-ctranslate2",
+  "/opt/homebrew/bin/whisper-ctranslate2",
+  "/opt/homebrew/bin/whisper",
+  "/usr/local/bin/whisper",
+] as const;
 const defaultGpgPathCandidates = ["/opt/homebrew/bin/gpg", "/usr/local/bin/gpg"] as const;
 // Well-known drop location for the sealed jar written by scripts/seal-yt-cookies.sh — internal
 // volume so it survives an external-volume unmount, outside every git worktree.
