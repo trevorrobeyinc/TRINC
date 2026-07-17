@@ -30,6 +30,25 @@ export interface QualityReport {
   pass: boolean;
 }
 
+/**
+ * The runtime citation-INTEGRITY gate (openclaw-bridge core/citation-gate.js).
+ * This is the TRUTH gate: every cited identifier is cross-checked against the
+ * evidence actually fetched at runtime. `verdict === "PASS"` (grounded_ratio >=
+ * min_grounded_ratio) is the only shippable state — this is the number that
+ * backs the zero-fabrication guarantee. It is DISTINCT from QualityReport, which
+ * is a cheap citation-DENSITY heuristic (citation-shaped lines), NOT verification.
+ */
+export interface CitationVerification {
+  pass: boolean;
+  verdict: string;
+  cited: number;
+  grounded: number;
+  ungrounded: number;
+  grounded_ratio: number;
+  min_grounded_ratio: number;
+  retracted?: unknown[];
+}
+
 export interface WorkflowArtifacts {
   mission_id?: string;
   mission_result?: Record<string, unknown>;
@@ -38,6 +57,7 @@ export interface WorkflowArtifacts {
   offer_id?: string;
   export_path?: string;
   quality_report?: QualityReport;
+  citation_verification?: CitationVerification;
 }
 
 export interface PipelineStep {

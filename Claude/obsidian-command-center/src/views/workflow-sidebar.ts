@@ -1,6 +1,7 @@
 import { ItemView, WorkspaceLeaf } from "obsidian";
 import { VIEW_TYPE_WORKFLOW, STEP_TYPE_LABELS, STEP_STATUS_ICONS } from "../constants";
 import type { WorkflowState, PipelineStep, WorkflowResult } from "../types";
+import { summarizeCitationIntegrity } from "../notes/content-builder";
 
 export class WorkflowStatusView extends ItemView {
   private state: WorkflowState | null = null;
@@ -143,18 +144,28 @@ export class WorkflowStatusView extends ItemView {
 
     // Quality report
     const qr = state.artifacts?.quality_report;
-    if (qr) {
+    const ci = summarizeCitationIntegrity(state.artifacts?.citation_verification);
+    if (qr || ci) {
       const qualitySection = wrapper.createDiv({ cls: "oc-quality-section" });
       qualitySection.createEl("h5", { text: "Quality" });
-      qualitySection.createEl("p", {
-        text: `Confidence: ${qr.overall_confidence.toFixed(2)}`,
-      });
-      qualitySection.createEl("p", {
-        text: `Citations: ${qr.verified_claims} / ${qr.total_claims}`,
-      });
+      // Citation INTEGRITY (the truth gate) — leads, and drives the PASS badge.
+      if (ci) {
+        qualitySection.createEl("p", {
+          text: `Citation integrity: ${ci.verdict} — ${ci.grounded}/${ci.cited} grounded`,
+        });
+      }
+      // Citation DENSITY (writing heuristic, NOT verification).
+      if (qr) {
+        const density =
+          qr.citation_density_raw ?? (qr.total_claims > 0 ? qr.verified_claims / qr.total_claims : 0);
+        qualitySection.createEl("p", {
+          text: `Citation density: ${density.toFixed(2)} (${qr.verified_claims}/${qr.total_claims})`,
+        });
+      }
+      const passOk = ci ? ci.ok : qr ? qr.pass : false;
       qualitySection.createEl("span", {
-        text: qr.pass ? "PASS" : "FAIL",
-        cls: `oc-quality-badge oc-quality-${qr.pass ? "pass" : "fail"}`,
+        text: passOk ? "PASS" : "FAIL",
+        cls: `oc-quality-badge oc-quality-${passOk ? "pass" : "fail"}`,
       });
     }
 

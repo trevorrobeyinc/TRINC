@@ -1,4 +1,4 @@
-import type { WorkflowState, QualityReport } from "../types";
+import type { WorkflowState, QualityReport, CitationVerification } from "../types";
 
 /**
  * Build YAML frontmatter for different note types.
@@ -7,6 +7,7 @@ import type { WorkflowState, QualityReport } from "../types";
 
 export function workflowFrontmatter(state: WorkflowState): string {
   const qr = state.artifacts?.quality_report;
+  const cv = state.artifacts?.citation_verification;
   const fields: Record<string, unknown> = {
     type: "openclaw/workflow",
     workflow_id: state.workflow_id,
@@ -18,8 +19,12 @@ export function workflowFrontmatter(state: WorkflowState): string {
     mission_id: state.artifacts?.mission_id || null,
     dataset_id: state.artifacts?.dataset_id || null,
     offer_id: state.artifacts?.offer_id || null,
-    quality_confidence: qr?.overall_confidence ?? null,
-    quality_pass: qr?.pass ?? null,
+    // Citation INTEGRITY gate (the truth-based, shippable verdict).
+    citation_integrity: cv?.verdict ?? null,
+    grounded_ratio: cv?.grounded_ratio ?? null,
+    // Citation DENSITY heuristic (writing coverage, NOT verification).
+    citation_density: qr?.citation_density_raw ?? null,
+    density_pass: qr?.pass ?? null,
     verified_claims: qr?.verified_claims ?? null,
     total_claims: qr?.total_claims ?? null,
     tags: buildTags(state),
@@ -56,16 +61,22 @@ export function agentFrontmatter(opts: {
 
 export function qualityFrontmatter(
   workflowId: string,
-  qr: QualityReport
+  qr: QualityReport,
+  cv?: CitationVerification
 ): string {
   const fields: Record<string, unknown> = {
     type: "openclaw/quality-report",
     workflow_id: workflowId,
-    confidence: qr.overall_confidence,
+    // Citation INTEGRITY gate (truth-based verification).
+    citation_integrity: cv?.verdict ?? null,
+    grounded_ratio: cv?.grounded_ratio ?? null,
+    cited_ids: cv?.cited ?? null,
+    grounded_ids: cv?.grounded ?? null,
+    // Citation DENSITY heuristic (writing coverage, NOT verification).
     citation_density: qr.citation_density_raw,
+    density_pass: qr.pass,
     total_claims: qr.total_claims,
     verified_claims: qr.verified_claims,
-    pass: qr.pass,
     tags: ["openclaw", "quality"],
   };
   return renderYaml(fields);

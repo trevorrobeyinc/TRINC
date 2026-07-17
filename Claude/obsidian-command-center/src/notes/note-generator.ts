@@ -134,11 +134,13 @@ export async function generateWorkflowNotes(
   // 8. Generate quality note
   let qualityPath: string | null = null;
   if (qualityReport && qualityName) {
-    const fm = qualityFrontmatter(result.workflow_id, qualityReport);
+    const cv = result.artifacts?.citation_verification;
+    const fm = qualityFrontmatter(result.workflow_id, qualityReport, cv);
     const body = buildQualityNote(
       result.workflow_id,
       qualityReport,
-      overviewName
+      overviewName,
+      cv
     );
     qualityPath = `${folderPath}/${qualityName}.md`;
     await createOrReplace(vault, qualityPath, fm + "\n" + body);

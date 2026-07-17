@@ -1,5 +1,41 @@
-import type { WorkflowState, PipelineStep, QualityReport } from "../types";
+import type { WorkflowState, PipelineStep, QualityReport, CitationVerification } from "../types";
 import { STEP_TYPE_LABELS } from "../constants";
+
+/**
+ * Summarize the runtime citation-INTEGRITY gate for display. Returns null when
+ * no verification record is present. This is the TRUTH gate (cited IDs grounded
+ * in the evidence actually fetched) — the number that backs the zero-fabrication
+ * guarantee — as opposed to the citation-density heuristic in QualityReport.
+ */
+export function summarizeCitationIntegrity(
+  cv: CitationVerification | undefined
+): {
+  verdict: string;
+  ok: boolean;
+  cited: number;
+  grounded: number;
+  ungrounded: number;
+  groundedPct: number;
+  floorPct: number;
+  retracted: number;
+} | null {
+  if (!cv || typeof cv.cited !== "number") return null;
+  const cited = cv.cited || 0;
+  const grounded = cv.grounded || 0;
+  const ratio =
+    typeof cv.grounded_ratio === "number" ? cv.grounded_ratio : cited > 0 ? grounded / cited : 0;
+  const floor = typeof cv.min_grounded_ratio === "number" ? cv.min_grounded_ratio : 0.75;
+  return {
+    verdict: cv.verdict || (cv.pass ? "PASS" : "FAIL"),
+    ok: cv.pass === true,
+    cited,
+    grounded,
+    ungrounded: typeof cv.ungrounded === "number" ? cv.ungrounded : Math.max(0, cited - grounded),
+    groundedPct: Math.round(ratio * 100),
+    floorPct: Math.round(floor * 100),
+    retracted: Array.isArray(cv.retracted) ? cv.retracted.length : 0,
+  };
+}
 
 /**
  * Build the markdown body for each note type.
@@ -58,10 +94,20 @@ export function buildWorkflowOverview(
   if (qualityNoteName) {
     lines.push("## Quality");
     lines.push("");
+    // The citation-INTEGRITY gate (truth-based: cited IDs grounded in fetched
+    // evidence) — the number that actually backs the zero-fabrication guarantee.
+    const ci = summarizeCitationIntegrity(state.artifacts?.citation_verification);
+    if (ci) {
+      lines.push(
+        `**Citation integrity: ${ci.verdict}** — ${ci.grounded}/${ci.cited} cited IDs grounded (${ci.groundedPct}%, ${ci.ungrounded} unverified, ${ci.retracted} retracted; floor ${ci.floorPct}%)`
+      );
+    }
+    // The citation-DENSITY heuristic (writing coverage, NOT verification).
     const qr = state.artifacts?.quality_report;
     if (qr) {
+      const density = qr.citation_density_raw ?? (qr.total_claims > 0 ? qr.verified_claims / qr.total_claims : 0);
       lines.push(
-        `Confidence: **${qr.overall_confidence.toFixed(2)}** | Citations: ${qr.verified_claims}/${qr.total_claims} | ${qr.pass ? "PASS" : "FAIL"}`
+        `Citation density: ${density.toFixed(2)} (${qr.verified_claims}/${qr.total_claims} lines carry an inline citation — a writing heuristic, not verification)`
       );
     }
     lines.push(`See: [[${qualityNoteName}]]`);
@@ -130,7 +176,8 @@ export function buildAgentNote(
 export function buildQualityNote(
   workflowId: string,
   qr: QualityReport,
-  workflowNoteName: string
+  workflowNoteName: string,
+  cv?: CitationVerification
 ): string {
   const lines: string[] = [];
   lines.push("# Quality Audit");
@@ -138,21 +185,44 @@ export function buildQualityNote(
   lines.push(`Workflow: [[${workflowNoteName}]]`);
   lines.push("");
 
-  // Confidence bar
-  const barLen = 20;
-  const filled = Math.round(qr.overall_confidence * barLen);
-  const bar =
-    "\u2588".repeat(filled) + "\u2591".repeat(barLen - filled);
-  lines.push(`**Confidence**: ${qr.overall_confidence.toFixed(2)} \`${bar}\``);
-  lines.push("");
+  // 1. Citation INTEGRITY \u2014 the truth gate (cited IDs grounded vs fetched
+  //    evidence). This is the number that backs the zero-fabrication guarantee.
+  const ci = summarizeCitationIntegrity(cv);
+  if (ci) {
+    const barLen = 20;
+    const filled = Math.round((ci.groundedPct / 100) * barLen);
+    const bar = "\u2588".repeat(filled) + "\u2591".repeat(barLen - filled);
+    lines.push("## Citation integrity (verification gate)");
+    lines.push("");
+    lines.push(
+      `**${ci.verdict}** \u2014 every cited identifier cross-checked against the evidence actually fetched at runtime.`
+    );
+    lines.push("");
+    lines.push(`Grounded: ${ci.groundedPct}% \`${bar}\``);
+    lines.push("");
+    lines.push(`| Metric | Value |`);
+    lines.push(`|--------|-------|`);
+    lines.push(`| Verdict | ${ci.verdict} |`);
+    lines.push(`| Cited IDs grounded | ${ci.grounded} / ${ci.cited} (${ci.groundedPct}%) |`);
+    lines.push(`| Unverified (ungrounded) | ${ci.ungrounded} |`);
+    lines.push(`| Retracted | ${ci.retracted} |`);
+    lines.push(`| Grounded floor to pass | ${ci.floorPct}% |`);
+    lines.push("");
+  }
 
+  // 2. Citation DENSITY \u2014 a cheap writing-coverage heuristic, NOT verification.
+  const density = qr.citation_density_raw ?? (qr.total_claims > 0 ? qr.verified_claims / qr.total_claims : 0);
+  lines.push("## Citation density (writing heuristic \u2014 not verification)");
+  lines.push("");
   lines.push(`| Metric | Value |`);
   lines.push(`|--------|-------|`);
-  lines.push(`| Overall confidence | ${qr.overall_confidence.toFixed(2)} |`);
-  lines.push(`| Citation density | ${qr.citation_density_raw?.toFixed(2) ?? "N/A"} |`);
-  lines.push(`| Total claims | ${qr.total_claims} |`);
-  lines.push(`| Verified claims | ${qr.verified_claims} |`);
-  lines.push(`| Pass | ${qr.pass ? "Yes" : "No"} |`);
+  lines.push(`| Citation density | ${density.toFixed(2)} |`);
+  lines.push(`| Lines with an inline citation | ${qr.verified_claims} / ${qr.total_claims} |`);
+  lines.push(`| Density check | ${qr.pass ? "pass" : "fail"} |`);
+  lines.push("");
+  lines.push(
+    `> Density measures how citation-dense the writing is (lines matching a citation pattern). It is **not** a confidence or verification score \u2014 the verification gate above is the one that backs the zero-fabrication guarantee.`
+  );
   lines.push("");
 
   return lines.join("\n");
