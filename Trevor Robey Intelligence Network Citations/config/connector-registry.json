@@ -616,6 +616,32 @@
       "adapter_priority": "low",
       "suggested_adapter_path": "do not adapt — operator identifies vendor in claude.ai settings, then keep-and-label or remove",
       "health_check": "n/a"
+    },
+    "guidepoint-expert-network": {
+      "execution_surface": "claude-host-mcp",
+      "auth": "vendor-issued (enterprise, sales-gated)",
+      "tools": [],
+      "purpose": "REAL, VERIFIED 2026-07-15 (Guidepoint press release: 'MCP on Claude' launched May 2026): 1.8M+ subject-matter experts + 100,000+ compliance-reviewed expert-interview transcripts (5,000+/mo), each attributed + source-linked in Guidepoint360. Operationalizes the Investor Pre-Mortem $19,950 'with KOL primary research' tier. NOT free / not one-click: access is enterprise sales-gated (sales@guidepoint.com); expert-network subscriptions run far above a single $19,950 SKU. COMPLIANCE: expert-call insights in a SOLD investor deliverable carry MNPI/insider-trading obligations — deliberate handling required.",
+      "bound_roles": [],
+      "bound_workflow_steps": [],
+      "business_value": "HIGH but procurement-gated — defines the top SKU; only economic against recurring KOL-tier demand",
+      "adapter_status": "identified-procurement-gated",
+      "adapter_priority": "revenue-critical, on-demand",
+      "suggested_adapter_path": "do NOT subscribe speculatively. Connect-on-first-signed-KOL-deal: treat KOL primary research as a pass-through cost triggered by an actual $19,950 engagement (or negotiate pay-per-call), then connect via claude.ai settings.",
+      "health_check": "n/a"
+    },
+    "third-bridge-expert-network": {
+      "execution_surface": "claude-host-mcp",
+      "auth": "vendor-issued (enterprise, paid subscription)",
+      "tools": [],
+      "purpose": "REAL, VERIFIED 2026-07-15 (listed in the Anthropic Connectors Directory): 100,000+ vetted expert transcripts across 65,000+ companies — forensic-style interviews for investment-thesis validation + due diligence. Alternative to Guidepoint for the $19,950 KOL tier. Same economics: paid enterprise subscription, not free/one-click; same MNPI/compliance considerations for sold deliverables.",
+      "bound_roles": [],
+      "bound_workflow_steps": [],
+      "business_value": "HIGH but procurement-gated — same role as guidepoint; pick ONE, do not subscribe to both",
+      "adapter_status": "identified-procurement-gated",
+      "adapter_priority": "revenue-critical, on-demand",
+      "suggested_adapter_path": "same connect-on-first-KOL-deal posture as guidepoint; evaluate the two against actual buyer needs (Guidepoint = broader expert sourcing / 1:1 calls; Third Bridge = deeper transcript library) before committing to either.",
+      "health_check": "n/a"
     }
   },
   "excluded_infrastructure": {
