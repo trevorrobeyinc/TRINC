@@ -130,10 +130,10 @@ There are **three layers**, and only two of them feed your reports:
 | Layer | Reaches the engine? | Examples |
 |---|---|---|
 | **Subprocess MCP (12) + ToolUniverse tools (4)** | ✅ **Yes — these build your reports** | pubmed, clinicaltrials-gov, chembl, faers, scholar-gateway, europepmc, opentargets, arxiv, npi, icd10, owkin… |
-| **claude.ai-level connectors (22)** | ❌ **No — chat only** | the PubMed/ChEMBL/etc. you see in Claude chat, plus Tavily, Figma, Gmail, Synthesize Bio… richer, but invisible to the automated engine |
+| **claude.ai-level connectors (23)** | ❌ **No — chat only** | the PubMed/ChEMBL/etc. you see in Claude chat, plus Figma, Gmail, Synthesize Bio… richer, but invisible to the automated engine (Tavily is a superseded tombstone) |
 | **Infra / ops (in `~/.claude.json`)** | n/a (not product) | falcon (security), github, cdp-pipe (browser), zoho-mail (your mailbox) |
 
-No rogue or broken connectors were found — the only issue was that nothing documented this split. Five claude.ai connectors are unauthenticated (Owkin, Synthesize Bio, AdisInsight, BioRender, DataHub) → authenticate the useful ones or stop listing them. Full detail: `CONNECTOR-ALIGNMENT.md`.
+No rogue or broken connectors were found — the only issue was that nothing documented this split. Six claude.ai connectors are unauthenticated (Owkin host-side, BioRender, Synapse, Wiley, alphaXiv, CourtListener; Synthesize Bio is now authenticated) → authenticate the useful ones or stop listing them. Full detail: `CONNECTOR-ALIGNMENT.md`.
 
 ---
 

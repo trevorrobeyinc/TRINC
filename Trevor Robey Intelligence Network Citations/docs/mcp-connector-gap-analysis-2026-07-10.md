@@ -92,7 +92,7 @@ call, which is exactly the identifier spread your citation indexes carry.
 
 | Connector | What it adds | Note |
 |---|---|---|
-| **AdisInsight** (Springer/Clarivate) | Drug, trial, and pharma-pipeline intelligence | You **deleted a local `adisinsight-mcp` on 2026-04-29**. The cloud connector is a different surface and currently sits in `needs-auth`. Worth a deliberate decision rather than drift. |
+| **AdisInsight** (Springer/Clarivate) | Drug, trial, and pharma-pipeline intelligence | You **deleted a local `adisinsight-mcp` on 2026-04-29**. The cloud connector is a different surface. **(Correction 2026-07-16: AdisInsight is NOT in the live needs-auth set — that set is `owkin` / `biorender` / `synapse` / `wiley` / `alphaxiv` / `courtlistener` — and is not a registered connector; see §9.)** Worth a deliberate decision rather than drift. |
 | **Cortellis Regulatory Intelligence** (Clarivate) | Global pharma regulatory intelligence — the closest thing to multi-region EMA/MHRA/PMDA/Health Canada coverage that exists as a connector | Paid/enterprise. See §5: no free MCP covers these regulators at all. |
 | **CMS Coverage Database** | Medicare national and local coverage determinations | Directly feeds payer/market-access sections; you already have ICD-10 and NPI, this completes the reimbursement triad |
 | **Turquoise Health** | Hospital and payer negotiated-price transparency data | Market-access evidence generation |
@@ -107,7 +107,10 @@ Directory connectors exist for exactly that and you have neither:
 - **Third Bridge** — 100,000+ vetted transcripts across 65,000+ companies.
 
 This is the clearest revenue-side gap in the entire analysis: the connector that operationalizes
-your highest-priced SKU is one click away and unconnected.
+your highest-priced SKU is one click away and unconnected. **(Update 2026-07-16: both
+`guidepoint-expert-network` and `third-bridge-expert-network` were added to the registry as
+documentation-only, procurement-gated entries — `identified-procurement-gated`, `tools:[]`; still
+unsubscribed by design. Connect on the first signed KOL deal, pick one. See §9.)**
 
 ### 2d. Company, financial, and deal intelligence
 
@@ -338,7 +341,7 @@ remove it. This is a propose-only finding; no action was taken.
 
 1. ~~**Free, high-leverage, today:** Scholar Sidekick, alphaXiv, Enrichr, CourtListener.~~ **Superseded — see §8.** Adversarial verification on 2026-07-10 showed only Scholar Sidekick is free-and-anonymous; alphaXiv and CourtListener are OAuth-gated; Enrichr has no authentic server.
 2. **Resolve the security item:** identify or remove `7bb47381… semanticSearch`; drop Tavily.
-3. **Revenue-unblocking:** evaluate Guidepoint or Third Bridge — the $19,950 KOL tier depends on it.
+3. **Revenue-unblocking:** evaluate Guidepoint or Third Bridge — the $19,950 KOL tier depends on it. *(Both now in the registry as procurement-gated placeholders, added 2026-07-16 — connect one on the first signed KOL deal. See §9.)*
 4. **Spike `biomcp`** (`pip install biomcp-cli`) behind the role-prefetch path; measure what it adds
    over ToolUniverse before wiring it into a gate.
 5. **Then:** `cyanheads/secedgar-mcp-server` (Apache-2.0) and the FDA Orange Book server, both for
@@ -464,7 +467,35 @@ TLS proxy is needed — none of them is a TCP listener owned by repo code.
 
 ---
 
-*Generated 2026-07-10. §1–7 were recommend-only. §8 records the 2026-07-10 install pass, in which
+## 9. Addendum — 2026-07-16 (registry reconciliation)
+
+State changes since this 2026-07-10 analysis, reconciled against the live
+`config/connector-registry.json` (now **39 connectors**):
+
+- **Guidepoint + Third Bridge are now in the registry** (§2c superseded). Added as
+  **documentation-only, procurement-gated** entries: `execution_surface: claude-host-mcp`,
+  `tools: []`, `adapter_status: identified-procurement-gated`. Nothing is subscribed — the recorded
+  posture is "connect on the first signed $19,950 KOL deal, pick one." §2c's "you have neither / one
+  click away and unconnected" is now a recorded decision, not an open gap.
+- **Synthesize Bio is authenticated and its adapter design was corrected.** Its claude.ai host OAuth
+  is complete and its tools are live. The earlier "build a chembl-style REST adapter + wire it into
+  the prefetch map" intent was **wrong**: verified against the live tool schemas +
+  docs.synthesize.bio, its API is itself a remote MCP server (`app.synthesize.bio/api/mcp`, Bearer,
+  env `SYNTHESIZE_API_KEY`) and every capability is async / stateful / generation-budget-metered
+  (`resolve → analyze[job] → poll → counts`); `get_metadata_schema` is the only static/free call and
+  `annotate_genes` does not exist on the live surface. Correct design = a supervised remote-MCP
+  client (a deliberate generative workflow step), **never** the deterministic prefetch seam. Blocked
+  on the operator's API key + a per-run generation-budget decision. (Registry entry +
+  `.learnings/FEATURE_REQUESTS.md [FEAT-20260511-001]` updated.)
+- **AdisInsight is not a live needs-auth connector** (§2b corrected). The live unauthenticated
+  biomedical set is exactly `owkin` (host-side) / `biorender` / `synapse` / `wiley` / `alphaxiv` /
+  `courtlistener`; AdisInsight is not registered.
+- **Tavily** remains a superseded (2026-07-04) registry tombstone bound to nothing — §6's "drop
+  Tavily" recommendation still stands and is unactioned.
+
+---
+
+*Generated 2026-07-10; addended 2026-07-16 (§9 — Guidepoint/Third Bridge now registered as procurement-gated; Synthesize Bio authenticated + adapter design corrected; AdisInsight is not a live needs-auth connector; registry now holds 39 connectors). §1–7 were recommend-only. §8 records the 2026-07-10 install pass, in which
 adversarial verification refuted four claims made in §2 of this same document — those claims have
 been struck or corrected in place. Directory counts derive from an unofficial community mirror and
 are unverified against the live Directory.*

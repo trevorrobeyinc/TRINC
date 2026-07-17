@@ -154,7 +154,7 @@ contract; the code that produces each file is in `dataset/` and `monetization/`.
 | `config/role-provider-map.json` | **Live** per-role LLM routing (SoT for who runs what). |
 | `config/llm-providers.json` | Provider endpoints (claude-code / lm-studio `:1235` / ollama `:11435` / mock / anthropic-disabled) + cache TTL. |
 | `config/tool-prefetch-map.json` | Role → which tools/connectors are prefetched. Defers to the connector registry for binding intent. |
-| `config/connector-registry.json` | **Authoritative connector map** (schema `connector-registry-v1`, 38 entries): `execution_surface`, `bound_roles`, `bound_workflow_steps`, `adapter_status`, `purpose`. |
+| `config/connector-registry.json` | **Authoritative connector map** (schema `connector-registry-v1`, 39 entries): `execution_surface`, `bound_roles`, `bound_workflow_steps`, `adapter_status`, `purpose`. |
 | `config/workflow-templates/` | The 6 workflow template definitions (+ `mission-templates.json`). |
 | `config/agents/<role>/` | `SOUL.md`, `AGENTS.md`, `sessions/` — per-role identity + memory. |
 | `config/role-prompts.json` | Per-role prompt scaffolding. |

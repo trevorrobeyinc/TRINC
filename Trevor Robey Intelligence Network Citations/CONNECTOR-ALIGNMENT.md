@@ -1,6 +1,6 @@
 # CONNECTOR-ALIGNMENT — which connector serves which business function
 
-> **Snapshot (2026-06-10).** A human-readable map of every connector to its business function, and — the part that trips people up — **which connectors the research engine can actually use vs. which only work in chat.** The machine-readable source of truth is [`config/connector-registry.json`](config/connector-registry.json) (38 connectors, schema-versioned, with `bound_roles` and `bound_workflow_steps` per connector); this doc summarizes and explains it. When the two diverge, the registry wins. Recommendations are tagged *(recommendation)*.
+> **Snapshot (2026-07-16).** A human-readable map of every connector to its business function, and — the part that trips people up — **which connectors the research engine can actually use vs. which only work in chat.** The machine-readable source of truth is [`config/connector-registry.json`](config/connector-registry.json) (39 connectors, schema-versioned, with `bound_roles` and `bound_workflow_steps` per connector); this doc summarizes and explains it. When the two diverge, the registry wins. Recommendations are tagged *(recommendation)*.
 
 ## The one thing to understand: three execution surfaces
 
@@ -10,7 +10,7 @@ The registry sorts every connector into one of three "surfaces." This is the sin
 |---|---|---|---|
 | **subprocess-mcp** | 12 | ✅ Yes | A real project MCP under `openclaw-bridge/mcp/<slug>-mcp/`. This is what actually feeds your reports. |
 | **tooluniverse-tool** | 4 | ✅ Yes (via ToolUniverse prefetch) | Exposed through the vendored Harvard ToolUniverse (~2,116 tools). |
-| **claude-host-mcp** | 22 | ❌ No | Authenticated at the Claude.ai / Claude Code session level. **Chat-supervisory only** — useful when *you* are in a chat, but invisible to the automated workflow engine unless someone builds a subprocess adapter. |
+| **claude-host-mcp** | 23 | ❌ No | Authenticated at the Claude.ai / Claude Code session level. **Chat-supervisory only** — useful when *you* are in a chat, but invisible to the automated workflow engine unless someone builds a subprocess adapter. |
 
 So when you see "PubMed" or "ChEMBL" available in your Claude chat, that does **not** mean the report engine is using that same connector. The engine uses its own subprocess copies. Several sources exist at **both** layers (a lean subprocess version for the engine, a richer host version for chat) — that overlap is intentional and documented per-connector in the registry.
 
@@ -35,17 +35,19 @@ These are the `subprocess-mcp` (12) + `tooluniverse-tool` (4) connectors. They a
 | **scrape** | Whitelisted-host scraping when no API exists | none |
 | **newsletter-publisher** | Marketing-pack distribution — **Phase 24, disabled** | vendor-issued |
 | **notion-sync** | Prospect-tracking handoff — **Phase 24, disabled** | OAuth (done) |
+| **searxng-search** | Private web metasearch (key-free; superseded tavily 2026-07-04) — beyond-cutoff open-web lane | none |
 
 > *Note:* `newsletter-publisher` and `notion-sync` are wired as subprocess connectors but belong to Phase 24, which is **disabled** — they are not active in the research flow. See [`SYSTEM-REALITY.md`](SYSTEM-REALITY.md) §4.
 
-## Table B — Chat-only connectors (22, `claude-host-mcp`)
+## Table B — Chat-only connectors (23, `claude-host-mcp`)
 
 Available to you in a Claude chat, **not** to the workflow engine. Many are richer versions of Table A sources (use them for hands-on research; don't assume a report used them).
 
 - **Richer biomedical duplicates of Table A:** pubmed-fulltext (PMC full text), clinicaltrials-enriched (endpoint analysis), open-targets-graphql, drug-search-admet (ADMET + mechanism), biorxiv-medrxiv, icd10-host-enriched, npi-host-validate, huggingface-host-rich, tooluniverse-host, semantic-search-host.
-- **Specialty research:** synthesize-bio (generative genomics GEM-1), tavily (open-web search past training cutoff), research-memory (Qdrant pack memory `:6433`).
+- **Specialty research:** synthesize-bio (generative genomics GEM-1 — authenticated/live; adapter `missing(design-corrected)`, a supervised remote-MCP client, **not** a prefetch source), tavily (**SUPERSEDED 2026-07-04** by searxng-search — registry tombstone, bound to nothing), research-memory (Qdrant pack memory `:6433`).
 - **Pipeline plumbing:** obsidian-bridge (`:8798` vault read/write — how notes get written), scheduled-tasks, mcp-registry.
 - **Operator tools (not product data):** github, gmail (manual-confirm outbound drafts), filesystem-sandboxed, sequential-thinking, context7-library-docs.
+- **Procurement-gated KOL (documentation-only, added 2026-07-16):** guidepoint-expert-network, third-bridge-expert-network — `tools:[]`, adapter_status `identified-procurement-gated`; connect on the first signed KOL deal ($19,950 tier), pick one.
 
 ## Table A.1 — Citation-integrity engine fetchers (2026-06-12, not in the surface table)
 
@@ -84,7 +86,7 @@ The AWS Management Console itself is driven via the **Claude-for-Chrome extensio
 
 ## Gaps & recommendations
 
-1. **Five unauthenticated claude.ai connectors** (AdisInsight, BioRender, DataHub, Owkin host-side, Synthesize Bio) appear in the Claude.ai connector list but are not authenticated. *(Recommendation)* authenticate the ones with a real research use (Owkin, Synthesize Bio are the strongest biomedical fits) or stop listing them so the surface stays honest.
+1. **Six unauthenticated claude.ai connectors** (BioRender, Synapse, Wiley, alphaXiv, CourtListener, Owkin host-side) appear in the Claude.ai connector list but are not authenticated. Synthesize Bio is now **authenticated** (host OAuth handshake complete; its tools are live this session), so it is no longer in this set. *(Recommendation)* authenticate the ones with a real research use (Owkin host-side is the strongest biomedical fit) or stop listing them so the surface stays honest.
 2. **Overlap is intentional but undocumented for buyers.** A deliverable should state which lane produced a citation if you ever expose the pipeline to a buyer; the engine uses the lean subprocess lane. *(Update 2026-06-12: partially addressed — every mission bundle now ships `deliverables/citation-integrity.md`, a graded provenance ledger attesting that cited identifiers are grounded in the source records actually retrieved at runtime and DOI retraction-screened against Crossref. It does not yet name which connector lane produced each citation.)*
 3. **Phase 24 connectors (notion-sync, newsletter-publisher) are wired but disabled.** Leave disabled until there's a reason to publish; revisit alongside the Phase 31 deployment decision.
 4. No rogue, duplicate, or dead-path registrations were found — the alignment work here is **documentation**, not reconfiguration.
