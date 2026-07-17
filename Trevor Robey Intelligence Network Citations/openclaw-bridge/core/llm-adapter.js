@@ -188,53 +188,6 @@ async function callAnthropic(prompt, providerConfig) {
   };
 }
 
-async function callLmStudio(prompt, providerConfig) {
-  // HTTPS-only invariant: default is the in-monorepo TLS proxy at :1235,
-  // which terminates TLS and forwards to LM Studio's plaintext upstream. If
-  // the call fails, surface a structured diagnostic via tls-diagnostic.js —
-  // NEVER fall back to http://.
-  const endpoint = safeString(providerConfig.endpoint) || "https://127.0.0.1:1235/v1/chat/completions";
-  const model = safeString(providerConfig.model) || "qwen/qwen3.5-9b";
-
-  const requestBody = {
-    model,
-    messages: [{ role: "user", content: String(prompt || "") }],
-    temperature: Number(providerConfig.temperature || 0.7),
-    max_tokens: Number(providerConfig.maxTokens || 2048)
-  };
-
-  let response;
-  try {
-    response = await fetch(endpoint, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(requestBody)
-    });
-  } catch (err) {
-    throwWithDiagnostic("lm-studio", {
-      proxyPort: 1235,
-      upstreamPort: 1234,
-      launchdLabel: "com.trevorrobey.lm-studio-tls-proxy",
-      error: err,
-    });
-  }
-
-  if (!response.ok) {
-    let errorBody = "";
-    try { errorBody = (await response.text()).slice(0, 200); } catch {}
-    throw makeError("PHASE14_LLM_LMSTUDIO_HTTP_ERROR", `LM Studio request failed (${response.status}): ${errorBody}`);
-  }
-
-  const payload = await response.json();
-  const text = safeString(payload?.choices?.[0]?.message?.content);
-  return {
-    text,
-    tokenCount: Number(payload?.usage?.total_tokens || estimateTokenCount(text)),
-    raw: payload,
-    model
-  };
-}
-
 async function callOpenRouter(prompt, providerConfig) {
   const endpoint = safeString(providerConfig.endpoint) || "https://openrouter.ai/api/v1/chat/completions";
   const model = safeString(providerConfig.model) || "openai/gpt-4o-mini";
@@ -469,8 +422,6 @@ function createLLMAdapter(options = {}) {
       result = await callOpenAi(promptText, { ...callConfig, model });
     } else if (callProvider === "anthropic") {
       result = await callAnthropic(promptText, { ...callConfig, model });
-    } else if (callProvider === "lm-studio") {
-      result = await callLmStudio(promptText, { ...callConfig, model });
     } else if (callProvider === "openrouter") {
       result = await callOpenRouter(promptText, { ...callConfig, model });
     } else if (callProvider === "claude-code") {
@@ -482,12 +433,9 @@ function createLLMAdapter(options = {}) {
           logger.warn({ event: "phase33_cc_fallback", fallback, error: ccErr.message, original_error: ccErr.message });
           const fallbackConfig = resolveProviderConfig({}, fallback);
           // Use the fallback provider's OWN configured model (from llm-providers.json),
-          // not the Claude model — LM Studio rejects requests for "claude-sonnet-4-6"
-          // with HTTP 400 because that ID doesn't exist in its catalog.
+          // not the Claude model — a fallback provider would reject an unknown Claude model id.
           if (fallback === "anthropic") {
             result = await callAnthropic(promptText, fallbackConfig);
-          } else if (fallback === "lm-studio") {
-            result = await callLmStudio(promptText, fallbackConfig);
           } else if (fallback === "mock") {
             const mock = buildMockResponse(promptText, model);
             result = { text: mock.text, tokenCount: Math.floor(mock.tokenCount), raw: mock.raw, model };
@@ -502,9 +450,10 @@ function createLLMAdapter(options = {}) {
       throw makeError("PHASE14_LLM_PROVIDER_UNSUPPORTED", `Unsupported provider '${callProvider}'`);
     }
     } catch (dispatchErr) {
-      // Role-level fallback: if a routed backend (local/lm-studio/...) errors and the caller
-      // supplied a fallbackProvider, retry once on it. Keeps a per-role local route resilient
-      // — a down Ollama/LM Studio degrades to claude-code instead of failing the run.
+      // Role-level fallback: if a routed backend (e.g. a restored local/Ollama route) errors and
+      // the caller supplied a fallbackProvider, retry once on it. Keeps a per-role local route
+      // resilient — a down local backend degrades to claude-code instead of failing the run.
+      // (Under Option B the engine is 100% Claude with empty fallbacks, so this is currently inert.)
       const fb = safeString(completionOptions.fallbackProvider);
       if (fb && fb !== callProvider) {
         logger.warn({ event: "provider_role_fallback", from: callProvider, to: fb, error: dispatchErr && dispatchErr.message });

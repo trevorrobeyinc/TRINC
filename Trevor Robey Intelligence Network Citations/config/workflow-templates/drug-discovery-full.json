@@ -5,8 +5,7 @@
   "description": "End-to-end drug discovery workflow: compound profiling, ADMET analysis, target-compound mapping via ToolUniverse, quality audit, dataset build, offer packaging, approval, and ZIP export.",
   "auto_approve": true,
   "provider_preference": {
-    "primary": "claude-code",
-    "fallback": "lm-studio"
+    "primary": "claude-code"
   },
   "input_schema": {
     "required": ["compound_name", "indication"],

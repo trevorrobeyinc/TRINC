@@ -5,8 +5,7 @@
   "description": "Target validation, pathway analysis, and PPI network mapping using OpenTargets, UniProt, HPA, and InterPro via ToolUniverse.",
   "auto_approve": true,
   "provider_preference": {
-    "primary": "claude-code",
-    "fallback": "lm-studio"
+    "primary": "claude-code"
   },
   "input_schema": {
     "required": ["target_gene"],

@@ -5,8 +5,7 @@
   "description": "Orphan drug mapping, genetic disease profiling, and rare disease intelligence using Monarch, OMIM, OrphaNet, and GDC via ToolUniverse.",
   "auto_approve": true,
   "provider_preference": {
-    "primary": "claude-code",
-    "fallback": "lm-studio"
+    "primary": "claude-code"
   },
   "input_schema": {
     "required": ["disease_name"],

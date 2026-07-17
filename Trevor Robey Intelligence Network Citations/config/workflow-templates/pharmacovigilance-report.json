@@ -5,8 +5,7 @@
   "description": "Adverse event signal detection, drug interaction analysis, and safety report generation using FAERS, DailyMed, RxNorm, and DrugSafetyAnalyzer via ToolUniverse.",
   "auto_approve": true,
   "provider_preference": {
-    "primary": "claude-code",
-    "fallback": "lm-studio"
+    "primary": "claude-code"
   },
   "input_schema": {
     "required": ["drug_class"],

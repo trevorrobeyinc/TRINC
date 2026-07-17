@@ -107,9 +107,9 @@ function buildSuggestion(diagnostic) {
 
 /**
  * @param {object} opts
- * @param {number} opts.proxyPort       - HTTPS proxy port (e.g. 1235 for LM Studio)
- * @param {number} opts.upstreamPort    - Plaintext upstream port (e.g. 1234)
- * @param {string} opts.launchdLabel    - launchd unit label (e.g. "com.trevorrobey.lm-studio-tls-proxy")
+ * @param {number} opts.proxyPort       - HTTPS proxy port (e.g. 11435 for Ollama)
+ * @param {number} opts.upstreamPort    - Plaintext upstream port (e.g. 11434)
+ * @param {string} opts.launchdLabel    - launchd unit label (e.g. "com.trevorrobey.ollama-tls-proxy")
  * @param {Error}  opts.error           - The underlying error from fetch / curl
  * @param {string} [opts.certPath]      - Override path to mkcert cert
  * @param {string} [opts.keyPath]       - Override path to mkcert key

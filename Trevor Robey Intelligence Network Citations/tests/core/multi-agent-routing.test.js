@@ -58,23 +58,16 @@ describe("role-provider-router — precedence", () => {
     assert.equal(router.resolveRoute("plain", {}).helper, null, "role without helper → null");
     assert.equal(router.resolveRoute("unmapped", {}).helper, null, "unmapped role → null");
   });
-  it("SHIPPED repo map: scout/analyst/synthesizer → claude-code/Opus 4.8 with OSS helpers; unmapped → claude-code", () => {
+  it("SHIPPED repo map (Option B, 2026-07-16): scout/analyst/synthesizer → claude-code/Opus 4.8, no helper, empty fallback; unmapped → claude-code", () => {
     const router = createRoleProviderRouter({ rootDir: REPO_ROOT });
-    // scout was retired off Ollama qwen2.5:7b as primary → now Opus 4.8, with qwen2.5:7b kept as its helper (back burner).
-    const scout = router.resolveRoute("scout", { provider: "claude-code", model: "claude-sonnet-4-6" });
-    assert.equal(scout.provider, "claude-code", "scout runs on the claude-code (Opus) backend");
-    assert.equal(scout.model, "claude-opus-4-8");
-    assert.equal(scout.fallback, "local", "scout degrades to its OSS backend (Ollama) on error");
-    assert.ok(scout.helper, "scout has a helper");
-    assert.equal(scout.helper.provider, "local");
-    assert.equal(scout.helper.model, "qwen2.5:7b-instruct", "qwen2.5:7b kept as scout's helper, not retired");
-    // analyst + synthesizer → Opus 4.8 with LM Studio helper.
-    for (const role of ["analyst", "synthesizer"]) {
+    // Option B: the engine is 100% Claude — every core role runs on Opus 4.8 with NO OSS helper
+    // pre-pass and an empty fallback (LM Studio decommissioned; Ollama is Obsidian-side only).
+    for (const role of ["scout", "analyst", "synthesizer"]) {
       const r = router.resolveRoute(role, { provider: "claude-code", model: "claude-sonnet-4-6" });
       assert.equal(r.provider, "claude-code", `${role} on claude-code`);
       assert.equal(r.model, "claude-opus-4-8", `${role} on Opus 4.8`);
-      assert.equal(r.helper.provider, "lm-studio", `${role} helper is LM Studio`);
-      assert.equal(r.helper.model, "qwen/qwen3.5-9b");
+      assert.equal(r.fallback, "", `${role} has no engine fallback`);
+      assert.equal(r.helper, null, `${role} has no OSS helper`);
     }
     // Unmapped roles fall through to default (claude-code/sonnet, no helper).
     const lit = router.resolveRoute("literature_reviewer", { provider: "claude-code", model: "claude-sonnet-4-6" });

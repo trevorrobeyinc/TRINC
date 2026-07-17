@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 "use strict";
 
-// The `local` (Ollama :11435) and `lm-studio` (:1235) providers reach the in-monorepo mkcert
-// TLS proxies, so the engine needs the mkcert root CA trusted via NODE_EXTRA_CA_CERTS. Node
+// The engine reaches in-monorepo mkcert TLS proxies (Qdrant :6433, Miyo :8743, SearXNG :8891;
+// Ollama :11435 is Obsidian-side only), so it needs the mkcert root CA trusted via NODE_EXTRA_CA_CERTS. Node
 // reads that env var only at process startup, so it can't be set after the fact. If it's not
 // already set (e.g. a direct `node scripts/run-workflow.js` rather than via run-workflow.sh or
 // the Command Center plugin, which both set it), re-exec ourselves ONCE with it set. Guarded by

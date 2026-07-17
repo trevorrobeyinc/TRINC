@@ -178,7 +178,7 @@ describe("Phase 33 — Claude Code MCP Provider", () => {
       assert.equal(config.enabled, true);
       assert.equal(config.model, "claude-sonnet-4-6");
       assert.equal(config.executionTimeoutMs, 600000);
-      assert.equal(config.fallbackProvider, "lm-studio");
+      assert.equal(config.fallbackProvider, "", "Option B: claude-code has no local fallback");
     });
 
     it("createLLMAdapter accepts claude-code provider", () => {
@@ -220,7 +220,9 @@ describe("Phase 33 — Claude Code MCP Provider", () => {
         const template = JSON.parse(raw);
         assert.ok(template.provider_preference, `${templateId} missing provider_preference`);
         assert.equal(template.provider_preference.primary, "claude-code");
-        assert.ok(template.provider_preference.fallback, `${templateId} missing fallback`);
+        // Option B (2026-07-16): templates carry NO local fallback — the engine is 100% Claude
+        // and LM Studio (the former fallback) was decommissioned.
+        assert.equal(template.provider_preference.fallback, undefined, `${templateId} should have no fallback under Option B`);
       });
     }
   });

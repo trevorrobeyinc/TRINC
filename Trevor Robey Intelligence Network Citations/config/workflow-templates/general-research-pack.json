@@ -5,8 +5,7 @@
   "description": "General-purpose research workflow: mission execution, dataset build, offer packaging, approval, and ZIP export. Runs the standard biomedical prefetch + citation-integrity gate; a topic that yields no groundable biomedical evidence is BLOCKED by the gate (INSUFFICIENT_EVIDENCE), not shipped. Not for sale as a general/non-biomedical research product — see Q9/Q26.",
   "auto_approve": true,
   "provider_preference": {
-    "primary": "claude-code",
-    "fallback": "lm-studio"
+    "primary": "claude-code"
   },
   "input_schema": {
     "required": ["topic"],

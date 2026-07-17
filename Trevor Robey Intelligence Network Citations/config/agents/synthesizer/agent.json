@@ -1,6 +1,6 @@
 {
   "schema_version": "agent-profile-v1",
   "role": "synthesizer",
-  "recommended_route": { "provider": "claude-code", "model": "claude-sonnet-4-6", "fallback": "lm-studio" },
-  "_note": "Stays on claude-code by design (heaviest role, no local RAM). config/role-provider-map.json is authoritative."
+  "recommended_route": { "provider": "claude-code", "model": "claude-opus-4-8", "fallback": "" },
+  "_note": "Stays on claude-code by design (heaviest role). config/role-provider-map.json is authoritative. Option B (2026-07-16): no local fallback (LM Studio decommissioned)."
 }
