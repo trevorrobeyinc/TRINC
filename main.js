@@ -742,7 +742,11 @@ ${context}`;
     try {
       if (!originFile) return '[[Unknown Origin]]';
       const sourcePath = targetFile && targetFile.path ? targetFile.path : '';
-      const linktext = this.app.metadataCache.fileToLinktext(originFile, sourcePath, false);
+      // Emit a canonical [[Note]] link (omit the .md extension) so the origin resolves
+      // via Obsidian's primary link-resolution path — this is what Origin Nest keys on to
+      // nest the definition under its origin note. (Legacy notes with [[Note.md]] still
+      // resolve via Origin Nest's .md fallback.)
+      const linktext = this.app.metadataCache.fileToLinktext(originFile, sourcePath, true);
       return `[[${linktext}]]`;
     } catch (_) {
       return originFile && originFile.basename ? `[[${originFile.basename}]]` : '[[Unknown Origin]]';
