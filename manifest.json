@@ -1,0 +1,10 @@
+{
+  "id": "origin-nest",
+  "name": "Origin Nest",
+  "version": "0.3.0",
+  "minAppVersion": "1.4.0",
+  "description": "Visually groups notes under their 'origin' note in the File Explorer, keyed off a frontmatter link — without moving files. Decorate + collapsible Nest modes, plus an opt-in reciprocal Definitions backlink written to origin notes.",
+  "author": "Trevor Robey",
+  "authorUrl": "https://trevorrobeyinc.github.io",
+  "isDesktopOnly": false
+}
