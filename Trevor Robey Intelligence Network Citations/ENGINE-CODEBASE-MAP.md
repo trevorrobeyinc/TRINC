@@ -152,7 +152,7 @@ contract; the code that produces each file is in `dataset/` and `monetization/`.
 |---|---|
 | `config/agent-config.json` | `defaultProvider` (claude-code), `defaultModel` (⚠️ stale sonnet — see §0), dirs, `taskTimeoutMs`, `maxTokensPerRequest`, `requireSupervisorApproval`, `minGroundedCitationRatio` (**0.75** — `config/agent-config.json`; required, read fail-closed → strict `0.75` default + warning if missing/invalid; the citation-gate threshold / B-grade floor). |
 | `config/role-provider-map.json` | **Live** per-role LLM routing (SoT for who runs what). |
-| `config/llm-providers.json` | Provider endpoints (claude-code / lm-studio `:1235` / ollama `:11435` / mock / anthropic-disabled) + cache TTL. |
+| `config/llm-providers.json` | Provider endpoints — engine is 100% `claude-code` as of 2026-07-16 (Option B); `local`/ollama `:11435`, `mock`, `anthropic`, `openai`, `openrouter` are present but disabled. LM Studio was decommissioned 2026-07-16 (removed from this file). Plus cache TTL. |
 | `config/tool-prefetch-map.json` | Role → which tools/connectors are prefetched. Defers to the connector registry for binding intent. |
 | `config/connector-registry.json` | **Authoritative connector map** (schema `connector-registry-v1`, 39 entries): `execution_surface`, `bound_roles`, `bound_workflow_steps`, `adapter_status`, `purpose`. |
 | `config/workflow-templates/` | The 6 workflow template definitions (+ `mission-templates.json`). |
