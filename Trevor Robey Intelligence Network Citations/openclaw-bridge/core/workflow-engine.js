@@ -392,7 +392,10 @@ function createWorkflowEngine(options = {}) {
         const cites = deduplicateCitations(extractCitations(gate.reportText || ""));
         if (cites.length > 0) {
           const startedAt = timeProviderModule.nowIso();
-          const reresolver = createCitationReresolver({
+          // DI seam (mirrors researchRuntime.crossrefRetraction / pubmedRetraction / ctgovSupplemental
+          // above): use an injected re-resolver when the runtime provides one, else construct the real
+          // one. Production is IDENTICAL — nothing is injected, so createCitationReresolver still runs.
+          const reresolver = researchRuntime.citationReresolver || createCitationReresolver({
             logger,
             contactEmail: safeString(researchRuntime.config && researchRuntime.config.contactEmail) || "trevor@trevorobeyinc.com",
             ncbiApiKey: safeString(researchRuntime.config && researchRuntime.config.ncbiApiKey) || process.env.NCBI_API_KEY || ""

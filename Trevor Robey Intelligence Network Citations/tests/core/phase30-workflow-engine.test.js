@@ -18,6 +18,38 @@ function makeMockLogger() {
   };
 }
 
+// The real-format identifier every "must succeed" mock mission cites AND grounds. `NCT\d{8}` is
+// extracted by citation-extractor and the density regex, so it doubles as evidence for the mission
+// citation gate and a density-shaped line for the quality audit.
+const GROUNDED_NCT = "NCT01111111";
+
+// A genuine passing mission supplies runtime-fetched evidence: every subtask result carries an
+// output file that CITES a real-format id AND a metadata sidecar {"fetched_citation_ids":[...]} that
+// GROUNDS that cited id (grounded_ratio 1.0 >= the 0.75 floor). Anything less trips the 2026-07-10
+// three-state citation gate (INSUFFICIENT_EVIDENCE when nothing was fetched / NO_CITATIONS when
+// evidence was fetched but the report cites nothing). This helper reproduces exactly what a real
+// passing mission emits, so the gate PASSES on merit — it is never weakened.
+function makeGroundedSubtaskResults(ids = [GROUNDED_NCT]) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "phase30-grounded-"));
+  const outputPath = path.join(dir, "report.md");
+  fs.writeFileSync(outputPath, `Findings are grounded in trial ${ids.join(" and trial ")}.\n`, "utf8");
+  const metadataPath = path.join(dir, "report.metadata.json");
+  fs.writeFileSync(metadataPath, JSON.stringify({ fetched_citation_ids: ids }), "utf8");
+  return [{ subtask_id: "sub-grounded", output_path: outputPath, metadata_path: metadataPath }];
+}
+
+// Offline stub for the Slice-4 citation RE-RESOLUTION step. Production re-resolves each cited id
+// against its LIVE source registry at delivery; a stub keeps the test hermetic (no network) and
+// returns VERIFIED for the fabricated-but-grounded test ids so the reproducibility manifest decides
+// DELIVER, not BLOCK. Injected through the same seam the engine already uses for crossrefRetraction /
+// pubmedRetraction / ctgovSupplemental — the gate/decision logic is untouched.
+function makeStubCitationReresolver() {
+  return {
+    RESOLVER_TABLE_VERSION: "test",
+    resolveAll: async (cites) => cites.map((c) => ({ ...c, status: "VERIFIED" }))
+  };
+}
+
 function makeMockResearchRuntime(overrides = {}) {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "phase30-engine-test-"));
   fs.mkdirSync(path.join(tmpDir, "workspace", "workflows"), { recursive: true });
@@ -25,8 +57,9 @@ function makeMockResearchRuntime(overrides = {}) {
     rootDir: tmpDir,
     config: { defaultProvider: "mock", defaultModel: "mock-model" },
     agentSpawner: {
-      spawnMission: async () => ({ ok: true, subtask_results: [] })
+      spawnMission: async () => ({ ok: true, subtask_results: makeGroundedSubtaskResults() })
     },
+    citationReresolver: makeStubCitationReresolver(),
     ...overrides
   };
 }
@@ -162,7 +195,9 @@ describe("Phase 30: Workflow Engine — executeWorkflow", () => {
         spawnMission: async () => {
           callCount += 1;
           executionOrder.push(`mission_${callCount}`);
-          return { ok: true, subtask_results: [] };
+          // Each step must clear the mission citation gate to reach the next step, so supply genuine
+          // grounded evidence (cited + fetched id) exactly like a real passing mission.
+          return { ok: true, subtask_results: makeGroundedSubtaskResults() };
         }
       }
     });
@@ -278,12 +313,22 @@ describe("Phase 30: Workflow Engine — section citation-coverage gate (executeQ
     "The discussion remains qualitative without any specific citations."
   ].join("\n");
 
+  // The step_research mission still has to clear the mission citation gate before quality_check ever
+  // runs, so each section subtask carries genuine grounded evidence: a metadata sidecar grounding one
+  // NCT id, plus a single grounding FOOTER line in the section text that CITES that same id. The
+  // footer is all-lowercase except the NCT token (which section-gate strips as a citation id), so it
+  // introduces NO new key term and does not perturb deriveSectionQuery — the CITED/UNCITED
+  // density and section-coverage behavior is preserved. Its lone density-shaped line keeps UNCITED
+  // (2 lines total across 2 sections) below min_verified_citations=5 so density still FAILS, while
+  // CITED stays far above so density still PASSES.
   function writeSections(texts) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "phase30-sections-"));
     return texts.map((text, i) => {
       const p = path.join(dir, `section-${i}.md`);
-      fs.writeFileSync(p, text, "utf8");
-      return { subtask_id: `sub-${i}`, output_path: p };
+      fs.writeFileSync(p, `${text}\ngrounded in trial ${GROUNDED_NCT}\n`, "utf8");
+      const mp = path.join(dir, `section-${i}.metadata.json`);
+      fs.writeFileSync(mp, JSON.stringify({ fetched_citation_ids: [GROUNDED_NCT] }), "utf8");
+      return { subtask_id: `sub-${i}`, output_path: p, metadata_path: mp };
     });
   }
 
