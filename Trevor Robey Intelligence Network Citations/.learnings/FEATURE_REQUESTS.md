@@ -25,6 +25,27 @@ Scaffold adapter at `openclaw-bridge/mcp/synthesize-bio-mcp/ (follow chembl-mcp/
 - connector-id: synthesize-bio
 - tool-prefix: mcp__c61b22f1-bde2-44d1-8e91-8e2fe4082ba6__
 
+### Design Correction (operator note, 2026-07-16) — SUPERSEDES the auto-generated "Suggested Action"
+Verified against the live tool schemas (this session's `mcp__c61b22f1-…__*`) + docs.synthesize.bio
+(`/platform/authentication`, `/platform/tools-reference`). The audit-generated action above is wrong
+on three counts:
+1. **Not a chembl-style REST fetcher.** synthesize.bio's API IS a remote MCP server
+   (`https://app.synthesize.bio/api/mcp`, JSON-RPC over Streamable HTTP, `Authorization: Bearer <key>`,
+   env `SYNTHESIZE_API_KEY`). The adapter is a remote-MCP **client**, not a REST wrapper.
+2. **Do NOT wire into `config/tool-prefetch-map.json`.** Every capability is async / stateful /
+   generation-budget-metered (`resolve_sample_metadata` → `analyze_gene_expression` [job_id] →
+   `get_analysis_results` [poll] → `get_counts_data_url`). `get_metadata_schema` is the only static,
+   budget-free call, and there is NO synchronous, indication-drivable retrieval tool. The deterministic
+   30 s fail-soft prefetch seam cannot produce these tools' inputs and must never auto-fire a
+   budget-consuming generative job on every role run. Correct seam = a DELIBERATE, supervised generative
+   workflow step, with the client attached to `researchRuntime` like `ctgovSupplemental` (NOT the
+   `localFetchers` map).
+3. **Health check fixed:** `annotate_genes(...)` does not exist on the live surface → use
+   `get_metadata_schema()` (static, free). `tools` array in the registry corrected accordingly.
+**Blocked on the operator:** (a) provision `SYNTHESIZE_API_KEY`; (b) decide per-run generation-budget
+policy (analyze_gene_expression consumes billable GEM-1 budget with quota limits). Registry entry
+(`config/connector-registry.json` → synthesize-bio) already updated with this corrected design.
+
 ## [FEAT-20260511-002] adapter-missing
 
 **Logged**: 2026-05-11T01:41:59.063Z

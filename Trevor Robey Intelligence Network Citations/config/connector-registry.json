@@ -268,8 +268,8 @@
     "synthesize-bio": {
       "tool_prefix": "mcp__c61b22f1-bde2-44d1-8e91-8e2fe4082ba6__",
       "execution_surface": "claude-host-mcp",
-      "auth": "oauth-handshake-completed (API key NOT required for connector — only required if a subprocess adapter is built; key page: https://app.synthesize.bio/account/api-keys)",
-      "tools": ["analyze_gene_expression", "annotate_genes", "get_analysis_results", "get_counts_data_url", "resolve_sample_metadata"],
+      "auth": "claude.ai host connector: oauth-handshake-completed. A subprocess adapter instead needs an API key (env SYNTHESIZE_API_KEY; key page https://app.synthesize.bio/account/api-keys) sent as 'Authorization: Bearer <key>' to the REMOTE MCP endpoint https://app.synthesize.bio/api/mcp — a JSON-RPC-over-Streamable-HTTP MCP server, NOT a plain REST API.",
+      "tools": ["get_metadata_schema", "resolve_sample_metadata", "analyze_gene_expression", "get_analysis_results", "get_counts_data_url"],
       "purpose": "Generative genomics (GEM-1) — predicts gene expression for in-silico cohorts; the ONLY generative-rather-than-retrieval lane in the stack. Underwrites the rare-disease cohort-expansion section of Investor Pre-Mortem and the synthetic-control-arm section of Trial Design Benchmark Pack.",
       "bound_roles": ["analyst", "molecular_profiler", "competitive_intel_analyst"],
       "bound_workflow_steps": [
@@ -278,10 +278,10 @@
         { "workflow_template_id": "drug-discovery-full", "step_id": "research" }
       ],
       "business_value": "load-bearing",
-      "adapter_status": "missing",
+      "adapter_status": "missing (design corrected 2026-07-16 — see suggested_adapter_path)",
       "adapter_priority": "high",
-      "suggested_adapter_path": "openclaw-bridge/mcp/synthesize-bio-mcp/ (follow chembl-mcp/ scaffold: index.js + schema.js + tool-descriptions.js)",
-      "health_check": "annotate_genes(['ENSG00000141510']) returns TP53/p53 symbol"
+      "suggested_adapter_path": "openclaw-bridge/mcp/synthesize-bio-mcp/ — but NOT the chembl REST scaffold and NOT a deterministic tool-prefetch localFetcher. Verified 2026-07-16 against the live tool schemas + docs.synthesize.bio/platform/tools-reference: every capability is async / stateful / budget-metered (resolve_sample_metadata → analyze_gene_expression [job_id] → get_analysis_results [poll] → get_counts_data_url); get_metadata_schema is the ONLY static, budget-free call and there is NO synchronous indication-drivable retrieval tool. Correct design = a remote-MCP client (Bearer → https://app.synthesize.bio/api/mcp) driven by a DELIBERATE, supervised generative workflow step and attached to researchRuntime like ctgovSupplemental — never auto-fired in the fail-soft prefetch seam. Blocked on: operator API key + a per-run generation-budget decision.",
+      "health_check": "get_metadata_schema() returns group_schema (static; consumes no generation budget)"
     },
     "tavily": {
       "tool_prefix": "mcp__11a574c2-a267-4a04-863c-78ae1342fc0d__",
