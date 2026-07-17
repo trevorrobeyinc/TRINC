@@ -175,6 +175,19 @@ function git(args) {
   }).trim();
 }
 
+// The 2026-05-19 monorepo consolidation moved this project into a subdirectory, so git-root-relative
+// `HEAD:<path>` lookups need the cwd-relative-to-repo-root prefix (empty when run at a repo root, e.g.
+// the standalone predecessor repo — so this stays backward-compatible). Pathspec-relative commands
+// (`git log -- <path>`) already resolve against cwd and need no prefix.
+function repoRootPrefix() {
+  try {
+    return git(["rev-parse", "--show-prefix"]);
+  } catch {
+    return "";
+  }
+}
+const HEAD_PREFIX = repoRootPrefix();
+
 function firstIntroducingCommit(filePath) {
   const output = git(["log", "--diff-filter=A", "--format=%H\t%s", "--", filePath]);
   const line = output.split("\n").filter(Boolean).pop() || "";
@@ -187,7 +200,7 @@ function firstIntroducingCommit(filePath) {
 
 function fileExistsOnMain(filePath) {
   try {
-    git(["cat-file", "-e", `HEAD:${filePath}`]);
+    git(["cat-file", "-e", `HEAD:${HEAD_PREFIX}${filePath}`]);
     return true;
   } catch {
     return false;

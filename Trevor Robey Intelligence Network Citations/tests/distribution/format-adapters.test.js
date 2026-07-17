@@ -16,7 +16,7 @@ const SAMPLE_OUTPUT = {
   report: [
     "## Executive Summary",
     "",
-    "Immune checkpoint inhibitors (ICIs) including nivolumab (DrugBank: DB09035) and pembrolizumab have transformed oncology treatment.",
+    "Immune checkpoint inhibitors (ICIs) including nivolumab and pembrolizumab have transformed oncology treatment.",
     "However, they carry significant adverse event risks including myocarditis (PMID: 30232222) and hepatitis.",
     "",
     "## Safety Signal Analysis",
@@ -37,12 +37,11 @@ const SAMPLE_OUTPUT = {
     "PMID,30232222,ICI myocarditis",
     "PMID,29566243,nivolumab myocarditis fatality",
     "NCT,NCT03299946,combination ICI safety",
-    "DrugBank,DB09035,nivolumab",
     "PubChem CID,2244,aspirin prophylactic",
     "UniProt,Q15116,PD-1",
     "ChEMBL,CHEMBL3137343,PD-L1 binding"
   ].join("\n"),
-  citationCount: 7,
+  citationCount: 6,
   qualityScore: 0.95,
   metadata: { status: "completed" }
 };
@@ -111,7 +110,7 @@ describe("format adapters", () => {
       const result = kaggle.transform(SAMPLE_OUTPUT);
       const readme = result.files.find((f) => f.name === "README.md");
       assert.ok(readme, "should have README.md");
-      assert.ok(readme.content.includes("trevorrobeyinc.github.io"), "README should include watermark URL");
+      assert.ok(readme.content.includes("trevorobeyinc.com"), "README should include watermark URL");
     });
   });
 
@@ -128,17 +127,17 @@ describe("format adapters", () => {
     it("includes watermark in README", () => {
       const result = huggingface.transform(SAMPLE_OUTPUT);
       const readme = result.files.find((f) => f.name === "README.md");
-      assert.ok(readme.content.includes("trevorrobeyinc.github.io"), "README should include watermark URL");
+      assert.ok(readme.content.includes("trevorobeyinc.com"), "README should include watermark URL");
     });
   });
 
   describe("free-tier adapters include watermark", () => {
     for (const name of ["kaggle", "huggingface"]) {
-      it(`${name} output includes trevorrobeyinc.github.io`, () => {
+      it(`${name} output includes trevorobeyinc.com`, () => {
         const mod = name === "kaggle" ? kaggle : huggingface;
         const result = mod.transform(SAMPLE_OUTPUT);
         const allContent = result.files.map((f) => f.content).join("\n");
-        assert.ok(allContent.includes("trevorrobeyinc.github.io"), `${name} should include watermark`);
+        assert.ok(allContent.includes("trevorobeyinc.com"), `${name} should include watermark`);
       });
     }
   });
