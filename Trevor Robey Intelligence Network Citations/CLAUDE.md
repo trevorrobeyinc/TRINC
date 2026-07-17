@@ -19,7 +19,7 @@ A governed, local-first biomedical research and dataset packaging system. Archit
 - **Validation**: Zod 3.24.1
 - **Testing**: Node's native `--test` runner (no external framework)
 - **CI**: GitHub Actions (`.github/workflows/ci-enforcement.yml`)
-- **LLM**: Claude Code (primary, active), LM Studio (local, fallback), Mock (testing)
+- **LLM**: Claude Code (primary, active — scout/analyst/synthesizer on claude-opus-4-8, default on claude-sonnet-4-6), Mock (testing). The engine is 100% Claude; local models were removed from the engine (restorable).
 - **Biomedical Tools**: Harvard ToolUniverse via MCP (2,116 tools across 500 data files (vendor/tooluniverse v1.1.10), Phase 29 active)
 
 ## Quick Reference
@@ -173,7 +173,7 @@ Key phases for daily work:
 - **29**: Harvard ToolUniverse biomedical MCP integration (active — 2,116 tools across 500 data files (vendor/tooluniverse v1.1.10), 6 mission templates, 5 dataset schemas)
 - **30**: Workflow engine — single-command orchestration (`run-workflow.js`), 6 workflow templates, 6 specialized agent roles (literature_reviewer, safety_signal_detector, molecular_profiler, competitive_intel_analyst, quality_auditor, report_generator), quality auditor self-verification
 - **31**: Enterprise delivery layer — Research REST API (`/api/v1/research`), scheduled workflows, usage metering, `api_client` bridge principal
-- **33**: Claude Code as primary LLM provider — `claude -p` stdin pipe with JSON output, fallback chain (claude-code → lm-studio), per-template provider routing via `provider_preference`, citation density quality formula
+- **33**: Claude Code as primary LLM provider — `claude -p` stdin pipe with JSON output, no local fallback (each role's `fallback` = "" — a claude-code failure surfaces the real error rather than chasing a local backend), per-template provider routing via `provider_preference`, citation density quality formula
 
 ### Design Principles
 
@@ -192,7 +192,7 @@ Key phases for daily work:
 | Provider | Config Key | Status | Endpoint |
 |----------|-----------|--------|----------|
 | Claude Code | `claude-code` | **Active** (default) | `claude -p` stdin pipe (claude-sonnet-4-6) |
-| LM Studio | `lm-studio` | Active (fallback) | `https://127.0.0.1:1235/v1/chat/completions` (HTTPS proxy → upstream :1234) |
+| LM Studio | — | **Decommissioned (2026-07-16)** — removed from the engine (proxy :1235, launchd unit, and provider config all deleted; app + ~/.lmstudio trashed) | — |
 | Mock | `mock` | Active (CI/testing) | N/A |
 | Anthropic API | `anthropic` | Available (disabled) | `https://api.anthropic.com/v1/messages` |
 
@@ -219,9 +219,9 @@ Recognize that Claude Max Pro token burn is becoming a problem when:
 
 #### Solution: Hybrid Provider Routing (4 escalation phases)
 
-**Phase 1 — Route scout to LM Studio** (saves ~33% of Claude tokens):
+**Phase 1 — Route scout to a local model (Ollama, restorable)** (saves ~33% of Claude tokens):
 - The scout role performs tool discovery and initial data collection. It does NOT require Claude-level reasoning — it reads seed documents and ToolUniverse pre-fetch results, then produces a structured summary
-- Change: In `config/agent-config.json` or via the role handler in `scripts/_research-runtime.js`, override the provider for the `scout` role to use `lm-studio` instead of `claude-code`
+- Change: re-enable the removed-but-restorable local lane — restore a `helper` block, set the `scout` role's `fallback` to `local`, and set `providers.local.enabled=true` in `config/llm-providers.json` (providers.local = Ollama at :11435) so scout runs on the local model instead of `claude-code`
 - The tool-prefetch module (`openclaw-bridge/core/tool-prefetch.js`) still runs before the scout prompt (it's independent of the LLM provider), so the scout still gets live ToolUniverse data
 - Only the `analyst` and `synthesizer` roles continue using Claude Code
 - Expected savings: ~33% reduction in Claude token usage per workflow
@@ -257,7 +257,7 @@ Recognize that Claude Max Pro token burn is becoming a problem when:
 #### Implementation Priority
 
 When rate limiting is detected, implement in this order:
-1. **Phase 1** (scout to LM Studio) — 30 minutes, biggest immediate impact
+1. **Phase 1** (scout to local model / Ollama, restorable) — 30 minutes, biggest immediate impact
 2. **Phase 3** (response caching) — 1-2 hours, prevents duplicate work
 3. **Phase 2** (context compression) — 1-2 hours, reduces per-call cost
 4. **Phase 4** (batch scheduling) — 30 minutes, distributes load over time
@@ -269,10 +269,10 @@ Phase 1 alone should be sufficient for normal usage patterns. Only escalate to P
 After implementing any phase, verify:
 - Workflow still completes with quality confidence >= 1.0
 - Quality gate still passes on all biomedical templates
-- Scout output from LM Studio is still substantive enough for the analyst to synthesize (if Phase 1 active)
+- Scout output from the local model (Ollama) is still substantive enough for the analyst to synthesize (if Phase 1 active)
 - Cache hit rate is meaningful (if Phase 3 active)
 
-If scout quality drops below acceptable levels after routing to LM Studio, consider upgrading the LM Studio model to a larger parameter count (e.g., 14B+ instruction-tuned model with biomedical knowledge) rather than routing back to Claude Code.
+If scout quality drops below acceptable levels after routing to the local model (Ollama), consider upgrading to a larger parameter count (e.g., 14B+ instruction-tuned model with biomedical knowledge) rather than routing back to Claude Code.
 
 #### Current Token Usage Baseline
 

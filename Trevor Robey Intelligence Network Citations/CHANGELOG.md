@@ -4,6 +4,16 @@ All notable changes to this repository are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-07-16] Option B — engine is 100% Claude; LM Studio decommissioned
+
+The per-role routing was simplified to Claude-only and the local OSS-model helper/fallback layer was removed. Authoritative config: `config/role-provider-map.json` (schema `phase34-role-provider-map-v1`) + `config/llm-providers.json`.
+
+- **Engine now 100% `claude-code`** — scout / analyst / synthesizer → `claude-opus-4-8`; `default` + unmapped roles → `claude-sonnet-4-6`. Every role `fallback` is `""` (empty), so a primary failure surfaces the real error instead of chasing a local backend.
+- **LM Studio decommissioned** — removed its TLS proxy (`:1235`), the `com.trevorrobey.lm-studio-tls-proxy` launchd unit, the `lm-studio` provider in `llm-providers.json`, and its role route; the app + `~/.lmstudio` were moved to Trash. The live TLS-proxy set is now **3** (Ollama `:11435`, Miyo `:8743`, Qdrant `:6433`), not 4.
+- **OSS helper pre-passes + local fallbacks removed from the engine** — no more `runHelperPrePass`, no per-role local fallback (scout→Ollama, analyst/synthesizer→LM Studio).
+- **Ollama retained, Obsidian-side only** — `:11434` upstream via the `:11435` mkcert proxy still serves Obsidian Copilot + the vault-zettelkasten plugin (`qwen2.5:7b-instruct`); it is no longer an engine provider/fallback/helper. (Restorable: restore a `helper` block, set a role `fallback: "local"`, and set `providers.local.enabled=true`.)
+- **Docs reconciled** to this reality: `CLAUDE.md`, `SYSTEM-REALITY.md`, `README.md`, `THE-WHOLE-SYSTEM.md`, `REVENUE_PLAYBOOK.md`, `TREVOR_ROBEY_INC_AGENTS_DOSSIER.md`, `ENGINE-CODEBASE-MAP.md` (verified against the live config via a fan-out finder→verify pass).
+
 ## [2026-06-12] Slice 3 v2 — structured kill-memo deliverables (graveyard memo + amendment-risk)
 
 The cost-AVOIDANCE products from the cost-cutting research brief, shipped in the bundle and rendered **deterministically** from NCT-traced ClinicalTrials.gov records (no LLM — the fetched data IS the artifact, so every claim is verifiable). **Tests: 316/316 (+9).**

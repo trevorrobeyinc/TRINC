@@ -91,9 +91,9 @@ Research Input  ──>  Mission (Phase 18)  ──>  Dataset (Phase 19-20)  ─
 
 | Provider | Role | Status | Notes |
 |----------|------|--------|-------|
-| **Claude Code** (MCP bridge) | Primary LLM (analyst, synthesizer, default) | **Active** | `claude -p` stdin pipe, claude-sonnet-4-6, flat Claude Max 20× subscription |
-| **Ollama** (local) | scout's backend | **Active + boot-persistent** | qwen2.5:7b-instruct on :11434 (via :11435 TLS proxy) — the only local model |
-| **LM Studio** (local) | staged for analyst | **Installed; model unloaded** | qwen/qwen3.5-9b on :1234 (via :1235 proxy); analyst routes to claude-code for 16 GB stability |
+| **Claude Code** (MCP bridge) | All engine roles (scout, analyst, synthesizer + default) | **Active** | `claude -p` stdin pipe, claude-opus-4-8 for scout/analyst/synthesizer, claude-sonnet-4-6 default; flat Claude Max 20× subscription. Every role's fallback is empty (no local backend chased) |
+| **Ollama** (local) | Obsidian side only — NOT an engine role | **Active + boot-persistent** | qwen2.5:7b-instruct on :11434 (via :11435 TLS proxy) — retained for Obsidian Copilot + vault-zettelkasten; removed as an engine provider/fallback 2026-07-16 |
+| ~~**LM Studio** (local)~~ | — | **Decommissioned 2026-07-16** | Proxy (:1235), launchd unit `com.trevorrobey.lm-studio-tls-proxy`, provider entry, and role route all removed; app + ~/.lmstudio moved to Trash. Local models removed from the engine (restorable) |
 | **Mock** | Testing | Active | Used for CI and deterministic tests |
 | **ToolUniverse** (MCP) | Biomedical tools | **Active** | 700+ tools via Harvard MIMS, Phase 29 verified |
 
@@ -250,8 +250,8 @@ Default provider: **Claude Code** (`claude -p` stdin pipe, claude-sonnet-4-6)
 | Provider | Strength | Recommended For |
 |----------|----------|-----------------|
 | **Claude Code** (Sonnet/Opus) | Best reasoning, domain knowledge, synthesis quality | All production tiers, especially Premium/Enterprise |
-| Ollama (qwen2.5:7b-instruct) | Fast local triage; scout's live backend | scout role (literature discovery) |
-| LM Studio (qwen/qwen3.5-9b) | Larger local model; installed but unloaded | staged for analyst — flip back when RAM allows |
+| Ollama (qwen2.5:7b-instruct) | Fast local triage | Obsidian side only (Copilot + vault-zettelkasten) — not an engine role since 2026-07-16 |
+| ~~LM Studio (qwen/qwen3.5-9b)~~ | Decommissioned 2026-07-16 | Removed from the engine (restorable: restore a `helper` block, set the role's `fallback` to `local`, set providers.local.enabled=true) |
 
 Claude Code is the single highest-impact quality driver. Enterprise buyers require the synthesis depth that only large frontier models deliver.
 
@@ -268,14 +268,14 @@ Before submitting any product to a marketplace:
 - [ ] **Check store copy** — store-copy.md should read like buyer-facing marketing
 - [ ] **Validate schema** — All rows pass `dataset-validator.js` without errors
 - [ ] **Export and inspect ZIP** — Open the release ZIP, verify all expected files present
-- [ ] **Match tier to quality** — Don't sell local-7B output as Premium or Enterprise
+- [ ] **Match tier to quality** — the engine runs on Claude only (Opus for scout/analyst/synthesizer, Sonnet default); local models were removed 2026-07-16 (restorable). If a local model is ever restored, don't sell local-7B output as Premium or Enterprise
 
 ### Quality tiers by provider
 
 | Provider | Max Recommended Tier | Notes |
 |----------|---------------------|-------|
-| LM Studio 7B | Standard | Acceptable for structured extraction, not synthesis |
-| LM Studio 12-14B | Premium (with review) | Good for general research, weak on biomedical |
+| ~~LM Studio 7B~~ | — | Decommissioned 2026-07-16 — local models removed from the engine (restorable) |
+| ~~LM Studio 12-14B~~ | — | Decommissioned 2026-07-16 — local models removed from the engine (restorable) |
 | Claude Code (Sonnet) | Premium | Strong synthesis, reliable citations |
 | Claude Code (Opus) | Enterprise | Required for drug_discovery_intelligence, enterprise private delivery |
 

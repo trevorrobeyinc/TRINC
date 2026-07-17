@@ -65,7 +65,7 @@
    │   scripts/run-workflow.js  (Phase 30; plain Node process)      │
    │   • 6 workflow templates, 6 agent roles                        │
    │   • LLM brain = claude-code CLI 🟢 (Opus 4.8) for ALL roles    │
-   │     (Ollama + LM Studio = small per-role helpers + fallback)   │
+   │     (all roles run on claude-code — no OSS helper/fallback)    │
    │   • ToolUniverse = 2,116 biomedical tools (vendored) 🟡        │
    │   • citation-extractor.js = regex pulls PMID/NCT/ChEMBL/DOI    │
    │   • citation-integrity layer 🟢 (§3a): runtime-grounding gate, │
@@ -82,7 +82,7 @@
 
    SUPPORTING SERVICES (all 🟢 running now, loopback + TLS):
      obsidian-bridge :8798 ↔ REST :27124   Miyo search :8742   Qdrant :6333
-     TLS proxies → LM Studio :1235 · Ollama :11435 · Miyo :8743 · Qdrant :6433
+     TLS proxies → Ollama :11435 · Miyo :8743 · Qdrant :6433
 ```
 
 ### Live runtime table (verified 2026-06-10)
@@ -94,10 +94,10 @@
 | Obsidian Local REST API | :27124 | 🟢 | vault read/write (HTTPS) |
 | obsidian-bridge (node) | :8798 | 🟢 PID 15186 | canonical vault bridge |
 | Miyo semantic search | :8742 | 🟢 | + Qdrant vector DB :6333 🟢 |
-| TLS proxies (4) | :1235 :11435 :8743 :6433 | 🟢 | HTTPS fronts for the local services |
+| TLS proxies (3) | :11435 :8743 :6433 | 🟢 | HTTPS fronts for the local services |
 | `claude` CLI (primary LLM) | — | 🟢 on PATH | the engine's actual brain |
-| LM Studio upstream | :1234 | 🔴 not running | analyst + synthesizer **helper** pre-pass + fallback; load to enable (fail-soft when down) |
-| Ollama upstream | :11434 | 🟡 scout helper | scout's **helper** pre-pass + fallback; start it to enable (fail-soft when down) |
+| LM Studio | — | ⚪ decommissioned 2026-07-16 | removed from the stack — TLS proxy :1235, launchd unit, `llm-providers.json` entry, and the app all deleted; not an engine provider (restorable later, see §5) |
+| Ollama upstream | :11434 | 🟢 Obsidian side only | via TLS proxy :11435; used by Obsidian Copilot + vault-zettelkasten (`qwen2.5:7b-instruct`) — NOT an engine provider/fallback |
 | **Workflow engine output** | — | 🟡 **0 runs on disk** | `workspace/missions`, `workspace/research-output`, `state/runtime` all empty; vault `OpenClaw/` dir absent |
 
 ---
@@ -145,7 +145,7 @@ No rogue or broken connectors were found — the only issue was that nothing doc
 | Phase 24 — Notion sync / newsletter publishing | 🟡 implemented, **disabled** |
 | Phase 25 — credential broker | 🟡 implemented, not active |
 | Container-execution governance (`openclaw-bridge/execution/`) | 🟡 scaffold, **never invoked** (workflows are plain Node) |
-| Multi-agent routing (role identities + per-role backend) | 🟢 **LIVE** — role-based SOUL.md/AGENTS.md/sessions under `config/agents/`. **Updated 2026-06-22: scout + analyst + synthesizer all run on `claude-code` / Claude Opus 4.8** (`claude-opus-4-8`, 1M context by default — no `[1m]` suffix). The OSS models are demoted to small per-role **helper** pre-passes (`agent-engine.runHelperPrePass` triages/compresses the prefetched evidence before Opus; advisory-only — it can't inject a citation because the grounded set is computed from the fetched evidence, not the digest — and fail-soft) + fallbacks: scout → Ollama `qwen2.5:7b-instruct` (:11434/:11435), analyst + synthesizer → LM Studio `qwen/qwen3.5-9b` (:1234/:1235, currently unloaded). Per-role map in `config/role-provider-map.json`. Verified end-to-end through the YubiKey gate: scout `provider=local`, SOUL prepended, session recorded, contract intact, clean exit. Billing: claude-code = Claude Max 20× subscription (flat; extra-usage metered beyond plan limits). **Env:** runs need `NODE_EXTRA_CA_CERTS=~/Library/Application Support/mkcert/rootCA.pem` — use the `scripts/run-workflow.sh` wrapper. **Obsidian launch is gated**: the plugin now spawns `--operator-approve` + the CA env (rebuilt + deployed; reload the plugin in Obsidian), so Obsidian runs require `operator-approve-gate arm` first — resolves the plugin-vs-gate escrow. 16GB caveat: scout+analyst local models co-resident near the ceiling, fallbacks cover OOM; LM Studio server is manual-start (not boot-persistent). |
+| Multi-agent routing (role identities + per-role backend) | 🟢 **LIVE** — role-based SOUL.md/AGENTS.md/sessions under `config/agents/`. **Updated 2026-06-22: scout + analyst + synthesizer all run on `claude-code` / Claude Opus 4.8** (`claude-opus-4-8`, 1M context by default — no `[1m]` suffix). As of 2026-07-16 (Option B) the engine is 100% Claude — the OSS helper pre-passes and per-role local fallbacks were REMOVED (`agent-engine.runHelperPrePass` and the `local` fallback routes are gone; every role's `fallback` is now `""`, so a primary claude-code failure surfaces the real error instead of chasing a local backend). LM Studio was decommissioned; Ollama (`qwen2.5:7b-instruct`, :11434/:11435) is retained for the Obsidian side only, not the engine. The local-helper capability is removable-but-restorable — to re-add it, restore a `helper` block, set the role's `fallback` to `local`, and set `providers.local.enabled=true`. Per-role map in `config/role-provider-map.json`. Verified end-to-end through the YubiKey gate: scout `provider=claude-code`, SOUL prepended, session recorded, contract intact, clean exit. Billing: claude-code = Claude Max 20× subscription (flat; extra-usage metered beyond plan limits). **Env:** runs need `NODE_EXTRA_CA_CERTS=~/Library/Application Support/mkcert/rootCA.pem` — use the `scripts/run-workflow.sh` wrapper. **Obsidian launch is gated**: the plugin now spawns `--operator-approve` + the CA env (rebuilt + deployed; reload the plugin in Obsidian), so Obsidian runs require `operator-approve-gate arm` first — resolves the plugin-vs-gate escrow. 16GB note: the engine no longer loads any local models (all roles are claude-code), so the earlier scout+analyst co-residency / LM-Studio-manual-start caveat no longer applies. |
 | TrevNodus / InfraNodus graph viz | ⚪ removed 2026-05-06 |
 
 ---

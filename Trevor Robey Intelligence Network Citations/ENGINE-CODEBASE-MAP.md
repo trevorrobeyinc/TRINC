@@ -22,7 +22,7 @@
 - **Model drift:** `config/agent-config.json` still declares `defaultModel: "claude-sonnet-4-6"`, but
   the **live** per-role routing (`config/role-provider-map.json`, updated 2026-06-22) runs **Claude
   Opus 4.8 (`claude-opus-4-8`, 1M context)** for scout/analyst/synthesizer. The OSS models
-  (Ollama, LM Studio) are demoted to **fail-soft helper pre-passes + fallback**, not primary brains.
+  (Ollama, LM Studio) were **removed from the engine** (2026-07-16, Option B; restorable): LM Studio is **decommissioned**, and Ollama is retained for the **Obsidian side only** (Copilot + vault-zettelkasten), not an engine helper or fallback. Every engine role's `fallback` is now empty (`""`).
   SoT for who-runs-what = `role-provider-map.json`, not the `defaultModel` field.
 - **Stale docs:** the repo-root `README.md` and this subfolder's `README.md` still use the old folder
   names (`trevor-robey-inc/`, `trevor-robey-inc-agents/`) from before the 2026-05-19 flat-merge.
@@ -48,8 +48,8 @@ workflow-engine  (orchestrates the mission → dataset → offer → approve →
       │     │                            injects synthetic `tooluniverse://` docs, records fetched_citation_ids
       │     role-provider-router.js .... picks the LLM per role (map → template pref → default=claude-code)
       │     agent-context-loader.js .... prepends config/agents/<role>/SOUL.md + AGENTS.md + session memory
-      │     agent-engine.js ............ optional OSS helper pre-pass → Opus reasons → session recorded
-      │     llm-adapter.complete() ..... claude -p stdin pipe (or lm-studio/ollama/mock), role-level fallback
+      │     agent-engine.js ............ Opus reasons over prefetched evidence → session recorded
+      │     llm-adapter.complete() ..... claude -p stdin pipe (claude-code; `mock` for tests) — no live fallback (every role's `fallback` is empty)
       │     role-router.js ............. FAIL-CLOSED human-approval gate (needs operatorApproved === true)
       │
       ▼
@@ -109,7 +109,7 @@ Paths are under `openclaw-bridge/` unless noted. Confirm with `grep -rn <symbol>
 | Module | Responsibility | Key symbols / notes |
 |---|---|---|
 | `core/tool-prefetch.js` | Pulls live evidence before prompt construction; the ground-truth source for grounding. | `createToolPrefetch({ localFetchers })`; role→tool map in `config/tool-prefetch-map.json`; injects `tooluniverse://` docs; **graceful degradation** if ToolUniverse down. |
-| `core/agent-engine.js` | Runs each role's LLM call; persists what was fetched. | Records `fetched_citation_ids` + per-task `citation_verification`; `buildPrompt` carries the ABSOLUTE-RULE **ZERO FABRICATION** clause; `runHelperPrePass` = optional OSS triage/compress (advisory-only, can't inject a cite, fail-soft). |
+| `core/agent-engine.js` | Runs each role's LLM call; persists what was fetched. | Records `fetched_citation_ids` + per-task `citation_verification`; `buildPrompt` carries the ABSOLUTE-RULE **ZERO FABRICATION** clause; The `runHelperPrePass` OSS pre-pass was **removed** 2026-07-16 (engine is 100% Claude; restorable). |
 | `core/workflow-engine.js` | Orchestrates the mission chain and wires the integrity layer. | `executeMissionStep` (runs the citation gate; builds both integrity deliverables), `executeOfferStep` (threads memos into `source_context`). |
 | `core/role-provider-router.js` | Per-role LLM selection. | Precedence: `roles[role]` → template `provider_preference` → `default = claude-code`; every non-claude route falls back to claude-code. |
 | `core/role-router.js` | **Fail-closed human-approval gate.** | Requires `context.operatorApproved === true` for every research role; else `PHASE15_HUMAN_APPROVAL_REQUIRED`. `run-workflow.js --operator-approve` is the only production path that sets it. |
@@ -190,7 +190,7 @@ competitive_intel_analyst — add it by default to any new literature-aware role
    context → job denied. Grounded ratio below threshold → report refuses to ship. Retracted DOI →
    hard-stop. New gates default OFF.
 4. **Zero fabrication.** Never let a code path invent a PMID/NCT/DOI. Cited ids must be grounded in
-   fetched evidence; helpers/pre-passes may never inject a citation.
+   fetched evidence; no code path (including any later-restored helper/pre-pass) may ever inject a citation.
 5. **Deterministic naming + provenance.** IDs are prefixed `mission-` / `dataset-` / `offer-`; every
    produced row carries source metadata; Phase 22/28 evidence ledgers are append-only + chain-hashed.
 6. **Immutable config after boot.** Load config once; don't mutate at runtime.
