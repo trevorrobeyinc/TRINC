@@ -31,7 +31,11 @@ function walk(dir, output = []) {
   for (const entry of entries) {
     const abs = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      if (entry.name === "_logs") {
+      // content-v2-only (2026-07-17): verify only the content-addressed dependency blobs — see
+      // generate-npm-cache-lock.sh. index-v5 embeds install-time timestamps (not reproducibly
+      // verifiable); tmp/_npx/_logs are volatile. Excluded from integrity verification so the
+      // check is deterministic; the content-v2 blobs' hashes are the actual supply-chain integrity.
+      if (entry.name === "_logs" || entry.name === "index-v5" || entry.name === "tmp" || entry.name === "_npx") {
         continue;
       }
       walk(abs, output);

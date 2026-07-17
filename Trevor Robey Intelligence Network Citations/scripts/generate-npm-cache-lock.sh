@@ -18,7 +18,12 @@ function walk(dir, files = []) {
   for (const entry of entries) {
     const abs = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      if (entry.name === "_logs") {
+      // content-v2-only trust anchor (2026-07-17): pin ONLY the content-addressed dependency
+      // blobs under content-v2/ — their path IS their content sha512, so they are self-verifying
+      // and byte-reproducible from the lockfile. index-v5 (npm's cache index) embeds install-time
+      // timestamps and is therefore NOT reproducibly verifiable; tmp/_npx/_logs are volatile.
+      // All are excluded from the integrity manifest (npm still uses them locally for offline install).
+      if (entry.name === "_logs" || entry.name === "index-v5" || entry.name === "tmp" || entry.name === "_npx") {
         continue;
       }
       walk(abs, files);
