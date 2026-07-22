@@ -280,6 +280,33 @@ Predecessor of qdrant-tls-proxy: a separate subproject at `Claude/qdrant-tls-pro
 
 > Per the global `~/.claude/CLAUDE.md` "Browser MCP Strategy and Context Persistence" rule, every Claude Code session that calls a browser MCP non-trivially appends a structured summary block below. Newest entries at the top. The two surviving browser surfaces are **Playwright MCP (`--isolated`)** and **Claude in Chrome**. See the global rule for the entry format, importance filter, and timing.
 
+- 2026-07-22 · claude-in-chrome · Google Workspace stand-up + full Zoho→Gmail mail cutover for
+  trevorobeyinc.com (logged-in Cloudflare, Google Admin console, Zoho Mail; new Chrome profile
+  "Trevor Robey Intelligence Network Citations") · created a zone-scoped Cloudflare DNS token
+  (Keychain-only), flipped Gmail DKIM signing on, ran the IMAP data import (1,251/1,251, 0 failed),
+  added `support@`/`aws@` aliases, set Gmail dark theme. Gotchas: (1) Google's Entri auto-connect
+  flow silently replaced the Zoho MX — the "verify domain only" plan was overtaken by a real
+  cutover; (2) **this paid Zoho account's IMAP host is `imappro.zoho.com`, NOT `imap.zoho.com`** —
+  the wrong host returns a generic `Invalid credentials` that mimics a bad password (cost ~1h;
+  a raw `openssl s_client` IMAP probe with the Keychain-held app password is what diagnosed it);
+  (3) Gmail's theme save works but the running page doesn't repaint until reload — it *looks* like
+  the save failed; (4) GAM7 can't be driven from a non-interactive shell (reads stdin) and needs a
+  prerequisite App-access-control trust for its Client ID.
+- 2026-07-21 · claude-in-chrome · verify/redeem GitHub Copilot student benefit (logged-in github.com) ·
+  nothing left to redeem — "GitHub Copilot Student" already active (SKU free_educational_quota, 200 AI
+  credits/mo, overage $0-locked); gotcha: model picker is Auto-ONLY on this tier (every named model
+  aria-disabled → needs Pro/Pro+), so VS Code "upgrade" nags are tier-accurate, not a config error
+- 2026-07-19 · claude-in-chrome · remove TikTok Chrome-PWA + clear its data (Default profile, logged-in) ·
+  logged the site out via tiktok.com/logout, then cleared all origin-reachable state through page JS
+  (10 cookies, 69 localStorage keys, 6 IndexedDB DBs, 2 CacheStorage caches, service worker
+  unregistered); app uninstall + HttpOnly-cookie purge handed to operator via staged
+  chrome://app-settings/<id> and chrome://settings/content/all?searchSubpage=tiktok (the extension
+  cannot touch chrome:// pages). Gotchas: deleting the shim .app alone ≠ uninstall — Chrome
+  regenerates it while its registry entry lives; and a Falcon custom IOA process-BLOCKS zsh touching
+  Chrome profile files (Preferences/Local State scrub died silently, 3× High/Prevention) — by
+  design, don't bypass; drive Chrome's own UI instead. See memories
+  `falcon-blocks-chrome-profile-shell-access` + `chrome-pwa-uninstall-registry-resurrection`.
+
 - 2026-07-09 · claude-in-chrome · complete Parker Dewey Career Launcher profile (app.parkerdewey.com, logged-in)
   per the "Completing Your profile" onboarding email · added 239-char personal statement, GPA 4.0
   (from Strayer GPS dashboard PDF — President's List), and 3 experience entries sourced from the

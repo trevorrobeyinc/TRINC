@@ -64,7 +64,7 @@ icd10, npi, owkin, arxiv, searxng, **crossref-retraction**, **ctgov-supplemental
 Open Targets, Semantic Scholar gateway.
 
 **Infrastructure:** SearXNG (local, HTTPS `:8891`), FilesystemPlus, Falcon, Firewalla, term-bridge,
-gmail (local + cloud), zoho-mail, zoho-trinc, github, cdp-pipe, Miyo/Qdrant semantic search.
+gmail (local + cloud), zoho-mail, zoho-trinc, github, cdp-pipe, Miyo/Qdrant semantic search. *(Note 2026-07-22: mail host migrated Zoho→Google Workspace Gmail; zoho-mail/zoho-trinc are archive-readers now — see `03-platforms/google-workspace/google-workspace.md`.)*
 
 **Plugins:** `data` (amplitude, atlassian, bigquery, definite, hex — already in the engine's own
 `excluded_infrastructure`), `cowork-plugin-management`, `anthropic-skills`, swift-lsp, clangd-lsp.

@@ -382,7 +382,11 @@ git add docs/index.html && git commit -m "deploy landing page" && git push
 cd workspace/collateral/landing-page && npx vercel --prod
 ```
 
-Target URL: `https://trevorrobeyinc.github.io`
+Target URL: **`https://trevorobeyinc.com`** (Cloudflare Worker `shy-grass-fccd`). ⚠️ Corrected
+2026-07-22 — this line previously read `https://trevorrobeyinc.github.io`, which is the operator's
+**personal** portfolio ("Trevor Robey — AI Systems & Digital Marketing Portfolio", live, HTTP 200),
+NOT the business site. Note the spelling: business = `trevorobeyinc` (one r), personal GitHub Pages =
+`trevorrobeyinc` (two r's). Business outbound must link the business domain.
 
 ### Outbound Cadence Summary
 
@@ -554,7 +558,7 @@ Sales boilerplate disclaimer for outbound emails / landing-page footer:
 | Channel | State (2026-06-10) |
 |---|---|
 | Datarade | Submitted 2026-05-11 → **DECLINED 2026-05-20** ("business not yet established"). Re-apply after establishment proof; no product rework. |
-| AWS Data Exchange | Rejected 2026-05-03; appeal trail **unverified** — no AWS seller emails found in Zoho or Gmail on 2026-06-10; escalation threshold (2026-06-02) passed unactioned. AWS *account* access is set up (SSO + 2 YubiKeys). **Verify-first** before any send — see [`03-platforms/aws-data-exchange/correspondence-2026-05.md`](03-platforms/aws-data-exchange/correspondence-2026-05.md). |
+| AWS Data Exchange | **Seller = APPROVED** (operator-confirmed 2026-06-10; the May "rejected" framing is superseded). **Live blocker:** adding a disbursement method returns *"your account is still being reviewed"* — a stalled secondary review gating payouts, so no paid listing can publish. Escalation threshold (2026-06-02) passed unactioned; the ready-to-send Seller-Operations letter sits in §6 of [`correspondence-2026-05.md`](03-platforms/aws-data-exchange/correspondence-2026-05.md) **unsent**. AWS *account* access is set up (SSO + 2 YubiKeys). Seller contact `trevor@trevorobeyinc.com`; a `support@`/`aws@` alias now exists on the domain (2026-07-22) if the public contact is ever swapped. |
 | HuggingFace | Unblocked, **not pushed** — fastest path to a live citable artifact. |
 | Snowflake (free) | ~1-day approval, **not done**. |
 | Gumroad | Parked. |

@@ -80,7 +80,7 @@ amendment-risk band rendered deterministically from the fetched records).
 | **falcon** | CrowdStrike Falcon — security recon/hardening (read + propose-only). Not a product data source. |
 | **github** | Repo access (read-only, YubiKey-gated). Dev/ops. |
 | **cdp-pipe** | Headless Chrome browser automation (YubiKey consent gate). Used for guided console navigation, e.g. AWS. |
-| **zoho-mail** | The business mailbox `trevor@trevorobeyinc.com` — outbound/inbound for sales & marketplace correspondence. |
+| **zoho-mail** | **Archive-reader since 2026-07-22** — the business mailbox `trevor@trevorobeyinc.com` moved to Google Workspace Gmail (MX cutover); Zoho retains pre-cutover history + secondary sending during transition. Canonical record: `03-platforms/google-workspace/google-workspace.md`. |
 
 The AWS Management Console itself is driven via the **Claude-for-Chrome extension in a dedicated AWS-only profile**, not through the product pipeline.
 
