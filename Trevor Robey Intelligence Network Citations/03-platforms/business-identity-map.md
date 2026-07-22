@@ -44,15 +44,16 @@ Drove the logged-in AWS console (work profile) to check where `trevorrobeyinc@gm
 - **Global KYC:** Business + Bank verification show "Not started" **but KYC is explicitly OPTIONAL
   for US selling** (the tab says it's required only for Korea/UK/EMEA transactions) — NOT the blocker.
 
-So the honest answer: **registered seller, can list free products now; one step short of paid** —
-tax ✓ and bank ✓ are done, the missing piece is **setting up the disbursement method** (link the
-ACH account) + public-profile verification. Setting up a disbursement method is exactly the action
-that historically returned *"your account is still being reviewed"* (`correspondence-2026-05.md`).
-**Operator-only** (it's how money is received — I won't configure a payout method). Recommendation:
-the operator opens Payment information → Disbursement methods → set up; if it still errors, that's
-the trigger to finally send the §6 escalation letter; if it succeeds, paid listings are unblocked.
-(Also new: an India Permanent-Establishment tax-declaration notice — paid India sales suspendable
-Q4 2026 if not addressed; minor/separate.)
+**🎉 UPDATE (2026-07-22, later same day — verified live): disbursement method ADDED; account now
+cleared for PAID.** The operator successfully set up the disbursement method (the step that had been
+blocked ~2.5 months). Marketplace Account status flipped to **✓ "Publish paid and free products"**
+(green) — was "Publish free products." So the **entire account-qualification chain is now complete**:
+seller registered ✓ · tax/DAC7 ✓ · bank account ✓ · disbursement method ✓ · profile verified
+(implied by the status). The §6 escalation letter in `correspondence-2026-05.md` is now **moot — do
+not send it.** What remains before actual revenue is **product-side, not account-side:** create and
+**publish a paid listing** (nothing paid is live yet — only a free sample pack was staged), which
+goes through AWS's own product review. India PE tax-declaration notice still pending (only affects
+paid India buyers, Q4 2026).
 
 ## 2 · Identity inventory
 

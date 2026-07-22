@@ -113,6 +113,13 @@
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 > Copy the **Entry template** at the bottom.
 
+### 2026-07-22T15:40Z · Desktop Claude Code · 🎉 AWS disbursement method ADDED — account CLEARED FOR PAID (2.5-month blocker resolved)
+- **Did:** Operator finally added the disbursement method. Verified live: Marketplace Account status flipped to **✓ "Publish paid and free products"** (green; was "Publish free products"). Account-qualification chain now 100% complete (seller ✓ tax/DAC7 ✓ ACH bank ✓ disbursement ✓ profile verified). Marked the §6 escalation letter **MOOT — do not send** across `correspondence-2026-05.md`, `business-identity-map.md`, `REVENUE_PLAYBOOK.md:561`.
+- **State:** done — AWS account fully cleared for paid selling
+- **Next (product-side, NOT account-side):** nothing paid is live yet — only a free sample was staged. To earn: **create + publish a paid AWS Data Exchange listing**, which goes through AWS's product review. Then drive buyers. India PE tax declaration still pending (paid India buyers only, Q4 2026). Business remains **pre-revenue** — the platform gate is finally open but no paid product is published.
+- **Touches:** `correspondence-2026-05.md` (RESOLVED banner), `business-identity-map.md`, `REVENUE_PLAYBOOK.md`, this board. Committing.
+- **For whoever's next:** AWS is NO LONGER blocked on account qualification — that's done. Don't resurrect the "stuck review / send escalation" framing. The remaining gap is publishing an actual paid listing + go-to-market, which is the same pre-revenue reality as every other channel.
+
 ### 2026-07-22T15:05Z · Desktop Claude Code · AWS "am I approved?" answered from live tabs; all portfolio links fixed
 - **Did:** Read every AWS Marketplace Settings tab live. **Definitive seller status:** ACTIVE seller, can **publish FREE products now**; for PAID: **Tax interview + DAC7 = Completed ✓**, **bank account added** (US ACH ending 262, verification "Not required") ✓, **BUT disbursement method = NONE** ("Disbursement information required") + public profile must be verified. **KYC is OPTIONAL for US** (Korea/UK/EMEA only) — not the blocker, correcting my earlier read. So he's **one step from paid**: set up the disbursement method (link the ACH) — which is exactly the action that historically threw "account still being reviewed." Left it for the operator (financial/payout config = operator-only). Fixed the remaining R3 portfolio links in all 3 platform guides (datarade/kaggle/huggingface) → trevorobeyinc.com; repo-wide customer-facing github.io now CLEAN (only business-identity-map retains it, documenting the spelling trap).
 - **State:** done for this session — AWS disbursement setup + escalation decision are operator-only

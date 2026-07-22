@@ -5,6 +5,16 @@
 > personal Gmail), so paste the verbatim text of each message below as it goes
 > out / arrives. Created 2026-05-23.
 
+> **🎉 RESOLVED (2026-07-22, verified live in console) — DO NOT SEND the §6 escalation letter.**
+> The operator successfully **added a disbursement method** (linking the on-file US ACH account
+> ending 262). The Marketplace Management Portal Account status now reads **✓ "Publish paid and
+> free products"** (green) — previously "Publish free products" only. Tax interview + DAC7 =
+> Completed; bank account on file; disbursement method now set. The ~2.5-month "your account is
+> still being reviewed" hold that gated disbursement setup has **cleared**. The escalation trail
+> below is now **historical** — the account is cleared to publish paid listings. Remaining before
+> revenue is product-side (create + publish a paid listing, which goes through AWS product review),
+> not account-qualification. See `03-platforms/business-identity-map.md` §Live AWS console check.
+
 > **✅ STATUS CORRECTION (2026-06-10, operator-confirmed) — this supersedes the May "rejected" framing.**
 > The seller application was ultimately **APPROVED** — the AWS Marketplace Management Portal now shows the seller profile as approved. **New blocker:** attempting to add the **disbursement method** returns a console notification error — *"your account is still being reviewed."* So payouts cannot be configured, which blocks any paid listing. **It has been ~34 days (since ~early May 2026) with no response from AWS.** Net state: **seller = approved, but a secondary account review is stuck and is gating disbursement setup.** This is no longer an appeal of a rejection; it is an escalation to clear a stalled account-review hold. The ready-to-send letter is in section **[6]** below.
 
