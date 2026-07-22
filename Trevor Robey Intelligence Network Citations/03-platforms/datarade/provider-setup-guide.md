@@ -13,7 +13,7 @@
    - Company (legal): Trevor Robey Intelligence Network Citations LLC
    - Brand / trading name: Trevor Robey, INC. (INC = Intelligence Network Citations)
    - Categories: Healthcare Data, Life Sciences Data, Pharma Data
-   - Website: https://trevorrobeyinc.github.io
+   - Website: https://trevorobeyinc.com
 3. Wait for provider approval (typically 1-2 weeks)
 
 ## Step 2: Generate Distribution Assets

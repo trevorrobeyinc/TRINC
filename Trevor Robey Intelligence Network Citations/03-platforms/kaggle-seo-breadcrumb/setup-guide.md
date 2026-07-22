@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Kaggle is a FREE visibility play. Upload datasets to build credibility and drive traffic to trevorrobeyinc.github.io. No direct revenue — this is for discoverability.
+Kaggle is a FREE visibility play. Upload datasets to build credibility and drive traffic to trevorobeyinc.com. No direct revenue — this is for discoverability.
 
 ## Step 1: Generate Distribution Assets
 

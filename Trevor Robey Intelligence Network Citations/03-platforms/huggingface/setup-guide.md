@@ -2,7 +2,7 @@
 
 ## Purpose
 
-HuggingFace is a FREE credibility play for the ML/AI research community. Datasets with proper YAML cards get indexed and discoverable. Drives traffic to trevorrobeyinc.github.io.
+HuggingFace is a FREE credibility play for the ML/AI research community. Datasets with proper YAML cards get indexed and discoverable. Drives traffic to trevorobeyinc.com.
 
 ## Step 1: Generate Distribution Assets
 

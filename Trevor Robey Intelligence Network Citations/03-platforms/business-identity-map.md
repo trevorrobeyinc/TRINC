@@ -34,12 +34,25 @@ Drove the logged-in AWS console (work profile) to check where `trevorrobeyinc@gm
   the one the operator named. **No AWS field was changed** — there was nothing set to
   `trevorrobeyinc@gmail.com` to change.
 
-**Live seller status (corrects the repo's "approved, payout-review-held" framing):** the portal now
-shows **Account status = "Publish free products"** — free listings allowed today; **paid** listings
-are gated by **Global KYC**, and both **Step 1 Business verification** and **Step 2 Bank account
-verification** show **"Not started."** So the real blocker is KYC not started, which chains to the
-still-open **EIN → business bank account** items. (Also new: an India Permanent-Establishment tax
-declaration notice — paid India sales could be suspended Q4 2026 if not addressed; minor/separate.)
+**Live seller status (read from the actual Settings tabs 2026-07-22 — supersedes the repo's
+"approved, payout-review-held" framing):** seller account is **ACTIVE**; **Account status =
+"Publish free products"** (free listings allowed today). To sell **paid** products / get paid:
+- **Tax interview: Completed** (May 01 2026); **DAC7: Completed**; 1099K + DAC7 docs on file. ✓
+- **Bank account: added** — one US-based ACH account (ending 262), verification "Not required". ✓
+- **Disbursement method: NONE** — "No disbursement method"; banner "Disbursement information
+  required." **This is the actual remaining gate**, plus "your public profile must also be verified."
+- **Global KYC:** Business + Bank verification show "Not started" **but KYC is explicitly OPTIONAL
+  for US selling** (the tab says it's required only for Korea/UK/EMEA transactions) — NOT the blocker.
+
+So the honest answer: **registered seller, can list free products now; one step short of paid** —
+tax ✓ and bank ✓ are done, the missing piece is **setting up the disbursement method** (link the
+ACH account) + public-profile verification. Setting up a disbursement method is exactly the action
+that historically returned *"your account is still being reviewed"* (`correspondence-2026-05.md`).
+**Operator-only** (it's how money is received — I won't configure a payout method). Recommendation:
+the operator opens Payment information → Disbursement methods → set up; if it still errors, that's
+the trigger to finally send the §6 escalation letter; if it succeeds, paid listings are unblocked.
+(Also new: an India Permanent-Establishment tax-declaration notice — paid India sales suspendable
+Q4 2026 if not addressed; minor/separate.)
 
 ## 2 · Identity inventory
 
