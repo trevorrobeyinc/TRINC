@@ -48,7 +48,7 @@ Hi [First Name],
 
 Final follow-up — I've attached a 2-page sample from our recent ICI pharmacovigilance signal synthesis. It includes 3 critical signals with real identifiers (PMID, RxNorm, NCT) you can verify independently.
 
-Full product details and additional intelligence products: https://trevorrobeyinc.github.io
+Full product details and additional intelligence products: https://trevorobeyinc.com
 
 The preview includes the citation index and report structure so your team can assess quality before any commitment. Takes 5 minutes to review.
 

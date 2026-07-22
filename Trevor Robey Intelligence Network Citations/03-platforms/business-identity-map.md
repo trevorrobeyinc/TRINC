@@ -17,8 +17,29 @@
 |---|---|---|---|
 | **R1** | **AWS root email is `Trevor.Robey@my.strayer.edu`** — a *university student* address — on account `833390816446`, which owns the entire AWS Marketplace revenue channel | Student email addresses are revoked after graduation/withdrawal. Losing it means losing root recovery on the account holding your seller listing and future disbursements. This is the single most fragile binding in the business. | Change AWS root email → `trevor@trevorobeyinc.com` (or `aws@`). AWS Console → Account settings → root user email. **Operator-only** (root + MFA). |
 | **R2** | **Cloudflare is logged in as `trevoralexanderrobey@gmail.com`** (personal Gmail), account `f3b10bacc7e94c72e445b078433aa1d4` | That one personal account controls the **domain registration, all DNS (including the MX/SPF/DKIM that make business mail work), and the Worker serving trevorobeyinc.com**. Lose or compromise it and the business's web + mail presence goes with it. | Add `trevor@trevorobeyinc.com` as a Cloudflare account **Member (Super Administrator)**, then optionally transfer ownership. Do NOT simply move the domain — adding a business admin is reversible and non-disruptive. |
-| **R3** | **Customer-facing collateral links to a personal portfolio** — Datarade provider application, Kaggle + HuggingFace setup docs, all 4 cold-email templates, all 4 LinkedIn templates point at `trevorrobeyinc.github.io` | That URL is the operator's **personal** portfolio ("Trevor Robey — AI Systems & Digital Marketing Portfolio", live HTTP 200) — not the business site. Prospects clicking a business email land on a personal résumé page. Spelling trap: business = `trevorobeyinc.com` (one r), personal = `trevorrobeyinc` (two r's). | Sweep all outbound/platform docs → `https://trevorobeyinc.com`. Fixed in `REVENUE_PLAYBOOK.md:385` on 2026-07-22; the templates still need it. |
+| **R3** | **Customer-facing collateral links to a personal portfolio** — Datarade provider application, Kaggle + HuggingFace setup docs still point at `trevorrobeyinc.github.io` | That URL is the operator's **personal** portfolio ("Trevor Robey — AI Systems & Digital Marketing Portfolio", live HTTP 200) — not the business site. Prospects clicking a business email land on a personal résumé page. Spelling trap: business = `trevorobeyinc.com` (one r), personal = `trevorrobeyinc` (two r's). | **`07-outbound/` FIXED 2026-07-22** (7 links across 4 cold-email + LinkedIn templates → `trevorobeyinc.com`). `REVENUE_PLAYBOOK.md:385` fixed earlier. **Still to fix:** `03-platforms/datarade/provider-setup-guide.md`, `03-platforms/kaggle-seo-breadcrumb/setup-guide.md`, `03-platforms/huggingface/setup-guide.md`. |
 | **R4** | **The entire engine runs on one personal Claude Max 20× subscription** with no fallback (all OSS/local providers removed 2026-07-16) | 100% of scout/analyst/synthesizer compute. If that individual subscription lapses or hits its ceiling, the revenue-producing engine stops. No business/team Anthropic account exists. | Decide: keep personal-plan (accept risk) vs. open a business Anthropic account. Contingency plan already written in the engine `CLAUDE.md` (Token Efficiency §Phase 1 restores a local scout lane). |
+
+### Live AWS console check (2026-07-22) — the `trevorrobeyinc@gmail.com` premise did NOT hold
+
+Drove the logged-in AWS console (work profile) to check where `trevorrobeyinc@gmail.com` lives.
+**It is not present anywhere in AWS.** Confirmed on-screen:
+- **Account → Alternate contacts** (Billing, Operations, Security): all three already
+  `trevor@trevorobeyinc.com`, title "Founder & CEO". ✓
+- **Account → Contact information:** Trevor Robey / Trevor Robey Inc / 8161 Oahu Dr / +1 2792200923.
+- **Marketplace → Settings → Public profile:** company website `https://trevorobeyinc.com` (one-r,
+  correct); no support email shown.
+- **Root login email:** not viewed (sensitive; root-security page). Per recon it is
+  `Trevor.Robey@my.strayer.edu` — the actual R1 personal binding, and a *different* address than
+  the one the operator named. **No AWS field was changed** — there was nothing set to
+  `trevorrobeyinc@gmail.com` to change.
+
+**Live seller status (corrects the repo's "approved, payout-review-held" framing):** the portal now
+shows **Account status = "Publish free products"** — free listings allowed today; **paid** listings
+are gated by **Global KYC**, and both **Step 1 Business verification** and **Step 2 Bank account
+verification** show **"Not started."** So the real blocker is KYC not started, which chains to the
+still-open **EIN → business bank account** items. (Also new: an India Permanent-Establishment tax
+declaration notice — paid India sales could be suspended Q4 2026 if not addressed; minor/separate.)
 
 ## 2 · Identity inventory
 

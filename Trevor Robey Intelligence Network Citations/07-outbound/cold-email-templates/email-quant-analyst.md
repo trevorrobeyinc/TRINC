@@ -48,7 +48,7 @@ Hi [First Name],
 
 Last note — I've attached a 2-page sample from our recent ICI pharmacovigilance signal synthesis showing the citation-backed methodology and data structure. Every identifier is a real public-domain reference you can look up in its source database.
 
-Full product details and schema specifications: https://trevorrobeyinc.github.io
+Full product details and schema specifications: https://trevorobeyinc.com
 
 I've also attached our TARGET_VALIDATION_MATRIX data dictionary showing the exact schema, data types, and masking policies. This is the structure your team would receive via Snowflake Secure Data Sharing.
 

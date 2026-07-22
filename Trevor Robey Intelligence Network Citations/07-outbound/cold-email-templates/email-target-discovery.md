@@ -48,7 +48,7 @@ Hi [First Name],
 
 Last note — given that average target discovery costs reach $196M before human trials, we built our validation packs specifically to reduce that attrition risk.
 
-I've attached a 2-page sample from our recent ICI pharmacovigilance signal synthesis — it demonstrates the citation-backed methodology across all our products. Full product details: https://trevorrobeyinc.github.io
+I've attached a 2-page sample from our recent ICI pharmacovigilance signal synthesis — it demonstrates the citation-backed methodology across all our products. Full product details: https://trevorobeyinc.com
 
 I've also prepared a blinded preview showing the TARGET_VALIDATION_MATRIX schema (Target ID, Disease Indication, Evidence Score, PMID Array, Provenance Hash). Takes 5 minutes to review the structure.
 

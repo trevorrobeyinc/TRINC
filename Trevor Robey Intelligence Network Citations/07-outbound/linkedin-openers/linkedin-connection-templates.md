@@ -30,7 +30,7 @@
 >
 > The methodology is deterministic: 3-agent pipeline (scout, analyst, synthesizer) scanning OpenFDA FAERS, DailyMed, and PubMed. Every claim is citation-backed — no hallucinated references.
 >
-> I have a redacted sample deliverable and a landing page with product details: https://trevorrobeyinc.github.io
+> I have a redacted sample deliverable and a landing page with product details: https://trevorobeyinc.com
 >
 > Happy to share the full sample if useful for evaluating new intelligence sources. What's the best way to get it to you?
 
@@ -40,7 +40,7 @@
 >
 > Data is delivered natively via Snowflake Secure Data Sharing or AWS Data Exchange in JSON/CSV. Zero ETL required on your end.
 >
-> Product details and sample data: https://trevorrobeyinc.github.io
+> Product details and sample data: https://trevorobeyinc.com
 >
 > If you're evaluating clinical or pharmacovigilance data sources, I can send the data dictionary and a blinded schema preview. Let me know.
 
@@ -50,7 +50,7 @@
 >
 > The goal is to reduce pre-clinical attrition risk by providing structured, auditable validation data where every association traces to its primary literature.
 >
-> Product details: https://trevorrobeyinc.github.io
+> Product details: https://trevorobeyinc.com
 >
 > Happy to send the full data dictionary (column definitions, masking policies, Snowflake schema) if your bioinformatics team wants to evaluate fit.
 
@@ -60,6 +60,6 @@
 >
 > Your team would get a complete single-topic synthesis in 72 hours instead of months of manual literature review. Every identifier (PMID, NCT, RxNorm) resolves in its source database.
 >
-> Product details and pricing: https://trevorrobeyinc.github.io
+> Product details and pricing: https://trevorobeyinc.com
 >
 > Happy to share a redacted sample so you can verify the citations yourself. What topic would be most relevant?
