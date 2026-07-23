@@ -1,0 +1,124 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns='http://www.w3.org/2005/Atom' xmlns:apps='http://schemas.google.com/apps/2006'>
+  <title>Trevor Robey, INC. — business + AWS seller-ops mail filters (2026-07-23)</title>
+
+  <!-- ============ AWS SELLER OPS ============
+       Rationale: AWS correspondence has previously been LOST/unfindable in the mailbox
+       (audit 2026-06-10 found ZERO AWS seller emails). Now that the account is cleared to
+       publish PAID products, listing-review outcomes, payout events and policy changes
+       must never sit unlabelled in the general inbox again. -->
+
+  <entry>
+    <category term='filter'></category>
+    <title>AWS — anything to the aws@ alias</title>
+    <apps:property name='to' value='aws@trevorobeyinc.com'/>
+    <apps:property name='label' value='AWS/Seller-Ops'/>
+    <apps:property name='shouldNeverSpam' value='true'/>
+    <apps:property name='shouldAlwaysMarkAsImportant' value='true'/>
+  </entry>
+
+  <entry>
+    <category term='filter'></category>
+    <title>AWS — Marketplace / Data Exchange seller correspondence</title>
+    <apps:property name='hasTheWord' value='from:(amazon.com OR aws.amazon.com OR awsapps.com) AND (&quot;AWS Marketplace&quot; OR &quot;Data Exchange&quot; OR seller OR &quot;Seller Operations&quot; OR listing OR &quot;product review&quot;)'/>
+    <apps:property name='label' value='AWS/Seller-Ops'/>
+    <apps:property name='shouldNeverSpam' value='true'/>
+    <apps:property name='shouldAlwaysMarkAsImportant' value='true'/>
+  </entry>
+
+  <entry>
+    <category term='filter'></category>
+    <title>AWS — disbursements / payouts / billed-revenue reports</title>
+    <apps:property name='hasTheWord' value='from:(amazon.com OR aws.amazon.com) AND (disbursement OR payout OR remittance OR &quot;billed revenue&quot; OR &quot;seller report&quot;)'/>
+    <apps:property name='label' value='AWS/Payouts'/>
+    <apps:property name='shouldNeverSpam' value='true'/>
+    <apps:property name='shouldAlwaysMarkAsImportant' value='true'/>
+  </entry>
+
+  <entry>
+    <category term='filter'></category>
+    <title>AWS — tax documents (1099-K, DAC7, tax interview, India PE)</title>
+    <apps:property name='hasTheWord' value='from:(amazon.com OR aws.amazon.com) AND (1099 OR DAC7 OR &quot;tax document&quot; OR &quot;tax interview&quot; OR &quot;permanent establishment&quot; OR W-9)'/>
+    <apps:property name='label' value='AWS/Tax'/>
+    <apps:property name='shouldNeverSpam' value='true'/>
+  </entry>
+
+  <!-- ============ CUSTOMER SUPPORT (contractual SLA) ============
+       provider-support-process.md commits to a 1-BUSINESS-DAY acknowledgement, and
+       refund-policy.md to 1-day ack / 10-business-day review / 30-day claim window.
+       These are contractual once paid subscribers exist. -->
+
+  <entry>
+    <category term='filter'></category>
+    <title>Support — anything to the support@ alias (1-business-day SLA)</title>
+    <apps:property name='to' value='support@trevorobeyinc.com'/>
+    <apps:property name='label' value='Support-SLA'/>
+    <apps:property name='shouldNeverSpam' value='true'/>
+    <apps:property name='shouldAlwaysMarkAsImportant' value='true'/>
+    <apps:property name='shouldStar' value='true'/>
+  </entry>
+
+  <!-- ============ SALES / PIPELINE ============ -->
+
+  <entry>
+    <category term='filter'></category>
+    <title>Prospects — replies to founder-led outbound</title>
+    <apps:property name='hasTheWord' value='(subject:(&quot;Investor Pre-Mortem&quot; OR &quot;Failed Trial Archaeology&quot; OR &quot;citation-traced&quot; OR &quot;due diligence&quot; OR &quot;sample deliverable&quot; OR &quot;discovery call&quot;)) OR (&quot;trevorobeyinc.com&quot; AND -from:trevorobeyinc.com)'/>
+    <apps:property name='label' value='Prospects'/>
+    <apps:property name='shouldNeverSpam' value='true'/>
+    <apps:property name='shouldAlwaysMarkAsImportant' value='true'/>
+  </entry>
+
+  <!-- ============ DISTRIBUTION PLATFORMS ============ -->
+
+  <entry>
+    <category term='filter'></category>
+    <title>Platforms — Datarade / HuggingFace / Kaggle</title>
+    <apps:property name='hasTheWord' value='from:(datarade.ai OR huggingface.co OR kaggle.com OR data-and-sons.com)'/>
+    <apps:property name='label' value='Platforms'/>
+    <apps:property name='shouldNeverSpam' value='true'/>
+  </entry>
+
+  <!-- ============ LEGAL / COMPLIANCE ============
+       Hard deadlines live here: CA Franchise Tax 2026-08-15, Statement of Information
+       ~2026-09-16, EIN. State/federal mail must never be spam-filtered. -->
+
+  <entry>
+    <category term='filter'></category>
+    <title>Legal — CA SOS / FTB / IRS (statutory deadlines)</title>
+    <apps:property name='hasTheWord' value='from:(sos.ca.gov OR ftb.ca.gov OR irs.gov OR bizfileonline.sos.ca.gov)'/>
+    <apps:property name='label' value='Legal'/>
+    <apps:property name='shouldNeverSpam' value='true'/>
+    <apps:property name='shouldAlwaysMarkAsImportant' value='true'/>
+    <apps:property name='shouldStar' value='true'/>
+  </entry>
+
+  <entry>
+    <category term='filter'></category>
+    <title>Legal — contracts (NDA / MSA / SOW / Common Paper)</title>
+    <apps:property name='hasTheWord' value='(from:commonpaper.com) OR subject:(NDA OR &quot;Mutual NDA&quot; OR SOW OR &quot;Statement of Work&quot; OR MSA OR &quot;master services&quot; OR countersigned)'/>
+    <apps:property name='label' value='Legal'/>
+    <apps:property name='shouldNeverSpam' value='true'/>
+  </entry>
+
+  <!-- ============ FINANCE ============ -->
+
+  <entry>
+    <category term='filter'></category>
+    <title>Finance — banking / payments / invoicing</title>
+    <apps:property name='hasTheWord' value='from:(stripe.com OR mercury.com OR relayfi.com OR gumroad.com OR intuit.com)'/>
+    <apps:property name='label' value='Finance'/>
+    <apps:property name='shouldNeverSpam' value='true'/>
+  </entry>
+
+  <!-- ============ VENDOR / INFRASTRUCTURE ============ -->
+
+  <entry>
+    <category term='filter'></category>
+    <title>Vendors — Cloudflare / Google Workspace / Zoho / Anthropic</title>
+    <apps:property name='hasTheWord' value='from:(cloudflare.com OR zohomail.com OR zoho.com OR anthropic.com OR workspace.google.com)'/>
+    <apps:property name='label' value='Vendors'/>
+    <apps:property name='shouldNeverSpam' value='true'/>
+  </entry>
+
+</feed>
