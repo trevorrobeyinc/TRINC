@@ -63,7 +63,14 @@
   <entry>
     <category term='filter'></category>
     <title>Prospects — replies to founder-led outbound</title>
-    <apps:property name='hasTheWord' value='(subject:(&quot;Investor Pre-Mortem&quot; OR &quot;Failed Trial Archaeology&quot; OR &quot;citation-traced&quot; OR &quot;due diligence&quot; OR &quot;sample deliverable&quot; OR &quot;discovery call&quot;)) OR (&quot;trevorobeyinc.com&quot; AND -from:trevorobeyinc.com)'/>
+    <!-- ⚠️ FIXED 2026-07-23 — the original had a second clause:
+           OR ("trevorobeyinc.com" AND -from:trevorobeyinc.com)
+         which was CATASTROPHICALLY over-broad: every message sent TO the operator contains
+         "trevorobeyinc.com" in its To: header, so it matched essentially ALL inbound mail.
+         Live effect observed: CrowdStrike Falcon security alerts and Google Workspace
+         security notices were being labelled "Prospects" and marked important. Subject-only
+         matching now. LESSON: never match on your own domain as a bare string. -->
+    <apps:property name='hasTheWord' value='subject:(&quot;Investor Pre-Mortem&quot; OR &quot;Failed Trial Archaeology&quot; OR &quot;citation-traced&quot; OR &quot;due diligence&quot; OR &quot;sample deliverable&quot; OR &quot;discovery call&quot; OR &quot;pre-mortem&quot; OR &quot;trial archaeology&quot;)'/>
     <apps:property name='label' value='Prospects'/>
     <apps:property name='shouldNeverSpam' value='true'/>
     <apps:property name='shouldAlwaysMarkAsImportant' value='true'/>

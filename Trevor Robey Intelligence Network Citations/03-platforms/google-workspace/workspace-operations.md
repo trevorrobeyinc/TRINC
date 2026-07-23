@@ -52,7 +52,7 @@ Source-controlled here so the routing is reproducible and reviewable.
 | **AWS/Payouts** | disbursement, payout, remittance, billed-revenue, seller reports | Disbursement runs **daily in USD**; payout failures must surface. |
 | **AWS/Tax** | 1099-K, DAC7, tax interview, W-9, permanent establishment | Annual/periodic docs — exactly the class that gets buried. India PE notice pending. |
 | **Support-SLA** | `to:support@` | Starred + important; backs the **1-business-day** contractual ack. |
-| **Prospects** | replies referencing the SKUs / discovery calls / the domain | Founder-led outbound is the revenue motion; replies must not be missed. |
+| **Prospects** | **subject-only** match on SKU names / "discovery call" / "pre-mortem" | Founder-led outbound is the revenue motion; replies must not be missed. ⚠️ **Fixed 2026-07-23** — originally also matched `"trevorobeyinc.com" AND -from:trevorobeyinc.com`, which matched **nearly all inbound mail** (every message TO you carries your domain in its `To:` header). Observed live: CrowdStrike Falcon security alerts and Google security notices were labelled `Prospects` and marked important. **Never match on your own domain as a bare string.** |
 | **Platforms** | Datarade, HuggingFace, Kaggle, Data & Sons | Secondary distribution channels. |
 | **Legal** | CA SOS, FTB, IRS, bizfileOnline; NDA/SOW/MSA/Common Paper | Statutory mail — never-spam + starred. |
 | **Finance-Ops** | Stripe, Mercury, Relay, Gumroad, Intuit | Ready for when a payment rail goes live. ⚠️ *Not* named "Finance" — see gotcha below. |
