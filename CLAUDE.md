@@ -50,6 +50,17 @@ Hosting: **local-only as of 2026-05-26.** The private GitHub remote `trevoralexa
 
 - `https://github.com/trevoralexanderrobey/trevor-robey-inc-agents` was archived 2026-05-07 with rollback tag `pre-monorepo-consolidation-2026-05-07` pointing at SHA `8e782a0` (the last pre-consolidation HEAD before the snapshot commit).
 
+
+> **Plugin display names vs IDs (2026-07-23).** The Obsidian plugins are display-branded as the
+> **TR-Obsidian Intelligence Network Citations** suite (Command Center · Zettelkasten · Bridge
+> Launcher · Wiki Definitions) so they group together in Obsidian's plugin list. Their **plugin IDs
+> are FROZEN** (`command-center`, `vault-zettelkasten`, `obsidian-bridge-launcher`,
+> `contextual-wiki-definitions`) and must never be renamed: Copilot's 4 `mcp_command-center_*` MCP
+> tool ids and `mcp.servers[].id`, the wiki-definition plugin's `plugins['vault-zettelkasten']`
+> api lookup (a **separate git repo**), Command Center's own lookup in `zettelkasten/linker.ts`,
+> the 0600 token at `~/.config/openclaw-command-center/bridge-token`, and the on-disk directory
+> names under `.obsidian/plugins/` all key on the IDs, not the names.
+
 ## Multi-Operator Topology
 
 Three independent operators share this stack. None is subordinate to the others.

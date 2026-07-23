@@ -27,6 +27,17 @@ If you ever wonder "this Obsidian plugin is ours, why isn't it under `Copilot-Ev
 | Trevor Robey INC Research Memory MCP | `trevorobeyinc-research-memory-mcp/` | Stdio MCP server. Qdrant-backed pack storage via `:6433` HTTPS proxy. Auto-ingested by the Command Center plugin after workflow completion. |
 | Outbound `claude` CLI bridge ⚠️ **RETIRED 2026-05-31** | `.archive/claude-cli-bridge/` | **Retired** — superseded by the native Claude Desktop Code tab; archived to `Claude/.archive/claude-cli-bridge/` (history + LEARNINGS preserved). Was a stdio MCP server wrapping the local `claude` CLI for OUTBOUND delegation. See the root `CLAUDE.md` deletion log; do not reintroduce. |
 
+
+> **Plugin display names vs IDs (2026-07-23).** The Obsidian plugins are display-branded as the
+> **TR-Obsidian Intelligence Network Citations** suite (Command Center · Zettelkasten · Bridge
+> Launcher · Wiki Definitions) so they group together in Obsidian's plugin list. Their **plugin IDs
+> are FROZEN** (`command-center`, `vault-zettelkasten`, `obsidian-bridge-launcher`,
+> `contextual-wiki-definitions`) and must never be renamed: Copilot's 4 `mcp_command-center_*` MCP
+> tool ids and `mcp.servers[].id`, the wiki-definition plugin's `plugins['vault-zettelkasten']`
+> api lookup (a **separate git repo**), Command Center's own lookup in `zettelkasten/linker.ts`,
+> the 0600 token at `~/.config/openclaw-command-center/bridge-token`, and the on-disk directory
+> names under `.obsidian/plugins/` all key on the IDs, not the names.
+
 ## Outbound `claude` CLI bridge — `claude-cli-bridge/` ⚠️ RETIRED 2026-05-31
 
 > **RETIRED 2026-05-31 — superseded by the native Claude Desktop Code tab.** The code below is

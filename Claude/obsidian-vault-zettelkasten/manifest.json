@@ -1,9 +1,9 @@
 {
   "id": "vault-zettelkasten",
-  "name": "Vault Zettelkasten",
+  "name": "TR-Obsidian Intelligence Network Citations — Zettelkasten",
   "version": "0.1.0",
   "minAppVersion": "1.4.0",
-  "description": "LLM-powered vault knowledge discovery: serendipity, cross-domain connections, echo chamber detection, semantic linking, orphan rescue, and vault health scoring. Uses Miyo for semantic search and configurable LLM providers.",
+  "description": "In-process, vault-grounded graph analysis (semantic linker, cross-domain, serendipity, echo chamber, orphan rescue). Exposes this.api to other plugins. Plugin ID is intentionally FROZEN — Copilot MCP tool ids, other plugins' api lookups and the bridge-token path all key on it; only the display name is suite-branded.",
   "author": "Trevor Robey",
   "authorUrl": "https://trevorrobey.com",
   "isDesktopOnly": true

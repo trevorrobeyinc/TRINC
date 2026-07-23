@@ -1,9 +1,9 @@
 {
   "id": "obsidian-bridge-launcher",
-  "name": "Obsidian Bridge Launcher",
+  "name": "TR-Obsidian Intelligence Network Citations — Bridge Launcher",
   "version": "0.1.1",
   "minAppVersion": "1.4.0",
-  "description": "Spawns and supervises the canonical Obsidian MCP bridge (HTTPS :8798) as a child process tied to Obsidian's lifecycle. Replaces the PM2-managed always-on bridge.",
+  "description": "Spawns the canonical :8798 MCP bridge tied to Obsidian's lifecycle; owns the fd-3 IPC channel for console capture and gated eval. Plugin ID is intentionally FROZEN — Copilot MCP tool ids, other plugins' api lookups and the bridge-token path all key on it; only the display name is suite-branded.",
   "author": "Trevor Robey",
   "authorUrl": "https://trevorrobey.com",
   "isDesktopOnly": true

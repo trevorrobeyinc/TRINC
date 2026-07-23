@@ -217,6 +217,16 @@ RNG, per the engine's restricted-globals rule.
 
 ## 4. Obsidian side
 
+> **Plugin display names vs IDs (2026-07-23).** The Obsidian plugins are display-branded as the
+> **TR-Obsidian Intelligence Network Citations** suite (Command Center · Zettelkasten · Bridge
+> Launcher · Wiki Definitions) so they group together in Obsidian's plugin list. Their **plugin IDs
+> are FROZEN** (`command-center`, `vault-zettelkasten`, `obsidian-bridge-launcher`,
+> `contextual-wiki-definitions`) and must never be renamed: Copilot's 4 `mcp_command-center_*` MCP
+> tool ids and `mcp.servers[].id`, the wiki-definition plugin's `plugins['vault-zettelkasten']`
+> api lookup (a **separate git repo**), Command Center's own lookup in `zettelkasten/linker.ts`,
+> the 0600 token at `~/.config/openclaw-command-center/bridge-token`, and the on-disk directory
+> names under `.obsidian/plugins/` all key on the IDs, not the names.
+
 | Plugin | Role |
 |---|---|
 | `obsidian-bridge-launcher` | Spawns the canonical `:8798` bridge as a child tied to Obsidian's lifecycle. Owns the fd-3 JSON-RPC IPC channel used for renderer console capture and **gated** eval (`devConsoleEvalEnabled`, default **off**). |
