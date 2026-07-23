@@ -117,6 +117,24 @@
 >   `miyo_search_context`) to roles via `tool-prefetch-map.json`, **fail-soft when Obsidian is closed**
 >   (the bridge dies with Obsidian, and the engine can also run standalone from a terminal). Publish
 >   stays opt-in behind a flag to avoid the double-write.
+> - **Three refinements from the full survey (read these before starting):**
+>   1. **The connector is already registered, only the adapter is missing.** `config/connector-registry.json`
+>      already carries an **`obsidian-bridge`** entry with **`adapter_status: "missing"`** and
+>      documentation-only `bound_workflow_steps`. So this is "build the missing adapter to match a
+>      declared intent", not "add a new connector" — and it should keep parity with that entry.
+>   2. **⚠️ Stale comments misdescribe the data path.** `scripts/publish-to-vault.js` and
+>      `scripts/atlas-stub-creator.js` both claim `:8798 → RestApiBackend → Local REST API :27124 → vault`.
+>      That is **wrong for this tool**: the bridge-side handler `researchPublish.ts` writes **directly to the
+>      vault filesystem** via `fs.writeFileSync`, guarded by `guardVaultRelativePath` + an `allowedVaultRoots`
+>      allow-list — it never touches `:27124`. Worth correcting those comments so nobody designs against a
+>      path that doesn't exist. (Consequence: `research_publish` needs the bridge process alive, but not
+>      Obsidian's UI — the bridge can be started standalone via `Copilot-Everything/scripts/bridge-start.sh`.)
+>   3. **`Research-Output/` is a dormant target.** The vault scheme that is actually live is Command Center's
+>      **`OpenClaw/<template_id>/<date> <input-label>/`**. Any publish wiring must pick one scheme
+>      deliberately rather than quietly creating a second parallel tree.
+>   Also confirmed dormant: `atlas-stub-creator.js` is self-documented as a DEBUG/FALLBACK batch tool with
+>   **zero callers**; and `research_notify` is called only from the Command Center plugin
+>   (`main.ts:360` → `openclaw-runner.ts`), never from the engine.
 
 **Operator items (only the operator can resolve):**
 - ~~**AWS Data Exchange true status**~~ — ✅ **RESOLVED 2026-07-22.** Definitively **APPROVED and cleared for paid selling** (disbursement method added; Marketplace status "Publish paid and free products"). Every doc that disagreed has been reconciled to this (see the 2026-07-23 Log entry). Remaining gap is product-side (publish a paid listing), not status.
