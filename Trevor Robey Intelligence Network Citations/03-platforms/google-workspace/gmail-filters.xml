@@ -128,4 +128,21 @@
     <apps:property name='shouldNeverSpam' value='true'/>
   </entry>
 
+  <!-- ============ STRAYER FORWARD (stopgap liveness probe) ============
+       The AWS account ROOT email is still Trevor.Robey@my.strayer.edu, and AWS sends
+       listing-review outcomes / payout failures / policy changes to the ROOT address
+       (alternate contacts do NOT cover those). Option A = forward at Strayer (Microsoft 365,
+       outlook.office.com -> Settings -> Mail -> Forwarding). Forwarded mail preserves the
+       original To: header, so this filter catches everything that comes through the pipe AND
+       acts as the liveness probe: if nothing carries this label for ~30 days the forward is
+       probably dead (it dies SILENTLY at deprovisioning). Monthly calendar check on the 24th. -->
+
+  <entry>
+    <category term='filter'></category>
+    <title>Via-Strayer — anything forwarded from the school account</title>
+    <apps:property name='to' value='Trevor.Robey@my.strayer.edu'/>
+    <apps:property name='label' value='Via-Strayer'/>
+    <apps:property name='shouldNeverSpam' value='true'/>
+  </entry>
+
 </feed>

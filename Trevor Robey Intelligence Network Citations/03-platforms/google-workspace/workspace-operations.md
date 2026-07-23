@@ -57,6 +57,33 @@ Source-controlled here so the routing is reproducible and reviewable.
 | **Legal** | CA SOS, FTB, IRS, bizfileOnline; NDA/SOW/MSA/Common Paper | Statutory mail — never-spam + starred. |
 | **Finance-Ops** | Stripe, Mercury, Relay, Gumroad, Intuit | Ready for when a payment rail goes live. ⚠️ *Not* named "Finance" — see gotcha below. |
 | **Vendors** | Cloudflare, Zoho, Anthropic, Workspace | Infrastructure billing/notices. |
+| **Via-Strayer** | `to:Trevor.Robey@my.strayer.edu` | Added 2026-07-23. Catches anything arriving via the **Strayer→Gmail forward** (see §1b) and doubles as the liveness probe: if nothing carries this label for ~30 days, the forward is probably dead. |
+
+### 1b · Strayer → Gmail forwarding (STOPGAP for the AWS root-email risk)
+
+**Why:** the AWS account root email is still `Trevor.Robey@my.strayer.edu`, and AWS sends
+**listing-review outcomes, payout failures and policy changes** to the *root* address — the
+alternate contacts (already `trevor@`) do **not** cover those categories. Option A (forward at
+Strayer) buys time; it does **not** replace the root-email change (risk R1).
+
+**Platform (verified by DNS 2026-07-23):** Strayer is **Microsoft 365 / Outlook** —
+`autodiscover.strayer.edu → autodiscover.outlook.com`, `MS=` verification TXT records,
+`lyncdiscover → webdir.online.lync.com`; **Proofpoint** (`pphosted.com` MX) sits in front as the
+security gateway. The `google-site-verification` TXT records on the domain are for their website,
+not mail — do not mistake them for Google Workspace.
+
+**Operator steps:** <https://outlook.office.com/mail/options/mail/forwarding> → *Enable forwarding*
+→ `trevor@trevorobeyinc.com` → tick *Keep a copy of forwarded messages* → Save.
+(Or Settings ⚙ → Mail → Forwarding.)
+
+⚠️ **Expect this may be blocked.** Microsoft 365 disables automatic external forwarding by default
+in most tenants (anti-exfiltration policy), and universities commonly keep it off. An inbox *rule*
+that forwards is blocked by the same policy, and POP-fetching into Gmail won't work either
+(Microsoft retired basic auth). **If it is blocked, there is no user-side workaround — go to the
+root-email change.**
+
+**Fragility:** forwarding dies **silently** when the school account is deprovisioned
+(graduation/withdrawal), with no notice. Hence the `Via-Strayer` label + the monthly calendar check.
 
 **Also configure (Gmail → Settings → Accounts):** ✅ **ALL DONE 2026-07-23, verified live**
 - ✅ **Send mail as** — all three now present: `trevor@` (default), `aws@`, `support@`. Aliases
@@ -89,6 +116,11 @@ Source-controlled here so the routing is reproducible and reviewable.
 > full context in the description — **EIN (Jul 27)**, **Workspace trial / Zoho downgrade decision
 > (Aug 5)**, **$800 CA Franchise Tax (Aug 15)**, **Statement of Information (Sep 16)**. Previously
 > these existed only as prose in `certificate-of-formation.md`.
+> **Added 2026-07-23:** a **monthly recurring** check (24th of each month, first fire 2026-08-24)
+> — *"Check: is Strayer → Gmail forwarding still alive?"* with the 10-second test in the
+> description (`label:Via-Strayer` quiet for ~30 days ⇒ the pipe is probably dead). Cheap insurance
+> against a silently-broken stopgap; retire it once the AWS root email is changed.
+>
 > Still to add: India PE declaration (Q4), DMARC→quarantine review, and the recurring
 > monthly/quarterly data-refresh cadences (those only start once a product is actually published).
 >
