@@ -55,6 +55,36 @@ not send it.** What remains before actual revenue is **product-side, not account
 goes through AWS's own product review. India PE tax-declaration notice still pending (only affects
 paid India buyers, Q4 2026).
 
+**✅ FOLLOW-UP (2026-07-22 evening) — full seller-profile survey + 2 fixes applied.** Drove the
+logged-in Marketplace + Billing consoles end to end. Confirmed complete: account status **"Publish
+paid and free products"**; tax interview + DAC7 **Completed**; bank ACH ending 262; **disbursement
+method ACTIVE (USD, Daily schedule)**. Three findings, two changes:
+
+- **Global KYC ruled OUT — not needed.** AWS's own tab text: KYC *"is not mandatory to transact on
+  AWS Marketplace"* — required only for Republic-of-Korea payouts, U.K.-based bank accounts, or to
+  improve EMEA buyer invoicing. The per-region table shows the **only hard block is South Korea
+  disbursement**; EMEA / Japan / Australia / Rest-of-world are all Transaction=Allowed +
+  Disbursement=Allowed. KYC would merely move EMEA invoicing from AWS Inc → AWS EMEA SARL (a
+  VAT/invoicing nicety for European buyers). **No Korean buyers ⇒ skip.** Revisit only if a Korean
+  buyer appears, or an EMEA enterprise demands SARL invoicing.
+- **⚠️ R1 SHARPENED — the Marketplace notification email IS the account ROOT email.** Settings →
+  Notifications shows `Trevor.Robey@my.strayer.edu`, and its "Change email address" link is **not an
+  edit form** — it redirects to AWS's *root-user email change* knowledge-center article. Confirmed
+  live: under the IAM Identity Center SSO identity, Billing → Account shows **no email field and no
+  edit control at all**. So this is the R1 root-email change — **root sign-in + password + MFA,
+  operator-only.** The "Email for custom notifications" side-path does **NOT** substitute: it covers
+  only Professional-services buyer requests, Reseller Opportunities, CPPO offers, and recurring scan
+  reminders — none of which a data-product seller receives. Listing-review outcomes, payout failures,
+  and policy changes all go to the root address. **Do not let that student mailbox lapse before the
+  swap is done** — it is also the account-recovery path.
+- **✅ CHANGED — account Contact information corrected** (Billing → Account → Contact information):
+  **Company name** `Trevor Robey Inc.` → **`Trevor Robey Intelligence Network Citations LLC`**;
+  **Website URL** *(blank)* → **`https://trevorobeyinc.com`**. Verified saved ("Your contact
+  information was updated successfully"); full name / phone / address deliberately untouched.
+  **Two different fields — don't conflate them:** this is the *account* company name. The
+  **Marketplace "Legal business name"** still reads the wordmark "Trevor Robey Inc" and still needs
+  stamped Articles **+ EIN** via a Support case.
+
 ## 2 · Identity inventory
 
 Legend — **B** = business-owned · **P** = personal-owned (entanglement) · **?** = undocumented
@@ -75,7 +105,7 @@ Legend — **B** = business-owned · **P** = personal-owned (entanglement) · **
 | **Gumroad** | parked payment page | order mail → trevor@; login identity undocumented | **?** | LOW |
 | **Google Business Profile** | free listing (cover photo only asset) | **UNKNOWN** — never claimed/documented | **?** | LOW |
 | **Kaggle** | free visibility play | **UNKNOWN** — account creation unconfirmed | **?** | LOW |
-| **IRS EIN** | **not applied for** — blocks business bank account + AWS legal-entity update (AWS disbursement was completed 2026-07-22 via the on-file US ACH account, so EIN no longer gates it) | n/a | **?** | HIGH |
+| **IRS EIN** | **not applied for** — a **federal IRS** number, **NOT** in bizfileOnline/CA SOS (verified 2026-07-22: neither the filing receipt nor the certified copy contains one; no CA form collects it). Apply free at irs.gov → confirmation = **IRS Notice CP 575**. Blocks business bank account + the AWS Marketplace legal-name update. Does **not** gate AWS disbursement (done 2026-07-22 on the existing ACH account). See [`../00-business-formation/llc/ein-confirmation.md`](../00-business-formation/llc/ein-confirmation.md) | n/a | **?** | HIGH |
 | **Business bank (Mercury/Relay)** | **not opened** — blocked on EIN | n/a | **?** | MED |
 | **npm / Obsidian stack** | consume-only / local-only — no accounts exist | n/a | — | LOW |
 
