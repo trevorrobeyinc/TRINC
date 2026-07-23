@@ -331,34 +331,34 @@ module.exports = class ContextualWikiDefinitions extends Plugin {
     ];
   }
 
-  _zkPlaceholder() {
-    return '*(populating in background — Vault Zettelkasten traits can take several minutes on the local model; each section updates automatically when its trait finishes)*';
-  }
-
   /**
-   * Returns a placeholder traits object suitable for passing to buildPrompt.
-   * The LLM will emit the placeholder string verbatim into each trait section;
-   * _enrichWithZettelkastenTraitsAsync replaces those bodies as VZ resolves.
+   * Empty trait set. As of v1.5.0 the five graph sections are written by the
+   * MAIN model from the Five Vault Lenses baked into buildPrompt() — they are
+   * real content from the first write, not placeholders. Vault Zettelkasten
+   * enrichment (Ollama, minutes later) now only UPGRADES a section when it
+   * returns genuine vault-grounded output; it never downgrades what the model
+   * already wrote. Kept as a method so the sync fetchZettelkastenContext()
+   * path can still pass real traits to buildPrompt when it wants them.
    */
   _zkPlaceholderTraits() {
-    const ph = this._zkPlaceholder();
-    return { echoChamber: ph, crossDomain: ph, semanticLinker: ph, serendipity: ph, orphanRescue: ph };
+    return { echoChamber: '', crossDomain: '', semanticLinker: '', serendipity: '', orphanRescue: '' };
   }
 
   /**
-   * Fire-and-forget enrichment. For each VZ trait, race against a 60s
-   * timeout; on success, locate the matching H2 section in the target note
-   * and replace its body with the trait's content. Failures degrade
-   * gracefully — the section keeps its placeholder line, which makes
-   * the failure visible in the rendered note rather than silent.
+   * Fire-and-forget UPGRADE pass (v1.5.0 semantics: strictly non-destructive).
+   * The five graph sections already contain real, lens-driven content written
+   * by the main model. Vault Zettelkasten output is vault-GROUNDED (it queries
+   * the actual link graph), so when a trait returns genuine content we swap it
+   * in as an upgrade. But an absent VZ plugin, an empty result, or an error now
+   * leaves the model's content untouched — we never replace real prose with an
+   * "(unavailable)" stamp, which is what used to gut these notes.
    */
   _enrichWithZettelkastenTraitsAsync(targetFile, originFile) {
     if (!targetFile || !originFile) return;
     const vz = this.app.plugins?.plugins?.['vault-zettelkasten'];
     if (!vz?.api) {
-      // Replace placeholders with the static "(unavailable)" line so users
-      // aren't stuck reading "populating in background" forever.
-      this._replaceAllSectionsWithUnavailable(targetFile);
+      // VZ not running → keep the model-written sections exactly as they are.
+      console.log('[CWD] Vault Zettelkasten unavailable — keeping model-written graph sections');
       return;
     }
 
@@ -373,39 +373,24 @@ module.exports = class ContextualWikiDefinitions extends Plugin {
 
     // MEASURED 2026-07-16 (console-mirror timeline): the five traits complete
     // SERIALLY through the local Ollama queue — 123.6s / 177.3s / 228.8s /
-    // 332.5s / 380.1s for one run. The old 60s Promise.race rejected before ANY
-    // of them landed and permanently discarded all five results. New design:
-    // never discard — each trait's own promise updates its section whenever it
-    // settles (even minutes later). A checkpoint timer only refreshes the
-    // placeholder wording so the reader knows it's still working.
-    const CHECKPOINT_MS = 180000;
+    // 332.5s / 380.1s for one run. Nothing is discarded and nothing is
+    // downgraded: each trait's promise upgrades its section whenever it
+    // settles (even minutes later); empty/errored traits simply leave the
+    // model's lens-written content in place.
     for (const { key, heading } of this._zkSectionMap()) {
-      let settled = false;
       calls[key]()
         .then(async (result) => {
-          settled = true;
           const body = (result && result.content) ? String(result.content).trim() : '';
           if (!body) {
-            await this._replaceSectionInNote(targetFile, heading, '*(unavailable — Vault Zettelkasten returned no signal)*');
+            console.log(`[CWD] async ${key}: no VZ signal — keeping model-written section`);
             return;
           }
-          console.log(`[CWD] async ${key}: ${body.length} chars → ${heading}`);
+          console.log(`[CWD] async ${key}: ${body.length} chars → ${heading} (upgraded)`);
           await this._replaceSectionInNote(targetFile, heading, body);
         })
-        .catch(async (err) => {
-          settled = true;
-          console.warn(`[CWD] async ${key} failed:`, err && err.message ? err.message : err);
-          await this._replaceSectionInNote(targetFile, heading, '*(unavailable — VZ trait errored)*');
+        .catch((err) => {
+          console.warn(`[CWD] async ${key} failed (keeping model-written section):`, err && err.message ? err.message : err);
         });
-      setTimeout(() => {
-        if (settled) return;
-        console.log(`[CWD] async ${key} still running after ${Math.round(CHECKPOINT_MS / 1000)}s — section will update when it finishes`);
-        this._replaceSectionInNote(
-          targetFile,
-          heading,
-          '*(Vault Zettelkasten is still working on this section — it updates automatically when finished)*'
-        ).catch(() => {});
-      }, CHECKPOINT_MS);
     }
   }
 
@@ -428,13 +413,6 @@ module.exports = class ContextualWikiDefinitions extends Plugin {
       }
     } catch (e) {
       console.warn('[CWD] _replaceSectionInNote failed:', e);
-    }
-  }
-
-  async _replaceAllSectionsWithUnavailable(file) {
-    const msg = '*(unavailable — Vault Zettelkasten not running)*';
-    for (const { heading } of this._zkSectionMap()) {
-      await this._replaceSectionInNote(file, heading, msg);
     }
   }
 
@@ -502,6 +480,31 @@ module.exports = class ContextualWikiDefinitions extends Plugin {
       orphanRescue:   traits.orphanRescue   || '',
     };
 
+    // Only append the trait block when REAL vault-grounded output was supplied.
+    // The default path supplies none — the Five Vault Lenses above drive the
+    // five graph sections instead, so the model is never handed a wall of
+    // "(unavailable)" markers that invite placeholder output.
+    const hasTraits = [t.echoChamber, t.crossDomain, t.semanticLinker, t.serendipity, t.orphanRescue]
+      .some((v) => v && v.trim());
+    const traitBlock = hasTraits ? `
+VAULT-GROUNDED TRAIT OUTPUTS (real data from the Vault Zettelkasten link graph). Where one of these covers a section below, PREFER its concrete note names over your own inference, but keep that section's required structure:
+
+[ECHO_CHAMBER]
+${t.echoChamber || '(none)'}
+
+[CROSS_DOMAIN]
+${t.crossDomain || '(none)'}
+
+[SEMANTIC_LINKER]
+${t.semanticLinker || '(none)'}
+
+[SERENDIPITY]
+${t.serendipity || '(none)'}
+
+[ORPHAN_RESCUE]
+${t.orphanRescue || '(none)'}
+` : '';
+
     return `Role: Feynman-Metaphor Learning Architect
 Task: Convert the linked term into a 12-year-old-level explanation, formatted for Obsidian.
 
@@ -518,7 +521,15 @@ Explain it using the Feynman Technique. If you cannot explain it simply, you don
 4. Run the "Gaps Check": where would a beginner usually trip? Correct it before they trip.
 5. Syntax Archaeology (only if the term is code/syntax): break down line-by-line, in plain English.
 6. Teach-Back: a final paragraph that weaves both metaphors into one cohesive story.
-7. Weave any provided Zettelkasten trait outputs into the matching H2 sections. If a trait output is missing or empty, render the section with a single italic line: *(unavailable — Vault Zettelkasten not running, or no signal found)*.
+7. Apply the FIVE VAULT LENSES below to write the five graph sections YOURSELF. They are first-class deliverables — never emit a placeholder, an apology, or a "not available" line for them.
+
+🔬 THE FIVE VAULT LENSES (apply each to the linked term, using the originating note as your evidence base):
+
+- **Semantic Linker** — a connection is worthless if it just says "related to." Every link must carry an EXPLICIT typed relationship drawn from this taxonomy: *hierarchical* (is-a, part-of, instance-of) · *causal* (causes, enables, prevents, results-in) · *temporal* (precedes, follows, evolves-into) · *logical* (supports, contradicts, refines, extends) · *functional* (uses, implements, depends-on). Also name ONE transitive chain — if A is part-of B and B is part-of C, say what A→C implies that no single link states.
+- **Cross-Domain Connector** — first name the underlying STRUCTURAL PATTERN ("the shape of this idea"), then find that same isomorphism in genuinely distant domains (nature, cooking, economics, art, history, sport). Map it explicitly: "X here is like Y there BECAUSE…". Tag universal principles (#feedback-loop, #emergence, #antifragility) only where they honestly apply. Close with a compact Idea Compass: North = similar in-domain, South = its opposite, East = application elsewhere, West = historical root.
+- **Serendipity Generator** — surface connections that share NO vocabulary with the term: semantic proximity expressed in different words, the "aha" kind a keyword search could never reach. Prefer distant nodes that SHOULD be linked but aren't. Finish with provocative catalyst questions that force an unexpected angle.
+- **Echo Chamber Breaker** — steelman the opposition, never strawman it. Extract the assumptions the originating note treats as settled, then give substantive counter-positions argued fairly, plus how a different discipline (historian, biologist, artist, economist) would push back. Intellectual friction is the goal, not agreement.
+- **Orphan Rescuer** — identify under-connected concepts this term should pull back into the graph. For each, give WHY it matters here AND the concrete reintegration action (the link text to add, the tag, or the parent MOC it belongs under).
 
 💎 Constraints & Style:
 - No "tech-to-tech" metaphors. Never say "it's like a pointer" or "it's like a database." Use "it's like a library card" or "it's like a kitchen pantry."
@@ -585,27 +596,43 @@ If it IS code, give a line-by-line breakdown. Each bullet quotes the line in bac
 - (2–3 concrete examples drawn from the originating note)
 
 ## 🔗 Linked Concepts in This Vault
-- [[Linked Note]] — (typed relationship)
-- [[Linked Note]] — (typed relationship)
-- [[Linked Note]] — (typed relationship)
+*(Semantic Linker lens — 4–6 links, each with an EXPLICIT typed relationship.)*
+- [[Linked Note]] — **(relationship-type)** — (one line on why that exact type fits)
+- [[Linked Note]] — **(relationship-type)** — (...)
+- [[Linked Note]] — **(relationship-type)** — (...)
+- [[Linked Note]] — **(relationship-type)** — (...)
+- **Transitive chain:** [[A]] → [[B]] → [[C]] — (what the chain implies that no single link states)
 
 ## 🌉 Cross-Domain Metaphor Bridges
-- **From [[Distant Note]]:** (one-line bridge)
-- **From [[Distant Note]]:** (one-line bridge)
+*(Cross-Domain Connector lens.)*
+- **Structural pattern:** (name the underlying shape of this idea in one line)
+- **From (domain):** [[Distant Note or concept]] — (the isomorphism: "X here is like Y there because...")
+- **From (a different domain):** [[Distant Note or concept]] — (...)
+- **From (a third domain):** [[Distant Note or concept]] — (...)
+- **Universal principles:** (#tags that genuinely apply — or say "none clean enough")
+- **Idea Compass:** N: (similar, same domain) · S: (its opposite) · E: (application elsewhere) · W: (historical root)
 
 ## ✨ Surprising Connections
-- [[Note]] — (why it's an unexpected match)
-- [[Note]] — (why)
+*(Serendipity Generator lens — connections sharing NO vocabulary with the term.)*
+- [[Note or concept]] — (the hidden isomorphism a keyword search would miss)
+- [[Note or concept]] — (...)
+- [[Note or concept]] — (...)
+- **Catalyst questions:** 1. (provocative, forces an unexpected angle) 2. (...)
 
 ## 🪞 Where This Belief Could Break
+*(Echo Chamber Breaker lens — steelman, never strawman.)*
+- **Assumption baked in:** (an assumption the originating note treats as settled)
+  **Strongest counter:** (a substantive opposing case, argued fairly) — [[Counter-note]]
 - **Assumption baked in:** (...)
-  **Counter-evidence in the vault:** [[Note]] — (...)
-- **Assumption baked in:** (...)
-  **Counter-evidence in the vault:** [[Note]] — (...)
+  **Strongest counter:** (...) — [[Counter-note]]
+- **Outside the discipline:** A (historian / biologist / artist / economist) would object that (...)
+- **What if:** (one radical reinterpretation that forces a cognitive shift)
 
 ## 🕯️ Forgotten Notes Worth Re-reading
-- [[Orphan Note]] — (why this orphan is worth pulling back in)
-- [[Orphan Note]] — (why)
+*(Orphan Rescuer lens — under-connected material worth pulling back in.)*
+- [[Orphan Note or concept]] — (why it matters here) → **Action:** (link to add / tag / parent MOC)
+- [[Orphan Note or concept]] — (...) → **Action:** (...)
+- **Where this belongs:** (the MOC, parent note, or series this term should sit under)
 
 ## 🪨 Common Misconceptions
 - **It's NOT** (...) — (one line on what it actually is)
@@ -624,24 +651,7 @@ If it IS code, give a line-by-line breakdown. Each bullet quotes the line in bac
 2. (An application question — not recall.)
 
 ---
-
-VAULT ZETTELKASTEN TRAIT OUTPUTS (use these to populate the matching H2 sections; ignore any sections you have no signal for):
-
-[ECHO_CHAMBER]
-${t.echoChamber || '(unavailable)'}
-
-[CROSS_DOMAIN]
-${t.crossDomain || '(unavailable)'}
-
-[SEMANTIC_LINKER]
-${t.semanticLinker || '(unavailable)'}
-
-[SERENDIPITY]
-${t.serendipity || '(unavailable)'}
-
-[ORPHAN_RESCUE]
-${t.orphanRescue || '(unavailable)'}
-
+${traitBlock}
 ORIGINATING NOTE CONTEXT:
 ${context}`;
   }
