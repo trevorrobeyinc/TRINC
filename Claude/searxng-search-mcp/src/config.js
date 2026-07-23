@@ -90,16 +90,23 @@ const CONFIG = Object.freeze({
   retryBaseMs: numEnv(process.env.SEARXNG_RETRY_BASE_MS, 400),
   retryCapMs: numEnv(process.env.SEARXNG_RETRY_CAP_MS, 8000),
 
-  /* -------- Optional local-LLM reranking (OFF by default) -------- */
+  /* -------- Optional listwise reranking (OFF by default) -------- */
 
-  /** Enable listwise rerank via a local model through the HTTPS proxy. Default off. */
+  /**
+   * Enable listwise rerank. Default off, and there is no longer any default
+   * endpoint: the local runtimes this used to target are gone (LM Studio
+   * decommissioned 2026-07-16, Ollama removed 2026-07-23). To use rerank you
+   * must now set BOTH SEARXNG_RERANK_ENDPOINT and SEARXNG_RERANK_MODEL
+   * explicitly — that way the feature can never silently point at a dead or
+   * reinstated local daemon.
+   */
   rerankEnabled: /^(1|true|yes|on)$/i.test(String(process.env.SEARXNG_RERANK_ENABLED ?? "")),
 
-  /** Rerank endpoint — MUST be an HTTPS loopback proxy (Ollama :11435 / LM Studio :1235). */
-  rerankEndpoint: process.env.SEARXNG_RERANK_ENDPOINT || "https://127.0.0.1:11435/api/chat",
+  /** Rerank endpoint — no default; MUST be an explicit HTTPS endpoint. */
+  rerankEndpoint: process.env.SEARXNG_RERANK_ENDPOINT || "",
 
-  /** Local rerank model id. */
-  rerankModel: process.env.SEARXNG_RERANK_MODEL || "qwen2.5:7b-instruct",
+  /** Rerank model id — no default; MUST be set explicitly. */
+  rerankModel: process.env.SEARXNG_RERANK_MODEL || "",
 
   /** Hard timeout (ms) for a rerank call; on expiry we keep native ordering. */
   rerankTimeoutMs: numEnv(process.env.SEARXNG_RERANK_TIMEOUT_MS, 4000),

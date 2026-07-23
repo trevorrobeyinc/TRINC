@@ -31,7 +31,9 @@
 #
 #   3. PLAINTEXT-UPSTREAM-PORT references:
 #      - Direct hits on :8742, :6333, :1234, :11434, :8890 in source — these
-#        should route through the HTTPS proxies on :8743, :6433, :1235, :11435,
+#        should route through the HTTPS proxies on :8743, :6433, :8891
+#        (:1235 LM Studio and :11435 Ollama were decommissioned 2026-07-16/23;
+#        their upstream ports :1234/:11434 stay forbidden so neither can return),
 #        :8891.
 #
 # Exemptions:
@@ -74,7 +76,9 @@ LISTENER_PATTERNS='http\.createServer\(|OPENCLAW_BRIDGE_TLS_DISABLE\s*={2,3}|tls
 OUTBOUND_PATTERNS='http\.request\(|http\.get\(|fetch\(["'"'"']http://|axios\.(get|post|put|delete|patch|request)\(["'"'"']http://|got\(["'"'"']http://|new URL\(["'"'"']http://'
 
 # Bucket 3 — direct references to the wrapped plaintext upstream ports.
-# These should route through the HTTPS proxies on :8743/:6433/:1235/:11435.
+# These should route through the HTTPS proxies on :8743/:6433/:8891.
+# :1234 (LM Studio) and :11434 (Ollama) remain forbidden with NO proxy: both
+# runtimes were removed from this machine (2026-07-16 / 2026-07-23).
 # Trailing `([^0-9]|$)` anchor prevents :1234 from matching :12345 (e.g. PMID
 # identifiers like [PMID:12345]) and prevents :11434 from matching :114340.
 #
@@ -111,7 +115,6 @@ LEGITIMATE_NON_TCP=(
 LEGITIMATE_OUTBOUND_PLAINTEXT=(
   "Copilot-Everything/scripts/miyo-tls-proxy.mjs"
   "Copilot-Everything/scripts/qdrant-tls-proxy.mjs"
-  "Copilot-Everything/scripts/ollama-tls-proxy.mjs"
   "Copilot-Everything/scripts/searxng-tls-proxy.mjs"
 )
 

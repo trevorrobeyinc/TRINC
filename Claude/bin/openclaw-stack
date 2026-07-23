@@ -12,8 +12,6 @@ MKCERT_CA="$HOME/Library/Application Support/mkcert/rootCA.pem"
 TLS_PROXIES=(
   "com.trevorrobey.miyo-tls-proxy:8743:8742:Miyo"
   "com.trevorrobey.qdrant-tls-proxy:6433:6333:Qdrant"
-  "com.trevorrobey.lm-studio-tls-proxy:1235:1234:LM Studio"
-  "com.trevorrobey.ollama-tls-proxy:11435:11434:Ollama"
 )
 
 # Services we manage. Gateway/bridge/MCP are pre-existing.
@@ -26,8 +24,6 @@ ALL_SERVICES=(
   "com.trevorrobey.cc-bridge-monitor"
   "com.trevorrobey.miyo-tls-proxy"
   "com.trevorrobey.qdrant-tls-proxy"
-  "com.trevorrobey.lm-studio-tls-proxy"
-  "com.trevorrobey.ollama-tls-proxy"
 )
 
 cmd_start() {

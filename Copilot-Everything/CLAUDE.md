@@ -13,7 +13,6 @@ Three active layers (backend-emulator retired 2026-04-11, deleted from monorepo 
 | Consolidated stdio adapter | `bridges/obsidian-stdio-adapter` | — | Single stdio MCP adapter that tunnels Claude/Raycast stdio consumers to :8798. Replaces claude-adapter, obsidian-mcp-stdio, raycast-obsidian-stdio (deletion of those pending). Two profiles via `OBSIDIAN_STDIO_PROFILE`: `claude` (default) and `raycast` (adds `raycast_daily_open`). |
 | Miyo (via TLS proxy) | `scripts/miyo-tls-proxy.mjs` → external Miyo app | 8743 → 8742 | Semantic search via in-monorepo HTTPS proxy at :8743 forwarding to plaintext :8742. Index endpoints deprecated in v4. |
 | Qdrant (via TLS proxy) | `scripts/qdrant-tls-proxy.mjs` → Miyo-bundled Qdrant | 6433 → 6333 | Local vector DB (collection `miyo`) via in-monorepo HTTPS proxy at :6433 forwarding to plaintext :6333. Fallback chunk retrieval for ZK service. |
-| Ollama (via TLS proxy) | `scripts/ollama-tls-proxy.mjs` → external Ollama daemon | 11435 → 11434 | Local Ollama inference via in-monorepo HTTPS proxy at :11435 forwarding to plaintext :11434. Used by the Obsidian side (Copilot + vault-zettelkasten); LM Studio was decommissioned 2026-07-16. |
 | SearXNG (via TLS proxy) | `scripts/searxng-tls-proxy.mjs` → external SearXNG (launchd) | 8891 → 8890 | Local private metasearch via in-monorepo HTTPS proxy at :8891 forwarding to plaintext :8890 (JSON API for the `searxng-search` MCP connector). |
 
 > The retired backend emulator on :8789 (`/v1/self-host/*`, `/v0/*` exact-self-host orchestration) and its `exact_backend_emulator` plugin runtime mode are gone. ZettelkastenService now runs in-process inside the `vault-zettelkasten` Obsidian plugin (Claude/obsidian-vault-zettelkasten/). The Raycast extension's `src/api/backend-emulator/` client was deleted with the emulator.
@@ -66,7 +65,7 @@ curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.
 - MCP bridge (8798) — HTTPS (TLS via mkcert cert at `~/.local/share/mkcert/localhost.pem`)
 - Miyo (8742) — HTTP (third-party upstream; reach via HTTPS proxy on :8743)
 - Qdrant (6333) — HTTP (third-party upstream; reach via HTTPS proxy on :6433)
-- Ollama (11434) — HTTP (third-party upstream; reach via HTTPS proxy on :11435)
+
 
 ## Obsidian CLI
 
@@ -123,7 +122,7 @@ Data strategy (hybrid):
 - **Vault filesystem** (`VaultFileSystem`) — file listing, content reading, wikilink extraction (60s TTL cache)
 - **Miyo search** (`/v0/search`, `/v0/search/related`) — semantic similarity only
 - **Qdrant** (`QdrantScrollClient`, port 6333) — fallback chunk retrieval
-- **Ollama** (via `ModelGateway`, :11435) — LLM analysis (switched from LM Studio 2026-07-16; qwen2.5:7b-instruct)
+- **Hosted `copilot-plus-flash`** (via `ModelGateway`, https://models.brevilabs.com/v1) — LLM analysis. Local runtimes removed: LM Studio 2026-07-16, Ollama 2026-07-23.
 
 Also available as MCP tools via agent-turn: `zettelkasten_serendipity`, `zettelkasten_cross_domain`, `zettelkasten_echo_chamber`, `zettelkasten_semantic_linker`, `zettelkasten_orphan_rescue`, `zettelkasten_vault_health`.
 
@@ -153,7 +152,7 @@ All in `scripts/`. Key ones:
 - `plugin-reload.sh` — Reload plugin in Obsidian
 - `dev-build.sh` / `dev-deploy.sh` — Plugin dev workflow
 - `lib.sh` — Shared constants and utilities (WORKSPACE_ROOT, PRODUCTION_VAULT, etc.)
-- `install-tls-proxies.sh` — Stage the four `*-tls-proxy.mjs` (Miyo/Qdrant/Ollama/SearXNG) to `~/.local/share/trevclaw-tls-proxies/` and repoint + reload their launchd units. Required because launchd's TCC context can't read scripts on the external `/Volumes/ExtraCurricular` volume. Re-run after editing any proxy script. (LM Studio was removed 2026-07-16.)
+- `install-tls-proxies.sh` — Stage the three `*-tls-proxy.mjs` (Miyo/Qdrant/SearXNG) to `~/.local/share/trevclaw-tls-proxies/` and repoint + reload their launchd units. Required because launchd's TCC context can't read scripts on the external `/Volumes/ExtraCurricular` volume. Re-run after editing any proxy script. (LM Studio removed 2026-07-16; Ollama removed 2026-07-23.)
 
 ## MCP Bridge Contract
 

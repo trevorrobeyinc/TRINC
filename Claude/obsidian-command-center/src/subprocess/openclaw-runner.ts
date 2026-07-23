@@ -99,8 +99,10 @@ export class OpenClawRunner {
         ...process.env,
         OPENCLAW_ROOT: settings.openclawPath,
         PATH: enrichedPath,
-        // Trust the mkcert root CA so the `local` (Ollama :11435) and `lm-studio` (:1235)
-        // TLS proxies validate — lets per-role local backends work from an Obsidian launch.
+        // Trust the mkcert root CA so the stack's HTTPS loopback proxies validate
+        // (Miyo :8743, Qdrant :6433, SearXNG :8891) from an Obsidian launch.
+        // The local-model proxies this used to name are gone: LM Studio :1235
+        // decommissioned 2026-07-16, Ollama :11435 removed 2026-07-23.
         NODE_EXTRA_CA_CERTS:
           process.env.NODE_EXTRA_CA_CERTS ||
           `${home}/Library/Application Support/mkcert/rootCA.pem`,

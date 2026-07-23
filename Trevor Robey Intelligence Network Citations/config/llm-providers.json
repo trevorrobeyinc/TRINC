@@ -5,12 +5,6 @@
       "enabled": true,
       "model": "mock-v1"
     },
-    "local": {
-      "enabled": false,
-      "_comment": "Ollama (:11435). 2026-07-16 (Option B): retained on the machine for Obsidian Copilot + vault-zettelkasten, but NOT used by the engine — the engine is 100% Claude. Set enabled:true (and add a helper/fallback in role-provider-map.json) to re-add Ollama as an engine helper. LM Studio was removed entirely.",
-      "endpoint": "https://127.0.0.1:11435/api/generate",
-      "model": "qwen2.5:7b-instruct"
-    },
     "openai": {
       "enabled": false,
       "endpoint": "https://api.openai.com/v1/responses",

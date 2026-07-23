@@ -1,5 +1,13 @@
 # TrevClaw-Obsidianodus — Full Pipeline Architecture
 
+> ⚠️ **STALE-ROUTING WARNING (2026-07-23).** Sections below that describe **scout → Ollama**
+> or any local-model routing are **obsolete**. Superseded twice: 2026-07-16 "Option B" moved the
+> engine to 100% Claude (`claude-code`, Opus 4.8) for scout/analyst/synthesizer + default, and
+> 2026-07-23 removed Ollama from the machine entirely (brew package, both LaunchAgents, the
+> `:11435` TLS proxy and 9.2 GB of models). **No local model runtime exists on this host.**
+> `config/role-provider-map.json` is authoritative for routing; `:11434`/`:1234` are now permanently
+> forbidden by `scripts/lint-transport-monorepo.sh`.
+
 > **Brand note (2026-04-30):** This document describes the technical stack that powers **Trevor Robey, INC.** (the brand wordmark of **Trevor Robey Intelligence Network Citations LLC**, a California limited liability company, CA SOS Entity No. B20260217250, approved 2026-06-18) — citation-traced biomedical due diligence. "OpenClaw" appears throughout as the open-source agent framework that the stack uses; it is not a brand owned by the operator. The retired homebrew `openclaw.ai` consumer assistant is unrelated and is disambiguated inline where it appears.
 
 > **Repo topology (2026-05-07; relocated + paths refreshed 2026-06-11):** the entire stack now lives in a single **local-only** monorepo at `/Volumes/ExtraCurricular/TrevClaw-Obsidianodus` (relocated here from `~/TrevClaw-Obsidianodus` after the 2026-05-31 machine wipe; the private GitHub remote was **deleted 2026-05-26**; the repo now has **no git remotes** — durable backup is a `git bundle --all` at `~/TrevClaw-Obsidianodus.bundle`). The previously separate `Claude/`, `Copilot-Everything/`, and the engine sub-tree (since **renamed `Trevor Robey Intelligence Network Citations/`**, formerly `trevor-robey-inc-agents/`) are first-class members of this repo. Submodule retained: `Trevor Robey Intelligence Network Citations/vendor/tooluniverse` (mims-harvard/ToolUniverse, pinned at v1.1.10). Vendored fork: `Copilot-Everything/repos/obsidian-copilot-mcp/` at SHA `df61538` of logancyang/obsidian-copilot. The previous standalone GitHub remote `https://github.com/trevoralexanderrobey/trevor-robey-inc-agents` is the rollback anchor (tag `pre-monorepo-consolidation-2026-05-07` at SHA `8e782a0`); archive pending.
@@ -13,7 +21,7 @@
 > Retired sections below are marked inline.
 
 > **Reality-correction banner (2026-06-10; provider routing updated 2026-06-11).** This is a historical Phase-35 *design* document. Read these before trusting the diagrams below:
-> - **Provider routing — NOW ACTIVE (2026-06-11), supersedes the earlier "not active" note.** The role→backend routing is **real** as of 2026-06-11 via **`config/role-provider-map.json`** (precedence: `roles[role]` → template `provider_preference` → `default` = claude-code; each non-claude route falls back to claude-code). Live routes: **scout → Ollama** (`local` provider, model `qwen2.5:7b-instruct`; Ollama serves :11434 as a **boot-persistent** launchd service, reached via the :11435 mkcert TLS proxy), **analyst → claude-code** (`claude-sonnet-4-6`), **synthesizer → claude-code**. So the old "Scout/Analyst/Synthesizer" diagram is now ~accurate **except analyst runs on claude-code, not LM Studio** (reverted 2026-06-11 for 16 GB stability so Ollama is the only local model). Persistent per-role **identity + session memory** now live under **`config/agents/<role>/`** (`SOUL.md` / `AGENTS.md` / `sessions/`), loaded into the agent prompt by `role-router.dispatch` and recorded after each run. LM Studio stays installed (`qwen/qwen3.5-9b` on disk, :1234 via the :1235 proxy) but its model is **unloaded**; analyst's lm-studio route is staged in `_recommended_after_install` for a one-line flip-back. The engine's `--operator-approve` is **YubiKey-gated** (`operator-approve-gate arm` = PIN + touch; one-shot, fail-closed); launch via `scripts/run-workflow.sh` (sets `NODE_EXTRA_CA_CERTS` for the local TLS proxies) or the Command Center plugin (now spawns `--operator-approve` + that CA env). claude-code billing = flat **Claude Max 20×** subscription. Full detail: vault `THE-WHOLE-SYSTEM.md` + `CHANGELOG.md` (2026-06-11 entries).
+> - **Provider routing — ⚠️ SUPERSEDED (see 2026-07-23 banner at top). Historical 2026-06-11 note:** The role→backend routing is **real** as of 2026-06-11 via **`config/role-provider-map.json`** (precedence: `roles[role]` → template `provider_preference` → `default` = claude-code; each non-claude route falls back to claude-code). Live routes: **scout → Ollama** (`local` provider, model `qwen2.5:7b-instruct`; Ollama serves :11434 as a **boot-persistent** launchd service, reached via the :11435 mkcert TLS proxy), **analyst → claude-code** (`claude-sonnet-4-6`), **synthesizer → claude-code**. So the old "Scout/Analyst/Synthesizer" diagram is now ~accurate **except analyst runs on claude-code, not LM Studio** (reverted 2026-06-11 for 16 GB stability so Ollama is the only local model). Persistent per-role **identity + session memory** now live under **`config/agents/<role>/`** (`SOUL.md` / `AGENTS.md` / `sessions/`), loaded into the agent prompt by `role-router.dispatch` and recorded after each run. LM Studio stays installed (`qwen/qwen3.5-9b` on disk, :1234 via the :1235 proxy) but its model is **unloaded**; analyst's lm-studio route is staged in `_recommended_after_install` for a one-line flip-back. The engine's `--operator-approve` is **YubiKey-gated** (`operator-approve-gate arm` = PIN + touch; one-shot, fail-closed); launch via `scripts/run-workflow.sh` (sets `NODE_EXTRA_CA_CERTS` for the local TLS proxies) or the Command Center plugin (now spawns `--operator-approve` + that CA env). claude-code billing = flat **Claude Max 20×** subscription. Full detail: vault `THE-WHOLE-SYSTEM.md` + `CHANGELOG.md` (2026-06-11 entries).
 > - **Execution model.** The container-execution governance under `openclaw-bridge/execution/` is an **un-invoked scaffold.** Workflows run as plain Node `child_process` spawns of `scripts/run-workflow.js`, not containers.
 > - **Citation-integrity layer — LIVE (2026-06-12).** The engine now ships a zero-fabrication citation pipeline. `agent-engine` persists the `fetched_citation_ids` actually retrieved at runtime by tool-prefetch plus a per-task `citation_verification` block into research-output metadata, and `buildPrompt` carries an ABSOLUTE-RULE "ZERO FABRICATION" clause (never invent a PMID/NCT/DOI — say "[no verifiable citation found]" instead). `workflow-engine.executeMissionStep` runs a **report-level gate** (`verifyReportCitations` in `openclaw-bridge/core/citation-gate.js`) that cross-checks every cited identifier against the union of runtime-fetched ids — a cited id is "grounded" if present in fetched evidence, else "ungrounded". The gate **hard-fails** (`PHASE30_CITATION_UNVERIFIED`) when the grounded ratio is below `minGroundedCitationRatio` (agent-config default 0.34), engaging only when fetched ground truth exists; it writes `citation-verification.json` + `report-annotated.md` (surviving ungrounded cites annotated inline `[UNVERIFIED]`). A **retraction screen** (`openclaw-bridge/mcp/crossref-retraction/`) checks each cited DOI against Crossref `/works/{DOI}` and hard-stops (`PHASE30_CITATION_RETRACTED`) on any retracted paper (fail-soft: a Crossref error yields no retractions, never wrongly blocking). **Honesty boundary:** citations are *grounded in the source records actually retrieved at runtime + DOI retraction-screened* — they are NOT independently re-resolved against each live source database (that per-citation external re-resolution is not built). A DOI-extraction fix (`citation-extractor.js`) now stops the DOI regex at non-DOI terminators and strips trailing sentence punctuation, fixing deflated/duplicated DOI counts.
 > - **Stop-reason corpora + cost-avoidance deliverables — LIVE (2026-06-12).** A local fetcher `openclaw-bridge/mcp/ctgov-supplemental/` (NOT ToolUniverse) searches ClinicalTrials.gov API v2 for TERMINATED/WITHDRAWN/SUSPENDED trials in a condition, returning each trial's `whyStopped` text plus protocol change-history (version count + most-amended modules) with a session cache; it is routed into role prefetch via a new local-fetcher seam in `tool-prefetch.js` (`createToolPrefetch` `options.localFetchers`, tool_name `ctgov_stopped_trials`), each record NCT-traced. Every mission bundle now ships two new deliverables, both registered in `manifest.json` and sealed in `checksums.txt`: **`deliverables/citation-integrity.md`** — a graded provenance ledger (`openclaw-bridge/monetization/integrity-rating.js`, `buildIntegrityReport`; grade A/B/C/D from the grounded ratio, F + "BLOCKED" on any retraction, N/A if nothing cited) — and **`deliverables/graveyard-memo.md`** (`openclaw-bridge/monetization/graveyard-memo.js`) — a memo of prior terminated/withdrawn/suspended programs, each NCT-traced with the sponsor's stated stop reason (or an explicit "(none stated by sponsor)", never invented) and a resolvable `clinicaltrials.gov/study/<NCT>` link, plus a protocol amendment-risk band (LOW/MODERATE/HIGH from change-history median/max version count). Both memos are rendered **deterministically from the fetched records (no LLM)**; on a gate-PASSING mission `executeMissionStep` re-fetches the stopped trials (session-cache hit), builds both memos fully fail-soft (an absent fetcher/empty indication/fetch error simply omits them and never blocks a passing report), and `deliverable-packager` ships them (artifactRefs `graveyard_memo`).
@@ -44,7 +52,7 @@ User -> Obsidian Copilot Chat
     v
   OpenClaw Research Agents         <- child_process.spawn(), stdout JSON events
     |
-    +-- scout      -> Ollama (:11434, local) boot-persistent; the only local model [LIVE 2026-06-11]
+    +-- scout      -> claude-code (Opus 4.8)  [Ollama route REMOVED 2026-07-23]
     +-- analyst    -> Claude Code            reverted from LM Studio 2026-06-11 (16GB stability)
     +-- synthesizer -> Claude Code           citation-dense reasoning
     +-- (routing: config/role-provider-map.json; identity+memory: config/agents/<role>/)
@@ -61,7 +69,7 @@ User -> Obsidian Copilot Chat
   (Obsidian)    Analysis        (auto-ingest :3000)
 
    [Optional Observability Sidecar]
-   Traefik (:11480/:11481) -> failover between Ollama/LM Studio
+   Traefik (:11480/:11481) -> HISTORICAL only; both local runtimes removed
    Prometheus (:9090) -> scrapes gateway :18789/metrics
    Grafana (:3001) -> dashboards
 ```
@@ -81,7 +89,7 @@ User -> Obsidian Copilot Chat
 
 | Role | Provider | Model | Endpoint / path | Notes |
 |------|----------|-------|-----------------|-------|
-| scout | Ollama (`local`) | qwen2.5:7b-instruct | :11434 (boot-persistent launchd) via :11435 mkcert TLS proxy | the only local model |
+| scout | claude-code | claude-opus-4-8 | Claude Max subscription (no local model; Ollama removed 2026-07-23) | — |
 | analyst | Claude Code | claude-sonnet-4-6 | `claude -p` | reverted from LM Studio 2026-06-11 for 16 GB stability |
 | synthesizer | Claude Code | claude-sonnet-4-6 | `claude -p` | heaviest reasoning / citation-dense output |
 | _unmapped + default_ | Claude Code | claude-sonnet-4-6 | `claude -p` | global default |
@@ -159,7 +167,7 @@ Command Center (workflow dispatch + monitoring, Obsidian plugin)
 # The local TrevNodus server, :3000 port, and :18789 gateway are all gone.
 
 Biomedical Workflow Observability Stack (optional Docker Compose sidecar)
-  +-- Traefik :11480/:11481 -> Ollama :11434 / LM Studio :1234 (failover)
+  +-- Traefik :11480/:11481 -> HISTORICAL (Ollama/LM Studio both removed)
   +-- Prometheus :9090 -> [no scrape target after :18789 gateway retired 2026-04-27]
   +-- Grafana :3001 -> Prometheus datasource
 ```
@@ -176,7 +184,6 @@ Biomedical Workflow Observability Stack (optional Docker Compose sidecar)
 | 6333 | Qdrant Vector DB | HTTP | External | External | GET /collections/miyo |
 | 18789 | OpenClaw Gateway | HTTPS | trevor-robey-inc-agents | launchd | GET /health |
 | 1234 | LM Studio (analyst) | HTTP | External | LM Studio app | N/A |
-| 11434 | Ollama (scout) | HTTP | External | Ollama app | GET /api/tags |
 | 11480 | Traefik scout proxy | HTTP | trevor-robey-inc-agents | Docker Compose | Traefik dashboard |
 | 11481 | Traefik analyst proxy | HTTP | trevor-robey-inc-agents | Docker Compose | Traefik dashboard |
 | 9090 | Prometheus | HTTP | trevor-robey-inc-agents | Docker Compose | GET /-/healthy |
@@ -193,7 +200,7 @@ Biomedical Workflow Observability Stack (optional Docker Compose sidecar)
 6. Tool-prefetch module queries ToolUniverse for role-specific biomedical tools
 7. WorkflowTracker starts dir-scan + polls workspace/workflows/{id}/workflow.json every 2s
 8. Agents execute by topological level (independent steps run in parallel):
-   - Scout -> Ollama (:11434) for literature triage
+   - Scout -> claude-code (Opus 4.8) for literature triage  [was Ollama :11434 until 2026-07-23]
    - Analyst -> LM Studio (:1234) for deep analysis
    - Synthesizer -> Claude Code (`claude -p`) for citation-dense reasoning
    - Each agent gets ToolUniverse pre-fetch results injected as synthetic input docs
@@ -221,7 +228,7 @@ Biomedical Workflow Observability Stack (optional Docker Compose sidecar)
 | TrevNodus | Obsidian Bridge | HTTP POST :8798 | Push notes to vault |
 | TrevNodus | OpenClaw Gateway | HTTPS :18789 | Submit workflows from UI |
 | OpenClaw Agents | Claude Code | stdin pipe (`claude -p`) | Synthesizer LLM |
-| OpenClaw Agents | Ollama | HTTP :11434 | Scout LLM |
+| OpenClaw Agents | claude-code CLI | subprocess | Scout/Analyst/Synthesizer LLM (Ollama removed 2026-07-23) |
 | OpenClaw Agents | LM Studio | HTTP :1234 | Analyst LLM |
 | OpenClaw Agents | ToolUniverse | stdio MCP | 2,116 biomedical tools |
 | OpenClaw Agents | bioRxiv API | HTTPS (local module) | Preprint search (4 tools) |
@@ -229,7 +236,7 @@ Biomedical Workflow Observability Stack (optional Docker Compose sidecar)
 | Claude Desktop | Obsidian Bridge | MCP stdio -> HTTPS :8798 | Vault CRUD via obsidian-stdio-adapter |
 | Backend Emulator | Miyo | HTTP :8742 | Semantic search |
 | Backend Emulator | Qdrant | HTTP :6333 | Fallback chunk retrieval |
-| Traefik (opt.) | Ollama / LM Studio | HTTP :11480/:11481 | Failover proxy |
+| Traefik (opt.) | — | :11480/:11481 | HISTORICAL: both local runtimes removed |
 | Prometheus (opt.) | OpenClaw Gateway | HTTPS :18789/metrics | Metrics scraping |
 
 ## LLM Provider Routing
@@ -238,7 +245,7 @@ NOT round-robin. Each role hits a specific backend for a specific reason.
 
 | Role | Provider | Config Key | Port | Rationale |
 |------|----------|-----------|------|-----------|
-| Scout | Ollama | `ollama` | 11434 | CLI-driven model management (`ollama pull/rm`) for fast iteration on literature triage models |
+| Scout | claude-code | `claude` CLI | — | Flat Claude Max subscription; local model management removed 2026-07-23 |
 | Analyst | LM Studio | `lm-studio` | 1234 | GUI for loading/tuning larger models (70B INT4) with explicit memory controls |
 | Synthesizer | Claude Code | `claude-code` | N/A | Needs Claude-level reasoning for citation-dense, verifiable output |
 | (fallback) | Mock | `mock` | N/A | CI/testing only |
@@ -248,8 +255,8 @@ Configured in `config/agent-config.json` -> `roleProviderMap`. Provider endpoint
 ### Traefik Failover (Optional)
 
 Primary/backup topology per role — if the primary backend crashes, traffic switches to the backup:
-- Scout: `:11480` -> Ollama (primary) -> LM Studio (fallback)
-- Analyst: `:11481` -> LM Studio (primary) -> Ollama (fallback)
+- Scout: HISTORICAL — now claude-code; both local runtimes removed
+- Analyst: HISTORICAL — now claude-code; both local runtimes removed
 
 **Activate**: `docker compose -f observability/docker-compose.yml up traefik -d`, then copy `config/llm-providers.local.json.traefik-example` -> `config/llm-providers.local.json`.
 
@@ -338,7 +345,7 @@ pm2 status
 
 2. **Structured IPC protocol** (Phase 35) — `run-workflow.js` emits JSON events on stdout. The Command Center plugin parses these deterministically instead of scraping stderr log noise for workflow_id.
 
-3. **Intentional role-to-backend routing** (Phase 35) — Each agent role hits a specific LLM backend for a specific reason. NOT round-robin. Scout on Ollama for CLI model iteration, Analyst on LM Studio for GUI-driven large model tuning, Synthesizer on Claude Code for reasoning quality.
+3. **Intentional role-to-backend routing** (Phase 35) — Each agent role hits a specific LLM backend for a specific reason. NOT round-robin. HISTORICAL rationale (all three roles now run on claude-code; Ollama and LM Studio were removed 2026-07-16/23).
 
 4. **Traefik as failover, not load balancer** (Phase 35) — Primary/backup topology. If one backend crashes, the other takes over. Not round-robin between identical backends (which adds complexity for zero value).
 

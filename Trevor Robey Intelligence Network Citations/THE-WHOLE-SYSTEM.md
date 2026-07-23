@@ -28,7 +28,7 @@
 2. **`openclaw-bridge/monetization/deliverable-packager.js`** — fixed a second, pre-existing bug surfaced by the run: `commitBundle` used `rename()` from `$TMPDIR` (internal disk) into `workspace/releases` (external volume), which throws `EXDEV` across filesystems. Added a copy-fallback so packaging works wherever the repo is mounted.
 3. **Regression tests** (`tests/core/phase30-operator-approve.test.js`, 5 cases): flag-off and explicit-false still throw `PHASE15_HUMAN_APPROVAL_REQUIRED`; flag-on passes; the flag is actually forwarded into `spawnMission`. All green; no existing tests regressed.
 
-**Proof it works:** with `--operator-approve`, the workflow completed 5/5 steps — `claude -p` ran the scout/analyst/synthesizer (scout alone used ~263K tokens), built a 196-row dataset (219 citation hits), and exported `workspace/releases/offer-…-export.zip` (88 KB; `deliverables/report.md` is 61 KB, plus tables.csv, evidence appendix, store copy, and a Datarade submission pack). LM Studio/Ollama remained down throughout — irrelevant, since `claude` is the primary brain.
+**Proof it works:** with `--operator-approve`, the workflow completed 5/5 steps — `claude -p` ran the scout/analyst/synthesizer (scout alone used ~263K tokens), built a 196-row dataset (219 citation hits), and exported `workspace/releases/offer-…-export.zip` (88 KB; `deliverables/report.md` is 61 KB, plus tables.csv, evidence appendix, store copy, and a Datarade submission pack). LM Studio/Ollama remained down throughout — irrelevant, since `claude` is the primary brain. (Both have since been removed entirely: LM Studio 2026-07-16, Ollama 2026-07-23.)
 
 ---
 
@@ -82,7 +82,7 @@
 
    SUPPORTING SERVICES (all 🟢 running now, loopback + TLS):
      obsidian-bridge :8798 ↔ REST :27124   Miyo search :8742   Qdrant :6333
-     TLS proxies → Ollama :11435 · Miyo :8743 · Qdrant :6433
+     TLS proxies → Miyo :8743 · Qdrant :6433 · SearXNG :8891
 ```
 
 ### Live runtime table (verified 2026-06-10)
@@ -97,7 +97,7 @@
 | TLS proxies (3) | :11435 :8743 :6433 | 🟢 | HTTPS fronts for the local services |
 | `claude` CLI (primary LLM) | — | 🟢 on PATH | the engine's actual brain |
 | LM Studio | — | ⚪ decommissioned 2026-07-16 | removed from the stack — TLS proxy :1235, launchd unit, `llm-providers.json` entry, and the app all deleted; not an engine provider (restorable later, see §5) |
-| Ollama upstream | :11434 | 🟢 Obsidian side only | via TLS proxy :11435; used by Obsidian Copilot + vault-zettelkasten (`qwen2.5:7b-instruct`) — NOT an engine provider/fallback |
+| Ollama | — | ⚫ REMOVED 2026-07-23 | brew package, both LaunchAgents, the :11435 TLS proxy and 9.2GB of models all deleted. The Obsidian side moved to hosted `copilot-plus-flash`. |
 | **Workflow engine output** | — | 🟡 **0 runs on disk** | `workspace/missions`, `workspace/research-output`, `state/runtime` all empty; vault `OpenClaw/` dir absent |
 
 ---

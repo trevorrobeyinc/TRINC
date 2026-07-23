@@ -1,11 +1,27 @@
 {
   "schema_version": "phase34-role-provider-map-v1",
-  "_comment": "Authoritative role->backend routing for the multi-agent layer. Each role declares a PRIMARY backend (provider+model) and an emergency `fallback` provider. provider `claude-code` == Claude (CLI, Claude Max subscription). 2026-07-16 (Option B): the engine is now 100% Claude — scout/analyst/synthesizer + default all run on the claude-code CLI (Opus 4.8 for the three roles, Sonnet for default). The OSS local-model helper pre-passes and local fallbacks were REMOVED from the engine: LM Studio was decommissioned entirely, and Ollama (:11435) is retained on the machine but ONLY for Obsidian Copilot + vault-zettelkasten, not the engine. All fallbacks are \"\" (empty) so a primary claude-code failure surfaces the real error instead of chasing a removed backend. To re-add a local helper/fallback, restore a `helper` block and set the role's `fallback` to `local`, and set providers.local.enabled=true in llm-providers.json.",
-  "default": { "provider": "claude-code", "model": "claude-sonnet-4-6", "fallback": "" },
-  "roles": {
-    "scout":       { "provider": "claude-code", "model": "claude-opus-4-8", "fallback": "" },
-    "analyst":     { "provider": "claude-code", "model": "claude-opus-4-8", "fallback": "" },
-    "synthesizer": { "provider": "claude-code", "model": "claude-opus-4-8", "fallback": "" }
+  "_comment": "Authoritative role->backend routing for the multi-agent layer. Each role declares a PRIMARY backend (provider+model) and an emergency `fallback` provider. provider `claude-code` == Claude (CLI, Claude Max subscription). 2026-07-16 (Option B): the engine went 100% Claude \u2014 scout/analyst/synthesizer + default all run on the claude-code CLI (Opus 4.8 for the three roles, Sonnet for default). 2026-07-23: ALL local model runtimes are now GONE from this machine \u2014 LM Studio was decommissioned 2026-07-16 and Ollama was fully uninstalled 2026-07-23 (binaries, LaunchAgents, TLS proxy :11435 and 9.2GB of models). The `local` provider block was deleted from llm-providers.json. All fallbacks are \"\" (empty) so a primary claude-code failure surfaces the real error instead of chasing a removed backend.",
+  "default": {
+    "provider": "claude-code",
+    "model": "claude-sonnet-4-6",
+    "fallback": ""
   },
-  "_memory_note": "All three core roles run on Claude Opus 4.8 via the claude-code CLI (flat-rate Claude Max subscription, no API key, 1M context); unmapped roles + `default` stay on claude-code/claude-sonnet-4-6. As of 2026-07-16 the engine uses NO local models — LM Studio was removed, Ollama is kept only for the Obsidian side (Copilot + vault-zettelkasten). There are no OSS helper pre-passes or local fallbacks in the engine anymore."
+  "roles": {
+    "scout": {
+      "provider": "claude-code",
+      "model": "claude-opus-4-8",
+      "fallback": ""
+    },
+    "analyst": {
+      "provider": "claude-code",
+      "model": "claude-opus-4-8",
+      "fallback": ""
+    },
+    "synthesizer": {
+      "provider": "claude-code",
+      "model": "claude-opus-4-8",
+      "fallback": ""
+    }
+  },
+  "_memory_note": "All three core roles run on Claude Opus 4.8 via the claude-code CLI (flat-rate Claude Max subscription, no API key, 1M context); unmapped roles + `default` stay on claude-code/claude-sonnet-4-6. The engine uses NO local models, and as of 2026-07-23 none exist on the machine at all \u2014 the Obsidian side (Copilot chat + vault-zettelkasten + wiki definitions) also moved to the hosted copilot-plus-flash model."
 }

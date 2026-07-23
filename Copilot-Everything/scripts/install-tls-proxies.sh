@@ -35,7 +35,7 @@ PLIST_BUDDY="/usr/libexec/PlistBuddy"
 
 # launchd label suffix == proxy script basename stem
 # (lm-studio removed 2026-07-16 — LM Studio decommissioned; Ollama kept for the Obsidian side)
-UNITS=(miyo qdrant ollama searxng)
+UNITS=(miyo qdrant searxng)
 
 mkdir -p "$STAGE_DIR"
 

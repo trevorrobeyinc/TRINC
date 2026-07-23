@@ -16,11 +16,10 @@ export class VaultZKSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Provider")
-      .setDesc("LLM provider for Zettelkasten analysis")
+      .setDesc("LLM provider for Zettelkasten analysis (OpenAI-compatible endpoints)")
       .addDropdown((d) =>
         d
-          .addOption("ollama", "Ollama")
-          .addOption("openai", "OpenAI")
+          .addOption("openai", "OpenAI-compatible (hosted)")
           .setValue(this.plugin.settings.llmProvider)
           .onChange(async (v) => {
             this.plugin.settings.llmProvider = v as any;
@@ -30,10 +29,10 @@ export class VaultZKSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Base URL")
-      .setDesc("API endpoint (e.g. https://127.0.0.1:11435 — Ollama via TLS proxy)")
+      .setDesc("API endpoint (default https://models.brevilabs.com/v1 — hosted Copilot Plus)")
       .addText((t) =>
         t
-          .setPlaceholder("https://127.0.0.1:11435")
+          .setPlaceholder("https://models.brevilabs.com/v1")
           .setValue(this.plugin.settings.llmBaseUrl)
           .onChange(async (v) => {
             this.plugin.settings.llmBaseUrl = v;

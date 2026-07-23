@@ -8,21 +8,30 @@ import type {
 } from "../types/model";
 
 /**
- * LLM gateway supporting LM Studio, Ollama, and OpenAI-compatible providers.
+ * LLM gateway for OpenAI-compatible providers.
  * Uses Obsidian's requestUrl for Electron CORS compatibility.
- * Non-streaming only — the ZettelkastenService doesn't need streaming.
+ * Non-streaming only — the ZettelkastenService doesn't need streaming, and at
+ * trait-prompt size the hosted model answers in ~2s (measured 2026-07-23).
+ *
+ * The local-model branches were removed with their runtimes: LM Studio
+ * 2026-07-16, Ollama 2026-07-23. Everything now goes through the hosted
+ * OpenAI-compatible path.
  */
 export class ModelGateway {
   async generateText(request: TextGenerationRequest): Promise<TextGenerationResult> {
-    const provider = request.model.provider;
-    if (provider === "ollama") {
-      return this.generateOllama(request);
-    }
-    // lm-studio, openai, and anything else → OpenAI-compatible
     return this.generateOpenAI(request);
   }
 
-  /** Build a ResolvedModelConfig from plugin settings (convenience). */
+  /**
+   * Build a ResolvedModelConfig from plugin settings (convenience).
+   *
+   * API-key resolution deliberately never requires the key to sit in this
+   * plugin's data.json (Obsidian persists that file and auto-creates backups).
+   * Order: settings.llmApiKey → the 0600 file at ~/.config/trevclaw/brevilabs-key.
+   * Callers that already hold the key (the wiki-definition plugin) bypass this
+   * entirely by passing `request.model` per call — see
+   * ZettelkastenService.resolveModel().
+   */
   static fromSettings(settings: {
     llmProvider: string;
     llmBaseUrl: string;
@@ -36,7 +45,7 @@ export class ModelGateway {
       name: settings.llmModelName,
       provider: settings.llmProvider,
       baseUrl: settings.llmBaseUrl,
-      apiKey: settings.llmApiKey || undefined,
+      apiKey: settings.llmApiKey || readKeyFile() || undefined,
       temperature: settings.llmTemperature,
       maxTokens: settings.llmMaxTokens,
     };
@@ -90,7 +99,7 @@ export class ModelGateway {
   }
 
   private getOpenAIEndpoint(model: ResolvedModelConfig): string {
-    const defaultBase = model.provider === "lm-studio" ? "https://127.0.0.1:1235/v1" : "https://api.openai.com/v1";
+    const defaultBase = "https://models.brevilabs.com/v1";
     const raw = model.baseUrl?.trim() || defaultBase;
     const normalized = raw.replace(/\/+$/, "");
     if (normalized.endsWith("/chat/completions")) return normalized;
@@ -98,52 +107,31 @@ export class ModelGateway {
     return `${normalized}/v1/chat/completions`;
   }
 
-  // ── Ollama ────────────────────────────────────────────────────────
+}
 
-  private async generateOllama(request: TextGenerationRequest): Promise<TextGenerationResult> {
-    const baseUrl = (request.model.baseUrl?.trim() || "https://127.0.0.1:11435").replace(/\/+$/, "");
-    const endpoint = `${baseUrl}/api/chat`;
-
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (request.model.apiKey) {
-      headers["Authorization"] = `Bearer ${request.model.apiKey}`;
-    }
-
-    const options: Record<string, unknown> = {};
-    if (typeof request.model.temperature === "number") options.temperature = request.model.temperature;
-
-    const res = await requestUrl({
-      url: endpoint,
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        model: request.model.name,
-        stream: false,
-        messages: request.messages.map((m: CanonicalChatMessage) => ({
-          role: m.role,
-          content: m.content,
-        })),
-        options,
-      }),
-    });
-
-    const json = res.json as {
-      message?: { content?: string };
-      prompt_eval_count?: number;
-      eval_count?: number;
-    };
-
-    return {
-      text: json.message?.content?.trim() || "",
-      usage:
-        typeof json.prompt_eval_count === "number" || typeof json.eval_count === "number"
-          ? {
-              inputTokens: json.prompt_eval_count,
-              outputTokens: json.eval_count,
-              totalTokens: (json.prompt_eval_count ?? 0) + (json.eval_count ?? 0),
-            }
-          : undefined,
-    };
+/**
+ * Read the hosted-model licence key from a 0600 file outside the vault.
+ *
+ * Mirrors the command-center bridge-token pattern
+ * (obsidian-command-center/src/bridge/mcp-bridge-server.ts loadOrCreateBridgeToken):
+ * Obsidian persists plugin data.json and auto-creates .bak copies, which has
+ * leaked credentials in this stack before — so the secret lives in
+ * ~/.config/trevclaw/brevilabs-key instead. Absent file → undefined, and the
+ * caller simply sends no Authorization header.
+ */
+function readKeyFile(): string | undefined {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const fs = require("fs") as typeof import("fs");
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const os = require("os") as typeof import("os");
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const path = require("path") as typeof import("path");
+    const file = path.join(os.homedir(), ".config", "trevclaw", "brevilabs-key");
+    const key = fs.readFileSync(file, "utf8").trim();
+    return key.length > 0 ? key : undefined;
+  } catch {
+    return undefined;
   }
 }
 

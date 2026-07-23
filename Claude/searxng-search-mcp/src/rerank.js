@@ -107,6 +107,12 @@ async function rerank(query, results, opts = {}) {
     return results; // never send result text over plaintext or to a remote host
   }
   const model = opts.model || CONFIG.rerankModel;
+  if (!model) {
+    // No default model since the local runtimes were removed (2026-07-23) —
+    // an endpoint without a model would POST `model: ""`. Fail soft.
+    warnOnce("no-model", "rerank skipped: SEARXNG_RERANK_MODEL is not set");
+    return results;
+  }
   const timeoutMs = Number(opts.timeoutMs || CONFIG.rerankTimeoutMs) || 4000;
 
   const controller = new AbortController();

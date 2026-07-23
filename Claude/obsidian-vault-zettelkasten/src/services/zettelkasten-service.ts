@@ -831,6 +831,30 @@ export class ZettelkastenService {
 
   /* ── Prompt builders ───────────────────────────────────────────────── */
 
+  /**
+   * Strict output contract appended to every synthesis prompt.
+   *
+   * Trait output is embedded INSIDE an existing H2 section of a caller's note
+   * (e.g. the contextual-wiki-definitions plugin), and that consumer's section
+   * matcher is bounded by "\n## ". A markdown heading in our output therefore
+   * silently truncates the host section — observed live 2026-07: emitting
+   * "## Structure Your Response" left three of five host sections with a
+   * 0-char body and ballooned the note from ~12k to ~29k chars.
+   *
+   * Previously NO builder imposed any format or length constraint at all.
+   */
+  private outputContract(): string {
+    return (
+      "\n\nOUTPUT FORMAT (strict):\n" +
+      "- Reply with a markdown BULLET LIST only.\n" +
+      "- Do NOT use markdown headings (#, ##, ###) anywhere. Use **bold labels** instead — " +
+      "your text is embedded inside an existing note section and headings corrupt it.\n" +
+      "- No preamble, no restated scaffold, no closing summary. Start directly with the first bullet.\n" +
+      "- Reference vault notes as [[Wiki Links]].\n" +
+      "- Keep the entire reply under 250 words."
+    );
+  }
+
   private buildSerendipityPrompt(
     noteContent: string,
     conceptResults: MiyoSearchResult[],
@@ -849,7 +873,7 @@ export class ZettelkastenService {
           "Your role is to surface unexpected connections, forgotten insights, and novel perspectives. " +
           'Create "happy accidents" by finding surprising links between ideas.\n\n' +
           "You have access to REAL notes from the user's vault. Reference them with [[wikilinks]].\n\n" +
-          "Structure your response with these sections:\n" +
+          "Cover these angles as bold-labelled BULLETS (never as headings):\n" +
           "1. **Temporal Resurfacing**: Why are older notes suddenly relevant now?\n" +
           '2. **Semantic Proximity**: "Aha!" connections using different terminology\n' +
           "3. **Lateral Connections**: Structural similarities from unrelated domains\n" +
@@ -863,7 +887,8 @@ export class ZettelkastenService {
         content:
           `## Current Note\n\n${noteContent.slice(0, 3000)}\n\n` +
           `${vaultContext}\n\n${randomContext}\n\n${temporalContext}\n\n` +
-          "Generate serendipity insights grounded in the vault notes above.",
+          "Generate serendipity insights grounded in the vault notes above." +
+          this.outputContract(),
       },
     ];
   }
@@ -885,7 +910,7 @@ export class ZettelkastenService {
           "Your role is to identify structural isomorphisms and create bridges between disparate fields.\n\n" +
           "You have access to REAL notes from the user's vault organized by domain/folder. " +
           "Reference them with [[wikilinks]].\n\n" +
-          "Structure your response:\n" +
+          "Cover these angles as bold-labelled BULLETS (never as headings):\n" +
           "1. **Structural Pattern**: The core shape of the idea\n" +
           "2. **Isomorphisms**: 3-5 domains where this pattern appears (grounded in vault notes)\n" +
           '3. **Analogical Mapping**: Explicit "A is like B because..." format\n' +
@@ -901,7 +926,8 @@ export class ZettelkastenService {
           `## Current Note\n\n${noteContent.slice(0, 3000)}\n\n` +
           `## Structural Analysis\n${JSON.stringify(analysis ?? {})}\n\n` +
           `## Vault Notes by Domain\n\n${domainSections}\n\n` +
-          "Generate cross-domain connections grounded in the vault notes above.",
+          "Generate cross-domain connections grounded in the vault notes above." +
+          this.outputContract(),
       },
     ];
   }
@@ -928,7 +954,7 @@ export class ZettelkastenService {
           "Your role is to strengthen understanding through intellectual friction.\n\n" +
           "You have access to REAL notes from the user's vault that may contradict or complicate " +
           "the assumptions in the current note. Reference them with [[wikilinks]].\n\n" +
-          "Structure your response:\n" +
+          "Cover these angles as bold-labelled BULLETS (never as headings):\n" +
           "1. **Core Assumptions Identified**: List the main beliefs\n" +
           "2. **Counterarguments**: 3-5 substantive challenges (grounded in vault evidence where available)\n" +
           "3. **Contradictory Evidence**: What vault notes complicate this perspective?\n" +
@@ -943,7 +969,8 @@ export class ZettelkastenService {
           `## Current Note\n\n${noteContent.slice(0, 3000)}\n\n` +
           `## Vault Evidence per Assumption\n\n${contradictionSections}\n\n` +
           `${distantContext}\n\n` +
-          "Generate an echo chamber analysis grounded in the vault evidence above.",
+          "Generate an echo chamber analysis grounded in the vault evidence above." +
+          this.outputContract(),
       },
     ];
   }
@@ -1006,7 +1033,7 @@ export class ZettelkastenService {
           'You are a "Semantic Linker" for a Zettelkasten knowledge base. ' +
           "Your role is to define specific typed relationships between notes.\n\n" +
           "You have classified relationships below. Synthesize them into a clear analysis.\n\n" +
-          "Structure your response:\n" +
+          "Cover these angles as bold-labelled BULLETS (never as headings):\n" +
           "1. **Relationship Map**: Visual summary of how this note connects\n" +
           "2. **Key Relationships**: The most important typed connections with rationale\n" +
           "3. **Transitive Chains**: Inferred relationships through intermediate notes\n" +
@@ -1020,7 +1047,8 @@ export class ZettelkastenService {
           `## Source Note: ${sourcePath}\n\n${noteContent.slice(0, 2000)}\n\n` +
           `## Classified Relationships\n\n${relList}\n\n` +
           `## Dataview Syntax Block\n\n\`\`\`\n${dataviewBlock}\n\`\`\`\n\n` +
-          "Synthesize these relationships into a structured analysis.",
+          "Synthesize these relationships into a structured analysis." +
+          this.outputContract(),
       },
     ];
   }
@@ -1042,7 +1070,7 @@ export class ZettelkastenService {
           "Your role is to reintegrate isolated notes into the knowledge graph.\n\n" +
           "You have access to REAL vault notes that are semantically related. " +
           "Reference them with [[wikilinks]].\n\n" +
-          "Structure your response:\n" +
+          "Cover these angles as bold-labelled BULLETS (never as headings):\n" +
           "1. **Orphan Assessment**: Is this note truly isolated? What connections exist?\n" +
           "2. **Key Concepts**: Connection points extracted from the content\n" +
           "3. **Link Suggestions**: 3-5 specific notes to link to, with rationale\n" +
@@ -1056,7 +1084,8 @@ export class ZettelkastenService {
         content:
           `## Orphan Note: ${notePath}\n\n${noteContent.slice(0, 3000)}\n\n` +
           `${vaultContext}\n\n` +
-          "Generate a rescue plan to reintegrate this note into the knowledge graph.",
+          "Generate a rescue plan to reintegrate this note into the knowledge graph." +
+          this.outputContract(),
       },
     ];
   }
@@ -1082,7 +1111,7 @@ export class ZettelkastenService {
         content:
           'You are an "Orphan Rescuer" performing a vault-wide scan. ' +
           "Summarize the orphan situation and provide a prioritized rescue strategy.\n\n" +
-          "Structure your response:\n" +
+          "Cover these angles as bold-labelled BULLETS (never as headings):\n" +
           "1. **Overview**: Orphan count, percentage, severity assessment\n" +
           "2. **High-Priority Orphans**: Which should be rescued first and why\n" +
           "3. **Cluster Analysis**: Do orphans group by topic or folder?\n" +
@@ -1098,7 +1127,8 @@ export class ZettelkastenService {
           `## Orphans Found\n\n${orphanList}\n` +
           (orphans.length > 30 ? `\n...and ${orphans.length - 30} more\n` : "") +
           `\n## Rescue Suggestions (from semantic search)\n\n${suggestionList}\n\n` +
-          "Generate a prioritized vault-wide rescue strategy.",
+          "Generate a prioritized vault-wide rescue strategy." +
+          this.outputContract(),
       },
     ];
   }

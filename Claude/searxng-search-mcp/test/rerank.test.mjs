@@ -65,10 +65,17 @@ test("rerank: an unreachable local model fails soft AND says so on stderr", asyn
   let out;
   try {
     // Nothing listens on 59321, so fetch rejects with ECONNREFUSED — the catch path an operator hits
-    // when Ollama simply isn't running. https + loopback, so the endpoint guard passes first.
-    // (Do NOT use a low port like 1: the Fetch spec blocks those as "bad port" before connecting,
-    // which exercises a different branch than the one this test is about.)
-    out = await rerank("q", rows, { enabled: true, endpoint: "https://127.0.0.1:59321/api/chat", timeoutMs: 1500 });
+    // when the configured rerank backend simply isn't running. https + loopback, so the endpoint
+    // guard passes first. (Do NOT use a low port like 1: the Fetch spec blocks those as "bad port"
+    // before connecting, which exercises a different branch than the one this test is about.)
+    // `model` must be passed explicitly: there is no default model any more (the local runtimes
+    // were removed 2026-07-23), and an unset model short-circuits at the no-model guard instead.
+    out = await rerank("q", rows, {
+      enabled: true,
+      endpoint: "https://127.0.0.1:59321/api/chat",
+      model: "test-model",
+      timeoutMs: 1500,
+    });
   } finally {
     process.stderr.write = realWrite;
   }
@@ -81,4 +88,24 @@ test("rerank: an unreachable local model fails soft AND says so on stderr", asyn
   assert.match(warning, /ECONNREFUSED/);
   // Keyed warnOnce: the earlier "bad-endpoint" warning must not have masked this one.
   assert.equal(captured.filter((c) => /keeping native order/.test(c)).length, 1);
+});
+
+test("rerank: no configured model fails soft (no default since local runtimes were removed)", async () => {
+  const rows = [{ title: "a" }, { title: "b" }];
+  const captured = [];
+  const realWrite = process.stderr.write;
+  process.stderr.write = (chunk) => {
+    captured.push(String(chunk));
+    return true;
+  };
+  let out;
+  try {
+    // Endpoint is valid https+loopback so it passes the endpoint guard, but no model is
+    // configured — rerank must return native order rather than POSTing `model: ""`.
+    out = await rerank("q", rows, { enabled: true, endpoint: "https://127.0.0.1:59321/api/chat", model: "" });
+  } finally {
+    process.stderr.write = realWrite;
+  }
+  assert.deepEqual(out, rows);
+  assert.match(captured.join(""), /SEARXNG_RERANK_MODEL is not set/);
 });
