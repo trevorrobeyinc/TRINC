@@ -2,7 +2,7 @@
 
 Business workspace for **Trevor Robey, INC.** — citation-traced biomedical due diligence at **trevorobeyinc.com**. Powered by OpenClaw (open-source agent framework).
 
-> *Trevor Robey, INC. is the wordmark of **Trevor Robey Intelligence Network Citations LLC**, a California limited liability company (filed 2026-05-06; receipt B20260217250). INC = Intelligence Network Citations. See [`00-business-formation/llc/certificate-of-formation.md`](./00-business-formation/llc/certificate-of-formation.md).*
+> *Trevor Robey, INC. is the wordmark of **Trevor Robey Intelligence Network Citations LLC**, a California limited liability company (filed 2026-05-06; **CA SOS Entity No. B20260217250**, approved 2026-06-18). INC = Intelligence Network Citations. See [`00-business-formation/llc/certificate-of-formation.md`](./00-business-formation/llc/certificate-of-formation.md).*
 
 This directory is the canonical home for everything the [`trevor-robey-inc Commercial Launch Playbook.md`](./trevor-robey-inc%20Commercial%20Launch%20Playbook.md) prescribes. Every folder below corresponds to a specific section of that playbook. Files are placeholders unless noted; fill them in as you work the 30-day plan.
 

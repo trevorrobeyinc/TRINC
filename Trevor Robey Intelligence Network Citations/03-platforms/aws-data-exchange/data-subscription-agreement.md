@@ -6,7 +6,7 @@
 
 ---
 
-**Provider:** Trevor Robey Intelligence Network Citations LLC, a California limited liability company (filed with the California Secretary of State on 2026-05-06; receipt B20260217250; Entity No. B20260217250), doing business under the wordmark **"Trevor Robey, INC."** (where INC = Intelligence Network Citations — a backronym, not a corporate suffix) ("**Provider**," "we," "us," "our"). The wordmark is paired with this disclosure to satisfy Cal. Bus. & Prof. Code §17910.5(a); the legal name complies with Cal. Corp. Code §17701.08(e).
+**Provider:** Trevor Robey Intelligence Network Citations LLC, a California limited liability company (filed with the California Secretary of State on 2026-05-06; CA SOS Entity No. B20260217250), doing business under the wordmark **"Trevor Robey, INC."** (where INC = Intelligence Network Citations — a backronym, not a corporate suffix) ("**Provider**," "we," "us," "our"). The wordmark is paired with this disclosure to satisfy Cal. Bus. & Prof. Code §17910.5(a); the legal name complies with Cal. Corp. Code §17701.08(e).
 
 **Subscriber:** The AWS account holder that subscribes to the Product through AWS Data Exchange ("**Subscriber**," "you," "your").
 

@@ -7,7 +7,7 @@
 | ✅ | Item | Date | Pointer |
 |---|---|---|---|
 | ✅ | Vendor application drafted (paste-ready blocks per Datarade intake taxonomy) | 2026-04-26 | [`vendor-application.md`](vendor-application.md) |
-| ✅ | LLC formation filed (Trevor Robey Intelligence Network Citations LLC, CA) | 2026-05-06 | bizfileOnline receipt `B20260217250` |
+| ✅ | LLC formation filed + APPROVED (Trevor Robey Intelligence Network Citations LLC, CA) | 2026-05-06 | CA SOS Entity No. `B20260217250` (approved 2026-06-18) |
 | ✅ | Datarade-sent intake email received (HubSpot Forms EU1, "Help us prepare for our meeting") | 2026-05-11 | trevor@trevorobeyinc.com Zoho mailbox; thread id `1777865848561153000` |
 | ✅ | Brand-current Datarade Sample Pack PDF generated (213 KB, with Data Dictionary differentiator) | 2026-05-11 | `~/Downloads/trevor-robey-inc-datarade-sample-pack.pdf` |
 | ✅ | HubSpot intake form completed (3 pages, 9 required fields + sample upload) | 2026-05-11 | [`onboarding-call-notes.md`](onboarding-call-notes.md) |

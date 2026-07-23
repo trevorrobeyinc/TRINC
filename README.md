@@ -2,7 +2,7 @@
 
 Monorepo for the **Trevor Robey, INC.** biomedical research intelligence stack.
 
-> *"Trevor Robey, INC."* is the brand wordmark of **Trevor Robey Intelligence Network Citations LLC**, a California limited liability company filed 2026-05-06 (CA SOS approval pending; bizfileOnline receipt B20260217250).
+> *"Trevor Robey, INC."* is the brand wordmark of **Trevor Robey Intelligence Network Citations LLC**, a California limited liability company filed 2026-05-06 (**APPROVED 2026-06-18; CA SOS Entity No. B20260217250**).
 >
 > **INC = Intelligence Network Citations** (a backronym, not a corporate suffix).
 
@@ -54,8 +54,8 @@ Full disclaimers: [`trevor-robey-inc/NOTICE.md`](trevor-robey-inc/NOTICE.md).
 |---|---|
 | Legal name | **Trevor Robey Intelligence Network Citations LLC** |
 | Brand wordmark | **Trevor Robey, INC.** |
-| Formation | California — filed 2026-05-06 — bizfileOnline receipt B20260217250 |
-| Status | Pending CA SOS approval (2–3 business days) |
+| Formation | California — filed 2026-05-06 — **CA SOS Entity No. B20260217250** |
+| Status | ✅ **APPROVED 2026-06-18** (confirmed by certified SOS copy, Certificate No. 457169837) |
 | Domain | trevorobeyinc.com |
 | Contact | trevor@trevorobeyinc.com |
 

@@ -4,7 +4,7 @@
 
 > **Repo topology (2026-05-07)**: this is no longer a standalone repo. It lives as a top-level directory inside the **TrevClaw-Obsidianodus monorepo**, now **local-only** at `/Users/trevorrobey/TrevClaw-Obsidianodus` (the private GitHub remote was **deleted 2026-05-26**; **no git remotes** — durable backup is a `git bundle --all` at `~/TrevClaw-Obsidianodus.bundle`). The previous standalone GitHub remote `https://github.com/trevoralexanderrobey/trevor-robey-inc-agents` is the rollback anchor (tag `pre-monorepo-consolidation-2026-05-07` at SHA `8e782a0`); the repo is being archived. The `vendor/tooluniverse/` submodule is retained, pinned at SHA `3833b0e` (v1.1.10).
 
-> **Legal entity (2026-05-07)**: brand wordmark **"Trevor Robey, INC."** is the trade name of **Trevor Robey Intelligence Network Citations LLC**, California limited liability company (filed 2026-05-06; bizfileOnline receipt B20260217250; CA SOS approval pending). See [`REVENUE_PLAYBOOK.md` §0a](REVENUE_PLAYBOOK.md) for the legal-status update flow and dependent surfaces.
+> **Legal entity (updated 2026-07-22)**: brand wordmark **"Trevor Robey, INC."** is the trade name of **Trevor Robey Intelligence Network Citations LLC**, California limited liability company (filed 2026-05-06; **CA SOS Entity No. B20260217250**; **APPROVED 2026-06-18**, confirmed by certified SOS copy Certificate No. 457169837). See [`REVENUE_PLAYBOOK.md` §0a](REVENUE_PLAYBOOK.md) for the legal-status update flow and dependent surfaces.
 
 ## What This Is
 
@@ -324,7 +324,7 @@ GitHub's built-in secret scanning provides push protection for provider-specific
 
 ### Brand Identity
 
-- **Legal entity**: Trevor Robey Intelligence Network Citations LLC, a California limited liability company (filed at CA SOS 2026-05-06; receipt B20260217250)
+- **Legal entity**: Trevor Robey Intelligence Network Citations LLC, a California limited liability company (filed at CA SOS 2026-05-06; **Entity No. B20260217250**; approved 2026-06-18)
 - **Wordmark**: "Trevor Robey, INC." where INC = Intelligence Network Citations
 - **Disclosure used in customer-facing materials**: *"Trevor Robey, INC. is the wordmark of Trevor Robey Intelligence Network Citations LLC, a California limited liability company. INC = Intelligence Network Citations."*
 - **Product**: Trevor Robey Inc Agents (biomedical research and dataset packaging code stack — repo slug `trevor-robey-inc-agents`)

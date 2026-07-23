@@ -11,8 +11,9 @@ Last updated: 2026-05-07
 | **Legal name** | Trevor Robey Intelligence Network Citations LLC |
 | **Brand wordmark** | Trevor Robey, INC. (INC = Intelligence Network Citations) |
 | **State of formation** | California — limited liability company |
-| **Filing date** | 2026-05-06 (bizfileOnline; receipt B20260217250) |
-| **CA SOS approval status** | **Pending** — 2-3 business day standard processing window |
+| **Filing date** | 2026-05-06 (bizfileOnline; Reference # B4657-4800, "Initial Filing") |
+| **CA SOS Entity No.** | **B20260217250** — confirmed by certified SOS copy (Certificate No. 457169837, issued 2026-05-12, certified by Secretary of State Shirley N. Weber) |
+| **CA SOS approval status** | ✅ **APPROVED** (2026-06-18) |
 | **Member structure** | Member-managed; sole member: Trevor Robey |
 | **Registered agent** | Trevor Robey (individual) |
 | **Principal office** | 8161 Oahu Dr, Fair Oaks, CA 95628-3745 |
@@ -46,7 +47,7 @@ ToolUniverse is a pinned submodule at [`vendor/tooluniverse/`](vendor/tooluniver
 | Pre-flight integrity checks | ✅ Pass (citation traceability, ASCII compliance, character limits, PHI absence, NOTICE alignment) |
 | AWS DX Provider Qualification | ⏳ Pending — Support case in flight (7-business-day SLA) |
 | Public seller profile verification | ⏳ Pending — independent 2-3 business day review |
-| LLC SOS approval (gates seller-profile entity description) | ⏳ Pending — see §0a |
+| LLC SOS approval (gates seller-profile entity description) | ✅ **APPROVED 2026-06-18** — Entity No. B20260217250; see §0a |
 | Bundle archive | ✅ `workspace/aws-marketplace-listing/pharmacovigilance-sample-pack/listing-and-dsa.zip` |
 | Upload sequence (8 steps, ~15 min UI work when both approvals land) | Documented in [`MANIFEST.md`](workspace/aws-marketplace-listing/pharmacovigilance-sample-pack/MANIFEST.md#upload-sequence-when-dx-qualification-approval-arrives) |
 

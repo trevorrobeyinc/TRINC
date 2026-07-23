@@ -9,7 +9,7 @@
 | AWS Data Exchange Provider Qualification approval | AWS | 7 business days SLA | **Pending** — Support case submitted via Marketplace Contact Us form, subcategory "Onboarding Request", primary email `trevor@trevorobeyinc.com` |
 | Public seller profile verification | AWS | 2–3 business days | **Pending** — independent review in flight |
 | DSA / Data dictionary PDF conversion (if AWS demands PDF over plaintext) | Trevor | At wizard time | Will resolve in real time when wizard requests file upload |
-| LLC SOS approval (CA Secretary of State) | CA SOS | 2–3 business days from 2026-05-06 filing | **Pending** — bizfileOnline receipt `B20260217250` filed 2026-05-06 |
+| LLC SOS approval (CA Secretary of State) | CA SOS | 2–3 business days from 2026-05-06 filing | ✅ **APPROVED 2026-06-18** — CA SOS Entity No. `B20260217250` (certified copy Certificate No. 457169837) |
 
 ## What's already done (2026-05-06)
 
@@ -19,7 +19,7 @@
 - Schema documentation prepared ([`data-dictionary.md`](../../../trevor-robey-inc-agents/workspace/aws-marketplace-listing/pharmacovigilance-sample-pack/data-dictionary.md))
 - Metadata fields drafted ([`metadata-table.md`](../../../trevor-robey-inc-agents/workspace/aws-marketplace-listing/pharmacovigilance-sample-pack/metadata-table.md))
 - Pre-flight integrity checks complete (citation traceability, PHI absence, character-limit compliance, ASCII-only enforcement, provider-entity disclosure language)
-- Provider entity description finalized: *"Trevor Robey Intelligence Network Citations LLC, a California limited liability company (filed at CA SOS 2026-05-06; receipt B20260217250), operating under the wordmark 'Trevor Robey, INC.' (INC = Intelligence Network Citations)"*
+- Provider entity description finalized: *"Trevor Robey Intelligence Network Citations LLC, a California limited liability company (filed at CA SOS 2026-05-06; CA SOS Entity No. B20260217250), operating under the wordmark 'Trevor Robey, INC.' (INC = Intelligence Network Citations)"*
 - Bundle archived as `listing-and-dsa.zip` ready for portal upload
 
 ## Go-live sequence (when both approvals land)

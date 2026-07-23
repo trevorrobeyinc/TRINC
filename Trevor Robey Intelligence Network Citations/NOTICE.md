@@ -11,8 +11,8 @@ project consumes under their respective licenses.
 
 The legal entity providing trevor-robey-inc-agents commercial deliverables is
 **Trevor Robey Intelligence Network Citations LLC**, a California limited
-liability company (filed at the California Secretary of State 2026-05-06,
-receipt B20260217250; CA SOS Entity # populated upon approval). The entity
+liability company (filed at the California Secretary of State 2026-05-06;
+**CA SOS Entity No. B20260217250**, approved 2026-06-18). The entity
 operates under the brand wordmark **"Trevor Robey, INC."** where
 **INC = Intelligence Network Citations** (a backronym, not a corporate
 suffix). Customer-facing materials pair the wordmark with this disclosure to

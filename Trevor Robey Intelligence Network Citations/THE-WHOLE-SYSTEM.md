@@ -36,8 +36,8 @@
 
 | | |
 |---|---|
-| **Legal entity** | Trevor Robey Intelligence Network Citations LLC (California; filed 2026-05-06, receipt B20260217250) |
-| **CA SOS approval** | recorded "pending" as of 2026-05-07 — **verify it's now approved** |
+| **Legal entity** | Trevor Robey Intelligence Network Citations LLC (California LLC; filed 2026-05-06; **CA SOS Entity No. B20260217250**) |
+| **CA SOS approval** | ✅ **APPROVED** (2026-06-18) — certified SOS copy, Certificate No. 457169837, issued 2026-05-12. Entity No. **B20260217250** |
 | **Brand wordmark** | **Trevor Robey, INC.** — "INC" = *Intelligence Network Citations* (backronym, not a corporate suffix) |
 | **Domain / email** | trevorobeyinc.com · trevor@trevorobeyinc.com (**Google Workspace/Gmail since the 2026-07-22 MX cutover** — SPF/DKIM/DMARC live; Zoho retained as archive + secondary sender during transition; alias trevorrobeyinc@gmail.com; see `03-platforms/google-workspace/setup-runbook.md`) |
 | **Tagline** | *Every claim, sourced. Every risk, named. In days, not weeks.* |

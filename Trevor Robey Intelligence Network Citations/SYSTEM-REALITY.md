@@ -8,8 +8,8 @@ You sell **citation-traced biomedical due-diligence reports**: a buyer (biotech 
 
 | | |
 |---|---|
-| Legal entity | **Trevor Robey Intelligence Network Citations LLC** (California; filed 2026-05-06, receipt B20260217250) |
-| CA SOS approval | Recorded as **pending** as of 2026-05-07 — **verify current status** (expected ~2026-05-09; confirm the entity number landed) |
+| Legal entity | **Trevor Robey Intelligence Network Citations LLC** (California LLC; filed 2026-05-06; **CA SOS Entity No. B20260217250**) |
+| CA SOS approval | ✅ **APPROVED** (2026-06-18) — confirmed by a **certified SOS copy**: Certificate No. 457169837, issued 2026-05-12, certified by Secretary of State Shirley N. Weber. **Entity No. B20260217250** (this IS the entity number, not merely a filing receipt). Record: [`00-business-formation/llc/certificate-of-formation.md`](00-business-formation/llc/certificate-of-formation.md) |
 | Brand wordmark | **Trevor Robey, INC.** — "INC" = *Intelligence Network Citations* (a backronym, not a corporate suffix) |
 | Domain / email | trevorobeyinc.com / trevor@trevorobeyinc.com (**Google Workspace/Gmail since 2026-07-22 MX cutover**; Zoho = archive + secondary sender during transition; alias trevorrobeyinc@gmail.com; runbook: `03-platforms/google-workspace/setup-runbook.md`) |
 | Tagline | *Every claim, sourced. Every risk, named. In days, not weeks.* |

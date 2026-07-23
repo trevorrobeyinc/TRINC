@@ -8,12 +8,13 @@
 | Filing type | Articles of Organization (Form LLC-1) |
 | Filed at | California Secretary of State — bizfileOnline |
 | Filing date | 2026-05-06 |
-| bizfileOnline receipt # | B20260217250 |
+| bizfileOnline filing reference | Reference # **B4657-4800** — "Initial Filing", filed 05/06/2026, 1 page (per the certified copy's Document Listing) |
 | Standard processing | $70 |
 | Approval status | **APPROVED** — Initial Business Filing Approved (SOS approval letter dated 2026-06-18) |
-| California Entity No. | **B20260217250** (CA bizfile alphanumeric format; same value as Document No.) |
+| California Entity No. | **B20260217250** — ✅ **CONFIRMED** by certified SOS copy, which labels it "Entity No." Earlier repo notes calling this "just the bizfileOnline filing receipt, not the real entity number" were **incorrect**. |
 | Stamped Articles PDF | In hand — filed Articles of Organization + Filing Acknowledgment (B20260217250) + Welcome Letter saved in `~/Documents` |
 | Receipt PDF | [`receipt-articles-of-organization-2026-05-06.pdf`](./receipt-articles-of-organization-2026-05-06.pdf) (in this folder) |
+| **Certified copy (CA SOS)** | **Certificate No. 457169837**, issued **2026-05-12**, 1 copy requested; certified by **Shirley N. Weber, Ph.D., California Secretary of State**. Source PDF: `~/Documents/457169837/Certified Copies Acknowledgment.pdf`. Verify at bizfileOnline.sos.ca.gov → Certification Verification Search using Certificate No. 457169837. |
 
 ## Entity details
 

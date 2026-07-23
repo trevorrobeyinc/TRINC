@@ -14,10 +14,10 @@
 |---|---:|---|---|
 | `MANIFEST.md` | this file | Human-readable index. Not uploaded to AWS. | — |
 | `signal-register.csv` | 2,879 B | **Dataset asset #1** — 10 pharmacovigilance signals with AEMS metrics, severity tiers, and recommended actions. | Data Exchange wizard → Create dataset → Add file → upload `signal-register.csv` |
-| `citation-index.csv` | 2,935 B | **Dataset asset #2** — 29-row citation index linking every signal to a verifiable public-database identifier (PMID, NCT, RxNorm, ChEMBL, PubChem CID, UniProt, MedDRA PT, DOI, DailyMed SPL). | Same dataset → Add file → upload `citation-index.csv` |
-| `listing-copy.md` | 5,006 B | **Listing copy** — product title, short description, long description (AWS generic Markdown template), highlights, categories, support contact. | Listing wizard → "Product details" page — paste each section into the matching field |
-| `metadata-table.md` | 2,985 B | **Metadata fields** — update frequency, time period, geographic coverage, data format, file count, anonymization status, source databases, key fields. | Listing wizard → "Metadata" / "Dataset details" sections — paste each labeled value into matching field |
-| `data-subscription-agreement.md` | 4,738 B | **DSA** — research-use-only license terms (no redistribution, no commercial repackaging, no PHI use, no warranty, governing law). | Listing wizard → "Offer" → "Data subscription agreement" — upload as PDF after converting from MD, OR paste the body into AWS's plain-text DSA editor |
+| `citation-index.csv` | 3,053 B | **Dataset asset #2** — 29-row citation index linking every signal to a verifiable public-database identifier (PMID, NCT, RxNorm, ChEMBL, PubChem CID, UniProt, MedDRA PT, DOI, DailyMed SPL). | Same dataset → Add file → upload `citation-index.csv` |
+| `listing-copy.md` | 5,151 B | **Listing copy** — product title, short description, long description (AWS generic Markdown template), highlights, categories, support contact. | Listing wizard → "Product details" page — paste each section into the matching field |
+| `metadata-table.md` | 3,107 B | **Metadata fields** — update frequency, time period, geographic coverage, data format, file count, anonymization status, source databases, key fields. | Listing wizard → "Metadata" / "Dataset details" sections — paste each labeled value into matching field |
+| `data-subscription-agreement.md` | 4,953 B | **DSA** — research-use-only license terms (no redistribution, no commercial repackaging, no PHI use, no warranty, governing law). | Listing wizard → "Offer" → "Data subscription agreement" — upload as PDF after converting from MD, OR paste the body into AWS's plain-text DSA editor |
 | `data-dictionary.md` | 5,779 B | **Schema documentation** — column definitions, allowed values, identifier resolution URLs, cross-file integrity rules. | Listing wizard → "Dataset documentation" / "Data dictionary" — upload as PDF or paste into the documentation field |
 
 **Total payload**: ~24 KB across 7 files (5 documentation files + 2 dataset CSVs).
@@ -31,7 +31,7 @@
 - [x] CSVs are RFC 4180 compliant: UTF-8 encoding, double-quoted text fields containing commas, header row, no smart quotes, no em dashes
 - [x] Listing copy is ASCII-only (matches the public profile bio's character constraints AWS enforces)
 - [x] DSA explicitly states "Research artifacts only — not validated for clinical decision support" matching [trevor-robey-inc-agents/NOTICE.md](../../../NOTICE.md) language
-- [x] Provider entity description: Trevor Robey Intelligence Network Citations LLC, a California limited liability company (filed at CA SOS 2026-05-06; receipt B20260217250), operating under the wordmark "Trevor Robey, INC." (INC = Intelligence Network Citations)
+- [x] Provider entity description: Trevor Robey Intelligence Network Citations LLC, a California limited liability company (filed at CA SOS 2026-05-06; CA SOS Entity No. B20260217250), operating under the wordmark "Trevor Robey, INC." (INC = Intelligence Network Citations)
 - [x] Listing copy leads with AWS-customer-fit framing ("biotech investors and pharma BD teams running portfolio diligence on AWS"), matching the public-profile bio currently under verification
 - [x] Title is 67 characters (under AWS 72-char limit); short description is 199 characters (under AWS 200-char limit)
 - [x] No PHI mentioned, claimed, or implied anywhere in the package

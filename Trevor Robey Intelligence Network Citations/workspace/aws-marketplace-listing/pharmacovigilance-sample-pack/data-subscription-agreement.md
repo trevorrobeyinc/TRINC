@@ -1,7 +1,7 @@
 # Data Subscription Agreement (DSA)
 ## Pharmacovigilance Sample Pack — Free Tier
 
-**Provider**: Trevor Robey Intelligence Network Citations LLC, a California limited liability company (filed at the California Secretary of State 2026-05-06; receipt B20260217250), doing business under the wordmark "Trevor Robey, INC." (where INC = Intelligence Network Citations) ("Provider").
+**Provider**: Trevor Robey Intelligence Network Citations LLC, a California limited liability company (filed at the California Secretary of State 2026-05-06; CA SOS Entity No. B20260217250), doing business under the wordmark "Trevor Robey, INC." (where INC = Intelligence Network Citations) ("Provider").
 **Product**: Pharmacovigilance Sample Pack (free tier).
 **Effective date**: Date of subscription acceptance via AWS Data Exchange.
 
