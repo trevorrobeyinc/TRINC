@@ -122,8 +122,10 @@
 >      already carries an **`obsidian-bridge`** entry with **`adapter_status: "missing"`** and
 >      documentation-only `bound_workflow_steps`. So this is "build the missing adapter to match a
 >      declared intent", not "add a new connector" — and it should keep parity with that entry.
->   2. **⚠️ Stale comments misdescribe the data path.** `scripts/publish-to-vault.js` and
->      `scripts/atlas-stub-creator.js` both claim `:8798 → RestApiBackend → Local REST API :27124 → vault`.
+>   2. ~~**⚠️ Stale comments misdescribe the data path.**~~ ✅ **FIXED 2026-07-23** (comment-only, verified
+>      every changed line sits inside a block comment; both scripts still load and print usage).
+>      `scripts/publish-to-vault.js` and
+>      `scripts/atlas-stub-creator.js` both claimed `:8798 → RestApiBackend → Local REST API :27124 → vault`.
 >      That is **wrong for this tool**: the bridge-side handler `researchPublish.ts` writes **directly to the
 >      vault filesystem** via `fs.writeFileSync`, guarded by `guardVaultRelativePath` + an `allowedVaultRoots`
 >      allow-list — it never touches `:27124`. Worth correcting those comments so nobody designs against a

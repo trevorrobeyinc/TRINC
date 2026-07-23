@@ -8,19 +8,25 @@
  * `research_publish` MCP tool — see scripts/publish-to-vault.js. That path
  * goes:
  *   publish-to-vault.js → HTTPS :8798 → research_publish tool →
- *   RestApiBackend → Local REST API plugin :27124 → vault.
+ *   guardVaultRelativePath + allowedVaultRoots → fs.writeFileSync → vault.
  *
- * THIS script writes stubs directly to the filesystem (`fs.writeFileSync`)
- * without going through the bridge or the REST API plugin. It exists for:
- *   - Batch backfills when Obsidian is closed and the REST API plugin is
- *     therefore unreachable.
+ * CORRECTED 2026-07-23: this comment previously claimed that path continued
+ * "→ RestApiBackend → Local REST API plugin :27124 → vault". It does not.
+ * `researchPublish.ts` performs its own guarded direct filesystem write; the
+ * Local REST API plugin on :27124 is never involved. (Other bridge tools do use
+ * RestApiBackend/:27124 — but not this one.)
+ *
+ * THIS script also writes stubs directly with `fs.writeFileSync`, but WITHOUT
+ * the bridge — so it skips the path guard, the allowedVaultRoots allow-list,
+ * the audit log and the SSE notification. That is the real difference between
+ * the two, not "REST vs filesystem". It exists for:
+ *   - Batch backfills when the bridge process is not running.
  *   - Manual debugging / one-off stub generation outside the workflow.
  *   - CI scenarios that need to materialize stubs without spinning up a
  *     full Obsidian instance.
  *
- * For production workflow output, prefer publish-to-vault.js. As of 2026-05-09
- * the daemon is REST-only with no silent CLI fallback — every other vault
- * write path in the project goes through the REST API plugin.
+ * For production workflow output, prefer publish-to-vault.js so the write stays
+ * inside the bridge's guards and audit trail.
  */
 
 const fs = require("node:fs");

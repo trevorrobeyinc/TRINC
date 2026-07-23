@@ -5,13 +5,34 @@
  * publish-to-vault — push a completed research task into the Obsidian vault
  * via the obsidian-copilot-bridge `research_publish` MCP tool.
  *
- * The bridge:
- *   1. Reads `output.md` and `wiki-links.json` from the task directory.
- *   2. Writes `Research-Output/<YYYY-MM-DD>/<task-id>/output.md` to the vault.
- *   3. Materializes one stub note per wikilink target under
+ * This CLI reads `output.md` and `wiki-links.json` from the task directory and
+ * POSTs them to the bridge. The bridge-side `research_publish` handler then:
+ *   1. Writes `Research-Output/<YYYY-MM-DD>/<task-id>/output.md` to the vault.
+ *   2. Materializes one stub note per wikilink target under
  *      `OpenClaw/atlas/<TYPE_DIR>/<identifier>.md`.
- *   4. Emits an SSE `research_arrived` event so the Copilot plugin can
+ *   3. Emits an SSE `research_arrived` event so the Copilot plugin can
  *      render a chat bubble and open the new tab.
+ *
+ * HOW THE WRITE ACTUALLY HAPPENS (corrected 2026-07-23 — an earlier comment
+ * here and in atlas-stub-creator.js claimed this went
+ * ":8798 -> RestApiBackend -> Local REST API plugin :27124 -> vault". It does
+ * NOT.) `researchPublish.ts` writes **directly to the vault filesystem** with
+ * `fs.writeFileSync`, via a `writeFileGuarded()` helper that first runs
+ * `guardVaultRelativePath(vaultRoot, relPath)` and rejects any `vaultRoot` not
+ * present in the bridge's `allowedVaultRoots` allow-list. The Local REST API
+ * plugin on :27124 is never involved in this tool's path.
+ *
+ * Practical consequence: this needs the BRIDGE PROCESS alive, not Obsidian's
+ * UI. Under the default deployment the bridge is a child of the
+ * obsidian-bridge-launcher plugin and dies with Obsidian, but it can also be
+ * started standalone via Copilot-Everything/scripts/bridge-start.sh.
+ *
+ * NOTE ON FOLDER SCHEME: `Research-Output/...` is this tool's scheme and is
+ * currently DORMANT. The scheme actually live in the vault is the Command
+ * Center plugin's `OpenClaw/<template_id>/<date> <input-label>/`, written by
+ * its own note-generator on workflow completion. Do not wire this tool into the
+ * pipeline without deciding which of the two schemes wins — otherwise every run
+ * double-writes into two parallel trees.
  *
  * Auth: Uses x-mcp-token + replay-protected headers identical to every other
  * caller of the bridge. The token is read from the bridge config file (the
