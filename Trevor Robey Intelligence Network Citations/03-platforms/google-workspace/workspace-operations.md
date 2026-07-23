@@ -61,7 +61,19 @@ Source-controlled here so the routing is reproducible and reviewable.
 
 ## 2 · Calendar — deadlines & recurring obligations
 
-Nothing below is currently calendared anywhere. Ordered by urgency:
+> **✅ CREATED LIVE 2026-07-23** (verified on the August + September month views): the four
+> hard-date items below are now on the `trevor@trevorobeyinc.com` calendar as all-day events with
+> full context in the description — **EIN (Jul 27)**, **Workspace trial / Zoho downgrade decision
+> (Aug 5)**, **$800 CA Franchise Tax (Aug 15)**, **Statement of Information (Sep 16)**. Previously
+> these existed only as prose in `certificate-of-formation.md`.
+> Still to add: India PE declaration (Q4), DMARC→quarantine review, and the recurring
+> monthly/quarterly data-refresh cadences (those only start once a product is actually published).
+>
+> *Gotcha for whoever automates this next:* the Calendar `render?action=TEMPLATE` URL pre-fills
+> cleanly, but the **first click on Save after page load is swallowed** (it focuses the close X
+> instead) — click Save twice, and verify on the month view rather than trusting the toast.
+
+Ordered by urgency:
 
 | When | Item | Consequence if missed |
 |---|---|---|
@@ -114,8 +126,13 @@ zero activity.**
 
 ## 6 · Sequenced next actions
 
-1. **Import `gmail-filters.xml`** + add send-as for both aliases + set the signature. *(Claude-drivable)*
-2. **Create the calendar entries** in §2 — start with the 2026-08-15 franchise tax. *(Claude-drivable)*
+1. **Import `gmail-filters.xml`** — ⚠️ **operator must do this one**: Gmail → Settings → Filters and
+   Blocked Addresses → *Import filters* → Choose File → pick
+   `03-platforms/google-workspace/gmail-filters.xml` → Open file → Create filters.
+   *(Claude cannot upload it — the browser file-upload tool only accepts files the operator has
+   explicitly shared with the session; repo paths are rejected by design.)*
+   Then add send-as for both aliases + set the signature. *(send-as/signature are Claude-drivable)*
+2. ~~**Create the calendar entries**~~ ✅ **DONE 2026-07-23** — 4 hard-date events live (see §2).
 3. **File the EIN** (free, instant, IRS online) — unblocks banking + the AWS legal-entity field. *(Operator)*
 4. **Change the AWS root email** off `my.strayer.edu` — the actual fix for lost AWS mail. *(Operator, root+MFA)*
 5. **Publish the first AWS listing** — the free Pharmacovigilance Sample Pack is closest (blocked on
