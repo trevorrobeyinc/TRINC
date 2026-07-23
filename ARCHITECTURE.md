@@ -1,429 +1,289 @@
-# TrevClaw-Obsidianodus — Full Pipeline Architecture
+# TrevClaw-Obsidianodus — Architecture
 
-> ⚠️ **STALE-ROUTING WARNING (2026-07-23).** Sections below that describe **scout → Ollama**
-> or any local-model routing are **obsolete**. Superseded twice: 2026-07-16 "Option B" moved the
-> engine to 100% Claude (`claude-code`, Opus 4.8) for scout/analyst/synthesizer + default, and
-> 2026-07-23 removed Ollama from the machine entirely (brew package, both LaunchAgents, the
-> `:11435` TLS proxy and 9.2 GB of models). **No local model runtime exists on this host.**
-> `config/role-provider-map.json` is authoritative for routing; `:11434`/`:1234` are now permanently
-> forbidden by `scripts/lint-transport-monorepo.sh`.
+**Rewritten and verified against live code and running processes: 2026-07-23.**
 
-> **Brand note (2026-04-30):** This document describes the technical stack that powers **Trevor Robey, INC.** (the brand wordmark of **Trevor Robey Intelligence Network Citations LLC**, a California limited liability company, CA SOS Entity No. B20260217250, approved 2026-06-18) — citation-traced biomedical due diligence. "OpenClaw" appears throughout as the open-source agent framework that the stack uses; it is not a brand owned by the operator. The retired homebrew `openclaw.ai` consumer assistant is unrelated and is disambiguated inline where it appears.
+This document describes the stack **as it actually is**. Every claim below was checked against
+source or a running process on that date. Retired components are listed in
+[Retired](#retired--do-not-reintroduce) rather than silently deleted, so a stale memory of
+"we had X" can be resolved quickly.
 
-> **Repo topology (2026-05-07; relocated + paths refreshed 2026-06-11):** the entire stack now lives in a single **local-only** monorepo at `/Volumes/ExtraCurricular/TrevClaw-Obsidianodus` (relocated here from `~/TrevClaw-Obsidianodus` after the 2026-05-31 machine wipe; the private GitHub remote was **deleted 2026-05-26**; the repo now has **no git remotes** — durable backup is a `git bundle --all` at `~/TrevClaw-Obsidianodus.bundle`). The previously separate `Claude/`, `Copilot-Everything/`, and the engine sub-tree (since **renamed `Trevor Robey Intelligence Network Citations/`**, formerly `trevor-robey-inc-agents/`) are first-class members of this repo. Submodule retained: `Trevor Robey Intelligence Network Citations/vendor/tooluniverse` (mims-harvard/ToolUniverse, pinned at v1.1.10). Vendored fork: `Copilot-Everything/repos/obsidian-copilot-mcp/` at SHA `df61538` of logancyang/obsidian-copilot. The previous standalone GitHub remote `https://github.com/trevoralexanderrobey/trevor-robey-inc-agents` is the rollback anchor (tag `pre-monorepo-consolidation-2026-05-07` at SHA `8e782a0`); archive pending.
+> **Brand note.** This describes the technical stack powering **Trevor Robey, INC.** — the brand
+> wordmark of **Trevor Robey Intelligence Network Citations LLC**, a California limited liability
+> company (CA SOS Entity No. B20260217250, approved 2026-06-18). "OpenClaw" appears as the
+> open-source agent framework the stack uses; it is not a brand owned by the operator, and the
+> retired homebrew `openclaw.ai` consumer assistant is unrelated.
 
-> **Status (2026-05-07):** This document captures the Phase-35 snapshot from 2026-04-12 and several components have been retired since: TrevNodus / InfraNodus-Visual (retired 2026-04-25), then on **2026-05-06 InfraNodus was fully removed from the stack** — no local clone, no webview handoff, no MCP server, no graph-sync hydrator package. Any "InfraNodus webview handoff" references below are also now historical. Other retirements: the backend emulator on :8789 (retired 2026-04-11), the persistent OpenClaw gateway on :18789 (removed 2026-04-27). The standalone trevor-robey-inc-agents GitHub repo was folded into TrevClaw-Obsidianodus on 2026-05-07. This file remains useful as a Phase-35 architectural reference; for current state see:
-> - `CLAUDE.md` (Repo Topology, Multi-Operator Topology, Unified Port Map)
-> - `README.md` (single-repo invariant, brand canon, legal entity)
-> - `trevor-robey-inc-agents/TREVOR_ROBEY_INC_AGENTS_DOSSIER.md` (current Architecture Map + Provider Stack)
-> - `trevor-robey-inc-agents/REVENUE_PLAYBOOK.md` (§0a legal status; §0c AWS Marketplace progress) and `trevor-robey-inc-agents/NOTICE.md` (attribution)
->
-> Retired sections below are marked inline.
+> **Repo topology.** Single **local-only** monorepo at `/Volumes/ExtraCurricular/TrevClaw-Obsidianodus`
+> with **no git remotes** (the private GitHub remote was deleted 2026-05-26; durable backup is a
+> verified `git bundle --all`). Only submodule: `Trevor Robey Intelligence Network Citations/vendor/tooluniverse`.
+> Vendored fork (not a submodule): `Copilot-Everything/repos/obsidian-copilot-mcp/`.
 
-> **Reality-correction banner (2026-06-10; provider routing updated 2026-06-11).** This is a historical Phase-35 *design* document. Read these before trusting the diagrams below:
-> - **Provider routing — ⚠️ SUPERSEDED (see 2026-07-23 banner at top). Historical 2026-06-11 note:** The role→backend routing is **real** as of 2026-06-11 via **`config/role-provider-map.json`** (precedence: `roles[role]` → template `provider_preference` → `default` = claude-code; each non-claude route falls back to claude-code). Live routes: **scout → Ollama** (`local` provider, model `qwen2.5:7b-instruct`; Ollama serves :11434 as a **boot-persistent** launchd service, reached via the :11435 mkcert TLS proxy), **analyst → claude-code** (`claude-sonnet-4-6`), **synthesizer → claude-code**. So the old "Scout/Analyst/Synthesizer" diagram is now ~accurate **except analyst runs on claude-code, not LM Studio** (reverted 2026-06-11 for 16 GB stability so Ollama is the only local model). Persistent per-role **identity + session memory** now live under **`config/agents/<role>/`** (`SOUL.md` / `AGENTS.md` / `sessions/`), loaded into the agent prompt by `role-router.dispatch` and recorded after each run. LM Studio stays installed (`qwen/qwen3.5-9b` on disk, :1234 via the :1235 proxy) but its model is **unloaded**; analyst's lm-studio route is staged in `_recommended_after_install` for a one-line flip-back. The engine's `--operator-approve` is **YubiKey-gated** (`operator-approve-gate arm` = PIN + touch; one-shot, fail-closed); launch via `scripts/run-workflow.sh` (sets `NODE_EXTRA_CA_CERTS` for the local TLS proxies) or the Command Center plugin (now spawns `--operator-approve` + that CA env). claude-code billing = flat **Claude Max 20×** subscription. Full detail: vault `THE-WHOLE-SYSTEM.md` + `CHANGELOG.md` (2026-06-11 entries).
-> - **Execution model.** The container-execution governance under `openclaw-bridge/execution/` is an **un-invoked scaffold.** Workflows run as plain Node `child_process` spawns of `scripts/run-workflow.js`, not containers.
-> - **Citation-integrity layer — LIVE (2026-06-12).** The engine now ships a zero-fabrication citation pipeline. `agent-engine` persists the `fetched_citation_ids` actually retrieved at runtime by tool-prefetch plus a per-task `citation_verification` block into research-output metadata, and `buildPrompt` carries an ABSOLUTE-RULE "ZERO FABRICATION" clause (never invent a PMID/NCT/DOI — say "[no verifiable citation found]" instead). `workflow-engine.executeMissionStep` runs a **report-level gate** (`verifyReportCitations` in `openclaw-bridge/core/citation-gate.js`) that cross-checks every cited identifier against the union of runtime-fetched ids — a cited id is "grounded" if present in fetched evidence, else "ungrounded". The gate **hard-fails** (`PHASE30_CITATION_UNVERIFIED`) when the grounded ratio is below `minGroundedCitationRatio` (agent-config default 0.34), engaging only when fetched ground truth exists; it writes `citation-verification.json` + `report-annotated.md` (surviving ungrounded cites annotated inline `[UNVERIFIED]`). A **retraction screen** (`openclaw-bridge/mcp/crossref-retraction/`) checks each cited DOI against Crossref `/works/{DOI}` and hard-stops (`PHASE30_CITATION_RETRACTED`) on any retracted paper (fail-soft: a Crossref error yields no retractions, never wrongly blocking). **Honesty boundary:** citations are *grounded in the source records actually retrieved at runtime + DOI retraction-screened* — they are NOT independently re-resolved against each live source database (that per-citation external re-resolution is not built). A DOI-extraction fix (`citation-extractor.js`) now stops the DOI regex at non-DOI terminators and strips trailing sentence punctuation, fixing deflated/duplicated DOI counts.
-> - **Stop-reason corpora + cost-avoidance deliverables — LIVE (2026-06-12).** A local fetcher `openclaw-bridge/mcp/ctgov-supplemental/` (NOT ToolUniverse) searches ClinicalTrials.gov API v2 for TERMINATED/WITHDRAWN/SUSPENDED trials in a condition, returning each trial's `whyStopped` text plus protocol change-history (version count + most-amended modules) with a session cache; it is routed into role prefetch via a new local-fetcher seam in `tool-prefetch.js` (`createToolPrefetch` `options.localFetchers`, tool_name `ctgov_stopped_trials`), each record NCT-traced. Every mission bundle now ships two new deliverables, both registered in `manifest.json` and sealed in `checksums.txt`: **`deliverables/citation-integrity.md`** — a graded provenance ledger (`openclaw-bridge/monetization/integrity-rating.js`, `buildIntegrityReport`; grade A/B/C/D from the grounded ratio, F + "BLOCKED" on any retraction, N/A if nothing cited) — and **`deliverables/graveyard-memo.md`** (`openclaw-bridge/monetization/graveyard-memo.js`) — a memo of prior terminated/withdrawn/suspended programs, each NCT-traced with the sponsor's stated stop reason (or an explicit "(none stated by sponsor)", never invented) and a resolvable `clinicaltrials.gov/study/<NCT>` link, plus a protocol amendment-risk band (LOW/MODERATE/HIGH from change-history median/max version count). Both memos are rendered **deterministically from the fetched records (no LLM)**; on a gate-PASSING mission `executeMissionStep` re-fetches the stopped trials (session-cache hit), builds both memos fully fail-soft (an absent fetcher/empty indication/fetch error simply omits them and never blocks a passing report), and `deliverable-packager` ships them (artifactRefs `graveyard_memo`).
-> - For current ground truth (engine, channels, revenue, citation gap), see the vault doc **`Trevor Robey Intelligence Network Citations/SYSTEM-REALITY.md`**. The diagrams below are retained as design reference.
+Companions: [`CLAUDE.md`](CLAUDE.md) (rules, ports, invariants) ·
+[`SYSTEM-REALITY.md`](Trevor%20Robey%20Intelligence%20Network%20Citations/SYSTEM-REALITY.md)
+(what the business can honestly claim) · [`_continuity/CONTINUITY.md`](_continuity/CONTINUITY.md)
+(what is in flight right now).
 
-Canonical **design** reference for the biomedical research intelligence stack, captured at Phase 35 (2026-04-12). The current-state header above — provider routing, repo topology, execution model — is refreshed to **2026-06-11**; for live ground truth see `Trevor Robey Intelligence Network Citations/THE-WHOLE-SYSTEM.md` and `SYSTEM-REALITY.md`.
+---
 
-Supersedes `~/Claude/ARCHITECTURE.md` for full-stack view. That file remains useful for Command Center / Zettelkasten-specific internals.
+## 1. What this stack is
 
-## System Overview
+A **citation-traced biomedical due-diligence engine** plus the Obsidian workspace that drives it.
 
-Five independently developed systems compose a biomedical research intelligence pipeline. A user types a natural-language research request into Obsidian Copilot chat. The request flows through an MCP bridge to the Command Center plugin, which spawns a multi-agent research workflow, tracks its progress, generates interlinked vault notes, runs graph analysis, and auto-ingests results into a visual knowledge graph.
+- The **engine** turns a research question into a sealed, citation-audited deliverable bundle.
+- **Obsidian** is the operator's console: it dispatches workflows, receives results as linked
+  notes, and provides semantic search and graph analysis over the vault.
+- **Claude is the only reasoning model in the engine.** The only model on the Obsidian side is
+  hosted `copilot-plus-flash`. **No local model runtime exists on this machine.**
 
-```
-User -> Obsidian Copilot Chat
-         |
-         v
-   MCP Bridge (:8799)              <- 11 tools (7 vault + 4 workflow)
-         |
-         v
-   Command Center Plugin           <- Obsidian plugin, in-process
-         |
-    +----+------------+
-    v    v            v
-  Runner  Tracker    Zettelkasten
-  (spawn) (poll)     (stdio MCP)
-    |
-    v
-  OpenClaw Research Agents         <- child_process.spawn(), stdout JSON events
-    |
-    +-- scout      -> claude-code (Opus 4.8)  [Ollama route REMOVED 2026-07-23]
-    +-- analyst    -> Claude Code            reverted from LM Studio 2026-06-11 (16GB stability)
-    +-- synthesizer -> Claude Code           citation-dense reasoning
-    +-- (routing: config/role-provider-map.json; identity+memory: config/agents/<role>/)
-    +-- ToolUniverse (2,116 biomedical tools)
-    +-- bioRxiv MCP (preprint search)
-    +-- Medical Zettelkasten MCP (optional graph analysis)
-         |
-         v
-   Workflow Output (stdout: workflow_created -> workflow_result)
-         |
-    +----+------------+
-    v    v            v
-  Vault Notes   Zettelkasten    TrevNodus
-  (Obsidian)    Analysis        (auto-ingest :3000)
+---
 
-   [Optional Observability Sidecar]
-   Traefik (:11480/:11481) -> HISTORICAL only; both local runtimes removed
-   Prometheus (:9090) -> scrapes gateway :18789/metrics
-   Grafana (:3001) -> dashboards
-```
-
-## The Five Systems
-
-### 1. trevor-robey-inc-agents (formerly "OpenClaw Research Agents")
-**Path**: `~/trevor-robey-inc-agents/` (renamed from `~/OpenClaw-Research-Agents/` on 2026-04-27)
-**Role**: Multi-agent research pipeline. No HTTP server for workflows — spawned as child_process.
-
-- **Entry point**: `scripts/run-workflow.js` (spawned by Command Center plugin)
-- **Structured IPC** (Phase 35): emits JSON events on stdout — `{"type":"workflow_created",...}` immediately, `{"type":"workflow_result",...}` at completion. stderr unchanged for logs.
-- **6 workflow templates**: general-research-pack, drug-discovery-full, pharmacovigilance-report, target-validation-pack, clinical-trial-landscape, rare-disease-brief
-- **6 agent roles**: literature_reviewer, safety_signal_detector, molecular_profiler, competitive_intel_analyst, quality_auditor, report_generator
-- **Parallel execution** (Phase 35): `computeTopologicalLevels()` groups steps by dependency level, runs each level via `Promise.allSettled()`. Steps with dependencies execute level-by-level.
-- **LLM routing** (live — updated 2026-06-11): per-role routing via `config/role-provider-map.json` (precedence `roles[role]` → template `provider_preference` → `default` = claude-code; each non-claude route falls back to claude-code):
-
-| Role | Provider | Model | Endpoint / path | Notes |
-|------|----------|-------|-----------------|-------|
-| scout | claude-code | claude-opus-4-8 | Claude Max subscription (no local model; Ollama removed 2026-07-23) | — |
-| analyst | Claude Code | claude-sonnet-4-6 | `claude -p` | reverted from LM Studio 2026-06-11 for 16 GB stability |
-| synthesizer | Claude Code | claude-sonnet-4-6 | `claude -p` | heaviest reasoning / citation-dense output |
-| _unmapped + default_ | Claude Code | claude-sonnet-4-6 | `claude -p` | global default |
-
-- **Config**: `config/role-provider-map.json` (per-role routes) + `config/agent-config.json` (`defaultProvider`, `agentStateDir`, `roleProviderMap`; schema `phase34-agent-config-v2`) + `config/llm-providers.json` (provider endpoints). Persistent per-role identity + session memory under `config/agents/<role>/{SOUL.md,AGENTS.md,sessions/}`. LM Studio installed (`qwen/qwen3.5-9b`, :1234 via :1235 proxy) but model **unloaded**; analyst's route staged in `_recommended_after_install` for flip-back.
-- **Harvard ToolUniverse**: 2,116 biomedical MCP tools (Phase 29), pre-fetched per role via `config/tool-prefetch-map.json`
-- **Agentic tool-call loop** (Phase 34): iterative ToolUniverse calling via `<tool_call>` XML protocol
-- **bioRxiv MCP**: local CommonJS module, 4 tools (search, get, published, funder) via composite tool executor
-- **Phase system**: 35 phases implemented (1-35, 32 skipped). 906 tests passing.
-- **Gateway**: ~~:18789 (HTTPS, mkcert TLS, bearer token auth) — REST API path, separate from Obsidian-initiated workflows. Exposes `GET /metrics` for Prometheus.~~ **[RETIRED 2026-04-27]** No persistent gateway service. The :18789 launchd entry was an unrelated homebrew openclaw v2026.2.14 (consumer Personal AI assistant from openclaw.ai) that was removed 2026-04-27. The biomedical workflow is subprocess-only.
-
-### 2. Command Center (Obsidian Plugin)
-**Path**: `~/Claude/obsidian-openclaw-command-center/` (directory name retains `openclaw` prefix; rename pending)
-**Role**: Dispatches workflows, monitors progress, generates vault notes, runs post-workflow analysis.
-
-Key classes:
-- `OpenClawPlugin` — lifecycle, command registration, workflow orchestration
-- `McpBridgeServer` — in-plugin HTTP bridge on :8799 (11 tools)
-- `OpenClawRunner` — subprocess spawner, parses stdout JSON events (Phase 35)
-- `WorkflowTracker` — polls `workflow.json` every 2s + directory scan fallback every 3s
-- `ZettelkastenClient` — on-demand stdio MCP client for graph analysis
-
-Workflow completion pipeline (three paths, shared `completionHandled` flag):
-- **PATH A**: Tracker detects `status: "completed"` in workflow.json
-- **PATH B**: Runner process exits with code 0, reads result from disk
-- **PATH C**: Runner error + completed workflow found on disk
-
-Post-completion: generate 6 vault notes -> Zettelkasten analysis -> ~~auto-ingest to TrevNodus~~ **[RETIRED 2026-04-25 — replaced by InfraNodus.com webview handoff; the Command Center plugin opens `https://infranodus.com/import/editor?text=<encoded synthesizer markdown>&context=<graph name>` in Obsidian's built-in webviewer]**.
-
-### 3. Medical Zettelkasten MCP
-**Path**: `~/Claude/Medical-Zettelkasten-MCP/`
-**Role**: Algorithmic graph engine. 10 MCP tools over stdio transport. No LLM.
-
-Algorithms: 4-gram co-occurrence (Paranyushkin 2019), Brandes betweenness centrality (2001), Louvain community detection (Blondel 2008), structural gap detection, Shannon entropy diversity.
-
-Used two ways: (1) in-process `require()` by TrevNodus, (2) stdio subprocess by Command Center plugin and OpenClaw agents.
-
-### 4. TrevNodus / InfraNodus-Visual **[RETIRED 2026-04-25]**
-~~**Path**: `~/Claude/InfraNodus-Visual/`
-**Role**: Graph visualization, gap detection, AI chat, cross-graph memory.
-
-Stack: Node.js + Express + Sigma.js v3 (WebGL) + Socket.IO. 40+ REST endpoints. LLM: Copilot Plus Flash (Brevilabs API, separate from Claude). Port 3000 (HTTPS via launchd).
-
-Receives workflow output via POST `/api/bridge/ingest` (auto-ingest from Command Center). Pushes notes to vault via canonical MCP bridge at :8798.~~
-
-Retired 2026-04-25. Graph visualization is now provided by `infranodus.com` SaaS via a webview handoff (the Command Center plugin opens an InfraNodus import URL in Obsidian's built-in webviewer; user clicks "Generate Graph" once on the InfraNodus page to commit). The local server, launchd plist, and `:3000` port are all gone. Source archived at `~/Claude/.archive/InfraNodus-Visual/`.
-
-### 5. Copilot Infrastructure
-**Path**: `~/THE Copilot in Obsidian Everything/`
-**Role**: MCP bridge, backend emulator, Miyo semantic search.
-
-- Canonical MCP bridge at :8798 (HTTPS, TLS, replay-protected, PM2-managed)
-- Backend emulator at :8789 (HTTP, PM2-managed)
-- Miyo v4 semantic search at :8742 (external, Qdrant-backed)
-
-## Multi-Operator Topology
-
-Three independent operators share this stack. None is subordinate to the others.
+## 2. Live component map
 
 ```
-Claude Desktop (heavy-lift code/file operator)
-  # Claude Code now runs via the native Desktop Code tab; the INBOUND `claude mcp serve`
-  # and the OUTBOUND claude-cli-bridge were retired 2026-05-31 (see root CLAUDE.md deletion log).
-  +-- [MCP stdio] -> obsidian-bridge adapter -> [HTTPS :8798] -> Canonical MCP Bridge
-  +-- [MCP stdio] -> chrome-devtools
-  +-- [MCP stdio] -> filesystem server
+Obsidian (the console — owns two bridge lifecycles)
+├── obsidian-bridge-launcher ──spawn──> canonical MCP bridge      HTTPS :8798
+│      routes: /healthz · /metrics · /mcp/events · POST /mcp/tool
+│      auth: bearer token + replay guard (X-MCP-Nonce, X-MCP-Timestamp, X-MCP-Body-Sha256)
+├── command-center ──────────> Command Center bridge (additive)   HTTPS :8799
+│      11 tools (7 vault + 4 workflow); 32-byte token in a 0600 file,
+│      SHA-256 + timingSafeEqual; TLS mandatory, fail-closed
+│      └──spawn──> node scripts/run-workflow.js        (the engine, on demand)
+├── copilot (vendored MCP fork) ── MCP *client* ──> :8798 and :8799
+│      chat model: hosted copilot-plus-flash; MCP supplies TOOLS, never the model
+├── vault-zettelkasten ── in-process ZettelkastenService (graph analysis)
+└── contextual-wiki-definitions ── wiki-link definition writer
 
-Command Center (workflow dispatch + monitoring, Obsidian plugin)
-  +-- [child_process.spawn()] -> trevor-robey-inc-agents (stdout JSON events)
-  +-- [Obsidian webviewer] -> infranodus.com import URL (replaced TrevNodus auto-ingest, 2026-04-25)
-  +-- [HTTP :8742] -> Miyo semantic search
-  +-- [HTTP :8799] -> Own additive MCP bridge (11 tools: 7 Obsidian + 4 workflow)
-
-# [RETIRED 2026-04-25] TrevNodus operator removed — graph viz is now infranodus.com webview handoff
-# The local TrevNodus server, :3000 port, and :18789 gateway are all gone.
-
-Biomedical Workflow Observability Stack (optional Docker Compose sidecar)
-  +-- Traefik :11480/:11481 -> HISTORICAL (Ollama/LM Studio both removed)
-  +-- Prometheus :9090 -> [no scrape target after :18789 gateway retired 2026-04-27]
-  +-- Grafana :3001 -> Prometheus datasource
+Third-party loopback services, each wrapped by an in-monorepo HTTPS proxy
+├── Miyo    :8743 ──> :8742     semantic search over the vault
+├── Qdrant  :6433 ──> :6333     vector store (Miyo-bundled child)
+└── SearXNG :8891 ──> :8890     private metasearch (citation gate + web search)
 ```
 
-## Unified Port Map
+All of the above were confirmed listening on 2026-07-23. There is **no persistent engine
+service** — the engine is an on-demand subprocess.
 
-| Port | Service | Protocol | Owner | Manager | Health Check |
-|------|---------|----------|-------|---------|--------------|
-| 3000 | TrevNodus | HTTPS | Claude | launchd | GET / -> 200 |
-| 8798 | Canonical MCP Bridge | HTTPS | Copilot-Everything | PM2 | GET /healthz |
-| 8799 | Command Center Bridge | HTTP | Claude (plugin) | Obsidian lifecycle | GET /health |
-| 8789 | Backend Emulator | HTTP | Copilot-Everything | PM2 | GET /healthz |
-| 8742 | Miyo Semantic Search | HTTP | External | External app | GET /v0/health |
-| 6333 | Qdrant Vector DB | HTTP | External | External | GET /collections/miyo |
-| 18789 | OpenClaw Gateway | HTTPS | trevor-robey-inc-agents | launchd | GET /health |
-| 1234 | LM Studio (analyst) | HTTP | External | LM Studio app | N/A |
-| 11480 | Traefik scout proxy | HTTP | trevor-robey-inc-agents | Docker Compose | Traefik dashboard |
-| 11481 | Traefik analyst proxy | HTTP | trevor-robey-inc-agents | Docker Compose | Traefik dashboard |
-| 9090 | Prometheus | HTTP | trevor-robey-inc-agents | Docker Compose | GET /-/healthy |
-| 3001 | Grafana | HTTP | trevor-robey-inc-agents | Docker Compose | GET /api/health |
+---
 
-## Data Flow: Research Workflow
+## 3. The research engine
 
-```
-1. User types "research aspirin for pain" in Copilot chat
-2. Copilot calls obsidian_openclaw_run_workflow via MCP bridge (:8799)
-3. Command Center plugin resolves template (general-research-pack)
-4. OpenClawRunner spawns: node scripts/run-workflow.js --template general-research-pack --topic "aspirin for pain"
-5. stdout emits: {"type":"workflow_created","workflow_id":"...","template_id":"..."}
-6. Tool-prefetch module queries ToolUniverse for role-specific biomedical tools
-7. WorkflowTracker starts dir-scan + polls workspace/workflows/{id}/workflow.json every 2s
-8. Agents execute by topological level (independent steps run in parallel):
-   - Scout -> claude-code (Opus 4.8) for literature triage  [was Ollama :11434 until 2026-07-23]
-   - Analyst -> LM Studio (:1234) for deep analysis
-   - Synthesizer -> Claude Code (`claude -p`) for citation-dense reasoning
-   - Each agent gets ToolUniverse pre-fetch results injected as synthetic input docs
-   - Agentic tool-call loop: agents invoke tools mid-task via <tool_call> XML
-9. workflow.json transitions: running -> completed
-10. stdout emits: {"type":"workflow_result",...}
-11. Tracker fires onWorkflowDone (PATH A: poll detection)
-12. Plugin generates 6 interlinked vault notes (YAML frontmatter, wikilinks, tags)
-    -> Saved to /Volumes/ExtraCurricular/My Digital Garden/OpenClaw/{template}/{date}/
-13. Plugin runs Zettelkasten analysis (structural gaps, echo chambers, cross-domain)
-14. Plugin POSTs synthesizer markdown to TrevNodus (:3000/api/bridge/ingest)
-15. Knowledge graph auto-appears in TrevNodus (Sigma.js v3 WebGL)
-16. User asks "what did the research find?" -> Copilot reads vault notes via :8799 tools
-```
+Location: `Trevor Robey Intelligence Network Citations/` — a single flat-merged folder since
+2026-05-19. The former sibling directories `trevor-robey-inc-agents/` and `trevor-robey-inc/`
+**no longer exist on disk**.
 
-## Integration Matrix
-
-| From | To | Transport | Purpose |
-|------|----|-----------|---------|
-| Copilot | Command Center Bridge | HTTP POST :8799 | MCP tool calls (11 tools) |
-| Command Center | OpenClaw Agents | child_process.spawn() | Workflow execution |
-| Command Center | Zettelkasten MCP | stdio subprocess | Post-workflow graph analysis |
-| Command Center | TrevNodus | HTTP POST :3000 | Auto-ingest results |
-| TrevNodus | Zettelkasten MCP | in-process require() | Graph engine (12 tools) |
-| TrevNodus | Obsidian Bridge | HTTP POST :8798 | Push notes to vault |
-| TrevNodus | OpenClaw Gateway | HTTPS :18789 | Submit workflows from UI |
-| OpenClaw Agents | Claude Code | stdin pipe (`claude -p`) | Synthesizer LLM |
-| OpenClaw Agents | claude-code CLI | subprocess | Scout/Analyst/Synthesizer LLM (Ollama removed 2026-07-23) |
-| OpenClaw Agents | LM Studio | HTTP :1234 | Analyst LLM |
-| OpenClaw Agents | ToolUniverse | stdio MCP | 2,116 biomedical tools |
-| OpenClaw Agents | bioRxiv API | HTTPS (local module) | Preprint search (4 tools) |
-| OpenClaw Agents | Zettelkasten MCP | stdio | Optional in-workflow analysis |
-| Claude Desktop | Obsidian Bridge | MCP stdio -> HTTPS :8798 | Vault CRUD via obsidian-stdio-adapter |
-| Backend Emulator | Miyo | HTTP :8742 | Semantic search |
-| Backend Emulator | Qdrant | HTTP :6333 | Fallback chunk retrieval |
-| Traefik (opt.) | — | :11480/:11481 | HISTORICAL: both local runtimes removed |
-| Prometheus (opt.) | OpenClaw Gateway | HTTPS :18789/metrics | Metrics scraping |
-
-## LLM Provider Routing
-
-NOT round-robin. Each role hits a specific backend for a specific reason.
-
-| Role | Provider | Config Key | Port | Rationale |
-|------|----------|-----------|------|-----------|
-| Scout | claude-code | `claude` CLI | — | Flat Claude Max subscription; local model management removed 2026-07-23 |
-| Analyst | LM Studio | `lm-studio` | 1234 | GUI for loading/tuning larger models (70B INT4) with explicit memory controls |
-| Synthesizer | Claude Code | `claude-code` | N/A | Needs Claude-level reasoning for citation-dense, verifiable output |
-| (fallback) | Mock | `mock` | N/A | CI/testing only |
-
-Configured in `config/agent-config.json` -> `roleProviderMap`. Provider endpoints in `config/llm-providers.json`. Multi-provider adapter created by `createMultiProviderAdapter()` in `openclaw-bridge/core/llm-adapter.js`.
-
-### Traefik Failover (Optional)
-
-Primary/backup topology per role — if the primary backend crashes, traffic switches to the backup:
-- Scout: HISTORICAL — now claude-code; both local runtimes removed
-- Analyst: HISTORICAL — now claude-code; both local runtimes removed
-
-**Activate**: `docker compose -f observability/docker-compose.yml up traefik -d`, then copy `config/llm-providers.local.json.traefik-example` -> `config/llm-providers.local.json`.
-
-## Observability (Optional)
-
-All observability infrastructure is opt-in via Docker Compose.
+### 3.1 Invocation
 
 ```bash
-docker compose -f observability/docker-compose.yml up -d
+node scripts/run-workflow.js --template <template_id> --inputs '<json>' \
+     [--operator-id <id>] [--operator-approve] --confirm
 ```
 
-### Prometheus (:9090)
-Scrapes `https://localhost:18789/metrics` every 15s (HTTPS, skip TLS verify for mkcert).
+- `--confirm` is **mandatory** — the runner exits 1 without it (fail-closed).
+- `--operator-approve` satisfies the Phase-15 autonomy gate (`role-router` requires
+  `context.operatorApproved === true` for every research role). It is **YubiKey-gated**: honoured
+  only against a fresh one-shot token minted by `operator-approve-gate arm` (pinentry PIN +
+  physical touch), verified and consumed before anything spawns.
+- The script **re-execs itself once** with `NODE_EXTRA_CA_CERTS` set to the mkcert root CA
+  (sentinel `__OPENCLAW_CA_REEXEC` prevents a loop) so the HTTPS loopback proxies validate.
+- Flow: `withSidecar()` (scrape-sidecar lifecycle) → `buildWorkflowRuntime()` →
+  `loadWorkflowTemplate()` → `workflowEngine.executeWorkflow()` → `runtime.shutdown()` (tears down
+  the ToolUniverse subprocess). Result JSON on stdout; exit 0 on `result.ok`, else 1.
 
-### Grafana (:3001)
-Credentials: admin/openclaw. Pre-provisioned with Prometheus datasource and OpenClaw dashboard.
+### 3.2 Six templates, one pipeline
 
-5 dashboard panels:
-1. Token consumption rate by role/provider
-2. Routing ratio by provider (gauge)
-3. Workflow duration heatmap
-4. Workflow success/failure rate
-5. Tool call duration P50/P95/P99
+`config/workflow-templates/*.json` — schema `phase30-workflow-v1`. All six declare the **same
+six-step pipeline**; only `mission_template_id`, `product_line` and the input schema differ:
 
-### Custom Metrics
+| Template | Product |
+|---|---|
+| `drug-discovery-full` | Drug Discovery Full Pipeline |
+| `pharmacovigilance-report` | Pharmacovigilance Safety Report |
+| `clinical-trial-landscape` | Clinical Trial Landscape Intelligence |
+| `target-validation-pack` | Target Validation Intelligence Pack |
+| `rare-disease-brief` | Rare Disease Landscape Brief |
+| `general-research-pack` | General Research Pack |
 
-| Metric | Type | Labels | Source |
-|--------|------|--------|--------|
-| `openclaw_tokens_consumed_total` | Counter | role, provider, model | llm-adapter.js |
-| `openclaw_routing_ratio` | Gauge | provider | llm-adapter.js |
-| `openclaw_tool_call_duration_seconds` | Histogram | tool | composite-tool-executor.js |
-| `openclaw_workflow_duration_seconds` | Histogram | template | workflow-engine.js |
-| `openclaw_workflow_status_total` | Counter | template, status | workflow-engine.js |
-
-## TLS Configuration
-
-All HTTPS services use mkcert certificates at `~/.local/share/mkcert/localhost.pem`. CA root at `~/Library/Application Support/mkcert/rootCA.pem` (installed in macOS System Keychain). Valid for localhost and 127.0.0.1, expires 2028-07-07. All Node.js processes require `NODE_EXTRA_CA_CERTS` pointing to the CA root.
-
-## Service Management
-
-### launchd (via `openclaw-stack` CLI at ~/Claude/bin/openclaw-stack)
-
-| Service | Plist | Behavior |
-|---------|-------|----------|
-| ~~`com.trevorrobey.infranodus-visual`~~ **[RETIRED 2026-04-25]** | ~/Library/LaunchAgents/ | Removed when TrevNodus was retired |
-| `com.trevorrobey.cc-bridge-monitor` | ~/Library/LaunchAgents/ | RunAtLoad, StartInterval 60s |
-| ~~`ai.openclaw.gateway`~~ **[RETIRED 2026-04-27]** | Pre-existing | Removed; was the unrelated homebrew openclaw consumer product |
-
-### PM2 (via Copilot-Everything/ecosystem.config.js)
-
-- mcp-bridge -> :8798 (canonical MCP bridge)
-- ~~openclaw-bridge -> :18789~~ **[RETIRED 2026-04-27]**
-- ~~backend-emulator -> :8789~~ **[RETIRED 2026-04-11 — ZettelkastenService now runs in-process inside the `vault-zettelkasten` Obsidian plugin]**
-
-### Docker Compose (observability sidecar)
-
-```bash
-docker compose -f observability/docker-compose.yml up -d          # All (Traefik + Prometheus + Grafana)
-docker compose -f observability/docker-compose.yml up traefik -d  # Traefik only
+```
+research (mission) → quality_check (quality_audit) → build_dataset (dataset)
+                   → package (offer) → approve → export (zip)
 ```
 
-## Startup Order
+Each step declares `depends_on`, so this is a dependency graph, not a fixed script.
 
-1. PM2 ecosystem: `cd "Copilot-Everything" && pm2 start ecosystem.config.js` -> bridge :8798 only (emulator :8789 retired 2026-04-11; gateway :18789 retired 2026-04-27)
-2. Obsidian opens -> Command Center plugin starts -> bridge on :8799
-3. ~~TrevNodus: launchd or `bash ~/Claude/InfraNodus-Visual/scripts/start.sh` -> :3000~~ **[RETIRED 2026-04-25 — InfraNodus.com webview handoff replaces it]**
-4. Miyo.app -> :8742
-5. (Optional) `docker compose -f observability/docker-compose.yml up -d` -> Traefik + Prometheus + Grafana (Prometheus has no scrape target after :18789 retirement)
-6. Verify: `openclaw-stack verify`
+### 3.3 Model routing — 100% Claude
 
-## Health Checks
+`config/role-provider-map.json` (schema `phase34-role-provider-map-v1`) is authoritative:
+
+| Role | Provider | Model | Fallback |
+|---|---|---|---|
+| `scout`, `analyst`, `synthesizer` | `claude-code` | `claude-opus-4-8` | `""` |
+| `default` (every other role) | `claude-code` | `claude-sonnet-4-6` | `""` |
+
+`config/agent-topology.json` declares twelve roles (orchestrator, supervisor, scout, analyst,
+synthesizer, operator, literature_reviewer, safety_signal_detector, molecular_profiler,
+competitive_intel_analyst, quality_auditor, report_generator); those without an explicit entry
+resolve through `default`.
+
+**Resolution is two-layer:** `role-provider-router.resolveRoute(role, ctx)` applies precedence
+`roles[role]` → `ctx` → `default` → hard `claude-code`; `role-router.dispatch` then merges the
+result into the enriched context passed to the role's handler.
+
+**Every fallback is `""` deliberately** — a primary failure surfaces the real error instead of
+silently chasing a backend that no longer exists.
+
+**How Claude is invoked** (`openclaw-bridge/core/llm-adapter.js`): the `claude` CLI is spawned as
+a child process —
+
+```
+claude -p --output-format json --model <id> --allowedTools ''
+```
+
+— with the prompt piped via **stdin** (never argv, to avoid arg-length limits) and tools disabled
+to force a direct text response. Billing is the **flat Claude Max 20× subscription**, not
+per-token API usage.
+
+**Persistent agent identity/memory:** `scout`, `analyst` and `synthesizer` each own
+`config/agents/<role>/{SOUL.md, AGENTS.md, sessions/}`. `agent-context-loader` injects SOUL
+(≤6000 chars) + AGENTS (≤4000 chars) + a digest of the last six sessions; `agent-session-recorder`
+writes the session back after each run.
+
+### 3.4 Quality and citation integrity
+
+This is what makes the product defensible. Hard gates live in
+`openclaw-bridge/core/workflow-engine.js`, with logic in `citation-gate.js` / `section-gate.js`.
+
+**Blocking codes** (`PHASE30_*`): `WORKFLOW_APPROVAL_REQUIRED` · `CITATION_RETRACTED` ·
+`CITATION_UNRESOLVED` · `CITATION_INSUFFICIENT_EVIDENCE` · `CITATION_NONE` ·
+`CITATION_UNVERIFIED` · `QUALITY_BELOW_THRESHOLD`.
+
+- **Runtime grounding.** The agent engine records `fetched_citation_ids` as it works. The gate
+  extracts every citation-shaped id from the assembled report and marks it grounded **only** if it
+  appears in the union of ids actually fetched during that run.
+- **`minGroundedCitationRatio = 0.75`**, read **fail-closed** from `config/agent-config.json` — a
+  missing or malformed value falls back to the same strict 0.75, never anything looser.
+- **Three-state verdict:** `PASS` / `UNVERIFIED` / `INSUFFICIENT_EVIDENCE` / `NO_CITATIONS`.
+  Zero-evidence is **not** a silent pass — it is recorded as non-shippable.
+- **Retraction screening** against **Crossref** and **PubMed**; any retracted cited work blocks.
+  Both screens are fail-soft on network error (reporting `checked:false` rather than a false
+  negative).
+- **Scaffolding-leak fence.** The engine injects a "LIVE DATABASE CONTEXT" instruction; in live
+  runs that instruction's own phrasing and internal workflow headings bled into section text and
+  were being fed to the SearXNG coverage search as subject terms. A `STOPWORDS` group plus a
+  `PROCESS_PHRASE` regex in `section-gate.js` strip that meta-prompt junk before querying.
+
+There are **no `PHASE29_*` error codes** — Phase 29 (ToolUniverse MCP) is a label, and its
+integrity check is warn-only.
+
+### 3.5 Deliverables
+
+`openclaw-bridge/monetization/deliverable-packager.js` → `writeDeliverables()`:
+
+| Deliverable | Nature |
+|---|---|
+| `report.md`, `evidence-appendix.md`, `tables.csv`, `sample-preview.md` | LLM-assembled |
+| `citation-integrity.md` | **Deterministic, no LLM** — grades A/B/C/D from the grounded ratio (0.9 / 0.75 / 0.5); **F + BLOCKED** on any retraction; N/A if nothing cited |
+| `graveyard-memo.md` | **Deterministic, no LLM** — NCT-traced terminated/withdrawn/suspended programs, each with the sponsor's own stated stop reason or an explicit "(none stated)"; fail-soft, never blocks a passing report |
+| `search-coverage.md` | **Deterministic, no LLM** — per-source ledger separating **honest zero-result** searches from **failed/unreachable** sources |
+| `reproducibility-manifest.{json,md}` | **Deterministic** — from the live re-resolution pass |
+
+Outputs land in `workspace/workflows/<workflowId>/` (run state, `citation-verification.json`, seed
+input, interaction log) and `workspace/releases/offer-<offerId>/` (the shippable bundle:
+`deliverables/`, `offer.json`, `metadata.json`, `release-approval.json`, `submission/`, plus
+`manifest.json` and `checksums.txt` sealing every file with a SHA-256).
+
+### 3.6 Data and tooling
+
+**ToolUniverse** — a **Python subprocess**, not an import. The Node adapter spawns
+`uv run --directory vendor/tooluniverse tooluniverse-smcp-stdio --compact-mode` and speaks
+line-delimited JSON-RPC (MCP `2025-06-18`) over stdio, with health checks, up to 3 auto-restarts
+and a 60 s spawn timeout. Vendored as the repo's only git submodule (mims-harvard/ToolUniverse,
+SHA `3833b0e`, v1.1.10, Apache-2.0); ~2,116 tools across 500 data files.
+
+**Project MCP adapters** (`openclaw-bridge/mcp/`): ChEMBL · ClinicalTrials.gov · PubMed · NPI ·
+ICD-10 · HuggingFace (metadata-only, no weights downloaded) · Owkin (gated behind `OWKIN_API_KEY`,
+throws if unset) · arXiv · Semantic Scholar · whitelisted-host scraper · ToolUniverse bridge ·
+SearXNG citation gate · citation re-resolver.
+
+**Direct fetchers** in the integrity layer: `ctgov-supplemental.js` (ClinicalTrials.gov API v2 plus
+the `int` change-history endpoint, for stop-reason archaeology) · `crossref-retraction.js` ·
+`pubmed-retraction.js`. All dependency-injectable for deterministic tests.
+
+**SearXNG's role in the gate:** the engine consumes the connector's already-cited output
+(`results[].citations[]`, `source: url|metadata|text`), grades each result A–D, dedupes by
+canonical URL/host, computes a coverage tier and issues a gate decision with one breadth
+reformulation retry. It is fail-closed **only at zero results**, and is pure — no wall-clock or
+RNG, per the engine's restricted-globals rule.
+
+---
+
+## 4. Obsidian side
+
+| Plugin | Role |
+|---|---|
+| `obsidian-bridge-launcher` | Spawns the canonical `:8798` bridge as a child tied to Obsidian's lifecycle. Owns the fd-3 JSON-RPC IPC channel used for renderer console capture and **gated** eval (`devConsoleEvalEnabled`, default **off**). |
+| `command-center` | Dispatches workflows, generates vault notes, owns the additive `:8799` bridge. |
+| `copilot` (vendored MCP fork) | Chat + agent mode. Its MCP is a **client, for tools only** — tools become LangChain `StructuredTool`s bound onto the selected chat model via `bindTools()`. It can never *be* the model. |
+| `vault-zettelkasten` | In-process graph analysis (semantic linker, cross-domain, serendipity, echo chamber, orphan rescue). Consumes Miyo `:8743` and Qdrant `:6433`. |
+| `contextual-wiki-definitions` | Writes a definition note when a wiki link is followed — including from the Local Graph. Source lives **outside this repo** at `/Volumes/ExtraCurricular/Code/obsidian-auto-wiki-summarize` (own git repo, symlinked into the vault, no build step — `main.js` *is* the source). |
+
+All Obsidian-side model calls go to hosted **`copilot-plus-flash`**. The wiki-definition plugin
+passes its model **per call** to `vault-zettelkasten` (`resolveModel()` honours `request.model`),
+so the licence key lives in exactly one 0600 file and is never duplicated into a second config.
+
+---
+
+## 5. Security invariants
+
+- **HTTPS-only.** Every network-facing TCP listener owned by monorepo code must be HTTPS. No
+  plaintext-fallback paths, no TLS-disable env vars, no `tls ? https : http` ternaries. On cert
+  failure the required behaviour is to **throw and refuse to listen**. Enforced by
+  `scripts/lint-transport-monorepo.sh --strict` (currently **exit 0**).
+- `:11434` and `:1234` stay in the lint's **forbidden** port list even though both runtimes are
+  gone, so neither can return silently.
+- **Bridge auth.** `:8798` uses a bearer token plus replay protection (nonce + timestamp + body
+  SHA-256); `:8799` auto-generates a 32-byte token into a 0600 file outside the vault and compares
+  with SHA-256 + `timingSafeEqual`.
+- **YubiKey gates.** `--operator-approve` and the agentic surfaces are armed by a physical touch
+  ceremony; the touch *is* the consent mechanism and must never be removed.
+- **Secrets never live in plugin `data.json`.** Obsidian persists those files and auto-creates
+  backups, which has leaked a credential in this stack before. Keys live in the OS keychain or a
+  0600 file (`~/.config/trevclaw/brevilabs-key`, `~/.config/openclaw-command-center/bridge-token`).
+- **Posture.** Research artifacts only, not validated for clinical decision support. **No PHI** —
+  sources are public biomedical databases. No autonomous publish/post/login/transact.
+
+---
+
+## 6. Verification
 
 ```bash
-curl http://127.0.0.1:8789/healthz
+# Transport invariant (must exit 0)
+bash scripts/lint-transport-monorepo.sh --strict
+
+# Engine unit suite — 939 tests passing as of 2026-07-23
+cd "Trevor Robey Intelligence Network Citations" && npm test
+
+# Engine policy gate
+cd "Trevor Robey Intelligence Network Citations" && bash scripts/verify-phase29-policy.sh | tail -1
+
+# Live services
 curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:8798/healthz
-curl http://127.0.0.1:8742/health
-curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:18789/healthz
-curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:18789/metrics
-openclaw-stack verify
-pm2 status
+curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:8743/v0/health
+curl http://127.0.0.1:6333/collections/miyo
 ```
 
-## Key Design Decisions
+---
 
-1. **Subprocess-only workflow execution** — Research workflows spawned via `child_process.spawn()`, NOT HTTP. The :18789 gateway is for the REST API path, separate from the Obsidian-initiated pipeline.
+## Retired — do not reintroduce
 
-2. **Structured IPC protocol** (Phase 35) — `run-workflow.js` emits JSON events on stdout. The Command Center plugin parses these deterministically instead of scraping stderr log noise for workflow_id.
-
-3. **Intentional role-to-backend routing** (Phase 35) — Each agent role hits a specific LLM backend for a specific reason. NOT round-robin. HISTORICAL rationale (all three roles now run on claude-code; Ollama and LM Studio were removed 2026-07-16/23).
-
-4. **Traefik as failover, not load balancer** (Phase 35) — Primary/backup topology. If one backend crashes, the other takes over. Not round-robin between identical backends (which adds complexity for zero value).
-
-5. **Parallel step execution** (Phase 35) — Steps at the same topological level run concurrently via `Promise.allSettled()`. Steps with dependencies execute level-by-level. Transparent to step implementations.
-
-6. **Three independent operators** — Claude Desktop, Command Center, and TrevNodus are peers. None subordinate. Each has its own LLM.
-
-7. **Canonical vault access at :8798** — All operators go through the single MCP bridge. No alternative vault bridges.
-
-8. **Fail-closed governance** — Unknown states default to blocked/review_required. Append-only evidence ledgers. Immutable config after boot. No autonomous publishing.
-
-9. **State-change-only monitoring** — Bridge monitor writes JSONL events only when service state changes, no noise from successful health checks.
-
-## Directory Structure
-
-```
-~/TrevClaw-Obsidianodus/                         # Meta-workspace root (NOT a git repo)
-+-- ARCHITECTURE.md                              # This file (canonical full-pipeline reference)
-+-- CLAUDE.md                                    # Unified port map, topology, rules
-+-- context-handoff-*.md                         # LLM-to-LLM handoff bundles
-+-- Claude/ -> ~/Claude/                         # TrevNodus, Zettelkasten MCP, Command Center
-+-- Copilot-Everything/ -> ~/THE Copilot.../     # MCP bridge, backend emulator, Miyo
-+-- trevor-robey-inc-agents/ -> ~/OpenClaw-.../  # Multi-agent pipeline, gateway, datasets
-
-~/trevor-robey-inc-agents/
-+-- scripts/run-workflow.js                      # Entry point (spawned by plugin)
-+-- scripts/_workflow-runtime.js                 # Runtime factory (wires metrics, multi-provider adapter)
-+-- config/
-|   +-- agent-config.json                        # roleProviderMap, defaultProvider
-|   +-- llm-providers.json                       # Provider endpoints (ollama, lm-studio, claude-code, mock)
-|   +-- llm-providers.local.json.traefik-example # Traefik endpoint overrides (copy to activate)
-|   +-- workflow-templates/*.json                # 6 template definitions
-|   +-- tool-call-loop-config.json               # Agentic tool loop toggle
-|   +-- zettelkasten-integration.json            # Graph analysis toggle
-|   +-- tool-prefetch-map.json                   # Role-to-ToolUniverse mappings
-+-- openclaw-bridge/
-|   +-- core/llm-adapter.js                      # createLLMAdapter, createMultiProviderAdapter, callOllamaChat
-|   +-- core/workflow-engine.js                  # computeTopologicalLevels, parallel execution, metrics
-|   +-- core/prometheus-metrics.js               # prom-client metrics (Phase 35)
-|   +-- core/composite-tool-executor.js          # Routes tool calls + timing metrics
-|   +-- core/agent-engine.js                     # Passes role; persists fetched_citation_ids + citation_verification
-|   +-- core/citation-gate.js                    # verifyReportCitations report-level grounded-ratio gate [2026-06-12]
-|   +-- core/citation-extractor.js               # Extracts cited ids; DOI-terminator fix [2026-06-12]
-|   +-- mcp/ctgov-supplemental/                  # Local CT.gov v2 stopped-trial / change-history fetcher [2026-06-12]
-|   +-- mcp/crossref-retraction/                 # Crossref DOI retraction screen (fail-soft) [2026-06-12]
-|   +-- monetization/integrity-rating.js         # buildIntegrityReport -> deliverables/citation-integrity.md [2026-06-12]
-|   +-- monetization/graveyard-memo.js           # buildGraveyardMemo + buildAmendmentRisk -> graveyard-memo.md [2026-06-12]
-|   +-- bridge/server.ts                         # Gateway HTTP server, /metrics endpoint
-|   +-- bridge/bridge-routing.js                 # Route types including METRICS
-+-- observability/
-|   +-- docker-compose.yml                       # Traefik + Prometheus + Grafana
-|   +-- traefik/traefik.yml                      # Static config (:11480, :11481)
-|   +-- traefik/dynamic.yml                      # Failover services + health checks
-|   +-- prometheus/prometheus.yml                # Scrape config
-|   +-- dashboards/openclaw.json                 # Grafana dashboard (5 panels)
-|   +-- grafana/provisioning/                    # Datasource + dashboard provisioning
-+-- tests/
-    +-- core/phase35-parallel-workflow.test.js    # 5 tests
-    +-- core/phase35-ollama-provider.test.js      # 8 tests
-    +-- core/phase35-prometheus-metrics.test.js   # 10 tests
-    +-- integration/phase35-structured-ipc.test.js # 3 tests
-    +-- integration/phase35-role-routing.test.js  # 3 tests
-    +-- integration/phase35-traefik-health.test.js # 6 tests
-    +-- integration/phase35-metrics-endpoint.test.js # 8 tests
-
-/Volumes/ExtraCurricular/My Digital Garden/      # Obsidian vault
-+-- .obsidian/plugins/openclaw-command-center/   # Deployed plugin
-+-- .obsidian/plugins/copilot/                   # Copilot plugin + MCP config
-+-- OpenClaw/{template}/{date}/                  # Generated research notes (6 per workflow)
-```
-
-## Constraints
-
-- **Plan-first**: Enter plan mode for any non-trivial task (3+ steps or architectural decisions).
-- **No autonomous publishing**: External uploads, marketplace submissions are manual-only.
-- **Port coordination**: All port assignments coordinated in `TrevClaw-Obsidianodus/CLAUDE.md`.
-- **Canonical vault access**: All operators go through :8798. No alternative vault bridges.
-- **Node version**: 22.13.1 (engine-strict in trevor-robey-inc-agents).
-- **CommonJS**: trevor-robey-inc-agents uses `require()`/`module.exports`, not ESM.
-- **Restricted globals**: `Date.now()`, `new Date()`, `Math.random()`, `randomUUID()` forbidden in `openclaw-bridge/` — use timeProvider and entropyProvider.
-- **Session artifacts**: Go to `.archive/` directories, not workspace roots.
+| Thing | Status |
+|---|---|
+| **Ollama** (`:11434`, proxy `:11435`) | **Removed 2026-07-23** — brew package, both LaunchAgents, TLS proxy and 9.2 GB of models deleted. |
+| **LM Studio** (`:1234`, proxy `:1235`) | Decommissioned 2026-07-16. |
+| **Traefik** `:11480`/`:11481` failover | Dead — never in the live path. |
+| **Prometheus `:9090` / Grafana `:3001` / docker-compose** | Dead. No scrape target ever existed: the engine has no persistent gateway. |
+| **PM2 / `ecosystem.config.js`** | Dead — zero apps since the bridge moved to the launcher plugin. |
+| **TrevNodus / InfraNodus** | Fully removed 2026-05-06. Graph viz is Obsidian's native view, on demand. |
+| **Backend emulator `:8789`** | Retired 2026-04-11 — `ZettelkastenService` runs in-process in the plugin. |
+| **`trevor-robey-inc-agents/` + `trevor-robey-inc/`** | Flat-merged 2026-05-19 into `Trevor Robey Intelligence Network Citations/`. These directories do not exist. |
+| **Persistent OpenClaw gateway `:18789`** | Removed 2026-04-27 (unrelated homebrew consumer product). |
+| **`claude-cli-bridge` / `claude mcp serve`** | Retired 2026-05-31, archived at `Claude/.archive/claude-cli-bridge/`. Do **not** reintroduce a custom `claude -p` subprocess bridge *for delegation*. (Distinct from the engine's own `claude -p` provider call in §3.3, which is the supported path.) |
+| **chrome-devtools-mcp / sentinel-cdp-mcp / Playwright MCP** | See root `CLAUDE.md` "Browser MCP Strategy" for the current surface model. |
