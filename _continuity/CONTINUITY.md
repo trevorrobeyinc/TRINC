@@ -95,6 +95,29 @@
 
 > Ideas, blocked items, and "someday" work — not active, but don't lose them.
 
+**🆕 NEXT TASK (queued 2026-07-23, operator-requested): give the research engine live Obsidian access during a run.**
+> Operator saw Claude drive Obsidian's Local REST API for the live wiki-definition test and wants the
+> OpenClaw research pipeline to use the vault the same way — "untangle it and propose a plan unless it
+> already is." **Survey result: the WRITE half already exists; the READ half does not.**
+> - **Already built:** `scripts/publish-to-vault.js` pushes a completed task into the vault
+>   (`Research-Output/<date>/<task-id>/output.md` + `OpenClaw/atlas/**` wikilink stubs + an SSE
+>   `research_arrived` event) — and it correctly goes through the **canonical `:8798` bridge**
+>   (`research_publish`), with `x-mcp-token` + replay headers, **not** `:27124`. The bridge already
+>   ships `researchPublish.ts`, `researchNotify.ts`, `searchNotes.ts`, `readNote.ts` and
+>   `miyoSearchContext.ts`. It is a **manual CLI, deliberately not auto-called**: Command Center's
+>   `autoGenerateNotes` already writes notes after every run, so auto-calling it would DOUBLE-write
+>   (this is exactly why the emit-only `research_notify` tool was built instead).
+> - **The real gap:** the engine has **no vault-READ path**. Agent roles cannot consult prior research
+>   in the vault mid-run; Miyo/Qdrant are Obsidian-side only today.
+> - **Constraint that decides the design — root `CLAUDE.md:213`: "The MCP bridge at :8798 is the
+>   canonical vault access point. Do not create alternative vault bridges."** So the engine must NOT be
+>   wired to `:27124`; it should reuse the `:8798` path `publish-to-vault.js` already proves works.
+> - **Proposed shape:** an `obsidian-mcp` adapter under `openclaw-bridge/mcp/` following the existing
+>   adapter registration/invocation seam, exposing read-first tools (`search_notes`, `read_note`,
+>   `miyo_search_context`) to roles via `tool-prefetch-map.json`, **fail-soft when Obsidian is closed**
+>   (the bridge dies with Obsidian, and the engine can also run standalone from a terminal). Publish
+>   stays opt-in behind a flag to avoid the double-write.
+
 **Operator items (only the operator can resolve):**
 - ~~**AWS Data Exchange true status**~~ — ✅ **RESOLVED 2026-07-22.** Definitively **APPROVED and cleared for paid selling** (disbursement method added; Marketplace status "Publish paid and free products"). Every doc that disagreed has been reconciled to this (see the 2026-07-23 Log entry). Remaining gap is product-side (publish a paid listing), not status.
 - ~~**CA LLC SOS entity number**~~ — ✅ **RESOLVED 2026-07-22 — and the old claim here was WRONG.** A **certified CA SOS copy** (Certificate No. 457169837, issued 2026-05-12, certified by Secretary of State Shirley N. Weber) labels **B20260217250** as the **"Entity No."** — it is NOT "just the filing receipt." Entity **APPROVED 2026-06-18**. All ground-truth docs reconciled; record: `00-business-formation/llc/certificate-of-formation.md`.
@@ -122,6 +145,15 @@
 - **Next:** operator imports `gmail-filters.xml` (Gmail → Settings → Filters → Import filters; Claude's file-upload tool rejects repo paths by design). Then send-as for aws@/support@ + signature w/ LLC disclosure (Claude-drivable). Then: AWS root-email change, EIN, publish first paid listing (free Pharmacovigilance pack is closest — blocked on MD→PDF + a MANIFEST byte/file-count mismatch).
 - **Touches:** NEW `google-workspace/{workspace-operations.md,gmail-filters.xml}`; live Google Calendar. Committed.
 - **For whoever's next:** Calendar `render?action=TEMPLATE` URLs pre-fill fine but **the first Save click after load is swallowed** — click Save twice and verify on the month view, not the toast. Also: collateral still advertises a **retired pricing tier** — fix before it reaches a prospect.
+
+### 2026-07-23T11:11Z · CLI Claude Code · Plugins rebranded to the **TR-Obsidian Intelligence Network Citations** suite (ids frozen); post-Ollama pipeline LIVE-VERIFIED end-to-end
+- **Merge question answered: Command Center and Vault Zettelkasten are NOT redundant** (4-agent read-only survey). CC = 5,387 lines / 4 commands / ribbon + sidebar + status bar, spawns subprocesses and runs its own `https.createServer` on `:8799`. VZ = 2,612 lines, **no view/ribbon/status bar**, zero subprocesses, zero servers, and exposes `this.api`. Only **~511 lines (~9.5%)** of CC touches Zettelkasten; neither depends on the other at runtime. They already integrate idiomatically via `app.plugins.plugins['vault-zettelkasten'].api` with a subprocess fallback. Merging would put a subprocess-spawning TCP listener inside a library two other plugins call at runtime → **KEEP SEPARATE**.
+- **Rebrand shipped instead (signed `eb6d951` monorepo + `5414578` plugin repo):** display names only → `TR-Obsidian Intelligence Network Citations — {Command Center, Zettelkasten, Bridge Launcher, Wiki Definitions}`, so all four group together in Obsidian's list. **Plugin IDs are FROZEN**, proven by an unchanged sha256 over the id set (`c04a6736…`) and **zero `"id"` lines in the diff**. Renaming an id would break: Copilot's 4 `mcp_command-center_*` tool ids + `mcp.servers[].id`; the wiki-definition plugin's `plugins['vault-zettelkasten']` lookup (`main.js:358,566` — a **separate git repo**); CC's own lookup (`linker.ts:120`); and `~/.config/openclaw-command-center/bridge-token`. That rationale is now in each `description` **and** in root `CLAUDE.md` / `Claude/CLAUDE.md` / `ARCHITECTURE.md` §4 so a future session doesn't "fix" the name/id mismatch.
+- **LIVE end-to-end test, driven via the Local REST API** (open origin → create empty note → open it, so the real `file-open` path ran): definition written **12,700 b in ~2 min**, then **all five VZ traits settled 9 s later** (vs the old **~6.5 min** Ollama tail). Final note **15,926 b / 19 H2s / 0 placeholders**, every section heading-free — against the 12,232 b model-only and **28,688 b / 24 H2s** degraded baselines.
+- **The v1.6.0 quality gate visibly did its job:** `crossDomain` upgraded (1,722 b), `echoChamber` upgraded (2,265 → 1,581 b after sanitizing), and **`semanticLinker` / `orphanRescue` / `serendipity` were REJECTED** with reason *"opens by describing the ORIGIN note"* — model lens content preserved. Under the old code all five would have been written in blind, headings and all.
+- **Rebrand verified harmless post-restart:** `:8799` → `ok:true` with all 11 tools (the 4 `mcp_command-center_*` ids still resolve); `:8798` served a real vault search; Miyo 938 files; `:11434`/`:11435` silent; console startup clean (`[MCP] Registered 11 MCP tool(s)`, `copilot-plus-flash`, both bridges started, 0 errors).
+- **⚠️ Cold-start race worth knowing (pre-existing, not introduced):** the first `:8798` tool call after an Obsidian launch can return `NO_CAPABLE_BACKEND` — the backend selector initialises `available:false` and only flips after its first capability refresh. It self-reports `retryable:true`; `obsidian_health` showed `status:healthy / restApi.available:true` and the identical retry succeeded. If a Copilot tool call fails in the first seconds after launch, just retry.
+- **Nothing to commit from the test** — the vault lives outside the repo; the only tracked change is a pre-existing `vendor/tooluniverse` submodule marker.
 
 ### 2026-07-23T10:04Z · CLI Claude Code · **Ollama fully removed from the Mac**; VZ enrichment fixed + gated (plugin v1.6.0); ARCHITECTURE.md rewritten from live code
 - **Ollama is GONE — machine-wide.** Operator's ruling ("no use for it; the research engine needs flagship quality"). Removed: brew package `ollama 0.32.1`, **both** LaunchAgents (`com.trevorrobey.ollama-tls-proxy`, `homebrew.mxcl.ollama`), the `:11435` TLS proxy (staged + in-repo script), and **`~/.ollama` = 9.2 GB of models** (`qwen2.5:7b-instruct` 4.7 GB + `qwen3:8b` 5.2 GB). Verified: brew/binary/launchd/`:11434`/`:11435`/models all absent; plists quarantined (reversible) at `~/.local/share/trevclaw-removed-ollama/20260723/`. **`mlx` was deliberately KEPT** — `brew uses --installed mlx` shows `mlx-c` depends on it, so it is a separate toolchain, not an Ollama orphan. **No sudo needed** (brew prefix owned by `myhome`).
