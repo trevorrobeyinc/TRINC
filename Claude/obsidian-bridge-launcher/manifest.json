@@ -1,7 +1,7 @@
 {
   "id": "obsidian-bridge-launcher",
   "name": "Obsidian Bridge Launcher",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "minAppVersion": "1.4.0",
   "description": "Spawns and supervises the canonical Obsidian MCP bridge (HTTPS :8798) as a child process tied to Obsidian's lifecycle. Replaces the PM2-managed always-on bridge.",
   "author": "Trevor Robey",
