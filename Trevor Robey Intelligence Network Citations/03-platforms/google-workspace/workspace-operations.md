@@ -30,6 +30,18 @@ Three findings from the 2026-07-23 architecture survey drive everything below:
 
 ## 1 · Gmail — routing & triage (implemented via `gmail-filters.xml`)
 
+> **✅ ALL 11 FILTERS LIVE 2026-07-23** — verified by reading the Filters tab back. 10 imported
+> from the XML; the 11th (Finance-Ops) was created by hand after diagnosing the failure below.
+>
+> **⚠️ Gotcha — "Could not import all the filters. Please fix the XML and try again."**
+> That error is **misleading**: the XML was valid. Gmail **refuses to create a label named
+> `Finance`** because it is a **reserved system label** (one of Gmail's built-in categories), so
+> that single entry failed and Gmail blamed the file. Renamed to **`Finance-Ops`** and it worked.
+> Reserved names to avoid when adding labels: *Finance, Personal, Promotions, Social, Updates,
+> Forums, Travel, Purchases, Important, Starred, Sent, Draft, Spam, Trash, Inbox, Unread, Chat.*
+> If an import ever partially fails again, read the Filters tab back and diff against this file —
+> the missing entry names the culprit far faster than re-checking the XML.
+
 Import: Gmail → Settings → **Filters and Blocked Addresses** → *Import filters* →
 [`gmail-filters.xml`](./gmail-filters.xml) → Open file → Create filters.
 Source-controlled here so the routing is reproducible and reviewable.
@@ -43,7 +55,7 @@ Source-controlled here so the routing is reproducible and reviewable.
 | **Prospects** | replies referencing the SKUs / discovery calls / the domain | Founder-led outbound is the revenue motion; replies must not be missed. |
 | **Platforms** | Datarade, HuggingFace, Kaggle, Data & Sons | Secondary distribution channels. |
 | **Legal** | CA SOS, FTB, IRS, bizfileOnline; NDA/SOW/MSA/Common Paper | Statutory mail — never-spam + starred. |
-| **Finance** | Stripe, Mercury, Relay, Gumroad, Intuit | Ready for when a payment rail goes live. |
+| **Finance-Ops** | Stripe, Mercury, Relay, Gumroad, Intuit | Ready for when a payment rail goes live. ⚠️ *Not* named "Finance" — see gotcha below. |
 | **Vendors** | Cloudflare, Zoho, Anthropic, Workspace | Infrastructure billing/notices. |
 
 **Also configure (Gmail → Settings → Accounts):**

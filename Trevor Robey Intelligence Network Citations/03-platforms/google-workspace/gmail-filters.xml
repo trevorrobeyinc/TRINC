@@ -101,13 +101,20 @@
     <apps:property name='shouldNeverSpam' value='true'/>
   </entry>
 
-  <!-- ============ FINANCE ============ -->
+  <!-- ============ FINANCE ============
+       ⚠️ LABEL NAME GOTCHA (found the hard way 2026-07-23): Gmail REFUSES to create a label
+       named "Finance" — it is a RESERVED SYSTEM LABEL (one of Gmail's built-in categories).
+       On import Gmail silently fails that single entry and reports the generic
+       "Could not import all the filters. Please fix the XML and try again." The XML was
+       valid; only this label name was illegal. Renamed to "Finance-Ops". Other reserved
+       names to avoid: Personal, Promotions, Social, Updates, Forums, Travel, Purchases,
+       Important, Starred, Sent, Draft, Spam, Trash, Inbox, Unread, Chat. -->
 
   <entry>
     <category term='filter'></category>
-    <title>Finance — banking / payments / invoicing</title>
+    <title>Finance-Ops — banking / payments / invoicing</title>
     <apps:property name='hasTheWord' value='from:(stripe.com OR mercury.com OR relayfi.com OR gumroad.com OR intuit.com)'/>
-    <apps:property name='label' value='Finance'/>
+    <apps:property name='label' value='Finance-Ops'/>
     <apps:property name='shouldNeverSpam' value='true'/>
   </entry>
 
