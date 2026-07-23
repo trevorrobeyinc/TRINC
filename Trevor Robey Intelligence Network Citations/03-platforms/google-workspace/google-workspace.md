@@ -116,7 +116,15 @@ goes through the scoped token.
 - [x] Migration verified complete (1,251/1,251, 0 failed) — §5
 - [x] **Aliases `support@trevorobeyinc.com` + `aws@trevorobeyinc.com`** added to the trevor@ user
       (Admin → Users → Trevor Robey → Alternate email addresses; free, no extra seat, up to 30).
-      Mail to either now lands in the same Gmail inbox. Origin of the idea:
+      Mail to either now lands in the same Gmail inbox.
+      **✅ RE-VERIFIED LIVE 2026-07-23** in the Admin console (Users → Trevor Robey → User
+      information → "Alternate email addresses (email alias)"): both aliases present, exactly two,
+      on the single `trevor@trevorobeyinc.com` Super Admin user. **Implication to remember:** these
+      are *aliases on that one user*, not independent mailboxes — there is no separate inbox to
+      monitor (use a Gmail filter on `to:aws@trevorobeyinc.com` if you want them visually split),
+      and they are **not independently recoverable**: lose the `trevor@` Workspace account and both
+      aliases go with it. That matters if `aws@` is ever used as the AWS **root** email, where AWS
+      recommends a group/role address precisely so recovery doesn't hinge on one account. Origin of the idea:
       `03-platforms/aws-data-exchange/listing/product-description.md:197`. **Not yet propagated**
       to the AWS seller profile / listing docs — that's a separate content update if the operator
       wants the public support contact changed from trevor@ to support@.

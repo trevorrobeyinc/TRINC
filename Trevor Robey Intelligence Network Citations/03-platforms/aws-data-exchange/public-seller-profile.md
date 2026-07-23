@@ -15,6 +15,7 @@
 | Website | `https://trevorobeyinc.com` |
 | AWS account | `833390816446` |
 | Public seller-profile page | <https://aws.amazon.com/marketplace/seller-profile?id=seller-w2j5h3mqryl3g> (seller ID `seller-w2j5h3mqryl3g`) |
+| Seller ARN | `arn:aws:aws-marketplace:us-east-1:833390816446:AWSMarketplace/Seller/seller-w2j5h3mqryl3g` |
 | CA SOS Entity No. | **B20260217250** (approved 2026-06-18; certified copy Certificate No. 457169837) |
 | Logo | Uploaded — the "TR │ TREVOR ROBEY, INC." wordmark mark |
 | Categories | Healthcare, Life Sciences, Financial Services |
@@ -47,6 +48,16 @@ PMID/NCT/CID-traced"*, which describes **extraction only** — the pre-2026-06-1
 and therefore understated the shipped integrity layer. Cut to fit the 600-char ceiling:
 "hedge funds", the Redshift-federation mention, and Open Targets from the source list.
 Display name, website, and logo were unchanged.
+
+## Remaining Settings tabs — surveyed 2026-07-23 (all clean / non-blocking)
+
+| Tab | State | Verdict |
+|---|---|---|
+| **Service-linked roles** | Exactly one role offered: *"Service-linked role for Resale Authorizations"* — status **not created**. | **Not needed.** It only enables reseller / Channel Partner Private Offer (CPPO) distribution. This business sells direct. Create it only if a reseller motion is ever adopted. |
+| **Tags** | **No tags.** | **Not needed.** Optional key/value labels for search/filter/cost allocation; with one seller account and zero published products they'd label nothing. |
+| **Notifications** | Primary "Email address" = `Trevor.Robey@my.strayer.edu` (**this is the account ROOT email** — the "Change email address" control is a link out to AWS's root-user procedure, not an editable field). **Added 2026-07-23:** `aws@trevorobeyinc.com` under *Email for custom notifications* (9 recipient slots remain). | ⚠️ **Root email still open, operator-only.** The custom-notifications recipient does **not** substitute: AWS scopes it to *Professional-services buyer requests, Reseller Opportunity created/updated/expired, Consulting Partner Private Offer created, and recurring scan vulnerability/reminders* — none of which fire for a direct data-product seller. Listing-review outcomes, payout failures, and policy changes all still route to the root address. Added anyway as zero-cost future-proofing ("additional events will be added"). |
+
+> **Note the three-tab consistency:** service-linked roles, the custom-notification event list, and the CPPO tooling all point at a **reseller/channel-partner** distribution model this business does not use. That is why all three read as empty or irrelevant — it is expected, not a gap.
 
 ## Status (updated 2026-07-22)
 
