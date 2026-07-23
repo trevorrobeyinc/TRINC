@@ -362,35 +362,174 @@ module.exports = class ContextualWikiDefinitions extends Plugin {
       return;
     }
 
-    const req = { notePath: originFile.path, options: { limit: 8, batchMode: false, writeReport: false } };
-    const calls = {
-      echoChamber:    () => vz.api.echoChamber(req),
-      crossDomain:    () => vz.api.crossDomain(req),
-      semanticLinker: () => vz.api.semanticLinker(req),
-      serendipity:    () => vz.api.serendipity(req),
-      orphanRescue:   () => vz.api.orphanRescue(req),
-    };
+    const term = targetFile.basename;
 
-    // MEASURED 2026-07-16 (console-mirror timeline): the five traits complete
-    // SERIALLY through the local Ollama queue — 123.6s / 177.3s / 228.8s /
-    // 332.5s / 380.1s for one run. Nothing is discarded and nothing is
-    // downgraded: each trait's promise upgrades its section whenever it
-    // settles (even minutes later); empty/errored traits simply leave the
-    // model's lens-written content in place.
-    for (const { key, heading } of this._zkSectionMap()) {
-      calls[key]()
-        .then(async (result) => {
-          const body = (result && result.content) ? String(result.content).trim() : '';
-          if (!body) {
-            console.log(`[CWD] async ${key}: no VZ signal — keeping model-written section`);
-            return;
-          }
-          console.log(`[CWD] async ${key}: ${body.length} chars → ${heading} (upgraded)`);
-          await this._replaceSectionInNote(targetFile, heading, body);
-        })
-        .catch((err) => {
-          console.warn(`[CWD] async ${key} failed (keeping model-written section):`, err && err.message ? err.message : err);
-        });
+    (async () => {
+      // TARGET FIX (v1.6.0). Previously this passed ONLY { notePath: origin },
+      // so VZ analysed the ORIGIN NOTE and returned prose about the wrong
+      // subject (observed: a section headed 'Echo Chamber Analysis for "Define
+      // General Intelligence"' inside an "Artificial Intelligence" note).
+      // VZ.resolveNoteContent() returns `noteContent` VERBATIM with no file
+      // access, so passing the freshly-written definition makes the traits
+      // reason about THE TERM — and sidesteps the fact that a brand-new note
+      // is not yet indexed in Miyo. notePath stays pointed at the ORIGIN (an
+      // indexed file) purely so VZ's fail-soft Miyo lookups can still find real
+      // vault neighbours to ground the [[links]] in.
+      let defContent = '';
+      try { defContent = await this.app.vault.read(targetFile); } catch (_) {}
+      const noteContent = `# ${term}\n\n${defContent}`.slice(0, 6000);
+      // Pass the model PER CALL (VZ honours request.model over its own settings —
+      // see ZettelkastenService.resolveModel). This keeps the hosted-model licence
+      // key in THIS plugin's 0600 data.json only: VZ never needs a second copy,
+      // and the traits run on the same hosted model as the definition itself
+      // (Ollama was removed from the stack 2026-07-23).
+      const req = {
+        notePath: originFile.path,
+        noteContent,
+        model: {
+          key: 'openai|copilot-plus-flash',
+          name: 'copilot-plus-flash',
+          provider: 'openai',
+          baseUrl: 'https://models.brevilabs.com/v1',
+          apiKey: this.settings.licenseKey || undefined,
+          temperature: 0.7,
+          maxTokens: 2048,
+        },
+        options: { limit: 8, batchMode: false, writeReport: false },
+      };
+      const calls = {
+        echoChamber:    () => vz.api.echoChamber(req),
+        crossDomain:    () => vz.api.crossDomain(req),
+        semanticLinker: () => vz.api.semanticLinker(req),
+        serendipity:    () => vz.api.serendipity(req),
+        orphanRescue:   () => vz.api.orphanRescue(req),
+      };
+
+      // Each trait settles independently and may only UPGRADE its section:
+      // output is sanitized (headings demoted, scaffolding stripped, capped)
+      // and then must pass a quality gate. Anything that fails leaves the
+      // model's lens-written content untouched.
+      for (const { key, heading } of this._zkSectionMap()) {
+        calls[key]()
+          .then(async (result) => {
+            const raw = (result && result.content) ? String(result.content) : '';
+            if (!raw.trim()) {
+              console.log(`[CWD] ${key}: no VZ signal — keeping model section`);
+              return;
+            }
+            const clean = this._sanitizeTraitOutput(raw, term);
+            const existing = await this._readSectionBody(targetFile, heading);
+            const verdict = this._traitGate(clean, term, existing, originFile.basename);
+            if (!verdict.ok) {
+              console.log(`[CWD] ${key}: REJECTED (${verdict.reason}) — keeping model section [raw ${raw.length}b → clean ${clean.length}b]`);
+              return;
+            }
+            console.log(`[CWD] ${key}: upgraded ${heading} [raw ${raw.length}b → clean ${clean.length}b, was ${existing.length}b]`);
+            await this._replaceSectionInNote(targetFile, heading, clean);
+          })
+          .catch((err) => {
+            console.warn(`[CWD] ${key} failed (keeping model section):`, err && err.message ? err.message : err);
+          });
+      }
+    })();
+  }
+
+  /**
+   * Max characters any single VZ-upgraded section may occupy.
+   * Justification: the model's own lens sections measured 782–1,413 chars in
+   * live runs, so 1,800 leaves VZ ~27% headroom to add value while capping the
+   * five graph sections at ~9k total — keeping a note near the ~12.2k
+   * model-only baseline instead of the 28.7k observed when VZ was unbounded.
+   */
+  _traitMaxChars() { return 1800; }
+
+  /**
+   * Make a VZ trait result safe to embed in an H2 section body.
+   * The section matcher in _replaceSectionInNote is bounded by "\n## ", so a
+   * heading inside the body silently truncates the section — observed live:
+   * VZ emitted "## Structure Your Response" immediately after the section
+   * heading, leaving THREE of five sections with a 0-char body.
+   */
+  _sanitizeTraitOutput(raw, term) {
+    if (!raw) return '';
+    let s = String(raw);
+    // Fenced code blocks have no place in these sections and can hide headings.
+    s = s.replace(/```[\s\S]*?```/g, '');
+    // Demote every markdown heading to bold — preserves the words, removes the
+    // structural damage. THIS is the fix for the emptied-section corruption.
+    // Inner emphasis is stripped first: a heading like "### 1. **Relationship
+    // Map**" would otherwise become nested/malformed bold ("**1. **X****").
+    s = s.replace(/^[ \t]*#{1,6}[ \t]*(.+?)[ \t]*#*[ \t]*$/gm,
+      (_m, t) => `**${String(t).replace(/\*+/g, '').replace(/\s+/g, ' ').trim()}**`);
+    // Drop pure scaffolding/meta lines that carry no substance.
+    const META = /^(\*\*)?\s*(structure your response.*|here(’s|'s| is)( my| the)? (analysis|response|breakdown).*|(serendipity|cross-domain|echo chamber|orphan rescue|semantic linker)[^a-z]*(analysis|insights|report)?( for .*)?)\s*(\*\*)?:?\s*$/i;
+    s = s.split('\n').filter((l) => !META.test(l.trim())).join('\n');
+    // Numbered scaffold headers → bullets: "1. **Foo**: bar" → "- **Foo:** bar"
+    s = s.replace(/^[ \t]*\d+\.[ \t]*\*\*(.+?)\*\*:?[ \t]*/gm, '- **$1:** ');
+    // Loose non-bullet, non-blank lines keep their prose, but collapse runaway
+    // whitespace so sections stay tight.
+    s = s.replace(/[ \t]+$/gm, '').replace(/\n{3,}/g, '\n\n').trim();
+    // Cap at a line boundary so we never cut a bullet in half.
+    const max = this._traitMaxChars();
+    if (s.length > max) {
+      const cut = s.slice(0, max);
+      const lastNl = cut.lastIndexOf('\n');
+      s = (lastNl > max * 0.5 ? cut.slice(0, lastNl) : cut).trim() + '\n- *(trimmed)*';
+    }
+    return s;
+  }
+
+  /**
+   * Accept/reject gate: VZ content replaces the model's lens content ONLY if it
+   * is on-topic, vault-grounded, structurally clean, and not thinner than what
+   * it would overwrite. Returns { ok, reason }.
+   */
+  _traitGate(clean, term, existingBody, originName) {
+    if (!clean || clean.length < 150) return { ok: false, reason: `too short/boilerplate (${clean ? clean.length : 0}b)` };
+    if (/^[ \t]*#{1,6}[ \t]/m.test(clean)) return { ok: false, reason: 'still contains a markdown heading' };
+    const links = (clean.match(/\[\[/g) || []).length;
+    if (links < 2) return { ok: false, reason: `only ${links} wikilink(s) — not vault-grounded` };
+
+    const lower = clean.toLowerCase();
+    const t = (term || '').trim().toLowerCase();
+    // ON-TOPIC CHECK. A bare "does the term appear anywhere" test is too weak:
+    // the observed bad output was 1,788 chars ABOUT THE ORIGIN NOTE and still
+    // happened to contain the term incidentally. Require the term to be the
+    // actual subject — named early, or repeatedly — and reject text that opens
+    // by describing the origin note instead.
+    const head = lower.slice(0, 300);
+    const o = (originName || '').trim().toLowerCase();
+    if (o && o.length > 3 && head.includes(o)) {
+      return { ok: false, reason: `opens by describing the ORIGIN note "${originName}" — wrong subject` };
+    }
+    if (t) {
+      const mentions = lower.split(t).length - 1;
+      const namedEarly = lower.slice(0, 400).includes(t);
+      if (mentions === 0) return { ok: false, reason: `never mentions the term "${term}" (analysing the wrong note)` };
+      if (!namedEarly && mentions < 2) {
+        return { ok: false, reason: `term "${term}" only mentioned once and not up front — likely off-topic` };
+      }
+    }
+    const existing = (existingBody || '').trim().length;
+    if (existing > 0 && clean.length < existing * 0.6) {
+      return { ok: false, reason: `thinner than model content (${clean.length}b < 60% of ${existing}b)` };
+    }
+    return { ok: true, reason: '' };
+  }
+
+  /**
+   * Read the current body of an H2 section (same bounds the replacer uses), so
+   * the gate can compare VZ's candidate against what it would overwrite.
+   */
+  async _readSectionBody(file, heading) {
+    try {
+      const content = await this.app.vault.read(file);
+      const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const re = new RegExp(`^## [^\\n]*${escaped}[^\\n]*\\n([\\s\\S]*?)(?=\\n## |\\n---\\n|$)`, 'm');
+      const m = content.match(re);
+      return m ? m[1].trim() : '';
+    } catch (_) {
+      return '';
     }
   }
 
