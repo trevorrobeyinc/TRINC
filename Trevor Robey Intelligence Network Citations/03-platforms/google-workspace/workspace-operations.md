@@ -58,10 +58,21 @@ Source-controlled here so the routing is reproducible and reviewable.
 | **Finance-Ops** | Stripe, Mercury, Relay, Gumroad, Intuit | Ready for when a payment rail goes live. ⚠️ *Not* named "Finance" — see gotcha below. |
 | **Vendors** | Cloudflare, Zoho, Anthropic, Workspace | Infrastructure billing/notices. |
 
-**Also configure (Gmail → Settings → Accounts):**
-- **Send mail as** `aws@trevorobeyinc.com` and `support@trevorobeyinc.com` — aliases *receive* by
-  default but cannot *send* until added here. Needed to reply to a subscriber **from** support@.
-- **Signature** carrying the required entity disclosure (Cal. Bus. & Prof. Code §17910.5(a)):
+**Also configure (Gmail → Settings → Accounts):** ✅ **ALL DONE 2026-07-23, verified live**
+- ✅ **Send mail as** — all three now present: `trevor@` (default), `aws@`, `support@`. Aliases
+  *receive* by default but cannot *send* until added here.
+  ⚠️ **Two layers, easily confused:** (1) the **alias exists** = Admin console → Users → Alternate
+  email addresses (done days earlier — that's why mail already arrived); (2) **Gmail may send as
+  it** = this Accounts screen. Adding a send-as does NOT create an alias and vice-versa.
+  ⚠️ **Automation limit:** "Add another email address" opens a **separate Chrome window** that
+  Claude-in-Chrome cannot reach (only tabs in its own group are visible; a `window.open` override
+  did not intercept it either). **These two entries are operator-only** — budget ~1 min each.
+- ✅ **Reply behavior → "Reply from the same address the message was sent to."** This is what makes
+  the aliases worth having: mail to `support@` answers *from* `support@`, AWS mail from `aws@`,
+  with no dropdown step. `trevor@` stays default (it is the address baked into contracts,
+  collateral and 13 engine-code locations — do not "make default" an alias).
+- ✅ **Signature "Business"** — set for BOTH new emails and replies/forwards, carrying the required
+  entity disclosure (Cal. Bus. & Prof. Code §17910.5(a)):
   > Trevor Robey — Trevor Robey, INC.
   > Citation-traced biomedical due diligence · trevorobeyinc.com
   > *Trevor Robey, INC. is the wordmark of Trevor Robey Intelligence Network Citations LLC, a California limited liability company.*
@@ -143,8 +154,8 @@ zero activity.**
    `03-platforms/google-workspace/gmail-filters.xml` → Open file → Create filters.
    *(Claude cannot upload it — the browser file-upload tool only accepts files the operator has
    explicitly shared with the session; repo paths are rejected by design.)*
-   Then add send-as for both aliases + set the signature. *(send-as/signature are Claude-drivable)*
 2. ~~**Create the calendar entries**~~ ✅ **DONE 2026-07-23** — 4 hard-date events live (see §2).
+2b. ~~**Send-as + signature + reply behavior**~~ ✅ **DONE 2026-07-23** — verified live (§1).
 3. **File the EIN** (free, instant, IRS online) — unblocks banking + the AWS legal-entity field. *(Operator)*
 4. **Change the AWS root email** off `my.strayer.edu` — the actual fix for lost AWS mail. *(Operator, root+MFA)*
 5. **Publish the first AWS listing** — the free Pharmacovigilance Sample Pack is closest (blocked on
