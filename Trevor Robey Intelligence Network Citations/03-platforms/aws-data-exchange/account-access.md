@@ -166,12 +166,15 @@ aws --profile admin sts get-caller-identity
 
 ## Relationship to seller onboarding
 
-This file is **account access** only. Becoming an approved **AWS Data Exchange
-data provider** is a separate, still-in-progress business process (application
-rejected 2026-05-03; AWS re-engaged; follow-up #3 sent 2026-05-23). That trail
-lives in [`correspondence-2026-05.md`](correspondence-2026-05.md); channel status
-is tracked in the Commercial Launch Playbook §2 #2. Having this hardware-gated
-access in place is a prerequisite for acting the moment qualification clears.
+This file is **account access** only. Seller onboarding is a separate business
+process that is now **complete: the account is APPROVED and cleared for paid
+selling as of 2026-07-22** (disbursement method added; Marketplace status =
+"Publish paid and free products"). *(History: the ADX/provider application was
+rejected 2026-05-03; AWS re-engaged; approved; disbursement was blocked ~2.5
+months by a stalled account review, cleared 2026-07-22.)* That trail lives in
+[`correspondence-2026-05.md`](correspondence-2026-05.md); channel status is
+tracked in the Commercial Launch Playbook §2 #2. The remaining work is
+product-side (publish a paid listing), not account access.
 
 ## Provenance
 

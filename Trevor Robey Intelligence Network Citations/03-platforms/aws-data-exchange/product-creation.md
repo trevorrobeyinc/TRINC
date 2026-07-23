@@ -2,7 +2,7 @@
 
 > **File:** `03-platforms/aws-data-exchange/product-creation.md`
 > **Scope:** How the single AWS Data Exchange (ADX) **Files** data set is structured, versioned, and published — covering the free Pharmacovigilance Sample Pack as the public free offer, plus the paid dossiers that attach to the same listing.
-> **Status:** Build/packaging plan. The free sample pack is a standards-compliant DRAFT (prepared 2026-05-06); **nothing is uploaded to AWS yet.** Blocked on (1) ADX Provider Qualification (Seller Ops case 00881277) and (2) public seller-profile verification, and downstream on the disbursement-method review that is currently holding payouts.
+> **Status:** Build/packaging plan. The free sample pack is a standards-compliant DRAFT (prepared 2026-05-06); **nothing is uploaded to AWS yet.** The account-side blockers are now **CLEARED (2026-07-22)** — seller approved, disbursement method added, account status "Publish paid and free products" (was blocked on ADX qualification + seller-profile verification + the disbursement-method review). The remaining gate is **AWS's own product review** when a listing is actually submitted.
 > **Provider:** Trevor Robey Intelligence Network Citations LLC (California LLC, Entity No. B20260217250), wordmark **"Trevor Robey, INC."** (INC = Intelligence Network Citations). AWS account `833390816446`. Contact `trevor@trevorobeyinc.com` / `https://trevorobeyinc.com`.
 > **Legal text below is DRAFT for counsel review** — every clause marked `[DRAFT — counsel review]`.
 > **Pricing is taken verbatim from `REVENUE_PLAYBOOK.md`** (2026-04-30 ladder). No prices are invented here.
@@ -248,10 +248,10 @@ ADX/AWS Marketplace surfaces a listing lifecycle through these statuses. The bui
 - [ ] Update `MANIFEST.md`: `citation-index.csv` is **3,053 B** (manifest says 2,935 B) and the package is **9 files** (manifest counts 7, omitting the two `.txt` duplicates)
 - [ ] Confirm "California LLC / B20260217250 / Trevor Robey, INC. (INC = Intelligence Network Citations)" appears identically across product, DSA, metadata, and seller profile
 
-### E. External blockers (cannot publish until cleared)
-- [ ] **ADX Provider Qualification** — Seller Ops case **00881277** in flight
-- [ ] **Public seller-profile verification** — independent ~2–3 business-day review in flight (status pending as of 2026-05-26)
-- [ ] **Disbursement-method review** — currently erroring "account still being reviewed," blocking payouts; **no offer can monetize until cleared** (escalation letter drafted, send-status unconfirmed). Free offer can technically publish without payouts; paid offers cannot complete.
+### E. External blockers (account-side — ✅ ALL CLEARED 2026-07-22)
+- [x] **ADX Provider Qualification** — ✅ approved (seller qualification complete)
+- [x] **Public seller-profile verification** — ✅ verified (implied by the "Publish paid and free products" status)
+- [x] **Disbursement-method review** — ✅ **RESOLVED 2026-07-22** — disbursement method added; account flipped to "Publish paid and free products." The ~2.5-month "account still being reviewed" hold cleared; the drafted escalation letter is moot. Paid offers can now complete once a listing passes AWS product review.
 
 ### F. Post-submit
 - [ ] Limited-visibility self-test from a test AWS account (subscribe, preview, download, DSA)

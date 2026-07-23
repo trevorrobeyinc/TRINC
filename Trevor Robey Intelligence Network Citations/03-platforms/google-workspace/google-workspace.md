@@ -130,9 +130,10 @@ goes through the scoped token.
       connected in this session. Also update the listing docs that publish the contact
       (`listing/product-description.md`, `product-creation.md:126`,
       `listing/data-eligibility-and-compliance.md:80`) so repo and portal agree.
-- [ ] **AWS escalation letter is still UNSENT** — the higher-value AWS item. Seller is APPROVED but
-      disbursement is blocked by a stalled review; ready-to-send Seller-Operations letter sits in §6
-      of `03-platforms/aws-data-exchange/correspondence-2026-05.md`. Threshold passed 2026-06-02.
+- [x] ~~**AWS escalation letter (was UNSENT)**~~ — ✅ **MOOT / RESOLVED 2026-07-22.** The disbursement
+      block cleared (operator added the disbursement method; account status = "Publish paid and free
+      products"), so the §6 Seller-Operations letter in
+      `03-platforms/aws-data-exchange/correspondence-2026-05.md` is no longer needed — do not send it.
 - [ ] **Work-profile consolidation** (Chrome profile "Trevor Robey Intelligence Network Citations"):
       bind every business account to the business identity/profile and off the personal one. Map +
       plan: [`../business-identity-map.md`](../business-identity-map.md).

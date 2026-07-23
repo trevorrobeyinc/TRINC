@@ -129,12 +129,15 @@
 >   reviewed"* — so payouts can't be configured and no paid listing can go live.
 >   **~34 days (since ~early May) with no response from AWS.** Net: approved seller +
 >   a secondary account review that is stuck and gating disbursement.
->   **NEXT ACTION:** send the disbursement/account-review escalation letter (section
+>   ~~**NEXT ACTION:** send the disbursement/account-review escalation letter (section
 >   **[6]** in [`03-platforms/aws-data-exchange/correspondence-2026-05.md`](03-platforms/aws-data-exchange/correspondence-2026-05.md))
 >   via the AWS Marketplace Management Portal → Support → Seller Operations →
 >   Account/Onboarding (acct `833390816446`, seller `trevor-robey-inc`). If no reply
->   in 5–7 business days, request a phone callback. Free Pharmacovigilance sample is
->   staged and uploads the moment the account clears.
+>   in 5–7 business days, request a phone callback.~~ **✅ SUPERSEDED 2026-07-22 — the
+>   escalation letter was never needed and is now MOOT (do not send).** The operator added
+>   the disbursement method directly; account status flipped to ✓ "Publish paid and free
+>   products." The free Pharmacovigilance sample is staged and the account is now clear —
+>   the remaining gate is AWS's own product review on an actual listing submission.
 > - **Engine note (2026-06-10):** a live test run showed the OpenClaw workflow engine
 >   halts at a human-approval gate it cannot satisfy from any production path — see
 >   [`THE-WHOLE-SYSTEM.md`](THE-WHOLE-SYSTEM.md) §0a. Does not affect the AWS/GTM track,
@@ -286,7 +289,7 @@ HF Hub does not have a native paid-dataset commerce layer. There is no Stripe ch
 - **Time-to-first-listing:** **<1 day** (free signup → upload → gate).
 - **Time-to-first-revenue:** **Indeterminate** — depends entirely on outbound conversion of access-requesters. **No published solo-operator HF gated-dataset revenue case study was located.**
 
-### #5 Snowflake Marketplace — fastest audience-exposure channel after Datarade is gated and AWS is rejected (added 2026-05-04)
+### #5 Snowflake Marketplace — fastest audience-exposure channel after Datarade is gated (added 2026-05-04; **note 2026-07-22: AWS is no longer "rejected" — it's cleared for paid selling, so Snowflake is now a complementary channel, not an AWS fallback**)
 
 Snowflake Marketplace was previously cataloged in §7.7 Tier 2 as a cloud-native enterprise marketplace but not promoted to Section 2 because Datarade was assumed primary and Snowflake's paid-listing vetting was assumed equivalent to Datarade's. That assessment was correct for paid listings but missed the free-listing path: free listings on Snowflake Marketplace approve in **~1 business day** ([provider workflows docs](https://docs.snowflake.com/en/collaboration/provider-listings-workflows)). That path puts trevor-robey-inc inside the marketplace where the Section 1 target accounts (AstraZeneca, AbbVie, GSK, plus biotech investor data teams at Citadel/RA Capital/Point72) actively shop for data products — without waiting on Datarade's review or AWS's reapply window.
 
@@ -624,3 +627,50 @@ Strategy: publish executive summaries, methodological teardowns, visually compel
 
 **Success criteria by Jul 10:** 1 live HuggingFace artifact · ≥3 discovery calls logged · ≥1 NDA out · AWS thread verified (found or formally restarted) · ideally first signed SOW.
 4. **Embed in professional communities.** Persistent helpful presence in Slack + LinkedIn groups transitions an independent researcher from transactional vendor to indispensable strategic partner. This is the **async cred-building substitute for live calls**.
+
+---
+
+## CONTINUATION — 2026-07-22 (AWS cleared for paid + Workspace live; new 30-day window)
+
+> The REVISED 30-DAY PLAN above ran **2026-06-10 → 2026-07-10** and has expired. This block is the
+> current dated plan. Two things changed the game since: (1) **AWS is cleared for paid selling** —
+> disbursement method added 2026-07-22, Marketplace Account status "Publish paid and free products",
+> the whole account-qualification chain is done (`03-platforms/aws-data-exchange/seller-registration.md`);
+> and (2) **Google Workspace is live** for trevorobeyinc.com (Zoho→Gmail cutover 2026-07-22). Business
+> state is still **pre-revenue** ($0 · 0 live listings · 0 calls · 0 deals) — the intake funnel is live
+> but undriven.
+
+**What the AWS approval changes.** AWS moves from "stuck / verify-first" to an *available paid channel*.
+It is no longer a fallback behind Snowflake — a first **paid** AWS Data Exchange listing is now a real
+credibility/lead-source play. It still is not the near-term *revenue* motion (that remains direct
+outbound), but it is a live asset instead of a blocked one.
+
+### Week 1 (Jul 22–28) — get the first live artifacts out
+1. **Publish the free Pharmacovigilance sample on HuggingFace** (zero gate) — still the fastest first
+   public, citable artifact. Bundle staged in `workspace/aws-marketplace-listing/pharmacovigilance-sample-pack/`.
+2. **Publish the first AWS listing** now that the account is cleared: the free Pharmacovigilance Sample
+   Pack first (no payout risk), then stage a **paid** Investor Pre-Mortem / Failed Trial Archaeology
+   listing. Goes through AWS's own product review (5–7 business-day first-listing window). Operator
+   executes the publish (manual-only rule); the repo prepares the listing.
+3. **Snowflake free citation-index listing** (~1-day approval) — inside the buyer surface.
+
+### Week 2 (Jul 29 – Aug 4) — direct outbound (the revenue motion)
+4. **Cold outbound to the 12 named accounts** from `07-outbound/` (now sending from the business
+   Google Workspace / Gmail identity, not Zoho). Lead Persona 1 (pharma CI) + Persona 3
+   (target-discovery). **Goal: ≥3 discovery calls.** Log in `12-pipeline-tracking/discovery-calls.md`.
+
+### Week 3 (Aug 5–11) — convert
+5. **Discovery call → NDA (Common Paper) → scoped SOW** for an Investor Pre-Mortem ($9,950 anchor) or
+   Failed Trial Archaeology ($14,950). One closed engagement is the establishment proof Datarade wanted.
+   Run the pre-publication gates before delivery (PHI screen, citation density, DrugBank `DB\d{5}` gate).
+
+### Week 4 (Aug 12–18) — re-approach gated channels with proof
+6. **Datarade re-apply** once ≥1 dated engagement/testimonial exists (declined for establishment, not
+   product — no rework). Hard deadlines from the identity map: **$800 CA Franchise Tax due 2026-08-15**
+   (FTB) and the LLC **Statement of Information (~2026-09-16)**.
+
+**Success criteria by ~Aug 18:** 1 live HuggingFace artifact · ≥1 AWS listing live (free, then a paid
+listing submitted) · ≥3 discovery calls logged · ≥1 NDA out · ideally first signed SOW.
+
+**Operating posture unchanged:** all sends/submissions are operator-executed and manual; this plan
+prepares the moves, it does not auto-execute them. Log every touch in `12-pipeline-tracking/`.

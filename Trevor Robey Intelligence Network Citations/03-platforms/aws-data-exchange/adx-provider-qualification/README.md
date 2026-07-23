@@ -1,5 +1,11 @@
 # AWS Data Exchange — Provider Qualification Pack
 
+> **✅ RESOLVED (2026-07-22) — this pack is now HISTORICAL.** The AWS seller/provider account is
+> **APPROVED and cleared for paid selling** (disbursement method added; Marketplace status
+> "Publish paid and free products"). The artifacts below were the re-application materials for
+> Seller Ops case 00881277; they need no further action. Current status:
+> [`../seller-registration.md`](../seller-registration.md). Kept for the audit trail.
+
 Paste-ready artifacts for the AWS Data Exchange (ADX) provider qualification review,
 worked through **AWS Marketplace Seller Operations case 00881277** (AWS Data Exchange ›
 Onboarding Request). The original provider application was not approved on 2026-05-03; AWS

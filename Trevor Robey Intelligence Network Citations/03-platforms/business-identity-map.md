@@ -75,7 +75,7 @@ Legend — **B** = business-owned · **P** = personal-owned (entanglement) · **
 | **Gumroad** | parked payment page | order mail → trevor@; login identity undocumented | **?** | LOW |
 | **Google Business Profile** | free listing (cover photo only asset) | **UNKNOWN** — never claimed/documented | **?** | LOW |
 | **Kaggle** | free visibility play | **UNKNOWN** — account creation unconfirmed | **?** | LOW |
-| **IRS EIN** | **not applied for** — blocks bank account, AWS legal-entity update, disbursement | n/a | **?** | HIGH |
+| **IRS EIN** | **not applied for** — blocks business bank account + AWS legal-entity update (AWS disbursement was completed 2026-07-22 via the on-file US ACH account, so EIN no longer gates it) | n/a | **?** | HIGH |
 | **Business bank (Mercury/Relay)** | **not opened** — blocked on EIN | n/a | **?** | MED |
 | **npm / Obsidian stack** | consume-only / local-only — no accounts exist | n/a | — | LOW |
 
@@ -109,7 +109,7 @@ so the browsing surface is separated, and track the ownership fix separately (§
 | **2026-08-15** | **$800 CA Franchise Tax** to FTB — *~3 weeks out* | `00-business-formation/llc/certificate-of-formation.md:56` |
 | **~2026-09-16** | Statement of Information (Form LLC-12, $20) — within 90 days of the 2026-06-18 approval | same, :55 |
 | open | IRS EIN (free, instant online) — gates bank account + AWS legal-entity field | same, :54 |
-| open | AWS Seller-Operations escalation letter (ready, unsent since 2026-06-02) | `03-platforms/aws-data-exchange/correspondence-2026-05.md` §6 |
+| ~~resolved~~ | ~~AWS Seller-Operations escalation letter~~ — **moot 2026-07-22** (disbursement cleared without it; do not send) | `03-platforms/aws-data-exchange/correspondence-2026-05.md` §6 |
 
 ## 5 · Notes
 

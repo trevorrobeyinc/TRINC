@@ -17,10 +17,11 @@
 | Categories | Healthcare, Life Sciences, Financial Services |
 | Disclosure line | *"Trevor Robey, INC. is the wordmark of Trevor Robey Intelligence Network Citations LLC, a California limited liability company. INC = Intelligence Network Citations."* |
 
-## Status (as recorded 2026-05-26)
+## Status (updated 2026-07-22)
 
-🟡 **Pending verification** — public seller profile submitted; AWS independent
-review in flight (~2–3 business days SLA). Tracked alongside the broader Data
-Exchange provider-qualification appeal in
-[`correspondence-2026-05.md`](correspondence-2026-05.md); seller-account record
-in [`seller-registration.md`](seller-registration.md).
+✅ **Verified** — implied by the Marketplace Account status flipping to **"Publish
+paid and free products"** on 2026-07-22 (profile verification is one of the gates
+that status requires). *(Was "🟡 Pending verification — AWS independent review in
+flight" as recorded 2026-05-26.)* Seller-account record in
+[`seller-registration.md`](seller-registration.md); resolution trail in
+[`correspondence-2026-05.md`](correspondence-2026-05.md).

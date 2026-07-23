@@ -107,7 +107,7 @@ citation-gate.js                 ──►  report-level grounding gate (cited i
 | Channel | Reality (2026-06-10) |
 |---|---|
 | **Datarade** | Submitted 2026-05-11; onboarding call 2026-05-20; **DECLINED — "business not yet established."** Re-apply after you have an LLC approval + a couple of closed deals. No product rework needed. |
-| **AWS Data Exchange** | **Seller APPROVED** (portal shows approved). Blocked at disbursement: adding a payment method errors *"account still being reviewed"*, so payouts can't be configured. **~34 days silent.** Escalation letter ready (`03-platforms/aws-data-exchange/correspondence-2026-05.md` §[6]). Account access set up (SSO + 2 YubiKeys). |
+| **AWS Data Exchange** | ✅ **CLEARED FOR PAID SELLING (2026-07-22).** Full account-qualification chain complete: seller registered · tax/DAC7 Completed · US ACH bank (ending 262) · **disbursement method ADDED** · profile verified — Marketplace Account status flipped to **"Publish paid and free products."** *(History: application declined 2026-05-03 → AWS re-engaged → seller APPROVED → disbursement blocked ~2.5 months by a stalled "account still being reviewed" hold → cleared 2026-07-22; the §6 escalation letter is now moot/do-not-send.)* Account access set up (SSO + 2 YubiKeys). **Remaining before revenue is product-side: create + publish a paid listing (AWS product review) — nothing paid is live yet.** |
 | **HuggingFace** | No gatekeeper — **not yet published.** Fastest path to a live, citable artifact. |
 | **Snowflake (free listing)** | ~1-day approval — **not done.** |
 | **Gumroad** | Signed up, **parked.** |
