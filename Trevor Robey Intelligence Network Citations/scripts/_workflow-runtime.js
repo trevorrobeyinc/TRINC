@@ -94,10 +94,23 @@ async function buildWorkflowRuntime(options = {}) {
     // engine's deliverable-assembly re-fetch, so the re-fetch is a session-cache hit (no extra
     // CT.gov round-trip) and the graveyard memo renders from the very records scout grounded on.
     researchRuntime.ctgovSupplemental = ctgovSupplemental;
+    // Vault read-back: lets a role consult PRIOR RESEARCH already in the Obsidian vault
+    // (`obsidian_prior_research`) through the same local-fetcher seam. Read-only by default —
+    // `allowWrites` stays false so this can never double-write against Command Center's
+    // autoGenerateNotes. Routed through the CANONICAL :8798 bridge, never a parallel listener
+    // (root CLAUDE.md: ":8798 is the canonical vault access point").
+    //
+    // Fail-soft by construction: if Obsidian (and therefore the bridge) is closed — which is
+    // normal when run-workflow.js is launched standalone from a terminal — every method returns
+    // an empty result and the run continues with no prior-vault context.
+    const { createObsidianBridgeMcp } = require("../openclaw-bridge/mcp/obsidian-bridge-mcp/index.js");
+    const obsidianBridge = createObsidianBridgeMcp({ logger });
+    researchRuntime.obsidianBridge = obsidianBridge;
     toolPrefetch = createToolPrefetch({
       toolUniverseMcp, logger, rootDir, timeProvider: options.timeProvider,
       localFetchers: {
-        ctgov_stopped_trials: (args) => ctgovSupplemental.searchStoppedTrials(args)
+        ctgov_stopped_trials: (args) => ctgovSupplemental.searchStoppedTrials(args),
+        obsidian_prior_research: (args) => obsidianBridge.priorResearch(args)
       }
     });
     logger.info({ event: "tool_prefetch_initialized", uv_path: uvPath });
