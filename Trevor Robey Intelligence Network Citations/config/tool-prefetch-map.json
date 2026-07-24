@@ -53,6 +53,19 @@
           "topic": "{{therapeutic_area}} {{indication}} {{compound_name}}",
           "limit": 5
         }
+      },
+      {
+        "action": "executeTool",
+        "tool_name": "opentargets_disease_intel",
+        "optional": true,
+        "_comment": "Open Targets Platform (GraphQL) disease lens. Returns ChEMBL-grounded in-clinic drug candidates + top associated targets, so its evidence raises the grounded-citation ratio rather than only adding prose. Fail-soft: any GraphQL/network error yields [] and the run continues.",
+        "arguments": {
+          "indication": "{{indication}}",
+          "disease_name": "{{disease_name}}",
+          "disease_context": "{{disease_context}}",
+          "therapeutic_area": "{{therapeutic_area}}",
+          "limit": 6
+        }
       }
     ],
     "analyst": [
@@ -90,6 +103,16 @@
           "intervention": "{{compound_name}}",
           "pageSize": 6
         }
+      },
+      {
+        "action": "executeTool",
+        "tool_name": "obsidian_prior_research",
+        "optional": true,
+        "_comment": "Vault read-back via the canonical :8798 bridge. optional+fail-soft: when Obsidian is closed (e.g. run-workflow.js launched standalone) this yields nothing and the run proceeds with no prior-vault context. READ-ONLY — Command Center's autoGenerateNotes owns vault writes.",
+        "arguments": {
+          "topic": "{{compound_name}} {{indication}} mechanism",
+          "limit": 5
+        }
       }
     ],
     "synthesizer": [
@@ -125,6 +148,29 @@
       {
         "action": "findTool",
         "query": "bioactivity {{compound_name}}"
+      },
+      {
+        "action": "executeTool",
+        "tool_name": "opentargets_target_intel",
+        "optional": true,
+        "_comment": "Open Targets Platform (GraphQL) target lens: clinical candidates (ChEMBL-grounded), top disease associations, and recent literature (PMID-grounded). Only resolves when the template supplies target_gene; otherwise returns an honest zero.",
+        "arguments": {
+          "target": "{{target_gene}}",
+          "limit": 8
+        }
+      },
+      {
+        "action": "executeTool",
+        "tool_name": "opentargets_disease_intel",
+        "optional": true,
+        "_comment": "Open Targets Platform (GraphQL) disease lens. Returns ChEMBL-grounded in-clinic drug candidates + top associated targets, so its evidence raises the grounded-citation ratio rather than only adding prose. Fail-soft: any GraphQL/network error yields [] and the run continues.",
+        "arguments": {
+          "indication": "{{indication}}",
+          "disease_name": "{{disease_name}}",
+          "disease_context": "{{disease_context}}",
+          "therapeutic_area": "{{therapeutic_area}}",
+          "limit": 6
+        }
       }
     ],
     "literature_reviewer": [
@@ -163,6 +209,16 @@
             "article_id": "{{elife_article_id}}"
           }
         }
+      },
+      {
+        "action": "executeTool",
+        "tool_name": "obsidian_prior_research",
+        "optional": true,
+        "_comment": "Vault read-back via the canonical :8798 bridge. optional+fail-soft: when Obsidian is closed (e.g. run-workflow.js launched standalone) this yields nothing and the run proceeds with no prior-vault context. READ-ONLY — Command Center's autoGenerateNotes owns vault writes.",
+        "arguments": {
+          "topic": "{{indication}} {{drug_class}} {{compound_name}}",
+          "limit": 5
+        }
       }
     ],
     "competitive_intel_analyst": [
@@ -196,6 +252,29 @@
       {
         "action": "findTool",
         "query": "target {{indication}}"
+      },
+      {
+        "action": "executeTool",
+        "tool_name": "opentargets_disease_intel",
+        "optional": true,
+        "_comment": "Open Targets Platform (GraphQL) disease lens. Returns ChEMBL-grounded in-clinic drug candidates + top associated targets, so its evidence raises the grounded-citation ratio rather than only adding prose. Fail-soft: any GraphQL/network error yields [] and the run continues.",
+        "arguments": {
+          "indication": "{{indication}}",
+          "disease_name": "{{disease_name}}",
+          "disease_context": "{{disease_context}}",
+          "therapeutic_area": "{{therapeutic_area}}",
+          "limit": 8
+        }
+      },
+      {
+        "action": "executeTool",
+        "tool_name": "obsidian_prior_research",
+        "optional": true,
+        "_comment": "Vault read-back via the canonical :8798 bridge. optional+fail-soft: when Obsidian is closed (e.g. run-workflow.js launched standalone) this yields nothing and the run proceeds with no prior-vault context. READ-ONLY — Command Center's autoGenerateNotes owns vault writes.",
+        "arguments": {
+          "topic": "{{indication}} {{drug_class}} competitive landscape",
+          "limit": 5
+        }
       }
     ]
   }

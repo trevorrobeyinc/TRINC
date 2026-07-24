@@ -40,6 +40,11 @@ function classify(registry) {
   const buckets = {
     registeredAndBound: [],
     registeredUnbound: [],
+    intentionallyUnbound: [],
+    declined: [],
+    procurementGated: [],
+    superseded: [],
+    blockedOperatorDecision: [],
     adapterMissingHigh: [],
     adapterMissingMedium: [],
     adapterMissingLow: [],
@@ -55,6 +60,36 @@ function classify(registry) {
     const status = entry.adapter_status;
     const priority = entry.adapter_priority;
     const value = entry.business_value;
+
+    // A connector may declare WHY it has no prefetch binding. Two legitimate reasons:
+    //   intentionally-unbound        — a publishing/ops surface, never a research data source
+    //   gate-consumed-not-prefetched — citation-gate infrastructure consumed via researchRuntime,
+    //                                  which screens assembled report citations rather than
+    //                                  gathering evidence, so a prefetch entry would be wrong.
+    // Either way it is a recorded decision, not drift, and must not be reported as a gap.
+    if (entry.binding_status === "intentionally-unbound" ||
+        entry.binding_status === "gate-consumed-not-prefetched") {
+      buckets.intentionallyUnbound.push(id);
+      continue;
+    }
+    if (status === "declined-no-public-api") {
+      buckets.declined.push(id);
+      continue;
+    }
+    // Recorded commercial/operator states. Each is a decision already made, so none of these
+    // is an engineering gap — but each stays visible so it can be revisited deliberately.
+    if (status === "identified-procurement-gated") {
+      buckets.procurementGated.push(id);
+      continue;
+    }
+    if (status === "blocked-operator-decision") {
+      buckets.blockedOperatorDecision.push(id);
+      continue;
+    }
+    if (value === "superseded") {
+      buckets.superseded.push(id);
+      continue;
+    }
 
     if (status === "wired" && bound) {
       buckets.registeredAndBound.push(id);
@@ -98,7 +133,13 @@ function crossCheckPrefetch(registry, prefetch) {
     }
   }
 
-  const rolesInRegistryNotPrefetch = [...registryRoles].filter(r => !prefetchRoles.has(r));
+  // Roles that consume assembled upstream output rather than gathering external evidence
+  // (report_generator, quality_auditor) correctly have NO prefetch entry. Declared in the
+  // registry's prefetch_exempt_roles so this is a recorded design decision, not silent drift.
+  const exemptRoles = new Set((registry.prefetch_exempt_roles && registry.prefetch_exempt_roles.roles) || []);
+
+  const rolesInRegistryNotPrefetch = [...registryRoles]
+    .filter(r => !prefetchRoles.has(r) && !exemptRoles.has(r));
   const rolesInPrefetchNotRegistry = [...prefetchRoles].filter(r => !registryRoles.has(r));
 
   const toolsInPrefetchNotRegistry = [...prefetchTools].filter(t => !registryTools.has(t));
@@ -106,6 +147,7 @@ function crossCheckPrefetch(registry, prefetch) {
   return {
     registryRoles: [...registryRoles].sort(),
     prefetchRoles: [...prefetchRoles].sort(),
+    exemptRoles: [...exemptRoles].sort(),
     rolesInRegistryNotPrefetch,
     rolesInPrefetchNotRegistry,
     prefetchTools: [...prefetchTools].sort(),
@@ -121,14 +163,32 @@ function renderReport(registry, buckets, crosscheck) {
   lines.push(`Total connectors registered: ${Object.keys(registry.connectors).length}`);
   lines.push(`Infrastructure tool-prefixes explicitly excluded: ${(registry.excluded_infrastructure && registry.excluded_infrastructure.tool_prefixes || []).length}`);
   lines.push("");
+  // Lane distribution — `research` is the only lane permitted into tool-prefetch-map.json.
+  const byLane = {};
+  for (const entry of Object.values(registry.connectors)) {
+    const lane = entry.lane || "(unlaned)";
+    byLane[lane] = (byLane[lane] || 0) + 1;
+  }
+  const laneSummary = Object.entries(byLane).sort().map(([l, n]) => `${l}=${n}`).join("  ");
+  lines.push(`Lanes: ${laneSummary}`);
+  const unlaned = Object.entries(registry.connectors).filter(([, e]) => !e.lane).map(([id]) => id);
+  if (unlaned.length) {
+    lines.push(`  ⚠  Unlaned connectors (assign a lane): ${unlaned.join(", ")}`);
+  }
+  lines.push("");
   lines.push(`Registered & bound (subprocess-reachable, role-bound):   ${buckets.registeredAndBound.length}`);
   lines.push(`Registered, unbound (wired but no role/step binding):    ${buckets.registeredUnbound.length}${buckets.registeredUnbound.length ? "  ⚠  " + buckets.registeredUnbound.join(", ") : ""}`);
+  lines.push(`Unbound BY DESIGN (recorded decision, not drift):        ${buckets.intentionallyUnbound.length}${buckets.intentionallyUnbound.length ? "  ✓  " + buckets.intentionallyUnbound.join(", ") : ""}`);
+  lines.push(`Declined (no public API — do not attempt to connect):    ${buckets.declined.length}${buckets.declined.length ? "  ✓  " + buckets.declined.join(", ") : ""}`);
   lines.push("");
   lines.push("--- Adapter gaps (claude-host-mcp connectors that need subprocess adapters) ---");
   lines.push(`  HIGH priority   (load-bearing for $9,950+ deliverables):  ${buckets.adapterMissingHigh.length}${buckets.adapterMissingHigh.length ? "  ✗  " + buckets.adapterMissingHigh.join(", ") : ""}`);
   lines.push(`  MEDIUM priority (high research value):                    ${buckets.adapterMissingMedium.length}${buckets.adapterMissingMedium.length ? "  ⚠  " + buckets.adapterMissingMedium.join(", ") : ""}`);
   lines.push(`  LOW priority    (nice-to-have):                           ${buckets.adapterMissingLow.length}${buckets.adapterMissingLow.length ? "     " + buckets.adapterMissingLow.join(", ") : ""}`);
   lines.push("");
+  lines.push(`Procurement-gated (connect on a signed deal, not before):  ${buckets.procurementGated.length}${buckets.procurementGated.length ? "  ✓  " + buckets.procurementGated.join(", ") : ""}`);
+  lines.push(`Blocked on an operator decision (key / budget):            ${buckets.blockedOperatorDecision.length}${buckets.blockedOperatorDecision.length ? "  ⏸  " + buckets.blockedOperatorDecision.join(", ") : ""}`);
+  lines.push(`Superseded tombstones (kept so they can't silently return): ${buckets.superseded.length}${buckets.superseded.length ? "  ✓  " + buckets.superseded.join(", ") : ""}`);
   lines.push(`Chat-supervisory only (operator-side, never subprocess):  ${buckets.chatSupervisoryOnly.length}`);
   lines.push(`Needs investigation (underspecified vendor):              ${buckets.needsInvestigation.length}${buckets.needsInvestigation.length ? "  ⚠  " + buckets.needsInvestigation.join(", ") : ""}`);
   if (buckets.other.length) {
@@ -138,6 +198,9 @@ function renderReport(registry, buckets, crosscheck) {
   lines.push("--- Registry ↔ tool-prefetch-map.json cross-check ---");
   lines.push(`Roles in registry: ${crosscheck.registryRoles.join(", ") || "(none)"}`);
   lines.push(`Roles in prefetch: ${crosscheck.prefetchRoles.join(", ") || "(none)"}`);
+  if (crosscheck.exemptRoles.length) {
+    lines.push(`Prefetch-exempt by design (consume upstream output, fetch nothing): ${crosscheck.exemptRoles.join(", ")} ✓`);
+  }
   if (crosscheck.rolesInRegistryNotPrefetch.length) {
     lines.push(`  ⚠  Roles bound in registry but absent from prefetch: ${crosscheck.rolesInRegistryNotPrefetch.join(", ")}`);
   }

@@ -230,3 +230,49 @@ Scaffold adapter at `openclaw-bridge/mcp/obsidian-bridge-mcp/ (would proxy to th
 - connector-id: obsidian-bridge
 - tool-prefix: mcp__obsidian-bridge__
 
+## [FEAT-20260724-001] adapter-missing
+
+**Logged**: 2026-07-24T06:30:54.747Z
+**Priority**: medium
+**Status**: pending
+**Area**: backend
+
+### Summary
+Build subprocess adapter for scholar-sidekick (currently claude-host-mcp only; invisible to run-workflow.js).
+
+### Details
+Connector `scholar-sidekick` is bound in `config/connector-registry.json` to roles (none) and workflow steps (none), but has `adapter_status: missing` — it is reachable only at the Claude-host level and cannot be called from `run-workflow.js` subprocess. Business value: load-bearing. Purpose: ADVISORY-ONLY citation-integrity server. **CONSTRAINT: must never sit in the Phase-30 citation gate's hard-fail path** - operator decision on record (_continuity/CONTINUITY.md): putting an external SaaS (500 req/mo free tier, per-request overage, attribution clause) in the blocking path of a gate that refuses to ship reports was REJECTED, and pubmed-retraction.js was built instead with no new dependency. The retraction hole this connector surfaced is already closed. Only genuinely additive capability left is verifyCitation (claimed-title vs the record the identifier actually resolves to), which crossref-retraction/pubmed-retraction do NOT cover since they screen retraction status, not title match. Any adapter must be fail-soft and advisory - e.g. annotating citation-integrity.md with a fabrication-check column that is simply omitted on error/ratelimit - never gating delivery.
+
+### Suggested Action
+Scaffold adapter at `openclaw-bridge/mcp/scholar-sidekick-mcp/` following the `openclaw-bridge/mcp/chembl-mcp/` pattern (index.js + schema.js + tool-descriptions.js). Wire into `config/tool-prefetch-map.json` for the roles listed above. Add health check: verifyCitation({doi:'10.1016/S0140-6736(97)11096-0', title:'Ileal-lymphoid-nodular hyperplasia...'}) flags the Wakefield retraction.
+
+### Metadata
+- Source: connector-registry-audit
+- Related Files: config/connector-registry.json, config/tool-prefetch-map.json, openclaw-bridge/mcp/scholar-sidekick-mcp/
+- Tags: connector, adapter, mcp, load-bearing
+- connector-id: scholar-sidekick
+- tool-prefix: mcp__scholar-sidekick__
+
+## [FEAT-20260724-002] adapter-missing
+
+**Logged**: 2026-07-24T06:30:54.747Z
+**Priority**: medium
+**Status**: pending
+**Area**: backend
+
+### Summary
+Build subprocess adapter for consensus (currently claude-host-mcp only; invisible to run-workflow.js).
+
+### Details
+Connector `consensus` is bound in `config/connector-registry.json` to roles literature_reviewer, analyst and workflow steps (none), but has `adapter_status: missing` — it is reachable only at the Claude-host level and cannot be called from `run-workflow.js` subprocess. Business value: medium. Purpose: Evidence-synthesis search across scientific literature returning per-paper claim support. Complements PubMed/EuropePMC/Semantic Scholar by ranking papers against a claim rather than a keyword. Batch at most 3 searches at a time (rate limit).
+
+### Suggested Action
+Scaffold adapter at `openclaw-bridge/mcp/consensus-mcp/` following the `openclaw-bridge/mcp/chembl-mcp/` pattern (index.js + schema.js + tool-descriptions.js). Wire into `config/tool-prefetch-map.json` for the roles listed above. Add health check: search({query:'does metformin reduce cancer incidence'}) returns numbered papers with citation counts.
+
+### Metadata
+- Source: connector-registry-audit
+- Related Files: config/connector-registry.json, config/tool-prefetch-map.json, openclaw-bridge/mcp/consensus-mcp/
+- Tags: connector, adapter, mcp, medium
+- connector-id: consensus
+- tool-prefix: mcp__plugin_bio-research_consensus__
+

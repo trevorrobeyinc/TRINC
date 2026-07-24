@@ -106,11 +106,21 @@ async function buildWorkflowRuntime(options = {}) {
     const { createObsidianBridgeMcp } = require("../openclaw-bridge/mcp/obsidian-bridge-mcp/index.js");
     const obsidianBridge = createObsidianBridgeMcp({ logger });
     researchRuntime.obsidianBridge = obsidianBridge;
+    // Open Targets Platform (GraphQL). Closes the registry's only HIGH-priority adapter gap —
+    // it was claude-host-mcp only, therefore unreachable from this subprocess. Both entry
+    // points return records carrying `chemblId` / `pmid`, so their evidence lands in
+    // fetched_citation_ids and raises the grounded-citation ratio instead of only adding prose.
+    // Fail-soft: a GraphQL/network error returns [] and the run continues.
+    const { createOpenTargetsGraphql } = require("../openclaw-bridge/mcp/open-targets-graphql/open-targets-graphql.js");
+    const openTargets = createOpenTargetsGraphql({ logger });
+    researchRuntime.openTargets = openTargets;
     toolPrefetch = createToolPrefetch({
       toolUniverseMcp, logger, rootDir, timeProvider: options.timeProvider,
       localFetchers: {
         ctgov_stopped_trials: (args) => ctgovSupplemental.searchStoppedTrials(args),
-        obsidian_prior_research: (args) => obsidianBridge.priorResearch(args)
+        obsidian_prior_research: (args) => obsidianBridge.priorResearch(args),
+        opentargets_target_intel: (args) => openTargets.targetIntel(args),
+        opentargets_disease_intel: (args) => openTargets.diseaseIntel(args)
       }
     });
     logger.info({ event: "tool_prefetch_initialized", uv_path: uvPath });

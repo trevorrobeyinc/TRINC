@@ -47,7 +47,8 @@
       "adapter_status": "wired",
       "adapter_priority": "n/a",
       "suggested_adapter_path": "openclaw-bridge/mcp/chembl-mcp/",
-      "health_check": "chembl_compound_search('aspirin') returns CHEMBL25 with PubChem CID 2244"
+      "health_check": "chembl_compound_search('aspirin') returns CHEMBL25 with PubChem CID 2244",
+      "lane": "research"
     },
     "clinicaltrials-gov": {
       "tool_prefix": "openclaw-bridge/mcp/clinicaltrials-mcp/",
@@ -81,7 +82,8 @@
       "adapter_status": "wired",
       "adapter_priority": "n/a",
       "suggested_adapter_path": "openclaw-bridge/mcp/clinicaltrials-mcp/",
-      "health_check": "search_clinical_trials({query_term: 'NSCLC pembrolizumab', pageSize: 1}) returns at least one NCT id"
+      "health_check": "search_clinical_trials({query_term: 'NSCLC pembrolizumab', pageSize: 1}) returns at least one NCT id",
+      "lane": "research"
     },
     "pubmed": {
       "tool_prefix": "openclaw-bridge/mcp/pubmed-mcp/",
@@ -129,7 +131,8 @@
       "adapter_status": "wired",
       "adapter_priority": "n/a",
       "suggested_adapter_path": "openclaw-bridge/mcp/pubmed-mcp/",
-      "health_check": "PubMed_search_articles({query: 'pembrolizumab NSCLC', limit: 1}) returns a PMID"
+      "health_check": "PubMed_search_articles({query: 'pembrolizumab NSCLC', limit: 1}) returns a PMID",
+      "lane": "research"
     },
     "europepmc": {
       "tool_prefix": "vendor/tooluniverse/EuropePMC_*",
@@ -157,7 +160,8 @@
       "adapter_status": "wired",
       "adapter_priority": "n/a",
       "suggested_adapter_path": "vendor/tooluniverse (already integrated via tool-prefetch.js)",
-      "health_check": "EuropePMC_search_articles({query: 'KRAS G12C', limit: 1}) returns at least one article id"
+      "health_check": "EuropePMC_search_articles({query: 'KRAS G12C', limit: 1}) returns at least one article id",
+      "lane": "research"
     },
     "faers-tooluniverse": {
       "tool_prefix": "vendor/tooluniverse/FAERS_*",
@@ -185,7 +189,8 @@
       "adapter_status": "wired",
       "adapter_priority": "n/a",
       "suggested_adapter_path": "vendor/tooluniverse (already integrated via tool-prefetch.js)",
-      "health_check": "FAERS_search_reports_by_drug_and_indication({medicinalproduct: 'pembrolizumab', drugindication: 'NSCLC', limit: 1}) returns at least one case"
+      "health_check": "FAERS_search_reports_by_drug_and_indication({medicinalproduct: 'pembrolizumab', drugindication: 'NSCLC', limit: 1}) returns at least one case",
+      "lane": "research"
     },
     "opentargets-tooluniverse": {
       "tool_prefix": "vendor/tooluniverse/OpenTargets_*",
@@ -212,7 +217,8 @@
       "adapter_status": "wired",
       "adapter_priority": "n/a",
       "suggested_adapter_path": "vendor/tooluniverse (already integrated via tool-prefetch.js)",
-      "health_check": "OpenTargets_get_drug_id_description_by_name({drugName: 'pembrolizumab'}) returns CHEMBL3137343 or equivalent"
+      "health_check": "OpenTargets_get_drug_id_description_by_name({drugName: 'pembrolizumab'}) returns CHEMBL3137343 or equivalent",
+      "lane": "research"
     },
     "scholar-gateway-semantic-scholar": {
       "tool_prefix": "vendor/tooluniverse/SemanticScholar_*",
@@ -261,7 +267,8 @@
       "adapter_status": "wired",
       "adapter_priority": "n/a",
       "suggested_adapter_path": "vendor/tooluniverse (already integrated via tool-prefetch.js)",
-      "health_check": "SemanticScholar_search_papers({query: 'KRAS G12C inhibitor', limit: 1}) returns paperId + abstract"
+      "health_check": "SemanticScholar_search_papers({query: 'KRAS G12C inhibitor', limit: 1}) returns paperId + abstract",
+      "lane": "research"
     },
     "arxiv": {
       "tool_prefix": "openclaw-bridge/mcp/arxiv-mcp.js",
@@ -290,7 +297,8 @@
       "adapter_status": "wired",
       "adapter_priority": "n/a",
       "suggested_adapter_path": "openclaw-bridge/mcp/arxiv-mcp.js (single-file adapter)",
-      "health_check": "arxiv_search({query: 'foundation model genomics', limit: 1}) returns arxiv id"
+      "health_check": "arxiv_search({query: 'foundation model genomics', limit: 1}) returns arxiv id",
+      "lane": "research"
     },
     "huggingface-metadata": {
       "tool_prefix": "openclaw-bridge/mcp/huggingface-mcp/",
@@ -315,7 +323,8 @@
       "adapter_status": "wired",
       "adapter_priority": "n/a",
       "suggested_adapter_path": "openclaw-bridge/mcp/huggingface-mcp/",
-      "health_check": "hf_metadata_lookup('openai/whisper-large-v3') returns model card metadata"
+      "health_check": "hf_metadata_lookup('openai/whisper-large-v3') returns model card metadata",
+      "lane": "research"
     },
     "npi-registry": {
       "tool_prefix": "openclaw-bridge/mcp/npi-mcp/",
@@ -340,7 +349,8 @@
       "adapter_status": "wired",
       "adapter_priority": "n/a",
       "suggested_adapter_path": "openclaw-bridge/mcp/npi-mcp/",
-      "health_check": "npi_lookup with a known NPI number returns provider record"
+      "health_check": "npi_lookup with a known NPI number returns provider record",
+      "lane": "research"
     },
     "icd10": {
       "tool_prefix": "openclaw-bridge/mcp/icd10-mcp/",
@@ -364,7 +374,8 @@
       "adapter_status": "wired",
       "adapter_priority": "n/a",
       "suggested_adapter_path": "openclaw-bridge/mcp/icd10-mcp/",
-      "health_check": "icd10_lookup('C34.9') returns 'malignant neoplasm of bronchus or lung, unspecified'"
+      "health_check": "icd10_lookup('C34.9') returns 'malignant neoplasm of bronchus or lung, unspecified'",
+      "lane": "research"
     },
     "owkin": {
       "tool_prefix": "openclaw-bridge/mcp/owkin-mcp/",
@@ -387,7 +398,8 @@
       "adapter_status": "wired",
       "adapter_priority": "n/a",
       "suggested_adapter_path": "openclaw-bridge/mcp/owkin-mcp/",
-      "health_check": "owkin_pathology_query reachability ping"
+      "health_check": "owkin_pathology_query reachability ping",
+      "lane": "research"
     },
     "scrape": {
       "tool_prefix": "openclaw-bridge/mcp/scrape-mcp/",
@@ -410,7 +422,8 @@
       "adapter_status": "wired",
       "adapter_priority": "n/a",
       "suggested_adapter_path": "openclaw-bridge/mcp/scrape-mcp/",
-      "health_check": "scrape_target({target: 'elife', params: {article_id: '12345'}}) returns parsed structure"
+      "health_check": "scrape_target({target: 'elife', params: {article_id: '12345'}}) returns parsed structure",
+      "lane": "research"
     },
     "newsletter-publisher": {
       "tool_prefix": "openclaw-bridge/mcp/newsletter-publisher-mcp/",
@@ -426,7 +439,10 @@
       "adapter_status": "wired",
       "adapter_priority": "n/a",
       "suggested_adapter_path": "openclaw-bridge/mcp/newsletter-publisher-mcp/",
-      "health_check": "newsletter_publish_draft dry-run returns staged-draft id"
+      "health_check": "newsletter_publish_draft dry-run returns staged-draft id",
+      "lane": "business",
+      "binding_status": "intentionally-unbound",
+      "binding_rationale": "Publishing surface, not a research data source. Invoked by operator-driven distribution scripts, never by a research role's prefetch. Not drift."
     },
     "notion-sync": {
       "tool_prefix": "openclaw-bridge/mcp/notion-sync-mcp/",
@@ -442,7 +458,10 @@
       "adapter_status": "wired",
       "adapter_priority": "n/a",
       "suggested_adapter_path": "openclaw-bridge/mcp/notion-sync-mcp/",
-      "health_check": "notion_sync_page dry-run returns page-stub id"
+      "health_check": "notion_sync_page dry-run returns page-stub id",
+      "lane": "business",
+      "binding_status": "intentionally-unbound",
+      "binding_rationale": "Operator note-sync surface. Deliberately outside the citation-graded research prefetch. Not drift."
     },
     "synthesize-bio": {
       "tool_prefix": "mcp__c61b22f1-bde2-44d1-8e91-8e2fe4082ba6__",
@@ -476,10 +495,12 @@
         }
       ],
       "business_value": "load-bearing",
-      "adapter_status": "missing (design corrected 2026-07-16 \u2014 see suggested_adapter_path)",
+      "adapter_status": "blocked-operator-decision",
       "adapter_priority": "high",
       "suggested_adapter_path": "openclaw-bridge/mcp/synthesize-bio-mcp/ \u2014 but NOT the chembl REST scaffold and NOT a deterministic tool-prefetch localFetcher. Verified 2026-07-16 against the live tool schemas + docs.synthesize.bio/platform/tools-reference: every capability is async / stateful / budget-metered (resolve_sample_metadata \u2192 analyze_gene_expression [job_id] \u2192 get_analysis_results [poll] \u2192 get_counts_data_url); get_metadata_schema is the ONLY static, budget-free call and there is NO synchronous indication-drivable retrieval tool. Correct design = a remote-MCP client (Bearer \u2192 https://app.synthesize.bio/api/mcp) driven by a DELIBERATE, supervised generative workflow step and attached to researchRuntime like ctgovSupplemental \u2014 never auto-fired in the fail-soft prefetch seam. Blocked on: operator API key + a per-run generation-budget decision.",
-      "health_check": "get_metadata_schema() returns group_schema (static; consumes no generation budget)"
+      "health_check": "get_metadata_schema() returns group_schema (static; consumes no generation budget)",
+      "lane": "research",
+      "blocked_on": "Operator must (a) provision SYNTHESIZE_API_KEY at https://app.synthesize.bio/account/api-keys and (b) make a per-run generation-budget decision. Its API is a remote MCP server (JSON-RPC over Streamable-HTTP at https://app.synthesize.bio/api/mcp), NOT a REST API, and every capability is async/stateful/generation-metered (resolve -> analyze[job] -> poll -> counts). Correct design is a SUPERVISED remote-MCP client as a deliberate generative workflow step, never the deterministic prefetch seam."
     },
     "tavily": {
       "tool_prefix": "mcp__11a574c2-a267-4a04-863c-78ae1342fc0d__",
@@ -499,7 +520,8 @@
       "adapter_status": "missing",
       "adapter_priority": "none",
       "suggested_adapter_path": "openclaw-bridge/mcp/tavily-mcp/ (do not build \u2014 superseded by searxng-mcp)",
-      "health_check": "n/a (superseded by searxng-search)"
+      "health_check": "n/a (superseded by searxng-search)",
+      "lane": "research"
     },
     "searxng-search": {
       "tool_prefix": "mcp__searxng-search__",
@@ -546,18 +568,16 @@
       "adapter_status": "wired",
       "adapter_priority": "n/a",
       "suggested_adapter_path": "openclaw-bridge/mcp/searxng-mcp/",
-      "health_check": "search({query: 'FDA approval pembrolizumab 2024', topic: 'science', max_results: 1}) returns at least one result with URL"
+      "health_check": "search({query: 'FDA approval pembrolizumab 2024', topic: 'science', max_results: 1}) returns at least one result with URL",
+      "lane": "research"
     },
     "open-targets-graphql": {
-      "tool_prefix": "mcp__deb8af66-16fd-4ea2-a9ad-8a2f7add60b7__",
-      "execution_surface": "claude-host-mcp",
+      "tool_prefix": "openclaw-bridge/mcp/open-targets-graphql/",
+      "execution_surface": "subprocess-mcp",
       "auth": "none (public GraphQL endpoint)",
       "tools": [
-        "query_open_targets_graphql",
-        "batch_query_open_targets_graphql",
-        "search_entities",
-        "get_open_targets_graphql_schema",
-        "get_type_dependencies"
+        "opentargets_target_intel",
+        "opentargets_disease_intel"
       ],
       "purpose": "Target-disease association evidence with GraphQL flexibility \u2014 load-bearing for Target Validation Pack and Cross-Silo Connector Report. Existing tool-prefetch-map.json references OpenTargets_get_drug_id_description_by_name (ToolUniverse) \u2014 this richer GraphQL adapter would replace/complement it.",
       "bound_roles": [
@@ -576,10 +596,13 @@
         }
       ],
       "business_value": "load-bearing",
-      "adapter_status": "missing",
-      "adapter_priority": "high",
-      "suggested_adapter_path": "openclaw-bridge/mcp/open-targets-graphql-mcp/",
-      "health_check": "search_entities({query: 'TP53'}) returns ENSG00000141510"
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "openclaw-bridge/mcp/open-targets-graphql/",
+      "health_check": "createOpenTargetsGraphql().health() -> {ok:true, ensemblId:'ENSG00000141510'}; targetIntel({target:'TP53'}) returns ChEMBL-grounded candidates + PMIDs",
+      "lane": "research",
+      "adapter_note": "Built 2026-07-24, closing the registry's only HIGH-priority gap. Schema verified live by introspection, NOT assumed: the drug field is `drugAndClinicalCandidates` (NOT `knownDrugs`, which exists on neither Target nor Disease here) and takes NO arguments; literature is `literatureOcurrences` (the API's own one-c spelling). Records carry chemblId/pmid so evidence lands in fetched_citation_ids. Verified end-to-end: 11 records -> 9 grounded ids (6 ChEMBL + 3 PMID). Host connector mcp__deb8af66-...__ still exists for chat use; the engine now uses the subprocess adapter.",
+      "host_surface_tool_prefix": "mcp__deb8af66-16fd-4ea2-a9ad-8a2f7add60b7__"
     },
     "pubmed-fulltext": {
       "tool_prefix": "mcp__6cb39404-df07-4b18-8c1e-84348b5903de__",
@@ -613,7 +636,8 @@
       "adapter_status": "missing",
       "adapter_priority": "medium",
       "suggested_adapter_path": "openclaw-bridge/mcp/pubmed-fulltext-mcp/",
-      "health_check": "search_articles({query: 'KRAS G12C', limit: 1}) returns PMID with full-text URL"
+      "health_check": "search_articles({query: 'KRAS G12C', limit: 1}) returns PMID with full-text URL",
+      "lane": "research"
     },
     "drug-search-admet": {
       "tool_prefix": "mcp__efb88440-c38c-4fba-aeb7-f3270490e9dc__",
@@ -645,7 +669,8 @@
       "adapter_status": "missing",
       "adapter_priority": "medium",
       "suggested_adapter_path": "openclaw-bridge/mcp/drug-admet-mcp/",
-      "health_check": "compound_search('imatinib') returns PubChem CID 5291"
+      "health_check": "compound_search('imatinib') returns PubChem CID 5291",
+      "lane": "research"
     },
     "clinicaltrials-enriched": {
       "tool_prefix": "mcp__e1fbcace-eff5-41e6-95c2-69e2dedf64b3__",
@@ -674,7 +699,8 @@
       "adapter_status": "missing",
       "adapter_priority": "medium",
       "suggested_adapter_path": "openclaw-bridge/mcp/clinicaltrials-enriched-mcp/",
-      "health_check": "analyze_endpoints with a known NCT id returns endpoint breakdown"
+      "health_check": "analyze_endpoints with a known NCT id returns endpoint breakdown",
+      "lane": "research"
     },
     "biorxiv-medrxiv": {
       "tool_prefix": "mcp__d3109d6a-2eec-4d76-b38b-e7e707fff0e7__",
@@ -704,7 +730,8 @@
       "adapter_status": "missing",
       "adapter_priority": "medium",
       "suggested_adapter_path": "openclaw-bridge/mcp/biorxiv-medrxiv-mcp/",
-      "health_check": "search_preprints({query: 'KRAS G12C', limit: 1}) returns DOI"
+      "health_check": "search_preprints({query: 'KRAS G12C', limit: 1}) returns DOI",
+      "lane": "research"
     },
     "research-memory": {
       "tool_prefix": "mcp__trevorobeyinc-research-memory__",
@@ -753,7 +780,8 @@
       "adapter_status": "missing",
       "adapter_priority": "medium",
       "suggested_adapter_path": "openclaw-bridge/mcp/research-memory-mcp/ (uses existing qdrant-tls-proxy on :6433 \u2014 see HTTPS-only invariant in root CLAUDE.md)",
-      "health_check": "pack_list returns at least one pack id from prior workflow runs"
+      "health_check": "pack_list returns at least one pack id from prior workflow runs",
+      "lane": "vault"
     },
     "obsidian-bridge": {
       "tool_prefix": "mcp__obsidian-bridge__",
@@ -806,7 +834,8 @@
       "adapter_status": "wired",
       "adapter_priority": "medium",
       "suggested_adapter_path": "openclaw-bridge/mcp/obsidian-bridge-mcp/index.js (thin client of the canonical bridge on :8798 \u2014 opens NO listener; see HTTPS-only invariant)",
-      "health_check": "obsidian_health returns ok"
+      "health_check": "obsidian_health returns ok",
+      "lane": "vault"
     },
     "sequential-thinking": {
       "tool_prefix": "mcp__sequential-thinking__",
@@ -822,7 +851,8 @@
       "adapter_status": "missing",
       "adapter_priority": "low",
       "suggested_adapter_path": "n/a \u2014 chat-supervisory only; no subprocess use case",
-      "health_check": "n/a"
+      "health_check": "n/a",
+      "lane": "infra"
     },
     "context7-library-docs": {
       "tool_prefix": "mcp__context7__",
@@ -839,7 +869,8 @@
       "adapter_status": "missing",
       "adapter_priority": "low",
       "suggested_adapter_path": "n/a \u2014 chat-supervisory only",
-      "health_check": "n/a"
+      "health_check": "n/a",
+      "lane": "infra"
     },
     "github": {
       "tool_prefix": "mcp__github__",
@@ -859,7 +890,8 @@
       "adapter_status": "missing",
       "adapter_priority": "low",
       "suggested_adapter_path": "n/a \u2014 chat-supervisory only",
-      "health_check": "n/a"
+      "health_check": "n/a",
+      "lane": "business"
     },
     "gmail": {
       "tool_prefix": "mcp__ef0bc6fb-ada9-4068-8666-760f1ec94e4f__",
@@ -880,7 +912,8 @@
       "adapter_status": "missing",
       "adapter_priority": "low",
       "suggested_adapter_path": "n/a \u2014 manual-only external action; no subprocess adapter ever",
-      "health_check": "n/a"
+      "health_check": "n/a",
+      "lane": "business"
     },
     "filesystem-sandboxed": {
       "tool_prefix": "mcp__filesystem__",
@@ -899,7 +932,8 @@
       "adapter_status": "missing",
       "adapter_priority": "low",
       "suggested_adapter_path": "n/a \u2014 chat-supervisory only",
-      "health_check": "n/a"
+      "health_check": "n/a",
+      "lane": "infra"
     },
     "scheduled-tasks": {
       "tool_prefix": "mcp__scheduled-tasks__",
@@ -917,7 +951,8 @@
       "adapter_status": "missing",
       "adapter_priority": "low",
       "suggested_adapter_path": "n/a \u2014 chat-supervisory only; subprocess scheduling lives at config/scheduled-workflows.json",
-      "health_check": "n/a"
+      "health_check": "n/a",
+      "lane": "infra"
     },
     "mcp-registry": {
       "tool_prefix": "mcp__mcp-registry__",
@@ -935,7 +970,8 @@
       "adapter_status": "missing",
       "adapter_priority": "low",
       "suggested_adapter_path": "n/a \u2014 chat-supervisory only",
-      "health_check": "n/a"
+      "health_check": "n/a",
+      "lane": "infra"
     },
     "icd10-host-enriched": {
       "tool_prefix": "mcp__7872ec95-e09c-4db8-acea-cc0706e2201f__",
@@ -963,7 +999,8 @@
       "adapter_status": "missing",
       "adapter_priority": "low",
       "suggested_adapter_path": "openclaw-bridge/mcp/icd10-enriched-mcp/ (or extend existing icd10-mcp)",
-      "health_check": "get_hierarchy('C34') returns lung-cancer subcategories"
+      "health_check": "get_hierarchy('C34') returns lung-cancer subcategories",
+      "lane": "research"
     },
     "npi-host-validate": {
       "tool_prefix": "mcp__1af02170-f82f-45b6-8765-8c0c3e7cde8d__",
@@ -988,7 +1025,8 @@
       "adapter_status": "missing",
       "adapter_priority": "low",
       "suggested_adapter_path": "openclaw-bridge/mcp/npi-mcp/ (extend existing adapter with validate)",
-      "health_check": "npi_validate of a known NPI returns valid=true"
+      "health_check": "npi_validate of a known NPI returns valid=true",
+      "lane": "research"
     },
     "huggingface-host-rich": {
       "tool_prefix": "mcp__8f9ee7eb-f037-4a08-9908-87bc7dc9fe80__",
@@ -1019,7 +1057,8 @@
       "adapter_status": "missing",
       "adapter_priority": "low",
       "suggested_adapter_path": "openclaw-bridge/mcp/huggingface-mcp/ (extend existing adapter)",
-      "health_check": "paper_search({query: 'AlphaFold', limit: 1}) returns paper id"
+      "health_check": "paper_search({query: 'AlphaFold', limit: 1}) returns paper id",
+      "lane": "research"
     },
     "tooluniverse-host": {
       "tool_prefix": "mcp__ToolUniverse__",
@@ -1039,7 +1078,8 @@
       "adapter_status": "duplicate-of-subprocess-tooluniverse",
       "adapter_priority": "n/a",
       "suggested_adapter_path": "n/a \u2014 subprocess already integrates ToolUniverse via vendor/tooluniverse",
-      "health_check": "n/a"
+      "health_check": "n/a",
+      "lane": "research"
     },
     "semantic-search-host": {
       "tool_prefix": "mcp__7bb47381-3b1a-467f-954e-d2b748f13b93__",
@@ -1055,7 +1095,8 @@
       "adapter_status": "needs-investigation",
       "adapter_priority": "low",
       "suggested_adapter_path": "do not adapt \u2014 operator identifies vendor in claude.ai settings, then keep-and-label or remove",
-      "health_check": "n/a"
+      "health_check": "n/a",
+      "lane": "research"
     },
     "guidepoint-expert-network": {
       "execution_surface": "claude-host-mcp",
@@ -1068,7 +1109,8 @@
       "adapter_status": "identified-procurement-gated",
       "adapter_priority": "revenue-critical, on-demand",
       "suggested_adapter_path": "do NOT subscribe speculatively. Connect-on-first-signed-KOL-deal: treat KOL primary research as a pass-through cost triggered by an actual $19,950 engagement (or negotiate pay-per-call), then connect via claude.ai settings.",
-      "health_check": "n/a"
+      "health_check": "n/a",
+      "lane": "research"
     },
     "third-bridge-expert-network": {
       "execution_surface": "claude-host-mcp",
@@ -1081,11 +1123,161 @@
       "adapter_status": "identified-procurement-gated",
       "adapter_priority": "revenue-critical, on-demand",
       "suggested_adapter_path": "same connect-on-first-KOL-deal posture as guidepoint; evaluate the two against actual buyer needs (Guidepoint = broader expert sourcing / 1:1 calls; Third Bridge = deeper transcript library) before committing to either.",
-      "health_check": "n/a"
+      "health_check": "n/a",
+      "lane": "research"
+    },
+    "adisinsight": {
+      "execution_surface": "claude-host-mcp",
+      "lane": "research",
+      "auth": "none available \u2014 Springer Nature subscription-only web database; no public MCP server, no free/open API",
+      "tools": [],
+      "purpose": "DECLINED 2026-07-24. Drug/trial/pharma-pipeline intelligence. There is nothing to connect to: zero results in the Claude connector directory, absent from every local MCP config, never a registered connector. Local adisinsight-mcp deleted 2026-04-29; .bak purged 2026-05-08. Failed-trial value already delivered by ctgov-supplemental -> deliverables/graveyard-memo.md. Residual delta (curated non-registry discontinuations, ex-US registries) is cheaper to close with an EU-CTR fetcher than a Springer enterprise contract. DO NOT attempt to connect; see docs/mcp-connector-gap-analysis-2026-07-10.md section 2b.",
+      "bound_roles": [],
+      "bound_workflow_steps": [],
+      "business_value": "none \u2014 superseded by ctgov-supplemental graveyard coverage",
+      "adapter_status": "declined-no-public-api",
+      "adapter_priority": "none",
+      "suggested_adapter_path": "n/a \u2014 declined",
+      "health_check": "n/a \u2014 declined"
+    },
+    "scholar-sidekick": {
+      "tool_prefix": "mcp__scholar-sidekick__",
+      "execution_surface": "claude-host-mcp",
+      "lane": "research",
+      "auth": "none (anonymous); optional free ssk_ bearer key raises rate limits. Free tier 500 req/month.",
+      "tools": [
+        "verifyCitation",
+        "auditBibliography",
+        "checkRetraction",
+        "checkOpenAccess",
+        "resolveIdentifier",
+        "formatCitation",
+        "exportCitation"
+      ],
+      "purpose": "ADVISORY-ONLY citation-integrity server. **CONSTRAINT: must never sit in the Phase-30 citation gate's hard-fail path** - operator decision on record (_continuity/CONTINUITY.md): putting an external SaaS (500 req/mo free tier, per-request overage, attribution clause) in the blocking path of a gate that refuses to ship reports was REJECTED, and pubmed-retraction.js was built instead with no new dependency. The retraction hole this connector surfaced is already closed. Only genuinely additive capability left is verifyCitation (claimed-title vs the record the identifier actually resolves to), which crossref-retraction/pubmed-retraction do NOT cover since they screen retraction status, not title match. Any adapter must be fail-soft and advisory - e.g. annotating citation-integrity.md with a fabrication-check column that is simply omitted on error/ratelimit - never gating delivery.",
+      "bound_roles": [],
+      "bound_workflow_steps": [],
+      "business_value": "load-bearing",
+      "adapter_status": "missing",
+      "adapter_priority": "medium",
+      "suggested_adapter_path": "openclaw-bridge/mcp/scholar-sidekick-mcp/",
+      "health_check": "verifyCitation({doi:'10.1016/S0140-6736(97)11096-0', title:'Ileal-lymphoid-nodular hyperplasia...'}) flags the Wakefield retraction",
+      "registry_note": "Authenticated at host level 2026-07-10; registered 2026-07-24 (late \u2014 the registry's own 7-day rule was missed, which is why this reconciliation pass exists).",
+      "constraint": "MUST NEVER sit in the Phase-30 citation gate's HARD-FAIL path. Operator decision on record (_continuity/CONTINUITY.md, 'Rejected both options as specified'): routing the gate through this connector would put an external SaaS (500 req/mo free tier, per-request overage, attribution clause) in the blocking path of a gate that refuses to ship reports. pubmed-retraction.js was built INSTEAD, with no new dependency, and it already closed the PMID-without-DOI hole this connector originally surfaced. Any future adapter must be ADVISORY and fail-soft only - e.g. annotating citation-integrity.md with a verifyCitation fabrication check that is simply omitted on error/ratelimit - and must never gate delivery.",
+      "residual_unique_value": "verifyCitation (claimed-title vs the record the identifier actually resolves to) is genuinely NOT covered by crossref-retraction or pubmed-retraction, which screen retraction status rather than title match. That is the only additive capability left; the retraction gap it once filled is closed.",
+      "endpoint": "https://scholar-sidekick.com/api/mcp (remote HTTP MCP, JSON-RPC; Bearer ${SCHOLAR_SIDEKICK_MCP_KEY} from Keychain via LaunchAgent - key never in a file)"
+    },
+    "consensus": {
+      "tool_prefix": "mcp__plugin_bio-research_consensus__",
+      "execution_surface": "claude-host-mcp",
+      "lane": "research",
+      "auth": "none anonymous; usage counter + upgrade prompts returned in tool output",
+      "tools": [
+        "search"
+      ],
+      "purpose": "Evidence-synthesis search across scientific literature returning per-paper claim support. Complements PubMed/EuropePMC/Semantic Scholar by ranking papers against a claim rather than a keyword. Batch at most 3 searches at a time (rate limit).",
+      "bound_roles": [
+        "literature_reviewer",
+        "analyst"
+      ],
+      "bound_workflow_steps": [],
+      "business_value": "medium",
+      "adapter_status": "missing",
+      "adapter_priority": "medium",
+      "suggested_adapter_path": "openclaw-bridge/mcp/consensus-mcp/",
+      "health_check": "search({query:'does metformin reduce cancer incidence'}) returns numbered papers with citation counts",
+      "registry_note": "Arrived with the bio-research plugin bundle; registered 2026-07-24."
+    },
+    "ctgov-supplemental": {
+      "tool_prefix": "openclaw-bridge/mcp/ctgov-supplemental/",
+      "execution_surface": "subprocess-mcp",
+      "lane": "research",
+      "auth": "none",
+      "tools": [
+        "ctgov_stopped_trials"
+      ],
+      "purpose": "Stop-reason archaeology. Searches ClinicalTrials.gov v2 for TERMINATED/WITHDRAWN/SUSPENDED trials in a condition and returns nctId, overallStatus, phases, the sponsor's whyStopped text, and protocol change-history (version count + most-amended modules). Session-cached; the SAME instance backs both role prefetch and the workflow engine's deliverable re-fetch so graveyard-memo.md renders from the records scout actually grounded on. This is the engine's failed-trial intelligence and the reason AdisInsight was declined.",
+      "bound_roles": [
+        "scout",
+        "competitive_intel_analyst"
+      ],
+      "bound_workflow_steps": [
+        {
+          "workflow_template_id": "clinical-trial-landscape",
+          "step_id": "research"
+        },
+        {
+          "workflow_template_id": "target-validation-pack",
+          "step_id": "research"
+        }
+      ],
+      "business_value": "load-bearing",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "openclaw-bridge/mcp/ctgov-supplemental/",
+      "health_check": "ctgov_stopped_trials({condition:'ovarian cancer'}) returns NCT-traced records carrying whyStopped",
+      "registry_note": "Was in tool-prefetch-map.json but declared in NO registry entry \u2014 the audit's 'tools in prefetch but not declared' drift. Declared 2026-07-24."
+    },
+    "crossref-retraction": {
+      "tool_prefix": "openclaw-bridge/mcp/crossref-retraction/",
+      "execution_surface": "subprocess-mcp",
+      "lane": "research",
+      "auth": "none",
+      "tools": [
+        "crossref_retraction_check"
+      ],
+      "purpose": "DOI retraction screen for the Phase-30 citation gate. Reads Crossref relation/update-to. Consumed by citation-gate.js via researchRuntime.crossrefRetraction, NOT via role prefetch \u2014 it screens assembled report citations, it does not gather evidence.",
+      "bound_roles": [],
+      "bound_workflow_steps": [],
+      "business_value": "load-bearing",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "openclaw-bridge/mcp/crossref-retraction/",
+      "health_check": "flags Surgisphere DOIs via update-to:[retraction]",
+      "binding_status": "gate-consumed-not-prefetched",
+      "binding_rationale": "Citation-gate infrastructure. Correctly absent from tool-prefetch-map.json; must not be flagged as unbound drift."
+    },
+    "pubmed-retraction": {
+      "tool_prefix": "openclaw-bridge/mcp/pubmed-retraction/",
+      "execution_surface": "subprocess-mcp",
+      "lane": "research",
+      "auth": "optional: NCBI_API_KEY (3x faster)",
+      "tools": [
+        "pubmed_retraction_check"
+      ],
+      "purpose": "PMID retraction screen + DOI->PMID reverse resolution for the citation gate. Matches pubtype EXACTLY on 'Retracted Publication' and disambiguates 'Retraction Notice' (citing a notice is legitimate and must not hard-fail). Catches what Crossref misses (e.g. Wakefield 1998, clean to the DOI screen).",
+      "bound_roles": [],
+      "bound_workflow_steps": [],
+      "business_value": "load-bearing",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "openclaw-bridge/mcp/pubmed-retraction/",
+      "health_check": "PMID for Wakefield 1998 returns pubtype 'Retracted Publication'",
+      "binding_status": "gate-consumed-not-prefetched",
+      "binding_rationale": "Citation-gate infrastructure. Correctly absent from tool-prefetch-map.json."
+    },
+    "citation-reresolver": {
+      "tool_prefix": "openclaw-bridge/mcp/citation-reresolver/",
+      "execution_surface": "subprocess-mcp",
+      "lane": "research",
+      "auth": "none",
+      "tools": [
+        "citation_reresolve"
+      ],
+      "purpose": "Re-resolves cited identifiers against source records for the citation-integrity layer. Gate-side, not prefetch-side.",
+      "bound_roles": [],
+      "bound_workflow_steps": [],
+      "business_value": "high",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "openclaw-bridge/mcp/citation-reresolver/",
+      "health_check": "resolves a known-good PMID to its source record",
+      "binding_status": "gate-consumed-not-prefetched",
+      "binding_rationale": "Citation-gate infrastructure. Correctly absent from tool-prefetch-map.json."
     }
   },
   "excluded_infrastructure": {
-    "rationale": "Connectors that are not biomedical-research-relevant by category. Listed here so audit script knows to ignore them rather than flag as drift.",
+    "rationale": "Connectors that are not biomedical-research-relevant by category. Listed here so the audit script ignores them rather than flagging as drift. See operator_surfaces for the full non-research ledger and why each is deliberately outside the engine.",
     "tool_prefixes": [
       "mcp__plugin_playwright_playwright__",
       "mcp__Claude_in_Chrome__",
@@ -1103,7 +1295,158 @@
       "mcp__plugin_data_bigquery__",
       "mcp__plugin_data_definite__",
       "mcp__plugin_data_hex__",
-      "mcp__claude-code__"
+      "mcp__claude-code__",
+      "mcp__claude-in-chrome__",
+      "mcp__Claude_Browser__",
+      "mcp__plugin_pdf-viewer_pdf__",
+      "mcp__ccd_session__",
+      "mcp__visualize__",
+      "mcp__falcon__",
+      "mcp__firewalla__",
+      "mcp__sudo-gate__",
+      "mcp__term-bridge__",
+      "mcp__zoho-mail__",
+      "mcp__zoho-trinc__",
+      "mcp__gmail__",
+      "mcp__scheduled-tasks__",
+      "mcp__FilesystemPlus__",
+      "mcp__plugin_engineering_",
+      "mcp__plugin_marketing_",
+      "mcp__plugin_productivity_",
+      "mcp__plugin_product-management_",
+      "mcp__plugin_sales_",
+      "mcp__plugin_design_",
+      "mcp__plugin_operations_"
     ]
-  }
+  },
+  "lanes": {
+    "research": "Biomedical / citation connectors. The ONLY lane permitted into config/tool-prefetch-map.json. Everything here is subject to the Phase-30 citation-grounding gate.",
+    "vault": "Obsidian + memory surfaces reached through the canonical :8798 bridge and the Qdrant TLS proxy :6433. Read-only from the engine; Command Center owns vault writes.",
+    "business": "Mail, publishing, notes, repo. Chat-supervisory and Command Center only. NEVER injected into research prefetch \u2014 these return non-citable payloads that would dilute the grounded-citation ratio and inflate a token budget already at ~300K/template.",
+    "security": "Falcon / Firewalla / sudo-gate / term-bridge. Governed by the security-orchestration skill under strict propose-only. Never reachable from the engine.",
+    "infra": "Session, scheduling, filesystem, and docs plumbing. Not a product data source."
+  },
+  "prefetch_exempt_roles": {
+    "rationale": "These roles consume assembled upstream output rather than gathering external evidence, so having no tool-prefetch entry is CORRECT design, not drift. The audit must not report them as gaps.",
+    "roles": [
+      "report_generator",
+      "quality_auditor"
+    ]
+  },
+  "operator_surfaces": {
+    "rationale": "Complete ledger of every non-research MCP surface connected at the Claude-host level, recorded so 'what is connected' is answerable without guessing, and so none of it silently drifts into the research prefetch. Presence here is an explicit statement that a connector is OUT of the engine by design. The audit script skips these.",
+    "recorded": "2026-07-24",
+    "surfaces": [
+      {
+        "id": "zoho-mail",
+        "lane": "business",
+        "auth": "connected",
+        "purpose": "Legacy Zoho mailbox for trevorobeyinc.com (pre-Gmail-cutover)."
+      },
+      {
+        "id": "zoho-trinc",
+        "lane": "business",
+        "auth": "connected",
+        "purpose": "Zoho mail admin surface \u2014 send-as, signatures, folders, labels."
+      },
+      {
+        "id": "gmail",
+        "lane": "business",
+        "auth": "connected",
+        "purpose": "Primary business mailbox post 2026-07-22 Workspace cutover."
+      },
+      {
+        "id": "falcon",
+        "lane": "security",
+        "auth": "connected",
+        "purpose": "CrowdStrike Falcon. Read-only recon first, strict propose-only on any console mutation. Never weaken Custom-IOA rule 1."
+      },
+      {
+        "id": "firewalla",
+        "lane": "security",
+        "auth": "connected (30-min session cache behind the fw YubiKey gate)",
+        "purpose": "Network policy + flows. Propose-only for rule changes."
+      },
+      {
+        "id": "sudo-gate",
+        "lane": "security",
+        "auth": "per-command YubiKey touch",
+        "purpose": "Allowlisted privileged execution. Claude is never in the PIN/paste path."
+      },
+      {
+        "id": "term-bridge",
+        "lane": "security",
+        "auth": "tb-gate session",
+        "purpose": "Shared-tmux shell exec. NON-privileged only \u2014 all root goes through sudo-gate on the GUI login lane."
+      },
+      {
+        "id": "searxng-search",
+        "lane": "infra",
+        "auth": "none (local)",
+        "purpose": "Private metasearch over the :8891 TLS proxy. Already a first-class research connector too \u2014 see connectors.searxng-search."
+      },
+      {
+        "id": "claude-in-chrome",
+        "lane": "infra",
+        "auth": "cic-gate session",
+        "purpose": "Identity / logged-in browsing lane. Never mixed with untrusted-content browsing."
+      },
+      {
+        "id": "Claude_Browser",
+        "lane": "infra",
+        "auth": "cb-gate session",
+        "purpose": "Isolated clean-room browsing for untrusted content."
+      },
+      {
+        "id": "computer-use",
+        "lane": "infra",
+        "auth": "ccu-gate session",
+        "purpose": "Native desktop control. Browsers restricted to read tier."
+      },
+      {
+        "id": "pdf-viewer",
+        "lane": "infra",
+        "auth": "none",
+        "purpose": "Interactive PDF review/annotation surface."
+      },
+      {
+        "id": "visualize",
+        "lane": "infra",
+        "auth": "none",
+        "purpose": "Inline SVG/HTML widget rendering."
+      },
+      {
+        "id": "scheduled-tasks",
+        "lane": "infra",
+        "auth": "none",
+        "purpose": "Cron-style scheduled agent runs."
+      },
+      {
+        "id": "ccd_session / ccd_session_mgmt / ccd_directory",
+        "lane": "infra",
+        "auth": "none",
+        "purpose": "Claude Code session plumbing."
+      }
+    ],
+    "needs_host_auth": {
+      "note": "Connected but UNAUTHENTICATED as of 2026-07-24. Tools unavailable until the operator completes OAuth in claude.ai connector settings (or /mcp in an interactive session). Claude cannot run these flows in a non-interactive session. NOTE: most of what these plugin bundles provide are SKILLS, which need no connection and already work \u2014 only the MCP servers listed here need auth.",
+      "research_lane": [
+        "alphaxiv",
+        "courtlistener",
+        "plugin:bio-research:biorender",
+        "plugin:bio-research:owkin",
+        "plugin:bio-research:synapse",
+        "plugin:bio-research:wiley"
+      ],
+      "business_lane": [
+        "plugin:data:*",
+        "plugin:engineering:*",
+        "plugin:marketing:*",
+        "plugin:product-management:*",
+        "plugin:productivity:*"
+      ]
+    }
+  },
+  "last_reconciled": "2026-07-24",
+  "reconciliation_note": "2026-07-24 pass: added lane taxonomy to every entry; declared ctgov-supplemental (was used in prefetch, declared nowhere); registered scholar-sidekick (host-auth 2026-07-10, missed the 7-day rule) and consensus; registered the three citation-gate modules as gate-consumed-not-prefetched; tombstoned AdisInsight as declined-no-public-api; added operator_surfaces as the complete non-research ledger; declared report_generator/quality_auditor prefetch-exempt."
 }
