@@ -94,6 +94,26 @@ not mail — do not mistake them for Google Workspace.
 > the spam filter feels about it. Diagnostic order that worked: (1) is it in the destination?
 > (2) is it in spam/trash? (3) **is there a bounce in the sender's mailbox?** — no bounce +
 > no delivery = accepted-then-filtered, not rejected.
+>
+> **Config re-verified at the source (Outlook Web, 2026-07-23):** *Enable forwarding* = **ON**,
+> target = `trevor@trevorobeyinc.com`, banner confirms *"Email is being forwarded to
+> trevor@trevorobeyinc.com."* **`Keep a copy of forwarded messages` was UNCHECKED — now ticked
+> and saved**, so the Strayer mailbox retains its own copy as a second line of defence.
+> Also visible in that inbox: a **Proofpoint quarantine digest**, corroborating the test-#1
+> quarantine diagnosis above.
+>
+> ### 🔴 PROOF the root-email exposure is real, not theoretical (2026-07-23)
+> A genuine **AWS Marketplace seller email landed in the Strayer inbox at 11:02 AM**:
+> *"Regarding Your AWS Marketplace Seller Registration — Your seller profile has been approved"*,
+> from `do-not-reply-aws-marketplace@amazon.com`, listing the tax/bank/disbursement steps for
+> paid listings. **It is NOT in Gmail** — a search returns only the Jun 18 thread. Cause: it
+> arrived *before* forwarding was switched on (~3 PM), and forwarding is not retroactive.
+> Benign in itself, but it demonstrates the exact failure mode: **AWS seller correspondence
+> really does route to the root (.edu) address**, and anything arriving while forwarding is
+> off — or after the account is deprovisioned — is simply never seen. From now on this class of
+> mail will forward and pick up **two** labels (`Via-Strayer` + `AWS/Seller-Ops`).
+> Operator note: that 11:02 AM message should be manually forwarded to the business mailbox,
+> since it will not backfill.
 
 ⚠️ **Expect this may be blocked.** Microsoft 365 disables automatic external forwarding by default
 in most tenants (anti-exfiltration policy), and universities commonly keep it off. An inbox *rule*
