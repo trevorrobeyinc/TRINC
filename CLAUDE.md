@@ -288,6 +288,27 @@ Predecessor of qdrant-tls-proxy: a separate subproject at `Claude/qdrant-tls-pro
 
 > Per the global `~/.claude/CLAUDE.md` "Browser MCP Strategy and Context Persistence" rule, every Claude Code session that calls a browser MCP non-trivially appends a structured summary block below. Newest entries at the top. The two surviving browser surfaces are **Playwright MCP (`--isolated`)** and **Claude in Chrome**. See the global rule for the entry format, importance filter, and timing.
 
+- 2026-07-23 · claude-in-chrome · AWS seller-account recon + Google Workspace tailored to business/AWS
+  ops (logged-in AWS Marketplace Management Portal, AWS Billing, Gmail, Google Calendar, Strayer
+  Outlook; work profile "Trevor Robey Intelligence Network Citations") · **AWS is now CLEARED FOR
+  PAID** — operator added the disbursement method and Account status flipped to ✓ "Publish paid and
+  free products", retiring the 2.5-month block (the §6 escalation letter is now moot — do not send).
+  Built the Gmail ops layer: 12 filters/11 labels, send-as ×3, signature w/ LLC disclosure,
+  reply-from-same-alias, plus 5 calendar deadlines (incl. $800 CA franchise tax 2026-08-15).
+  Enabled + verified Strayer→Gmail forwarding. Gotchas: (1) **Gmail refuses a label named
+  "Finance"** — reserved system label; a single bad label name makes the whole import report the
+  misleading "fix the XML" error (XML was valid; diff the Filters tab against the file to find the
+  culprit). (2) **Never match your own domain as a bare string in a filter** — `"trevorobeyinc.com"`
+  matched nearly ALL inbound mail (it's in every To: header) and was labelling CrowdStrike/Google
+  security alerts as "Prospects". (3) Gmail's **"Add another email address" opens a separate Chrome
+  window that claude-in-chrome cannot reach** — structurally operator-only. (4) Calendar's
+  `render?action=TEMPLATE` pre-fills fine but **the first Save click after load is swallowed** —
+  click twice, verify on the month view. (5) A mail-routing test with subject `test`/profanity was
+  **accepted-then-quarantined by Proofpoint** and never bounced — *absence of a bounce* proved the
+  address was live; always test with a realistic business message. (6) AWS's "Email for custom
+  notifications" is a **no-op for a direct data seller** (reseller/professional-services events
+  only) — listing-review outcomes and payout failures still go to the ROOT email, which is still
+  the operator's `.edu` address (risk R1, unresolved).
 - 2026-07-22 · claude-in-chrome · Google Workspace stand-up + full Zoho→Gmail mail cutover for
   trevorobeyinc.com (logged-in Cloudflare, Google Admin console, Zoho Mail; new Chrome profile
   "Trevor Robey Intelligence Network Citations") · created a zone-scoped Cloudflare DNS token
