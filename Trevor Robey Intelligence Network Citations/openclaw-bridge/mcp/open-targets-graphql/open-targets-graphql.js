@@ -140,15 +140,13 @@ function createOpenTargetsGraphql(options = {}) {
     for (const row of dc.slice(0, limit)) {
       const drug = (row && row.drug) || {};
       if (!drug.id) continue;
-      records.push({
-        title: `${drug.name || drug.id} — clinical candidate against ${label}`,
-        chemblId: drug.id,
-        phase: normalizeStage(row.maxClinicalStage),
-        status: drug.drugType || "",
-        description: `Open Targets: ${drug.name || drug.id} (${drug.drugType || "unknown type"}) targeting ${label}${
-          t.approvedName ? ` (${t.approvedName})` : ""}. Max clinical stage ${row.maxClinicalStage || "n/a"}.`,
-        url: `https://platform.opentargets.org/drug/${encodeURIComponent(drug.id)}`
-      });
+      records.push(buildDrugRecord(
+        drug,
+        row.maxClinicalStage,
+        `clinical candidate against ${label}`,
+        `Open Targets: ${drugLabel(drug)} (${drugTypeLabel(drug)}) targeting ${label}${
+          t.approvedName ? ` (${t.approvedName})` : ""}. Max clinical stage ${row.maxClinicalStage || "n/a"}.`
+      ));
     }
 
     // --- Associated diseases: context only. MONDO/EFO ids are NOT citation identifiers, so
@@ -273,22 +271,42 @@ function createOpenTargetsGraphql(options = {}) {
       const drug = (row && row.drug) || {};
       if (!drug.id || seen.has(drug.id)) continue;
       seen.add(drug.id);
-      records.push({
-        title: `${drug.name || drug.id} — in-clinic against ${label}`,
-        chemblId: drug.id,
-        phase: normalizeStage(row.maxClinicalStage),
-        status: drug.drugType || "",
-        description: `Open Targets clinical-candidate evidence: ${drug.name || drug.id} (${
-          drug.drugType || "unknown type"}) for ${label}. Max clinical stage ${row.maxClinicalStage || "n/a"}. Total candidates in indication: ${
-          (dis.drugAndClinicalCandidates && dis.drugAndClinicalCandidates.count) || 0}.`,
-        url: `https://platform.opentargets.org/drug/${encodeURIComponent(drug.id)}`
-      });
+      records.push(buildDrugRecord(
+        drug,
+        row.maxClinicalStage,
+        `in-clinic against ${label}`,
+        `Open Targets clinical-candidate evidence: ${drugLabel(drug)} (${
+          drugTypeLabel(drug)}) for ${label}. Max clinical stage ${row.maxClinicalStage || "n/a"}. Total candidates in indication: ${
+          (dis.drugAndClinicalCandidates && dis.drugAndClinicalCandidates.count) || 0}.`
+      ));
       if (seen.size >= limit) break;
     }
 
     logger.info({ event: "opentargets_disease_intel_ok", indication: name, efoId: hit.id, count: records.length });
     cache.set(cacheKey, records);
     return records;
+  }
+
+  // Both lenses turn an Open Targets drug row into the same record shape — the chemblId/phase/
+  // status/url quartet is what makes the record a GROUNDED citation, so it must stay identical
+  // on both paths. Only the relation phrase and the prose differ, so those are passed in.
+  function buildDrugRecord(drug, maxClinicalStage, relation, description) {
+    return {
+      title: `${drugLabel(drug)} — ${relation}`,
+      chemblId: drug.id,
+      phase: normalizeStage(maxClinicalStage),
+      status: drug.drugType || "",
+      description,
+      url: `https://platform.opentargets.org/drug/${encodeURIComponent(drug.id)}`
+    };
+  }
+
+  function drugLabel(drug) {
+    return drug.name || drug.id;
+  }
+
+  function drugTypeLabel(drug) {
+    return drug.drugType || "unknown type";
   }
 
   // "PHASE_3" -> "3"; "PHASE_1_2" -> "1/2" (a straddling trial, not a phase-1 trial — collapsing

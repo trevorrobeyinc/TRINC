@@ -88,7 +88,20 @@ function createCtgovSupplemental(options = {}) {
   // Search stopped trials in a condition → their stop reasons (+ change-history per trial).
   // Returns plain record objects (the same shape tool-prefetch's renderRecord consumes).
   async function searchStoppedTrials(args = {}) {
-    const condition = String(args.condition || args.query_term || args.query || "").trim();
+    // Accept every key a workflow template actually uses to name an indication. Each of the six
+    // templates names it differently (drug-discovery-full -> indication, target-validation-pack ->
+    // disease_context, rare-disease-brief -> disease_name, clinical-trial-landscape ->
+    // therapeutic_area), and an unresolved template var arrives as "" (falsy), so the chain simply
+    // advances. Before 2026-07-24 only `condition` was read while the prefetch map bound
+    // `condition:"{{indication}}"` — a var present in ONE template — so this source was skipped on
+    // 5 of 6 templates and `deliverables/graveyard-memo.md` came out silently empty. Silent because
+    // the memo is fail-soft by design: an empty indication omits it and never blocks a passing
+    // report. All aliases empty still means an honest zero with no request.
+    const condition = String(
+      args.condition || args.indication || args.disease_context ||
+      args.disease_name || args.therapeutic_area ||
+      args.query_term || args.query || ""
+    ).trim();
     if (!condition) return [];
     const cacheKey = condition.toLowerCase();
     if (cache.has(cacheKey)) return cache.get(cacheKey);

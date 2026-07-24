@@ -42,6 +42,42 @@ describe("ctgov-supplemental — searchStoppedTrials (stop-reason archaeology)",
     assert.match(url, /whyStopped/);
   });
 
+  // REGRESSION (2026-07-24): the prefetch map bound this fetcher with `condition:"{{indication}}"`
+  // only, and `indication` exists in exactly ONE of the six workflow templates
+  // (drug-discovery-full). On the other five the arg resolved to "", tool-prefetch dropped it as
+  // empty, and the whole source was skipped — so `deliverables/graveyard-memo.md`, the
+  // deterministic failed-trial artifact that is the stated reason AdisInsight was declined, came
+  // out SILENTLY EMPTY on 5/6 templates. Silent because the memo is fail-soft by design: an empty
+  // indication simply omits it and never blocks a passing report. The fetcher must therefore
+  // accept every key a template actually uses to name an indication.
+  const CONDITION_ALIASES = [
+    ["indication", "drug-discovery-full"],
+    ["disease_context", "target-validation-pack"],
+    ["disease_name", "rare-disease-brief"],
+    ["therapeutic_area", "clinical-trial-landscape"]
+  ];
+  for (const [key, template] of CONDITION_ALIASES) {
+    it(`accepts '${key}' as the condition (used by ${template})`, async () => {
+      // includeHistory:false isolates the SEARCH call — with history on, each returned record
+      // triggers an extra /history request and the call count stops being a clean signal.
+      const fetchImpl = mockFetch(SAMPLE);
+      const ct = createCtgovSupplemental({ fetchImpl, includeHistory: false });
+      const recs = await ct.searchStoppedTrials({ [key]: "breast cancer", pageSize: 4 });
+      assert.equal(recs.length, 2, `expected records when driven by '${key}'`);
+      assert.equal(fetchImpl.calls.length, 1, `expected exactly one CT.gov search for '${key}'`);
+      assert.match(fetchImpl.calls[0].url, /query\.cond=breast\+cancer/);
+    });
+  }
+
+  it("still returns [] when every condition alias is empty, without making a request", async () => {
+    const fetchImpl = mockFetch(SAMPLE);
+    const ct = createCtgovSupplemental({ fetchImpl });
+    assert.deepEqual(await ct.searchStoppedTrials({
+      condition: "", indication: "", disease_context: "", disease_name: "", therapeutic_area: ""
+    }), []);
+    assert.equal(fetchImpl.calls.length, 0);
+  });
+
   it("returns [] for an empty condition without making a request", async () => {
     const fetchImpl = mockFetch(SAMPLE);
     const ct = createCtgovSupplemental({ fetchImpl });

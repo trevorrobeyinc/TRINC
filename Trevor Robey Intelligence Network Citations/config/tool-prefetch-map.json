@@ -34,8 +34,12 @@
         "optional": true,
         "arguments": {
           "condition": "{{indication}}",
+          "disease_context": "{{disease_context}}",
+          "disease_name": "{{disease_name}}",
+          "therapeutic_area": "{{therapeutic_area}}",
           "pageSize": 6
-        }
+        },
+        "_comment": "Stop-reason archaeology -> deliverables/graveyard-memo.md. All four condition aliases are passed because each workflow template names the indication differently; tool-prefetch drops the empty ones and the fetcher takes the first non-empty. Binding only {{indication}} silently skipped this source on 5 of 6 templates (fixed 2026-07-24)."
       },
       {
         "action": "executeTool",
@@ -237,8 +241,12 @@
         "optional": true,
         "arguments": {
           "condition": "{{indication}}",
+          "disease_context": "{{disease_context}}",
+          "disease_name": "{{disease_name}}",
+          "therapeutic_area": "{{therapeutic_area}}",
           "pageSize": 8
-        }
+        },
+        "_comment": "Stop-reason archaeology -> deliverables/graveyard-memo.md. All four condition aliases are passed because each workflow template names the indication differently; tool-prefetch drops the empty ones and the fetcher takes the first non-empty. Binding only {{indication}} silently skipped this source on 5 of 6 templates (fixed 2026-07-24)."
       },
       {
         "action": "executeTool",
