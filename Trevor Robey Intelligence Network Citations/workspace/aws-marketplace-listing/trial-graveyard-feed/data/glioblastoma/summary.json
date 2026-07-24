@@ -1,29 +1,29 @@
 {
   "condition": "glioblastoma",
-  "asOf": "2026-06-20",
+  "asOf": "2026-07-24",
   "teaserRows": 5,
   "paid": {
-    "total": 12,
+    "total": 50,
     "indication": "glioblastoma",
-    "as_of": "2026-06-20",
-    "with_history": 12,
-    "no_reason_count": 0,
+    "as_of": "2026-07-24",
+    "with_history": 50,
+    "no_reason_count": 6,
     "band_counts": {
-      "HIGH": 5,
-      "MODERATE": 3,
-      "LOW": 4,
+      "HIGH": 29,
+      "MODERATE": 14,
+      "LOW": 7,
       "UNKNOWN": 0
     }
   },
   "free": {
     "total": 5,
     "indication": "glioblastoma",
-    "as_of": "2026-06-20",
+    "as_of": "2026-07-24",
     "with_history": 5,
     "no_reason_count": 0,
     "band_counts": {
-      "HIGH": 3,
-      "MODERATE": 1,
+      "HIGH": 2,
+      "MODERATE": 2,
       "LOW": 1,
       "UNKNOWN": 0
     }

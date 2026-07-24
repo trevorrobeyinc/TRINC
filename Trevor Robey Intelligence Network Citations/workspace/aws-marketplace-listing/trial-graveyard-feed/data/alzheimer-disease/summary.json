@@ -1,0 +1,31 @@
+{
+  "condition": "Alzheimer disease",
+  "asOf": "2026-07-24",
+  "teaserRows": 5,
+  "paid": {
+    "total": 50,
+    "indication": "Alzheimer disease",
+    "as_of": "2026-07-24",
+    "with_history": 50,
+    "no_reason_count": 9,
+    "band_counts": {
+      "HIGH": 15,
+      "MODERATE": 12,
+      "LOW": 23,
+      "UNKNOWN": 0
+    }
+  },
+  "free": {
+    "total": 5,
+    "indication": "Alzheimer disease",
+    "as_of": "2026-07-24",
+    "with_history": 5,
+    "no_reason_count": 1,
+    "band_counts": {
+      "HIGH": 1,
+      "MODERATE": 1,
+      "LOW": 3,
+      "UNKNOWN": 0
+    }
+  }
+}

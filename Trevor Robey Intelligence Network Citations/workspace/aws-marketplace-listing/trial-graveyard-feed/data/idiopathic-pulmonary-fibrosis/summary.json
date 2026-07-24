@@ -1,0 +1,31 @@
+{
+  "condition": "idiopathic pulmonary fibrosis",
+  "asOf": "2026-07-24",
+  "teaserRows": 5,
+  "paid": {
+    "total": 50,
+    "indication": "idiopathic pulmonary fibrosis",
+    "as_of": "2026-07-24",
+    "with_history": 50,
+    "no_reason_count": 3,
+    "band_counts": {
+      "HIGH": 21,
+      "MODERATE": 13,
+      "LOW": 16,
+      "UNKNOWN": 0
+    }
+  },
+  "free": {
+    "total": 5,
+    "indication": "idiopathic pulmonary fibrosis",
+    "as_of": "2026-07-24",
+    "with_history": 5,
+    "no_reason_count": 0,
+    "band_counts": {
+      "HIGH": 3,
+      "MODERATE": 1,
+      "LOW": 1,
+      "UNKNOWN": 0
+    }
+  }
+}

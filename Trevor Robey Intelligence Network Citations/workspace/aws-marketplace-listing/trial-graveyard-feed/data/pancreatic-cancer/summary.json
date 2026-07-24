@@ -1,0 +1,31 @@
+{
+  "condition": "pancreatic cancer",
+  "asOf": "2026-07-24",
+  "teaserRows": 5,
+  "paid": {
+    "total": 50,
+    "indication": "pancreatic cancer",
+    "as_of": "2026-07-24",
+    "with_history": 50,
+    "no_reason_count": 4,
+    "band_counts": {
+      "HIGH": 18,
+      "MODERATE": 15,
+      "LOW": 17,
+      "UNKNOWN": 0
+    }
+  },
+  "free": {
+    "total": 5,
+    "indication": "pancreatic cancer",
+    "as_of": "2026-07-24",
+    "with_history": 5,
+    "no_reason_count": 0,
+    "band_counts": {
+      "HIGH": 1,
+      "MODERATE": 3,
+      "LOW": 1,
+      "UNKNOWN": 0
+    }
+  }
+}

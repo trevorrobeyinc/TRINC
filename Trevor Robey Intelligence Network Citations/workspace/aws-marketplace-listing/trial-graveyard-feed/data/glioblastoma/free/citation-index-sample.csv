@@ -1,6 +1,6 @@
 identifier_type,identifier,source_database,nct_id,context
-NCT,NCT01822275,ClinicalTrials.gov,NCT01822275,TERMINATED: Poor accrual
-NCT,NCT01830101,ClinicalTrials.gov,NCT01830101,WITHDRAWN: This study will not be proceeding due to lack of funding from anticipated sources
-NCT,NCT01721577,ClinicalTrials.gov,NCT01721577,TERMINATED: Investigator went to another institution.
-NCT,NCT05324501,ClinicalTrials.gov,NCT05324501,TERMINATED: Strategic decision
-NCT,NCT00555399,ClinicalTrials.gov,NCT00555399,TERMINATED: No Sponsor funding for continuation of trial
+NCT,NCT06806228,ClinicalTrials.gov,NCT06806228,SUSPENDED: The study protocol will be changed
+NCT,NCT01961934,ClinicalTrials.gov,NCT01961934,WITHDRAWN: Awaiting funding
+NCT,NCT00574964,ClinicalTrials.gov,NCT00574964,TERMINATED: PI left the institution.
+NCT,NCT05297864,ClinicalTrials.gov,NCT05297864,TERMINATED: Funder terminated funding.
+NCT,NCT02769806,ClinicalTrials.gov,NCT02769806,TERMINATED: funding

@@ -1,6 +1,6 @@
 # Trial Graveyard Feed - Data Dictionary
 
-Indication / therapeutic area: glioblastoma - as of 2026-06-20
+Indication / therapeutic area: glioblastoma - as of 2026-07-24
 
 Citation-traced register of terminated, withdrawn, or suspended ClinicalTrials.gov trials.
 Rendered deterministically from public CT.gov records (no LLM). Every row resolves to

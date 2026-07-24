@@ -1,13 +1,51 @@
 identifier_type,identifier,source_database,nct_id,context
-NCT,NCT01822275,ClinicalTrials.gov,NCT01822275,TERMINATED: Poor accrual
-NCT,NCT01830101,ClinicalTrials.gov,NCT01830101,WITHDRAWN: This study will not be proceeding due to lack of funding from anticipated sources
-NCT,NCT01721577,ClinicalTrials.gov,NCT01721577,TERMINATED: Investigator went to another institution.
-NCT,NCT05324501,ClinicalTrials.gov,NCT05324501,TERMINATED: Strategic decision
-NCT,NCT00555399,ClinicalTrials.gov,NCT00555399,TERMINATED: No Sponsor funding for continuation of trial
-NCT,NCT04222309,ClinicalTrials.gov,NCT04222309,SUSPENDED: Per IRB closed and opened a new study.
-NCT,NCT03293888,ClinicalTrials.gov,NCT03293888,TERMINATED: PI Relocation
-NCT,NCT01189513,ClinicalTrials.gov,NCT01189513,WITHDRAWN: Sponsor decision.
-NCT,NCT04629209,ClinicalTrials.gov,NCT04629209,WITHDRAWN: Change in approach to study.
-NCT,NCT04854044,ClinicalTrials.gov,NCT04854044,WITHDRAWN: The P.I. is not prepared to move forward at this thime
-NCT,NCT00074334,ClinicalTrials.gov,NCT00074334,TERMINATED: Drug company withdrawal of support for investigational agent in this indication.
+NCT,NCT06806228,ClinicalTrials.gov,NCT06806228,SUSPENDED: The study protocol will be changed
+NCT,NCT01961934,ClinicalTrials.gov,NCT01961934,WITHDRAWN: Awaiting funding
+NCT,NCT00574964,ClinicalTrials.gov,NCT00574964,TERMINATED: PI left the institution.
+NCT,NCT05297864,ClinicalTrials.gov,NCT05297864,TERMINATED: Funder terminated funding.
+NCT,NCT02769806,ClinicalTrials.gov,NCT02769806,TERMINATED: funding
+NCT,NCT04065087,ClinicalTrials.gov,NCT04065087,WITHDRAWN: Canceled by the sponsor
+NCT,NCT02194452,ClinicalTrials.gov,NCT02194452,WITHDRAWN: (none stated by sponsor)
+NCT,NCT07553520,ClinicalTrials.gov,NCT07553520,WITHDRAWN: Not stated
+NCT,NCT03296696,ClinicalTrials.gov,NCT03296696,TERMINATED: Amgen business decision
+NCT,NCT01743950,ClinicalTrials.gov,NCT01743950,TERMINATED: slow accrual
+NCT,NCT00068770,ClinicalTrials.gov,NCT00068770,TERMINATED: EORTC trail showed TMZ \& RT conferred significant survivial in this population
+NCT,NCT01788280,ClinicalTrials.gov,NCT01788280,"WITHDRAWN: Unable to get materials from GE, study not proceeding and never opened to accrual"
+NCT,NCT04047303,ClinicalTrials.gov,NCT04047303,TERMINATED: Business objectives have changed.
+NCT,NCT01189240,ClinicalTrials.gov,NCT01189240,TERMINATED: Company decided to stop development of drug - 7/31/12
+NCT,NCT00005856,ClinicalTrials.gov,NCT00005856,TERMINATED: Administratively complete.
+NCT,NCT03151772,ClinicalTrials.gov,NCT03151772,TERMINATED: Problems with including patients
 NCT,NCT02343549,ClinicalTrials.gov,NCT02343549,TERMINATED: closed to accrual due to low accrual
+NCT,NCT05666349,ClinicalTrials.gov,NCT05666349,WITHDRAWN: Funder support withdrawn 13-Oct-2023. Study did not open to recruitment.
+NCT,NCT01349036,ClinicalTrials.gov,NCT01349036,TERMINATED: Business Decision
+NCT,NCT01849952,ClinicalTrials.gov,NCT01849952,TERMINATED: Study was administratively closed by IRB
+NCT,NCT05513859,ClinicalTrials.gov,NCT05513859,SUSPENDED: Temporarily Closed
+NCT,NCT03927222,ClinicalTrials.gov,NCT03927222,TERMINATED: Resource shortage
+NCT,NCT04681677,ClinicalTrials.gov,NCT04681677,TERMINATED: unspecified business decision
+NCT,NCT00669669,ClinicalTrials.gov,NCT00669669,TERMINATED: Terminated due to loss in funding.
+NCT,NCT00243490,ClinicalTrials.gov,NCT00243490,"WITHDRAWN: The Trial could not get permit from Department of Health, Taiwan; Furthermore, no research fund could support the expensive (photosensitizer) photosan"
+NCT,NCT01898273,ClinicalTrials.gov,NCT01898273,TERMINATED: (none stated by sponsor)
+NCT,NCT01122888,ClinicalTrials.gov,NCT01122888,TERMINATED: (none stated by sponsor)
+NCT,NCT01095094,ClinicalTrials.gov,NCT01095094,TERMINATED: Study did not meet its primary objective
+NCT,NCT01044966,ClinicalTrials.gov,NCT01044966,TERMINATED: The study was terminated due to lack of adequate patient enrollment into trial.
+NCT,NCT01339039,ClinicalTrials.gov,NCT01339039,TERMINATED: Low accrual rate
+NCT,NCT03506139,ClinicalTrials.gov,NCT03506139,WITHDRAWN: Not funded
+NCT,NCT03422094,ClinicalTrials.gov,NCT03422094,TERMINATED: Manufacturer changed focus to cell therapy
+NCT,NCT03861598,ClinicalTrials.gov,NCT03861598,TERMINATED: Due to Covid
+NCT,NCT01868906,ClinicalTrials.gov,NCT01868906,TERMINATED: Isotope (FMISO) production is no longer available in our country.
+NCT,NCT01836549,ClinicalTrials.gov,NCT01836549,TERMINATED: Due to several intracranial hemorrhages and recommendation by the PBTC DSMB.
+NCT,NCT00473408,ClinicalTrials.gov,NCT00473408,"TERMINATED: Moved to another country, not possible to recruit from abroad."
+NCT,NCT05934630,ClinicalTrials.gov,NCT05934630,"TERMINATED: The NCI will not extend the PBTC grant beyond March 31, 2026."
+NCT,NCT02283944,ClinicalTrials.gov,NCT02283944,WITHDRAWN: Device for multi coil TMS no longer supported
+NCT,NCT01110876,ClinicalTrials.gov,NCT01110876,TERMINATED: Unanticipated Toxicities
+NCT,NCT02829723,ClinicalTrials.gov,NCT02829723,TERMINATED: (none stated by sponsor)
+NCT,NCT02227576,ClinicalTrials.gov,NCT02227576,TERMINATED: Study halted for efficacy following the results of the interim analysis provided for in the protocol on 20 patients.
+NCT,NCT01870726,ClinicalTrials.gov,NCT01870726,TERMINATED: (none stated by sponsor)
+NCT,NCT01986348,ClinicalTrials.gov,NCT01986348,TERMINATED: Study was terminated due to Sponsor decision (all except 1 patient were off-treatment and 2 patients were in survival follow-up)
+NCT,NCT01854099,ClinicalTrials.gov,NCT01854099,WITHDRAWN: Investigator decided not to open study.
+NCT,NCT02414165,ClinicalTrials.gov,NCT02414165,TERMINATED: Sponsor Decision
+NCT,NCT00959946,ClinicalTrials.gov,NCT00959946,TERMINATED: (none stated by sponsor)
+NCT,NCT01246869,ClinicalTrials.gov,NCT01246869,"TERMINATED: PI retired, study closed"
+NCT,NCT03293888,ClinicalTrials.gov,NCT03293888,TERMINATED: PI Relocation
+NCT,NCT04541225,ClinicalTrials.gov,NCT04541225,TERMINATED: Sponsor decision
+NCT,NCT00515086,ClinicalTrials.gov,NCT00515086,TERMINATED: Early termination due to slow enrollment and protocol-defined stopping rule.
