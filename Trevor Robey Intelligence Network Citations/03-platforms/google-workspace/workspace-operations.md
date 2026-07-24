@@ -76,6 +76,25 @@ not mail — do not mistake them for Google Workspace.
 → `trevor@trevorobeyinc.com` → tick *Keep a copy of forwarded messages* → Save.
 (Or Settings ⚙ → Mail → Forwarding.)
 
+> ### ✅ ENABLED AND VERIFIED WORKING — 2026-07-23
+> Operator enabled forwarding; a round-trip test **arrived in ~30 seconds**, correctly labelled
+> `Via-Strayer`. Strayer→Gmail forwarding is **live**. (Notably, external forwarding is *not*
+> blocked by this tenant — the M365 default-block caveat above did not apply here.)
+>
+> **⚠️ The first test failed, and the test was the bug — not the forwarding.** Test #1 was
+> subject `test`, body `hey mufuckkaaa`, from a personal Gmail. It **never arrived and never
+> bounced**. Diagnosis: Strayer's **Proofpoint** gateway *accepted then quarantined* it — that
+> message is a textbook spam signature (two-word generic subject, ultra-short body, profanity,
+> free-mail sender, no prior correspondence), and quarantine holds silently rather than issuing
+> an NDR. **The absence of a bounce was the key evidence** that the address was valid and the
+> mailbox live: a bad address rejects at SMTP within seconds.
+>
+> **Lesson for any future mail-routing test:** use a realistic business message (real subject,
+> full sentences, signature, no profanity). A "test / asdf" probe tells you nothing except how
+> the spam filter feels about it. Diagnostic order that worked: (1) is it in the destination?
+> (2) is it in spam/trash? (3) **is there a bounce in the sender's mailbox?** — no bounce +
+> no delivery = accepted-then-filtered, not rejected.
+
 ⚠️ **Expect this may be blocked.** Microsoft 365 disables automatic external forwarding by default
 in most tenants (anti-exfiltration policy), and universities commonly keep it off. An inbox *rule*
 that forwards is blocked by the same policy, and POP-fetching into Gmail won't work either
