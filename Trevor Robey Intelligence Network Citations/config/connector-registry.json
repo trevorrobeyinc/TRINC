@@ -1447,6 +1447,35 @@
       ]
     }
   },
+  "plugin_surfaces": {
+    "rationale": "Ledger of every Claude PLUGIN bound to this business. A plugin is not a connector — it is a bundle of skills plus (usually) a set of MCP servers. The skills work with no authentication at all; only the MCP servers need OAuth. Recorded here so 'which plugins are configured' is answerable alongside 'what is connected', and so no plugin MCP server drifts into research prefetch. Per-plugin category bindings, posture, and guardrails live in config/plugin-bindings.json (schema plugin-bindings-v1) with the human-readable companion at PLUGIN-BINDINGS.md.",
+    "recorded": "2026-07-24",
+    "binding_authority": "config/plugin-bindings.json",
+    "placeholder_model": "Plugin packages ship generic `~~category` placeholders (203 across the installed set) that each deployment resolves to its own tools. Unresolved placeholders are the real risk: a skill handed a missing tool invents a plausible substitute. plugin-bindings.json resolves every category, including ~20 that resolve to an explicit NONE.",
+    "install_surfaces": {
+      "desktop-rpm": "Materialized per-session under ~/Library/Application Support/Claude/local-agent-mode-sessions/<uuid>/<uuid>/rpm/plugin_*/. Session-scoped, cloud-synced, outside git — NOT durably editable, which is why bindings are repo-owned.",
+      "cli-marketplace": "~/.claude/plugins/cache/claude-plugins-official/<name>/<version>/, enabled via ~/.claude/settings.json -> enabledPlugins."
+    },
+    "plugins": [
+      { "id": "productivity", "lane": "business", "surface": "desktop-rpm", "version": "1.3.0", "skills": 4, "mcp_connected": 2, "mcp_needs_auth": 7 },
+      { "id": "operations", "lane": "business", "surface": "desktop-rpm", "version": "1.3.0", "skills": 9, "mcp_connected": 2, "mcp_needs_auth": 4 },
+      { "id": "engineering", "lane": "business", "surface": "desktop-rpm", "version": "1.2.0", "skills": 10, "mcp_connected": 2, "mcp_needs_auth": 8 },
+      { "id": "data", "lane": "business", "surface": "desktop-rpm", "version": "1.1.0", "skills": 10, "mcp_connected": 0, "mcp_needs_auth": 8 },
+      { "id": "product-management", "lane": "business", "surface": "desktop-rpm", "version": "1.2.0", "skills": 8, "mcp_connected": 2, "mcp_needs_auth": 14 },
+      { "id": "sales", "lane": "business", "surface": "desktop-rpm", "version": "1.3.0", "skills": 9, "mcp_connected": 2, "mcp_needs_auth": 12 },
+      { "id": "marketing", "lane": "business", "surface": "desktop-rpm", "version": "1.2.0", "skills": 8, "mcp_connected": 2, "mcp_needs_auth": 11 },
+      { "id": "design", "lane": "business", "surface": "desktop-rpm", "version": "1.2.0", "skills": 7, "mcp_connected": 2, "mcp_needs_auth": 7 },
+      { "id": "bio-research", "lane": "research", "surface": "desktop-rpm", "version": "1.2.0", "skills": 6, "mcp_connected": 6, "mcp_needs_auth": 5, "duplicate_of_registry": ["pubmed", "chembl", "clinicaltrials-gov", "biorxiv-medrxiv", "consensus", "open-targets-graphql"], "duplicate_note": "Claude-host duplicates of already-registered engine connectors. Interactive/chat-side only — the engine keeps its own subprocess adapters under openclaw-bridge/mcp/. Do NOT double-register and do NOT add to tool-prefetch-map.json: doing so would dilute the grounded-citation ratio the Phase-30 gate computes." },
+      { "id": "pdf-viewer", "lane": "infra", "surface": "desktop-rpm", "version": "0.2.0", "skills": 5, "mcp_connected": 1, "mcp_needs_auth": 0, "note": "Placeholder-free and fully authenticated — usable as-is." },
+      { "id": "vpai", "lane": "business", "surface": "desktop-rpm", "version": "0.1.107", "skills": 2, "mcp_connected": 0, "mcp_needs_auth": 0, "note": "Vibe-prospecting. Resolves ~~data enrichment for the sales plugin; the only enrichment surface. Sample-first by default." },
+      { "id": "frontend-design", "lane": "infra", "surface": "cli-marketplace", "version": "unknown", "skills": 1, "mcp_connected": 0, "mcp_needs_auth": 0, "note": "Resolves ~~design / ~~design tool — there is no Figma." },
+      { "id": "ralph-loop", "lane": "infra", "surface": "cli-marketplace", "version": "1.0.0", "skills": 3, "mcp_connected": 0, "mcp_needs_auth": 0, "note": "Autonomous iteration harness with a Stop hook. NEVER loop anything that triggers a YubiKey ceremony or an outward-facing action." }
+    ],
+    "installed_not_bound": [
+      { "id": "desktop-commander", "version": "0.2.0", "reason": "Overlaps stack surfaces this repo already owns (terminal, vault, knowledge base) via the :8798 bridge and term-bridge; binding it would create a second ungoverned path to the vault." },
+      { "id": "cowork-plugin-management", "version": "0.2.2", "reason": "Plugin-authoring tooling. Its cowork-plugin-customizer skill requires Cowork's mnt/.local-plugins mounts, absent in CLI Claude Code — the reason these bindings are repo-owned rather than stamped into the plugin packages." }
+    ]
+  },
   "last_reconciled": "2026-07-24",
-  "reconciliation_note": "2026-07-24 pass: added lane taxonomy to every entry; declared ctgov-supplemental (was used in prefetch, declared nowhere); registered scholar-sidekick (host-auth 2026-07-10, missed the 7-day rule) and consensus; registered the three citation-gate modules as gate-consumed-not-prefetched; tombstoned AdisInsight as declined-no-public-api; added operator_surfaces as the complete non-research ledger; declared report_generator/quality_auditor prefetch-exempt."
+  "reconciliation_note": "2026-07-24 pass: added lane taxonomy to every entry; declared ctgov-supplemental (was used in prefetch, declared nowhere); registered scholar-sidekick (host-auth 2026-07-10, missed the 7-day rule) and consensus; registered the three citation-gate modules as gate-consumed-not-prefetched; tombstoned AdisInsight as declined-no-public-api; added operator_surfaces as the complete non-research ledger; declared report_generator/quality_auditor prefetch-exempt. 2026-07-24 second pass (plugin weave): added plugin_surfaces — the 13 operator-selected plugins bound to the business via config/plugin-bindings.json, 2 installed-not-bound recorded as decisions, and bio-research flagged as a Claude-host duplicate of six already-registered research connectors so it never double-registers or enters prefetch."
 }

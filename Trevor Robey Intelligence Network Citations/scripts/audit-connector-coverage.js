@@ -16,6 +16,7 @@ const path = require("path");
 const ROOT = path.resolve(__dirname, "..");
 const REGISTRY_PATH = path.join(ROOT, "config", "connector-registry.json");
 const PREFETCH_PATH = path.join(ROOT, "config", "tool-prefetch-map.json");
+const PLUGIN_BINDINGS_PATH = path.join(ROOT, "config", "plugin-bindings.json");
 const LEARNINGS_DIR = path.join(ROOT, ".learnings");
 const FEATURE_REQUESTS_PATH = path.join(LEARNINGS_DIR, "FEATURE_REQUESTS.md");
 
@@ -155,7 +156,7 @@ function crossCheckPrefetch(registry, prefetch) {
   };
 }
 
-function renderReport(registry, buckets, crosscheck) {
+function renderReport(registry, buckets, crosscheck, extraSections = []) {
   const lines = [];
   lines.push(`=== Connector Coverage Audit (${todayIso()}) ===`);
   lines.push("");
@@ -215,6 +216,7 @@ function renderReport(registry, buckets, crosscheck) {
   } else {
     lines.push(`Prefetch tool coverage: all ${crosscheck.prefetchTools.length} prefetch tools are referenced in registry ✓`);
   }
+  for (const l of extraSections) lines.push(l);
   lines.push("");
   lines.push("Audit exit: 0 (read-only audit always exits 0; drift is informational not failing).");
   return lines.join("\n");
@@ -313,12 +315,137 @@ function maybeWriteDriftTickets(registry, buckets) {
   for (const t of newTickets) console.log(`  ✓ ${t.ticketId}  ${t.id}`);
 }
 
+// --- Plugin surfaces -------------------------------------------------------
+// A plugin is not a connector: it is a bundle of skills plus (usually) MCP servers.
+// The skills work unauthenticated; only the MCP servers need OAuth. What actually
+// breaks a plugin here is an UNRESOLVED `~~category` placeholder — a skill handed a
+// missing tool invents a plausible substitute. So this section audits binding
+// coverage, not connectivity.
+function auditPluginSurfaces(registry, prefetch) {
+  const lines = [];
+  lines.push("");
+  lines.push("--- Plugin surfaces (config/plugin-bindings.json) ---");
+
+  const surfaces = registry.plugin_surfaces;
+  if (!surfaces) {
+    lines.push("  ⚠  Registry has no plugin_surfaces block — plugins are unrecorded.");
+    return lines;
+  }
+
+  let bindings;
+  try {
+    bindings = loadJson(PLUGIN_BINDINGS_PATH);
+  } catch (e) {
+    lines.push(`  ⚠  Cannot read ${path.relative(ROOT, PLUGIN_BINDINGS_PATH)}: ${e.message}`);
+    lines.push("     The registry lists plugins but their category bindings are missing.");
+    return lines;
+  }
+
+  const registryIds = (surfaces.plugins || []).map((p) => p.id).sort();
+  const bindingIds = Object.keys(bindings.plugins || {}).sort();
+
+  const byLane = {};
+  for (const p of surfaces.plugins || []) {
+    byLane[p.lane || "(unlaned)"] = (byLane[p.lane || "(unlaned)"] || 0) + 1;
+  }
+  lines.push(`Plugins bound: ${registryIds.length}   Lanes: ${Object.entries(byLane).sort().map(([l, n]) => `${l}=${n}`).join("  ")}`);
+
+  const needsAuth = (surfaces.plugins || []).reduce((n, p) => n + (p.mcp_needs_auth || 0), 0);
+  const connected = (surfaces.plugins || []).reduce((n, p) => n + (p.mcp_connected || 0), 0);
+  lines.push(`Plugin MCP servers: ${connected} connected, ${needsAuth} awaiting operator OAuth (skills work regardless)`);
+
+  // 1. The two files must agree on which plugins exist.
+  const onlyRegistry = registryIds.filter((id) => !bindingIds.includes(id));
+  const onlyBindings = bindingIds.filter((id) => !registryIds.includes(id));
+  if (onlyRegistry.length || onlyBindings.length) {
+    if (onlyRegistry.length) lines.push(`  ⚠  In registry but unbound in plugin-bindings.json: ${onlyRegistry.join(", ")}`);
+    if (onlyBindings.length) lines.push(`  ⚠  Bound in plugin-bindings.json but missing from registry: ${onlyBindings.join(", ")}`);
+  } else {
+    lines.push(`  ✓  Registry and plugin-bindings.json agree on all ${registryIds.length} plugins`);
+  }
+
+  // 2. Every category a plugin references must have a binding. An unresolved
+  //    placeholder is the failure mode this whole layer exists to prevent.
+  const catalog = bindings.category_bindings || {};
+  const missingCats = [];
+  for (const [id, p] of Object.entries(bindings.plugins || {})) {
+    for (const cat of p.categories || []) {
+      if (cat === "~~category") continue; // the generic self-reference in each CONNECTORS.md
+      if (!catalog[cat]) missingCats.push(`${id}:${cat}`);
+    }
+  }
+  if (missingCats.length) {
+    lines.push(`  ⚠  Categories referenced by a plugin with NO binding: ${missingCats.join(", ")}`);
+  } else {
+    lines.push(`  ✓  Every category referenced by a plugin resolves (${Object.keys(catalog).length} bindings)`);
+  }
+
+  // 3. An unbound category must name a fallback or say NONE explicitly — silence
+  //    is what lets a skill improvise.
+  const bound = Object.entries(catalog).filter(([, c]) => c.bound);
+  const unbound = Object.entries(catalog).filter(([, c]) => !c.bound);
+  const silent = unbound.filter(([, c]) => !c.fallback && !/NONE|UNAUTHENTICATED/i.test(c.resolves_to || ""));
+  lines.push(`Categories: ${bound.length} bound to a real tool, ${unbound.length} unbound (explicit NONE / awaiting auth)`);
+  if (silent.length) {
+    lines.push(`  ⚠  Unbound with neither a fallback nor an explicit NONE: ${silent.map(([k]) => k).join(", ")}`);
+  } else {
+    lines.push("  ✓  Every unbound category states NONE or names a fallback");
+  }
+
+  // 3b. Cross-file pointers must resolve. `registry_ids` and `duplicate_of_registry`
+  //     name entries in THIS registry; a bare id that resolves nowhere is a dangling
+  //     pointer into the file both documents call the binding authority. Bare ids mean
+  //     registry entries; `plugin:`-prefixed ids mean plugin MCP servers and are not
+  //     expected here. (A 2026-07-24 review caught `biorxiv` used where the registry key
+  //     is `biorxiv-medrxiv` — silent precisely because nothing validated these arrays.)
+  const knownIds = new Set([
+    ...Object.keys(registry.connectors || {}),
+    ...((registry.operator_surfaces && registry.operator_surfaces.surfaces) || []).map((s) => s.id),
+  ]);
+  const dangling = [];
+  for (const [cat, c] of Object.entries(catalog)) {
+    for (const rid of c.registry_ids || []) {
+      if (rid.startsWith("plugin:")) continue;
+      if (!knownIds.has(rid)) dangling.push(`${cat} -> ${rid}`);
+    }
+  }
+  for (const p of surfaces.plugins || []) {
+    for (const rid of p.duplicate_of_registry || []) {
+      if (!knownIds.has(rid)) dangling.push(`${p.id}.duplicate_of_registry -> ${rid}`);
+    }
+  }
+  if (dangling.length) {
+    lines.push(`  ⚠  Dangling registry pointers (no such connector or operator surface): ${dangling.join(", ")}`);
+  } else {
+    lines.push("  ✓  Every registry_ids / duplicate_of_registry pointer resolves to a real registry entry");
+  }
+
+  // 4. No plugin MCP server may reach research prefetch — business-lane payloads
+  //    are non-citable and would dilute the grounded-citation ratio.
+  const prefetchRaw = JSON.stringify(prefetch);
+  const leaked = /plugin[:_][a-z-]+[:_]/i.test(prefetchRaw);
+  lines.push(leaked
+    ? "  ⚠  A plugin-namespaced tool appears in tool-prefetch-map.json — business lane leaked into research prefetch"
+    : "  ✓  No plugin MCP server present in tool-prefetch-map.json");
+
+  // 5. Installed-but-unbound plugins are decisions; both files should say so.
+  const regNotBound = (surfaces.installed_not_bound || []).map((p) => p.id).sort();
+  const bindNotBound = Object.keys((bindings.installed_not_bound || {}).plugins || {}).sort();
+  if (regNotBound.join(",") !== bindNotBound.join(",")) {
+    lines.push(`  ⚠  installed_not_bound disagrees — registry: [${regNotBound.join(", ")}] vs bindings: [${bindNotBound.join(", ")}]`);
+  } else if (regNotBound.length) {
+    lines.push(`Installed but deliberately NOT bound (recorded decision): ${regNotBound.join(", ")} ✓`);
+  }
+
+  return lines;
+}
+
 function main() {
   const registry = loadJson(REGISTRY_PATH);
   const prefetch = loadJson(PREFETCH_PATH);
   const buckets = classify(registry);
   const crosscheck = crossCheckPrefetch(registry, prefetch);
-  console.log(renderReport(registry, buckets, crosscheck));
+  console.log(renderReport(registry, buckets, crosscheck, auditPluginSurfaces(registry, prefetch)));
   if (writeDriftTickets) {
     maybeWriteDriftTickets(registry, buckets);
   }

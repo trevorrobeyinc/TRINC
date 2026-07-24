@@ -14,6 +14,31 @@ Hosting: **local-only as of 2026-05-26.** The private GitHub remote `trevoralexa
 > and external-volume write-safety: [`_continuity/README.md`](_continuity/README.md). The Code
 > surfaces also auto-trigger via the repo skill `.claude/skills/continuity-board/`.
 
+## 🔌 Plugin bindings — read before using any plugin skill
+
+> **The installed Claude plugins are templates.** Their skills refer to tools generically
+> (`~~project tracker`, `~~CRM`, `~~literature`, `~~data warehouse`) — **203 such placeholders**
+> across the installed set — and each deployment is expected to say which real tool fills each slot.
+> **[`Trevor Robey Intelligence Network Citations/PLUGIN-BINDINGS.md`](Trevor%20Robey%20Intelligence%20Network%20Citations/PLUGIN-BINDINGS.md)**
+> is that answer for this business; the machine-readable twin is
+> [`config/plugin-bindings.json`](Trevor%20Robey%20Intelligence%20Network%20Citations/config/plugin-bindings.json).
+>
+> **The rule that matters: an unbound category means SAY SO — never invent one.** About twenty
+> categories resolve to *nothing* here (no Jira, no Slack, no HubSpot, no Snowflake, no Figma, no
+> CI), because this is a single-operator, pre-revenue, local-only business. A template-following
+> skill handed a missing tool will manufacture a plausible substitute — a ticket key, a deal stage,
+> a traffic number. For a business whose product is citation-traced due diligence, that is the exact
+> failure mode it sells against, pointed inward. Hardest cases: `sales:forecast` /
+> `sales:pipeline-review` (no CRM, pre-revenue — report that, do not model a pipeline),
+> `marketing:performance-report` / `seo-audit` (no analytics, no SEO tool), and
+> `product-management:metrics-review` (no product analytics).
+>
+> 13 plugins are bound; `desktop-commander` and `cowork-plugin-management` are installed and
+> deliberately **not** bound. `bio-research`'s MCP servers are Claude-host **duplicates** of
+> already-registered engine connectors — never double-register them or add them to
+> `config/tool-prefetch-map.json`. Verify with `node scripts/audit-connector-coverage.js` from the
+> business folder; the plugin section must show zero ⚠.
+
 ## Repo Topology
 
 > **Folder consolidation (2026-05-19).** The two former sibling folders
