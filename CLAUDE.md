@@ -335,8 +335,19 @@ Predecessor of qdrant-tls-proxy: a separate subproject at `Claude/qdrant-tls-pro
 
 ## Browser Session History
 
-> Per the global `~/.claude/CLAUDE.md` "Browser MCP Strategy and Context Persistence" rule, every Claude Code session that calls a browser MCP non-trivially appends a structured summary block below. Newest entries at the top. The two surviving browser surfaces are **Playwright MCP (`--isolated`)** and **Claude in Chrome**. See the global rule for the entry format, importance filter, and timing.
+> Per the global `~/.claude/CLAUDE.md` "Browser MCP Strategy and Context Persistence" rule, every Claude Code session that calls a browser MCP non-trivially appends a structured summary block below. Newest entries at the top. The two surviving browser surfaces are the **Claude Browser pane** (`mcp__Claude_Browser__*` — isolated in-app Chromium clean room for untrusted content, `cb` gate scope) and **Claude in Chrome** (`mcp__claude-in-chrome__*` — identity / logged-in work, `cic` gate scope). Keep the lanes separate. (Corrected 2026-07-25: this line previously named **Playwright MCP (`--isolated`)**, which was superseded by `cdp-pipe` on 2026-06-07 and retired entirely on 2026-07-14 when the clean-room role moved to the Claude Browser pane. Playwright's orphaned 796 MB browser cache was removed from this machine on 2026-07-25.) See the global rule for the entry format, importance filter, and timing.
 
+- 2026-07-25 · Claude-Browser + claude-in-chrome · post-TCC-revocation verification of BOTH browser lanes
+  after operator revoked Accessibility + Screen Recording for Claude (and Gemini) and disabled computer
+  use · **BOTH LANES FULLY WORK WITHOUT EITHER GRANT.** cic: armed, 2 local browsers listed, selected
+  907df4a2, created MCP tab group, navigated + extracted DOM text, closed tab (group auto-removed, no
+  residue). cb: pane opened, navigated, DOM text, **screenshot succeeded** — proving the pane captures via
+  CDP `Page.captureScreenshot`, never the OS screen-capture API. Lane separation visibly confirmed: same
+  URL showed logged-in state in cic vs "Sign in" in the cb clean room. GOTCHAS: (1) `yk-aqua-preflight`
+  caught a replaced/mis-homed gpg-agent on the cic arm and re-pinned it — the documented silent-failure
+  mode, and the reason to always use the `operator-approved-gate` front-end; (2) `example.com` is BLOCKED
+  on this network (Firewalla/AdGuard) — it fails as "frame showing error page" and reads like a broken
+  browser MCP; google.com loaded fine, so do NOT use example.com as a connectivity canary here.
 - 2026-07-23 · claude-in-chrome · AWS seller-account recon + Google Workspace tailored to business/AWS
   ops (logged-in AWS Marketplace Management Portal, AWS Billing, Gmail, Google Calendar, Strayer
   Outlook; work profile "Trevor Robey Intelligence Network Citations") · **AWS is now CLEARED FOR
