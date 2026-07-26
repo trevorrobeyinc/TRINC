@@ -7,7 +7,7 @@
     "dev": "node esbuild.config.mjs",
     "build": "node esbuild.config.mjs production",
     "deploy": "npm run build && node deploy.mjs",
-    "lint:transport": "bash ../../TrevClaw-Obsidianodus/scripts/lint-transport-monorepo.sh --strict"
+    "lint:transport": "bash ../../scripts/lint-transport-monorepo.sh --strict"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

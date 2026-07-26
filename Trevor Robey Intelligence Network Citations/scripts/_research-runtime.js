@@ -215,7 +215,7 @@ async function buildResearchRuntime(options = {}) {
   const interactionLog = createInteractionLog({
     logger,
     timeProvider: options.timeProvider,
-    storePath: path.join(rootDir, config.interactionLogPath)
+    storePath: path.resolve(rootDir, config.interactionLogPath)
   });
 
   const llmAdapter = createLLMAdapter({
@@ -229,7 +229,10 @@ async function buildResearchRuntime(options = {}) {
   const outputManager = createResearchOutputManager({
     logger,
     timeProvider: options.timeProvider,
-    outputDir: path.join(rootDir, config.outputDir)
+    // resolve, not join: config.outputDir may be absolute (callers and tests pass
+    // os.tmpdir() paths). path.join would nest an absolute path UNDER rootDir, silently
+    // writing output inside the repo — that is what created the stray ./var/folders/ tree.
+    outputDir: path.resolve(rootDir, config.outputDir)
   });
 
   const laneQueue = createLaneQueue({
