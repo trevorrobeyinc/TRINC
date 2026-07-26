@@ -75,6 +75,34 @@ Reachability: `perseus-business` is registered in the repo's `.mcp.json` (Claude
 outside the repo: `/Volumes/ExtraCurricular` has documented write hangs, and the FTS index stores
 every memory in **plaintext**, which must never sit inside a git working tree.
 
+### Three systems, three jobs — why they cannot overwrite each other
+
+| System | Storage | Answers | Write style |
+|---|---|---|---|
+| **This board** | one markdown file, in git | *"what are we working on right now"* — ordered, dated, narrative | append/prepend; **overwrite only Current focus** |
+| **`perseus-business`** | `business-vault.db` (+ own AES key) | *"what do we know about the business"* | idempotent per `category+key` |
+| **`perseus-vault`** | `perseus-vault.db` (+ own AES key) | *"what do we know about this machine"* | idempotent per `category+key` |
+
+They physically **cannot** overwrite one another — three separate stores, two of them separate
+SQLite files with separate encryption keys, the third a git-tracked text file. The only real risks
+are *logical*, and each has a guard:
+
+- **Same fact in both vaults** → checked nightly by `~/.local/bin/perseus-vault-drift-check.py`,
+  which fails **CRITICAL** on a `category+key` active in both, on a business topic sitting in the
+  global vault (or vice-versa), and on the same summary copied under a renamed key. It **reports
+  and refuses to fix** — choosing which vault owns a fact is a judgment call, and guessing deletes
+  the copy someone wanted.
+- **Two surfaces editing this board at once** → follow `README.md`'s safe-write pattern: probe with
+  a read, prepend one self-contained entry rather than rewriting, verify after.
+- **Board and vault duplicating content** → the board's standing rule: *point to canon, don't fork
+  it.* Put the fact in a vault; put the pointer and the story here.
+
+> **"Server disconnected" in the MCP logs is NOT a fault.** A Perseus stdio server self-exits after
+> 600s idle — `no client activity for 600s — exiting idle stdio server (orphan-leak guard, #57228)`
+> — and the app logs a red *Server disconnected*. By design; it is what keeps the process count
+> bounded, and tools respawn on the next call. Do not "fix" it by setting
+> `MIMIR_IDLE_TIMEOUT_SECS=0` — that reinstates the orphan leak.
+
 ---
 
 ## 🔒 Operating posture (inherited — enforce every task, all surfaces)
@@ -191,6 +219,16 @@ every memory in **plaintext**, which must never sit inside a git working tree.
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 > Copy the **Entry template** at the bottom.
+
+### 2026-07-26T08:15Z · CLI Claude Code · **The "perseus-business disconnected" log is BY DESIGN** — plus a cross-vault drift detector so the three memory systems can never silently collide
+- **The disconnect is not a fault.** The operator flagged `[perseus-business] Server disconnected` in the Desktop MCP log. The server printed its own reason one line earlier: `mimir: no client activity for 600s — exiting idle stdio server (orphan-leak guard, #57228)`. Timestamps confirm it exactly — last tool call `07:59:23.041`, transport closed `08:09:23.052` = **600.011s**. This is the documented behaviour in the global `~/.claude/CLAUDE.md`: stdio servers self-reap when idle, the app logs a red "Server disconnected", and tools respawn on the next call. It is what keeps the process count bounded. **Do not "fix" it with `MIMIR_IDLE_TIMEOUT_SECS=0`** — that reinstates the orphan leak. Verified healthy before the reap: `Initializing → encryption enabled → local ONNX embedding enabled → MCP server ready → tools/list ok`.
+- **Verified `perseus-business` really did load on every surface** — not from config, from the process table. Claude.app had **5 business servers and 5 global servers running, perfectly paired**: two pairs parented to `Claude` (Chat + Cowork), two via the `disclaimer` helper, one to `claude` (CLI). This also closes the open question from the previous entry: no `~/.claude.json` user-scope entry is needed, so repo-scoping on Claude Code survives.
+- **New: `~/.local/bin/perseus-vault-drift-check.py`.** The routing rule (business → `perseus-business`, machine-wide → `perseus-vault`) lived only in prose, and prose is advisory — both vaults are live in this repo simultaneously, so nothing stopped a stray write from creating a second copy that diverges on the next edit. The detector now runs nightly inside `perseus-vault-maintain.py` and fails **CRITICAL** on three shapes: (1) **COLLISION** — same `category+key` active in both vaults; (2) **MISROUTE** — a `trevclaw/*`/`business/*` topic active in the global vault, or a `security/*`/`operator/*`/`claude-code/*`/`tooling/*` topic in the business vault; (3) **ECHO** — the same summary copied across under a *renamed* key, which key comparison alone would miss.
+- **Detect-only, deliberately.** The embedding backfill beside it auto-repairs because a poisoned vector has exactly one correct fix. Drift has none: deciding which vault *owns* a fact is a judgment call, and guessing deletes the copy someone wanted. So it reports and stops.
+- **State:** all three checks proven on **copies**, never the live vaults — un-archiving a migrated entity triggered COLLISION+MISROUTE (exit 2); writing a renamed duplicate through a keyed server triggered ECHO with `COLLISION: 0`, proving the third check earns its place. Live vaults are **clean**: global 16 active, business 6 active, 0 collisions, 0 misroutes, 0 echoes, embeddings 21/0 and 6/0 poisoned. Nightly job exit 0 across both vaults + drift.
+- **Also:** the "Two vaults" section above gained a **three-systems separation table** — board vs `perseus-business` vs `perseus-vault`, what each answers, and why they physically cannot overwrite each other (three separate stores; two SQLite files with *separate* AES keys; one git-tracked text file). The only real risks are logical, and each now names its guard.
+- **Touches:** new `~/.local/bin/perseus-vault-drift-check.py`; `~/.local/bin/perseus-vault-maintain.py` (drift step + CRITICAL log); this board (separation table + the disconnect note + this entry).
+- **For whoever's next:** if the nightly job ever logs `vault_drift`, it is telling you two stores now disagree about the same fact — pick the owner, `forget` it from the other, and re-run `perseus-vault-drift-check.py`. Gotcha met twice while testing: **SQLite refuses direct writes to FTS5 shadow tables** (`entities_fts_content may not be modified`), so you cannot seed FTS-based test fixtures by hand — write through a *keyed server* instead, which is also the only path that decrypts.
 
 ### 2026-07-26T07:20Z · CLI Claude Code · **Business memory split into its own vault, then seated on all three surfaces** — plus a silent-corruption bug found and fixed in Perseus embeddings
 - **Did:** (1) Enabled Perseus **semantic search** — local in-process ONNX (`all-MiniLM-L6-v2`, 384-dim), no network, no Ollama. Two blockers, not one: the missing `--embedding-model` flag, and — hidden behind it — the binary's embedded Python shim feeds only `input_ids`+`attention_mask` while the stock HF ONNX **requires `token_type_ids`**. Patched the graph so that input is synthesized internally as zeros (correct, not approximate, for single-sentence embedding; verified **bit-identical**, `max|delta| = 0.000e+00`). (2) Created **`perseus-business`** — its own DB (`~/.perseus-vault/data/business-vault.db`) and its own AES key — and migrated the 5 business entities out of the global vault, archiving the originals there so there is **one source of truth**. (3) Registered it in the repo `.mcp.json` **and** `claude_desktop_config.json`, which the SearXNG 2026-07-04 entry below confirms is shared by **Chat *and* Cowork** (same app: that file carries `coworkScheduledTasksEnabled`/`coworkWebSearchEnabled`). (4) Taught the nightly launchd job to maintain **both** vaults and to **auto-repair** embeddings, logging what it changed.
