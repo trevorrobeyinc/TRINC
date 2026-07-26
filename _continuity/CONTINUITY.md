@@ -51,6 +51,32 @@
 
 ---
 
+## 🧠 Two vaults — which one to write to (2026-07-26)
+
+Every surface now sees **two** Perseus memory servers. They are not interchangeable:
+
+| Write this | …to this server | Vault |
+|---|---|---|
+| Trevor Robey, INC. business facts | **`perseus-business`** | `~/.perseus-vault/data/business-vault.db` |
+| Machine-wide facts (YubiKey gates, Falcon, browser lanes, host tooling) | `perseus-vault` | `~/.perseus-vault/data/perseus-vault.db` |
+
+**Never write a business fact to the global vault.** Both are live here, so a stray write creates a
+second copy that silently diverges the moment either is edited — the exact fragmentation this board
+exists to prevent. The five business entities were migrated out of the global vault on 2026-07-26
+and archived there; there is one source of truth per fact.
+
+**This board is not replaced by either vault.** The board is the chronological narrative — Current
+focus, workstreams, and a dated Log. A vault is a similarity-ranked fact store with no ordering and
+active decay scoring, so it structurally cannot answer *"what are we working on right now."*
+Board = the running story. Vault = the reference book. Keep writing both.
+
+Reachability: `perseus-business` is registered in the repo's `.mcp.json` (Claude Code) **and** in
+`claude_desktop_config.json` (Chat **and** Cowork — one file, same app). Its DB deliberately lives
+outside the repo: `/Volumes/ExtraCurricular` has documented write hangs, and the FTS index stores
+every memory in **plaintext**, which must never sit inside a git working tree.
+
+---
+
 ## 🔒 Operating posture (inherited — enforce every task, all surfaces)
 
 - **Research artifacts only** — not validated for clinical decision support.
@@ -165,6 +191,15 @@
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 > Copy the **Entry template** at the bottom.
+
+### 2026-07-26T07:20Z · CLI Claude Code · **Business memory split into its own vault, then seated on all three surfaces** — plus a silent-corruption bug found and fixed in Perseus embeddings
+- **Did:** (1) Enabled Perseus **semantic search** — local in-process ONNX (`all-MiniLM-L6-v2`, 384-dim), no network, no Ollama. Two blockers, not one: the missing `--embedding-model` flag, and — hidden behind it — the binary's embedded Python shim feeds only `input_ids`+`attention_mask` while the stock HF ONNX **requires `token_type_ids`**. Patched the graph so that input is synthesized internally as zeros (correct, not approximate, for single-sentence embedding; verified **bit-identical**, `max|delta| = 0.000e+00`). (2) Created **`perseus-business`** — its own DB (`~/.perseus-vault/data/business-vault.db`) and its own AES key — and migrated the 5 business entities out of the global vault, archiving the originals there so there is **one source of truth**. (3) Registered it in the repo `.mcp.json` **and** `claude_desktop_config.json`, which the SearXNG 2026-07-04 entry below confirms is shared by **Chat *and* Cowork** (same app: that file carries `coworkScheduledTasksEnabled`/`coworkWebSearchEnabled`). (4) Taught the nightly launchd job to maintain **both** vaults and to **auto-repair** embeddings, logging what it changed.
+- **⚠️ The find that matters: `perseus_vault_embed` POISONS an encrypted vault.** It reads `body_json` raw and embeds it **without decrypting**, so stored vectors describe base64 ciphertext. Measured: `cos(stored, embed(ciphertext)) = +1.000000` vs `+0.18` for the real text. `semantic_search` then returns a full, confident, well-formed result set ranked by **noise** — no error, no empty result. `perseus_vault_remember` is safe (embeds plaintext before encrypting, `cos +1.000000`). **Never call `perseus_vault_embed` on either vault.** Repair/verify with `~/.local/bin/perseus-vault-embed-backfill.py` (`--check` = tripwire, exit 2 if poisoned).
+- **State:** done + verified. Both vaults **0 poisoned** (global 16 active/5 archived, business 5). Business server spawns correctly from *both* registrations; a no-keyword-overlap query ("must every local service use encrypted transport here") returns `https-only-invariant` first. Nightly job exit 0 across both vaults, incl. via `launchctl kickstart`. Poison drill: seeded corruption was detected, auto-repaired, and logged by entity name. Fail-closed proven per-vault (business key removed → global still ran, exit 78).
+- **Also fixed:** the pre-existing FTS tripwire opened `mode=ro`, which **cannot open a WAL DB when `-shm` is absent** — so on genuinely corrupted data it logged "failed to read database" instead of CRITICAL, hiding the exact thing it existed to catch. Now falls back to a SELECT-only connection and counts **all** rows, not one.
+- **Next (operator):** restart Claude Desktop so Chat + Cowork load `perseus-business`. Then **verify whether the Desktop Code tab sees it** — it lives in repo `.mcp.json`, and the SearXNG precedent registered `~/.claude.json` separately "for CLI + Desktop Code tab", so the Code tab may need a user-scope entry (cost: it becomes global for Code too). **Not added pre-emptively — verify first.**
+- **Touches:** `~/Library/Application Support/Claude/claude_desktop_config.json` (+`perseus-business`, backed up), repo `.mcp.json`, repo `CLAUDE.md` (new "🧠 Business memory" section), this board (new "🧠 Two vaults" section above), `~/.claude/CLAUDE.md`, `~/.local/bin/perseus-vault-{maintain,embed-backfill}.py`, `~/.perseus-vault/{models/,embed-venv/,business.key}`.
+- **For whoever's next:** the routing rule is **business facts → `perseus-business`, machine-wide → `perseus-vault`** (see the new section near the top of this board). The business DB deliberately sits **outside** the repo — `/Volumes/ExtraCurricular` has documented write hangs, and the FTS5 index keeps every memory in **plaintext**, which must never enter a git tree. Two more traps: `perseus-vault keygen` **defaults `--key-file` to the existing `secret.key`** (running it bare destroys the main vault's key — always pass an explicit path); and `vault-export`/`obsidian-sync` accept only `--db`, **no `--encryption-key`**, so exporting an encrypted vault via the CLI silently writes ciphertext. This board is **not** replaced by the vault — recall is similarity-ranked with decay, so it cannot answer "what are we working on right now."
 
 ### 2026-07-24T11:44Z · CLI Claude Code · **Plugin weave — the half the connector session never did.** 13 plugins bound to the business; 203 `~~` placeholders resolved, ~20 of them to an explicit NONE
 - **Why this exists:** the 2026-07-24T06:40Z Connector Weave entry below covered **MCP connectors** and stopped there. The **plugins** were installed but unconfigured — and the operator was right that this was the gap. Plugins are not connectors: each is a bundle of **skills** (which work with zero authentication) plus MCP servers (which need OAuth). The skills were live and running against *generic defaults* the whole time.

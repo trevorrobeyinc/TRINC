@@ -14,6 +14,30 @@ Hosting: **local-only as of 2026-05-26.** The private GitHub remote `trevoralexa
 > and external-volume write-safety: [`_continuity/README.md`](_continuity/README.md). The Code
 > surfaces also auto-trigger via the repo skill `.claude/skills/continuity-board/`.
 
+## 🧠 Business memory — use `perseus-business`, not the global vault (2026-07-26)
+
+> **Two Perseus vaults are reachable from this repo. Business facts go in the repo-scoped one.**
+>
+> | server | vault | scope |
+> |---|---|---|
+> | **`mcp__perseus-business__*`** | `~/.perseus-vault/data/business-vault.db` | **Trevor Robey, INC. only.** Declared in this repo's [`.mcp.json`](.mcp.json), so it exists ONLY when working here. |
+> | `mcp__perseus-vault__*` | `~/.perseus-vault/data/perseus-vault.db` | machine-global (YubiKey gates, Falcon, browser lanes, host tooling). Registered in `~/.claude.json`, so it is reachable everywhere and is NOT business memory. |
+>
+> Each has its **own AES key** (`business.key` vs `secret.key`) and its own embeddings. The five
+> business entities were migrated out of the global vault on 2026-07-26 and archived there, so
+> there is exactly one source of truth — **do not write business facts to `perseus-vault`**, or the
+> two will silently diverge.
+>
+> The DB deliberately lives outside the repo: `/Volumes/ExtraCurricular` has documented write
+> hangs, and the FTS5 index stores every memory in **plaintext**, which must never sit inside a git
+> working tree. Repo-scoping comes from the registration, not the file location.
+>
+> **This does not replace [`_continuity/CONTINUITY.md`](_continuity/CONTINUITY.md).** The board is
+> the chronological narrative ("what are we working on right now"); the vault is a similarity-queried
+> fact store with no ordering and active decay. Board = running story, vault = reference book.
+> Nightly hygiene + embedding auto-repair for BOTH vaults runs from
+> `~/.local/bin/perseus-vault-maintain.py` (launchd, 03:15).
+
 ## 🔌 Plugin bindings — read before using any plugin skill
 
 > **The installed Claude plugins are templates.** Their skills refer to tools generically

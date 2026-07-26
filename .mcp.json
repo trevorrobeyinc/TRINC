@@ -9,6 +9,21 @@
         "SEARXNG_BASE_URL": "https://127.0.0.1:8891",
         "NODE_EXTRA_CA_CERTS": "/Users/myhome/Library/Application Support/mkcert/rootCA.pem"
       }
+    },
+    "perseus-business": {
+      "command": "/Users/myhome/.local/bin/perseus-vault",
+      "args": [
+        "serve",
+        "--db",
+        "/Users/myhome/.perseus-vault/data/business-vault.db",
+        "--encryption-key",
+        "/Users/myhome/.perseus-vault/business.key",
+        "--embedding-model",
+        "/Users/myhome/.perseus-vault/models/model.onnx"
+      ],
+      "env": {
+        "PATH": "/Users/myhome/.perseus-vault/embed-venv/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      }
     }
   }
 }
