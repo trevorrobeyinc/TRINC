@@ -8,11 +8,11 @@ import { getPreferenceValues, open } from "@raycast/api";
 
 const runLive = process.env.OBSIDIAN_LIVE_TEST === "1";
 
-const defaultVaultPath = "/Volumes/ExtraCurricular/My Digital Garden";
+const defaultVaultPath = "/Users/myhome/My Digital Garden";
 const defaultPdfFixture =
-  "/Volumes/ExtraCurricular/My Digital Garden/Learning/Strayer Classes/BUS499/Week 2/SWOT Worksheet.pdf";
+  "/Users/myhome/My Digital Garden/Learning/Strayer Classes/BUS499/Week 2/SWOT Worksheet.pdf";
 const defaultVideoFixture =
-  "/Volumes/ExtraCurricular/My Digital Garden/Learning/Strayer Classes/BUS520 Leadership and Organizational Behavior/Week 2/Organizational Behavior in Context Part 1 Lecture.mp4";
+  "/Users/myhome/My Digital Garden/Learning/Strayer Classes/BUS520 Leadership and Organizational Behavior/Week 2/Organizational Behavior in Context Part 1 Lecture.mp4";
 
 function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));

@@ -5,7 +5,7 @@
 # Long-running, local-only update workflow for the Copilot fork.
 #
 # What it does:
-#   1. cd into /Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Copilot-Everything/repos/obsidian-copilot-mcp
+#   1. cd into /Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything/repos/obsidian-copilot-mcp
 #   2. git fetch upstream
 #   3. Compare upstream/master HEAD to current HEAD; early-exit if no new upstream commits
 #   4. Refuse to run if the working tree is dirty (uncommitted changes)
@@ -29,8 +29,8 @@
 
 set -euo pipefail
 
-REPO="/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Copilot-Everything/repos/obsidian-copilot-mcp"
-DEPLOY="/Volumes/ExtraCurricular/My Digital Garden/.obsidian/plugins/copilot"
+REPO="/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything/repos/obsidian-copilot-mcp"
+DEPLOY="/Users/myhome/My Digital Garden/.obsidian/plugins/copilot"
 OBSIDIAN_BIN="/Applications/Obsidian.app/Contents/MacOS/obsidian"
 FORK_BRANCH="codex/post-validated-mcp-baseline"
 UPSTREAM_REMOTE="upstream"

@@ -48,7 +48,7 @@ function loadConfigFile(configPath?: string): RaycastObsidianMcpConfigFile | nul
   const candidates = [
     configPath?.trim(),
     path.resolve(process.cwd(), "../raycast-obsidian-mcp/config/raycast-obsidian-mcp.local.json"),
-    "/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json",
+    "/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json",
   ].filter((value): value is string => Boolean(value));
 
   for (const candidate of new Set(candidates)) {

@@ -28,8 +28,8 @@ describe("runAiSummarizeCommand", () => {
   const mockExecFile = vi.mocked(execFile);
   const vault = {
     name: "My Digital Garden",
-    key: "/Volumes/ExtraCurricular/My Digital Garden",
-    path: "/Volumes/ExtraCurricular/My Digital Garden",
+    key: "/Users/myhome/My Digital Garden",
+    path: "/Users/myhome/My Digital Garden",
   };
 
   function mockExecFileImplementation(
@@ -113,7 +113,7 @@ describe("runAiSummarizeCommand", () => {
 
     expect(mockReadNote).toHaveBeenCalledWith({
       vault: "My Digital Garden",
-      vaultRoot: "/Volumes/ExtraCurricular/My Digital Garden",
+      vaultRoot: "/Users/myhome/My Digital Garden",
       path: "Inbox/Test Note.md",
     });
     expect(mockOpen).toHaveBeenCalledWith(openedUri);

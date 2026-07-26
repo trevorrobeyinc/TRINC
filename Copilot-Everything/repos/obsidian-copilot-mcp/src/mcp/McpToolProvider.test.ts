@@ -53,7 +53,7 @@ function buildSettings(confirmationPolicy: McpSettings["confirmationPolicy"]): M
         authToken: "test-token",
         timeoutMs: 20_000,
         vaultName: "My Digital Garden",
-        vaultRoot: "/Volumes/ExtraCurricular/My Digital Garden",
+        vaultRoot: "/Users/myhome/My Digital Garden",
         enabledToolNames: ["obsidian_create_note"],
       },
     ],

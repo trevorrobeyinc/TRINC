@@ -82,7 +82,7 @@ const DEFAULT_VAULT =
   config.cliStability?.requiredVaultNames?.[0] ?? "My Digital Garden";
 const DEFAULT_VAULT_ROOT =
   config.allowedVaultRoots?.[0] ??
-  "/Volumes/ExtraCurricular/My Digital Garden";
+  "/Users/myhome/My Digital Garden";
 const REQUEST_TIMEOUT_MS = 20_000;
 
 // ---------------------------------------------------------------------------

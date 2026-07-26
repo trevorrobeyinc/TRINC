@@ -232,7 +232,7 @@
 
 6. **Vault root is already resolved.** `DEFAULT_VAULT_ROOT` in env config flows through the binding chain. Zettelkasten commands inherit this.
 
-7. **Test against the real vault.** Validate against `/Volumes/ExtraCurricular/My Digital Garden`. Add checks to `scripts/full-functional-sweep.sh`.
+7. **Test against the real vault.** Validate against `/Users/myhome/My Digital Garden`. Add checks to `scripts/full-functional-sweep.sh`.
 
 8. **Watch request timeouts.** `REQUEST_TIMEOUT_MS` defaults to 30s. Batch orphan scans may exceed this. Increase for batch endpoints or use streaming.
 

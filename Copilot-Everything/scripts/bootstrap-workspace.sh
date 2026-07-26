@@ -13,7 +13,7 @@ if [[ ! -f "$DEV_VAULT/README.md" ]]; then
 
 This dedicated vault is the primary safe target for `copilot-mcp` development and side-by-side testing.
 
-- Source code lives outside the vault in `/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Copilot-Everything`.
+- Source code lives outside the vault in `/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything`.
 - Built runtime bundles are deployed into the vault's plugin directory.
 - Runtime note/plugin data may still live in the vault by design.
 EOF

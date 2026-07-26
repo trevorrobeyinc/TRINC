@@ -18,8 +18,8 @@ describe("aiSummarizeCommand", () => {
       usedCommandId: "copilot:summarize",
       vault: {
         name: "My Digital Garden",
-        key: "/Volumes/ExtraCurricular/My Digital Garden",
-        path: "/Volumes/ExtraCurricular/My Digital Garden",
+        key: "/Users/myhome/My Digital Garden",
+        path: "/Users/myhome/My Digital Garden",
       },
       openedUri: "",
     });

@@ -63,7 +63,7 @@ cp -R /tmp/stage/src/mcp <fork>/src/mcp
 cp /tmp/stage/src/settings/v2/components/*.tsx <fork>/src/settings/v2/components/
 # re-apply the 8 patches above; set manifest version = <new-tag> EXACTLY
 cd <fork> && npm install && npm run build
-cp main.js manifest.json styles.css "/Volumes/ExtraCurricular/My Digital Garden/.obsidian/plugins/copilot/"
+cp main.js manifest.json styles.css "/Users/myhome/My Digital Garden/.obsidian/plugins/copilot/"
 ```
 
 ## Watch for upstream MCP support

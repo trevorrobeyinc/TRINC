@@ -120,7 +120,7 @@ Three independent operators share this stack. None is subordinate to the others.
 > this repo on disk and coordinate through the shared board at `_continuity/CONTINUITY.md`.
 > **Claude Chat (Desktop) is NOT limited to the `:8798` Obsidian bridge for local files:** it has a
 > **Filesystem MCP connector with allowed roots `/Users/myhome` and `/Volumes/ExtraCurricular`**,
-> so it reads/writes `/Volumes/ExtraCurricular/TrevClaw-Obsidianodus` (and sees `My Digital Garden`
+> so it reads/writes `/Users/myhome/TrevClaw-Obsidianodus` (and sees `My Digital Garden`
 > as a sibling dir) directly. `:8798` is an *additional* semantic path (Obsidian/Zettelkasten over
 > `My Digital Garden`), not Chat's only route to disk. Caveat: Chat-side writes to the external
 > volume have hung before — a Filesystem-MCP restart clears it; treat Chat writes as
@@ -178,7 +178,7 @@ All HTTPS services use mkcert certificates at `~/.local/share/mkcert/localhost.p
 
 > **Notes**:
 > - backend-emulator (:8789) was retired 2026-04-11 — ZettelkastenService now runs in-process inside the `vault-zettelkasten` Obsidian plugin.
-> - The biomedical research engine (`/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations/`) runs as on-demand subprocess via `node scripts/run-workflow.js` — there is no persistent gateway service. The previous launchd entry on :18789 was for the unrelated homebrew `openclaw` (a consumer "Personal AI assistant" from openclaw.ai, different product entirely; removed 2026-04-27).
+> - The biomedical research engine (`/Users/myhome/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations/`) runs as on-demand subprocess via `node scripts/run-workflow.js` — there is no persistent gateway service. The previous launchd entry on :18789 was for the unrelated homebrew `openclaw` (a consumer "Personal AI assistant" from openclaw.ai, different product entirely; removed 2026-04-27).
 
 1. **Obsidian** — opening Obsidian loads two bridge-owning plugins:
    - `obsidian-bridge-launcher` spawns the canonical MCP bridge child process on :8798 (HTTPS).
@@ -195,7 +195,7 @@ curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.
 lsof -nP -iTCP:8742 -sTCP:LISTEN | grep -i miyo   # plaintext Miyo upstream (proxy backs onto this)
 curl http://127.0.0.1:6333/collections/miyo
 # Biomedical workflow runtime check (no persistent service — verify the subprocess path is wired):
-cd "/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations" && bash scripts/verify-phase29-policy.sh | tail -1
+cd "/Users/myhome/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations" && bash scripts/verify-phase29-policy.sh | tail -1
 ```
 
 ## Key Integration Points
@@ -204,7 +204,7 @@ cd "/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Trevor Robey Intelligence Net
 - **Post-workflow visualization**: None automatic. After workflow completion the Command Center plugin generates vault notes and runs Zettelkasten analysis; visualization is on-demand only (Obsidian's native Graph view, opened by the user). InfraNodus is fully out of the stack as of 2026-05-06 — no local clone, no webview handoff, no MCP server. The "Open Pipeline" ribbon icon opens only the pipeline status sidebar.
 - **Medical Zettelkasten MCP**: Runs local algorithmic analysis (gaps, clusters, diversity, cross-domain connections) on synthesizer output and writes Zettelkasten-linked notes to vault.
 - **Zettelkasten disambiguation**: Copilot-Everything has an LLM-driven ZettelkastenService that runs in-process inside the `vault-zettelkasten` Obsidian plugin (formerly hosted by the now-retired backend emulator on :8789). Claude Hub has the algorithmic Medical Zettelkasten MCP. They are complementary, not duplicates.
-- **Obsidian vault**: `/Volumes/ExtraCurricular/My Digital Garden` (ExtraCurricular volume must be mounted).
+- **Obsidian vault**: `/Users/myhome/My Digital Garden` (ExtraCurricular volume must be mounted).
 - **AWS account access (cloud; AI is read-only)**: The operator's AWS account `833390816446` — the business's Marketplace / AWS Data Exchange seller account — is reached via **IAM Identity Center SSO + a YubiKey FIDO2 key** (no long-lived keys on disk; root has MFA + no access keys). The **AWS API MCP Server** (Claude Desktop extension, available to every session) authenticates as **`ReadOnlyAccess`** — it can read AWS state to assist but **cannot mutate**; consequential seller work uses the operator-only **`AdministratorAccess`** role with explicit per-action approval. This is a security invariant of the same character as the HTTPS-only rule below. Canonical doc: [`Trevor Robey Intelligence Network Citations/03-platforms/aws-data-exchange/account-access.md`](Trevor%20Robey%20Intelligence%20Network%20Citations/03-platforms/aws-data-exchange/account-access.md).
 
 ## Trevor Robey Inc Agents Product Stack (summary)
@@ -314,7 +314,7 @@ Every network-facing TCP listener owned by code in this monorepo MUST be HTTPS. 
 
 All monorepo consumers (Copilot plugin's `MiyoServiceDiscovery`, Command Center's `miyo-client.ts`, `trevorobeyinc-research-memory-mcp/src/qdrant.ts`, `obsidian-vault-zettelkasten/src/{constants,settings,adapters/{miyo-client,qdrant-client,model-gateway}}.ts`, and the `searxng-search` connector's `config.js` — consumed by both the Claude MCP surfaces and the openclaw-bridge engine adapter) now point at the HTTPS proxies. The plaintext upstream ports keep listening (we can't make Miyo, Qdrant, or SearXNG stop), but the documented architecture no longer routes through them. The next hardening step (not yet implemented) is `pf` rules restricting :8742, :6333, and :8890 inbound to the proxy UIDs only. (:1234 and :11434 no longer exist — LM Studio and Ollama were removed.)
 
-> **launchd ↔ external-volume gotcha (2026-06-03).** This monorepo lives on `/Volumes/ExtraCurricular` (external). A launchd user-agent's TCC context **cannot read scripts on that volume**, so after the machine wipe all proxy units died at startup with `EPERM` opening their `.mjs` (an interactive shell *can* read it, which masks the problem). Fix: [`Copilot-Everything/scripts/install-tls-proxies.sh`](Copilot-Everything/scripts/install-tls-proxies.sh) stages the five proxy scripts to `~/.local/share/trevclaw-tls-proxies/` (internal volume) and repoints each plist's `ProgramArguments` there, then reloads via `launchctl bootout`/`bootstrap`. The repo copies under `Copilot-Everything/scripts/` remain source-of-truth — **re-run the installer after editing any `*-tls-proxy.mjs`** to re-sync the staged copy. This changes only *where launchd reads the proxy source from*; transport behavior (throw-on-cert-failure, no plaintext fallback) is unchanged.
+> **launchd ↔ external-volume gotcha (2026-06-03; superseded 2026-07-26).** This monorepo *used to live* on `/Volumes/ExtraCurricular` (external); it moved to `/Users/myhome/TrevClaw-Obsidianodus` on the internal FileVault disk on 2026-07-26, so the TCC wall below no longer applies to this repo. The staging pattern is kept regardless, so launchd never depends on the repo's location. A launchd user-agent's TCC context **cannot read scripts on that volume**, so after the machine wipe all proxy units died at startup with `EPERM` opening their `.mjs` (an interactive shell *can* read it, which masks the problem). Fix: [`Copilot-Everything/scripts/install-tls-proxies.sh`](Copilot-Everything/scripts/install-tls-proxies.sh) stages the five proxy scripts to `~/.local/share/trevclaw-tls-proxies/` (internal volume) and repoints each plist's `ProgramArguments` there, then reloads via `launchctl bootout`/`bootstrap`. The repo copies under `Copilot-Everything/scripts/` remain source-of-truth — **re-run the installer after editing any `*-tls-proxy.mjs`** to re-sync the staged copy. This changes only *where launchd reads the proxy source from*; transport behavior (throw-on-cert-failure, no plaintext fallback) is unchanged.
 
 Predecessor of qdrant-tls-proxy: a separate subproject at `Claude/qdrant-tls-proxy/` (with its own package.json + PM2 ownership) was deleted 2026-05-08 — wrong pattern, never wired in. The single-file launchd pattern above replaces it.
 

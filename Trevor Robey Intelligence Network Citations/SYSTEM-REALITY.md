@@ -46,7 +46,7 @@ citation-gate.js                 ──►  report-level grounding gate (cited i
         │                              + Crossref DOI retraction screen; hard-fails an
         │                              ungrounded/retracted report (see §3)
         ▼
-6 notes written into your vault  ──►  /Volumes/ExtraCurricular/My Digital Garden/OpenClaw/{template}/{date}/
+6 notes written into your vault  ──►  /Users/myhome/My Digital Garden/OpenClaw/{template}/{date}/
 ```
 
 **Plain-English takeaways:**

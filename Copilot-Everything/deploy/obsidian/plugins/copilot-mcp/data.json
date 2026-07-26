@@ -506,7 +506,7 @@
         "authToken": "REVOKED-2026-05-07-rotated-token-was-here-X",
         "timeoutMs": 20000,
         "vaultName": "dev-vault",
-        "vaultRoot": "/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Copilot-Everything/dev-vault",
+        "vaultRoot": "/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything/dev-vault",
         "backendHint": "cli",
         "enabledToolNames": [
           "obsidian_health"

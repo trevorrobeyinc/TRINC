@@ -75,7 +75,7 @@
                               ▼
    ┌─────────────────────────────────────────────────────────────┐
    │  OUTPUT → 6 linked notes per run into the vault                │
-   │   /Volumes/ExtraCurricular/My Digital Garden/OpenClaw/...      │
+   │   /Users/myhome/My Digital Garden/OpenClaw/...                 │
    │   ⚠️ this folder does NOT exist yet → no report has landed     │
    │   then: Medical-Zettelkasten-MCP analyzes the note graph       │
    └─────────────────────────────────────────────────────────────┘

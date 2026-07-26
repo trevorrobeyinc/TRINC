@@ -13,7 +13,7 @@ source or a running process on that date. Retired components are listed in
 > open-source agent framework the stack uses; it is not a brand owned by the operator, and the
 > retired homebrew `openclaw.ai` consumer assistant is unrelated.
 
-> **Repo topology.** Single **local-only** monorepo at `/Volumes/ExtraCurricular/TrevClaw-Obsidianodus`
+> **Repo topology.** Single **local-only** monorepo at `/Users/myhome/TrevClaw-Obsidianodus`
 > with **no git remotes** (the private GitHub remote was deleted 2026-05-26; durable backup is a
 > verified `git bundle --all`). Only submodule: `Trevor Robey Intelligence Network Citations/vendor/tooluniverse`.
 > Vendored fork (not a submodule): `Copilot-Everything/repos/obsidian-copilot-mcp/`.
@@ -233,7 +233,7 @@ RNG, per the engine's restricted-globals rule.
 | `command-center` | Dispatches workflows, generates vault notes, owns the additive `:8799` bridge. |
 | `copilot` (vendored MCP fork) | Chat + agent mode. Its MCP is a **client, for tools only** — tools become LangChain `StructuredTool`s bound onto the selected chat model via `bindTools()`. It can never *be* the model. |
 | `vault-zettelkasten` | In-process graph analysis (semantic linker, cross-domain, serendipity, echo chamber, orphan rescue). Consumes Miyo `:8743` and Qdrant `:6433`. |
-| `contextual-wiki-definitions` | Writes a definition note when a wiki link is followed — including from the Local Graph. Source lives **outside this repo** at `/Volumes/ExtraCurricular/Code/obsidian-auto-wiki-summarize` (own git repo, symlinked into the vault, no build step — `main.js` *is* the source). |
+| `contextual-wiki-definitions` | Writes a definition note when a wiki link is followed — including from the Local Graph. Source lives **outside this repo** at `/Users/myhome/Code/obsidian-auto-wiki-summarize` (own git repo, symlinked into the vault, no build step — `main.js` *is* the source). |
 
 All Obsidian-side model calls go to hosted **`copilot-plus-flash`**. The wiki-definition plugin
 passes its model **per call** to `vault-zettelkasten` (`resolveModel()` honours `request.model`),

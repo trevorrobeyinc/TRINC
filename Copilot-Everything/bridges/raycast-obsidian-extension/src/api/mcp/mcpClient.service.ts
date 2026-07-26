@@ -46,7 +46,7 @@ function loadConfigFile(configPath?: string): MCPServerConfigFile | null {
     configPath?.trim(),
     path.resolve(process.cwd(), "mcp-server/config/obsidian-cli-mcp.local.json"),
     path.resolve(process.cwd(), "../mcp-server/config/obsidian-cli-mcp.local.json"),
-    "/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json",
+    "/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json",
   ].filter((value): value is string => Boolean(value));
 
   for (const candidate of new Set(candidates)) {

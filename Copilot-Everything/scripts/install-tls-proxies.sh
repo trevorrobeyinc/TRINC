@@ -7,12 +7,21 @@
 #
 # Why this exists
 # ---------------
-# This monorepo lives on an external volume (/Volumes/ExtraCurricular/...). On
-# modern macOS, a launchd user-agent's TCC context is NOT granted read access to
-# removable / external volumes, even when the interactive Terminal is. The five
-# proxy launchd units therefore die at startup with:
+# ORIGINALLY (2026-06-03): this monorepo lived on an external volume
+# (/Volumes/ExtraCurricular/...). On modern macOS a launchd user-agent's TCC
+# context is NOT granted read access to removable / external volumes, even when
+# the interactive Terminal is, so the proxy launchd units died at startup with:
 #
 #   Error: EPERM: operation not permitted, open '/Volumes/.../<name>-tls-proxy.mjs'
+#
+# UPDATE 2026-07-26: the monorepo moved to /Users/myhome/TrevClaw-Obsidianodus on
+# the internal, FileVault-protected disk, so that specific TCC wall no longer
+# applies to this repo. The staging pattern is KEPT anyway, for two reasons:
+#   1. The launchd units currently point at the staged copies. Repointing them at
+#      the repo would be a live change to five running services for no gain.
+#   2. Staging keeps launchd's runtime independent of where the repo lives, so a
+#      future relocation cannot silently break TLS termination.
+# Treat the EPERM story above as the historical origin, not a current constraint.
 #
 # The repo copies under Copilot-Everything/scripts/ remain the source of truth.
 # This installer copies them to ~/.local/share/trevclaw-tls-proxies/ (internal,

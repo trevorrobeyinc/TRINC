@@ -42,14 +42,14 @@
  *   node scripts/publish-to-vault.js --task-id task-XXXX
  *     [--bridge https://127.0.0.1:8798]
  *     [--bridge-config <path>]
- *     [--vault-root /Volumes/ExtraCurricular/My Digital Garden]
+ *     [--vault-root /Users/myhome/My Digital Garden]
  *     [--vault "My Digital Garden"]
  *     [--title "Optional human-readable title"]
  *     [--mode create|overwrite]
  *     [--source-dir <override path>]
  *
  * Defaults match the local-only research stack: bridge at
- * https://127.0.0.1:8798, vault at /Volumes/ExtraCurricular/My Digital Garden,
+ * https://127.0.0.1:8798, vault at /Users/myhome/My Digital Garden,
  * vault name "My Digital Garden", source dir at
  * `<repo>/workspace/research-output/<task-id>/`.
  */
@@ -62,8 +62,8 @@ const os = require("node:os");
 
 const DEFAULT_BRIDGE = "https://127.0.0.1:8798";
 const DEFAULT_BRIDGE_CONFIG =
-  "/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json";
-const DEFAULT_VAULT_ROOT = "/Volumes/ExtraCurricular/My Digital Garden";
+  "/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json";
+const DEFAULT_VAULT_ROOT = "/Users/myhome/My Digital Garden";
 const DEFAULT_VAULT_NAME = "My Digital Garden";
 const DEFAULT_MKCERT_CA = path.join(
   os.homedir(),

@@ -4,10 +4,10 @@ export const PLUGIN_ID = "obsidian-bridge-launcher";
 
 export const DEFAULT_SETTINGS: BridgeLauncherSettings = {
   bridgePackagePath:
-    "/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge",
+    "/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge",
   nodePath: "/Users/myhome/.nvm/versions/node/v22.13.1/bin/node",
   mcpConfigPath:
-    "/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json",
+    "/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json",
   caCertPath:
     "/Users/myhome/Library/Application Support/mkcert/rootCA.pem",
   bridgePort: 8798,

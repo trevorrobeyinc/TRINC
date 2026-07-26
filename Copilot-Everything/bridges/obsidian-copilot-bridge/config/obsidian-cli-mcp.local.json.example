@@ -26,7 +26,7 @@
   },
   "allowedVaultRoots": [
     "/absolute/path/to/your/obsidian/vault",
-    "/Volumes/ExtraCurricular/My Digital Garden"
+    "/Users/myhome/My Digital Garden"
   ],
   "security": {
     "authToken": "replace-with-128-bit-random-or-better-token",

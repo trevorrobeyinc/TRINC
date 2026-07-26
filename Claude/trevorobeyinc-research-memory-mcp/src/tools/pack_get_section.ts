@@ -29,7 +29,7 @@ export async function packGetSection(args: PackGetSectionArgsT): Promise<{
   if (uri) {
     try {
       const path = uri.startsWith("obsidian://")
-        ? uri.replace(/^obsidian:\/\/[^/]+\//, "/Volumes/ExtraCurricular/My Digital Garden/")
+        ? uri.replace(/^obsidian:\/\/[^/]+\//, "/Users/myhome/My Digital Garden/")
         : uri.startsWith("file://")
           ? uri.replace("file://", "")
           : uri;

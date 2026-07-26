@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-WORKSPACE_ROOT="/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Copilot-Everything"
-PRODUCTION_VAULT="/Volumes/ExtraCurricular/My Digital Garden"
+WORKSPACE_ROOT="/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything"
+PRODUCTION_VAULT="/Users/myhome/My Digital Garden"
 DEV_VAULT="$WORKSPACE_ROOT/dev-vault"
 PLUGIN_REPO="$WORKSPACE_ROOT/repos/obsidian-copilot-mcp"
 BRIDGE_REPO="$WORKSPACE_ROOT/bridges/obsidian-copilot-bridge"

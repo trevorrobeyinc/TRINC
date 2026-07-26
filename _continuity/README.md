@@ -67,35 +67,34 @@ handoff into a **living, multi-writer board**.
 
 ---
 
-## Write safety (external volume) <a id="write-safety-external-volume"></a>
+## Write safety <a id="write-safety-external-volume"></a>
 
-`CONTINUITY.md` lives on the **`/Volumes/ExtraCurricular` external SSD**. Two known failure modes:
+> **Updated 2026-07-26 — the external-volume hazards below no longer apply.** `CONTINUITY.md` now
+> lives at `/Users/myhome/TrevClaw-Obsidianodus/_continuity/CONTINUITY.md` on the **internal,
+> FileVault-protected APFS disk**: always mounted, journaled, no disksleep. The two failure modes
+> this section used to warn about — first-access `EPERM` after the SSD slept, and Chat-side writes
+> wedging the Filesystem MCP against `/Volumes/ExtraCurricular` — were **properties of that external
+> volume**, not of this file. Retained below as history, because the drive still exists and anything
+> still reading from it inherits those hazards.
+>
+> *Historical:* the board lived on the `/Volumes/ExtraCurricular` external SSD. Disksleep made the
+> first access after sleep fail (fix: just retry — a read/write wakes it; never prompt the user to
+> re-grant Full Disk Access), and Chat-side writes to that volume **hung** until the Filesystem MCP
+> connector was restarted.
 
-- **Disksleep `EPERM` / "Operation not permitted."** The SSD sleeps (disksleep kept on for
-  security). The *first* access after sleep can fail. **Fix: just retry** — a read/write wakes it.
-  On the CLI/Code side use a short bash retry loop; never prompt the user to wake the drive or
-  re-grant Full Disk Access.
-- **Wedged Filesystem MCP (seen from Claude Chat).** Chat-side writes to this volume have **hung**
-  before. A **Filesystem MCP restart cleared it.**
+**Safe-write pattern for every surface — still the rule, for a different reason.** The hazard now is
+not the disk, it is *concurrency*: four surfaces share one file, and Cowork or Chat may be mid-edit.
 
-**Safe-write pattern for every surface (especially Chat):**
-
-1. **Probe first.** Do a cheap read of `CONTINUITY.md` immediately before writing. If the read
-   hangs or errors, you're in a wedged/asleep state — don't attempt the write yet.
+1. **Probe first.** Do a cheap read of `CONTINUITY.md` immediately before writing, so you are
+   editing what is actually there rather than a stale copy.
 2. **Prefer append-style edits.** Prepend one self-contained Log entry rather than rewriting the
-   whole file. Small, additive edits survive interruption far better and never clobber another
-   surface's work.
+   whole file. Small, additive edits never clobber another surface's work.
 3. **Verify after.** Re-read the top of the file and confirm your entry landed.
-4. **If a write hangs:**
-   - **Chat:** restart the **Filesystem MCP connector** (Desktop → the connector's
-     reconnect/restart), then re-probe and retry. Do **not** paste the entry somewhere else and
-     lose it — retry the write.
-   - **CLI / Code / Cowork:** retry (bash loop for CLI); the retry itself wakes the disk.
-5. **Never** work around a hang by writing to a *different* file — that fragments the board, which
-   is the exact problem this system exists to prevent.
+4. **Never** work around a failed write by writing to a *different* file — that fragments the board,
+   which is the exact problem this system exists to prevent.
 
-> This is a safe *operating procedure*, not a fix of the underlying Filesystem MCP server. If Chat
-> writes wedge repeatedly, that's a server-side bug to file separately; the restart is the remedy.
+> If a surface is still reading the board from `/Volumes/ExtraCurricular`, it is pointed at the
+> **stale pre-migration copy**. Repoint it; do not edit that copy.
 
 ---
 

@@ -29,7 +29,7 @@ When sources disagree, use them in this order:
 1. Current repo code and git state.
 2. Current repo docs and scripts.
 3. The four session transcripts explicitly reviewed for this dossier.
-4. External vault notes under `/Volumes/ExtraCurricular/My Digital Garden/OpenClaw Research Agents/` as historical context only.
+4. External vault notes under `/Users/myhome/My Digital Garden/OpenClaw Research Agents/` as historical context only.
 
 Important implication:
 

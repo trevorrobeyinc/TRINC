@@ -20,7 +20,7 @@ Three active layers (backend-emulator retired 2026-04-11, deleted from monorepo 
 ## Key Paths
 
 - Workspace root: `/Users/trevorrobey/TrevClaw-Obsidianodus/Copilot-Everything/` (was `/Users/trevorrobey/Code/THE Copilot in Obsidian Everything/` until the 2026-05-07 monorepo consolidation; the legacy path remains as a back-symlink)
-- Target vault: `/Volumes/ExtraCurricular/My Digital Garden`
+- Target vault: `/Users/myhome/My Digital Garden`
 - Official plugin dir: `<vault>/.obsidian/plugins/copilot`
 
 ## Runtime Modes (preserve these)
@@ -152,7 +152,7 @@ All in `scripts/`. Key ones:
 - `plugin-reload.sh` — Reload plugin in Obsidian
 - `dev-build.sh` / `dev-deploy.sh` — Plugin dev workflow
 - `lib.sh` — Shared constants and utilities (WORKSPACE_ROOT, PRODUCTION_VAULT, etc.)
-- `install-tls-proxies.sh` — Stage the three `*-tls-proxy.mjs` (Miyo/Qdrant/SearXNG) to `~/.local/share/trevclaw-tls-proxies/` and repoint + reload their launchd units. Required because launchd's TCC context can't read scripts on the external `/Volumes/ExtraCurricular` volume. Re-run after editing any proxy script. (LM Studio removed 2026-07-16; Ollama removed 2026-07-23.)
+- `install-tls-proxies.sh` — Stage the three `*-tls-proxy.mjs` (Miyo/Qdrant/SearXNG) to `~/.local/share/trevclaw-tls-proxies/` and repoint + reload their launchd units. Required historically: the monorepo lived on the external `/Volumes/ExtraCurricular` volume until 2026-07-26 and launchd's TCC context cannot read scripts there. The repo is now on the internal disk, so that wall no longer applies — but staging is **retained** so launchd never depends on where the repo lives. Re-run after editing any proxy script. (LM Studio removed 2026-07-16; Ollama removed 2026-07-23.)
 
 ## MCP Bridge Contract
 

@@ -14,7 +14,7 @@ import process from "node:process";
 
 const target =
   process.env.BRIDGE_LAUNCHER_VAULT_DIR ||
-  "/Volumes/ExtraCurricular/My Digital Garden/.obsidian/plugins/obsidian-bridge-launcher";
+  "/Users/myhome/My Digital Garden/.obsidian/plugins/obsidian-bridge-launcher";
 
 for (const file of ["main.js", "manifest.json"]) {
   copyFileSync(file, `${target}/${file}`);

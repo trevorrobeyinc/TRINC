@@ -53,7 +53,7 @@ export class BridgeLauncherSettingTab extends PluginSettingTab {
       .addText((text) =>
         text
           .setPlaceholder(
-            "/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge"
+            "/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge"
           )
           .setValue(this.plugin.settings.bridgePackagePath)
           .onChange(async (value) => {

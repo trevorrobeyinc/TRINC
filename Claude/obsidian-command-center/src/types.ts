@@ -1,7 +1,7 @@
 /**
  * OpenClaw Command Center — Type Definitions
  *
- * Source of truth: /Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations/openclaw-shared-types/index.d.ts
+ * Source of truth: /Users/myhome/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations/openclaw-shared-types/index.d.ts
  * Last synced: 2026-04-06
  *
  * Types below are aligned with the shared types package. When OpenClaw adds fields

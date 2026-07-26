@@ -179,7 +179,7 @@ Because ADX versions by revision, eligibility must be re-attested each revision,
 - **[AWS-PUBLISH]** AWS Files-product publishing flow — https://docs.aws.amazon.com/data-exchange/latest/userguide/publish-data-product.html (data-sensitivity configuration; Limited-visibility self-test before Public)
 - **[AWS-OFFERS]** AWS prepare offers / DSA & refunds — https://docs.aws.amazon.com/data-exchange/latest/userguide/prepare-offers.html (StandardDsa vs CustomDsa with S3 URL; DSA covers use/warranty/indemnification/governing law; refund policy required + provider-authorized via refund-approval form)
 - **Internal artifacts (verified this pass):**
-  - `/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations/workspace/aws-marketplace-listing/pharmacovigilance-sample-pack/signal-register.csv`
+  - `/Users/myhome/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations/workspace/aws-marketplace-listing/pharmacovigilance-sample-pack/signal-register.csv`
   - `…/pharmacovigilance-sample-pack/citation-index.csv`
   - `…/pharmacovigilance-sample-pack/metadata-table.md`
   - `…/pharmacovigilance-sample-pack/data-subscription-agreement.md`

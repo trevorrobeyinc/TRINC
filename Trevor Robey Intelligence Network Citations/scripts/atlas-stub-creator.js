@@ -65,7 +65,7 @@ const TYPE_BLURB = {
 };
 
 function parseArgs(argv) {
-  const out = { taskId: "", vaultRoot: "/Volumes/ExtraCurricular/My Digital Garden", synthNotePath: "" };
+  const out = { taskId: "", vaultRoot: "/Users/myhome/My Digital Garden", synthNotePath: "" };
   for (let i = 0; i < argv.length; i++) {
     const t = argv[i];
     if (t === "--task-id") { out.taskId = argv[++i] || ""; continue; }

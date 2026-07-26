@@ -29,7 +29,7 @@
       "type": "directory",
       "title": "Obsidian Vault Path",
       "required": false,
-      "default": "/Volumes/ExtraCurricular/My Digital Garden",
+      "default": "/Users/myhome/My Digital Garden",
       "description": "Path to your Obsidian vault"
     },
     {
@@ -115,7 +115,7 @@
       "title": "MCP Config Path",
       "description": "Optional path to the local MCP config file for auto-discovering the auth token.",
       "type": "textfield",
-      "default": "/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json",
+      "default": "/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json",
       "required": false
     },
     {
@@ -1111,7 +1111,7 @@
           "title": "Raycast-Obsidian MCP Config Path",
           "type": "textfield",
           "required": false,
-          "default": "/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json",
+          "default": "/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json",
           "description": "Path to the canonical bridge's config file (used to auto-discover endpoint + auth token)."
         },
         {

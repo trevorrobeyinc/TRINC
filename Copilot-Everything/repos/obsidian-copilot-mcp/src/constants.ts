@@ -1023,7 +1023,7 @@ export const DEFAULT_SETTINGS: CopilotSettings = {
         authToken: "",
         timeoutMs: 20000,
         vaultName: "My Digital Garden",
-        vaultRoot: "/Volumes/ExtraCurricular/My Digital Garden",
+        vaultRoot: "/Users/myhome/My Digital Garden",
         backendHint: "cli",
         enabledToolNames: [
           "obsidian_health",

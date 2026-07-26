@@ -377,7 +377,7 @@ export class OpenClawRunner {
 
 const DEFAULT_BRIDGE = "https://127.0.0.1:8798";
 const DEFAULT_BRIDGE_CONFIG =
-  "/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json";
+  "/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json";
 
 export interface NotifyResearchArrivedOptions {
   /** Identifier for the event (a label; e.g. the workflow_id). */

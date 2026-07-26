@@ -1,7 +1,7 @@
 # Recovery lessons (Phase 1)
 
 - **Machine identity differs from the plan.** The handoff prompt hardcoded `/Users/trevorrobey`; this
-  machine is user `myhome` with the repo on the external volume `/Volumes/ExtraCurricular/TrevClaw-Obsidianodus`.
+  machine is user `myhome` with the repo at `/Users/myhome/TrevClaw-Obsidianodus` on the internal FileVault disk (it lived on the external volume `/Volumes/ExtraCurricular` until 2026-07-26).
   Every absolute path (launchd plist node binary, mkcert CA, logs) must be adapted to `/Users/myhome`.
   The repo's own docs (CLAUDE.md health-check block, LEARNINGS) still contain `/Users/trevorrobey` paths —
   left as-is (historical / minimal-diff); only operational artifacts we create use the adapted paths.

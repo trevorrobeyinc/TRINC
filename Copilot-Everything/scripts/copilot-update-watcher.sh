@@ -20,7 +20,7 @@
 #
 # Logs:
 #   Event log (one line per real upgrade event):
-#     /Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Copilot-Everything/logs/copilot-update-watcher.log
+#     /Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything/logs/copilot-update-watcher.log
 #   Diagnostic stdout/stderr (full launchd output):
 #     ~/Library/Logs/copilot-fork-update-watcher.{out,err}.log
 #
@@ -31,9 +31,9 @@
 set -euo pipefail
 
 # Absolute paths — launchd has no cwd and minimal PATH.
-WORKSPACE="/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Copilot-Everything"
+WORKSPACE="/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything"
 SYNC_SCRIPT="$WORKSPACE/scripts/sync-copilot-fork.sh"
-DEPLOY_MANIFEST="/Volumes/ExtraCurricular/My Digital Garden/.obsidian/plugins/copilot/manifest.json"
+DEPLOY_MANIFEST="/Users/myhome/My Digital Garden/.obsidian/plugins/copilot/manifest.json"
 EVENT_LOG="$WORKSPACE/logs/copilot-update-watcher.log"
 STATE_DIR="$HOME/.local/state/copilot-update-watcher"
 STAMP_FILE="$STATE_DIR/last-seen.sha256"

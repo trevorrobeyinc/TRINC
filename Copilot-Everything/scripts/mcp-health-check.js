@@ -6,7 +6,7 @@ const crypto = require("crypto");
 
 const configPath =
   process.env.OBSIDIAN_MCP_CONFIG ||
-  "/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json";
+  "/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json";
 
 const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
 const body = JSON.stringify({ tool: "obsidian_health", args: {} });

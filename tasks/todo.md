@@ -1,7 +1,7 @@
 # TrevClaw-Obsidianodus — Recovery Phase 1 (executed plan)
 
 Driven from `trevclaw-recovery-phase1.prompt.xml` + `MIGRATION.md`, **adapted to this machine**
-(user `myhome`, repo at `/Volumes/ExtraCurricular/TrevClaw-Obsidianodus`, not `/Users/trevorrobey/...`).
+(user `myhome`, repo at `/Users/myhome/TrevClaw-Obsidianodus`, not `/Users/trevorrobey/...` (was `/Volumes/ExtraCurricular/TrevClaw-Obsidianodus` until 2026-07-26)).
 
 ## Reasoning trace — machine reality vs. plan assumptions
 - **Goal:** bring the stack from code-only checkout to runnable, excluding the custom Claude↔Desktop

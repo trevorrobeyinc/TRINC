@@ -17,7 +17,7 @@ being worked on right now* across all four Claude surfaces. Full docs: `_continu
 ## Read (session start)
 
 Read `_continuity/CONTINUITY.md`. Absolute path:
-`/Volumes/ExtraCurricular/TrevClaw-Obsidianodus/_continuity/CONTINUITY.md`.
+`/Users/myhome/TrevClaw-Obsidianodus/_continuity/CONTINUITY.md`.
 Report back **Current focus** + the top 3–5 Log entries — that's the live state. Then do the work.
 
 ## Append (progress / handoff)

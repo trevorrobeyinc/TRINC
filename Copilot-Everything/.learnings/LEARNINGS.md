@@ -360,7 +360,7 @@ Refreshing the vendored Copilot fork (`repos/obsidian-copilot-mcp/`) from a stal
 8. `npm install --no-audit --no-fund` (~13s).
 9. `npm run build` (`tsc -noEmit -skipLibCheck && esbuild production`).
 10. From monorepo root: `bash scripts/lint-transport-monorepo.sh --strict` (must exit 0).
-11. Deploy: `cp main.js manifest.json styles.css "/Volumes/ExtraCurricular/My Digital Garden/.obsidian/plugins/copilot/"`.
+11. Deploy: `cp main.js manifest.json styles.css "/Users/myhome/My Digital Garden/.obsidian/plugins/copilot/"`.
 12. User must manually toggle Copilot off/on in Obsidian Settings → Community plugins. (Cannot script: Obsidian holds an exclusive lock on the running plugin.)
 
 ### Critical gotcha: ToolRegistry methods

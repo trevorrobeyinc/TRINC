@@ -93,7 +93,7 @@
     },
     "~~knowledge base": {
       "bound": true,
-      "resolves_to": "Obsidian vault '/Volumes/ExtraCurricular/My Digital Garden' via the canonical MCP bridge on :8798",
+      "resolves_to": "Obsidian vault '/Users/myhome/My Digital Garden' via the canonical MCP bridge on :8798",
       "lane": "vault",
       "note": "NOT Notion, NOT Confluence. Read-only from the engine; Command Center owns vault writes. Requires Obsidian to be running (bridge dies with the app)."
     },

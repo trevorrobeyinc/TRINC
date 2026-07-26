@@ -39,6 +39,8 @@ Claude Code       ───┘                                    └─[direct 
   binds **no TCP port** of its own.
 - **Internal-volume rule.** Everything launchd executes (venv python, `settings.yml`)
   lives on the internal volume — a launchd agent cannot read `/Volumes/ExtraCurricular`
+  (still true of that volume; note the monorepo itself moved to the internal disk on 2026-07-26,
+  so staging is now belt-and-braces rather than strictly required)
   (TCC `EPERM`). Only this connector's JS (which Claude Desktop/Code launches, not launchd)
   lives in the repo on the external volume.
 

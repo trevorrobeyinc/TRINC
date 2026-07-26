@@ -9,7 +9,7 @@ slots. This personal brand is for **founder-voice surfaces** (see "Where to use 
 
 Companion source-of-truth: the brand kit at [`brand-system.md`](./brand-system.md) (short
 pointer section) and the Obsidian vault copy at
-`/Volumes/ExtraCurricular/My Digital Garden/Trevor Robey Inc/Personal Brand — Trevor Robey.md`
+`/Users/myhome/My Digital Garden/Trevor Robey Inc/Personal Brand — Trevor Robey.md`
 (auto-included in the Copilot "Trevor Robey, INC." project). Keep all three in sync.
 
 ## The lockup (primary)

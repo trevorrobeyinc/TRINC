@@ -46,7 +46,7 @@ const { randomUuid } = require("../../core/entropy-provider.js");
 
 const DEFAULT_BRIDGE = "https://127.0.0.1:8798";
 const DEFAULT_BRIDGE_CONFIG = path.join(
-  "/Volumes/ExtraCurricular/TrevClaw-Obsidianodus",
+  "/Users/myhome/TrevClaw-Obsidianodus",
   "Copilot-Everything/bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json"
 );
 const DEFAULT_VAULT = "My Digital Garden";
