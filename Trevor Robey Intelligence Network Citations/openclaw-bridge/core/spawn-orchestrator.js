@@ -39,9 +39,20 @@ function normalizeNonNegativeInteger(value, fallback = 0) {
 
 function sleep(ms) {
   const delayMs = Math.max(0, Number(ms) || 0);
-  return new Promise((resolve) => {
-    setTimeout(resolve, delayMs);
+  let timer = null;
+  const promise = new Promise((resolve) => {
+    timer = setTimeout(resolve, delayMs);
   });
+  // Every sleep() here is one side of a Promise.race. Losing the race must not leave the
+  // timer pinning the event loop: a 15-minute subtask timeout kept the process alive for
+  // 15 minutes after the work had already finished. Callers cancel in a finally block.
+  promise.cancel = () => {
+    if (timer !== null) {
+      clearTimeout(timer);
+      timer = null;
+    }
+  };
+  return promise;
 }
 
 function resolveMissionPaths(basePath, missionId, agentId = "") {
@@ -684,16 +695,21 @@ function createSpawnOrchestrator(options = {}) {
         let routed;
         if (subtaskTimeoutMs > 0) {
           dispatchPromise.catch(() => {});
-          routed = await Promise.race([
-            dispatchPromise,
-            sleep(subtaskTimeoutMs).then(() => {
-              const timeoutError = new Error(`Subtask '${subtaskId}' exceeded timeout (${subtaskTimeoutMs} ms)`);
-              timeoutError.code = "PHASE18_SUBTASK_TIMEOUT";
-              timeoutError.timeout_ms = subtaskTimeoutMs;
-              timeoutError.status_hint = "paused";
-              throw timeoutError;
-            })
-          ]);
+          const timeoutSleep = sleep(subtaskTimeoutMs);
+          try {
+            routed = await Promise.race([
+              dispatchPromise,
+              timeoutSleep.then(() => {
+                const timeoutError = new Error(`Subtask '${subtaskId}' exceeded timeout (${subtaskTimeoutMs} ms)`);
+                timeoutError.code = "PHASE18_SUBTASK_TIMEOUT";
+                timeoutError.timeout_ms = subtaskTimeoutMs;
+                timeoutError.status_hint = "paused";
+                throw timeoutError;
+              })
+            ]);
+          } finally {
+            timeoutSleep.cancel();
+          }
         } else {
           routed = await dispatchPromise;
         }
@@ -839,10 +855,16 @@ function createSpawnOrchestrator(options = {}) {
         break;
       }
 
-      const settled = await Promise.race([
-        Promise.race(Array.from(inFlight)),
-        sleep(runtimeSettings.scheduler_tick_ms).then(() => ({ ok: true, heartbeat: true }))
-      ]);
+      const tickSleep = sleep(runtimeSettings.scheduler_tick_ms);
+      let settled;
+      try {
+        settled = await Promise.race([
+          Promise.race(Array.from(inFlight)),
+          tickSleep.then(() => ({ ok: true, heartbeat: true }))
+        ]);
+      } finally {
+        tickSleep.cancel();
+      }
 
       if (settled && settled.heartbeat) {
         applyLaneScalingIfNeeded();
