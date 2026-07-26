@@ -124,15 +124,21 @@ are *logical*, and each has a guard:
 > The single source of "what are we working on right now." Overwrite this to keep it true.
 > If nothing is in flight, leave the placeholder so the next surface knows the board is idle.
 
-**🟢 MIGRATION TO THE INTERNAL FILEVAULT DISK — COMPLETE AND COMMITTED (2026-07-26).** The whole
-stack now lives at **`/Users/myhome/TrevClaw-Obsidianodus`** (vault at `/Users/myhome/My Digital
-Garden`). Committed signed **`265d00d`**; the old tree is retired-in-place as
-`/Volumes/ExtraCurricular/TrevClaw-Obsidianodus.RETIRED-20260726` (renamed, **not** deleted — it is
-the rollback, and `80c7271` is a strict ancestor of HEAD). Engine suite **1013/1013 green across
-210/210 files, 0 old-path references**. **Two operator-only steps remain** and they are the last
-things standing between here and an encrypted backup drive: **delete `Vids/` (1.1 TB) FIRST**, then
-`diskutil apfs encryptVolume`. ⚠️ **Backup gap:** the newest bundle is at `80c7271`, so commit
-`265d00d` exists in **no** backup and the repo has no remotes. See the top Log entry.
+**✅ MIGRATION TO THE INTERNAL FILEVAULT DISK — FULLY CLOSED OUT (2026-07-26).** The whole stack
+lives at **`/Users/myhome/TrevClaw-Obsidianodus`** (vault at `/Users/myhome/My Digital Garden`),
+HEAD **`0ad833e`**, all commits YubiKey-signed. Engine suite **1013/1013 green across 210/210
+files, 0 old-path references**; all four phase verifiers, both custom linters, all three plugin
+builds, and live MCP handshakes pass from the new location. `Vids/` (1.1 TB) deleted and
+`/Volumes/ExtraCurricular` is now **APFS-encrypted** (`FileVault: Yes`).
+
+> **⚠️ The rollback tree is GONE — rollback now means a bundle, not a directory.** The retired
+> copy was verified to hold zero unique commits (all 7 refs present in live) and then **deleted
+> by the operator**. Recovery sources now:
+> `/Volumes/ExtraCurricular/TrevClaw-Obsidianodus-0ad833e-20260726.bundle` (67 MB, `git bundle
+> verify` = "records a complete history", on the encrypted volume) and the IronKey
+> `TrevClaw-Obsidianodus-20260726-0210.bundle` @ `80c7271`. The repo still has **no git remotes**,
+> so a new signed commit is unbacked until a fresh `git bundle --all` is cut. The abandoned
+> `20260529-2158` bundle has been deleted and is no longer a trap.
 
 **🔴 FIRST PAID AWS LISTING — the data is ready, two operator gates are not (2026-07-24).** The **Trial Graveyard Feed** now holds **300 paid rows across 6 indications** (glioblastoma · pancreatic · ALS · Alzheimer's · sickle cell · IPF), **90 % carrying a sponsor-stated stop reason**, each NCT-traced, plus 5-row free samples — committed signed `07e140c`. AWS has been cleared for **paid** products since 2026-07-22, so the only things between this and revenue are: **(1) the operator picks a price** (never invented in-repo), and **(2) the legal gate** — the custom DSA says *"do NOT publish until counsel has reviewed"*; **use AWS's StandardDSA instead** and that dependency disappears. See the top Log entry.
 
@@ -231,6 +237,17 @@ things standing between here and an encrypted backup drive: **delete `Vids/` (1.
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 > Copy the **Entry template** at the bottom.
+
+### 2026-07-26T12:48Z · CLI Claude Code · **Migration closed out: retired tree verified empty of unique work and DELETED, volume encrypted** — plus two real path bugs the verification exposed
+- **Did:** full post-migration verification, then the operator deleted `Vids/` (1.1 TB), encrypted `/Volumes/ExtraCurricular` (`FileVault: Yes`, converted in minutes because the 1.1 TB went first), and deleted the retired tree.
+- **Retired-tree sync proof (before deletion, not after):** git side — retired HEAD `80c7271` is a **strict ancestor** of live HEAD, **0 commits** in retired absent from live, and **all 7 refs matched** (main, the `a7fc6a0` stash, and all 5 rollback tags). Filesystem side — a full inventory diff found **28** files present only in retired; every one was **my own verification residue**, proven by mtime: 8 agent-session records + 10 leaked test artifacts at **04:14** and 10 npm-cache logs (newest **12:03**), all *after* the tree was renamed at **00:49**. Zero historical progress lost.
+- **⚠️ Found while verifying: `path.join(rootDir, config.outputDir)` silently nests an ABSOLUTE outputDir under the repo** (path.join ignores that its 2nd arg is absolute; path.resolve does not). Every caller passing an absolute output dir — notably tests using `os.tmpdir()` — wrote **inside the working tree**, producing a stray gitignored `./var/folders/...` shadow of the macOS temp path: **250 files** in live, same leak in retired. The tests never caught it because they assert `output_path.includes(task_id)`, which holds wherever the file lands. Fixed with `path.resolve` (identical behaviour for the default relative config), same fix for `interactionLogPath`. Verified: `./var` no longer appears after a full suite run and output lands in the real `$TMPDIR`.
+- **Also fixed:** `obsidian-bridge-launcher`'s `lint:transport` pointed at `../../TrevClaw-Obsidianodus/scripts/...` — one path segment too many, so it never found the linter and died with "No such file or directory". It now runs and reports OK. Committed signed `0ad833e`.
+- **State:** done. Engine **1013/1013** (210/210 files, 0 old-path refs); phase29/30/31/33 verifiers **58+30+42+27, 0 fail**; both custom linters OK; all 3 plugin builds exit 0; ToolUniverse 1.1.10 loads from `/Users/myhome/...` with all 500 tool data files; MCP policy passed and **live MCP handshakes succeeded**.
+- **On the live-MCP "partially_verified" status — it is EXPECTED, not a defect.** Two providers: `arxiv` all-success; `semantic-scholar`'s `mcp_service_live` handshake succeeded and its only failure is an upstream **HTTP 429 rate limit** on the public API. Both providers also report `controlled_timeout: failed_as_expected`, which is a **deliberate injected-timeout negative test**. Do not chase either as breakage.
+- **ESLint:** 24 errors in `repos/obsidian-copilot-mcp` and 9 in `raycast-obsidian-extension` — **zero are path/import-resolution**; all are style/type-safety rules (`no-explicit-any`, `no-global-this`, `no-unused-vars`). The fork's are **vendored upstream code** at SHA `df61538` with an `UPSTREAM.md` re-sync path, so "fixing" them buys divergence, not correctness. Left deliberately.
+- **Touches:** `scripts/_research-runtime.js`, `Claude/obsidian-bridge-launcher/package.json` (`0ad833e`); this board.
+- **For whoever's next:** the **rollback directory no longer exists** — rollback now means a bundle. Verified sources: `/Volumes/ExtraCurricular/TrevClaw-Obsidianodus-0ad833e-20260726.bundle` (67 MB, "records a complete history", on the encrypted volume) and the IronKey `…20260726-0210.bundle` @ `80c7271`. **No git remotes**, so any new commit is unbacked until you cut a fresh `git bundle --all`. Pre-existing and NOT migration damage: `npm run phase2:gates` exits 1 because its secret scan walks into `vendor/tooluniverse/.venv` and flags third-party bytecode (7/7 hits in the venv, none real).
 
 ### 2026-07-26T11:55Z · CLI Claude Code · **Migration to the internal FileVault disk FINISHED** — committed `265d00d`, source retired; and the engine's test suite turned out to be unrunnable three different ways
 - **Did:** executed the migration handoff end-to-end. Gate 1 (full engine suite) → Gate 2 (YubiKey-signed commit `265d00d`, 58 files) → Step 3 (source tree **renamed** to `TrevClaw-Obsidianodus.RETIRED-20260726`, not deleted) → post-rename re-verification. Smoke test green from the new location: `git fsck` 0, transport lint 0 violations, Phase-29 ALL CHECKS PASSED, Miyo `:8743` / Qdrant `:6433` / SearXNG `:8891` all 200, Perseus 0 poisoned / 0 drift, nightly `maintain` exit 0. (`:8798`/`:8799` were 000 only because Obsidian was closed — those bridges are plugin-lifecycle-owned, so that is correct behaviour, not a regression.)
