@@ -22,9 +22,10 @@ Report back **Current focus** + the top 3–5 Log entries — that's the live st
 
 ## Append (progress / handoff)
 
-1. **Probe first** — read the file immediately before editing (external SSD; disksleep/wedged-MCP
-   can EPERM or hang). If the read fails, retry — the retry wakes the disk. Never prompt the user
-   to wake the drive.
+1. **Probe first** — read the file immediately before editing. The board moved to the internal
+   FileVault disk on 2026-07-26, so the old external-SSD hazards (disksleep `EPERM`, a wedged
+   Filesystem MCP) no longer apply; the reason to probe now is **concurrency** — four surfaces
+   share this one file and another may be mid-edit.
 2. **Update "Current focus"** to the truth of now (overwrite that one section).
 3. **Prepend one Log entry** (newest at top) using the template below.
 4. **Verify** — re-read the top and confirm the entry landed.
