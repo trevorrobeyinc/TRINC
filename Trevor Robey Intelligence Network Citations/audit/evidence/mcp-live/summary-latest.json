@@ -1,6 +1,6 @@
 {
   "backoff_evidence_note": "No explicit sleep/backoff delay is implemented in openclaw-bridge/mcp/base-mcp.js; current evidence proves bounded retries and timeout/error wrapping.",
-  "completed_at": "2026-03-30T13:54:04.331Z",
+  "completed_at": "2026-07-26T12:43:56.611Z",
   "overall_status": "partially_verified",
   "providers": [
     "arxiv",
@@ -28,7 +28,7 @@
         "status": "failed_as_expected"
       },
       "direct_client_live": {
-        "duration_ms": 473,
+        "duration_ms": 771,
         "provider": "arxiv",
         "query": "transformer interpretability",
         "record_count": 1,
@@ -36,13 +36,13 @@
         "status": "success"
       },
       "mcp_service_live": {
-        "duration_ms": 173,
+        "duration_ms": 277,
         "provider": "arxiv",
         "record_count": 1,
         "replay_snapshot": {
           "count": 1,
           "ok": true,
-          "records_hash": "d00fd46ff634d58db8336dd58591d8a305016a803508b2beed0dd54fe9c39868"
+          "records_hash": "91564ff7e6871cef0bc9de7265e276124d288bcdc3eedf51027a2e8651742fe5"
         },
         "runtime_logs": [
           {
@@ -128,7 +128,7 @@
             "level": "info",
             "payload": {
               "artifacts": 2,
-              "checkpoint_id": "CHK-20260305-ab117680387b",
+              "checkpoint_id": "CHK-20260305-12ed7a807236",
               "event": "phase11_checkpoint_created"
             },
             "sequence": 9
@@ -137,9 +137,9 @@
             "level": "info",
             "payload": {
               "artifacts": 2,
-              "checkpoint_id": "CHK-20260305-ab117680387b",
+              "checkpoint_id": "CHK-20260305-12ed7a807236",
               "event": "phase11_backup_manifest_built",
-              "manifest_id": "MAN-20260305-20fcf728094d"
+              "manifest_id": "MAN-20260305-d65a19728dff"
             },
             "sequence": 10
           },
@@ -194,7 +194,7 @@
             "payload": {
               "component_count": 1,
               "event": "phase12_sbom_generated",
-              "sbom_hash": "sha256:bdfde772f37cc39355435a9b027c2df0d73fbc14db5c0c30ca3a0d52f4fec0b5"
+              "sbom_hash": "sha256:32f4c63a66e7d77ffaa4e9ceeadfb31f375c69e8690feeaafd9886a5ac36e98e"
             },
             "sequence": 16
           },
@@ -212,7 +212,7 @@
             "payload": {
               "artifact_count": 1,
               "event": "phase12_build_provenance_generated",
-              "provenance_hash": "sha256:12a697ff7799c796dd40faca56037c8dfb54e291fd6b6a7abb65505d56faf72c"
+              "provenance_hash": "sha256:c8c20d452967457ff9cde6c76ff4a3c91b593b0030d5c09f1d2859666b756858"
             },
             "sequence": 18
           },
@@ -239,7 +239,7 @@
           {
             "level": "info",
             "payload": {
-              "artifact_path": "/Users/trevorrobey/OpenClaw-Research-Agents/package-lock.json",
+              "artifact_path": "/Users/myhome/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations/package-lock.json",
               "event": "phase12_artifact_signed",
               "signer_key_id": "phase12-sample-key"
             },
@@ -258,8 +258,8 @@
             "level": "info",
             "payload": {
               "event": "phase13_rbac_registry_loaded",
-              "policy_path": "/Users/trevorrobey/OpenClaw-Research-Agents/security/rbac-policy.json",
-              "role_count": 6,
+              "policy_path": "/Users/myhome/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations/security/rbac-policy.json",
+              "role_count": 5,
               "schema_version": "phase13-access-control-v1"
             },
             "sequence": 23
@@ -268,9 +268,9 @@
             "level": "info",
             "payload": {
               "event": "phase13_scope_registry_loaded",
-              "registry_path": "/Users/trevorrobey/OpenClaw-Research-Agents/security/scope-registry.json",
+              "registry_path": "/Users/myhome/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations/security/scope-registry.json",
               "schema_version": "phase13-access-control-v1",
-              "scope_count": 48
+              "scope_count": 47
             },
             "sequence": 24
           },
@@ -295,14 +295,23 @@
           {
             "level": "info",
             "payload": {
+              "checks": "all",
+              "event": "phase29_startup_integrity_verified",
+              "healthy": true
+            },
+            "sequence": 27
+          },
+          {
+            "level": "info",
+            "payload": {
               "code": "OK",
               "correlationId": "live-mcp-arxiv",
               "domain": "export.arxiv.org",
               "event": "egress_outbound_attempt",
-              "latency_ms": 106,
+              "latency_ms": 217,
               "status": "success"
             },
-            "sequence": 27
+            "sequence": 28
           }
         ],
         "status": "success"
@@ -331,7 +340,7 @@
         "status": "failed_as_expected"
       },
       "direct_client_live": {
-        "duration_ms": 190,
+        "duration_ms": 222,
         "error": {
           "code": "PHASE16_SEMANTIC_SCHOLAR_HTTP_ERROR",
           "details": {},
@@ -343,13 +352,13 @@
         "status": "failed"
       },
       "mcp_service_live": {
-        "duration_ms": 1218,
+        "duration_ms": 1232,
         "provider": "semantic-scholar",
         "record_count": 1,
         "replay_snapshot": {
           "count": 1,
           "ok": true,
-          "records_hash": "4b1ee6e8cbb08160a70ebcd0ae27df226911588fb8003ce8bd54c71f666803f2"
+          "records_hash": "37980010fe8cf88a19b21c50b460929c38c64546455893da796a039e2da4c74a"
         },
         "runtime_logs": [
           {
@@ -435,7 +444,7 @@
             "level": "info",
             "payload": {
               "artifacts": 2,
-              "checkpoint_id": "CHK-20260305-ab117680387b",
+              "checkpoint_id": "CHK-20260305-12ed7a807236",
               "event": "phase11_checkpoint_created"
             },
             "sequence": 9
@@ -444,9 +453,9 @@
             "level": "info",
             "payload": {
               "artifacts": 2,
-              "checkpoint_id": "CHK-20260305-ab117680387b",
+              "checkpoint_id": "CHK-20260305-12ed7a807236",
               "event": "phase11_backup_manifest_built",
-              "manifest_id": "MAN-20260305-20fcf728094d"
+              "manifest_id": "MAN-20260305-d65a19728dff"
             },
             "sequence": 10
           },
@@ -501,7 +510,7 @@
             "payload": {
               "component_count": 1,
               "event": "phase12_sbom_generated",
-              "sbom_hash": "sha256:bdfde772f37cc39355435a9b027c2df0d73fbc14db5c0c30ca3a0d52f4fec0b5"
+              "sbom_hash": "sha256:32f4c63a66e7d77ffaa4e9ceeadfb31f375c69e8690feeaafd9886a5ac36e98e"
             },
             "sequence": 16
           },
@@ -519,7 +528,7 @@
             "payload": {
               "artifact_count": 1,
               "event": "phase12_build_provenance_generated",
-              "provenance_hash": "sha256:12a697ff7799c796dd40faca56037c8dfb54e291fd6b6a7abb65505d56faf72c"
+              "provenance_hash": "sha256:c8c20d452967457ff9cde6c76ff4a3c91b593b0030d5c09f1d2859666b756858"
             },
             "sequence": 18
           },
@@ -546,7 +555,7 @@
           {
             "level": "info",
             "payload": {
-              "artifact_path": "/Users/trevorrobey/OpenClaw-Research-Agents/package-lock.json",
+              "artifact_path": "/Users/myhome/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations/package-lock.json",
               "event": "phase12_artifact_signed",
               "signer_key_id": "phase12-sample-key"
             },
@@ -565,8 +574,8 @@
             "level": "info",
             "payload": {
               "event": "phase13_rbac_registry_loaded",
-              "policy_path": "/Users/trevorrobey/OpenClaw-Research-Agents/security/rbac-policy.json",
-              "role_count": 6,
+              "policy_path": "/Users/myhome/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations/security/rbac-policy.json",
+              "role_count": 5,
               "schema_version": "phase13-access-control-v1"
             },
             "sequence": 23
@@ -575,9 +584,9 @@
             "level": "info",
             "payload": {
               "event": "phase13_scope_registry_loaded",
-              "registry_path": "/Users/trevorrobey/OpenClaw-Research-Agents/security/scope-registry.json",
+              "registry_path": "/Users/myhome/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations/security/scope-registry.json",
               "schema_version": "phase13-access-control-v1",
-              "scope_count": 48
+              "scope_count": 47
             },
             "sequence": 24
           },
@@ -602,14 +611,47 @@
           {
             "level": "info",
             "payload": {
+              "checks": "all",
+              "event": "phase29_startup_integrity_verified",
+              "healthy": true
+            },
+            "sequence": 27
+          },
+          {
+            "level": "info",
+            "payload": {
+              "code": "MCP_OUTBOUND_REQUEST_FAILED",
+              "correlationId": "live-mcp-semantic-scholar",
+              "domain": "api.semanticscholar.org",
+              "event": "egress_outbound_attempt",
+              "latency_ms": 163,
+              "status": "blocked"
+            },
+            "sequence": 28
+          },
+          {
+            "level": "info",
+            "payload": {
+              "code": "MCP_OUTBOUND_REQUEST_FAILED",
+              "correlationId": "live-mcp-semantic-scholar",
+              "domain": "api.semanticscholar.org",
+              "event": "egress_outbound_attempt",
+              "latency_ms": 134,
+              "status": "blocked"
+            },
+            "sequence": 29
+          },
+          {
+            "level": "info",
+            "payload": {
               "code": "OK",
               "correlationId": "live-mcp-semantic-scholar",
               "domain": "api.semanticscholar.org",
               "event": "egress_outbound_attempt",
-              "latency_ms": 1171,
+              "latency_ms": 869,
               "status": "success"
             },
-            "sequence": 27
+            "sequence": 30
           }
         ],
         "status": "success"
@@ -618,5 +660,5 @@
       "status": "partially_verified"
     }
   ],
-  "started_at": "2026-03-30T13:54:04.331Z"
+  "started_at": "2026-07-26T12:43:56.611Z"
 }

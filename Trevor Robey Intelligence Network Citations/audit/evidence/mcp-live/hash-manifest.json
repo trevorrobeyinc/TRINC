@@ -1,46 +1,46 @@
 {
   "files": [
     {
-      "file": "arxiv-2026-03-06T00-55-52-478Z.json",
-      "sha256": "dc02fc36c4761889a53deea3d8694eacf2ef2b3f1c620a081245919647e97fe9"
-    },
-    {
       "file": "arxiv-2026-03-30T13-54-04-338Z.json",
       "sha256": "ca225e7db30223f9c8ed3d640a5906bef7560f42fa9c141f27bbfe22239ab04e"
     },
     {
+      "file": "arxiv-2026-07-26T12-43-56-617Z.json",
+      "sha256": "dab9a61928cb6804483e8bf92567629b02955dc49a315e863550a7dafcb70f4c"
+    },
+    {
       "file": "arxiv-latest.json",
-      "sha256": "ca225e7db30223f9c8ed3d640a5906bef7560f42fa9c141f27bbfe22239ab04e"
+      "sha256": "dab9a61928cb6804483e8bf92567629b02955dc49a315e863550a7dafcb70f4c"
     },
     {
       "file": "hash-manifest.json",
-      "sha256": "8afeb8986fe5b5937c3ddf36ac21bdc010f9633425f470bbacc28a2ac8284909"
-    },
-    {
-      "file": "semantic-scholar-2026-03-06T00-55-52-479Z.json",
-      "sha256": "b4eff07babad793d4490deffe7950bc388aa2c8d3a303dd3fb8454781d7f0288"
+      "sha256": "044f828a41d6a7b974dde29025e75013b08350b3cd9bfbbf3cdf139faec243ba"
     },
     {
       "file": "semantic-scholar-2026-03-30T13-54-04-344Z.json",
       "sha256": "08c9fbbaf94258d5d0c492bb27167440cd1a2c0d391aa58a59f8f89215d5ada7"
     },
     {
-      "file": "semantic-scholar-latest.json",
-      "sha256": "08c9fbbaf94258d5d0c492bb27167440cd1a2c0d391aa58a59f8f89215d5ada7"
+      "file": "semantic-scholar-2026-07-26T12-43-56-620Z.json",
+      "sha256": "4c38f80294b35506e61fb0dde31577b690425bfd45cc95f6eb4c0cbd26695eb8"
     },
     {
-      "file": "summary-2026-03-06T00-55-52-476Z.json",
-      "sha256": "6588533fc5fefec5e7cdce295ea4c5f41faa63cc93404a2755e7224f56800711"
+      "file": "semantic-scholar-latest.json",
+      "sha256": "4c38f80294b35506e61fb0dde31577b690425bfd45cc95f6eb4c0cbd26695eb8"
     },
     {
       "file": "summary-2026-03-30T13-54-04-331Z.json",
       "sha256": "8475c3139b45d1de29629188127a93618bb12f876c7f1b31a0b5ff2e002d35d1"
     },
     {
+      "file": "summary-2026-07-26T12-43-56-611Z.json",
+      "sha256": "a8cf16288ba9ca19be8d751c9ec571acce3ce186c97c706bcb6687bbc330addf"
+    },
+    {
       "file": "summary-latest.json",
-      "sha256": "8475c3139b45d1de29629188127a93618bb12f876c7f1b31a0b5ff2e002d35d1"
+      "sha256": "a8cf16288ba9ca19be8d751c9ec571acce3ce186c97c706bcb6687bbc330addf"
     }
   ],
-  "generated_at": "2026-03-30T13:54:04.348Z",
+  "generated_at": "2026-07-26T12:43:56.623Z",
   "schema_version": "live-verification-hash-manifest-v1"
 }
