@@ -77,7 +77,21 @@ PHASE_NUMBER_PADDED="$(printf '%02d' "$((10#$PHASE_NUMBER_RAW))")"
 BRANCH_NAME="codex/phase${PHASE_NUMBER_PADDED}-${PHASE_SLUG}"
 
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || fail "This command must be run inside a Git worktree."
-git remote get-url origin >/dev/null 2>&1 || fail "The Git remote 'origin' is required."
+
+# A dry run only prints what a real run WOULD do — it must not require, contact, or
+# depend on a remote. Previously DRY_RUN was consulted only at the very end (after the
+# origin fetch below), so `--dry-run` still demanded an 'origin' and hit the network.
+# On this repo that is not a hypothetical: TrevClaw-Obsidianodus is local-only by design
+# (GitHub remote deleted 2026-05-26, `git remote` returns nothing), which made
+# verify-phase-workflow-policy.sh — the gate that smoke-tests this script via --dry-run —
+# fail permanently. A real (non-dry) run still requires origin, because it pushes.
+HAS_ORIGIN=0
+if git remote get-url origin >/dev/null 2>&1; then
+  HAS_ORIGIN=1
+fi
+if [[ "$HAS_ORIGIN" == "0" && "$DRY_RUN" != "1" ]]; then
+  fail "The Git remote 'origin' is required."
+fi
 
 DIRTY_STATUS="$(git status --short --untracked-files=all)"
 if [[ -n "$DIRTY_STATUS" ]]; then
@@ -89,30 +103,37 @@ if [[ -n "$DIRTY_STATUS" ]]; then
   fail "Phase branch creation requires a clean working tree."
 fi
 
-git fetch origin main --prune
-git show-ref --verify --quiet refs/remotes/origin/main || fail "Remote tracking branch 'origin/main' is required."
+if [[ "$HAS_ORIGIN" == "1" ]]; then
+  git fetch origin main --prune
+  git show-ref --verify --quiet refs/remotes/origin/main || fail "Remote tracking branch 'origin/main' is required."
+fi
 
 HAS_LOCAL_MAIN=0
 if git show-ref --verify --quiet refs/heads/main; then
   HAS_LOCAL_MAIN=1
 fi
 
+# Local-branch collision is checked either way — it needs no remote.
 if git show-ref --verify --quiet "refs/heads/${BRANCH_NAME}"; then
   fail "Local branch already exists: ${BRANCH_NAME}"
 fi
 
-if git ls-remote --exit-code --heads origin "${BRANCH_NAME}" >/dev/null 2>&1; then
-  fail "Remote branch already exists: ${BRANCH_NAME}"
-fi
-
-if [[ "$HAS_LOCAL_MAIN" == "1" ]]; then
-  if git merge-base --is-ancestor refs/heads/main refs/remotes/origin/main; then
-    :
-  elif git merge-base --is-ancestor refs/remotes/origin/main refs/heads/main; then
-    :
-  else
-    fail "Local main and origin/main have diverged. Repair main before starting a new phase branch."
+if [[ "$HAS_ORIGIN" == "1" ]]; then
+  if git ls-remote --exit-code --heads origin "${BRANCH_NAME}" >/dev/null 2>&1; then
+    fail "Remote branch already exists: ${BRANCH_NAME}"
   fi
+
+  if [[ "$HAS_LOCAL_MAIN" == "1" ]]; then
+    if git merge-base --is-ancestor refs/heads/main refs/remotes/origin/main; then
+      :
+    elif git merge-base --is-ancestor refs/remotes/origin/main refs/heads/main; then
+      :
+    else
+      fail "Local main and origin/main have diverged. Repair main before starting a new phase branch."
+    fi
+  fi
+else
+  echo "note: no 'origin' remote — skipping remote-branch collision and main-freshness checks (dry run on a local-only repo)." >&2
 fi
 
 if [[ "$DRY_RUN" == "1" ]]; then
