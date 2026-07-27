@@ -93,7 +93,22 @@ done < <(find "$ROOT/openclaw-bridge/core" -type f -name '*.js' | sort)
 # `\bfetch\(` not `fetch\(`: the unanchored form false-matched `createToolPrefetch(`,
 # which is why tool-prefetch.js used to need a blanket exclusion. The word boundary
 # removes the false positive at the source, so that exclusion is gone.
-NETWORK_PATTERN='\bfetch\(|axios|http\.request\(|https\.request\(|node:http|node:https|WebSocket|browser\.launch|playwright|puppeteer|selenium|child_process\.exec|child_process\.spawn|docker run'
+#
+# SHELL clause (widened 2026-07-27). It previously read `child_process\.exec|child_process\.spawn`,
+# which matched LITERAL member access only and therefore detected NOTHING — every real caller
+# imports destructured or aliased (`const { spawn: spawnChild } = …`, `const childProcess = …`),
+# so the shell half of this policy had never once fired while four core modules spawned
+# subprocesses. Now keyed on the require (capability, regardless of alias) AND on the dangerous
+# call forms, so a module that switches from array-args spawn() to string-command exec() moves
+# its pin and gets re-reviewed.
+# Deliberately NOT matched: bare `.exec(`. In JS that is overwhelmingly RegExp.prototype.exec
+# (e.g. citation-extractor.js:65 `regex.exec(text)`); matching it would be a false positive, and
+# shell capability is already caught by the require.
+#
+# RAW SOCKETS (added 2026-07-27): node:net / node:dgram / node:tls were absent from the pattern
+# entirely — a module could open a raw TCP/UDP socket and pass. Currently zero usages, so this
+# is free hardening rather than a new exemption.
+NETWORK_PATTERN='\bfetch\(|axios|http\.request\(|https\.request\(|node:http|node:https|WebSocket|browser\.launch|playwright|puppeteer|selenium|docker run|require\(["'"'"'](node:)?child_process["'"'"']\)|require\(["'"'"'](node:)?(net|dgram|tls)["'"'"']\)|\bspawnSync\(|\bexecSync\(|\bexecFileSync\(|\bexecFile\(|\bspawn\(|\bfork\('
 
 # --- Documented network exemptions (a RATCHET, not a hole) --------------------
 # A blanket file skip lets an exempt file acquire ANY new network path unnoticed —
@@ -108,11 +123,17 @@ NETWORK_PATTERN='\bfetch\(|axios|http\.request\(|https\.request\(|node:http|node
 #     | LC_ALL=C sort | shasum -a 256
 #
 # format: <path relative to ROOT>|<sha256 pin>|<why this is not an egress path>
+# Shared safety property of every subprocess exemption below: each uses spawn / spawnSync /
+# execFileSync with an ARGUMENT ARRAY and a constant binary — never exec() with a concatenated
+# command string — so none carries a shell-injection surface. If one of them ever switches to a
+# string-command form, that line changes and the pin fails.
 NETWORK_EXEMPTIONS=(
-  "openclaw-bridge/core/llm-adapter.js|307db1d2b8b51885c6adfae0aeb95f0a5cb71f2be1cfdd9fb7ebe4f4f906c199|Anthropic API provider lane (config/llm-providers.json providers.anthropic): 4 fetch() calls. Was a BLANKET skip before 2026-07-27, i.e. wholly unscanned; now pinned."
+  "openclaw-bridge/core/llm-adapter.js|2751bdc02d223b8a46799e663606fc961a05c582d20a4fb8c5f73e583a045f9a|Primary LLM lane: 4 fetch() calls to the Anthropic API, plus spawn of the Claude Code CLI (array args). Was a BLANKET skip before 2026-07-27, i.e. wholly unscanned; now pinned."
   "openclaw-bridge/core/https-client.js|d1f1af1cafd8dc1b75fed2d87d2397401435f0962f3734c70beeb3db1a0ea3b6|The engine's canonical HTTPS client. Banning node:https here would contradict the monorepo HTTPS-only invariant, which requires precisely this module to exist."
   "openclaw-bridge/core/prompt-guard.js|a3b51ffd8367695e44347a544ecef33644f8df34a25030c2d3b2d69770b9ae41|LLM Guard prompt-firewall: one https.request to the local guard endpoint, fail-open by design."
-  "openclaw-bridge/core/scrape-sidecar-lifecycle.js|a3b51ffd8367695e44347a544ecef33644f8df34a25030c2d3b2d69770b9ae41|Loopback health probe of the local scrape sidecar: https.request to 127.0.0.1 with rejectUnauthorized:true against the mkcert CA. No egress; a no-op when the sidecar is absent."
+  "openclaw-bridge/core/scrape-sidecar-lifecycle.js|a7c0f7f2a02627c496787a078776bd2f9079a570ab0f61c8644848e0d0c9206a|Local scrape sidecar: loopback https.request health probe (rejectUnauthorized:true, mkcert CA) plus spawn(\"bash\", [START_SCRIPT]) where START_SCRIPT is a constant path. No egress; a no-op when the sidecar is absent."
+  "openclaw-bridge/core/operator-approve-gate.js|2bbcc1cb6554da1222a3793109157bdba47152f930e1c36d840538e2cbe06de9|YubiKey operator-approval ceremony — itself a SECURITY control. execFileSync (never exec) of the gpg binary with array args, so no shell is involved."
+  "openclaw-bridge/core/tls-diagnostic.js|26f3767b7d93a0d950e9e1931ef0900755be5b730f94878b07ebd0c368507760|TLS cert diagnostics: safeRun() wraps spawnSync(cmd, args) with array args and a 2s timeout, over constant mkcert paths. Read-only diagnostics, no network egress."
 )
 
 pin_for_file() {
