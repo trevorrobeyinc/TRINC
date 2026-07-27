@@ -85,17 +85,75 @@ SCAN_TARGETS=(
   "$ROOT/scripts/run-research-task.js"
 )
 
+# Scan EVERY core module. Nothing is skipped wholesale — see NETWORK_EXEMPTIONS.
 while IFS= read -r file; do
-  [[ "$file" == "$ROOT/openclaw-bridge/core/llm-adapter.js" ]] && continue
   SCAN_TARGETS+=("$file")
 done < <(find "$ROOT/openclaw-bridge/core" -type f -name '*.js' | sort)
 
-UNSAFE_NETWORK="$(search_lines 'fetch\(|axios|http\.request\(|https\.request\(|node:http|node:https|WebSocket|browser\.launch|playwright|puppeteer|selenium|child_process\.exec|child_process\.spawn|docker run' "${SCAN_TARGETS[@]}")"
-if [[ -n "$UNSAFE_NETWORK" ]]; then
-  # Exclude tool-prefetch.js — it delegates to MCP, does not make network calls.
-  # The regex `fetch\(` false-matches `createToolPrefetch(`.
-  UNSAFE_NETWORK="$(printf '%s\n' "$UNSAFE_NETWORK" | grep -vE 'openclaw-bridge/core/tool-prefetch\.js' || true)"
-fi
+# `\bfetch\(` not `fetch\(`: the unanchored form false-matched `createToolPrefetch(`,
+# which is why tool-prefetch.js used to need a blanket exclusion. The word boundary
+# removes the false positive at the source, so that exclusion is gone.
+NETWORK_PATTERN='\bfetch\(|axios|http\.request\(|https\.request\(|node:http|node:https|WebSocket|browser\.launch|playwright|puppeteer|selenium|child_process\.exec|child_process\.spawn|docker run'
+
+# --- Documented network exemptions (a RATCHET, not a hole) --------------------
+# A blanket file skip lets an exempt file acquire ANY new network path unnoticed —
+# that is exactly how llm-adapter.js sat unscanned. Each entry below is instead
+# PINNED to the exact set of matching lines (trimmed, sorted, sha256), so the gate
+# still fails if an exempt file GAINS a network path, and also fails if it LOSES
+# one (a stale exemption must be removed rather than left widening the surface).
+# The only way to broaden an exemption is a deliberate, reviewed edit to this list.
+#
+# Regenerate a pin with:
+#   grep -hE "$NETWORK_PATTERN" <file> | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' \
+#     | LC_ALL=C sort | shasum -a 256
+#
+# format: <path relative to ROOT>|<sha256 pin>|<why this is not an egress path>
+NETWORK_EXEMPTIONS=(
+  "openclaw-bridge/core/llm-adapter.js|307db1d2b8b51885c6adfae0aeb95f0a5cb71f2be1cfdd9fb7ebe4f4f906c199|Anthropic API provider lane (config/llm-providers.json providers.anthropic): 4 fetch() calls. Was a BLANKET skip before 2026-07-27, i.e. wholly unscanned; now pinned."
+  "openclaw-bridge/core/https-client.js|d1f1af1cafd8dc1b75fed2d87d2397401435f0962f3734c70beeb3db1a0ea3b6|The engine's canonical HTTPS client. Banning node:https here would contradict the monorepo HTTPS-only invariant, which requires precisely this module to exist."
+  "openclaw-bridge/core/prompt-guard.js|a3b51ffd8367695e44347a544ecef33644f8df34a25030c2d3b2d69770b9ae41|LLM Guard prompt-firewall: one https.request to the local guard endpoint, fail-open by design."
+  "openclaw-bridge/core/scrape-sidecar-lifecycle.js|a3b51ffd8367695e44347a544ecef33644f8df34a25030c2d3b2d69770b9ae41|Loopback health probe of the local scrape sidecar: https.request to 127.0.0.1 with rejectUnauthorized:true against the mkcert CA. No egress; a no-op when the sidecar is absent."
+)
+
+pin_for_file() {
+  grep -hE "$NETWORK_PATTERN" "$1" 2>/dev/null \
+    | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' \
+    | LC_ALL=C sort \
+    | shasum -a 256 \
+    | awk '{print $1}'
+}
+
+UNSAFE_NETWORK="$(search_lines "$NETWORK_PATTERN" "${SCAN_TARGETS[@]}")"
+
+for entry in "${NETWORK_EXEMPTIONS[@]}"; do
+  rel="${entry%%|*}"; rest="${entry#*|}"
+  want="${rest%%|*}"; why="${rest#*|}"
+  abs="$ROOT/$rel"
+
+  # Absent from the tree under scan (e.g. the subset fixture in
+  # tests/security/phase18-policy-gate.test.js): nothing to exempt, so skip. This
+  # costs no strictness — if a file ever reappears at this path carrying network
+  # code, its lines will not match the pin and the mismatch check below fails.
+  [[ -f "$abs" ]] || continue
+
+  if ! grep -qE "$NETWORK_PATTERN" "$abs" 2>/dev/null; then
+    fail "Phase 18 network exemption is STALE: $rel no longer contains any network path. Remove its NETWORK_EXEMPTIONS entry so the exemption surface stays minimal."
+  fi
+
+  got="$(pin_for_file "$abs")"
+  if [[ "$got" != "$want" ]]; then
+    echo "Phase 18 exemption PIN MISMATCH — $rel" >&2
+    echo "  expected pin: $want" >&2
+    echo "  actual pin:   $got" >&2
+    echo "  on record:    $why" >&2
+    grep -nE "$NETWORK_PATTERN" "$abs" >&2 || true
+    fail "The network-touching lines in $rel changed. Re-review them; update the pin ONLY if every line above is still a non-egress path."
+  fi
+
+  UNSAFE_NETWORK="$(printf '%s\n' "$UNSAFE_NETWORK" | grep -vF "$abs:" || true)"
+done
+
+UNSAFE_NETWORK="$(printf '%s\n' "$UNSAFE_NETWORK" | grep -v '^[[:space:]]*$' || true)"
 if [[ -n "$UNSAFE_NETWORK" ]]; then
   echo "$UNSAFE_NETWORK" >&2
   fail "Phase 18 modules must remain free of direct network, browser, shell, or container execution paths"
