@@ -1,6 +1,41 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# --- ripgrep fallback (added 2026-07-27) -------------------------------------
+# This script called `rg` directly with no fallback, unlike its ~28 sibling gates
+# which degrade to grep via has_rg(). ripgrep is NOT installed here — on this machine
+# `rg` resolves only to an interactive shell function, so under npm/CI it is simply
+# "command not found". Every forbidden-pattern scan below is written as
+# `HITS="$(rg ... || true)"`, so a missing rg made HITS empty and the gate concluded
+# CLEAN: the network, autonomy and restricted-globals scans were FAILING OPEN.
+# This shim keeps the call sites unchanged and degrades to grep when rg is absent.
+# Set POLICY_FORCE_NO_RG=1 to exercise the fallback path deliberately.
+if ! command -v rg >/dev/null 2>&1 || [[ "${POLICY_FORCE_NO_RG:-0}" == "1" ]]; then
+  rg() {
+    local pattern="" quiet=0 icase=0 include=() files=()
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        -q)        quiet=1; shift ;;
+        -qi|-iq)   quiet=1; icase=1; shift ;;
+        -i)        icase=1; shift ;;
+        -n|--pcre2|-N) shift ;;
+        --glob)    include+=("--include=$2"); shift 2 ;;
+        --glob=*)  include+=("--include=${1#--glob=}"); shift ;;
+        --)        shift ;;
+        -*)        shift ;;
+        *)         if [[ -z "$pattern" ]]; then pattern="$1"; else files+=("$1"); fi; shift ;;
+      esac
+    done
+    local flags=(-R -n -E)
+    [[ $icase -eq 1 ]] && flags+=(-i)
+    [[ $quiet -eq 1 ]] && flags+=(-q)
+    grep "${flags[@]}" ${include[@]+"${include[@]}"} \
+      --exclude-dir=node_modules --exclude-dir=.git \
+      -- "$pattern" ${files[@]+"${files[@]}"}
+  }
+fi
+# --- end ripgrep fallback ----------------------------------------------------
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PHASE7_DIR="$ROOT/workflows/experiment-governance"
 EXPLAIN_DIR="$ROOT/analytics/experiment-explainability"
