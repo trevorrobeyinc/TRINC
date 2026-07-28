@@ -1,5 +1,5 @@
 import { Notice, Plugin } from "obsidian";
-import { spawn, type ChildProcess, execSync } from "child_process";
+import { spawn, type ChildProcess, execFileSync } from "child_process";
 import { existsSync, mkdirSync, appendFileSync } from "fs";
 import { homedir } from "os";
 import { join, resolve, dirname } from "path";
@@ -107,6 +107,27 @@ export default class BridgeLauncherPlugin extends Plugin {
 
   async loadSettings(): Promise<void> {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+
+    // data.json is operator-owned but unvalidated on read — the settings tab's range
+    // check only runs when the tab is open, which is never on the onload path. Coerce
+    // here so a hand-edited or tampered value can't reach a subprocess argument at all.
+    // Fall back rather than refuse to start: the bridge port is not security-critical
+    // now that isPortInUse/getPortListenerPid use execFileSync, and a dead bridge is a
+    // worse failure than a wrong port. The fallback is emitted to the audit sink so it
+    // is observable instead of silent.
+    const rawPort: unknown = this.settings.bridgePort;
+    const port = typeof rawPort === "number" ? rawPort : Number(rawPort);
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+      emitLauncherAudit({
+        eventType: "SETTINGS_COERCED",
+        field: "bridgePort",
+        rejected: String(rawPort),
+        fellBackTo: DEFAULT_SETTINGS.bridgePort,
+      });
+      this.settings.bridgePort = DEFAULT_SETTINGS.bridgePort;
+    } else {
+      this.settings.bridgePort = port;
+    }
   }
 
   async saveSettings(): Promise<void> {
@@ -134,7 +155,9 @@ export default class BridgeLauncherPlugin extends Plugin {
 
   private isPortInUse(port: number): boolean {
     try {
-      const out = execSync(`lsof -nP -iTCP:${port} -sTCP:LISTEN -t`, {
+      // execFileSync, not execSync: no /bin/sh, so `port` can never be shell-interpreted
+      // even if data.json is tampered with. See loadSettings() for the matching coercion.
+      const out = execFileSync("lsof", ["-nP", `-iTCP:${port}`, "-sTCP:LISTEN", "-t"], {
         encoding: "utf8",
         stdio: ["ignore", "pipe", "ignore"],
       }).trim();
@@ -146,7 +169,9 @@ export default class BridgeLauncherPlugin extends Plugin {
 
   private getPortListenerPid(port: number): number | null {
     try {
-      const out = execSync(`lsof -nP -iTCP:${port} -sTCP:LISTEN -t`, {
+      // execFileSync, not execSync: no /bin/sh, so `port` can never be shell-interpreted
+      // even if data.json is tampered with. See loadSettings() for the matching coercion.
+      const out = execFileSync("lsof", ["-nP", `-iTCP:${port}`, "-sTCP:LISTEN", "-t"], {
         encoding: "utf8",
         stdio: ["ignore", "pipe", "ignore"],
       }).trim();
@@ -250,6 +275,7 @@ export default class BridgeLauncherPlugin extends Plugin {
         app: this.app,
         capture: this.capture,
         evalEnabled: () => this.settings.devConsoleEvalEnabled,
+        audit: emitLauncherAudit,
       });
     }
 

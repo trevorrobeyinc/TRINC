@@ -69,7 +69,27 @@ if [ "${1:-}" = "--strict" ]; then
 fi
 
 # Bucket 1 — listener (inbound) foot-gun shapes.
-LISTENER_PATTERNS='http\.createServer\(|OPENCLAW_BRIDGE_TLS_DISABLE\s*={2,3}|tlsDisable\s*\?'
+#
+# Widened 2026-07-28 (audit): until now this matched ONLY the literal `http.createServer(`,
+# so four ordinary ways to open a plaintext listener passed the guard clean —
+#   import { createServer } from 'node:http'; createServer(...)   <- the idiomatic modern form
+#   net.createServer(...)                                          <- raw TCP
+#   http2.createServer(...)                                        <- h2c, cleartext HTTP/2
+#   express(...).listen(...)                                       <- (still regex-invisible; see note)
+# Nothing in the tree exploited the gap — every live listener is https.createServer — but the
+# whole job of this bucket is to stop a plaintext listener being REintroduced, so a hole here
+# is a hole in the one automated check backing the HTTPS-only invariant.
+#
+# The generic alternative below deliberately requires a preceding non-identifier, non-dot
+# character, so `https.createServer(` and `https2.createServer(` do NOT match (the `.` is
+# excluded) while a bare `createServer(` from a named import DOES. `net.`/`http2.` are then
+# listed explicitly because the dot-exclusion would otherwise skip them.
+#
+# NOT added on purpose: a `from 'node:http'` import trigger. At least 11 live non-test files
+# import node:http legitimately — including httpTransport.ts, the file CLAUDE.md names as the
+# canonical HTTPS pattern, plus type-only importers — so it would be ~11 false positives and
+# still miss the bare-specifier form (`import * as http from "http"`) already in the stack.
+LISTENER_PATTERNS='http\.createServer\(|(^|[^A-Za-z0-9_.])createServer\(|net\.createServer\(|http2\.createServer\(|OPENCLAW_BRIDGE_TLS_DISABLE\s*={2,3}|tlsDisable\s*\?'
 
 # Bucket 2 — outbound foot-gun shapes. URL-form patterns are deliberately
 # anchored on `http://` literal strings so https:// hits are not flagged.

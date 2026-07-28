@@ -21,8 +21,10 @@ const DENIED_COMMAND_PATTERNS: RegExp[] = [
 ];
 
 function assertCommandAllowed(runtime: RuntimeContext, id: string, requestId: string): void {
-  const allow = (runtime.config.security as { executeCommandAllowlist?: string[] })
-    .executeCommandAllowlist;
+  // Typed directly off ServerConfig — no cast. The cast this replaced was what let the key
+  // go missing from the zod schema unnoticed: it type-checked while the loader silently
+  // stripped the value, so the allowlist branch below was unreachable dead code.
+  const allow = runtime.config.security.executeCommandAllowlist;
   if (Array.isArray(allow) && allow.length > 0) {
     if (!allow.includes(id)) {
       auditLog.emit({

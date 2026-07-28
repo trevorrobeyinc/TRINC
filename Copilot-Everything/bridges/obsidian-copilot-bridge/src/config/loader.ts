@@ -59,6 +59,13 @@ const schema = z.object({
     nonceTtlSeconds: z.number().int().min(10).max(600).default(120),
     rateLimitPerMinute: z.number().int().min(1).default(600),
     globalRateLimitPerMinute: z.number().int().min(1).default(2400),
+    // Strict allowlist for obsidian_execute_command. EMPTY (the default) means
+    // "denylist mode" — see DENIED_COMMAND_PATTERNS in server/tools/executeCommand.ts.
+    // This key MUST be declared here: zod's `z.object()` STRIPS unknown keys on parse,
+    // so before it existed an operator could add `executeCommandAllowlist` to the config
+    // JSON, get no error, and silently receive no allowlist at all — a false sense of
+    // lockdown, which is worse than knowingly running the denylist.
+    executeCommandAllowlist: z.array(z.string()).default([]),
   }),
   logging: z
     .object({

@@ -53,6 +53,30 @@ Queries Miyo semantic search via TLS proxy at `https://127.0.0.1:8743` (upstream
 | Medical Zettelkasten MCP | stdio (subprocess) | N/A | Graph analysis |
 | Miyo (via TLS proxy) | HTTPS | :8743 → upstream :8742 | Semantic search |
 
+## manifest.json version is pinned at 9.9.9 on purpose (2026-07-26)
+
+The plugin id `command-center` (frozen — see `../CLAUDE.md` "Plugin display names vs IDs")
+**collides with an unrelated, real community plugin**: `command-center` by Dustin Stringer,
+repo `scrunchds/Command-Center`, an "orchestrate AI agents / dashboard" plugin, currently at
+version `1.0.6`, `minAppVersion 1.13.0`. Obsidian's plugin manager matches installed plugins to
+the official registry **by id only** — it has no concept of "this install didn't come from that
+repo." With our version below theirs, Obsidian's Community Plugins pane showed a false "Update"
+pill; clicking it attempted to download `scrunchds/Command-Center`'s release assets over
+`.obsidian/plugins/command-center/`, which would have silently replaced this plugin (workflow
+dispatch + the `:8799` MCP bridge) with their unrelated dashboard plugin. It failed on this
+machine (their `minAppVersion` isn't met here), which is what surfaced the collision rather than
+silently overwriting files.
+
+**Fix**: `version` bumped to `9.9.9` (both here and in the deployed copy at
+`/Users/myhome/My Digital Garden/.obsidian/plugins/command-center/manifest.json`) so the semver
+comparison never again reads their releases as newer. `versions.json` carries both the real
+`0.1.0` history entry and `9.9.9` mapped to the same `minAppVersion: 1.4.0` (no API surface
+changed). **Do not renumber this back down toward 0.x/1.x** without re-checking
+`scrunchds/Command-Center`'s current version — the id collision is permanent, only staying ahead
+of their version avoids it. Never click "Update" for `command-center` in Obsidian's UI; deploy
+new versions of this plugin only by copying `main.js`/`manifest.json`/`styles.css` here to the
+vault plugin directory manually (see repo `README.md` → Installation).
+
 ## Key Files
 
 | File | Purpose |

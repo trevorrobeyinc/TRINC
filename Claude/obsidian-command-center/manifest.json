@@ -1,7 +1,7 @@
 {
   "id": "command-center",
   "name": "TR-Obsidian Intelligence Network Citations — Command Center",
-  "version": "0.1.0",
+  "version": "9.9.9",
   "minAppVersion": "1.4.0",
   "description": "Dispatches the citation-traced research engine, generates vault notes, and owns the additive :8799 MCP bridge (7 vault + 4 workflow tools). Plugin ID is intentionally FROZEN — Copilot MCP tool ids, other plugins' api lookups and the bridge-token path all key on it; only the display name is suite-branded.",
   "author": "Trevor Robey",

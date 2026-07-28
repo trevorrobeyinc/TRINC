@@ -35,6 +35,8 @@ export interface ServerConfig {
     nonceTtlSeconds: number;
     rateLimitPerMinute: number;
     globalRateLimitPerMinute: number;
+    /** Empty = denylist mode (DENIED_COMMAND_PATTERNS). Non-empty = strict allowlist. */
+    executeCommandAllowlist: string[];
   };
   logging: {
     level: "error" | "warn" | "info" | "debug" | "trace";
