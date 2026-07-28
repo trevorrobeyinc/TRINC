@@ -140,12 +140,22 @@ builds, and live MCP handshakes pass from the new location. `Vids/` (1.1 TB) del
 > so a new signed commit is unbacked until a fresh `git bundle --all` is cut. The abandoned
 > `20260529-2158` bundle has been deleted and is no longer a trap.
 
-**🟡 OPERATOR ACTIONS OUTSTANDING from the 2026-07-28 plugin audit (2 items).** (1) **Revoke InfraNodus
-key ids `19229`, `20381`, `20415`** at the provider — the on-disk copies were deleted, but the
-provider-side keys are presumed still live. (2) **YubiKey-sign the plugin fixes** (`obsidian-bridge-launcher`
-hardening + `obsidian-command-center` manifest/docs). Also standing: **never click "Update" on the
-`command-center` plugin in Obsidian** — its id collides with a stranger's published plugin and the button
-points at *their* release. See the top Log entry.
+**🟡 ONE OPERATOR ACTION OUTSTANDING from the 2026-07-28 plugin audit.** **Revoke InfraNodus key ids
+`19229`, `20381`, `20415`** at the provider — the on-disk copies were deleted, but the provider-side
+keys are presumed still live. *(The plugin fixes are now signed as `e39bb73`; that half is done.)*
+
+**🔴 STANDING, NEVER LET THIS LAPSE — never click "Update" on the `command-center` plugin in Obsidian.**
+Its frozen id collides with a real published community plugin (`scrunchds/Command-Center` by Dustin
+Stringer), and Obsidian matches by **id alone** — so the button points at *their* release and would
+overwrite the workflow dispatcher and the `:8799` bridge. Our version is pinned `9.9.9` so the semver
+compare never again reads theirs as newer; **do not renumber it down.** See the 07-28T09:54 Log entry.
+
+**🟢 COMMIT SIGNING IN THIS REPO CHANGED on 2026-07-28 — read this before your first commit.** gpg-agent
+no longer autostarts (`~/.gnupg/common.conf` sets `no-autostart`). If the agent is dead, `git commit`
+fails with *"no gpg-agent running in this session"* — that is now the LOUD, correct failure, not a
+broken key. Recovery is `yk-aqua-preflight` (touchless, no sudo). Never `--no-gpg-sign`. Full story
+lives in `~/Security Everything` (commits `190a294`, `3751c51`, `2fd5e6a`, `8a14df8`, `b1eae1a`,
+`6c82860`), deliberately NOT duplicated here — see the 07-28T13:05Z Log entry for why.
 
 **🟡 AWAITING OPERATOR CALL — discard the 10 orphaned "TR-INC Biz" session transcripts? (2026-07-26).**
 The move orphaned 10 Desktop sessions (68 MB). Their durable content is **already harvested** into
@@ -252,6 +262,81 @@ five orphaned `-Volumes-ExtraCurricular-*` keys hold **~57** sessions in total, 
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 > Copy the **Entry template** at the bottom.
+
+### 2026-07-28T22:43Z · Desktop Claude Code · **Raycast "Obsidian Bridge Fork" → verified `-e dist` production deploy; store "Obsidian" extension retired**
+- **SCOPE NOTE:** this is **Copilot-Everything / Obsidian-tooling infra** (logged under the repo-infra
+  clause, per operator instruction) — not core business progress; Current focus untouched. Deep detail
+  lives in project memory `raycast-obsidian-fork-bridge-video-pipeline.md`, deliberately not duplicated here.
+- **Did:** Live deploy at `~/.config/raycast/extensions/obsidian-bridge-fork` switched from dev flavor
+  to a pure **`-e dist` production build** (82 MB, minified + sidecar maps; was 188 MB pre-cleanup) and
+  **verified by real command execution after a cold Raycast restart** — closes the never-tested "does
+  Raycast load dist builds from the local dir" caveat (it does; registration survives the swap). The
+  redundant **store "Obsidian" extension was uninstalled** by the operator after a zero-reference sweep
+  (only capability lost: its "Open Workspace" command). Dev/CDP-surface audit clean: no `ray develop`,
+  no inspector ports, the extension owns zero listeners; the sole Raycast-owned loopback listener
+  `127.0.0.1:7265` classified as Raycast core's browser-extension bridge. Falcon read-only cross-check:
+  zero Raycast-related detections. Source repo git-clean throughout — no code changes.
+- **State:** done
+- **Next:** standing rule only — after any `npx ray develop` session, re-run `npm run build` from
+  `Copilot-Everything/bridges/raycast-obsidian-extension` (develop silently reverts the deploy to dev flavor).
+- **Touches:** `~/.config/raycast/extensions/obsidian-bridge-fork/` (deploy target only), project memory
+  `raycast-obsidian-fork-bridge-video-pipeline.md` (updated with build-flavor facts + new posture)
+- **For whoever's next:** the fork is now the ONLY Obsidian Raycast extension installed. If you ever find
+  unminified bundles in the deploy dir, someone ran `ray develop` and forgot the rebuild.
+
+### 2026-07-28T13:05Z · CLI Claude Code (+ a forked session) · **The YubiKey signing path that gates every commit in this repo was silently broken — now fail-closed, and the plugin fixes are signed and landed**
+- **SCOPE NOTE, read first:** the bulk of this work lives in **`~/Security Everything`**, which this
+  board's own scope gate says does not belong here. It is logged anyway *in summary* because it
+  changed **how committing to THIS repo behaves**, and a future surface will hit that on its first
+  commit. Detail is deliberately NOT duplicated — the full story is in that repo's commits
+  (`190a294`, `3751c51`, `2fd5e6a`, `8a14df8`, `b1eae1a`, `6c82860`) and
+  `docs/self-inflicted-alerts-2026-07-28.md`. **Do not copy it here.**
+- **THE MONOREPO DELIVERABLE — signed and landed as `e39bb73`.** The Obsidian plugin hardening from
+  the 09:54 entry below is committed: dev-console `eval` now emits invocation/denial/outcome to the
+  OSSEC/Falcon audit sink (it previously ran arbitrary renderer-scope JS with **no trace anywhere**);
+  the `:8798` bridge's `executeCommandAllowlist` is a real knob (zod `.object()` was STRIPPING it, so
+  an operator could set it, get no error, and receive **no allowlist** — worse than knowingly running
+  the denylist); `execSync` → `execFileSync` in the launcher; and the transport lint now catches
+  bare/`net.`/`http2.` `createServer` (it matched only the literal `http.createServer(`). Lint still
+  **0 violations across 590 files**.
+- **🔴 THE ROOT CAUSE, worth knowing in any repo on this machine: `gpg-agent` inherits the bootstrap
+  namespace of whoever starts it.** A DETACHED caller (an agent's Bash tool, a tmux pane) minted a
+  non-Aqua agent, `pinentry-mac` then could not draw, and ceremonies failed **silently — looking
+  exactly like an operator decline.** Two `git commit`s died that way before it was understood. Fixed
+  at the source: `~/.gnupg/common.conf` sets `no-autostart`, so a detached client now fails LOUDLY
+  ("no gpg-agent running in this session") instead of creating a broken agent. **Recovery is
+  `yk-aqua-preflight`.**
+- **⚠️ THE TRAP IN THAT FIX — `no-autostart` also blocks `gpgconf --launch`.** The Aqua LaunchAgent
+  used exactly that, so enabling the option alone **took signing down machine-wide** (the job
+  reported success, `runs` incremented, exit 0, and produced no agent). The plist must invoke
+  `gpg-agent --daemon` **directly**; the two files are a PAIR and reverting one without the other
+  leaves nothing able to start the agent. That pairing is now asserted by a **critical** gitsigwatch
+  verdict rather than trusted to memory.
+- **THE FORKED SESSION** (ran concurrently, touched **only** `~/Security Everything`, never this
+  repo, never this board): retired **term-bridge + tmux** entirely — MCP server, `tb` gate scope,
+  hook branches, gatewatch scope (`190a294`) — and fixed the `openclaw-approve` gate, which killed
+  the agent then asked a nonexistent one to decrypt while blaming *"wrong card, no touch, or bad
+  PIN"* (`3751c51`). This session finished that retirement: three **live** scope definitions still
+  pointed at a deleted `tb-gate` CLI, and the tmux package was still installed.
+- **TWO ALARMS THAT WERE TELLING THE TRUTH FOR WEEKS.** (1) gatewatch `STATE_TAMPERED` — recorded as
+  fixed on 2026-07-12, but only half the fix had landed; the watch loop never re-read `state_key`
+  after a reseal, so it flapped **44+ times since 07-10**. Now genuinely fixed and *proven live* (a
+  reseal under the running daemon → 0 new events). (2) `WATCHER_CODE_MODIFIED` — **150 events since
+  07-22** correctly reporting that the running monitor was not the reviewed monitor; the immutable
+  install tree was stale. Both resolved. Lesson recorded: that installer is a **two-part** op (root
+  install **plus** a user-domain plist reload) and doing only the first is how it drifted unnoticed.
+- **State:** done. Both repos clean; **this repo unchanged since `e39bb73`.**
+- **Touches (this repo only):** `Claude/obsidian-bridge-launcher/`, `Claude/obsidian-command-center/`,
+  `Copilot-Everything/bridges/obsidian-copilot-bridge/src/config|server/tools/`,
+  `scripts/lint-transport-monorepo.sh`, this board. Host config outside any repo:
+  `~/.gnupg/common.conf` (new), `~/.zshrc` (agent launch now guarded), the Aqua LaunchAgent — the
+  first two are now tracked in `Security Everything/git-yubikey/hostconfig/`.
+- **For whoever's next:** if a commit here ever fails with *"no gpg-agent running"*, that is the new
+  **correct** behaviour — run `yk-aqua-preflight`, never `--no-gpg-sign`. Also: **a PIN dialog that
+  never appears is not a decline** — it is usually a mis-homed agent, and the same preflight fixes it.
+  And per the 09:54 entry, **Falcon Block rule 1 silently kills agent shell commands** containing a
+  `curl`/`wget`/`fetch` token followed later by a `|`; the symptom is empty output + exit 1, which
+  reads as "the service is down". Split the command; never narrow the rule.
 
 ### 2026-07-28T09:54Z · CLI Claude Code · **Obsidian plugin suite: a plugin-ID COLLISION with a stranger's published plugin, one stale deployed build, and a full security audit that found no exploitable flaw**
 - **Did:** started from "Command Center shows an Update button but says *failed to install*", which turned out not to be a migration bug at all; then ran an 18-agent read-only audit of the whole business plugin surface (8 dimensions, every material finding adversarially re-verified before reporting); then applied the fixes and purged InfraNodus from the Obsidian surface.

@@ -337,6 +337,24 @@ Predecessor of qdrant-tls-proxy: a separate subproject at `Claude/qdrant-tls-pro
 
 > Per the global `~/.claude/CLAUDE.md` "Browser MCP Strategy and Context Persistence" rule, every Claude Code session that calls a browser MCP non-trivially appends a structured summary block below. Newest entries at the top. The two surviving browser surfaces are the **Claude Browser pane** (`mcp__Claude_Browser__*` — isolated in-app Chromium clean room for untrusted content, `cb` gate scope) and **Claude in Chrome** (`mcp__claude-in-chrome__*` — identity / logged-in work, `cic` gate scope). Keep the lanes separate. (Corrected 2026-07-25: this line previously named **Playwright MCP (`--isolated`)**, which was superseded by `cdp-pipe` on 2026-06-07 and retired entirely on 2026-07-14 when the clean-room role moved to the Claude Browser pane. Playwright's orphaned 796 MB browser cache was removed from this machine on 2026-07-25.) See the global rule for the entry format, importance filter, and timing.
 
+- 2026-07-27 · Claude-Browser · collect real competitor social/review data (Trustpilot, X) for an
+  MKT500 marketing-plan assignment, after a fact-check found every figure in the prior draft was
+  invented · got verified figures for AlphaSights (Trustpilot 4.9/10,905 reviews, replied to 96% of
+  negative reviews within ~1 week; X 2,432 followers with the bio verbatim "We're not currently
+  posting on X") and GLG (4.3/258, replied to 50% within ~2 weeks; X 9,893), plus a dated
+  negative-review-and-company-reply pair for each. GOTCHAS: (1) **Trustpilot, G2, Capterra and
+  TrustRadius all return HTTP 403 to WebFetch AND to `mcp__searxng-search__extract`** — that is
+  bot-blocking, not absent data; the pane loads them normally, so never conclude a review corpus
+  doesn't exist because a fetch tool couldn't reach it. (2) **Right after `preview_start` the pane
+  can be open but not displayed**, and `get_page_text` / `javascript_tool` / `screenshot` all time
+  out with "the Browser pane is currently hidden" — calling `navigate()` first unblocks all of them
+  (see memory `claude-browser-pane-hidden-timeout`); `preview_logs` is dev-server-only and useless
+  here. (3) LinkedIn company follower counts DID come back from plain WebFetch logged-out
+  (AlphaSights 172,067; GLG 493,507) — but two agents reading the same page via different
+  intermediaries returned different numbers, so only a figure read off the live page counts.
+  (4) `yk-aqua-preflight` again caught a replaced/mis-homed gpg-agent on the `cb` arm and re-pinned
+  it — the documented silent-failure mode, and the reason to always use the `operator-approved-gate`
+  front-end.
 - 2026-07-25 · Claude-Browser + claude-in-chrome · post-TCC-revocation verification of BOTH browser lanes
   after operator revoked Accessibility + Screen Recording for Claude (and Gemini) and disabled computer
   use · **BOTH LANES FULLY WORK WITHOUT EITHER GRANT.** cic: armed, 2 local browsers listed, selected
