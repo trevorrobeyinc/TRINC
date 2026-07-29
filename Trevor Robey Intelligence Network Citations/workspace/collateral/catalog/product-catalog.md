@@ -1,100 +1,77 @@
-# Trevor Robey Inc Agents — Biomedical Intelligence Product Catalog
+# Trevor Robey, INC. — Biomedical Intelligence Product Catalog
 
 **Only the truth. Findings are never fabricated to fit the research — every citation is grounded in real retrieved evidence, or flagged and never presented as fact. A report that can't trace its citations to evidence does not ship.**
 
----
+*Trevor Robey, INC. is the wordmark of Trevor Robey Intelligence Network Citations LLC, a California limited liability company. INC = Intelligence Network Citations.*
 
-## Product Portfolio
-
-### 1. Drug Discovery Intelligence Pack (`drug-discovery-full`)
-
-Comprehensive compound intelligence synthesizing pharmacological profiles, mechanism-of-action analysis, drug interaction networks, and repurposing opportunities.
-
-- **Citation Density**: cited references grounded in retrieved evidence (count varies by topic)
-- **Data Sources**: PubMed, PubChem, ChEMBL, RxNorm, UniProt
-- **Platforms**: Datarade, Snowflake, AWS Data Exchange
-- **Pricing**: $2,500 (standard) | $4,950 (premium) | Enterprise subscription available
+> Pricing of record: `REVENUE_PLAYBOOK.md` §2 / `OFFERINGS.md` (offering ladder, 2026-04-30).
+> Catalog corrected 2026-07-29 — it previously advertised the **retired** Standard / Premium /
+> Custom / Enterprise ARR ladder and omitted the primary SKU entirely.
 
 ---
 
-### 2. Pharmacovigilance Safety Report (`pharmacovigilance-report`)
+## Offering Ladder
 
-Global adverse event signal detection parsed from regulatory registries and peer-reviewed safety literature.
+### Primary — Investor Pre-Mortem
 
-- **Citation Density**: cited references grounded in retrieved evidence (count varies by topic)
-- **Data Sources**: AEMS (formerly AEMS, migrated to daily real-time updates Mar 11, 2026), DailyMed, EudraVigilance, PubMed
-- **Platforms**: Datarade, AWS Data Exchange
-- **Pricing**: $2,500 (standard) | $4,950 (premium) | Enterprise subscription available
+**$9,950 anchor / $14,950 standard / $19,950 custom (+ KOL primary research)**
 
----
+Per-asset risk dossier: trial design, comparable failures, KOL sentiment, and IP runway — every claim PMID / NCT / ChEMBL-traced.
 
-### 3. Clinical Trial Landscape Analysis (`clinical-trial-landscape`)
+- **Buyer**: biotech hedge funds, biotech-specialist VC, pharma BD/licensing
+- **Turnaround**: 5–10 business days
+- **Backed by**: refund-backed citation-audit SLA
 
-Systematic mapping of global clinical trial registries with competitive pipeline intelligence and phase transition probability modeling.
+### Flanking — Failed Trial Archaeology
 
-- **Citation Density**: cited references grounded in retrieved evidence (count varies by topic)
-- **Data Sources**: ClinicalTrials.gov (NCT), PubMed, WHO ICTRP
-- **Platforms**: Datarade, AWS Data Exchange, Google Cloud BigQuery
-- **Pricing**: $2,500 (standard) | $4,950 (premium) | Enterprise subscription available
+**$14,950**
 
----
+Structured post-mortem of Phase 2/3 terminations in a single mechanism, with an NCT-indexed failure-pattern matrix.
 
-### 4. Target Validation Dossier (`target-validation-pack`)
+- **Buyer**: pharma R&D competitive intelligence, biotech VC diligence
 
-Multi-omics target-disease association mapping with deterministic genetic evidence scoring and molecular pathway analysis.
+### Tactical SKUs
 
-- **Citation Density**: cited references grounded in retrieved evidence (count varies by topic)
-- **Data Sources**: OpenTargets, UniProt, HPA, PubMed, ChEMBL, RxNorm
-- **Platforms**: Datarade, Snowflake, AWS Data Exchange
-- **Pricing**: $2,500 (standard) | $4,950 (premium) | Enterprise subscription available
+| SKU | Price | Buyer | What's included |
+| :--- | :--- | :--- | :--- |
+| **Conference Synthesis Brief** | $4,950 / conference | Pharma R&D, investors, BD/licensing (event-driven) | 500+ ASCO / ESMO / AACR abstracts; 24–48 hr |
+| **Trial Design Benchmark Pack** | $4,950 | Biotech R&D, pharma CI | Comparative Phase 3 structure vs 10–20 comparable programs |
+| **Cross-Silo Connector Report** | $9,950 – $24,950 | Pharma R&D, biotech partnerships | Hidden mechanistic links across ChEMBL / PubMed / CT.gov |
+| **Plain-Language Patient Brief** | $2,500 | Patient advocacy groups, trial sponsors | EU CTR 536/2014 plain-language summary at 8th-grade literacy |
+| **Pharmacovigilance Pack** | $2,500 – $4,950 | Mid-market pharma safety teams | Existing marketplace tier; demoted from primary lead — listings preserved |
 
----
+### Data products
 
-### 5. Rare Disease Research Brief (`rare-disease-brief`)
-
-Focused intelligence on orphan drug pipelines, rare disease patient registries, and therapeutic development landscapes for underserved indications.
-
-- **Citation Density**: cited references grounded in retrieved evidence (count varies by topic)
-- **Data Sources**: GARD, Orphanet, PubMed, ClinicalTrials.gov
-- **Platforms**: Datarade
-- **Pricing**: $2,500 (standard) | $4,950 (premium)
+| Product | Price | Notes |
+| :--- | :--- | :--- |
+| **Trial Graveyard Feed** (AWS Data Exchange) | **Not yet set** | Low-ticket, self-serve monthly data feed — distinct from the bespoke dossiers above. NCT-traced terminated / withdrawn / suspended programs with sponsor-stated stop reasons. Price is an open operator decision and is deliberately not stated here. |
 
 ---
 
-### 6. General Research Pack (`general-research-pack`)
+## Delivery
 
-Customizable research synthesis on any biomedical or life sciences topic with the same citation-integrity-gated methodology — every citation grounded in retrieved evidence or flagged, never fabricated.
+Primary SKUs are sold through direct outbound and a discovery call, delivered as a manual ZIP (with Snowflake / AWS / BigQuery handoff available for enterprise buyers). Tactical SKUs are sold via the landing-page intake at `trevorobeyinc.com/intake.html` and delivered as a manual ZIP by secure email.
 
-- **Citation Density**: Varies by topic
-- **Data Sources**: PubMed, PubChem, ClinicalTrials.gov, and topic-specific databases
-- **Platforms**: Datarade
-- **Pricing**: $2,500 (standard) | Custom pricing for enterprise
-
----
-
-## Pricing Tiers
-
-| Tier | Audience | Platform | Price |
-| :--- | :------- | :------- | :---- |
-| **Standard** | Mid-market pharma, biotech, boutique consultancies | Datarade | $2,500 - $4,950 per report |
-| **Premium** | Pharma R&D, VC life science funds | Datarade, AWS, Snowflake | $4,950 - $15,000 per report |
-| **Enterprise** | Quant hedge funds, big pharma, CROs | Snowflake, BigQuery, AWS | $15,000 - $35,000 per project |
-| **Enterprise Subscription** | Large pharma, global CROs | Snowflake, BigQuery, AWS | $60,000 - $120,000+ ARR |
+External actions are manual-only: nothing is published, submitted, or transacted autonomously.
 
 ## Every Report Includes
 
-- Full multi-section research report (40-80+ pages)
+- Full multi-section research report
 - Citation index CSV with identifier type, source, and context
 - Executive summary with key findings
 - Evidence provenance appendix
+- Citation-integrity ledger (graded provenance record)
 - Chain-hashed integrity verification
 
-## Why Trevor Robey Inc Agents
+## Why Trevor Robey, INC.
 
 - **Citation-integrity gate**: every cited identifier is cross-checked against the evidence retrieved at runtime; a report whose grounded-citation ratio falls below threshold refuses to ship, and any surviving ungrounded citation is flagged `[UNVERIFIED]` rather than asserted
+- **Retraction screening**: cited DOIs are screened against Crossref and cited PMIDs against PubMed; a retracted paper hard-stops delivery
 - **Cryptographic provenance**: a chain-hashed evidence ledger — an auditable trail from input to deliverable
 - **Frictionless ingestion**: delivered as a self-contained bundle (ZIP; AWS Data Exchange where listed)
-- **Audited methodology**: multi-agent pipeline with automated citation-integrity + quality auditing
+- **Audited methodology**: multi-agent pipeline with automated citation-integrity and quality auditing
+
+**Posture**: research artifacts only — not validated for clinical decision support. No PHI is hosted or processed; sources are public biomedical databases.
 
 ---
 

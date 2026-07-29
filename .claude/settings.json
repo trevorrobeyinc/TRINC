@@ -4,7 +4,8 @@
       "Write(/Users/myhome/self-evolving/**)",
       "Edit(/Users/myhome/self-evolving/**)",
       "Write(~/self-evolving/**)",
-      "Edit(~/self-evolving/**)"
+      "Edit(~/self-evolving/**)",
+      "mcp__plugin_engineering_github__*"
     ]
   }
 }

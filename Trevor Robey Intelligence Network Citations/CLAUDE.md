@@ -346,7 +346,7 @@ GitHub's built-in secret scanning provides push protection for provider-specific
 | Directory | Contents |
 |-----------|----------|
 | `workspace/collateral/landing-page/` | Self-contained HTML landing page (source of truth) |
-| `workspace/collateral/outbound/` | Cold email sequences (4 personas), LinkedIn templates, prospect targeting guide |
+| `07-outbound/` | Cold email sequences (4 personas), LinkedIn openers, prospect targeting guide, 9-touch cadence, response triage, SDR contractor brief. **Corrected 2026-07-29** — this table previously pointed at `workspace/collateral/outbound/`, which does not exist. |
 | `workspace/collateral/samples/` | Redacted sample deliverable, 2-page email teaser |
 | `workspace/collateral/catalog/` | Product catalog with all product lines |
 | `workspace/collateral/one-pagers/` | One-page product summaries |

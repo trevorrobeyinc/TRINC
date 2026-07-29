@@ -154,7 +154,18 @@ function createResearchOutputManager(options = {}) {
         : [],
       citation_verification: isPlainObject(metadata.citation_verification)
         ? canonicalize(metadata.citation_verification)
-        : {}
+        : {},
+      // Q5 honest-zero ledger: the per-source record of what every runtime search actually
+      // returned, so a zero-result source is reported as an honest negative rather than
+      // silently conflated with a failed one. agent-engine has always passed this key, but
+      // until 2026-07-29 it was absent from this allowlist and therefore silently discarded —
+      // which left search-coverage-ledger.js reading [] and the packager's markdown guard
+      // false, so deliverables/search-coverage.md could never be written. The
+      // PHASE30_CITATION_INSUFFICIENT_EVIDENCE message points the operator at that file, so
+      // the gap made the engine reference an artifact it could not produce.
+      search_coverage: Array.isArray(metadata.search_coverage)
+        ? metadata.search_coverage.map((entry) => (isPlainObject(entry) ? canonicalize(entry) : entry))
+        : []
     });
     writeJson(metadataPath, normalizedMetadata);
 

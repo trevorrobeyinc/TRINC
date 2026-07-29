@@ -500,6 +500,82 @@ function auditPluginSurfaces(registry, prefetch) {
     }
   }
 
+  // 4c. GATE-SHADOWING — a plugin shipping a server whose NAME matches a host-registered
+  //     server. Plugin servers are namespaced (mcp__plugin_<plugin>_<server>__*) and never
+  //     shadow the host one (mcp__<server>__*), so the two COEXIST: the plugin's copy is a
+  //     parallel path to the same third party, with none of the host wrapper's protections.
+  //     Found 2026-07-28: the engineering plugin ships `github` -> api.githubcopilot.com
+  //     (plain HTTP OAuth) while ~/.claude.json's `github` is github-mcp-keychain-wrapper.sh
+  //     (YubiKey-sealed PAT, fail-closed arm, per-unseal PIN+touch, --read-only, Falcon-FIM'd).
+  //     Authorizing the plugin copy would stand up a bypass of that gate. Same shape as the
+  //     desktop-commander inline-MCP finding: a plugin re-providing a deliberately gated surface.
+  try {
+    const hostCfg = path.join(os.homedir(), ".claude.json");
+    if (fs.existsSync(hostCfg) && pkgRoots.length) {
+      const hostServers = Object.keys(JSON.parse(fs.readFileSync(hostCfg, "utf8")).mcpServers || {});
+      const shadows = [];
+      let inertShadows = 0;
+      for (const root of pkgRoots) {
+        for (const d of fs.readdirSync(root)) {
+          const mj = path.join(root, d, ".mcp.json");
+          const pj = path.join(root, d, ".claude-plugin", "plugin.json");
+          if (!fs.existsSync(mj) || !fs.existsSync(pj)) continue;
+          let pname, servers;
+          try {
+            pname = JSON.parse(fs.readFileSync(pj, "utf8")).name;
+            servers = Object.keys(JSON.parse(fs.readFileSync(mj, "utf8")).mcpServers || {});
+          } catch (e) { continue; }
+          // Only a REACHABLE shadow is a finding. Most plugins ship `gmail` and
+          // `google calendar` as `{"type":"http","url":""}` — unfilled placeholders
+          // the template expects a deployment to populate. Flagging those would fire
+          // 7 false alarms here and train the reader to ignore the check, so they are
+          // counted quietly instead. Verified 2026-07-28: of 15 name-collisions, 14
+          // are empty-url placeholders and exactly one (engineering/github) is live.
+          for (const s of servers) {
+            if (!hostServers.includes(s)) continue;
+            const spec = (JSON.parse(fs.readFileSync(mj, "utf8")).mcpServers || {})[s] || {};
+            const reachable = Boolean(spec.command) || Boolean(spec.url);
+            if (reachable) shadows.push({ plugin: pname, server: s });
+            else inertShadows++;
+          }
+        }
+      }
+      if (shadows.length) {
+        // Deny rules are cumulative across scopes, so check BOTH: the user-global
+        // settings and this repo's own .claude/settings.json. The repo copy is the
+        // one that is version-controlled and survives a global settings reset —
+        // ~/.claude/settings.json is outside the repo and no commit can protect it.
+        const scopes = [
+          { label: "user (~/.claude/settings.json)", file: path.join(os.homedir(), ".claude", "settings.json") },
+          { label: "repo (.claude/settings.json)", file: path.join(ROOT, "..", ".claude", "settings.json") },
+        ];
+        const denyIn = {};
+        for (const sc of scopes) {
+          try {
+            denyIn[sc.label] = (JSON.parse(fs.readFileSync(sc.file, "utf8")).permissions || {}).deny || [];
+          } catch (e) { denyIn[sc.label] = []; }
+        }
+        for (const sh of shadows) {
+          const want = `mcp__plugin_${sh.plugin}_${sh.server}__*`;
+          const covering = Object.keys(denyIn).filter((k) => denyIn[k].includes(want));
+          if (!covering.length) {
+            lines.push(`  ⚠  GATE SHADOW UNCONTAINED: plugin "${sh.plugin}" ships "${sh.server}", which also exists as a host MCP server — add "${want}" to permissions.deny`);
+          } else {
+            lines.push(`  ✓  Gate-shadow contained: plugin "${sh.plugin}" ships its own "${sh.server}" alongside the host one; ${want} denied in ${covering.length} scope(s): ${covering.join(" + ")}`);
+            if (!covering.some((k) => k.startsWith("repo"))) {
+              lines.push(`     ·  only the user-global scope carries it — add it to the repo's .claude/settings.json too so it is version-controlled`);
+            }
+          }
+        }
+      } else {
+        lines.push("  ✓  No plugin ships a REACHABLE MCP server whose name collides with a host-registered one");
+      }
+      if (inertShadows) {
+        lines.push(`  ·  ${inertShadows} further name-collisions are inert placeholders (empty url) — no action needed unless a plugin update fills one in`);
+      }
+    }
+  } catch (e) { /* best-effort */ }
+
   // 5. Installed-but-unbound plugins are decisions; both files should say so.
   const regNotBound = (surfaces.installed_not_bound || []).map((p) => p.id).sort();
   const bindNotBound = Object.keys((bindings.installed_not_bound || {}).plugins || {}).sort();

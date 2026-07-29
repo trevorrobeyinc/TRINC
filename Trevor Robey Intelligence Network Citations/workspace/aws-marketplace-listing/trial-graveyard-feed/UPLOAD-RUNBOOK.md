@@ -19,8 +19,19 @@
 ## #2 — Monthly refresh
 ```
 node scripts/build-graveyard-feed.js --condition "<TA>" --asOf <YYYY-MM-DD> \
+  --pageSize 50 \
   --out workspace/aws-marketplace-listing/trial-graveyard-feed/data/<slug>
 ```
+
+> ⚠️ **`--pageSize 50` is required, not optional (corrected 2026-07-29).** This command previously
+> omitted it. `build-graveyard-feed.js` defaults `pageSize` to **20**, so running it as written
+> would rebuild every feed at 20 rows instead of 50 and **overwrite the shipped assets** — plain
+> `fs.writeFileSync`, no merge, no guard. `--out` is equally required: its default is
+> `workspace/distribution/graveyard-feed/<slug>-<asOf>/`, a different tree that still holds a
+> stale 12-row 2026-06-20 build.
+>
+> 50 is the hard cap (set in `build-graveyard-feed.js` and `ctgov-supplemental.js`, no pagination),
+> so the feed grows by **adding indications**, not by deepening existing ones.
 → create a **new revision** from the refreshed `paid/register.csv` → finalize → add to the product (subscribers receive the update). Add a "What's New" note. Re-running each month is what makes the "refreshed monthly" claim true.
 
 ## #1 — Add a therapeutic area
