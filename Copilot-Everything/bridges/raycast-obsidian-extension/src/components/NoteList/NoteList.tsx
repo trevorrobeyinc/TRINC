@@ -8,7 +8,7 @@ import { CreateNoteView } from "./CreateNoteView";
 import { filterNotesFuzzy } from "../../api/search/search.service";
 import { searchNotesWithContent } from "../../api/search/simple-content-search.service";
 import { SearchArguments } from "../../utils/interfaces";
-import { sortNotes, SortOrder } from "../../utils/sorting";
+import { parseSortOrder, sortNotes, SortOrder } from "../../utils/sorting";
 import { Note, ObsidianVault } from "@/obsidian";
 
 export interface NoteListProps {
@@ -21,6 +21,8 @@ export interface NoteListProps {
   onDelete?: (note: Note) => void;
   onSearchChange?: (search: string) => void;
   onNoteUpdated?: (notePath: string, updates: Partial<Note>) => void;
+  /** Overrides the defaultSortOrder preference — for lists that pre-sort their notes (e.g. Recent Notes). */
+  defaultSortOrder?: SortOrder;
 }
 
 const MemoizedNoteListItem = memo(NoteListItem);
@@ -46,7 +48,9 @@ export function NoteList(props: NoteListProps) {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [filteredNotes, setFilteredNotes] = useState<Note[]>([]);
   const [isSearching, setIsSearching] = useState(!!initialSearchText);
-  const [sortOrder, setSortOrder] = useState<SortOrder>("relevance");
+  const [sortOrder, setSortOrder] = useState<SortOrder>(
+    props.defaultSortOrder ?? parseSortOrder(pref.defaultSortOrder) ?? "relevance"
+  );
 
   // Search with or without content based on preference
   useEffect(() => {

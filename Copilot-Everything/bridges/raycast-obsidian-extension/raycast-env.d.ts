@@ -14,6 +14,8 @@ type ExtensionPreferences = {
   "configFileName": string,
   /** Exclude following folders - Specify which folders to exclude (comma separated) */
   "excludedFolders"?: string,
+  /** Default Sort Order - Initial sort order for note lists (Search Note, Starred Notes, Search by Tag). 'Created time (old to new)' shows notes in the order they were added to the vault. Recent Notes keeps its own most-recently-modified order. */
+  "defaultSortOrder": "created-asc" | "created-desc" | "modified-asc" | "modified-desc" | "alphabetical-asc" | "alphabetical-desc" | "relevance",
   /** Remove content - Hide YAML frontmatter for copying and viewing notes */
   "removeYAML"?: boolean,
   /** undefined - Hide LaTeX (surrounded by $$ or $) for copying and viewing notes */

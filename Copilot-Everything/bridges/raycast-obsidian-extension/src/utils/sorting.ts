@@ -10,6 +10,21 @@ export type SortOrder =
   | "created-desc"
   | "created-asc";
 
+export const SORT_ORDERS: readonly SortOrder[] = [
+  "relevance",
+  "alphabetical-asc",
+  "alphabetical-desc",
+  "modified-desc",
+  "modified-asc",
+  "created-desc",
+  "created-asc",
+];
+
+/** Preference values arrive as plain strings; anything unrecognized falls back to undefined. */
+export function parseSortOrder(value: string | undefined | null): SortOrder | undefined {
+  return SORT_ORDERS.includes(value as SortOrder) ? (value as SortOrder) : undefined;
+}
+
 export function sortNotes(notes: Note[], sortOrder: SortOrder): Note[] {
   const sorted = [...notes];
 

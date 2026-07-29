@@ -5,6 +5,7 @@ export interface GlobalPreferences {
   removeLinks: boolean;
   removeLatex: boolean;
   excludedFolders: string;
+  defaultSortOrder?: string;
   mcpEnabled?: boolean;
   mcpTransport?: "http" | "uds" | "pipe";
   mcpHttpEndpoint?: string;

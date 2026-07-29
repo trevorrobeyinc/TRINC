@@ -27,6 +27,7 @@ function RecentNotesList(props: { vault: ObsidianVault; maxNotes: number }) {
       isLoading={loading}
       onNoteUpdated={updateNote}
       onDelete={(note) => deleteNote(note.path)}
+      defaultSortOrder="relevance"
     />
   );
 }

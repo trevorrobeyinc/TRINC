@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { sortNotes, SortOrder } from "../utils/sorting";
+import { parseSortOrder, SORT_ORDERS, sortNotes, SortOrder } from "../utils/sorting";
 import { Note } from "../obsidian/internal/notes";
 import fs from "fs";
 import path from "path";
@@ -228,6 +228,21 @@ describe("sorting", () => {
       expect(sorted[0].title).toBe("Beta Note");
       expect(sorted[1].title).toBe("Alpha Note");
       expect(sorted[2].title).toBe("Gamma Note");
+    });
+  });
+
+  describe("parseSortOrder", () => {
+    it("should accept every known sort order (the defaultSortOrder preference values)", () => {
+      for (const order of SORT_ORDERS) {
+        expect(parseSortOrder(order)).toBe(order);
+      }
+    });
+
+    it("should return undefined for unknown, empty, or missing values", () => {
+      expect(parseSortOrder("newest-first")).toBeUndefined();
+      expect(parseSortOrder("")).toBeUndefined();
+      expect(parseSortOrder(undefined)).toBeUndefined();
+      expect(parseSortOrder(null)).toBeUndefined();
     });
   });
 });

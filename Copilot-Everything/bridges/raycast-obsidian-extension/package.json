@@ -50,6 +50,23 @@
       "description": "Specify which folders to exclude (comma separated)"
     },
     {
+      "name": "defaultSortOrder",
+      "type": "dropdown",
+      "title": "Default Sort Order",
+      "required": false,
+      "default": "created-asc",
+      "description": "Initial sort order for note lists (Search Note, Starred Notes, Search by Tag). 'Created time (old to new)' shows notes in the order they were added to the vault. Recent Notes keeps its own most-recently-modified order.",
+      "data": [
+        { "title": "Created time (old to new)", "value": "created-asc" },
+        { "title": "Created time (new to old)", "value": "created-desc" },
+        { "title": "Modified time (old to new)", "value": "modified-asc" },
+        { "title": "Modified time (new to old)", "value": "modified-desc" },
+        { "title": "File name (A to Z)", "value": "alphabetical-asc" },
+        { "title": "File name (Z to A)", "value": "alphabetical-desc" },
+        { "title": "Relevance (vault order)", "value": "relevance" }
+      ]
+    },
+    {
       "name": "removeYAML",
       "title": "Remove content",
       "label": "Hide YAML frontmatter",
