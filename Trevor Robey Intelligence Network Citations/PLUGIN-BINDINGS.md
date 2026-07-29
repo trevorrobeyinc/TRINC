@@ -426,15 +426,38 @@ hand-edited. Uninstall in the Claude Desktop plugin UI, then fully quit and reop
 
 ## Operator remainder
 
-Roughly 30 plugin MCP servers are connected but **unauthenticated**. Their *skills* work today —
-only the MCP servers need OAuth, which must be completed by the operator in claude.ai connector
-settings or via `/mcp` in an interactive session. Claude cannot run those flows non-interactively.
+The plugins' *skills* work today with no authentication at all — only the MCP servers need OAuth,
+which the operator must complete in claude.ai connector settings or via `/mcp` in an interactive
+session. Claude cannot run those flows non-interactively.
 
-Worth authorizing first, in business-value order:
+> **Counting caveat.** The 13 plugins reference **97 server slots but only 46 unique servers** —
+> `slack`, `notion`, `atlassian`, `gmail`, and `google calendar` each appear in 7 plugins. The
+> per-plugin `mcp_connected` / `mcp_needs_auth` numbers in the registry are *slot* counts; never sum
+> them into a server total.
 
-1. **Wiley** (`~~journal access`) — unlocks paywalled full text for deliverables
-2. **BioRender** (`~~scientific illustration`) — figures for the $9,950+ reports
-3. **Synapse** (`~~data repository`) and **Owkin** (`~~AI research`)
+**Authorize these four — all research-lane, in business-value order:**
 
-The rest (HubSpot, Snowflake, Figma, Jira, Slack, Amplitude, …) correspond to tools this business
-does not use. **Leave them unauthenticated** — that is the correct end state, not a gap.
+| # | Server | Category | Why |
+|---|---|---|---|
+| 1 | **Wiley** | `~~journal access` | paywalled full text for paid deliverables |
+| 2 | **BioRender** | `~~scientific illustration` | figures for the $9,950+ reports |
+| 3 | **Synapse** | `~~data repository` | public biomedical datasets |
+| 4 | **Owkin** | `~~AI research` | histopathology / AI-for-biology |
+
+**Do NOT authorize `plugin:engineering:github` — security.** The engineering plugin ships its own
+GitHub server at `https://api.githubcopilot.com/mcp/` (HTTP OAuth, ungated). The host-level GitHub
+MCP is `github-mcp-keychain-wrapper.sh`, which carries its own arm plus a per-unseal PIN + touch.
+Authorizing the plugin copy would create a **second GitHub path bypassing the YubiKey gate** —
+which the global `~/.claude/CLAUDE.md` marks NON-NEGOTIABLE ("github MCP stays EXACTLY as-is …
+never fold it into the Claude-triggered flow"). This is the same shape as the `desktop-commander`
+inline-MCP finding: a plugin quietly re-providing a surface that was deliberately gated elsewhere.
+It is currently unauthenticated, so the bypass does not exist unless someone creates it.
+
+**Leave the remaining ~26 unauthenticated.** Slack, Notion, Atlassian, Asana, Linear, Monday,
+ClickUp, HubSpot, Close, Apollo, Outreach, Clay, ZoomInfo, Amplitude, Pendo, Intercom, Figma,
+Canva, Ahrefs, Similarweb, Klaviyo, Supermetrics, Snowflake, Databricks, BigQuery, Hex, Definite,
+Datadog, PagerDuty, Benchling, Fireflies — every one maps to a category that resolves to an
+explicit **NONE**. That is the correct end state, not a gap.
+
+Already working, no auth needed: `pubmed`, `chembl`, `c-trials`, `biorxiv`, `consensus`, `ot`,
+`pdf`, `gmail`, `google calendar`.

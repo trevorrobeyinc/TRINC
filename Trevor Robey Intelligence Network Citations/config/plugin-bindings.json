@@ -489,6 +489,24 @@
     }
   },
 
+  "oauth_posture": {
+    "recorded": "2026-07-28",
+    "counting_note": "The 13 plugins reference 97 MCP server SLOTS but only 46 UNIQUE servers — `slack`, `notion`, `atlassian`, `gmail` and `google calendar` each appear in 7 plugins. Any per-plugin figure (e.g. the mcp_connected/mcp_needs_auth pairs in connector-registry.json plugin_surfaces) is a SLOT count and must not be summed into a server total.",
+    "rule": "Authorize a plugin MCP server ONLY when its category is bound to a real tool in this file. A server whose category resolves to NONE corresponds to a tool this business does not use — leaving it unauthenticated is the CORRECT end state, not a gap to close. Authorizing it would create a live surface for a tool with no role here.",
+    "authorize": [
+      { "server": "plugin:bio-research:wiley", "category": "~~journal access", "why": "unlocks paywalled full text for paid deliverables", "priority": 1 },
+      { "server": "plugin:bio-research:biorender", "category": "~~scientific illustration", "why": "figures for the $9,950+ reports; deliverables are otherwise text/markdown only", "priority": 2 },
+      { "server": "plugin:bio-research:synapse", "category": "~~data repository", "why": "public biomedical dataset access", "priority": 3 },
+      { "server": "plugin:bio-research:owkin", "category": "~~AI research", "why": "histopathology / AI-for-biology lane", "priority": 4 }
+    ],
+    "do_not_authorize": {
+      "plugin:engineering:github": "SECURITY — the engineering plugin ships its own github server at https://api.githubcopilot.com/mcp/ (HTTP OAuth, ungated). The host-level GitHub MCP in ~/.claude.json is /Users/myhome/.local/bin/github-mcp-keychain-wrapper.sh, which carries its own arm plus a per-unseal PIN+touch. Authorizing the plugin copy would create a SECOND GitHub path bypassing the YubiKey gate — the global ~/.claude/CLAUDE.md marks this NON-NEGOTIABLE: 'github MCP stays EXACTLY as-is ... never fold it into the Claude-triggered flow.' Same shape as the desktop-commander inline-MCP finding: a plugin quietly re-providing a surface that was deliberately gated elsewhere. Currently unauthenticated — the bypass does not exist unless someone authorizes it.",
+      "everything_else": "~26 further servers (slack, notion, atlassian, asana, linear, monday, clickup, hubspot, close, apollo, outreach, clay, zoominfo, amplitude, amplitude-eu, pendo, intercom, figma, canva, ahrefs, similarweb, klaviyo, supermetrics, snowflake, databricks, bigquery, hex, definite, datadog, pagerduty, benchling, fireflies) all map to categories that resolve to an explicit NONE. Leave them unauthenticated."
+    },
+    "already_working_no_auth_needed": ["pubmed", "chembl", "c-trials", "biorxiv", "consensus", "ot", "pdf", "gmail", "google calendar"],
+    "cache_caveat": "~/.claude/mcp-needs-auth-cache.json is a CACHE and goes stale — it still lists AdisInsight (tombstoned as declined-no-public-api) and Tavily (superseded by searxng-search). Treat the live session's needs-auth reminder as authoritative, not this file."
+  },
+
   "removed": {
     "rationale": "Plugins deliberately uninstalled. Kept as tombstones so a removal cannot silently reverse and so the reason survives the decision.",
     "plugins": {

@@ -351,9 +351,13 @@ function auditPluginSurfaces(registry, prefetch) {
   }
   lines.push(`Plugins bound: ${registryIds.length}   Lanes: ${Object.entries(byLane).sort().map(([l, n]) => `${l}=${n}`).join("  ")}`);
 
+  // Per-plugin mcp_* figures are SLOT counts, not server counts: slack / notion /
+  // atlassian / gmail / google calendar each appear in 7 plugins, so summing them
+  // triples the apparent surface (97 slots vs 46 unique servers). Report slots as
+  // slots, and derive the unique total from disk when the packages are reachable.
   const needsAuth = (surfaces.plugins || []).reduce((n, p) => n + (p.mcp_needs_auth || 0), 0);
   const connected = (surfaces.plugins || []).reduce((n, p) => n + (p.mcp_connected || 0), 0);
-  lines.push(`Plugin MCP servers: ${connected} connected, ${needsAuth} awaiting operator OAuth (skills work regardless)`);
+  lines.push(`Plugin MCP server SLOTS: ${connected} connected + ${needsAuth} awaiting OAuth = ${connected + needsAuth} (skills work regardless of auth)`);
 
   // 1. The two files must agree on which plugins exist.
   const onlyRegistry = registryIds.filter((id) => !bindingIds.includes(id));
@@ -454,6 +458,21 @@ function auditPluginSurfaces(registry, prefetch) {
     };
     if (fs.existsSync(base)) walk(base, 0);
   } catch (e) { /* best-effort discovery only */ }
+
+  // Unique-server tally, so the slot count above can never be mistaken for a surface size.
+  if (pkgRoots.length) {
+    const uniq = new Set();
+    for (const root of pkgRoots) {
+      for (const d of fs.readdirSync(root)) {
+        const mj = path.join(root, d, ".mcp.json");
+        if (!fs.existsSync(mj)) continue;
+        try {
+          for (const s of Object.keys(JSON.parse(fs.readFileSync(mj, "utf8")).mcpServers || {})) uniq.add(s);
+        } catch (e) { /* unreadable */ }
+      }
+    }
+    if (uniq.size) lines.push(`Plugin MCP servers, UNIQUE across all plugins: ${uniq.size} (this is the real surface size)`);
+  }
 
   if (!pkgRoots.length) {
     lines.push("  ·  Plugin packages not found on this machine — inline-MCP check skipped (not a failure)");
