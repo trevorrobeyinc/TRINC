@@ -11,6 +11,7 @@
 //   node scripts/audit-connector-coverage.js --write-drift-tickets --dry-run   # preview tickets to stdout
 
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..");
@@ -428,6 +429,58 @@ function auditPluginSurfaces(registry, prefetch) {
     ? "  ⚠  A plugin-namespaced tool appears in tool-prefetch-map.json — business lane leaked into research prefetch"
     : "  ✓  No plugin MCP server present in tool-prefetch-map.json");
 
+  // 4b. INLINE-DECLARED MCP SERVERS — the smuggling vector.
+  //     Most plugins declare MCP servers in a sibling `.mcp.json`, but a plugin may also
+  //     declare them inline under `mcpServers` in `.claude-plugin/plugin.json`. A plugin
+  //     package is therefore a THIRD MCP registration surface, independent of
+  //     ~/.claude.json and claude_desktop_config.json — removing a server from both of
+  //     those does NOT remove it if a plugin re-declares it. Found 2026-07-28:
+  //     desktop-commander had been removed from both host configs yet still shipped
+  //     `npx -y @wonderwhy-er/desktop-commander@latest` (terminal + filesystem, outside
+  //     the YubiKey/sudo-gate model) inline in its plugin.json. The original enumeration
+  //     read only `.mcp.json`, so it recorded that plugin as having zero servers.
+  //     Best-effort: the package root is session-scoped, so a miss is reported, not fatal.
+  const pkgRoots = [];
+  try {
+    const base = path.join(os.homedir(), "Library", "Application Support", "Claude", "local-agent-mode-sessions");
+    const walk = (dir, depth) => {
+      if (depth > 3) return;
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (!e.isDirectory()) continue;
+        const p = path.join(dir, e.name);
+        if (e.name === "rpm") pkgRoots.push(p);
+        else walk(p, depth + 1);
+      }
+    };
+    if (fs.existsSync(base)) walk(base, 0);
+  } catch (e) { /* best-effort discovery only */ }
+
+  if (!pkgRoots.length) {
+    lines.push("  ·  Plugin packages not found on this machine — inline-MCP check skipped (not a failure)");
+  } else {
+    const inline = [];
+    let scanned = 0;
+    for (const root of pkgRoots) {
+      for (const d of fs.readdirSync(root)) {
+        const pj = path.join(root, d, ".claude-plugin", "plugin.json");
+        if (!fs.existsSync(pj)) continue;
+        scanned++;
+        let meta;
+        try { meta = JSON.parse(fs.readFileSync(pj, "utf8")); } catch (e) { continue; }
+        for (const name of Object.keys(meta.mcpServers || {})) {
+          const spec = meta.mcpServers[name] || {};
+          const cmd = [spec.command, ...(spec.args || [])].filter(Boolean).join(" ");
+          inline.push(`${meta.name} declares "${name}" inline (${cmd})`);
+        }
+      }
+    }
+    if (inline.length) {
+      lines.push(`  ⚠  Plugin-INLINE MCP servers (a plugin re-registers these even after you remove them from the host configs): ${inline.join("; ")}`);
+    } else {
+      lines.push(`  ✓  No plugin declares an MCP server inline in plugin.json (${scanned} packages scanned)`);
+    }
+  }
+
   // 5. Installed-but-unbound plugins are decisions; both files should say so.
   const regNotBound = (surfaces.installed_not_bound || []).map((p) => p.id).sort();
   const bindNotBound = Object.keys((bindings.installed_not_bound || {}).plugins || {}).sort();
@@ -435,6 +488,29 @@ function auditPluginSurfaces(registry, prefetch) {
     lines.push(`  ⚠  installed_not_bound disagrees — registry: [${regNotBound.join(", ")}] vs bindings: [${bindNotBound.join(", ")}]`);
   } else if (regNotBound.length) {
     lines.push(`Installed but deliberately NOT bound (recorded decision): ${regNotBound.join(", ")} ✓`);
+  }
+
+  // 6. Removed plugins are tombstones — a removal that silently reverses is the
+  //    failure mode they exist to catch, so re-check that each is really gone.
+  const removedIds = (surfaces.removed || []).map((p) => p.id).sort();
+  const bindRemoved = Object.keys((bindings.removed || {}).plugins || {}).sort();
+  if (removedIds.join(",") !== bindRemoved.join(",")) {
+    lines.push(`  ⚠  removed-plugin tombstones disagree — registry: [${removedIds.join(", ")}] vs bindings: [${bindRemoved.join(", ")}]`);
+  } else if (removedIds.length) {
+    const resurrected = [];
+    for (const root of pkgRoots) {
+      for (const d of fs.readdirSync(root)) {
+        const pj = path.join(root, d, ".claude-plugin", "plugin.json");
+        if (!fs.existsSync(pj)) continue;
+        try {
+          const n = JSON.parse(fs.readFileSync(pj, "utf8")).name;
+          if (removedIds.includes(n)) resurrected.push(n);
+        } catch (e) { /* unreadable package */ }
+      }
+    }
+    lines.push(resurrected.length
+      ? `  ⚠  REMOVED plugin is back on disk: ${resurrected.join(", ")} — uninstall again via the Claude Desktop plugin UI`
+      : `Removed plugins (tombstoned, verified still absent): ${removedIds.join(", ")} ✓`);
   }
 
   return lines;

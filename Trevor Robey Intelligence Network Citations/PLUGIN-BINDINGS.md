@@ -362,8 +362,65 @@ grinding a dataset-validation pass over the Trial Graveyard Feed.
 
 | Plugin | Why not |
 |---|---|
-| `desktop-commander` v0.2.0 | Overlaps stack surfaces this repo already owns (terminal, vault, knowledge base) via the `:8798` bridge and `term-bridge`. Binding it would create a second, ungoverned path to the vault. |
+| ~~`desktop-commander` v0.2.0~~ | **UNINSTALLED 2026-07-28** — superseded by FilesystemPlus. See the section below; the "ungoverned path to the vault" concern turned out to be live, not hypothetical. |
 | `cowork-plugin-management` v0.2.2 | Plugin-authoring tooling. Its `cowork-plugin-customizer` skill **cannot run on this surface** — it requires Cowork's `mnt/.local-plugins` mounts, absent in CLI Claude Code. That limitation is exactly why these bindings are repo-owned rather than stamped into the plugin packages. |
+
+---
+
+## ⚠️ A plugin package is a THIRD MCP registration surface (learned 2026-07-28)
+
+There are **three** places an MCP server can be registered on this machine, and cleaning two of
+them does not clean the third:
+
+| # | Surface | Managed via |
+|---|---|---|
+| 1 | `~/.claude.json` | `claude mcp`, CLI + Desktop Code tab |
+| 2 | `claude_desktop_config.json` | Desktop Chat connector settings |
+| 3 | **the plugin package itself** | **Claude Desktop plugin UI only** |
+
+A plugin usually declares its servers in a sibling `.mcp.json`. But it may also declare them
+**inline** under `mcpServers` in `.claude-plugin/plugin.json` — and then the plugin re-registers
+that server from inside its own package, independent of surfaces 1 and 2.
+
+**The case that taught this** (resolved — `desktop-commander` was uninstalled 2026-07-28). The
+operator had removed it from *both* host configs and replaced it with `FilesystemPlus` — correctly,
+and that stuck. But the plugin was still installed, and it declared inline:
+
+```json
+"mcpServers": { "desktop-commander": { "command": "npx", "args": ["-y", "@wonderwhy-er/desktop-commander@latest"] } }
+```
+
+So it kept coming back: 26 `mcp__plugin_desktop-commander_*` tools loaded in a session on
+2026-07-28, and `@wonderwhy-er/desktop-commander-0.2.46.tgz` sits in the npm cache — it had
+fetched and executed. An unpinned `@latest` third-party package providing terminal execution,
+process management, and filesystem access, entirely outside the sudo-gate / YubiKey model.
+
+It is also the reason the 2026-07-24 record was wrong: the original enumeration read only
+`.mcp.json`, so it logged this plugin as having **zero** MCP servers.
+
+**Now enforced — two tripwires.** `scripts/audit-connector-coverage.js` scans every plugin package
+for inline `mcpServers` declarations, and separately re-checks that every tombstoned plugin is
+still absent from disk. Both were negative-tested against a simulated reinstall. Run it after
+installing any plugin:
+
+```bash
+node scripts/audit-connector-coverage.js
+```
+
+**Removal is operator-only.** `claude plugin` manages only `~/.claude/plugins/` (the CLI
+marketplace) and cannot see rpm plugins; the rpm `manifest.json` is cloud-synced and must not be
+hand-edited. Uninstall in the Claude Desktop plugin UI, then fully quit and reopen the app.
+
+**Verified removal, 2026-07-28** — six independent checks, all green:
+
+| # | Check | Result |
+|---|---|---|
+| 1 | Package dir on disk | gone |
+| 2 | Any package named `desktop-commander` | none (12 remain) |
+| 3 | Entry in rpm `manifest.json` | absent (13 → 12) |
+| 4 | Inline-MCP detector | 0 across 12 packages |
+| 5 | Both host configs | still clean, no re-add |
+| 6 | Running process | none |
 
 ---
 

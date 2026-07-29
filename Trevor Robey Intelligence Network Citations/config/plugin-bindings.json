@@ -485,8 +485,20 @@
   "installed_not_bound": {
     "rationale": "Present in the session but NOT in the operator's requested set on 2026-07-24. Recorded so their absence from the bindings above reads as a decision, not an oversight.",
     "plugins": {
-      "desktop-commander": { "version": "0.2.0", "note": "Overlaps existing stack surfaces (terminal, Obsidian vault, knowledge base) that this repo already owns through the :8798 bridge and term-bridge. Not bound — would create a second, ungoverned path to the vault." },
       "cowork-plugin-management": { "version": "0.2.2", "note": "Tooling for authoring/customizing plugins. Its cowork-plugin-customizer skill cannot run on this surface: it requires Cowork's mnt/.local-plugins mounts, which do not exist in CLI Claude Code. That limitation is why these bindings are repo-owned rather than stamped into the plugin packages." }
+    }
+  },
+
+  "removed": {
+    "rationale": "Plugins deliberately uninstalled. Kept as tombstones so a removal cannot silently reverse and so the reason survives the decision.",
+    "plugins": {
+      "desktop-commander": {
+        "version": "0.2.0",
+        "removed": "2026-07-28",
+        "superseded_by": "FilesystemPlus MCP server (roots /Users/myhome + /Volumes/ExtraCurricular)",
+        "note": "The operator had already swapped this for FilesystemPlus in BOTH host configs — correctly — but the removal did not take, because the plugin declared `desktop-commander` (`npx -y @wonderwhy-er/desktop-commander@latest`) INLINE under mcpServers in .claude-plugin/plugin.json rather than in a sibling .mcp.json, and re-registered it from inside its own package. That makes a plugin package a THIRD MCP registration surface. It carried terminal execution, process management and filesystem access outside the sudo-gate / YubiKey model, from an unpinned @latest third-party package. Confirmed live before removal (26 tools loaded; 0.2.46 tgz cached), then verified gone on 2026-07-28 by six checks including the new inline-MCP detector.",
+        "if_it_returns": "`node scripts/audit-connector-coverage.js` flags inline declarations — that warning is the tripwire. Do not suppress it; uninstall via the Claude Desktop plugin UI (the CLI cannot see rpm plugins, and the cloud-synced rpm manifest.json must not be hand-edited)."
+      }
     }
   },
 

@@ -1472,8 +1472,21 @@
       { "id": "ralph-loop", "lane": "infra", "surface": "cli-marketplace", "version": "1.0.0", "skills": 3, "mcp_connected": 0, "mcp_needs_auth": 0, "note": "Autonomous iteration harness with a Stop hook. NEVER loop anything that triggers a YubiKey ceremony or an outward-facing action." }
     ],
     "installed_not_bound": [
-      { "id": "desktop-commander", "version": "0.2.0", "reason": "Overlaps stack surfaces this repo already owns (terminal, vault, knowledge base) via the :8798 bridge and term-bridge; binding it would create a second ungoverned path to the vault." },
       { "id": "cowork-plugin-management", "version": "0.2.2", "reason": "Plugin-authoring tooling. Its cowork-plugin-customizer skill requires Cowork's mnt/.local-plugins mounts, absent in CLI Claude Code — the reason these bindings are repo-owned rather than stamped into the plugin packages." }
+    ],
+    "removed": [
+      {
+        "id": "desktop-commander",
+        "version": "0.2.0",
+        "removed": "2026-07-28",
+        "removed_by": "operator, via the Claude Desktop plugin UI",
+        "reason": "Superseded by the FilesystemPlus MCP server. The operator had already removed desktop-commander from BOTH host configs (~/.claude.json and claude_desktop_config.json) — but the plugin re-registered it from inside its own package, so the removal did not take.",
+        "mechanism": "It declared `desktop-commander` (`npx -y @wonderwhy-er/desktop-commander@latest`) INLINE under mcpServers in .claude-plugin/plugin.json — the only plugin of the 13 to do so, rather than in a sibling .mcp.json. A plugin package is therefore a THIRD MCP registration surface, independent of both host configs.",
+        "risk_it_carried": "Unpinned @latest third-party npm package providing terminal execution, process management and filesystem access OUTSIDE the sudo-gate / YubiKey model. Confirmed live, not theoretical: 26 mcp__plugin_desktop-commander_* tools loaded in a 2026-07-28 session, and @wonderwhy-er/desktop-commander-0.2.46.tgz was present in the npm cache.",
+        "verification": "2026-07-28 post-removal, six checks all green: package dir gone; no package named desktop-commander (12 remain); absent from rpm manifest.json (13 -> 12); inline-MCP detector reports 0 across 12 packages; both host configs still clean; no process running.",
+        "do_not_reinstall": "FilesystemPlus (roots /Users/myhome + /Volumes/ExtraCurricular) covers the filesystem role. If this is ever reinstalled, `node scripts/audit-connector-coverage.js` will flag the inline declaration again — that warning is the tripwire, do not suppress it.",
+        "record_correction": "The 2026-07-24 enumeration read only .mcp.json and therefore recorded this plugin as having ZERO MCP servers. That was the blind spot; the audit now scans both declaration sites."
+      }
     ]
   },
   "last_reconciled": "2026-07-24",
