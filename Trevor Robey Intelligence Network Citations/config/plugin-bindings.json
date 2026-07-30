@@ -5,7 +5,6 @@
   "source_of_truth": "this file for plugin-to-business bindings; config/connector-registry.json remains source of truth for connector lanes, prefetch binding, and the Phase-30 citation gate. When a plugin category resolves to a research connector, this file POINTS AT the registry entry and never restates its binding.",
   "companion_doc": "PLUGIN-BINDINGS.md (human/agent-readable, one section per plugin)",
   "why_repo_owned": "The 11 business-domain plugins are materialized per-session under ~/Library/Application Support/Claude/local-agent-mode-sessions/<uuid>/<uuid>/rpm/plugin_*/ — session-scoped, cloud-synced, and outside git. Editing those packages in place is neither durable nor reviewable. This repo file is loaded by all four Claude surfaces via the repo CLAUDE.md pointer, so the bindings apply wherever a plugin skill runs.",
-
   "posture": {
     "inherited_from": "repo CLAUDE.md -> Rules; _continuity/CONTINUITY.md -> Operating posture; SYSTEM-REALITY.md",
     "rules": [
@@ -21,61 +20,82 @@
       "ARTIFACT-PLACEMENT: session artifacts to .archive/; engine run artifacts to workspace/audit/; security artifacts to ~/Security Everything (never the monorepo)."
     ]
   },
-
   "category_bindings": {
     "~~literature": {
       "bound": true,
       "resolves_to": "PubMed + Europe PMC + bioRxiv/medRxiv + Consensus",
-      "registry_ids": ["pubmed", "europepmc", "biorxiv-medrxiv", "consensus"],
+      "registry_ids": [
+        "pubmed",
+        "europepmc",
+        "biorxiv-medrxiv",
+        "consensus"
+      ],
       "lane": "research",
       "note": "Citation-bearing. Pair with scholar-sidekick (verifyCitation / checkRetraction) before asserting any reference is genuine — a resolvable DOI with an invented title is the dominant fabrication pattern."
     },
     "~~clinical trials": {
       "bound": true,
       "resolves_to": "ClinicalTrials.gov v2",
-      "registry_ids": ["clinicaltrials-gov", "ctgov-supplemental"],
+      "registry_ids": [
+        "clinicaltrials-gov",
+        "ctgov-supplemental"
+      ],
       "lane": "research",
       "note": "ctgov-supplemental adds sponsor-stated stop reasons + change history; it is what feeds deliverables/graveyard-memo.md and the Trial Graveyard Feed."
     },
     "~~chemical database": {
       "bound": true,
       "resolves_to": "ChEMBL",
-      "registry_ids": ["chembl"],
+      "registry_ids": [
+        "chembl"
+      ],
       "lane": "research",
       "note": "PubChem/DrugBank are NOT connected — do not cite them."
     },
     "~~drug targets": {
       "bound": true,
       "resolves_to": "Open Targets (open-targets-graphql)",
-      "registry_ids": ["open-targets-graphql", "opentargets-tooluniverse"],
+      "registry_ids": [
+        "open-targets-graphql",
+        "opentargets-tooluniverse"
+      ],
       "lane": "research",
       "note": "Shipped 2026-07-23 in commit 134a5ad; closed the registry's last HIGH-priority adapter gap."
     },
     "~~journal access": {
       "bound": false,
       "resolves_to": "Wiley Scholar Gateway — CONNECTED BUT UNAUTHENTICATED",
-      "registry_ids": ["plugin:bio-research:wiley"],
+      "registry_ids": [
+        "plugin:bio-research:wiley"
+      ],
       "lane": "research",
       "note": "Operator must complete OAuth. Until then treat paywalled full text as unavailable; use checkOpenAccess for a legal open copy."
     },
     "~~data repository": {
       "bound": false,
       "resolves_to": "Synapse — CONNECTED BUT UNAUTHENTICATED",
-      "registry_ids": ["plugin:bio-research:synapse"],
+      "registry_ids": [
+        "plugin:bio-research:synapse"
+      ],
       "lane": "research",
       "note": "Operator OAuth pending."
     },
     "~~AI research": {
       "bound": false,
       "resolves_to": "Owkin — CONNECTED BUT UNAUTHENTICATED",
-      "registry_ids": ["owkin", "plugin:bio-research:owkin"],
+      "registry_ids": [
+        "owkin",
+        "plugin:bio-research:owkin"
+      ],
       "lane": "research",
       "note": "Operator OAuth pending."
     },
     "~~scientific illustration": {
       "bound": false,
       "resolves_to": "BioRender — CONNECTED BUT UNAUTHENTICATED",
-      "registry_ids": ["plugin:bio-research:biorender"],
+      "registry_ids": [
+        "plugin:bio-research:biorender"
+      ],
       "lane": "research",
       "note": "Operator OAuth pending. Deliverable figures are otherwise text/markdown only."
     },
@@ -100,7 +120,11 @@
     "~~email": {
       "bound": true,
       "resolves_to": "Gmail — trevor@trevorobeyinc.com (Google Workspace, Zoho cutover completed 2026-07-22)",
-      "registry_ids": ["gmail", "zoho-mail", "zoho-trinc"],
+      "registry_ids": [
+        "gmail",
+        "zoho-mail",
+        "zoho-trinc"
+      ],
       "lane": "business",
       "note": "zoho-mail / zoho-trinc are the legacy pre-cutover mailboxes, retained read-only. DRAFT ONLY — never send without explicit per-message operator approval."
     },
@@ -143,7 +167,10 @@
     "~~monitoring": {
       "bound": true,
       "resolves_to": "CrowdStrike Falcon (security lane, propose-only); optional Prometheus :9090 + Grafana :3001",
-      "registry_ids": ["falcon", "firewalla"],
+      "registry_ids": [
+        "falcon",
+        "firewalla"
+      ],
       "lane": "security",
       "note": "Datadog is NOT connected. Prometheus currently has no scrape target — the biomedical workflow has no persistent gateway."
     },
@@ -185,11 +212,11 @@
       "fallback": "inbound mail to trevor@ / support@trevorobeyinc.com"
     },
     "~~CRM": {
-      "bound": false,
-      "resolves_to": "NONE — no HubSpot / Close / Salesforce / Monday",
-      "lane": "n/a",
-      "fallback": "REVENUE_PLAYBOOK.md (offering ladder + pricing of record) and the AWS Marketplace Management Portal (the only real order surface)",
-      "note": "sales:* skills must NOT invent deal stages, ARR, or a pipeline. Pre-revenue as of 2026-07-24."
+      "bound": true,
+      "resolves_to": "12-pipeline-tracking/ — a file-based four-stage funnel: discovery-calls.md -> nda-pipeline.md -> signed-deals.md -> kpis-end-of-month.md",
+      "lane": "business",
+      "fallback": "REVENUE_PLAYBOOK.md / OFFERINGS.md for the ladder and pricing of record; the AWS Marketplace Management Portal is the only real order surface",
+      "note": "CORRECTED 2026-07-29 — this was previously recorded as NONE, which was wrong and sent sales-adjacent skills to the wrong fallback. There is no SaaS CRM (no HubSpot/Close/Salesforce/Monday), but there IS a maintained manual funnel at 12-pipeline-tracking/. Each file declares an explicit `Zero baseline (2026-06-10)` and states its zeros outright (`_none yet_`, 0, $0) rather than leaving blanks that invite invention — the never-fabricate doctrine applied to the funnel itself. It is current, not stale: the KPI monthly log carries a 2026-07 (update 07-22) row recording the AWS paid-selling clearance. First-wave targets are named per persona (P1 pharma CI: AstraZeneca/GSK/AbbVie · P2 quant alt-data: Point72/Citadel/RA Capital · P3 target discovery: Iambic/Recursion/Isomorphic · P4 academic/boutique: ClearView/Trinity/Clarivate). STILL TRUE: never invent a deal stage, ARR, or a weighted forecast — with 0 deals the correct output is the actual zeros, read from these files."
     },
     "~~data enrichment": {
       "bound": true,
@@ -218,9 +245,23 @@
     "~~competitive intelligence": {
       "bound": true,
       "resolves_to": "searxng-search (self-hosted, :8891 HTTPS) + ClinicalTrials.gov sponsor queries + PubMed",
-      "registry_ids": ["searxng-search", "clinicaltrials-gov", "pubmed"],
+      "registry_ids": [
+        "searxng-search",
+        "clinicaltrials-gov",
+        "pubmed"
+      ],
       "lane": "research",
       "note": "Similarweb is NOT authenticated. Competitor pipeline intel comes from c-trials search_by_sponsor, which is citable; web results are not."
+    },
+    "~~patent": {
+      "bound": true,
+      "resolves_to": "PatSnap Patent & Literature Search (claude.ai host connector, OAuth 2026-07-29)",
+      "registry_ids": [
+        "patsnap"
+      ],
+      "lane": "research",
+      "declared_ahead_of_plugins": "NO installed plugin ships a ~~patent placeholder — this category is declared because the BUSINESS acquired the capability, not because a template asked for it. It is therefore absent from the audit's plugin-referenced category count by design, and that is not drift.",
+      "note": "CHAT-SUPERVISORY ONLY. Reachable from Claude Code / claude.ai; NOT reachable from the run-workflow.js subprocess, and deliberately absent from config/tool-prefetch-map.json. Hard constraint before any customer-facing use: a patent publication number is NOT one of the seven identifier types citation-extractor.js recognizes, so a patent finding is never extracted as a citation at all — INVISIBLE to the Phase-30 gate (verified in citation-gate.js:106-108), not counted against it. It is neither grounded nor retraction-screened, and it neither raises nor lowers the citation-integrity grade. The sharp customer risk is therefore grade-adjacency, not ratio damage: a buyer seeing an A grade beside a patent section will assume the patents were graded. Until the gap is closed, patent findings may inform operator judgement but must NOT be presented in a deliverable as citation-traced — say 'patent evidence, outside the citation gate' and carry the grade-adjacency disclosure. Fence language and the legal boundary (search/landscape only, never an FTO opinion): 01-brand-system/founder-lane-2026-07-29.md."
     },
     "~~design": {
       "bound": false,
@@ -264,18 +305,40 @@
       "fallback": "operations:vendor-review produces a memo; the operator decides and pays"
     }
   },
-
   "plugins": {
     "productivity": {
       "surface": "desktop-rpm",
       "version": "1.3.0",
       "lane": "business",
-      "skills": ["start", "task-management", "update", "memory-management"],
+      "skills": [
+        "start",
+        "task-management",
+        "update",
+        "memory-management"
+      ],
       "mcp_servers": {
-        "needs_auth": ["asana", "atlassian", "clickup", "linear", "monday", "notion", "slack"],
-        "connected": ["gmail", "google calendar"]
+        "needs_auth": [
+          "asana",
+          "atlassian",
+          "clickup",
+          "linear",
+          "monday",
+          "notion",
+          "slack"
+        ],
+        "connected": [
+          "gmail",
+          "google calendar"
+        ]
       },
-      "categories": ["~~calendar", "~~chat", "~~email", "~~knowledge base", "~~office suite", "~~project tracker"],
+      "categories": [
+        "~~calendar",
+        "~~chat",
+        "~~email",
+        "~~knowledge base",
+        "~~office suite",
+        "~~project tracker"
+      ],
       "business_binding": "Runs on Gmail + Google Calendar + the Obsidian vault. There is NO project tracker and NO chat — task state lives in _continuity/CONTINUITY.md, and TASKS.md if the operator opts into one.",
       "guardrails": [
         "Do not bootstrap TASKS.md from a project tracker — there isn't one; seed it from the continuity board instead.",
@@ -286,12 +349,39 @@
       "surface": "desktop-rpm",
       "version": "1.3.0",
       "lane": "business",
-      "skills": ["capacity-plan", "change-request", "compliance-tracking", "process-doc", "process-optimization", "risk-assessment", "runbook", "status-report", "vendor-review"],
+      "skills": [
+        "capacity-plan",
+        "change-request",
+        "compliance-tracking",
+        "process-doc",
+        "process-optimization",
+        "risk-assessment",
+        "runbook",
+        "status-report",
+        "vendor-review"
+      ],
       "mcp_servers": {
-        "needs_auth": ["asana", "atlassian", "notion", "slack"],
-        "connected": ["gmail", "google calendar"]
+        "needs_auth": [
+          "asana",
+          "atlassian",
+          "notion",
+          "slack"
+        ],
+        "connected": [
+          "gmail",
+          "google calendar"
+        ]
       },
-      "categories": ["~~ITSM", "~~calendar", "~~chat", "~~email", "~~knowledge base", "~~office suite", "~~procurement", "~~project tracker"],
+      "categories": [
+        "~~ITSM",
+        "~~calendar",
+        "~~chat",
+        "~~email",
+        "~~knowledge base",
+        "~~office suite",
+        "~~procurement",
+        "~~project tracker"
+      ],
       "business_binding": "The highest-value plugin here right now. compliance-tracking has REAL subject matter: CA LLC B20260217250, the $800 franchise tax due 2026-08-15, the AWS Data Exchange seller obligations, and the DSA/legal-review gate blocking the first paid listing. risk-assessment maps onto the open R1 risk (AWS root email is still the operator's .edu address).",
       "guardrails": [
         "capacity-plan: the team is ONE person. Do not model headcount, sprints, or utilization across a team that does not exist.",
@@ -303,15 +393,46 @@
       "surface": "desktop-rpm",
       "version": "1.2.0",
       "lane": "business",
-      "skills": ["architecture", "code-review", "debug", "deploy-checklist", "documentation", "incident-response", "standup", "system-design", "tech-debt", "testing-strategy"],
+      "skills": [
+        "architecture",
+        "code-review",
+        "debug",
+        "deploy-checklist",
+        "documentation",
+        "incident-response",
+        "standup",
+        "system-design",
+        "tech-debt",
+        "testing-strategy"
+      ],
       "mcp_servers": {
         "REPLACED_2026-07-28": "Superseded by `trinc-engineering@trinc-local` v1.0.0 (~/.claude/local-plugins/trinc-engineering/) — 3 purpose-built skills, 0 MCP servers, ~630 always-on tokens vs upstream's 10 generic skills / 10 servers / ~871 tokens. Skills: invariant-check (runs this repo's real gates — lint-transport-monorepo.sh --strict, npm test @ 1013 baseline, globals:lint, audit:connectors, secrets:verify, phase verifies, both bridge lint:transport — then checks what no gate sees: HTTPS-only no-plaintext-fallback, restricted globals in openclaw-bridge/, the 0.75 citation floor, the four frozen Obsidian plugin IDs, the port map, never --no-gpg-sign); deploy-surface (the real deploy targets and the three silent-failure modes: TLS proxies run from a STAGED copy so editing the repo file does nothing until install-tls-proxies.sh re-runs, the live worker is shy-grass-fccd not the folder name openclaw-landing-deploy, and both bridges die with Obsidian); stack-decision (record decisions — especially DECLINED ones — where the machinery collides with them, using this repo's tombstone convention). Security is deliberately OUT of scope in all three: they hand off to security-orchestration, and upstream's incident-response was cut for that reason. Every emitted command was executed and verified before shipping. Cut as duplicates/inapplicable: debug (local skill is 187 lines + playbooks and would name-collide), incident-response, standup, documentation; merged into invariant-check: system-design, tech-debt, testing-strategy, code-review.",
         "DROPPED_2026-07-28": "The upstream engineering plugin was UNINSTALLED, not merely sanitized. Once inspected, its ten skills proved to be a pure generic template with ZERO references to this business (grep for trevor/robey/biomedical/citation/obsidian/zettelkasten/openclaw returns nothing) — the operator had assumed it was tailored. Worse, engineering:debug (95 lines) duplicates and name-collides with the local ~/.claude/skills/debug (187 lines + a references/ playbook set) that is purpose-built for this stack; likewise refactor. Its genuinely distinct skills (standup, deploy-checklist, incident-response) assume Jira/Slack/PagerDuty/CI, none of which exist here, and the whole thing cost ~871 always-on tokens per session. The sanitized build was uninstalled; the package + trinc-local marketplace remain on disk at ~/.claude/local-plugins/ so reinstating is one command. The deny rules and gate-shadow audit are RETAINED — they now guard the next plugin, not this one.",
         "RESOLVED_2026-07-28": "[superseded by DROPPED_2026-07-28 above; retained because the SANITIZE-DON'T-GUARD technique it records is reusable] This plugin ran briefly as a SANITIZED LOCAL BUILD with ZERO MCP servers: `engineering@trinc-local` v1.2.0-trinc.1 at ~/.claude/local-plugins/engineering/, served by the local marketplace `trinc-local`. Skills are byte-identical to upstream (verified `diff -r` clean); the ONLY change is the deleted .mcp.json. Verify with `claude plugin details engineering` -> must report 'Skills (10)  ...  MCP servers (0)'. Rationale: no engineering skill references any MCP tool (they use only ~~placeholder categories this file already binds), and 8 of the 10 upstream servers map to categories that resolve to NONE here — so the surface was pure liability, chiefly the ungated `github` server duplicating the YubiKey-gated host MCP. The lists below describe the UPSTREAM package, retained for reference and because the marketplace copy is still installed pending operator uninstall via the Claude Desktop plugin UI.",
-        "needs_auth": ["asana", "atlassian", "datadog", "github", "linear", "notion", "pagerduty", "slack"],
-        "connected": ["gmail", "google calendar"]
+        "needs_auth": [
+          "asana",
+          "atlassian",
+          "datadog",
+          "github",
+          "linear",
+          "notion",
+          "pagerduty",
+          "slack"
+        ],
+        "connected": [
+          "gmail",
+          "google calendar"
+        ]
       },
-      "categories": ["~~CI/CD", "~~chat", "~~incident management", "~~knowledge base", "~~monitoring", "~~project tracker", "~~source control"],
+      "categories": [
+        "~~CI/CD",
+        "~~chat",
+        "~~incident management",
+        "~~knowledge base",
+        "~~monitoring",
+        "~~project tracker",
+        "~~source control"
+      ],
       "business_binding": "Targets this monorepo. Source control is LOCAL git with no remote; there is no CI, no PR flow, and no on-call rotation. The real quality gates are the transport lint, the per-bridge lint:transport, the engine unit suite (985/985 green as of 2026-07-22), and verify-phase29-policy.sh.",
       "guardrails": [
         "deploy-checklist must not assume a remote, a PR, or a pipeline — the deploy surfaces are the Obsidian plugin lifecycle, launchd units, and the Cloudflare worker.",
@@ -324,12 +445,37 @@
       "surface": "desktop-rpm",
       "version": "1.1.0",
       "lane": "business",
-      "skills": ["analyze", "build-dashboard", "create-viz", "data-context-extractor", "data-visualization", "explore-data", "sql-queries", "statistical-analysis", "validate-data", "write-query"],
+      "skills": [
+        "analyze",
+        "build-dashboard",
+        "create-viz",
+        "data-context-extractor",
+        "data-visualization",
+        "explore-data",
+        "sql-queries",
+        "statistical-analysis",
+        "validate-data",
+        "write-query"
+      ],
       "mcp_servers": {
-        "needs_auth": ["amplitude", "amplitude-eu", "atlassian", "bigquery", "databricks", "definite", "hex", "snowflake"],
+        "needs_auth": [
+          "amplitude",
+          "amplitude-eu",
+          "atlassian",
+          "bigquery",
+          "databricks",
+          "definite",
+          "hex",
+          "snowflake"
+        ],
         "connected": []
       },
-      "categories": ["~~data warehouse", "~~notebook", "~~product analytics", "~~project tracker"],
+      "categories": [
+        "~~data warehouse",
+        "~~notebook",
+        "~~product analytics",
+        "~~project tracker"
+      ],
       "business_binding": "NO warehouse is connected — every one of this plugin's MCP servers is unauthenticated. The real data this business has is the Trial Graveyard Feed (300 NCT-traced rows across 6 indications) at workspace/aws-marketplace-listing/trial-graveyard-feed/data/<indication>/paid/register.csv, the Qdrant vector store on :6433, and run artifacts in workspace/audit/. Point the skills there — NOT at workspace/datasets/, which holds unrelated retrieval_qa builds (several license_state: blocked) and not the product.",
       "guardrails": [
         "validate-data and statistical-analysis ARE useful today — run them against the Trial Graveyard Feed CSVs before the first paid AWS listing.",
@@ -341,12 +487,50 @@
       "surface": "desktop-rpm",
       "version": "1.2.0",
       "lane": "business",
-      "skills": ["competitive-brief", "metrics-review", "product-brainstorming", "roadmap-update", "sprint-planning", "stakeholder-update", "synthesize-research", "write-spec"],
+      "skills": [
+        "competitive-brief",
+        "metrics-review",
+        "product-brainstorming",
+        "roadmap-update",
+        "sprint-planning",
+        "stakeholder-update",
+        "synthesize-research",
+        "write-spec"
+      ],
       "mcp_servers": {
-        "needs_auth": ["amplitude", "amplitude-eu", "asana", "atlassian", "clickup", "figma", "fireflies", "intercom", "linear", "monday", "notion", "pendo", "similarweb", "slack"],
-        "connected": ["gmail", "google calendar"]
+        "needs_auth": [
+          "amplitude",
+          "amplitude-eu",
+          "asana",
+          "atlassian",
+          "clickup",
+          "figma",
+          "fireflies",
+          "intercom",
+          "linear",
+          "monday",
+          "notion",
+          "pendo",
+          "similarweb",
+          "slack"
+        ],
+        "connected": [
+          "gmail",
+          "google calendar"
+        ]
       },
-      "categories": ["~~calendar", "~~chat", "~~competitive intelligence", "~~design", "~~email", "~~knowledge base", "~~meeting transcription", "~~product analytics", "~~project tracker", "~~user feedback"],
+      "categories": [
+        "~~calendar",
+        "~~chat",
+        "~~competitive intelligence",
+        "~~design",
+        "~~email",
+        "~~knowledge base",
+        "~~meeting transcription",
+        "~~product analytics",
+        "~~project tracker",
+        "~~user feedback"
+      ],
       "business_binding": "The 'product' is the six-SKU offering ladder in OFFERINGS.md / REVENUE_PLAYBOOK.md plus the AWS Data Exchange feeds. The roadmap of record is _continuity/CONTINUITY.md 'Current focus'. There are no product analytics and no users to survey yet — the business is pre-revenue.",
       "guardrails": [
         "metrics-review has NO analytics source. Refuse to produce engagement metrics; the only real numbers are AWS seller reports and they are not yet flowing.",
@@ -358,12 +542,49 @@
       "surface": "desktop-rpm",
       "version": "1.3.0",
       "lane": "business",
-      "skills": ["account-research", "call-prep", "call-summary", "competitive-intelligence", "create-an-asset", "daily-briefing", "draft-outreach", "forecast", "pipeline-review"],
+      "skills": [
+        "account-research",
+        "call-prep",
+        "call-summary",
+        "competitive-intelligence",
+        "create-an-asset",
+        "daily-briefing",
+        "draft-outreach",
+        "forecast",
+        "pipeline-review"
+      ],
       "mcp_servers": {
-        "needs_auth": ["apollo", "atlassian", "clay", "close", "fireflies", "hubspot", "monday", "notion", "outreach", "similarweb", "slack", "zoominfo"],
-        "connected": ["gmail", "google calendar"]
+        "needs_auth": [
+          "apollo",
+          "atlassian",
+          "clay",
+          "close",
+          "fireflies",
+          "hubspot",
+          "monday",
+          "notion",
+          "outreach",
+          "similarweb",
+          "slack",
+          "zoominfo"
+        ],
+        "connected": [
+          "gmail",
+          "google calendar"
+        ]
       },
-      "categories": ["~~CRM", "~~calendar", "~~chat", "~~competitive intelligence", "~~conversation intelligence", "~~data enrichment", "~~email", "~~knowledge base", "~~project tracker", "~~sales engagement"],
+      "categories": [
+        "~~CRM",
+        "~~calendar",
+        "~~chat",
+        "~~competitive intelligence",
+        "~~conversation intelligence",
+        "~~data enrichment",
+        "~~email",
+        "~~knowledge base",
+        "~~project tracker",
+        "~~sales engagement"
+      ],
       "business_binding": "NO CRM exists and the business is pre-revenue as of 2026-07-24. Enrichment runs through vpai (vibe-prospecting), the one enrichment surface that is actually available. The ICP is biotech investors and pharma BD; the pitch is OFFERINGS.md; pricing is REVENUE_PLAYBOOK.md §2 and is never invented.",
       "guardrails": [
         "forecast and pipeline-review MUST report 'no CRM, no closed deals' rather than modelling a pipeline. A fabricated forecast is the exact failure this business sells against.",
@@ -375,12 +596,45 @@
       "surface": "desktop-rpm",
       "version": "1.2.0",
       "lane": "business",
-      "skills": ["brand-review", "campaign-plan", "competitive-brief", "content-creation", "draft-content", "email-sequence", "performance-report", "seo-audit"],
+      "skills": [
+        "brand-review",
+        "campaign-plan",
+        "competitive-brief",
+        "content-creation",
+        "draft-content",
+        "email-sequence",
+        "performance-report",
+        "seo-audit"
+      ],
       "mcp_servers": {
-        "needs_auth": ["ahrefs", "amplitude", "amplitude-eu", "canva", "figma", "hubspot", "klaviyo", "notion", "similarweb", "slack", "supermetrics"],
-        "connected": ["gmail", "google calendar"]
+        "needs_auth": [
+          "ahrefs",
+          "amplitude",
+          "amplitude-eu",
+          "canva",
+          "figma",
+          "hubspot",
+          "klaviyo",
+          "notion",
+          "similarweb",
+          "slack",
+          "supermetrics"
+        ],
+        "connected": [
+          "gmail",
+          "google calendar"
+        ]
       },
-      "categories": ["~~SEO", "~~chat", "~~design", "~~email marketing", "~~knowledge base", "~~marketing analytics", "~~marketing automation", "~~product analytics"],
+      "categories": [
+        "~~SEO",
+        "~~chat",
+        "~~design",
+        "~~email marketing",
+        "~~knowledge base",
+        "~~marketing analytics",
+        "~~marketing automation",
+        "~~product analytics"
+      ],
       "business_binding": "brand-review is the load-bearing skill and it has a real, strict brand canon: the wordmark is 'Trevor Robey, INC.' where INC = Intelligence Network Citations, and every customer-facing use pairs it with the LLC disclosure. Tagline and elevator are fixed. Everything else in this plugin is unbound — no SEO tool, no analytics, no automation.",
       "guardrails": [
         "LEGAL: never render the wordmark without the disclosure 'Trevor Robey, INC. is the wordmark of Trevor Robey Intelligence Network Citations LLC, a California limited liability company.' Cal. Bus. & Prof. Code §17910.5(a) is why.",
@@ -393,12 +647,39 @@
       "surface": "desktop-rpm",
       "version": "1.2.0",
       "lane": "business",
-      "skills": ["accessibility-review", "design-critique", "design-handoff", "design-system", "research-synthesis", "user-research", "ux-copy"],
+      "skills": [
+        "accessibility-review",
+        "design-critique",
+        "design-handoff",
+        "design-system",
+        "research-synthesis",
+        "user-research",
+        "ux-copy"
+      ],
       "mcp_servers": {
-        "needs_auth": ["asana", "atlassian", "figma", "intercom", "linear", "notion", "slack"],
-        "connected": ["gmail", "google calendar"]
+        "needs_auth": [
+          "asana",
+          "atlassian",
+          "figma",
+          "intercom",
+          "linear",
+          "notion",
+          "slack"
+        ],
+        "connected": [
+          "gmail",
+          "google calendar"
+        ]
       },
-      "categories": ["~~category", "~~chat", "~~design tool", "~~knowledge base", "~~product analytics", "~~project tracker", "~~user feedback"],
+      "categories": [
+        "~~category",
+        "~~chat",
+        "~~design tool",
+        "~~knowledge base",
+        "~~product analytics",
+        "~~project tracker",
+        "~~user feedback"
+      ],
       "business_binding": "No Figma. The only real design surfaces are the landing page in workspace/collateral/landing-page/ (Cloudflare worker shy-grass-fccd), the Obsidian plugin UIs (Command Center, Zettelkasten, Bridge Launcher, Wiki Definitions), and the rendered report deliverables. accessibility-review and ux-copy apply to those directly; design-handoff has no recipient.",
       "guardrails": [
         "user-research has no users and no feedback tool — do not synthesize interviews that did not happen.",
@@ -409,26 +690,70 @@
       "surface": "desktop-rpm",
       "version": "1.2.0",
       "lane": "research",
-      "skills": ["start", "instrument-data-to-allotrope", "nextflow-development", "scientific-problem-selection", "scvi-tools", "single-cell-rna-qc"],
+      "skills": [
+        "start",
+        "instrument-data-to-allotrope",
+        "nextflow-development",
+        "scientific-problem-selection",
+        "scvi-tools",
+        "single-cell-rna-qc"
+      ],
       "mcp_servers": {
-        "connected": ["biorxiv", "c-trials", "chembl", "consensus", "ot", "pubmed"],
-        "needs_auth": ["benchling", "biorender", "owkin", "synapse", "wiley"]
+        "connected": [
+          "biorxiv",
+          "c-trials",
+          "chembl",
+          "consensus",
+          "ot",
+          "pubmed"
+        ],
+        "needs_auth": [
+          "benchling",
+          "biorender",
+          "owkin",
+          "synapse",
+          "wiley"
+        ]
       },
-      "categories": ["~~AI research", "~~chemical database", "~~clinical trials", "~~data repository", "~~drug targets", "~~journal access", "~~lab platform", "~~literature", "~~scientific illustration"],
+      "categories": [
+        "~~AI research",
+        "~~chemical database",
+        "~~clinical trials",
+        "~~data repository",
+        "~~drug targets",
+        "~~journal access",
+        "~~lab platform",
+        "~~literature",
+        "~~scientific illustration"
+      ],
       "business_binding": "The ONLY plugin whose MCP servers overlap the research lane. Its pubmed / chembl / c-trials / biorxiv / consensus / ot servers are Claude-host duplicates of connectors already registered and role-bound in connector-registry.json. They are for interactive/chat-side research; the engine keeps using its own subprocess adapters under openclaw-bridge/mcp/. Do not double-register them and do not add them to tool-prefetch-map.json.",
       "guardrails": [
         "DUPLICATE-AWARE: when a claim will land in a paid deliverable it must come through the engine's registered connectors so the Phase-30 grounding gate can see it. Host-side plugin lookups are for orientation.",
         "NO WET LAB: nextflow-development, scvi-tools, single-cell-rna-qc and instrument-data-to-allotrope are reference/public-data only. Never imply in-house sequencing, instruments, or sample handling.",
         "NO PHI — public datasets (GEO/SRA) only.",
         "Verify every citation with scholar-sidekick before it ships."
-      ]
+      ],
+      "SPLIT_VERDICT_2026-07-29": "KEEP the plugin for its SERVERS; treat its SKILLS as DO-NOT-USE. SKILLS: 4 of 6 assume capability this business does not have — nextflow-development (nf-core rnaseq/sarek/atacseq on sequencing data), instrument-data-to-allotrope (lab instrument output), scvi-tools and single-cell-rna-qc (single-cell .h5ad/.h5). There is no wet lab, no instruments and no sequencing; following them produces work implying in-house capability that does not exist, which for a citation-traced biomedical business is the exact failure it sells against. Usable ONLY as reference over public data (GEO/SRA), never implying in-house sequencing or sample handling. scientific-problem-selection and start are generic/marginal. SERVERS: verified against connector-registry.json — pubmed, chembl, c-trials(->clinicaltrials-gov), ot(->open-targets-graphql) and owkin all DUPLICATE existing subprocess-mcp engine adapters; biorxiv(->biorxiv-medrxiv) and consensus are registered claude-host-mcp; and wiley, synapse, biorender, benchling are NOT REGISTERED AT ALL. Uninstalling would forfeit the only path to Wiley (paywalled full text) and BioRender (figures for $9,950+ reports) — that is the sole reason the plugin stays. The five duplicates must stay OUT of config/tool-prefetch-map.json; the engine has its own adapters and double-registering dilutes the Phase-30 grounded-citation ratio.",
+      "FOUNDER_LANE_BRIDGE_2026-07-29": "The Founder Lane (01-brand-system/founder-lane-2026-07-29.md) makes a second buyer real: medical-startup founders. It CHANGES THE REASONING behind the wet-lab DO-NOT-USE rule without changing the rule. The old wording was 'there is no wet lab here' — but a biotech founder plausibly DOES have FASTQs, instruments and single-cell data, so a session could wrongly conclude nextflow-development / instrument-data-to-allotrope / scvi-tools / single-cell-rna-qc now apply. THEY DO NOT. The boundary is not whether the CLIENT has a lab; it is what this business sells: desk research over public biomedical databases, not CRO or bioinformatics services. Running a founder's pipelines would carry no wet-lab QMS, no method validation, and would sit ENTIRELY OUTSIDE the citation-integrity guarantee the product rests on. WHAT DOES serve a founder are two of this plugin's unregistered servers: BioRender (figures for the SBIR/STTR application itself — a recurring founder need) and Wiley (paywalled full text for prior-work sections). That is the concrete bridge, and it reinforces the authorize order Wiley -> BioRender -> Synapse. Operating summary lives in the trinc-founder plugin (skill: founder-fit).",
+      "LIVE_VERIFICATION_2026-07-29": "Tools CALLED, not assumed. WORKING: pubmed (returned real PMIDs 42530074/42512343, 2870 hits); chembl (CHEMBL810 temozolomide, approved 1999, full molecular properties); c-trials (275 TERMINATED glioblastoma trials with real NCT ids); consensus (returned 3 papers but is CAPPED AT 3 RESULTS without a free Consensus account); biorxiv (tool schemas present). DEGRADED: ot / Open Targets returned 'Rate limit exceeded for client: global' — throttled at the shared-client level, so unreliable even as a chat-side duplicate. NOT WORKING — ZERO TOOLS EXPOSED: wiley, biorender, synapse, benchling. An unauthenticated server exposes no tools at all; a ToolSearch for them returns nothing. THEREFORE, THE HONEST STATE TODAY: the five servers that work (pubmed, chembl, c-trials, ot, owkin) all DUPLICATE existing subprocess-mcp engine adapters, so they add nothing the engine does not already have; and the three that justify keeping the plugin (wiley, biorender, synapse) currently contribute NOTHING because they are unauthenticated. The KEEP verdict therefore stands as a BET ON FUTURE OAUTH, not as current value. If the operator does not intend to authorize Wiley/BioRender/Synapse, the correct action is to drop the plugin — reinstalling later is trivial (it is a marketplace plugin). Do not describe this plugin as adding capability today."
     },
     "pdf-viewer": {
       "surface": "desktop-rpm",
       "version": "0.2.0",
       "lane": "infra",
-      "skills": ["view-pdf", "open", "annotate", "fill-form", "sign"],
-      "mcp_servers": { "connected": ["pdf"], "needs_auth": [] },
+      "skills": [
+        "view-pdf",
+        "open",
+        "annotate",
+        "fill-form",
+        "sign"
+      ],
+      "mcp_servers": {
+        "connected": [
+          "pdf"
+        ],
+        "needs_auth": []
+      },
       "categories": [],
       "business_binding": "Real, immediate use: the CA SOS certified LLC copy (Certificate No. 457169837), the AWS Data Exchange StandardDSA vs custom DSA comparison, vendor contracts, and the Strayer GPS dashboard PDF already cited in the portfolio. Placeholder-free, no auth needed — this one is ready to use as-is.",
       "guardrails": [
@@ -440,8 +765,14 @@
       "surface": "desktop-rpm",
       "version": "0.1.107",
       "lane": "business",
-      "skills": ["vibe-prospecting", "skip_sample"],
-      "mcp_servers": { "connected": [], "needs_auth": [] },
+      "skills": [
+        "vibe-prospecting",
+        "skip_sample"
+      ],
+      "mcp_servers": {
+        "connected": [],
+        "needs_auth": []
+      },
       "categories": [],
       "business_binding": "The business's only prospecting/enrichment capability, and therefore the resolution of ~~data enrichment for the sales plugin. ICP: biotech investors (diligence buyers) and pharma BD. Feeds sales:account-research and sales:draft-outreach.",
       "guardrails": [
@@ -456,8 +787,13 @@
       "version": "unknown",
       "lane": "infra",
       "enabled_in": "~/.claude/settings.json -> enabledPlugins",
-      "skills": ["frontend-design"],
-      "mcp_servers": { "connected": [], "needs_auth": [] },
+      "skills": [
+        "frontend-design"
+      ],
+      "mcp_servers": {
+        "connected": [],
+        "needs_auth": []
+      },
       "categories": [],
       "business_binding": "Resolves ~~design / ~~design tool for the design and marketing plugins, since there is no Figma. Applies to the landing page in workspace/collateral/landing-page/ and the four Obsidian plugin UIs.",
       "guardrails": [
@@ -471,8 +807,15 @@
       "version": "1.0.0",
       "lane": "infra",
       "enabled_in": "~/.claude/settings.json -> enabledPlugins",
-      "skills": ["ralph-loop", "cancel-ralph", "help"],
-      "mcp_servers": { "connected": [], "needs_auth": [] },
+      "skills": [
+        "ralph-loop",
+        "cancel-ralph",
+        "help"
+      ],
+      "mcp_servers": {
+        "connected": [],
+        "needs_auth": []
+      },
       "categories": [],
       "install_note": "Ships a Stop hook (hooks/stop-hook.sh) that re-drives the session until the loop is cancelled.",
       "business_binding": "Autonomous iteration harness. Legitimate targets are bounded, verifiable, local loops: driving the engine unit suite to green, working down .learnings/FEATURE_REQUESTS.md drift tickets, or grinding a dataset-validation pass over the Trial Graveyard Feed.",
@@ -484,34 +827,64 @@
       ]
     }
   },
-
   "installed_not_bound": {
     "rationale": "Present in the session but NOT in the operator's requested set on 2026-07-24. Recorded so their absence from the bindings above reads as a decision, not an oversight.",
     "plugins": {
-      "cowork-plugin-management": { "version": "0.2.2", "note": "Tooling for authoring/customizing plugins. Its cowork-plugin-customizer skill cannot run on this surface: it requires Cowork's mnt/.local-plugins mounts, which do not exist in CLI Claude Code. That limitation is why these bindings are repo-owned rather than stamped into the plugin packages." }
+      "cowork-plugin-management": {
+        "version": "0.2.2",
+        "note": "Tooling for authoring/customizing plugins. Its cowork-plugin-customizer skill cannot run on this surface: it requires Cowork's mnt/.local-plugins mounts, which do not exist in CLI Claude Code. That limitation is why these bindings are repo-owned rather than stamped into the plugin packages."
+      }
     }
   },
-
   "oauth_posture": {
     "recorded": "2026-07-28",
     "counting_note": "The 13 plugins reference 97 MCP server SLOTS but only 46 UNIQUE servers — `slack`, `notion`, `atlassian`, `gmail` and `google calendar` each appear in 7 plugins. Any per-plugin figure (e.g. the mcp_connected/mcp_needs_auth pairs in connector-registry.json plugin_surfaces) is a SLOT count and must not be summed into a server total.",
     "rule": "Authorize a plugin MCP server ONLY when its category is bound to a real tool in this file. A server whose category resolves to NONE corresponds to a tool this business does not use — leaving it unauthenticated is the CORRECT end state, not a gap to close. Authorizing it would create a live surface for a tool with no role here.",
     "authorize": [
-      { "server": "plugin:bio-research:wiley", "category": "~~journal access", "why": "unlocks paywalled full text for paid deliverables", "priority": 1 },
-      { "server": "plugin:bio-research:biorender", "category": "~~scientific illustration", "why": "figures for the $9,950+ reports; deliverables are otherwise text/markdown only", "priority": 2 },
-      { "server": "plugin:bio-research:synapse", "category": "~~data repository", "why": "public biomedical dataset access", "priority": 3 },
-      { "server": "plugin:bio-research:owkin", "category": "~~AI research", "why": "histopathology / AI-for-biology lane", "priority": 4 }
+      {
+        "server": "plugin:bio-research:wiley",
+        "category": "~~journal access",
+        "why": "unlocks paywalled full text for paid deliverables; NOT registered anywhere else",
+        "priority": 1
+      },
+      {
+        "server": "plugin:bio-research:biorender",
+        "category": "~~scientific illustration",
+        "why": "figures for the $9,950+ reports; NOT registered anywhere else",
+        "priority": 2
+      },
+      {
+        "server": "plugin:bio-research:synapse",
+        "category": "~~data repository",
+        "why": "public biomedical dataset access; NOT registered anywhere else",
+        "priority": 3
+      },
+      {
+        "server": "plugin:bio-research:owkin",
+        "category": "~~AI research",
+        "why": "DEMOTED 2026-07-29 — duplicates the existing owkin subprocess-mcp engine adapter, so it only adds a chat-side surface. Authorize last, or not at all.",
+        "priority": 4
+      }
     ],
     "do_not_authorize": {
       "plugin:engineering:github": "SECURITY — the engineering plugin ships its own github server at https://api.githubcopilot.com/mcp/ (HTTP OAuth, ungated). The host-level GitHub MCP in ~/.claude.json is /Users/myhome/.local/bin/github-mcp-keychain-wrapper.sh, which carries its own arm plus a per-unseal PIN+touch. Authorizing the plugin copy would create a SECOND GitHub path bypassing the YubiKey gate — the global ~/.claude/CLAUDE.md marks this NON-NEGOTIABLE: 'github MCP stays EXACTLY as-is ... never fold it into the Claude-triggered flow.' Same shape as the desktop-commander inline-MCP finding: a plugin quietly re-providing a surface that was deliberately gated elsewhere. Currently unauthenticated — the bypass does not exist unless someone authorizes it. CONTAINED 2026-07-28 by `permissions.deny: [\"mcp__plugin_engineering_github__*\"]` at BOTH the user scope (~/.claude/settings.json) and the repo scope (.claude/settings.json — version-controlled, so a global settings reset cannot silently drop it). The audit verifies both scopes on every run and nags if only the user-global copy survives. Rejected as disproportionate: a network block on api.githubcopilot.com (it resolves via glb-<hash>.github.com to GitHub's shared load balancer, so it would risk collateral damage to other GitHub services and VS Code Copilot). Available but PROPOSE-ONLY: adding mcp__plugin_engineering_github__ to the PreToolUse session-gate hook's MATCHER + sub-agent policy path, exactly as zoho-mail/zoho-trinc are handled — a fourth layer in a different mechanism, deliberately not applied because it touches security-critical infra that stays propose-only and requires MATCHER/scope_for() lockstep plus a re-install.",
       "everything_else": "~26 further servers (slack, notion, atlassian, asana, linear, monday, clickup, hubspot, close, apollo, outreach, clay, zoominfo, amplitude, amplitude-eu, pendo, intercom, figma, canva, ahrefs, similarweb, klaviyo, supermetrics, snowflake, databricks, bigquery, hex, definite, datadog, pagerduty, benchling, fireflies) all map to categories that resolve to an explicit NONE. Leave them unauthenticated."
     },
-    "already_working_no_auth_needed": ["pubmed", "chembl", "c-trials", "biorxiv", "consensus", "ot", "pdf", "gmail", "google calendar"],
+    "already_working_no_auth_needed": [
+      "pubmed",
+      "chembl",
+      "c-trials",
+      "biorxiv",
+      "consensus",
+      "ot",
+      "pdf",
+      "gmail",
+      "google calendar"
+    ],
     "sanitize_dont_guard": "THE ACTUAL RESOLUTION (2026-07-28). Rounds of work went into containing the engineering plugin's ungated github server — deny rules, an audit check, a rejected network block — when the right move was to remove the server instead of guarding it. No engineering skill references any MCP tool, and 8 of its 10 servers map to categories that resolve to NONE here, so the whole surface was liability with no upside. Fix: a sanitized local build at ~/.claude/local-plugins/engineering/ (marketplace `trinc-local`, v1.2.0-trinc.1) with .mcp.json deleted — skills byte-identical, `claude plugin details engineering` reports 'Skills (10) ... MCP servers (0)'. GENERALIZE THIS: when a plugin's value is its skills and its bundled MCP servers bind to tools this business does not have, sanitize the package rather than accumulate mitigations around it. The deny rules and gate-shadow audit stay regardless — they catch the NEXT plugin, one nobody has sanitized yet.",
     "why_no_redirect": "The operator asked whether the engineering plugin could be pointed at the YubiKey-gated host GitHub MCP instead of the one it ships. It cannot, and the reason is structural: plugin MCP servers are namespaced `mcp__plugin_<plugin>_<server>__*` while host servers are `mcp__<server>__*`, so a host server NEVER shadows a same-named plugin server — they coexist as separate surfaces. There is no alias, redirect, or override mechanism. Editing the plugin's .mcp.json is not an option either: the package is session-scoped and cloud-synced (see why_repo_owned). So the enforceable posture is: leave the plugin's github server unauthenticated, DENY its tools in ~/.claude/settings.json, and keep the host wrapper as the only GitHub path. No capability is lost — this monorepo is local-only with no git remote (~~source control), and the engineering plugin's value is its SKILLS, which need no MCP server at all.",
     "cache_caveat": "~/.claude/mcp-needs-auth-cache.json is a CACHE and goes stale — it still lists AdisInsight (tombstoned as declined-no-public-api) and Tavily (superseded by searxng-search). Treat the live session's needs-auth reminder as authoritative, not this file."
   },
-
   "removed": {
     "rationale": "Plugins deliberately uninstalled. Kept as tombstones so a removal cannot silently reverse and so the reason survives the decision.",
     "plugins": {
@@ -524,7 +897,6 @@
       }
     }
   },
-
   "verification": {
     "audit_command": "node scripts/audit-connector-coverage.js",
     "checks": [

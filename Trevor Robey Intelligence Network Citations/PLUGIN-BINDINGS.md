@@ -50,10 +50,12 @@ uses the named fallback. That is the configuration.
 | `~~chemical database` | ChEMBL | research |
 | `~~drug targets` | Open Targets (`open-targets-graphql`, shipped `134a5ad`) | research |
 | `~~competitive intelligence` | searxng-search + ClinicalTrials.gov sponsor queries | research |
+| `~~patent` | **PatSnap Patent & Literature Search** (OAuth 2026-07-29) — see the caveat below | research |
 | `~~knowledge base` | Obsidian vault `My Digital Garden` via the `:8798` bridge | vault |
 | `~~email` | Gmail — `trevor@trevorobeyinc.com` | business |
 | `~~calendar` · `~~office suite` | Google Calendar · Google Workspace | business |
 | `~~data enrichment` | vpai (vibe-prospecting) — the only enrichment surface | business |
+| `~~CRM` | **`12-pipeline-tracking/`** — a manual four-stage funnel (**corrected 2026-07-29**, was wrongly recorded as NONE) | business |
 | `~~monitoring` | CrowdStrike Falcon (propose-only); optional Prometheus/Grafana | security |
 | `~~source control` | local git, **no remote** (local-only since 2026-05-26) | infra |
 
@@ -64,10 +66,53 @@ uses the named fallback. That is the configuration.
 **Unbound — this business has none. Say so; do not invent.**
 
 `~~chat` · `~~project tracker` · `~~ITSM` · `~~incident management` · `~~CI/CD` ·
-`~~data warehouse` · `~~notebook` · `~~product analytics` · `~~user feedback` · `~~CRM` ·
+`~~data warehouse` · `~~notebook` · `~~product analytics` · `~~user feedback` ·
 `~~sales engagement` · `~~conversation intelligence` · `~~meeting transcription` · `~~design` ·
 `~~design tool` · `~~SEO` · `~~marketing analytics` · `~~marketing automation` ·
 `~~email marketing` · `~~procurement` · `~~lab platform` · `~~genomics platform`
+
+---
+
+## `~~patent` — a category no plugin asked for (added 2026-07-29)
+
+Every other row above answers a placeholder some installed plugin actually ships. This one does
+not: **no plugin in the installed set has a `~~patent` slot.** It is here because the *business*
+acquired the capability, not because a template requested it. Its absence from the audit's
+plugin-referenced category count is therefore expected, not drift.
+
+PatSnap is the first intellectual-property source in this stack. Nothing else here holds a single
+patent record — the 47 registered connectors cover literature, trials, chemistry, targets, coding,
+and providers, and stop there. Verified live on 2026-07-29: a US · `A61K` · active · 2022-onward
+GLP-1 query returned **50,447 hits**, each carrying assignee, inventor, IPC, legal status, all four
+date fields, citation count, and full claim text.
+
+**The caveat, which is load-bearing.** `openclaw-bridge/core/citation-extractor.js` recognizes
+seven identifier types — PMID, PubChem CID, NCT, UniProt, ChEMBL, DrugBank, DOI. A patent
+publication number such as `US12458612B2` matches **none** of them. So:
+
+- A patent finding is **never extracted as a citation at all**, so it is not grounded against
+  runtime-retrieved records and never retraction-screened.
+- **Corrected 2026-07-29 — the mechanism is invisibility, not deflation.** An earlier revision of
+  this section said feeding patent records into prefetch would make them count as *ungrounded* and
+  deflate the ratio. Verified false: `citation-gate.js:106-108` builds the cited set solely from
+  `extractCitations(reportText)`, so an identifier matching none of the seven patterns never reaches
+  the grounded/ungrounded fork. Patent evidence neither raises nor lowers the grade.
+- **The real customer risk is the opposite of deflation, and sharper.** The packager writes
+  `citation-integrity.md` and any patent section into the same `deliverables/` folder, so a buyer
+  sees an **A grade sitting beside an ungraded section** and reasonably concludes the patents were
+  graded. Any bundle mixing the two needs an explicit grade-adjacency disclosure.
+- `patsnap` stays out of `config/tool-prefetch-map.json` regardless — there is no engine
+  fulfillment path, and the guardrail is cheap.
+- Until a `PATENT` pattern and a runtime patent-id grounding source land **in the same change**,
+  patent findings may inform operator judgement but must not be presented in a deliverable as
+  citation-traced. The honest phrasing is *"patent evidence, outside the citation gate."* Adding
+  the pattern **alone** is the ordering that genuinely deflates the ratio.
+- Full fence language, the legal boundary (search/landscape only — never an FTO opinion), and the
+  price band sit in [`01-brand-system/founder-lane-2026-07-29.md`](01-brand-system/founder-lane-2026-07-29.md).
+
+Restated plainly: the **"Every claim, sourced"** guarantee does not yet cover patent assertions.
+Selling an IP-flavoured deliverable before closing that is the never-overclaim doctrine pointed
+inward — the same failure this whole bindings layer exists to prevent.
 
 ---
 
@@ -469,13 +514,13 @@ applied to every remaining plugin. Measured across all `.md` files in each packa
 | **vpai** | 1+1 | 0 | **37** | **21** | **KEEP AS-IS** — the only plugin with real substance; genuinely functional, resolves `~~data enrichment` |
 | **pdf-viewer** | 1+4 | 1 | 0 | 0 | **KEEP AS-IS** — placeholder-free, authenticated, real documents (SOS certified copy, DSA comparison) |
 | productivity | 4 | 9 | 0 | 0 | **TAILORED → `trinc-productivity`** (2026-07-29) — see below |
-| operations | 9 | 6 | 0 | 0 | **DROP → tailored** as `trinc-business:compliance-calendar` |
+| operations | 9 | 6 | 0 | 0 | **TAILORED → `trinc-operations`** (2026-07-29); `compliance-tracking` went to `trinc-business:compliance-calendar` — see below |
 | marketing | 8 | 13 | 0 | 0 | **TAILORED → `trinc-marketing`** (2026-07-29); brand voice already went to `trinc-business:brand-check` — see below |
-| data | 10 | 8 | 0 | 0 | **DROP** — no warehouse; `trinc-engineering:feed-refresh` covers the real dataset |
+| data | 10 | 8 | 0 | 0 | **DROPPED** (2026-07-29) — tailored, then removed; see below |
 | design | 7 | 9 | 0 | 0 | **TAILORED → `trinc-design`** (2026-07-29) — see below |
 | product-management | 8 | 16 | 2* | 0 | **DROP** — no analytics, pre-revenue; `offer-quote` covers the ladder |
-| sales | 9 | 14 | 2* | 0 | **DROP** — no CRM, pre-revenue; enrichment is vpai |
-| bio-research | 6 | 11 | 6* | 0 | **DROP** — skills are public-data reference only; its 6 connected servers duplicate registered engine connectors |
+| sales | 9 | 14 | 2* | 0 | **DROP as a plugin** (2026-07-29) — but the `~~CRM` binding was CORRECTED; see below |
+| bio-research | 6 | 11 | 6* | 0 | **SPLIT VERDICT** (2026-07-29) — keep the servers, skills marked DO-NOT-USE; see below |
 | engineering | 10 | 10 | 0 | 0 | **DROPPED** → replaced by `trinc-engineering` |
 | cowork-plugin-management | 2 | 0 | — | — | installed, not bound (its customizer cannot run in CLI) |
 | desktop-commander | — | — | — | — | **REMOVED 2026-07-28** (tombstoned) |
@@ -607,6 +652,303 @@ openers, a targeting guide, response triage and an SDR brief — and its templat
 
 > **Doc correction needed:** the repo `CLAUDE.md` "Collateral Directory" table points outbound at
 > `workspace/collateral/outbound/`, **which does not exist**. The real location is `07-outbound/`.
+
+### ❌ `data` — tailored, then DROPPED the same day (2026-07-29)
+
+`trinc-data` was built (2 skills: `feed-qa`, `dataset-map`) and then **uninstalled and deleted at
+the operator's direction**, because it added **nothing to the research engine**.
+
+**The reasoning, which generalises to every plugin here.** A plugin of skills is markdown — it
+changes how Claude behaves, not what `run-workflow.js` does. `trinc-data` contained two `.md` files
+and a manifest, zero code, and zero references from `openclaw-bridge/` or `scripts/`. Every genuine
+engine improvement this session came from **investigating** the engine, not from installing a
+plugin — e.g. the `search_coverage` allowlist fix that resurrected a deliverable which had never
+once been written (`2458c22`).
+
+**Upstream `data` remains dropped on its own merits**: `sql-queries`/`write-query` target a
+warehouse that does not exist; `create-viz`/`data-visualization`/`build-dashboard` duplicate the
+global **`dataviz`** skill, which is better.
+
+**Knowledge preserved — nothing was lost with the plugin:**
+- cross-indication duplicate `NCT04541875`, and the free-tier filenames
+  (`register-sample.csv` / `citation-index-sample.csv`) → `trinc-engineering:feed-refresh`
+- the three decoy paths (`workspace/datasets/` license-blocked scratch; the stale 12-row
+  `workspace/distribution/graveyard-feed/glioblastoma-2026-06-20/` at the build script's default
+  `--out`; retired `/Volumes/ExtraCurricular` export paths) → recorded in this file
+- Qdrant reachable at `https://127.0.0.1:6433` (HTTP 200, verified 2026-07-29) → recorded here
+
+**Open, unfixed engine bug found during this work** — `renderDataDictionary()`
+(`openclaw-bridge/monetization/graveyard-feed.js:117`) is **not tier-aware**: it hardcodes
+`## register.csv` / `## citation-index.csv`, and `build-graveyard-feed.js:60` writes that same
+string into `free/`. Verified byte-identical paid/free dictionaries, while the free files are named
+`*-sample.csv`. A free-tier subscriber gets documentation naming two files not in their download.
+
+**A claim I withdrew.** I began arguing that `maxHistory: 5` (default at
+`ctgov-supplemental.js:36`, unset by `_workflow-runtime.js:92`) degraded the graveyard memo. On
+reading the code, `buildAmendmentRisk` **filters** to trials with version history and the memo
+states *"Across N comparable stopped trial(s) with version history"* — so it is honest about its
+sample. With `pageSize: 6` it samples 5 of 6. Marginal, **not a defect**; do not re-raise it as one.
+
+### ❌ `sales` — assessed, NO plugin built (2026-07-29)
+
+Deliberately not tailored. Applying the test that governs this whole set — *does a skill encode
+facts you would otherwise get wrong?* — `sales` fails it, because the funnel already documents
+itself. Two plugins were built and deleted the same day earlier; this one was stopped **before**
+building.
+
+| Upstream skill | Why no skill |
+|---|---|
+| `draft-outreach`, `account-research` | covered by `trinc-marketing:outbound-draft` + vpai |
+| `daily-briefing` | covered by `trinc-productivity:orient` |
+| `create-an-asset` | covered by `collateral-audit` + `brand-check` |
+| `competitive-intelligence` | the citable path is CT.gov `search_by_sponsor` — research, not sales |
+| `forecast`, `pipeline-review` | with 0 deals the correct output is the actual zeros, already stated in the files |
+| `call-prep`, `call-summary` | marginal — the target list is in `discovery-calls.md`, written by the operator |
+
+#### 🔧 What the assessment DID produce — a corrected binding
+
+**`~~CRM` was recorded as NONE. That was wrong.** There is no SaaS CRM, but there IS a maintained
+manual funnel at **`12-pipeline-tracking/`**:
+
+```
+discovery-calls.md -> nda-pipeline.md -> signed-deals.md -> kpis-end-of-month.md
+```
+
+It is a better expression of the never-fabricate doctrine than most of the code: every file opens
+with an explicit **`Zero baseline (2026-06-10)`** and states its zeros outright (`_none yet_`, 0,
+`$0`) rather than leaving blanks that invite invention. Each stage names its downstream. SKUs
+reference `OFFERINGS.md` canonically. First-wave targets are named per persona (P1 pharma CI:
+AstraZeneca/GSK/AbbVie · P2 quant alt-data: Point72/Citadel/RA Capital · P3 target discovery:
+Iambic/Recursion/Isomorphic · P4 academic/boutique: ClearView/Trinity/Clarivate).
+
+**It is current, not stale** — the KPI monthly log carries a `2026-07 (update 07-22)` row recording
+the AWS paid-selling clearance.
+
+Still true, and unchanged by the correction: **never invent a deal stage, ARR, or a weighted
+forecast.** With 0 deals the honest output is the zeros, read from these files.
+
+#### 🟡 Open business gap surfaced (not a code defect)
+
+**The primary SKU has no sample.** `workspace/collateral/samples/` holds only pharmacovigilance
+material — the *demoted* tactical SKU. The **Investor Pre-Mortem** ($9,950–$19,950) and **Failed
+Trial Archaeology** ($14,950) have no one-pager and no sample, so a discovery call on the flagship
+has no artifact to attach. Tracked also under the `marketing` entry.
+
+### Tailored #4: `operations` → `trinc-operations` v1.0.0 (2026-07-29) — 1 skill, 0 MCP servers
+
+Eight of nine upstream skills dropped (`capacity-plan` models a team of one; `change-request` has
+no CAB; `process-doc`/`process-optimization`/`runbook`/`status-report`/`vendor-review` are generic;
+`compliance-tracking` was already extracted to `trinc-business:compliance-calendar`). One skill
+replaces them, and it is arguably the highest-value skill in the whole set — it is what stands
+between this business and revenue.
+
+#### 🔴 The finding: the business-ops scaffolding is mostly empty
+
+Measured 2026-07-29 — **a directory of well-named files is not a completed checklist**:
+
+| Directory | Files | Placeholders | With content |
+|---|---:|---:|---:|
+| `15-first-sale-risk-mitigation/` | 10 | **10** | **0** |
+| `08-contracts-legal/` | 15 | **15** | **0** |
+| `14-due-diligence-checklist/` | 5 | 4 | 1 |
+| `09-source-licenses/` | 11 | 7 | **4** |
+
+`08-contracts-legal/` lists `common-paper/`, `indemnification-clause.md`, `ip-license-structure.md`,
+`data-residency-clause.md`, `attorney-engagement.md` — **all fifteen are 3-line placeholders.**
+So the business is otherwise positioned to sell (AWS cleared for paid 2026-07-22, 300-row feed
+ready, outbound sequences current, funnel built) with **no contract, no NDA, no payment terms, no
+refund policy, no indemnification clause and no insurance written down**.
+
+**Item 6 is the sharpest:** `REVENUE_PLAYBOOK.md` advertises a *"refund-backed citation-audit SLA"*
+on the primary SKU, while the refund policy that would define it is a placeholder — a
+customer-facing promise with no written policy behind it.
+
+**Done and verified:** entity setup — CA Entity **B20260217250**, approved 2026-06-18, certified
+copy 457169837.
+
+#### Source licensing — one area genuinely worked through, one open
+
+**DrugBank is handled properly**: no commercial licence, so no `DB#####` accessions or
+DrugBank-derived fields may ship — enforced **mechanically** by a `DB\d{5}` build gate, with a
+documented licence-free substitute stack.
+
+**ChEMBL is open**: flagged CC BY-SA 3.0 **share-alike with counsel pending**, and that file is
+itself a placeholder. ChEMBL is a bound connector and the citation gate accepts `CHEMBL` ids, so
+ChEMBL content *can* reach a paid deliverable, and unlike DrugBank there is **no mechanical gate**.
+Scoped accurately: **no shipped bundle currently contains a ChEMBL identifier** — the three in
+`workspace/releases/` cite NCT/PMID/DOI only. The exposure is **latent, not realized**, and whether
+share-alike propagates is a counsel question that must not be answered in-repo.
+
+### ✅ `frontend-design` — KEEP AS-IS, now composed correctly (assessed 2026-07-29)
+
+Anthropic's CLI-marketplace skill (55 lines). Genuinely good and **complementary, not redundant** —
+it brings craft process this stack had nowhere else: a compact token system (4–6 named hex, 2+ type
+roles, layout concept, signature element), a two-pass *plan → critique → build* discipline, CSS
+specificity traps, and a quality floor (responsive, visible keyboard focus, reduced motion).
+
+**Division of labour:** `frontend-design` = *how to design well* (new UI, visual rethink) ·
+`trinc-design` = *what to check in what exists* (report bundle, the two web pages, measured a11y
+baseline). Neither replaces the other.
+
+#### ⚠️ The collision that needed fixing
+
+`frontend-design` names three looks it treats as **AI defaults to avoid**. This brand is **two of
+them**:
+
+> *(2) a near-black background with a single bright accent* · *(3) …zero border-radius, and dense
+> newspaper-like columns*
+
+Verified against the live `index.html` (2026-07-29): background family `#0a0a0f`/`#12121a`/`#1e1e2a`,
+single blue accent `#4a90d9` (hover `#5da0e9`), **0 occurrences of `border-radius`**, **0 gradients**,
+two type roles via `--font-body` / `--font-data`. That is defaults #2 and #3 combined.
+
+Invoked without context, `frontend-design` would read the brand identity as a templated default and
+revise it away. **It resolves itself if given the brief** — its own rule is *"Where the brief pins
+down a visual direction, follow it exactly — the brief's own words always win, including when it
+asks for one of these looks."*
+
+**Fix applied:** `trinc-design:web-surface` now states the aesthetic as an explicit **pinned brief**
+with the measured token table, and warns about the two-default collision, so the skills compose
+instead of fighting. No change to `frontend-design` itself.
+
+### ⚖️ `bio-research` — SPLIT VERDICT: keep the servers, do not use the skills (2026-07-29)
+
+The only plugin whose domain touches the research engine, and the only one where keep-vs-drop
+splits down the middle. Recording it because a naive future reading goes wrong in **both**
+directions — uninstalling loses Wiley/BioRender, following its skills overstates capability.
+
+#### 🔴 Skills — DO NOT USE (4 of 6 assume capability this business lacks)
+
+| Skill | Assumes |
+|---|---|
+| `nextflow-development` | running nf-core `rnaseq`/`sarek`/`atacseq` on **sequencing data** |
+| `instrument-data-to-allotrope` | **lab instrument** output files to convert (PDF/CSV/Excel → ASM) |
+| `scvi-tools` | **single-cell** datasets for deep-learning integration |
+| `single-cell-rna-qc` | single-cell `.h5ad` / `.h5` files to QC |
+
+**There is no wet lab, no instruments, and no sequencing here.** This is a desk-research business
+over public biomedical databases. Following any of these produces work implying in-house capability
+that does not exist — for a company selling citation-traced biomedical rigor, that is the failure
+mode it sells against.
+
+They remain usable *only* as reference against public data (GEO/SRA), and even then must never
+imply in-house sequencing, instruments, or sample handling. `scientific-problem-selection` and
+`start` are generic and marginal.
+
+#### ✅ Servers — KEEP, because four of them exist nowhere else
+
+Verified against `config/connector-registry.json`:
+
+| bio-research server | Registry entry | Surface | Verdict |
+|---|---|---|---|
+| `pubmed` | `pubmed` | `subprocess-mcp` | duplicate of an engine adapter |
+| `chembl` | `chembl` | `subprocess-mcp` | duplicate |
+| `c-trials` | `clinicaltrials-gov` | `subprocess-mcp` | duplicate |
+| `ot` | `open-targets-graphql` | `subprocess-mcp` | duplicate |
+| `owkin` | `owkin` | `subprocess-mcp` | duplicate |
+| `biorxiv` | `biorxiv-medrxiv` | `claude-host-mcp` | registered, host-only either way |
+| `consensus` | `consensus` | `claude-host-mcp` | registered, host-only either way |
+| **`wiley`** | — | — | **not registered — only path to paywalled full text** |
+| **`synapse`** | — | — | **not registered — only path** |
+| **`biorender`** | — | — | **not registered — only path to figures** |
+| `benchling` | — | — | not registered; lab platform, not needed |
+
+**Uninstalling forfeits Wiley and BioRender** — the two ranked highest for authorization. That is
+the whole reason this plugin stays.
+
+The five duplicates stay **out of `config/tool-prefetch-map.json`**: the engine has its own
+subprocess adapters, and double-registering would dilute the grounded-citation ratio the Phase-30
+gate computes.
+
+> **OAuth ranking corrected:** Owkin was previously listed among the four worth authorizing. It
+> **duplicates an existing `subprocess-mcp` engine adapter**, so it ranks below the three that
+> exist nowhere else. Revised order: **Wiley → BioRender → Synapse**, then Owkin only if the
+> chat-side surface is genuinely wanted alongside the engine's.
+
+### 🌉 Founder Lane bridge — `trinc-founder` v1.0.0 (2026-07-29) — 1 skill, 0 MCP servers
+
+A concurrent session opened the **Founder Lane** (`01-brand-system/founder-lane-2026-07-29.md`,
+296 lines, designed by an 11-agent workflow whose adversarial lenses returned **13 blocking
+defects**). It adds medical-startup founders as a **second buyer**; the investor ladder is unchanged.
+`trinc-founder:founder-fit` is the operating summary that bridges it to installed capability.
+
+**The governing finding, theirs:** *the founder SKUs that are FUNDABLE and the ones that are
+FULFILLABLE did not intersect.* Exactly **one** is transactable —
+**Failed Trial Archaeology $14,950**, which runs as `clinical-trial-landscape`, sold against the
+**Phase II** TABA line ($50,000) because it is 2.3× the **Phase I** cap ($6,500). The other four
+(Trial Design Benchmark, Conference Synthesis, Plain-Language Patient Brief, Founder Patent
+Landscape) are fundable but have **no engine path**. The Phase I tier stays closed.
+
+**The timing inversion:** NIH **NOT-OD-26-075** requires the **vendor's name in the budget
+justification**, so *the sale closes BEFORE the grant is submitted* — inverting all four existing
+personas, which sell post-decision.
+
+#### 🔴 What the bridge adds: the wet-lab boundary breaks under a founder buyer
+
+The standing DO-NOT-USE rule on `bio-research`'s four lab skills was worded *"there is no wet lab
+here."* **A founder buyer makes that reasoning misleading** — a biotech founder plausibly *does* have
+FASTQs, instruments and single-cell data, so a session could conclude the skills now apply.
+
+**They do not.** The boundary is not whether the *client* has a lab; it is what this business sells.
+This is desk research over public databases — **not a CRO, not a bioinformatics provider**. Running a
+founder's pipelines would carry no wet-lab QMS, no method validation, and would sit **entirely
+outside the citation-integrity guarantee** the product rests on.
+
+#### ✅ What DOES serve a founder — the concrete plugin-to-lane link
+
+| `bio-research` server | Founder use | Status |
+|---|---|---|
+| **Wiley** | paywalled full text for prior-work sections | OAuth — **authorize 1st** |
+| **BioRender** | figures for the SBIR/STTR application itself | OAuth — **authorize 2nd** |
+| Synapse | public dataset access | OAuth — 3rd |
+
+This independently reinforces the authorize order already recorded, and gives BioRender a concrete
+recurring use it previously lacked.
+
+#### 🔬 LIVE VERIFICATION — tools CALLED, 2026-07-29
+
+The keep-verdict was tested by invoking the servers, not by reading config.
+
+| Server | Result |
+|---|---|
+| `pubmed` | ✅ real PMIDs (42530074, 42512343), 2,870 hits |
+| `chembl` | ✅ `CHEMBL810` temozolomide, approved 1999, full properties |
+| `c-trials` | ✅ 275 TERMINATED glioblastoma trials, real NCT ids |
+| `consensus` | ✅ works, but **capped at 3 results** without a free account |
+| `biorxiv` | ✅ tool schemas present |
+| `ot` | ⚠️ **`Rate limit exceeded for client: global`** — throttled at the shared-client level |
+| **`wiley`** | ❌ **zero tools exposed** — unauthenticated |
+| **`biorender`** | ❌ **zero tools exposed** — unauthenticated |
+| **`synapse`** | ❌ **zero tools exposed** — unauthenticated |
+| `benchling` | ❌ zero tools exposed |
+
+**An unauthenticated server exposes no tools at all** — a ToolSearch for wiley/biorender/synapse
+returns nothing.
+
+#### ⚖️ What this does to the verdict
+
+**The five that work all duplicate existing `subprocess-mcp` engine adapters**, so they add nothing
+the engine does not already have. **The three that justify keeping the plugin contribute nothing
+today**, because they are unauthenticated.
+
+> **So KEEP stands as a bet on future OAuth, not as current value.** As of today this plugin adds
+> **no capability** the stack lacks. If the operator does not intend to authorize
+> Wiley → BioRender → Synapse, the correct action is to **drop it** — reinstalling later is trivial,
+> it is a marketplace plugin. Do not describe bio-research as adding capability today.
+
+#### Verified against the code, not taken on trust
+
+`citation-extractor.js` recognizes exactly **seven** identifier types — PMID, PubChem CID, NCT,
+UniProt, ChEMBL, DrugBank, DOI. **No patent pattern**, so patent findings are never extracted, never
+grounded, never retraction-screened — **invisible** to the gate, neither raising nor lowering the
+grade. The lane's claim is accurate, and the Zero-Fabrication Guarantee does not extend to patent
+evidence. `patsnap` is registered (47 connectors) as `claude-host-mcp`, `adapter_status: missing`,
+and stays out of prefetch.
+
+Patent work is **designed, priced nowhere, and blocked twice**: legally (a non-attorney may sell a
+search/landscape but not an FTO opinion — *Sperry v. Florida*; **Cal. Bus. & Prof. Code § 6125**;
+the direct-to-company question is open and goes to California counsel) and technically (no engine
+path).
 
 ### Replacement: `trinc-business` v1.0.0 — 3 skills, 0 MCP servers
 
