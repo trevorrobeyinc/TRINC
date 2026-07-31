@@ -63,41 +63,41 @@
       "note": "Shipped 2026-07-23 in commit 134a5ad; closed the registry's last HIGH-priority adapter gap."
     },
     "~~journal access": {
-      "bound": false,
-      "resolves_to": "Wiley Scholar Gateway — CONNECTED BUT UNAUTHENTICATED",
+      "bound": true,
+      "resolves_to": "Wiley Scholar Gateway — via the claude.ai connector 'Scholar Gateway' (https://connector.scholargateway.ai/mcp), ALREADY CONNECTED and working",
       "registry_ids": [
-        "plugin:bio-research:wiley"
+        "scholar-gateway-semantic-scholar"
       ],
       "lane": "research",
-      "note": "Operator must complete OAuth. Until then treat paywalled full text as unavailable; use checkOpenAccess for a legal open copy."
+      "note": "CORRECTED 2026-07-29 — previously recorded as 'CONNECTED BUT UNAUTHENTICATED / treat paywalled full text as unavailable'. That was WRONG. Verified by live call: semanticSearch returned FULL TEXT of a PAYWALLED article (isOpenAccess:false) published by John Wiley & Sons Ltd, linking to onlinelibrary.wiley.com, with Wiley attribution and a @wiley.com contact in the payload. Paywalled Wiley full text is AVAILABLE TODAY and was never blocked. The plugin's `wiley` server points at the SAME endpoint but is a separate, unauthenticated registration — do not authorize it; you already have this. Corpus freshness as returned: May 2026."
     },
     "~~data repository": {
       "bound": false,
-      "resolves_to": "Synapse — CONNECTED BUT UNAUTHENTICATED",
+      "resolves_to": "Synapse (https://mcp.synapse.org/mcp) — needs auth; the ONLY server unique to the bio-research plugin",
       "registry_ids": [
         "plugin:bio-research:synapse"
       ],
       "lane": "research",
-      "note": "Operator OAuth pending."
+      "note": "CORRECTED 2026-07-29 — this is the sole reason to keep bio-research installed. Every other server it ships is either an engine duplicate or an independently-available claude.ai connector. If Synapse is not needed, drop the plugin; reinstalling is trivial.",
+      "fallback": "public dataset access via PubMed/Europe PMC/bioRxiv and GEO/SRA accessions cited directly; Synapse remains UNAUTHENTICATED"
     },
     "~~AI research": {
       "bound": false,
-      "resolves_to": "Owkin — CONNECTED BUT UNAUTHENTICATED",
+      "resolves_to": "Owkin — engine adapter owkin-mcp exists; also a claude.ai connector 'Owkin' (needs auth)",
       "registry_ids": [
-        "owkin",
-        "plugin:bio-research:owkin"
+        "owkin"
       ],
       "lane": "research",
-      "note": "Operator OAuth pending."
+      "note": "CORRECTED 2026-07-29 — the engine ALREADY has a subprocess owkin-mcp adapter, and the claude.ai 'Owkin' connector is the same endpoint as the plugin's. Authorizing adds only a chat-side surface. Lowest priority; arguably skip.",
+      "fallback": "the engine's own owkin-mcp subprocess adapter; the claude.ai Owkin connector remains UNAUTHENTICATED"
     },
     "~~scientific illustration": {
       "bound": false,
-      "resolves_to": "BioRender — CONNECTED BUT UNAUTHENTICATED",
-      "registry_ids": [
-        "plugin:bio-research:biorender"
-      ],
+      "resolves_to": "BioRender — reachable as the claude.ai connector 'BioRender' (https://mcp.services.biorender.com/mcp); needs auth",
+      "registry_ids": [],
       "lane": "research",
-      "note": "Operator OAuth pending. Deliverable figures are otherwise text/markdown only."
+      "note": "CORRECTED 2026-07-29 — authorize via claude.ai CONNECTOR SETTINGS, not via the bio-research plugin. The plugin's `biorender` server is a byte-identical duplicate of the claude.ai connector, so the plugin is NOT required for this. This is the ONE genuine capability gain still available to authorize. Until then, deliverable figures are text/markdown only.",
+      "fallback": "deliverable figures are text/markdown and deterministic tables only; BioRender remains UNAUTHENTICATED"
     },
     "~~lab platform": {
       "bound": false,
@@ -255,7 +255,7 @@
     },
     "~~patent": {
       "bound": true,
-      "resolves_to": "PatSnap Patent & Literature Search (claude.ai host connector, OAuth 2026-07-29)",
+      "resolves_to": "PatSnap Patent & Literature Search (claude.ai host connector, OAuth 2026-07-30)",
       "registry_ids": [
         "patsnap"
       ],
@@ -735,7 +735,8 @@
       ],
       "SPLIT_VERDICT_2026-07-29": "KEEP the plugin for its SERVERS; treat its SKILLS as DO-NOT-USE. SKILLS: 4 of 6 assume capability this business does not have — nextflow-development (nf-core rnaseq/sarek/atacseq on sequencing data), instrument-data-to-allotrope (lab instrument output), scvi-tools and single-cell-rna-qc (single-cell .h5ad/.h5). There is no wet lab, no instruments and no sequencing; following them produces work implying in-house capability that does not exist, which for a citation-traced biomedical business is the exact failure it sells against. Usable ONLY as reference over public data (GEO/SRA), never implying in-house sequencing or sample handling. scientific-problem-selection and start are generic/marginal. SERVERS: verified against connector-registry.json — pubmed, chembl, c-trials(->clinicaltrials-gov), ot(->open-targets-graphql) and owkin all DUPLICATE existing subprocess-mcp engine adapters; biorxiv(->biorxiv-medrxiv) and consensus are registered claude-host-mcp; and wiley, synapse, biorender, benchling are NOT REGISTERED AT ALL. Uninstalling would forfeit the only path to Wiley (paywalled full text) and BioRender (figures for $9,950+ reports) — that is the sole reason the plugin stays. The five duplicates must stay OUT of config/tool-prefetch-map.json; the engine has its own adapters and double-registering dilutes the Phase-30 grounded-citation ratio.",
       "FOUNDER_LANE_BRIDGE_2026-07-29": "The Founder Lane (01-brand-system/founder-lane-2026-07-29.md) makes a second buyer real: medical-startup founders. It CHANGES THE REASONING behind the wet-lab DO-NOT-USE rule without changing the rule. The old wording was 'there is no wet lab here' — but a biotech founder plausibly DOES have FASTQs, instruments and single-cell data, so a session could wrongly conclude nextflow-development / instrument-data-to-allotrope / scvi-tools / single-cell-rna-qc now apply. THEY DO NOT. The boundary is not whether the CLIENT has a lab; it is what this business sells: desk research over public biomedical databases, not CRO or bioinformatics services. Running a founder's pipelines would carry no wet-lab QMS, no method validation, and would sit ENTIRELY OUTSIDE the citation-integrity guarantee the product rests on. WHAT DOES serve a founder are two of this plugin's unregistered servers: BioRender (figures for the SBIR/STTR application itself — a recurring founder need) and Wiley (paywalled full text for prior-work sections). That is the concrete bridge, and it reinforces the authorize order Wiley -> BioRender -> Synapse. Operating summary lives in the trinc-founder plugin (skill: founder-fit).",
-      "LIVE_VERIFICATION_2026-07-29": "Tools CALLED, not assumed. WORKING: pubmed (returned real PMIDs 42530074/42512343, 2870 hits); chembl (CHEMBL810 temozolomide, approved 1999, full molecular properties); c-trials (275 TERMINATED glioblastoma trials with real NCT ids); consensus (returned 3 papers but is CAPPED AT 3 RESULTS without a free Consensus account); biorxiv (tool schemas present). DEGRADED: ot / Open Targets returned 'Rate limit exceeded for client: global' — throttled at the shared-client level, so unreliable even as a chat-side duplicate. NOT WORKING — ZERO TOOLS EXPOSED: wiley, biorender, synapse, benchling. An unauthenticated server exposes no tools at all; a ToolSearch for them returns nothing. THEREFORE, THE HONEST STATE TODAY: the five servers that work (pubmed, chembl, c-trials, ot, owkin) all DUPLICATE existing subprocess-mcp engine adapters, so they add nothing the engine does not already have; and the three that justify keeping the plugin (wiley, biorender, synapse) currently contribute NOTHING because they are unauthenticated. The KEEP verdict therefore stands as a BET ON FUTURE OAUTH, not as current value. If the operator does not intend to authorize Wiley/BioRender/Synapse, the correct action is to drop the plugin — reinstalling later is trivial (it is a marketplace plugin). Do not describe this plugin as adding capability today."
+      "LIVE_VERIFICATION_2026-07-29": "Tools CALLED, not assumed. WORKING: pubmed (returned real PMIDs 42530074/42512343, 2870 hits); chembl (CHEMBL810 temozolomide, approved 1999, full molecular properties); c-trials (275 TERMINATED glioblastoma trials with real NCT ids); consensus (returned 3 papers but is CAPPED AT 3 RESULTS without a free Consensus account); biorxiv (tool schemas present). DEGRADED: ot / Open Targets returned 'Rate limit exceeded for client: global' — throttled at the shared-client level, so unreliable even as a chat-side duplicate. NOT WORKING — ZERO TOOLS EXPOSED: wiley, biorender, synapse, benchling. An unauthenticated server exposes no tools at all; a ToolSearch for them returns nothing. THEREFORE, THE HONEST STATE TODAY: the five servers that work (pubmed, chembl, c-trials, ot, owkin) all DUPLICATE existing subprocess-mcp engine adapters, so they add nothing the engine does not already have; and the three that justify keeping the plugin (wiley, biorender, synapse) currently contribute NOTHING because they are unauthenticated. The KEEP verdict therefore stands as a BET ON FUTURE OAUTH, not as current value. If the operator does not intend to authorize Wiley/BioRender/Synapse, the correct action is to drop the plugin — reinstalling later is trivial (it is a marketplace plugin). Do not describe this plugin as adding capability today.",
+      "CORRECTION_2026-07-29_KEEP_ARGUMENT_WAS_WRONG": "The earlier 'keep it for wiley/synapse/biorender — the only path' verdict was WRONG on specifics. Verified via `claude mcp list` plus live calls: the plugin's server URLs are BYTE-IDENTICAL to claude.ai connectors that exist independently of the plugin. wiley -> https://connector.scholargateway.ai/mcp == 'claude.ai Scholar Gateway', which is ALREADY CONNECTED and demonstrably working: a live semanticSearch returned full text from a PAYWALLED article (isOpenAccess:false) published by John Wiley & Sons Ltd, linking to onlinelibrary.wiley.com. So Wiley paywalled full-text access is ALREADY AVAILABLE and was never blocked. biorender -> https://mcp.services.biorender.com/mcp == 'claude.ai BioRender' (needs auth) — reachable WITHOUT this plugin. owkin -> https://mcp.k.owkin.com/mcp == 'claude.ai Owkin' (needs auth) — AND the engine already has owkin-mcp. synapse -> https://mcp.synapse.org/mcp — the ONLY server unique to this plugin. THEREFORE bio-research's entire unique contribution is SYNAPSE, which is unauthenticated and unused. Its skills remain a hazard (4 of 6 assume a wet lab). RECOMMENDATION: DROP the plugin. Reinstalling is trivial if Synapse ever matters. Authorize BioRender via claude.ai connector settings, NOT via this plugin."
     },
     "pdf-viewer": {
       "surface": "desktop-rpm",

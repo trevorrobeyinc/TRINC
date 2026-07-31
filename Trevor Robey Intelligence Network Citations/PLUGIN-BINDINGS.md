@@ -50,7 +50,7 @@ uses the named fallback. That is the configuration.
 | `~~chemical database` | ChEMBL | research |
 | `~~drug targets` | Open Targets (`open-targets-graphql`, shipped `134a5ad`) | research |
 | `~~competitive intelligence` | searxng-search + ClinicalTrials.gov sponsor queries | research |
-| `~~patent` | **PatSnap Patent & Literature Search** (OAuth 2026-07-29) — see the caveat below | research |
+| `~~patent` | **PatSnap Patent & Literature Search** (OAuth 2026-07-30) — see the caveat below | research |
 | `~~knowledge base` | Obsidian vault `My Digital Garden` via the `:8798` bridge | vault |
 | `~~email` | Gmail — `trevor@trevorobeyinc.com` | business |
 | `~~calendar` · `~~office suite` | Google Calendar · Google Workspace | business |
@@ -60,8 +60,12 @@ uses the named fallback. That is the configuration.
 | `~~source control` | local git, **no remote** (local-only since 2026-05-26) | infra |
 
 **Connected but awaiting operator OAuth** — treat as unavailable until authorized:
-`~~journal access` (Wiley) · `~~data repository` (Synapse) · `~~AI research` (Owkin) ·
-`~~scientific illustration` (BioRender)
+`~~data repository` (Synapse) · `~~AI research` (Owkin) · `~~scientific illustration` (BioRender)
+
+> **`~~journal access` was corrected off this list 2026-07-29.** Wiley Scholar Gateway is the
+> claude.ai connector **Scholar Gateway** and it is **already connected** — a live call returned
+> full text of a **paywalled** Wiley article. Authorize **BioRender via claude.ai connector
+> settings**, not via the bio-research plugin (byte-identical endpoint).
 
 **Unbound — this business has none. Say so; do not invent.**
 
@@ -73,7 +77,7 @@ uses the named fallback. That is the configuration.
 
 ---
 
-## `~~patent` — a category no plugin asked for (added 2026-07-29)
+## `~~patent` — a category no plugin asked for (added 2026-07-30)
 
 Every other row above answers a placeholder some installed plugin actually ships. This one does
 not: **no plugin in the installed set has a `~~patent` slot.** It is here because the *business*
@@ -82,7 +86,7 @@ plugin-referenced category count is therefore expected, not drift.
 
 PatSnap is the first intellectual-property source in this stack. Nothing else here holds a single
 patent record — the 47 registered connectors cover literature, trials, chemistry, targets, coding,
-and providers, and stop there. Verified live on 2026-07-29: a US · `A61K` · active · 2022-onward
+and providers, and stop there. Verified live on 2026-07-30: a US · `A61K` · active · 2022-onward
 GLP-1 query returned **50,447 hits**, each carrying assignee, inventor, IPC, legal status, all four
 date fields, citation count, and full claim text.
 
@@ -92,7 +96,7 @@ publication number such as `US12458612B2` matches **none** of them. So:
 
 - A patent finding is **never extracted as a citation at all**, so it is not grounded against
   runtime-retrieved records and never retraction-screened.
-- **Corrected 2026-07-29 — the mechanism is invisibility, not deflation.** An earlier revision of
+- **Corrected 2026-07-30 — the mechanism is invisibility, not deflation.** An earlier revision of
   this section said feeding patent records into prefetch would make them count as *ungrounded* and
   deflate the ratio. Verified false: `citation-gate.js:106-108` builds the cited set solely from
   `extractCitations(reportText)`, so an identifier matching none of the seven patterns never reaches
