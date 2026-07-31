@@ -100,12 +100,12 @@
     {
       "name": "mcpTransport",
       "title": "MCP Transport",
-      "description": "Preferred transport for MCP server connection.",
+      "description": "Preferred transport for MCP server connection. The TCP transport is HTTPS-only; a plaintext endpoint is rejected.",
       "type": "dropdown",
       "default": "http",
       "data": [
         {
-          "title": "HTTP",
+          "title": "HTTPS (TCP)",
           "value": "http"
         },
         {
@@ -1361,21 +1361,12 @@
   "scripts": {
     "build": "npx ray build -e dist",
     "dev": "npx ray develop",
-    "codex:dev": "./scripts/codex/raycast-dev.sh",
-    "codex:verify": "./scripts/codex/verify.sh",
-    "codex:open-command": "./scripts/codex/open-command.sh",
-    "codex:sync-config": "./scripts/codex/sync-config.sh",
     "help": "npx ray --help",
     "fix-lint": "npx ray lint --fix",
     "lint": "npx ray lint",
     "test": "vitest run",
     "coverage": "vitest run --coverage",
-    "test:watch": "vitest",
-    "mcp:build": "npm --prefix mcp-server run build",
-    "mcp:test": "npm --prefix mcp-server run test",
-    "mcp:start:http": "npm --prefix mcp-server run start:http",
-    "mcp:start:uds": "npm --prefix mcp-server run start:uds",
-    "mcp:start:pipe": "npm --prefix mcp-server run start:pipe"
+    "test:watch": "vitest"
   },
   "platforms": [
     "macOS",

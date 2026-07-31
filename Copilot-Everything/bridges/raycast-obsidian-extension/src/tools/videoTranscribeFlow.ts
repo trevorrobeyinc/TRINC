@@ -46,7 +46,14 @@ interface ProcessExecutionError extends Error {
   stderr?: string | Buffer;
 }
 
-const defaultExecPathEntries = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin", "/usr/sbin", "/sbin"] as const;
+const defaultExecPathEntries = [
+  "/opt/homebrew/bin",
+  "/usr/local/bin",
+  "/usr/bin",
+  "/bin",
+  "/usr/sbin",
+  "/sbin",
+] as const;
 const videoExtensions = [".mp4", ".mkv", ".webm", ".mov", ".m4v"] as const;
 const defaultYtDlpPathCandidates = ["/opt/homebrew/bin/yt-dlp", "/usr/local/bin/yt-dlp"] as const;
 // Fallback binaries when the Whisper Path preference is empty. Lead with the faster-whisper
@@ -62,7 +69,13 @@ const defaultWhisperPathCandidates = [
 const defaultGpgPathCandidates = ["/opt/homebrew/bin/gpg", "/usr/local/bin/gpg"] as const;
 // Well-known drop location for the sealed jar written by scripts/seal-yt-cookies.sh — internal
 // volume so it survives an external-volume unmount, outside every git worktree.
-const defaultSealedCookiesPath = path.join(os.homedir(), ".local", "share", "raycast-obsidian", "sealed-cookies.txt.gpg");
+const defaultSealedCookiesPath = path.join(
+  os.homedir(),
+  ".local",
+  "share",
+  "raycast-obsidian",
+  "sealed-cookies.txt.gpg"
+);
 // Durable per-run log — failures otherwise vanish with the Raycast toast. Append-only plain text,
 // safe to delete anytime. Logging is fail-soft and must never interfere with a run.
 const runLogPath = path.join(os.homedir(), ".local", "share", "raycast-obsidian", "video-transcribe.log");
@@ -248,10 +261,14 @@ async function unsealGpgCookies(sealedPath: string, timestamp: string): Promise<
   const outFile = path.join(outDir, "cookies.txt");
 
   try {
-    await execFileAsync(resolveGpgPath(), ["--batch", "--yes", "--quiet", "--output", outFile, "--decrypt", sealedPath], {
-      env: createExecEnv(),
-      maxBuffer: 16 * 1024 * 1024,
-    });
+    await execFileAsync(
+      resolveGpgPath(),
+      ["--batch", "--yes", "--quiet", "--output", outFile, "--decrypt", sealedPath],
+      {
+        env: createExecEnv(),
+        maxBuffer: 16 * 1024 * 1024,
+      }
+    );
   } catch (error) {
     const detail = extractProcessErrorText(error)
       .split(/\r?\n/)
@@ -433,9 +450,7 @@ function deriveNoteBaseName(rawBaseName: string, url: string): string {
   const looksGeneric =
     !rawTitle.replace(/\s*\(\d+\)\s*$/, "").trim() ||
     !/[a-z]/i.test(rawTitle) ||
-    /^(videoplayer|video|media|player|untitled|clip|movie|stream|index|default)(\s*\(\d+\))?$/i.test(
-      rawTitle.trim()
-    );
+    /^(videoplayer|video|media|player|untitled|clip|movie|stream|index|default)(\s*\(\d+\))?$/i.test(rawTitle.trim());
   if (!looksGeneric) {
     return rawBaseName;
   }
@@ -547,7 +562,12 @@ async function extractTranscriptFromSubtitle(sidecarPath: string): Promise<strin
   return srtToPlainText(srtContent);
 }
 
-async function transcribeWithWhisper(videoFilePath: string, whisperPath: string, prefs: VideoCommandPreferences, tempDir: string): Promise<string> {
+async function transcribeWithWhisper(
+  videoFilePath: string,
+  whisperPath: string,
+  prefs: VideoCommandPreferences,
+  tempDir: string
+): Promise<string> {
   const whisperModel = prefs.whisperModel?.trim() || "medium";
   const outputDir = path.join(tempDir, "whisper-output");
   await fs.mkdir(outputDir, { recursive: true });
@@ -836,11 +856,7 @@ function isLoginGatedHost(videoUrl: string): boolean {
  * files with mtime ≥ dispatch are considered, so a pre-existing video in the folder is never
  * claimed. Throws on timeout.
  */
-async function waitForNewStableVideo(
-  watchDir: string,
-  dispatchedAtMs: number,
-  timeoutMs: number
-): Promise<string> {
+async function waitForNewStableVideo(watchDir: string, dispatchedAtMs: number, timeoutMs: number): Promise<string> {
   const sizeHistory = new Map<string, { size: number; stableCount: number }>();
   const deadlineMs = dispatchedAtMs + timeoutMs;
 
@@ -884,9 +900,7 @@ async function waitForNewStableVideo(
     }
   }
 
-  throw new Error(
-    `No completed video appeared in ${watchDir} within ${Math.round(timeoutMs / 60000)} min.`
-  );
+  throw new Error(`No completed video appeared in ${watchDir} within ${Math.round(timeoutMs / 60000)} min.`);
 }
 
 /**
@@ -895,15 +909,10 @@ async function waitForNewStableVideo(
  * extract without playback (YouTube, etc.). Throws for login-gated streams (Downie reports "Cannot
  * find download URL"), so the caller can fall through to UGE.
  */
-async function downloadViaDownie(
-  videoUrl: string,
-  destinationDir: string,
-  dispatchedAtMs: number
-): Promise<string> {
+async function downloadViaDownie(videoUrl: string, destinationDir: string, dispatchedAtMs: number): Promise<string> {
   await fs.mkdir(destinationDir, { recursive: true });
   const schemeUrl =
-    `downie://XUOpenURL?url=${encodeDownieParam(videoUrl)}` +
-    `&destination=${encodeDownieParam(destinationDir)}`;
+    `downie://XUOpenURL?url=${encodeDownieParam(videoUrl)}` + `&destination=${encodeDownieParam(destinationDir)}`;
   // Plain `open <scheme-url>` routes through LaunchServices to Downie's registered downie:// handler
   // (launching Downie if needed). NOT `open -a 'Downie 4' <scheme-url>` — the -a form passes the URL
   // as a document argument and Downie silently ignores it.
@@ -922,11 +931,7 @@ async function downloadViaDownie(
  * the claimed file into the pipeline folder afterward. This is the ONE unavoidable manual step;
  * everything before and after it is automatic.
  */
-async function downloadViaDownieUGE(
-  videoUrl: string,
-  downloadsDir: string,
-  dispatchedAtMs: number
-): Promise<string> {
+async function downloadViaDownieUGE(videoUrl: string, downloadsDir: string, dispatchedAtMs: number): Promise<string> {
   const schemeUrl = `downie://XUOpenURL?url=${encodeDownieParam(videoUrl)}&action=open_in_uge`;
   await execFileAsync("open", [schemeUrl], { env: createExecEnv() });
   await appendRunLog("downie UGE opened — SELECT the detected stream in Downie's window to start the download");
@@ -1082,7 +1087,9 @@ export async function runVideoTranscribeCommand(
       await appendRunLog("no usable subtitles — whisper fallback starting");
       const whisperTmpDir = path.join(os.tmpdir(), "raycast-obsidian", "whisper", timestamp);
       await fs.mkdir(whisperTmpDir, { recursive: true });
-      transcriptText = normalizeExtractedText(await transcribeWithWhisper(primaryVideoFile, whisperBinary, prefs, whisperTmpDir));
+      transcriptText = normalizeExtractedText(
+        await transcribeWithWhisper(primaryVideoFile, whisperBinary, prefs, whisperTmpDir)
+      );
       await appendRunLog("whisper transcription OK");
     } else {
       await appendRunLog(`transcript from subtitles (${subtitleFiles.length} sidecar(s))`);

@@ -15,7 +15,11 @@ const summarizeCommandCandidates = [
 ] as const;
 
 function normalizeCommandTitle(value: string): string {
-  return value.trim().replace(/^copilot:\s*/i, "").replace(/\.md$/i, "").replace(/\s+/g, " ");
+  return value
+    .trim()
+    .replace(/^copilot:\s*/i, "")
+    .replace(/\.md$/i, "")
+    .replace(/\s+/g, " ");
 }
 
 export function getCopilotCommandId(title: string): string {

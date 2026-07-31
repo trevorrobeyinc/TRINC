@@ -9,8 +9,7 @@ import { getPreferenceValues, open } from "@raycast/api";
 const runLive = process.env.OBSIDIAN_LIVE_TEST === "1";
 
 const defaultVaultPath = "/Users/myhome/My Digital Garden";
-const defaultPdfFixture =
-  "/Users/myhome/My Digital Garden/Learning/Strayer Classes/BUS499/Week 2/SWOT Worksheet.pdf";
+const defaultPdfFixture = "/Users/myhome/My Digital Garden/Learning/Strayer Classes/BUS499/Week 2/SWOT Worksheet.pdf";
 const defaultVideoFixture =
   "/Users/myhome/My Digital Garden/Learning/Strayer Classes/BUS520 Leadership and Organizational Behavior/Week 2/Organizational Behavior in Context Part 1 Lecture.mp4";
 
@@ -109,7 +108,10 @@ describe.skipIf(!runLive)("Raycast Operator Live Smoke", () => {
   const pdfFixturePath = process.env.OBSIDIAN_LIVE_PDF_PATH || defaultPdfFixture;
   const videoFixturePath = process.env.OBSIDIAN_LIVE_VIDEO_PATH || defaultVideoFixture;
   const templatePath = path.join(vaultPath, "copilot", "copilot-custom-prompts", "Summarize.md");
-  const runRoot = `obsidian-cli-only-smoke/${new Date().toISOString().replace(/[.:]/g, "-")}-${randomUUID().slice(0, 8)}`;
+  const runRoot = `obsidian-cli-only-smoke/${new Date().toISOString().replace(/[.:]/g, "-")}-${randomUUID().slice(
+    0,
+    8
+  )}`;
   const preparedNoteRelativePath = `${runRoot}/prepared-note.md`;
   const tempPromptSlug = `cli-only-smoke-${randomUUID().slice(0, 8)}`;
   const tempPromptAbsolutePath = path.join(vaultPath, "copilot", "copilot-custom-prompts", `${tempPromptSlug}.md`);
@@ -185,7 +187,10 @@ describe.skipIf(!runLive)("Raycast Operator Live Smoke", () => {
     const { MCPClient } = await import("@/api/mcp/mcpClient.service");
 
     const client = new MCPClient();
-    const health = await client.callTool<{}, { backends?: { cli?: { capabilities?: { available?: boolean } } } }>({
+    const health = await client.callTool<
+      Record<string, never>,
+      { backends?: { cli?: { capabilities?: { available?: boolean } } } }
+    >({
       tool: "obsidian_health",
       operation: "read_note",
       input: {},
@@ -229,79 +234,63 @@ describe.skipIf(!runLive)("Raycast Operator Live Smoke", () => {
     }
   });
 
-  it(
-    "refreshes prompts and runs the summarize prompt against the active note",
-    async () => {
-      const vault = { name: vaultName, path: vaultPath, key: vaultPath };
+  it("refreshes prompts and runs the summarize prompt against the active note", async () => {
+    const vault = { name: vaultName, path: vaultPath, key: vaultPath };
 
-      const refreshResult = await refreshPromptRegistry(vault);
-      expect(refreshResult.commandId).toMatch(/^copilot:/);
+    const refreshResult = await refreshPromptRegistry(vault);
+    expect(refreshResult.commandId).toMatch(/^copilot:/);
 
-      const promptItems = await loadPromptItems(vault);
-      const tempPrompt = promptItems.find((item) => item.title === tempPromptSlug);
-      expect(tempPrompt).toBeDefined();
-      const summarizePrompt = promptItems.find((item) => item.title.toLowerCase() === "summarize");
-      expect(summarizePrompt).toBeDefined();
+    const promptItems = await loadPromptItems(vault);
+    const tempPrompt = promptItems.find((item) => item.title === tempPromptSlug);
+    expect(tempPrompt).toBeDefined();
+    const summarizePrompt = promptItems.find((item) => item.title.toLowerCase() === "summarize");
+    expect(summarizePrompt).toBeDefined();
 
-      await open(`obsidian://open?path=${encodeURIComponent(path.join(vaultPath, preparedNoteRelativePath))}`);
-      await wait(1_000);
+    await open(`obsidian://open?path=${encodeURIComponent(path.join(vaultPath, preparedNoteRelativePath))}`);
+    await wait(1_000);
 
-      const tempResult = await runPrompt(vault, tempPrompt!);
-      expect(tempResult.commandId).toBe(`copilot:${tempPromptSlug}`);
+    const tempResult = await runPrompt(vault, tempPrompt!);
+    expect(tempResult.commandId).toBe(`copilot:${tempPromptSlug}`);
 
-      const result = await runPrompt(vault, summarizePrompt!);
-      expect(result.commandId).toBe("copilot:summarize");
-    },
-    90_000
-  );
+    const result = await runPrompt(vault, summarizePrompt!);
+    expect(result.commandId).toBe("copilot:summarize");
+  }, 90_000);
 
-  it(
-    "runs the installed AI summarize flow against the prepared note",
-    async () => {
-      await open(`obsidian://open?path=${encodeURIComponent(path.join(vaultPath, preparedNoteRelativePath))}`);
-      await wait(1_000);
+  it("runs the installed AI summarize flow against the prepared note", async () => {
+    await open(`obsidian://open?path=${encodeURIComponent(path.join(vaultPath, preparedNoteRelativePath))}`);
+    await wait(1_000);
 
-      const result = await runAiSummarizeCommand();
+    const result = await runAiSummarizeCommand();
 
-      expect(result.normalizedPath).toBe("");
-      expect(result.openedUri).toBe("");
-      expect(result.usedCommandId).toBe("copilot:summarize");
-    },
-    90_000
-  );
+    expect(result.normalizedPath).toBe("");
+    expect(result.openedUri).toBe("");
+    expect(result.usedCommandId).toBe("copilot:summarize");
+  }, 90_000);
 
-  it(
-    "creates PDF source and summary notes through the installed extension flow",
-    async () => {
-      const result = await runPdfSummarizeCommand(
-        {
-          pdfPath: copiedPdfAbsolutePath,
-        },
-        (getPreferenceValues as unknown as () => Record<string, string>)() as never
-      );
+  it("creates PDF source and summary notes through the installed extension flow", async () => {
+    const result = await runPdfSummarizeCommand(
+      {
+        pdfPath: copiedPdfAbsolutePath,
+      },
+      (getPreferenceValues as unknown as () => Record<string, string>)() as never
+    );
 
-      expect(await fileExists(path.join(vaultPath, result.sourceNoteRelativePath))).toBe(true);
-      expect(await fileExists(path.join(vaultPath, result.transcriptRelativePath))).toBe(true);
-      expect(await fileExists(path.join(vaultPath, result.summaryNotePath))).toBe(true);
-    },
-    240_000
-  );
+    expect(await fileExists(path.join(vaultPath, result.sourceNoteRelativePath))).toBe(true);
+    expect(await fileExists(path.join(vaultPath, result.transcriptRelativePath))).toBe(true);
+    expect(await fileExists(path.join(vaultPath, result.summaryNotePath))).toBe(true);
+  }, 240_000);
 
-  it(
-    "creates video transcript and summary notes through the installed extension flow",
-    async () => {
-      const result = await runVideoTranscribeCommand(
-        {
-          videoUrl: servedVideoUrl,
-        },
-        (getPreferenceValues as unknown as () => Record<string, string>)() as never
-      );
+  it("creates video transcript and summary notes through the installed extension flow", async () => {
+    const result = await runVideoTranscribeCommand(
+      {
+        videoUrl: servedVideoUrl,
+      },
+      (getPreferenceValues as unknown as () => Record<string, string>)() as never
+    );
 
-      expect(await fileExists(path.join(vaultPath, result.sourceNoteRelativePath))).toBe(true);
-      expect(await fileExists(path.join(vaultPath, result.transcriptRelativePath))).toBe(true);
-      expect(await fileExists(path.join(vaultPath, result.summaryNotePath))).toBe(true);
-      expect(await fileExists(path.join(vaultPath, result.sourceVideoRelativePath))).toBe(true);
-    },
-    420_000
-  );
+    expect(await fileExists(path.join(vaultPath, result.sourceNoteRelativePath))).toBe(true);
+    expect(await fileExists(path.join(vaultPath, result.transcriptRelativePath))).toBe(true);
+    expect(await fileExists(path.join(vaultPath, result.summaryNotePath))).toBe(true);
+    expect(await fileExists(path.join(vaultPath, result.sourceVideoRelativePath))).toBe(true);
+  }, 420_000);
 });

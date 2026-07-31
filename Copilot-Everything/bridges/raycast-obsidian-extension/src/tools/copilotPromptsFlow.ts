@@ -2,10 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { open } from "@raycast/api";
 import { getFilePaths } from "@/api/file/file.service";
-import {
-  getPromptCommandId,
-  getRefreshPromptRegistryCommandCandidates,
-} from "@/api/copilot/commandIds";
+import { getPromptCommandId, getRefreshPromptRegistryCommandCandidates } from "@/api/copilot/commandIds";
 import { hybridExecuteCommand } from "@/api/mcp/hybridObsidian.service";
 import type { ObsidianVault } from "@/obsidian";
 

@@ -1,5 +1,3 @@
-export type BackendId = "cli";
-
 export type Operation =
   | "open_vault"
   | "create_note"
@@ -11,14 +9,13 @@ export type Operation =
 export interface PlannerState {
   epochId: number;
   refreshedAt: number;
-  operationMap: Record<Operation, BackendId | null>;
+  // Backend id the bridge routed each operation to; null = operation unavailable.
+  operationMap: Record<Operation, string | null>;
   reasons: Record<Operation, string>;
 }
 
 export interface HealthResponse {
-  backends: {
-    cli: { capabilities: Record<string, unknown> };
-  };
+  status: string;
   routing: PlannerState;
   security: {
     transportMode: string;
@@ -32,7 +29,7 @@ export interface HealthResponse {
 export interface ToolMeta {
   requestId: string;
   durationMs: number;
-  backendUsed?: BackendId;
+  backendUsed?: string;
   epochId?: number;
   consistencyHint?: string;
 }
@@ -58,6 +55,7 @@ export interface MCPToolRequest<TInput> {
   tool: string;
   operation: Operation;
   input: TInput;
-  backendHint?: BackendId;
+  // backendHint retired 2026-07-31: the :8798 bridge is REST-only (2026-05-09) and
+  // 400-rejects any hint except the literal "restApi" — never send the field.
   epochId?: number;
 }

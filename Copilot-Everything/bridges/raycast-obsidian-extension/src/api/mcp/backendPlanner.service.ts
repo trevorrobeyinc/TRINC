@@ -1,9 +1,8 @@
-import type { BackendId, HealthResponse, Operation } from "./contracts";
+import type { HealthResponse, Operation } from "./contracts";
 import { MCPClient } from "./mcpClient.service";
 
 export interface PlannedRoute {
   operation: Operation;
-  backendHint: BackendId;
   epochId: number;
 }
 
@@ -24,7 +23,7 @@ export class BackendPlanner {
       return this.cachedHealth;
     }
 
-    const health = await this.client.callTool<{}, HealthResponse>({
+    const health = await this.client.callTool<Record<string, never>, HealthResponse>({
       tool: "obsidian_health",
       operation: "read_note",
       input: {},
@@ -48,7 +47,6 @@ export class BackendPlanner {
 
     return {
       operation,
-      backendHint: backend,
       epochId: health.routing.epochId,
     };
   }
@@ -59,7 +57,6 @@ export class BackendPlanner {
       tool,
       operation,
       input,
-      backendHint: route.backendHint,
       epochId: route.epochId,
     });
 
@@ -70,7 +67,6 @@ export class BackendPlanner {
         tool,
         operation,
         input,
-        backendHint: refreshed.backendHint,
         epochId: refreshed.epochId,
       });
     }

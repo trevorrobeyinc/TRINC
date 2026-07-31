@@ -1,9 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs";
 import http from "node:http";
-import path from "node:path";
 import { getPreferenceValues } from "@raycast/api";
-import { createLoopbackTlsAgent } from "../../utils/loopbackTlsAgent";
+import { createLoopbackTlsAgent, requireHttpsEndpoint } from "../../utils/loopbackTlsAgent";
 import type { MCPToolRequest, ToolResult } from "./contracts";
 
 interface MCPPreferences {
@@ -42,10 +41,10 @@ function bodyHash(body: string): string {
 }
 
 function loadConfigFile(configPath?: string): MCPServerConfigFile | null {
+  // The embedded mcp-server/ package is gone — the canonical bridge config is the
+  // only discovery target besides an explicit preference.
   const candidates = [
     configPath?.trim(),
-    path.resolve(process.cwd(), "mcp-server/config/obsidian-cli-mcp.local.json"),
-    path.resolve(process.cwd(), "../mcp-server/config/obsidian-cli-mcp.local.json"),
     "/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json",
   ].filter((value): value is string => Boolean(value));
 
@@ -74,14 +73,17 @@ export class MCPClient {
     const discoveredConfig = loadConfigFile(prefs.mcpConfigPath);
     const discoveredEndpoint =
       discoveredConfig?.transport?.host && discoveredConfig?.transport?.port
-        ? `http://${discoveredConfig.transport.host}:${discoveredConfig.transport.port}`
+        ? `https://${discoveredConfig.transport.host}:${discoveredConfig.transport.port}`
         : "";
     this.transport = prefs.mcpTransport || "http";
     // Default points at the canonical multi-operator obsidian-copilot-bridge on :8798.
     // The legacy raycast-flavoured raycast-obsidian-mcp on :18799 is being retired as part
     // of the bridge consolidation. Users can override via the Raycast mcpHttpEndpoint
     // preference if they want a different endpoint.
-    this.endpoint = (prefs.mcpHttpEndpoint || discoveredEndpoint || "https://127.0.0.1:8798").replace(/\/$/, "");
+    const rawEndpoint = (prefs.mcpHttpEndpoint || discoveredEndpoint || "https://127.0.0.1:8798").replace(/\/$/, "");
+    // uds/pipe speak over a filesystem socket and never dial this endpoint; the TCP
+    // lane is HTTPS-only (monorepo invariant) — a plaintext endpoint must throw here.
+    this.endpoint = this.transport === "http" ? requireHttpsEndpoint(rawEndpoint, "MCPClient") : rawEndpoint;
     this.token = prefs.mcpAuthToken?.trim() || discoveredConfig?.security?.authToken?.trim() || "";
     this.timeoutMs = Number.parseInt(prefs.mcpRequestTimeoutMs || "20000", 10) || 20_000;
   }

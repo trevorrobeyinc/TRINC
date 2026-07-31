@@ -56,7 +56,19 @@ export default function AppendTask(props: { arguments: appendTaskArgs }) {
     };
 
     runAppend();
-  }, [shouldAppend, ready, content, vaultName, vaults, vaultsWithPlugin, notePath, noteTag, creationDate, dateContent, heading]);
+  }, [
+    shouldAppend,
+    ready,
+    content,
+    vaultName,
+    vaults,
+    vaultsWithPlugin,
+    notePath,
+    noteTag,
+    creationDate,
+    dateContent,
+    heading,
+  ]);
 
   if (!ready || content === null) {
     return <List isLoading={true} />;

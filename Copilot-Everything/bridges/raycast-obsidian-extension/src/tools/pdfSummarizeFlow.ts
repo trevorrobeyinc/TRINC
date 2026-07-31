@@ -63,7 +63,14 @@ export interface PdfSummarizeResult {
   usedFallbackModel: boolean;
 }
 
-const defaultExecPathEntries = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin", "/usr/sbin", "/sbin"] as const;
+const defaultExecPathEntries = [
+  "/opt/homebrew/bin",
+  "/usr/local/bin",
+  "/usr/bin",
+  "/bin",
+  "/usr/sbin",
+  "/sbin",
+] as const;
 const defaultSummaryTemplateRelativePath = "copilot/copilot-custom-prompts/Summarize.md";
 const defaultSummaryOutputFolder = "obsidian-copilot-summaries";
 const defaultPdfDownloadFolder = "PDF Downloads";
@@ -356,7 +363,11 @@ async function downloadUrlToBuffer(sourceUrl: string, redirectDepth = 0): Promis
   });
 }
 
-async function resolvePdfSource(vaultPath: string, pdfInput: string, pdfDownloadFolderPreference: string | undefined): Promise<ResolvedPdfSource> {
+async function resolvePdfSource(
+  vaultPath: string,
+  pdfInput: string,
+  pdfDownloadFolderPreference: string | undefined
+): Promise<ResolvedPdfSource> {
   const trimmedInput = normalizeUserPathInput(pdfInput);
   if (!trimmedInput) {
     throw new Error("PDF path or URL is required.");
@@ -420,13 +431,17 @@ async function resolvePdfSource(vaultPath: string, pdfInput: string, pdfDownload
 }
 
 function normalizeExtractedText(rawText: string): string {
-  return rawText
-    .replace(/\u0000/g, "")
-    .replace(/\r\n/g, "\n")
-    .replace(/\r/g, "\n")
-    .replace(/\t/g, " ")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  return (
+    rawText
+      // NUL bytes from PDF text extractors are intentionally matched and stripped.
+      // eslint-disable-next-line no-control-regex
+      .replace(/\u0000/g, "")
+      .replace(/\r\n/g, "\n")
+      .replace(/\r/g, "\n")
+      .replace(/\t/g, " ")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim()
+  );
 }
 
 function buildExtractorCandidates(preferredExtractorPath?: string): ExtractorCandidate[] {
@@ -728,12 +743,10 @@ export async function runPdfSummarizeCommand(
 
     toast.title = "Extracting PDF text...";
     const backendService = new BackendEmulatorService();
-    let extraction:
-      | {
-          text: string;
-          extractorLabel: string;
-        }
-      | null = null;
+    let extraction: {
+      text: string;
+      extractorLabel: string;
+    } | null = null;
 
     try {
       const backendParse = await backendService.parseDoc(pdfPaths.absolutePdfPath);
@@ -807,7 +820,10 @@ export async function runPdfSummarizeCommand(
     });
 
     // Keep the source note in the same structured style as summary notes while enforcing deterministic transcript rendering.
-    const finalizedSourceNoteContent = injectDeterministicTranscriptSection(summaryResult.summaryText, transcriptSection);
+    const finalizedSourceNoteContent = injectDeterministicTranscriptSection(
+      summaryResult.summaryText,
+      transcriptSection
+    );
     await hybridCreateNote({
       vault: vaultName,
       vaultRoot: vaultPath,
@@ -821,8 +837,8 @@ export async function runPdfSummarizeCommand(
     toast.message = summaryResult.usedBackend
       ? `${summaryResult.summaryNotePath} (backend)`
       : summaryResult.usedFallbackModel
-        ? `${summaryResult.summaryNotePath} (fallback model)`
-        : summaryResult.summaryNotePath;
+      ? `${summaryResult.summaryNotePath} (fallback model)`
+      : summaryResult.summaryNotePath;
     await popToRoot();
 
     return {

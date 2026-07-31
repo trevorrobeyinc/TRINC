@@ -24,7 +24,7 @@ type ExtensionPreferences = {
   "removeLinks"?: boolean,
   /** CLI MCP Mode - Use the shared MCP bridge for CLI-backed note and command operations. */
   "mcpEnabled": boolean,
-  /** MCP Transport - Preferred transport for MCP server connection. */
+  /** MCP Transport - Preferred transport for MCP server connection. The TCP transport is HTTPS-only; a plaintext endpoint is rejected. */
   "mcpTransport": "http" | "uds" | "pipe",
   /** MCP HTTP Endpoint - Base URL for the canonical Obsidian MCP bridge over HTTPS. Defaults to the multi-operator obsidian-copilot-bridge daemon on :8798. */
   "mcpHttpEndpoint": string,

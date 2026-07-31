@@ -1,8 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs";
-import path from "node:path";
 import { getPreferenceValues } from "@raycast/api";
-import { createLoopbackTlsAgent } from "../../utils/loopbackTlsAgent";
+import { createLoopbackTlsAgent, requireHttpsEndpoint } from "../../utils/loopbackTlsAgent";
 import type { MCPToolRequest, ToolResult } from "./contracts";
 
 interface RaycastObsidianMcpPreferences {
@@ -14,7 +13,6 @@ interface RaycastObsidianMcpPreferences {
 
 interface RaycastObsidianMcpConfigFile {
   transport?: {
-    mode?: string;
     host?: string;
     port?: number;
   };
@@ -45,9 +43,10 @@ function bodyHash(body: string): string {
 }
 
 function loadConfigFile(configPath?: string): RaycastObsidianMcpConfigFile | null {
+  // The raycast-obsidian-mcp package was deleted 2026-05-09 — the canonical bridge
+  // config is the only discovery target besides an explicit preference.
   const candidates = [
     configPath?.trim(),
-    path.resolve(process.cwd(), "../raycast-obsidian-mcp/config/raycast-obsidian-mcp.local.json"),
     "/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json",
   ].filter((value): value is string => Boolean(value));
 
@@ -73,12 +72,15 @@ export class RaycastObsidianMcpClient {
   constructor() {
     const prefs = getPreferenceValues<RaycastObsidianMcpPreferences>();
     const discovered = loadConfigFile(prefs.raycastObsidianMcpConfigPath);
-    const scheme = discovered?.transport?.mode === "http" ? "http" : "https";
     const discoveredEndpoint =
       discovered?.transport?.host && discovered?.transport?.port
-        ? `${scheme}://${discovered.transport.host}:${discovered.transport.port}`
+        ? `https://${discovered.transport.host}:${discovered.transport.port}`
         : "";
-    this.endpoint = (prefs.raycastObsidianMcpEndpoint || discoveredEndpoint || DEFAULT_ENDPOINT).replace(/\/$/, "");
+    // TCP-only client; HTTPS-only per the monorepo invariant — a plaintext endpoint throws.
+    this.endpoint = requireHttpsEndpoint(
+      (prefs.raycastObsidianMcpEndpoint || discoveredEndpoint || DEFAULT_ENDPOINT).replace(/\/$/, ""),
+      "RaycastObsidianMcpClient"
+    );
     this.token = prefs.raycastObsidianMcpAuthToken?.trim() || discovered?.security?.authToken?.trim() || "";
     if (!this.token) {
       throw new Error(

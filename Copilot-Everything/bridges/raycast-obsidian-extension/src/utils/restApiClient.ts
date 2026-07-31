@@ -90,9 +90,7 @@ async function getRestApiConfig(): Promise<{ baseUrl: string; apiKey: string }> 
   // the preference is the fallback for setups where the plugin's data.json isn't readable.
   const apiKey = (await discoverApiKeyFromPlugin()) || prefs.obsidianRestApiKey?.trim() || "";
   if (!apiKey) {
-    throw new Error(
-      "Obsidian Local REST API key is not set. Configure it in the Raycast extension preferences.",
-    );
+    throw new Error("Obsidian Local REST API key is not set. Configure it in the Raycast extension preferences.");
   }
   return { baseUrl, apiKey };
 }
@@ -103,19 +101,13 @@ function isLoopback(url: string): boolean {
 }
 
 function encodeVaultPath(path: string): string {
-  return path
-    .replace(/^\//, "")
-    .split("/")
-    .map(encodeURIComponent)
-    .join("/");
+  return path.replace(/^\//, "").split("/").map(encodeURIComponent).join("/");
 }
 
 async function restApiFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const { baseUrl, apiKey } = await getRestApiConfig();
   if (!isLoopback(baseUrl)) {
-    throw new Error(
-      `restApiFetch refuses to skip TLS verification for non-loopback host: ${baseUrl}`,
-    );
+    throw new Error(`restApiFetch refuses to skip TLS verification for non-loopback host: ${baseUrl}`);
   }
   const localhostAgent = await getLocalhostAgent();
   const fullUrl = baseUrl + path;
@@ -148,9 +140,7 @@ async function restApiFetch(path: string, init: RequestInit = {}): Promise<Respo
   }
   if (!res.ok) {
     const body = await res.text().catch(() => "<unreadable>");
-    throw new Error(
-      `Obsidian REST API ${init.method ?? "GET"} ${path} → ${res.status} ${res.statusText}: ${body}`,
-    );
+    throw new Error(`Obsidian REST API ${init.method ?? "GET"} ${path} → ${res.status} ${res.statusText}: ${body}`);
   }
   return res;
 }
@@ -174,7 +164,7 @@ export async function createNote(path: string, content: string): Promise<void> {
 export async function appendNote(
   path: string,
   content: string,
-  opts: { heading?: string; prepend?: boolean } = {},
+  opts: { heading?: string; prepend?: boolean } = {}
 ): Promise<void> {
   if (opts.heading) {
     await restApiFetch(`/vault/${encodeVaultPath(path)}`, {
@@ -198,7 +188,7 @@ export async function appendNote(
 
 export async function appendDailyNote(
   content: string,
-  opts: { heading?: string; prepend?: boolean } = {},
+  opts: { heading?: string; prepend?: boolean } = {}
 ): Promise<void> {
   // Ensure today's daily note exists before appending. The `daily-notes` command
   // (from Obsidian's core Daily Notes plugin) opens today's daily note, auto-creating

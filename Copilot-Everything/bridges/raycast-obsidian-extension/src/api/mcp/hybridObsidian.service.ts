@@ -56,11 +56,10 @@ export async function hybridSearchNotes(input: {
   limit?: number;
   caseSensitive?: boolean;
 }) {
-  return await planner.callRouted<typeof input, { query: string; matches: Array<{ path: string; line?: number; text?: string }> }>(
-    "obsidian_search_notes",
-    "search_notes",
-    input
-  );
+  return await planner.callRouted<
+    typeof input,
+    { query: string; matches: Array<{ path: string; line?: number; text?: string }> }
+  >("obsidian_search_notes", "search_notes", input);
 }
 
 export async function hybridExecuteCommand(input: { vault?: string; id: string }) {

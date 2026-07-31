@@ -74,11 +74,13 @@ async function restoreObsidianFocus(vaultName: string, activationDelayMs: number
   await new Promise((resolve) => setTimeout(resolve, activationDelayMs));
 }
 
-export async function runAiSummarizeCommand(params: {
-  notePath?: string;
-  openDelayMs?: number;
-  activationDelayMs?: number;
-} = {}): Promise<{ normalizedPath: string; usedCommandId: string; vault: ResolvedVault; openedUri: string }> {
+export async function runAiSummarizeCommand(
+  params: {
+    notePath?: string;
+    openDelayMs?: number;
+    activationDelayMs?: number;
+  } = {}
+): Promise<{ normalizedPath: string; usedCommandId: string; vault: ResolvedVault; openedUri: string }> {
   const normalizedPath = params.notePath?.trim() ?? "";
   const vault = await resolvePrimaryVault();
   let openedUri = "";

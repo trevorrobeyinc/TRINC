@@ -7,6 +7,8 @@ import { hybridCreateNote } from "@/api/mcp/hybridObsidian.service";
 const defaultSummaryFolder = "obsidian-copilot-summaries";
 
 function sanitizeFilename(rawValue: string): string {
+  // Intentional control-character range: C0 chars are stripped from filenames along with Windows-reserved chars.
+  // eslint-disable-next-line no-control-regex
   const invalidCharacterSet = /[<>:"/\\|?*\u0000-\u001F]/g;
   const sanitized = rawValue.replace(invalidCharacterSet, " ").replace(/\s+/g, " ").trim();
   return sanitized || "Untitled Summary";

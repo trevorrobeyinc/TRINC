@@ -16,7 +16,7 @@ export default async function Command(
   props: LaunchProps<{
     arguments: { videoUrl?: string };
     launchContext: { values?: VideoTranscribeFormValues };
-  }>,
+  }>
 ) {
   // The root-search argument is the primary input; launchContext.values survives for deeplink
   // automations (same payload shape the old form handoff used).

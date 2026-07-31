@@ -1,9 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { open } from "@raycast/api";
 import { execFile } from "node:child_process";
+import {
+  getRefreshPromptRegistryCommandCandidates,
+  getSummarizeCommandCandidates,
+} from "@/api/copilot/commandIds";
 import { hybridReadNote } from "@/api/mcp/hybridObsidian.service";
 import { getVaultsFromPreferencesOrObsidianJson } from "@/obsidian/internal/obsidian";
 import { runAiSummarizeCommand } from "@/tools/aiSummarizeCommandFlow";
+import { executeCommand } from "@/utils/restApiClient";
 
 vi.mock("node:fs", () => ({
   existsSync: vi.fn(() => true),
@@ -21,11 +26,18 @@ vi.mock("@/obsidian/internal/obsidian", () => ({
   getVaultsFromPreferencesOrObsidianJson: vi.fn(),
 }));
 
+// The flow dispatches Obsidian commands through the Local REST API client
+// (POST /commands/{id}/), not the Obsidian CLI binary — mock at that seam.
+vi.mock("@/utils/restApiClient", () => ({
+  executeCommand: vi.fn(),
+}));
+
 describe("runAiSummarizeCommand", () => {
   const mockReadNote = vi.mocked(hybridReadNote);
   const mockVaults = vi.mocked(getVaultsFromPreferencesOrObsidianJson);
   const mockOpen = vi.mocked(open);
   const mockExecFile = vi.mocked(execFile);
+  const mockExecuteCommand = vi.mocked(executeCommand);
   const vault = {
     name: "My Digital Garden",
     key: "/Users/myhome/My Digital Garden",
@@ -55,11 +67,12 @@ describe("runAiSummarizeCommand", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockVaults.mockResolvedValue([vault]);
-    mockExecFileImplementation((file, args) => {
+    mockExecuteCommand.mockResolvedValue(undefined);
+    mockExecFileImplementation((file) => {
       if (file === "/usr/bin/osascript") {
         return { error: null };
       }
-      return { error: null, stdout: `Executed: ${args.at(-1) ?? ""}` };
+      return { error: null };
     });
   });
 
@@ -73,15 +86,12 @@ describe("runAiSummarizeCommand", () => {
       expect.any(Function)
     );
     expect(mockOpen).not.toHaveBeenCalled();
-    expect(mockExecFile).toHaveBeenCalledWith(
-      "/Applications/Obsidian.app/Contents/MacOS/obsidian",
-      ["vault=My Digital Garden", "command", "id=copilot:summarize"],
-      { timeout: 20_000 },
-      expect.any(Function)
-    );
+    // The preferred headless candidate succeeds first try, so exactly one dispatch happens.
+    expect(mockExecuteCommand).toHaveBeenCalledTimes(1);
+    expect(mockExecuteCommand).toHaveBeenCalledWith("copilot:summarize-to-note");
     expect(result.normalizedPath).toBe("");
     expect(result.openedUri).toBe("");
-    expect(result.usedCommandId).toBe("copilot:summarize");
+    expect(result.usedCommandId).toBe("copilot:summarize-to-note");
   });
 
   it("falls back to a vault open URI if macOS app activation fails", async () => {
@@ -106,10 +116,11 @@ describe("runAiSummarizeCommand", () => {
     const result = await runAiSummarizeCommand({
       notePath: " Inbox/Test Note.md ",
       openDelayMs: 0,
+      activationDelayMs: 0,
     });
 
     const openedUri =
-      "obsidian://open?path=%2FVolumes%2FExtraCurricular%2FMy%20Digital%20Garden%2FInbox%2FTest%20Note.md";
+      "obsidian://open?path=%2FUsers%2Fmyhome%2FMy%20Digital%20Garden%2FInbox%2FTest%20Note.md";
 
     expect(mockReadNote).toHaveBeenCalledWith({
       vault: "My Digital Garden",
@@ -121,46 +132,42 @@ describe("runAiSummarizeCommand", () => {
     expect(result.openedUri).toBe(openedUri);
   });
 
-  it("refreshes prompts and retries only when summarize is initially missing", async () => {
-    mockExecFileImplementation((file, args) => {
-      if (file === "/usr/bin/osascript") {
-        return { error: null };
+  it("rejects when summarize is missing even after the prompt-registry refresh", async () => {
+    const summarizeIds = new Set(getSummarizeCommandCandidates());
+    mockExecuteCommand.mockImplementation(async (commandId: string) => {
+      if (summarizeIds.has(commandId)) {
+        throw new Error("Command was not found");
       }
-
-      const commandIdArg = args.at(-1) ?? "";
-      if (
-        commandIdArg === "id=copilot:summarize" ||
-        commandIdArg === "id=copilot:summarize-active-note" ||
-        commandIdArg === "id=copilot:summarize.md"
-      ) {
-        const error = new Error("Command was not found");
-        return { error };
-      }
-
-      return { error: null, stdout: `Executed: ${commandIdArg}` };
     });
 
     await expect(runAiSummarizeCommand({ activationDelayMs: 0 })).rejects.toThrow("was not found");
+
+    // The refresh fallback really ran, and the preferred summarize candidate was
+    // attempted on both passes (before and after the refresh).
+    expect(mockExecuteCommand).toHaveBeenCalledWith(getRefreshPromptRegistryCommandCandidates()[0]);
+    const preferredAttempts = mockExecuteCommand.mock.calls.filter(
+      ([commandId]) => commandId === "copilot:summarize-to-note"
+    );
+    expect(preferredAttempts).toHaveLength(2);
   });
 
-  it("refreshes prompts and retries summarize when the first command id is missing", async () => {
-    let missingAttempts = 0;
-    mockExecFileImplementation((file, args) => {
-      if (file === "/usr/bin/osascript") {
-        return { error: null };
+  it("refreshes prompts and retries summarize when the summarize commands are initially missing", async () => {
+    let refreshed = false;
+    const summarizeIds = new Set(getSummarizeCommandCandidates());
+    const refreshIds = new Set(getRefreshPromptRegistryCommandCandidates());
+    mockExecuteCommand.mockImplementation(async (commandId: string) => {
+      if (refreshIds.has(commandId)) {
+        refreshed = true;
+        return;
       }
-
-      const commandIdArg = args.at(-1) ?? "";
-      if (commandIdArg === "id=copilot:summarize" && missingAttempts < 1) {
-        missingAttempts += 1;
-        return { error: new Error("The Copilot Summarize prompt command was not found. Refresh prompts in Obsidian and try again.") };
+      if (summarizeIds.has(commandId) && !refreshed) {
+        throw new Error("Command was not found");
       }
-
-      return { error: null, stdout: `Executed: ${commandIdArg}` };
     });
 
     const result = await runAiSummarizeCommand({ activationDelayMs: 0 });
 
-    expect(result.usedCommandId).toBe("copilot:summarize");
+    expect(mockExecuteCommand).toHaveBeenCalledWith(getRefreshPromptRegistryCommandCandidates()[0]);
+    expect(result.usedCommandId).toBe("copilot:summarize-to-note");
   });
 });

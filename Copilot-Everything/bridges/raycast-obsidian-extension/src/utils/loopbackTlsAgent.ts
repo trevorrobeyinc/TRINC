@@ -39,6 +39,27 @@ function loadMkcertCa(): string | undefined {
 }
 
 /**
+ * HTTPS-only guard for TCP endpoints (monorepo invariant): a non-https endpoint must
+ * THROW with an actionable error — never silently demote to plaintext.
+ */
+export function requireHttpsEndpoint(endpoint: string, sourceLabel: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(endpoint);
+  } catch {
+    throw new Error(
+      `${sourceLabel}: endpoint "${endpoint}" is not a valid URL. Expected the HTTPS bridge origin, e.g. https://127.0.0.1:8798.`
+    );
+  }
+  if (parsed.protocol !== "https:") {
+    throw new Error(
+      `${sourceLabel}: endpoint "${endpoint}" is not HTTPS. This monorepo is HTTPS-only (no plaintext fallback) — point at the TLS bridge, e.g. https://127.0.0.1:8798.`
+    );
+  }
+  return endpoint;
+}
+
+/**
  * undici dispatcher that trusts the mkcert root CA and KEEPS certificate verification on
  * (server identity is checked). If the mkcert CA cannot be located it falls back to system
  * trust — still verifying — and NEVER disables verification.

@@ -4,13 +4,13 @@
 
 # Obsidian Bridge for Raycast
 
-This workspace contains the bridge-enabled fork of the Raycast Obsidian extension. The source-of-truth package for this workspace is [`bridges/raycast-obsidian-extension/package.json`](./package.json), where the extension identity is `obsidian-bridge-fork` / `Obsidian Bridge Fork`. Local Raycast install targets can vary by machine; the bundled sync helper currently defaults to `~/.config/raycast/extensions/obsidian` unless `--target` is supplied.
+This workspace contains the bridge-enabled fork of the Raycast Obsidian extension. The source-of-truth package for this workspace is [`bridges/raycast-obsidian-extension/package.json`](./package.json), where the extension identity is `obsidian-bridge-fork` / `Obsidian Bridge Fork`. The live deployed copy is `~/.config/raycast/extensions/obsidian-bridge-fork/`, and `npm run build` (`npx ray build -e dist`) builds straight into it — build IS deploy; despite the flag, nothing is written to `./dist`, and there is no separate sync helper. After any `npx ray develop` session, re-run `npm run build`: develop silently reverts the deployed build to dev flavor.
 
 Current workspace runtime note:
-- Note CRUD and prompt command execution are CLI-backed through the shared MCP bridge when `mcpEnabled` is on.
-- Backend-first summarize/orchestration flows still use the Backend Emulator where the command path requires `/v0/parse-doc` or `/v1/self-host/agent-turn`.
+- Note CRUD and prompt command execution are REST-backed through the shared MCP bridge when `mcpEnabled` is on (bridge → Obsidian Local REST API `:27124`; REST-only since 2026-05-09).
+- The Backend Emulator (`:8789`) was retired 2026-04-11 and deleted from the monorepo 2026-05-08; its client here survives only as a throw-only compile stub. PDF summarize now runs local extraction (`pdftotext`/`mutool`, OCR fallback) with a Raycast AI template summary; the video pipeline summarizes via the Copilot fork's headless `copilot:summarize-to-note` command over the Local REST API, falling back to the Anthropic API (or Raycast AI without a key).
 - The active-note `aiSummarizeCommand` hotkey is the intentional local exception and calls the Obsidian CLI command ids directly after restoring editor focus.
-- Local REST is not part of the active production path for this workspace.
+- The Obsidian Local REST API (`:27124`) is in the active production path: it is the bridge's sole backend (REST-only since 2026-05-09), and the video pipeline's headless Copilot summarize dispatches against it directly.
 - Legacy prompt-bridge runtime paths have been decommissioned and archived.
 - See [`bridges/raycast-obsidian-extension/INTEGRATION_README.md`](./INTEGRATION_README.md) for the living architecture contract.
 
@@ -245,23 +245,27 @@ This project is not affiliated, associated, authorized, endorsed by, or in any w
 
 ## Workspace Runtime
 
-This extension uses two local runtime lanes in this workspace:
+This extension uses these local runtime lanes in this workspace:
 
-- Shared CLI-backed MCP bridge for `open_vault`, `create_note`, `append_note`, `read_note`, `search_notes`, and `execute_command`
-- Backend Emulator for backend-first parse/summarize flows that call `/v0/parse-doc` or `/v1/self-host/agent-turn`
+- Shared REST-backed MCP bridge (`:8798`) for `open_vault`, `create_note`, `append_note`, `read_note`, `search_notes`, and `execute_command`
+- Obsidian Local REST API (`:27124`) directly, for the video pipeline's background Copilot summarize dispatch (`src/utils/restApiClient.ts`, pinned-cert TLS with verification on)
+- Local toolchain for media and PDF work: Downie 4 / `yt-dlp` / Whisper for video, `pdftotext`/`mutool` + OCR for PDF
+- Extension-side summary models: Raycast AI (PDF), Anthropic API or Raycast AI (video fallback)
+
+The Backend Emulator lane is gone — retired 2026-04-11, deleted from the monorepo 2026-05-08. `src/api/backend-emulator/` survives only as a throw-only stub that keeps legacy call sites compiling.
 
 Key packages:
 
-- Server package: `mcp-server/`
+- Bridge daemon (canonical, shared): `../obsidian-copilot-bridge/`
 - Hybrid MCP client/planner: `src/api/mcp/`
-- Backend Emulator client: `src/api/backend-emulator/`
+- Local REST API client (video summarize dispatch): `src/utils/restApiClient.ts`
 
-When `CLI MCP Mode` (`mcpEnabled`) is enabled in extension preferences, note and command operations are routed through the shared CLI-backed bridge instead of legacy fallback chains. `aiSummarizeCommand` intentionally stays on the direct local CLI path because active-note rewrite behavior depends on the focused Obsidian editor state. PDF and video commands summarize backend-first and fall back to local Raycast AI only if the backend path fails.
+When `CLI MCP Mode` (`mcpEnabled`) is enabled in extension preferences, note and command operations are routed through the shared REST-backed bridge instead of legacy fallback chains. `aiSummarizeCommand` intentionally stays on the direct local CLI path because active-note rewrite behavior depends on the focused Obsidian editor state. PDF summarize extracts and summarizes locally (Raycast AI); the video pipeline summarizes Copilot-plugin-first over the Local REST API and falls back to the extension-side Anthropic/Raycast AI summarizer only if that lane fails.
 
 Security and hardening highlights in this mode:
 
-- deterministic operation routing by epoch (`mcp-server/src/backends/backendSelector.ts`)
-- replay-guard headers + constant-time auth token compare (`mcp-server/src/server/replayGuard.ts`, `mcp-server/src/server/auth.ts`)
-- bounded queue with fairness and overflow controls (`mcp-server/src/server/queue.ts`)
-- strict vault path guard with canonicalization (`mcp-server/src/fs/pathGuard.ts`)
-- Obsidian CLI baseline check (`>=1.12.4`) aligned with troubleshooting guidance (`mcp-server/src/backends/cliBackend.ts`)
+- deterministic operation routing pinned to the REST backend (`../obsidian-copilot-bridge/src/backends/backendSelector.ts` requires `restApi`; there is no fallback backend)
+- replay-guard headers + constant-time auth token compare (`../obsidian-copilot-bridge/src/server/replayGuard.ts`, `../obsidian-copilot-bridge/src/server/auth.ts`)
+- bounded queue with fairness and overflow controls (`../obsidian-copilot-bridge/src/server/queue.ts`)
+- strict vault path guard with canonicalization (`../obsidian-copilot-bridge/src/fs/pathGuard.ts`)
+- Obsidian CLI baseline check (`>=1.12.4`) — retired 2026-05-09 with the CLI backend; the REST-only bridge no longer probes the Obsidian CLI binary

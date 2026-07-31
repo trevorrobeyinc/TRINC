@@ -34,32 +34,26 @@ yarn test
 yarn coverage
 ```
 
-## Phase 3 Codex Workflow
+## Development Workflow
 
 Run these from this extension directory:
 
 ```bash
-# Validate Raycast dev prerequisites
-npm run codex:dev -- --check
-
 # Start Raycast development mode (interactive/watch)
-npm run codex:dev
+npm run dev
 
-# Run full quality gate
-npm run codex:verify
+# Lint / auto-fix
+npm run lint
+npm run fix-lint
 
-# Trigger a command in Raycast via deeplink
-npm run codex:open-command -- quickCaptureCommand
+# Run the test suite
+npm test
 
-# List all command IDs you can trigger
-npm run codex:open-command -- --list
-
-# Preview workspace -> default local sync target (~/.config/raycast/extensions/obsidian)
-npm run codex:sync-config -- --dry-run
-
-# Apply sync
-npm run codex:sync-config
-
-# Apply sync and remove files that no longer exist in workspace
-npm run codex:sync-config -- --delete
+# Build AND deploy: despite the -e dist flag, nothing is written to ./dist —
+# this builds straight into the live Raycast install dir at
+# ~/.config/raycast/extensions/obsidian-bridge-fork/ (build IS deploy).
+npm run build
 ```
+
+> After any `npm run dev` session, finish with `npm run build` — develop silently
+> reverts the deployed build to dev flavor.

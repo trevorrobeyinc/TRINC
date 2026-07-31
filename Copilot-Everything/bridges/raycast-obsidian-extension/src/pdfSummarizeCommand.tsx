@@ -16,7 +16,11 @@ export default function Command() {
         </ActionPanel>
       }
     >
-      <Form.TextField id="pdfPath" title="PDF Path or URL" placeholder="path/to/file.pdf or https://example.com/file.pdf" />
+      <Form.TextField
+        id="pdfPath"
+        title="PDF Path or URL"
+        placeholder="path/to/file.pdf or https://example.com/file.pdf"
+      />
     </Form>
   );
 }

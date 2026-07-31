@@ -76,7 +76,10 @@ describe.skipIf(!runLive)("Raycast Extension + MCP Live Integration", () => {
 
     // Basic live MCP sanity check via extension MCP client.
     const client = new MCPClient();
-    const health = await client.callTool<{}, { backends?: { cli?: { capabilities?: { available?: boolean } } } }>({
+    const health = await client.callTool<
+      Record<string, never>,
+      { backends?: { cli?: { capabilities?: { available?: boolean } } } }
+    >({
       tool: "obsidian_health",
       operation: "read_note",
       input: {},
@@ -87,47 +90,39 @@ describe.skipIf(!runLive)("Raycast Extension + MCP Live Integration", () => {
     }
   }, 30_000);
 
-  it(
-    "exercises extension tools against live MCP server",
-    async () => {
-      const createResult = await createNoteTool({
-        name: noteName,
-        content: `# Raycast Extension MCP Live\\n${marker}\\n`,
-        vaultName,
-        path: runRoot,
-      });
-      expect(createResult).toContain("Successfully created note");
+  it("exercises extension tools against live MCP server", async () => {
+    const createResult = await createNoteTool({
+      name: noteName,
+      content: `# Raycast Extension MCP Live\\n${marker}\\n`,
+      vaultName,
+      path: runRoot,
+    });
+    expect(createResult).toContain("Successfully created note");
 
-      const readResult1 = await readNoteTool({ fullNotePath });
-      expect(readResult1).toContain(marker);
+    const readResult1 = await readNoteTool({ fullNotePath });
+    expect(readResult1).toContain(marker);
 
-      const appendResult = await appendNoteTool({
-        fullNotePath,
-        content: `## Extension Append\\n${marker}\\n`,
-      });
-      expect(appendResult).toContain("Successfully appended");
+    const appendResult = await appendNoteTool({
+      fullNotePath,
+      content: `## Extension Append\\n${marker}\\n`,
+    });
+    expect(appendResult).toContain("Successfully appended");
 
-      const readResult2 = await readNoteTool({ fullNotePath });
-      expect(readResult2).toContain("## Extension Append");
+    const readResult2 = await readNoteTool({ fullNotePath });
+    expect(readResult2).toContain("## Extension Append");
 
-      const searchResult = await searchNoteTool({
-        searchTerm: marker,
-        vaultName,
-      });
-      expect(searchResult).toContain(fullNotePath);
+    const searchResult = await searchNoteTool({
+      searchTerm: marker,
+      vaultName,
+    });
+    expect(searchResult).toContain(fullNotePath);
 
-      const openResult = await openNoteTool({ fullNotePath });
-      expect(openResult).toContain("Opened note");
-    },
-    90_000
-  );
+    const openResult = await openNoteTool({ fullNotePath });
+    expect(openResult).toContain("Opened note");
+  }, 90_000);
 
-  it(
-    "cleans up extension demo directory",
-    async () => {
-      await fs.rm(path.join(vaultPath, runRoot), { recursive: true, force: true });
-      await expect(fs.access(path.join(vaultPath, runRoot))).rejects.toThrow();
-    },
-    30_000
-  );
+  it("cleans up extension demo directory", async () => {
+    await fs.rm(path.join(vaultPath, runRoot), { recursive: true, force: true });
+    await expect(fs.access(path.join(vaultPath, runRoot))).rejects.toThrow();
+  }, 30_000);
 });
