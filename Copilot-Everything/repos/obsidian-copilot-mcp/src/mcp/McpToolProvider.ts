@@ -281,7 +281,6 @@ export class McpToolProvider {
             tool: entry.toolName,
             operation: entry.operation,
             input,
-            backendHint: server.backendHint || undefined,
           });
 
           const response = await postHttpToolCall(server, body, server.timeoutMs || 20_000);

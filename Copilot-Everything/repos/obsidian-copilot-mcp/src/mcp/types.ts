@@ -1,5 +1,4 @@
 export type McpTransport = "http" | "uds" | "pipe";
-export type McpBackendHint = "cli";
 export type McpConfirmationPolicy = "read_only_only" | "prompt_on_writes" | "allow_without_prompt";
 
 export interface McpServerConfig {
@@ -12,7 +11,6 @@ export interface McpServerConfig {
   timeoutMs: number;
   vaultName: string;
   vaultRoot: string;
-  backendHint?: McpBackendHint;
   enabledToolNames: string[];
 }
 
