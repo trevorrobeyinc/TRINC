@@ -482,7 +482,12 @@ function createWorkflowEngine(options = {}) {
           || enrichedInputs.therapeutic_area || enrichedInputs.topic
         ).trim();
         if (ctgov && typeof ctgov.searchStoppedTrials === "function" && condition) {
-          const stopped = await ctgov.searchStoppedTrials({ condition });
+          // CENSUS mode: this output is written to a file and never rendered into a prompt, so it
+          // walks the full result set rather than riding the scout prefetch's 6-8 record page.
+          // That prefetch-shared array was also a silent defect — the memo on 6 of 7 templates was
+          // built from scout's SIX records while the copy rules said eight — and the size-aware
+          // cache key in the fetcher now makes the two provably distinct.
+          const stopped = await ctgov.searchStoppedTrials({ condition, census: true });
           const memo = buildGraveyardMemo(stopped, { indication: condition });
           if (memo.count > 0) {
             const risk = buildAmendmentRisk(stopped);

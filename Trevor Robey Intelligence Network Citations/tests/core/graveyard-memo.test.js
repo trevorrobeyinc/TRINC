@@ -74,3 +74,77 @@ describe("graveyard-memo", () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Coverage copy (2026-07-30). The memo's honesty is the deliverable, so the
+// branches are pinned: "complete" must be unreachable unless the run earned it.
+// ---------------------------------------------------------------------------
+describe("graveyard-memo — derived coverage copy", () => {
+  const withMeta = (arr, m) => {
+    for (const [k, v] of Object.entries(m)) {
+      Object.defineProperty(arr, k, { value: v, enumerable: false, configurable: true });
+    }
+    return arr;
+  };
+  const rec = (n, versions) => ({
+    nctId: n, title: "T" + n, status: "TERMINATED", phase: "PHASE3", whyStopped: "Slow accrual",
+    changeSummary: versions ? { versions, amended_modules: ["Eligibility", "Outcomes"] } : undefined
+  });
+  const base = { historySelectionRule: "the first N in registry order.", conditionQuery: "glioblastoma" };
+
+  it("says COMPLETE only when the census actually reached countTotal", () => {
+    const md = buildGraveyardMemo(
+      withMeta([rec("NCT1"), rec("NCT2")], { ...base, eligibleTotal: 2, censusComplete: true, pagesExhausted: true, fetchError: false, droppedNoNct: 0, droppedDuplicate: 0 }),
+      { indication: "glioblastoma" }
+    ).markdown;
+    assert.match(md, /Complete retrieval for the ClinicalTrials\.gov condition query/);
+    assert.match(md, /2 of 2 record\(s\)/);
+  });
+
+  it("never claims completeness on a clean-but-short walk, and names what it cannot know", () => {
+    const md = buildGraveyardMemo(
+      withMeta([rec("NCT1")], { ...base, eligibleTotal: 100, censusComplete: false, pagesExhausted: true, fetchError: false, droppedNoNct: 1, droppedDuplicate: 2 }),
+      { indication: "glioblastoma" }
+    ).markdown;
+    assert.doesNotMatch(md, /Complete retrieval/);
+    assert.match(md, /cannot distinguish which/);
+  });
+
+  it("labels a fetch-error run PARTIAL and never says 'every'", () => {
+    const md = buildGraveyardMemo(
+      withMeta([rec("NCT1")], { ...base, eligibleTotal: 100, censusComplete: false, pagesExhausted: false, fetchError: true, droppedNoNct: 0, droppedDuplicate: 0 }),
+      { indication: "glioblastoma" }
+    ).markdown;
+    assert.match(md, /PARTIAL retrieval/);
+    assert.doesNotMatch(md, /\bevery record\b/);
+  });
+
+  it("does not print a null denominator when the fetcher supplied no coverage metadata", () => {
+    // Number(null) is 0 and Number.isFinite(0) is true, so a bare finite-check let a missing
+    // denominator through and rendered "1 of null record(s)".
+    const md = buildGraveyardMemo([rec("NCT1")], { indication: "glioblastoma" }).markdown;
+    assert.doesNotMatch(md, /of null/);
+    assert.match(md, /Coverage metadata was not supplied/);
+  });
+
+  it("always carries the term-based search caveat, on every branch", () => {
+    for (const m of [
+      { ...base, eligibleTotal: 1, censusComplete: true, pagesExhausted: true, fetchError: false, droppedNoNct: 0, droppedDuplicate: 0 },
+      { ...base, eligibleTotal: 99, censusComplete: false, pagesExhausted: false, fetchError: true, droppedNoNct: 0, droppedDuplicate: 0 }
+    ]) {
+      const md = buildGraveyardMemo(withMeta([rec("NCT1")], m), { indication: "x" }).markdown;
+      assert.match(md, /term-based/);
+    }
+  });
+
+  it("keeps the most-amended-modules sentence and all three band limits", () => {
+    // The most-amended sentence was silently dropped by an earlier draft of this change, leaving
+    // topModules computed and unused — a content regression inside an honesty fix.
+    const risk = buildAmendmentRisk(withMeta([rec("NCT1", 12), rec("NCT2", 11)], { ...base, eligibleTotal: 40 }));
+    assert.match(risk.markdown, /Most-amended protocol modules/);
+    assert.match(risk.markdown, /sample-size sensitive/);
+    assert.match(risk.markdown, /survivorship-inverted/);
+    assert.match(risk.markdown, /no published basis/);
+    assert.match(risk.markdown, /of the \*\*40\*\* stopped program/);
+  });
+});

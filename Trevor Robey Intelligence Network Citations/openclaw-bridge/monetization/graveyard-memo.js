@@ -7,6 +7,87 @@
 //   - Amendment-risk signal: how much comparable trials churned their protocols (from the
 //     change-history), i.e. how likely a fresh protocol is to need a costly amendment.
 // No LLM — the fetched data IS the artifact, so every claim is verifiable against a real record.
+//
+// ── COVERAGE COPY IS DERIVED, NEVER HARDCODED (2026-07-30) ────────────────────────────────────
+// Every coverage sentence below is computed from the metadata the fetcher attaches to the record
+// array. Nothing here may state a fixed number. The previous version hedged "up to 8 retrieved"
+// because the fetcher was capped at 8; a future cap change must update this copy automatically
+// rather than leaving a stale hedge — understating a $14,950 deliverable is a defect too.
+//
+// Three coverage branches, and the strong one is deliberately hard to reach:
+//   COMPLETE  — the walk ended cleanly with no error AND the collected count reached the
+//               registry's own countTotal. Only this branch may say "complete".
+//   SHORT     — the walk ended cleanly but N < M. Records are dropped for a missing NCT id or a
+//               duplicate, and the registry can change between pages, so this states the gap and
+//               explicitly refuses to name a single cause it cannot know.
+//   PARTIAL   — a fetch error or the page ceiling stopped the walk. Never says "every".
+//
+// ── COMPLETENESS IS BOUND TO THE QUERY, NOT THE DISEASE ───────────────────────────────────────
+// `query.cond` is a term-matched search, not a curated indication taxonomy. Measured 2026-07-30:
+// "NSCLC" returns 1,401 records where "non-small cell lung cancer" returns 1,391. A census is
+// therefore complete FOR THE TERM QUERIED and never for "every way the indication can be named".
+// That caveat renders on every memo, unconditionally — it is not a footnote.
+
+const NO_COVERAGE_META = "Coverage metadata was not supplied by the fetcher for this run.";
+
+function meta(records, key, fallback) {
+  const v = records && records[key];
+  return v === undefined || v === null ? fallback : v;
+}
+
+function coverageBlock(trials, records, indication) {
+  const eligibleTotal = meta(records, "eligibleTotal", null);
+  const complete = meta(records, "censusComplete", false) === true;
+  const exhausted = meta(records, "pagesExhausted", false) === true;
+  const fetchError = meta(records, "fetchError", false) === true;
+  const droppedNoNct = Number(meta(records, "droppedNoNct", 0)) || 0;
+  const droppedDup = Number(meta(records, "droppedDuplicate", 0)) || 0;
+  const n = trials.length;
+  const lines = [];
+
+  // NOTE: test for null/undefined BEFORE converting. Number(null) is 0, and Number.isFinite(0) is
+  // true — so a bare Number.isFinite(Number(x)) guard lets a missing denominator through and the
+  // memo renders "1 of null record(s)". Caught by the no-metadata fixture.
+  const hasTotal = eligibleTotal !== null && eligibleTotal !== undefined && Number.isFinite(Number(eligibleTotal));
+  if (!hasTotal) {
+    lines.push(`**${n} stopped program(s) retrieved** for the ClinicalTrials.gov condition query **"${indication}"**.`);
+    lines.push("");
+    lines.push(`_${NO_COVERAGE_META} This memo reports what was retrieved; it does not claim to be a census._`);
+  } else if (complete) {
+    lines.push(`**Complete retrieval for the ClinicalTrials.gov condition query "${indication}": ${n} of ${eligibleTotal} record(s).**`);
+    lines.push("");
+    lines.push("The registry walk reached the end of the result set with no error and collected every record the registry counted.");
+  } else if (exhausted && !fetchError) {
+    const gap = Number(eligibleTotal) - n;
+    lines.push(`**${n} of ${eligibleTotal} record(s)** for the ClinicalTrials.gov condition query **"${indication}"**.`);
+    lines.push("");
+    lines.push(
+      `The registry walk reached the end of the result set with no error, but ${gap} record(s) the ` +
+      "count included are not listed. A record is omitted when it carries no NCT identifier (nothing " +
+      "citable to list), when it duplicates one already listed, or when the registry changed between " +
+      "pages of the walk. **This run cannot distinguish which.** " +
+      `Observed this run: ${droppedNoNct} dropped for a missing NCT id, ${droppedDup} as duplicates.`
+    );
+  } else {
+    lines.push(`**PARTIAL retrieval — ${n} of ${eligibleTotal} record(s)** for the ClinicalTrials.gov condition query **"${indication}"**.`);
+    lines.push("");
+    lines.push(
+      (fetchError
+        ? "The registry walk stopped early because a page request failed. "
+        : "The registry walk stopped early at its page ceiling. ") +
+      "**This is not a census** — programs matching the query are missing from the list below."
+    );
+  }
+
+  lines.push("");
+  lines.push(
+    "_Condition search is term-based. A different name for the same indication returns a different " +
+    "set (measured 2026-07-30: \"NSCLC\" returns 1,401 records where \"non-small cell lung cancer\" " +
+    "returns 1,391). Any completeness stated above is complete **for the term queried**, not for " +
+    "every way the indication can be named._"
+  );
+  return lines;
+}
 
 function buildGraveyardMemo(stoppedTrials, opts = {}) {
   const trials = Array.isArray(stoppedTrials) ? stoppedTrials.filter((t) => t && t.nctId) : [];
@@ -15,18 +96,19 @@ function buildGraveyardMemo(stoppedTrials, opts = {}) {
     "# Graveyard Memo — Prior Terminated Programs",
     "",
     `Citation-traced record of clinical programs in **${indication}** that were terminated, withdrawn, or suspended, with the stop reason each sponsor reported. Every entry resolves to a real ClinicalTrials.gov record (NCT). Use it to avoid re-funding a path others have already abandoned.`,
-    "",
-    `**${trials.length} stopped program(s) retrieved.**`,
     ""
   ];
+  lines.push(...coverageBlock(trials, stoppedTrials, indication));
+  lines.push("");
+
   if (trials.length === 0) {
     lines.push("_No terminated/withdrawn/suspended trials were retrieved for this indication at generation time._", "");
     return { count: 0, markdown: lines.join("\n") };
   }
   for (const t of trials) {
     lines.push(`### ${t.title || t.nctId}`);
-    const meta = [t.nctId, t.status, t.phase ? `Phase ${t.phase}` : ""].filter(Boolean).join(" · ");
-    if (meta) lines.push(`*${meta}*`);
+    const m = [t.nctId, t.status, t.phase ? `Phase ${t.phase}` : ""].filter(Boolean).join(" · ");
+    if (m) lines.push(`*${m}*`);
     lines.push(`- **Stop reason:** ${t.whyStopped ? t.whyStopped : "_(none stated by sponsor)_"}`);
     if (t.changeSummary && t.changeSummary.versions) {
       lines.push(`- **Protocol churn:** ${t.changeSummary.versions} versions; most-amended: ${(t.changeSummary.amended_modules || []).join(", ") || "n/a"}`);
@@ -56,14 +138,41 @@ function buildAmendmentRisk(stoppedTrials) {
     .sort((a, b) => b[1] - a[1]).slice(0, 5).map(([m, n]) => `${m} (${n})`);
   const band = median >= 10 ? "HIGH" : median >= 5 ? "MODERATE" : "LOW";
 
+  const population = meta(stoppedTrials, "eligibleTotal", null);
+  const selectionRule = meta(stoppedTrials, "historySelectionRule", "");
+  // Same null-vs-0 trap as coverageBlock — check for absence before converting.
+  const populationText = (population !== null && population !== undefined && Number.isFinite(Number(population)))
+    ? `**${trials.length}** of the **${population}** stopped program(s) the query returned`
+    : `**${trials.length}** comparable stopped trial(s)`;
+
   const lines = [
     "## Protocol Amendment-Risk Signal",
     "",
-    `Across **${trials.length}** comparable stopped trial(s) with version history, protocols were amended a **median of ${median}** times (max ${max}). **Amendment-risk: ${band}.**`,
+    `Across ${populationText} with version history, protocols were amended a **median of ${median}** times (max ${max}). **Amendment-risk: ${band}.**`,
     "",
     `Most-amended protocol modules (a draft touching these is likeliest to force a costly amendment): ${topModules.join(", ") || "n/a"}.`,
     ""
   ];
+
+  if (selectionRule) {
+    lines.push(`**How this sample was chosen.** ${selectionRule}`, "");
+  }
+
+  lines.push(
+    "**Three limits on this band, stated because they change how much weight it can carry:**",
+    "",
+    `1. **It is sample-size sensitive.** Measured on one ordered glioblastoma cohort, the same ` +
+    `computation returned MODERATE at n=5 and n=8, LOW at n=10, MODERATE at n=20 and HIGH at n=40. ` +
+    `This run used n=${trials.length}. Treat the band as a directional signal at this sample size, ` +
+    "not a settled property of the indication.",
+    `2. **The sampling frame is survivorship-inverted.** Every trial counted here was terminated, ` +
+    "withdrawn, or suspended. Programs that ran to completion contribute nothing, so this is the " +
+    "amendment rate for comparable programs **that died** — not a general amendment rate for the " +
+    "indication. A larger sample makes it more precise, never more representative.",
+    "3. **The LOW / MODERATE / HIGH thresholds are an internal heuristic** (median ≥ 10 → HIGH, " +
+    "≥ 5 → MODERATE) with no published basis.",
+    ""
+  );
   return { sampled: trials.length, median, max, band, markdown: lines.join("\n") };
 }
 

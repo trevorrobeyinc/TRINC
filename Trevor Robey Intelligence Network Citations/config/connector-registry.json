@@ -1216,7 +1216,7 @@
       "tools": [
         "ctgov_stopped_trials"
       ],
-      "purpose": "Stop-reason archaeology. Searches ClinicalTrials.gov v2 for TERMINATED/WITHDRAWN/SUSPENDED trials in a condition and returns nctId, overallStatus, phases, the sponsor's whyStopped text, and protocol change-history (version count + most-amended modules). Session-cached; the SAME instance backs both role prefetch and the workflow engine's deliverable re-fetch so graveyard-memo.md renders from the records scout actually grounded on. This is the engine's failed-trial intelligence and the reason AdisInsight was declined.",
+      "purpose": "Stop-reason archaeology. Searches ClinicalTrials.gov v2 for TERMINATED/WITHDRAWN/SUSPENDED trials in a condition and returns nctId, overallStatus, phases, the sponsor's whyStopped text, and protocol change-history (version count + most-amended modules). TWO MODES since 2026-07-30, deliberately asymmetric: PROMPT mode (default) is a single page hard-clamped at 50 records because its output is injected into an agent prompt, where size is cost; CENSUS mode (census:true) walks nextPageToken to the end of the result set for the post-gate deliverable, whose output is written to a file and never reaches a prompt. The session cache key carries the mode and sizes so the two can never serve each other, and scripts/_workflow-runtime.js additionally forces census:false AND clamps pageSize on the prefetch seam.",
       "bound_roles": [
         "scout",
         "competitive_intel_analyst"
@@ -1235,8 +1235,11 @@
       "adapter_status": "wired",
       "adapter_priority": "n/a",
       "suggested_adapter_path": "openclaw-bridge/mcp/ctgov-supplemental/",
-      "health_check": "ctgov_stopped_trials({condition:'ovarian cancer'}) returns NCT-traced records carrying whyStopped",
-      "registry_note": "Was in tool-prefetch-map.json but declared in NO registry entry — the audit's 'tools in prefetch but not declared' drift. Declared 2026-07-24."
+      "health_check": "searchStoppedTrials({condition:'glioblastoma', census:true}) returns 390 records with eligibleTotal 390 and censusComplete true (~7 s incl. 40 history calls); searchStoppedTrials({condition:'glioblastoma', pageSize:1000}) returns at MOST 50 — the prompt-path ceiling must not follow the census ceiling.",
+      "registry_note": "Was in tool-prefetch-map.json but declared in NO registry entry — the audit's 'tools in prefetch but not declared' drift. Declared 2026-07-24.",
+      "coverage_semantics": "countTotal=true on page 1 is the ONLY true denominator — pageSize is silently clamped at 1000 (verified: pageSize=1001 returned HTTP 200 with 1000 studies and a byte-identical body), so a short page is never an error signal and studies.length is a floor. censusComplete is true ONLY when the walk ended cleanly with no error AND the collected count reached countTotal; a clean-but-short walk reports the gap and refuses to name a single cause. Completeness is bound to the CONDITION QUERY, never to the disease: query.cond is term-matched, and measured 2026-07-30 'NSCLC' returns 1,401 records where 'non-small cell lung cancer' returns 1,391.",
+      "history_bound": "Change-history is strictly ONE HTTP CALL PER NCT — every batch shape tested returned 400/404 and the published v2 data model exposes no history field. Median 103 ms. Bounded at 40 in census mode (5 in prompt mode) at concurrency 3 with 400 ms inter-batch pauses: 40 calls = 6,852 ms, 0 non-200, and that is the LARGEST sweep actually measured. Do NOT raise it on arithmetic alone — sustained behaviour past ~40 consecutive calls against the undocumented /api/int endpoint is not established.",
+      "why_census_shipped": "CORRECTNESS, not enhancement. buildAmendmentRisk derives LOW/MODERATE/HIGH from the median version count of the sample. Measured 2026-07-30 on one ordered glioblastoma cohort the shipped code returned MODERATE at n=5, MODERATE at n=8, LOW at n=10, MODERATE at n=20 and HIGH at n=40 — the band in a $14,950 deliverable was a function of sample size, not of the indication. The band is still climbing at n=40, so the memo now states its sample size and the band's sensitivity rather than implying the number is settled."
     },
     "ctgov-design-benchmark": {
       "tool_prefix": "openclaw-bridge/mcp/ctgov-supplemental/",

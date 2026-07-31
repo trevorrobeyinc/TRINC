@@ -133,9 +133,28 @@ the amendment band — is bounded to the **first 5** records. The renderers are 
 "retrieved" to "every." A completeness claim is the sharpest possible overclaim for a graveyard product,
 because *"did you miss one?"* is the buyer's entire question.
 
-> **Required coverage line:** "This memo reports the stopped programs retrieved by a single
-> ClinicalTrials.gov query at generation time (currently up to 8), not an exhaustive census. Protocol-churn
-> statistics are computed from at most the first 5 of those."
+> **Required coverage line — SUPERSEDED 2026-07-31 by the census build.** The old rule read: *"This memo
+> reports the stopped programs retrieved by a single ClinicalTrials.gov query at generation time
+> (currently up to 8), not an exhaustive census. Protocol-churn statistics are computed from at most the
+> first 5 of those."* Backlog item #5 shipped, so that hedge now **understates** the deliverable — which
+> is its own defect. It is replaced by a **two-branch rule keyed on a machine value, not on prose**:
+>
+> - **If `censusComplete` is true in the run metadata** — the register walked to the end of the result
+>   set with no error AND the collected count reached the registry's own `countTotal` — use the
+>   generated line: *"Complete retrieval for the ClinicalTrials.gov condition query «X»: N of M
+>   record(s)."*
+> - **If it is false** — for ANY reason (fetch error, page ceiling, or a clean walk that still came up
+>   short) — use the generated partial line. Never say "complete", "census", "all", or "every".
+>
+> **Copy is lifted verbatim from the generated artifact; it is never composed by hand.** The renderer
+> derives all three branches from runtime counts, so a future cap change updates the copy automatically.
+>
+> Two disclosures now render on **every** memo regardless of branch, and neither may be dropped:
+> **(i) completeness is bound to the QUERY, not the disease** — `query.cond` is term-matched, and
+> measured 2026-07-30 "NSCLC" returns 1,401 records where "non-small cell lung cancer" returns 1,391;
+> **(ii) protocol-churn is a bounded sample of the register** (default 40, the largest sweep measured
+> end-to-end), stated as "K of N", because change-history is one HTTP call per trial against an
+> undocumented endpoint.
 
 **(b) The amendment band is survivorship-inverted.** `buildAmendmentRisk` receives the same
 `stoppedTrials` array as the graveyard memo, so the median is computed **exclusively over terminated,
@@ -263,8 +282,16 @@ Ranked. Each is a decision, not a documentation task.
 4. **The patent citation grammar** — a `PATENT` pattern in `CITATION_PATTERNS` **and** a runtime patent-id
    grounding source, **in the same change**. Adding the pattern alone is the ordering that genuinely breaks
    things (every patent citation would then report ungrounded and reports would start failing).
-5. **Coverage build for the graveyard memo** — paginate `searchStoppedTrials` and raise `maxHistory` — if
-   exhaustiveness is ever to be sold. Until then §4(a) governs the copy.
+5. ~~**Coverage build for the graveyard memo** — paginate `searchStoppedTrials` and raise `maxHistory`.~~
+   ✅ **DONE 2026-07-31.** The register is now an exhaustive census for the condition query
+   (glioblastoma verified 390 of 390, `censusComplete=true`, ~7 s); protocol-churn stays a bounded
+   sample of 40, the largest sweep measured end-to-end. **This was a correctness fix, not an
+   enhancement:** measured on one ordered glioblastoma cohort the shipped amendment band returned
+   MODERATE at n=5 and n=8, **LOW at n=10**, MODERATE at n=20 and **HIGH at n=40** — the band in a
+   $14,950 deliverable was a function of sample size, not of the indication. Two guards keep the prompt
+   path cheap: a census can never reach an agent prompt (`census:false` forced at the local-fetcher
+   seam) and the prompt page stays clamped at 50 independently of the census ceiling. §4(a)'s copy rule
+   is superseded above.
 6. **Outbound persona 5**, built on **pre-submission** timing. Note `linkedin-connection-templates.md`
    enforces strict four-persona parity in two separate blocks; either add a fifth to both or record
    explicitly that the founder persona is email-only and why.

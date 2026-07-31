@@ -131,3 +131,113 @@ describe("ctgov-supplemental — change-history enrichment", () => {
     assert.equal(await ct.getChangeHistory("NCT00000000"), null);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Census mode + prompt-path clamp (2026-07-30). Each test below pins a defect an
+// adversarial review found in the plan for this change; none of them is hypothetical.
+// ---------------------------------------------------------------------------
+describe("ctgov-supplemental — census walk and prompt-path ceiling", () => {
+  const ok = (body) => ({ ok: true, status: 200, json: async () => body });
+  const study = (n) => ({
+    protocolSection: {
+      identificationModule: { nctId: n, briefTitle: "T" + n },
+      statusModule: { overallStatus: "TERMINATED" },
+      designModule: { phases: ["PHASE3"] }
+    }
+  });
+  const quiet = { info() {}, warn() {} };
+
+  it("PROMPT mode clamps pageSize to 50 even when far more is requested", async () => {
+    // The prompt path injects records into an agent prompt, so 50 is a COST ceiling. The census
+    // ceiling of 1000 must never raise it: 1,000 records measures ~228KB / ~57K tokens, roughly
+    // 18% of one template's documented budget from a single sub-source.
+    let seen = null;
+    const ct = createCtgovSupplemental({
+      logger: quiet, includeHistory: false,
+      fetchImpl: async (url) => { seen = new URL(url).searchParams.get("pageSize"); return ok({ totalCount: 5000, studies: [study("NCT1")] }); }
+    });
+    await ct.searchStoppedTrials({ condition: "x", pageSize: 1000 });
+    assert.equal(seen, "50");
+  });
+
+  it("PROMPT mode defaults to 8 and never walks pages", async () => {
+    let calls = 0;
+    const ct = createCtgovSupplemental({
+      logger: quiet, includeHistory: false,
+      fetchImpl: async (url) => {
+        calls += 1;
+        assert.equal(new URL(url).searchParams.get("pageSize"), "8");
+        return ok({ totalCount: 900, studies: [study("NCT1")], nextPageToken: "MORE" });
+      }
+    });
+    const recs = await ct.searchStoppedTrials({ condition: "x" });
+    assert.equal(calls, 1, "prompt mode must not follow nextPageToken");
+    assert.equal(recs.mode, "prompt");
+  });
+
+  it("CENSUS terminates when the page token never advances (no forward progress)", async () => {
+    // Duplicate-dropping means a page can add ZERO records while still returning a token, so a
+    // records.length-based guard can never fire. Without the no-progress break this loops forever.
+    let calls = 0;
+    const ct = createCtgovSupplemental({
+      logger: quiet, includeHistory: false,
+      fetchImpl: async () => { calls += 1; return ok({ totalCount: 9999, studies: [study("NCT1")], nextPageToken: "SAME" }); }
+    });
+    const recs = await ct.searchStoppedTrials({ condition: "x", census: true });
+    assert.ok(calls < 10, `expected early termination, got ${calls} calls`);
+    assert.equal(recs.censusComplete, false);
+  });
+
+  it("CENSUS reports NOT complete when the walk is clean but N < M", async () => {
+    // Walking to the end is not sufficient — records are dropped for a missing NCT id or a
+    // duplicate. Claiming "complete" beside "2 of 100" would be self-contradicting.
+    const ct = createCtgovSupplemental({
+      logger: quiet, includeHistory: false,
+      fetchImpl: async () => ok({ totalCount: 100, studies: [study("NCT1"), study("NCT2")] })
+    });
+    const recs = await ct.searchStoppedTrials({ condition: "x", census: true });
+    assert.equal(recs.length, 2);
+    assert.equal(recs.eligibleTotal, 100);
+    assert.equal(recs.censusComplete, false);
+  });
+
+  it("CENSUS reports complete only when the collected count reaches countTotal", async () => {
+    const ct = createCtgovSupplemental({
+      logger: quiet, includeHistory: false,
+      fetchImpl: async () => ok({ totalCount: 2, studies: [study("NCT1"), study("NCT2")] })
+    });
+    const recs = await ct.searchStoppedTrials({ condition: "x", census: true });
+    assert.equal(recs.censusComplete, true);
+    assert.equal(recs.droppedNoNct, 0);
+  });
+
+  it("a fetch error mid-walk fails soft, keeps the partial page, and refuses to claim complete", async () => {
+    let n = 0;
+    const ct = createCtgovSupplemental({
+      logger: quiet, includeHistory: false,
+      fetchImpl: async () => {
+        n += 1;
+        if (n > 1) throw new Error("boom");
+        return ok({ totalCount: 100, studies: [study("NCT1")], nextPageToken: "P2" });
+      }
+    });
+    const recs = await ct.searchStoppedTrials({ condition: "x", census: true });
+    assert.equal(recs.length, 1);
+    assert.equal(recs.fetchError, true);
+    assert.equal(recs.censusComplete, false);
+  });
+
+  it("the session cache never serves a prompt array to a census caller or vice versa", async () => {
+    const ct = createCtgovSupplemental({
+      logger: quiet, includeHistory: false,
+      fetchImpl: async (url) => {
+        const size = Number(new URL(url).searchParams.get("pageSize"));
+        return ok({ totalCount: 2, studies: size > 50 ? [study("NCT1"), study("NCT2")] : [study("NCT1")] });
+      }
+    });
+    const prompt = await ct.searchStoppedTrials({ condition: "same", pageSize: 1 });
+    const census = await ct.searchStoppedTrials({ condition: "same", census: true });
+    assert.notEqual(prompt.length, census.length, "cache key must carry mode + sizes");
+    assert.equal((await ct.searchStoppedTrials({ condition: "same", pageSize: 1 })).length, prompt.length);
+  });
+});

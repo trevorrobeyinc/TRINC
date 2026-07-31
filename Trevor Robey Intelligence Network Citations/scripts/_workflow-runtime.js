@@ -125,7 +125,17 @@ async function buildWorkflowRuntime(options = {}) {
     toolPrefetch = createToolPrefetch({
       toolUniverseMcp, logger, rootDir, timeProvider: options.timeProvider,
       localFetchers: {
-        ctgov_stopped_trials: (args) => ctgovSupplemental.searchStoppedTrials(args),
+        // PROMPT PATH ONLY. Forced census:false AND an independently clamped pageSize, so no edit
+        // to config/tool-prefetch-map.json can push a census — or a 1000-record page — into an
+        // agent prompt. The two clamps are separate on purpose: `census` governs the walk,
+        // `pageSize` governs the page, and constraining only the flag would still let a
+        // prefetch-map edit request 1000 records in one page (measured: ~228 KB / ~57K tokens,
+        // ~18% of the documented ~320K clinical-trial budget from one sub-source).
+        ctgov_stopped_trials: (args) => ctgovSupplemental.searchStoppedTrials({
+          ...(args || {}),
+          census: false,
+          pageSize: Math.min(Number((args || {}).pageSize) || 8, 50)
+        }),
         ctgov_design_benchmark: (args) => ctgovDesignBenchmark.searchDesignCohort(args),
         obsidian_prior_research: (args) => obsidianBridge.priorResearch(args),
         opentargets_target_intel: (args) => openTargets.targetIntel(args),
