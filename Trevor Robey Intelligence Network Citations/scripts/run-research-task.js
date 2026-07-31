@@ -8,6 +8,7 @@ const { createTaskDefinition } = require("../openclaw-bridge/core/task-definitio
 const { validateMissionEnvelope } = require("../openclaw-bridge/core/mission-envelope-schema.js");
 const { withSidecar } = require("../openclaw-bridge/core/scrape-sidecar-lifecycle.js");
 const { buildPhase14Runtime } = require("./_phase14-agent-utils.js");
+const { enforceOperatorGate } = require("./_operator-gate-cli.js");
 
 function safeString(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -28,6 +29,7 @@ function parseArgs(argv) {
     resumeMission: "",
     createdAt: "",
     confirm: false,
+    operatorApprove: false,
     operatorId: process.env.OPERATOR_ID || "operator-cli",
     unknown: []
   };
@@ -48,6 +50,9 @@ function parseArgs(argv) {
     if (token === "--created-at") { out.createdAt = String(argv[i + 1] || "").trim(); i += 1; continue; }
     if (token === "--operator-id") { out.operatorId = String(argv[i + 1] || "").trim() || out.operatorId; i += 1; continue; }
     if (token === "--confirm") { out.confirm = true; continue; }
+    // Operator-initiated human-approval grant. Required for any non-mock provider — see
+    // scripts/_operator-gate-cli.js. --confirm alone is NOT authorization to spend model capacity.
+    if (token === "--operator-approve") { out.operatorApprove = true; continue; }
     out.unknown.push(token);
   }
 
@@ -57,6 +62,8 @@ function parseArgs(argv) {
 function usage() {
   return [
     "Usage:",
+    "  Any non-mock provider additionally requires --operator-approve with a live armed token",
+    "  (arm it first: operator-approve-gate arm). --confirm alone does NOT authorize model spend.",
     "  Legacy task mode:",
     "    node scripts/run-research-task.js --task \"<description>\" --type <task_type> [--input <dir|file>] [--output <dir>] [--provider <provider>] [--model <model>] [--token <phase13_token_id>] [--format markdown|json|text] --confirm",
     "  Mission mode:",
@@ -64,6 +71,22 @@ function usage() {
     "  Mission resume mode:",
     "    node scripts/run-research-task.js --resume-mission <mission_id> --confirm"
   ].join("\n");
+}
+
+// A refusal must never be hidden by a broken audit sink. The reason goes to stderr FIRST, then the
+// ledger append is attempted; if the ledger is unwritable the operator still sees why the run was
+// denied and the process still exits non-zero. (security/access-decision-ledger.json was found
+// corrupted by a torn concurrent write on 2026-06-11, which made every rejection here die with a
+// raw JSON SyntaxError instead of its actual reason — fail-closed, but unreadable.)
+async function denyAndExit(runtime, message, rejection) {
+  process.stderr.write(`${message}\n`);
+  try {
+    await runtime.logCliRejection(rejection);
+  } catch (error) {
+    const detail = error && error.message ? error.message : String(error);
+    process.stderr.write(`[WARN] rejection audit log unavailable: ${detail}\n`);
+  }
+  process.exit(1);
 }
 
 function readMissionFile(filePath) {
@@ -212,7 +235,9 @@ async function main() {
   const usingResumeMode = Boolean(args.resumeMission);
 
   if (args.unknown.length > 0 || (!args.task && !usingResumeMode && !usingMissionMode)) {
-    await runtime.logCliRejection({
+    // Routed through denyAndExit like every other rejection: a typo'd flag used to die with a raw
+    // ledger SyntaxError instead of printing the usage text.
+    await denyAndExit(runtime, usage(), {
       actor: args.operatorId,
       action: "run_research_task",
       resource: "phase14.task",
@@ -223,12 +248,10 @@ async function main() {
         unknown: args.unknown
       }
     });
-    process.stderr.write(`${usage()}\n`);
-    process.exit(1);
   }
 
   if (!args.confirm) {
-    await runtime.logCliRejection({
+    await denyAndExit(runtime, "Task execution rejected: --confirm is required", {
       actor: args.operatorId,
       action: "run_research_task",
       resource: usingMissionMode || usingResumeMode ? "phase18.mission" : "phase14.task",
@@ -241,8 +264,6 @@ async function main() {
         resume_mission: args.resumeMission
       }
     });
-    process.stderr.write("Task execution rejected: --confirm is required\n");
-    process.exit(1);
   }
 
   const lifecycleLogger = {
@@ -250,6 +271,54 @@ async function main() {
     warn(data) { process.stderr.write(`[WARN] ${JSON.stringify(data)}\n`); },
     error(data) { process.stderr.write(`[ERROR] ${JSON.stringify(data)}\n`); }
   };
+
+  // Mission and resume lanes cannot succeed, so refuse them BEFORE the gate — never after.
+  // `operatorApproved` enters the system at exactly one place repo-wide (workflow-engine.js:221,
+  // fed only by run-workflow.js); agent-spawner and spawn-orchestrator never set it. So
+  // role-router.js:74 refuses every research role here with PHASE15_HUMAN_APPROVAL_REQUIRED no
+  // matter what the operator does. Gating them first would consume the one-shot YubiKey token —
+  // a real PIN + physical touch — for a run that provably cannot complete.
+  if (usingMissionMode || usingResumeMode) {
+    await denyAndExit(
+      runtime,
+      "Mission/resume mode is not authorization-capable from this CLI: it never threads operator "
+        + "approval into the dispatch context, so role-router refuses it with "
+        + "PHASE15_HUMAN_APPROVAL_REQUIRED regardless. Use: node scripts/run-workflow.js "
+        + "--template <id> --inputs '{...}' --operator-approve --confirm",
+      {
+        actor: args.operatorId,
+        action: "run_research_task",
+        resource: "phase18.mission",
+        scope: "governance.compliance.scan",
+        reason: "lane_cannot_thread_operator_approval",
+        metadata: { mission_template: args.missionTemplate, resume_mission: args.resumeMission }
+      }
+    );
+  }
+
+  // Operator authorization BEFORE anything executes. This must precede withSidecar: the sidecar
+  // shells out to bash and syncs dependencies, so running it first would mean work happens before
+  // the operator authorizes. A mock run is exempt (it cannot spend anything); every real provider
+  // requires --operator-approve plus a live armed token.
+  // Only the legacy task lane reaches here (mission/resume were refused above), and it goes
+  // straight to agent-engine with the CLI's own provider — no role-provider-map override — so
+  // --provider IS authoritative and roleRouted is correctly false.
+  const gate = enforceOperatorGate({
+    provider: args.provider,
+    roleRouted: false,
+    operatorApprove: args.operatorApprove,
+    logger: lifecycleLogger
+  });
+  if (!gate.ok) {
+    await denyAndExit(runtime, `Operator-approve denied: ${gate.reason}`, {
+      actor: args.operatorId,
+      action: "run_research_task",
+      resource: usingMissionMode || usingResumeMode ? "phase18.mission" : "phase14.task",
+      scope: "governance.compliance.scan",
+      reason: "missing_operator_approval",
+      metadata: { provider: gate.provider, gate_reason: gate.reason }
+    });
+  }
 
   const result = await withSidecar(async () => {
     if (usingResumeMode) {

@@ -48,7 +48,16 @@ test("phase18 compatibility preserves the legacy single-task execution lifecycle
 });
 
 test("phase18 mission mode is enabled after live evidence promotion", async () => {
-  const runtime = await buildPhase14Runtime();
+  // Redirect only the spawner's write paths. `enabled` still comes from the real
+  // config/agent-spawner.json, which is what this test asserts on — overriding rootDir
+  // instead would make the spawner load defaults (enabled:false) and pass vacuously.
+  const stateDir = await fsp.mkdtemp(path.join(os.tmpdir(), "openclaw-phase18-compat-state-"));
+  const runtime = await buildPhase14Runtime({
+    spawnerConfig: {
+      missionWorkspaceDir: path.join(stateDir, "missions"),
+      runtimeStatePath: path.join(stateDir, "runtime", "state.json")
+    }
+  });
   // Phase 18 is enabled (live evidence promoted). Verify the spawner does not
   // throw PHASE18_DISABLED — it may fail for other reasons (no LLM in CI) but
   // the governance gate itself must be open.

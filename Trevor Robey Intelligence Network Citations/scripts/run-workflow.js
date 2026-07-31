@@ -23,7 +23,7 @@ if (!process.env.NODE_EXTRA_CA_CERTS && !process.env.__OPENCLAW_CA_REEXEC) {
 
 const { buildWorkflowRuntime } = require("./_workflow-runtime.js");
 const { withSidecar } = require("../openclaw-bridge/core/scrape-sidecar-lifecycle.js");
-const { verifyAndConsumeOperatorApproval } = require("../openclaw-bridge/core/operator-approve-gate.js");
+const { enforceOperatorGate } = require("./_operator-gate-cli.js");
 
 function parseArgs(argv) {
   const out = {
@@ -105,14 +105,34 @@ async function main() {
   // YubiKey consent gate: --operator-approve is only honored if a FRESH armed token
   // exists (minted by `operator-approve-gate arm` — PIN via pinentry + physical touch).
   // Fail-closed and one-shot — verify+consume here, before spawning anything.
-  if (args.operatorApprove) {
-    const gate = verifyAndConsumeOperatorApproval(logger);
-    if (!gate.ok) {
-      process.stderr.write(`Operator-approve denied: ${gate.reason}\n`);
-      process.exit(1);
-    }
-    logger.info({ event: "operator_approve_gate_ok", bypassed: gate.bypassed === true });
+  //
+  // This is now REQUIRED rather than opt-in, and it must stay above withSidecar below: the
+  // sidecar spawns bash and syncs dependencies, so gating only the LLM lane still let real work
+  // happen before the operator authorized it. An unauthorized run previously reached the sidecar
+  // and the tool-prefetch pass before failing at the router with PHASE15_HUMAN_APPROVAL_REQUIRED;
+  // it now fails here instead — same outcome, nothing executed. Mock is exempt (see
+  // _operator-gate-cli.js) so CI keeps working.
+  // roleRouted: this is the MOST role-routed lane in the engine — executeWorkflow →
+  // executeMissionStep → spawnMission → spawn-orchestrator → roleRouter.dispatch — and it has no
+  // --provider flag at all. Without this the gate would resolve the provider from
+  // config/agent-config.json defaultProvider, a value this lane never executes on (templates pin
+  // provider_preference.primary=claude-code and role-provider-map pins the roles), so editing that
+  // one config key to "mock" would exempt the ceremony while the run still spent real capacity.
+  const gate = enforceOperatorGate({
+    roleRouted: true,
+    operatorApprove: args.operatorApprove,
+    logger
+  });
+  if (!gate.ok) {
+    process.stderr.write(`Operator-approve denied: ${gate.reason}\n`);
+    process.exit(1);
   }
+  logger.info({
+    event: "operator_approve_gate_ok",
+    provider: gate.provider,
+    gate_required: gate.required,
+    bypassed: gate.bypassed === true
+  });
 
   const result = await withSidecar(async () => {
     const runtime = await buildWorkflowRuntime({ logger });
@@ -131,7 +151,11 @@ async function main() {
       return await runtime.workflowEngine.executeWorkflow(workflowDef, {
         inputs,
         operatorId: args.operatorId,
-        operatorApproved: args.operatorApprove
+        // gate.ceremonyVerified, NOT args.operatorApprove: the router's
+        // PHASE15_HUMAN_APPROVAL_REQUIRED must only ever be satisfied by a consumed one-shot
+        // token. Threading the raw CLI flag would make the two approval layers dependent on the
+        // same unverified input.
+        operatorApproved: gate.ceremonyVerified
       });
     } finally {
       // Tear down the ToolUniverse SMCP server (+ its health-check interval) so the

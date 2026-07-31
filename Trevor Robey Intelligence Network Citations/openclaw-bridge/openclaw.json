@@ -8,7 +8,6 @@
   "gateway": {
     "host": "127.0.0.1",
     "port": 18789,
-    "allowHttp": true,
     "allowDynamicPort": false,
     "allowNonLocalhostBind": false,
     "bridgeRouting": "research-only"

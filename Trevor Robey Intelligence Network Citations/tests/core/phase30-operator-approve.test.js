@@ -37,7 +37,15 @@ function makeRouter() {
     getRole: () => async () => ({ ran: true }),
     getAgent: () => null
   };
-  return createRoleRouter({ registry, autonomyLadder, logger: makeMockLogger() });
+  // rootDir is isolated on purpose: role-router builds a session recorder rooted here, and the
+  // default is process.cwd() — which for `npm test` is the repo root, so an allow-case dispatch
+  // would write a session record into the LIVE config/agents/<role>/sessions/.
+  return createRoleRouter({
+    registry,
+    autonomyLadder,
+    logger: makeMockLogger(),
+    rootDir: fs.mkdtempSync(path.join(os.tmpdir(), "phase30-opapprove-router-"))
+  });
 }
 
 describe("operator-approve — role-router gate (fail-closed)", () => {

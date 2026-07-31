@@ -11,6 +11,7 @@
   "maxTokensPerRequest": 4000,
   "minGroundedCitationRatio": 0.75,
   "rlhfAutoGenerate": true,
+  "_comment_requireSupervisorApproval": "INERT as of 2026-07-29 — no code reads this key. Supervisor approval is enforced unconditionally by supervisor-authority.requestApproval (approvalPolicy.requireConfirm) and by role-router's SUPERVISOR_APPROVAL_REQUIRED throw. Kept only so its absence is not read as a policy change; do NOT wire it up, because that would turn a control with no off-switch into one that has a config off-switch.",
   "requireSupervisorApproval": true,
   "statusIndexFile": "tasks-index.json"
 }

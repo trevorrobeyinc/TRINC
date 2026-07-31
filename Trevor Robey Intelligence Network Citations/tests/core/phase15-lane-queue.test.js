@@ -39,12 +39,14 @@ test("phase15 role router requires supervisor approval", async () => {
   const registry = createAgentRegistry();
   registry.registerRole("scout", async () => ({ ok: true }));
 
+  // Isolated rootDir — the default is process.cwd(), i.e. the live config/agents/ tree.
   const router = createRoleRouter({
     registry,
     autonomyLadder: {
       canRolePerform: () => true,
       requireHumanApproval: () => false
-    }
+    },
+    rootDir: await fsp.mkdtemp(path.join(os.tmpdir(), "openclaw-phase15-router-"))
   });
 
   await assert.rejects(async () => router.dispatch({ role: "scout", actionType: "execute_task" }, {}), (error) => error && error.code === "SUPERVISOR_APPROVAL_REQUIRED");
@@ -54,12 +56,15 @@ test("phase15 role router enforces autonomy ladder boundaries", async () => {
   const registry = createAgentRegistry();
   registry.registerRole("scout", async () => ({ ok: true }));
 
+  // Isolated rootDir — this case supplies a full approval context, so an unisolated router
+  // would be one ladder-policy edit away from writing into the live config/agents/ tree.
   const router = createRoleRouter({
     registry,
     autonomyLadder: {
       canRolePerform: () => false,
       requireHumanApproval: () => false
-    }
+    },
+    rootDir: await fsp.mkdtemp(path.join(os.tmpdir(), "openclaw-phase15-router-"))
   });
 
   await assert.rejects(

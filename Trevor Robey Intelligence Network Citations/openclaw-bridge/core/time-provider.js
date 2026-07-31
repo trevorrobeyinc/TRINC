@@ -11,23 +11,16 @@ function parseNumber(value, fallback) {
   return parsed;
 }
 
-function readEnvFixedNowMs() {
-  if (!process.env.OPENCLAW_FIXED_TIME_MS) {
-    return null;
-  }
-  return parseNumber(process.env.OPENCLAW_FIXED_TIME_MS, null);
-}
-
+// NOTE: an OPENCLAW_FIXED_TIME_MS environment override was removed 2026-07-29. It replaced the
+// global clock from a shell variable, which neutralized the operator-approval token's 300s TTL and
+// let chosen timestamps be stamped into the append-only evidence ledgers. Tests set a deterministic
+// clock through setDeterministicTime() instead, so nothing needed it. Do not reintroduce an env
+// path here — an in-process setter is testable without being a production off-switch.
 function nowMs() {
   if (deterministicNowMs !== null) {
     const current = deterministicNowMs;
     deterministicNowMs += deterministicStepMs;
     return current;
-  }
-
-  const envFixed = readEnvFixedNowMs();
-  if (envFixed !== null) {
-    return envFixed;
   }
 
   return Date.now();

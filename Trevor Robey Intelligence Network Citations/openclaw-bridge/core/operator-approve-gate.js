@@ -47,7 +47,11 @@ function rotateNonce(dir, recipient) {
       "--batch", "--yes", "--trust-model", "always",
       "-r", `${recipient}!`, "-e", "-o", tmp
     ], { input: nonce });
-    fs.renameSync(tmp, path.join(dir, "nonce.gpg"));
+    const dest = path.join(dir, "nonce.gpg");
+    fs.renameSync(tmp, dest);
+    // gpg's -o output does not inherit our umask intent, and renameSync keeps the temp file's
+    // mode — so without this the rotated nonce landed 0644 while its sibling sha256 was 0600.
+    fs.chmodSync(dest, 0o600);
     fs.writeFileSync(path.join(dir, "nonce.sha256"), sha256(nonce), { mode: 0o600 });
     return true;
   } catch {

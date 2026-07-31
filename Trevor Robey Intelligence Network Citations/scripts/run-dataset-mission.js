@@ -7,6 +7,17 @@ const { createSchemaEngine } = require("../openclaw-bridge/dataset/schema-engine
 const { createDatasetBuilder } = require("../openclaw-bridge/dataset/dataset-builder.js");
 const { createDatasetOutputManager } = require("../openclaw-bridge/dataset/dataset-output-manager.js");
 const { safeString } = require("../workflows/governance-automation/common.js");
+// This CLI dispatches through agentSpawner.spawnMission, and NOTHING in that path sets
+// `operatorApproved` — repo-wide it is produced at exactly one place (workflow-engine.js:221, fed
+// only by run-workflow.js). So role-router.js:74 refuses every research role here with
+// PHASE15_HUMAN_APPROVAL_REQUIRED no matter what the operator does: the lane cannot complete and
+// cannot reach a model. It is therefore refused UP FRONT rather than gated — gating it would
+// consume the one-shot YubiKey token (a real PIN + physical touch) for a run that provably fails.
+//
+// To restore this lane: thread operator approval through spawnMission the way run-workflow.js
+// does, wire enforceOperatorGate({ roleRouted: true, ... }) above the dispatch, then flip this to
+// true. Deliberately a single greppable constant so the lane cannot come back ungated by accident.
+const LANE_IS_AUTHORIZATION_CAPABLE = false;
 
 function parseArgs(argv) {
   const out = {
@@ -20,6 +31,9 @@ function parseArgs(argv) {
     qualityThreshold: "",
     packagingFormats: "jsonl",
     confirm: false,
+    // Parsed but unused while LANE_IS_AUTHORIZATION_CAPABLE is false — accepted so an operator
+    // following older docs gets the real explanation, not an "unknown argument" usage dump.
+    operatorApprove: false,
     operatorId: process.env.OPERATOR_ID || "operator-cli",
     token: "",
     unknown: []
@@ -39,6 +53,8 @@ function parseArgs(argv) {
     if (token === "--token") { out.token = String(argv[index + 1] || "").trim(); index += 1; continue; }
     if (token === "--operator-id") { out.operatorId = String(argv[index + 1] || "").trim() || out.operatorId; index += 1; continue; }
     if (token === "--confirm") { out.confirm = true; continue; }
+    // Operator-initiated human-approval grant — required for any non-mock provider.
+    if (token === "--operator-approve") { out.operatorApprove = true; continue; }
     out.unknown.push(token);
   }
 
@@ -52,7 +68,11 @@ function usage() {
     "    [--dataset-id <dataset_id>] [--mission-template dataset_sample]",
     "    [--target-schema <schema_version>] [--quality-threshold <number>]",
     "    [--packaging-formats jsonl,csv] [--created-at <iso8601>] [--token <phase13_token_id>]",
-    "    [--operator-id <operator_id>] --confirm"
+    "    [--operator-id <operator_id>] [--operator-approve] --confirm",
+    "",
+    "  DISABLED: this lane cannot thread operator approval, so role-router refuses it with",
+    "  PHASE15_HUMAN_APPROVAL_REQUIRED regardless of flags. Use run-workflow.js instead:",
+    "    node scripts/run-workflow.js --template <id> --inputs '{...}' --operator-approve --confirm"
   ].join("\n");
 }
 
@@ -64,6 +84,16 @@ async function main() {
   }
   if (!args.confirm) {
     process.stderr.write("Dataset mission rejected: --confirm is required\n");
+    process.exit(1);
+  }
+
+  if (!LANE_IS_AUTHORIZATION_CAPABLE) {
+    process.stderr.write(
+      "Dataset mission is not authorization-capable from this CLI: it never threads operator "
+        + "approval into the dispatch context, so role-router refuses it with "
+        + "PHASE15_HUMAN_APPROVAL_REQUIRED regardless. Use: node scripts/run-workflow.js "
+        + "--template <id> --inputs '{...}' --operator-approve --confirm\n"
+    );
     process.exit(1);
   }
 

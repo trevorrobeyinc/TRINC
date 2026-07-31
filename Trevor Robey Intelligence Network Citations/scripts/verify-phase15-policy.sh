@@ -88,6 +88,34 @@ fi
 
 search_quiet 'context\.supervisorDecision' "$ROOT/openclaw-bridge/core/role-router.js" || fail "role-router missing supervisor mediation marker"
 search_quiet 'SUPERVISOR_APPROVAL_REQUIRED' "$ROOT/openclaw-bridge/core/role-router.js" || fail "role-router missing fail-closed supervisor denial marker"
+
+# The OPERATOR human-approval gate had no marker here, so deleting the throw at role-router.js
+# entirely would still pass every gate in `npm run phase2:gates`. These two mirror the supervisor
+# markers above so the operator gate is covered by the same mechanism that covers its sibling.
+search_quiet 'context\.operatorApproved' "$ROOT/openclaw-bridge/core/role-router.js" || fail "role-router missing operator human-approval marker"
+search_quiet 'PHASE15_HUMAN_APPROVAL_REQUIRED' "$ROOT/openclaw-bridge/core/role-router.js" || fail "role-router missing fail-closed human-approval denial marker"
+
+# The ladder itself is an unsigned 0644 file re-read on every policy check, and nothing asserted
+# its CONTENTS. Emptying a role's requireHumanApproval list silently disables the operator gate for
+# that role with every gate still green. This invariant is self-maintaining: any role permitted to
+# execute_task must also require human approval for it, so a newly added research role is covered
+# without editing this script.
+LADDER_UNGATED="$(node -e '
+const fs = require("node:fs");
+const ladder = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+const ungated = [];
+for (const [role, policy] of Object.entries((ladder && ladder.roles) || {})) {
+  const allowed = Array.isArray(policy.allowedActions) ? policy.allowedActions : [];
+  const gated = Array.isArray(policy.requireHumanApproval) ? policy.requireHumanApproval : [];
+  if (allowed.includes("execute_task") && !gated.includes("execute_task")) {
+    ungated.push(role);
+  }
+}
+process.stdout.write(ungated.join(","));
+' "$ROOT/config/autonomy-ladder.json")"
+if [[ -n "$LADDER_UNGATED" ]]; then
+  fail "autonomy ladder: role(s) may execute_task without human approval: $LADDER_UNGATED"
+fi
 search_quiet 'queue_sequence' "$ROOT/openclaw-bridge/core/lane-queue.js" || fail "lane-queue missing deterministic sequence marker"
 search_quiet 'sort\(' "$ROOT/openclaw-bridge/core/lane-queue.js" || fail "lane-queue missing deterministic ordering marker"
 search_quiet 'writeAtomic' "$ROOT/openclaw-bridge/core/comms-bus.js" || fail "comms-bus missing atomic write marker"

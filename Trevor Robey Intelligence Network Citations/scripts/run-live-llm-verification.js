@@ -17,6 +17,7 @@ const {
   withTimeout,
   writeEvidenceSet
 } = require("./_live-verification-common.js");
+const { enforceOperatorGate } = require("./_operator-gate-cli.js");
 
 const DEFAULT_PROVIDERS = Object.freeze(["local", "openai", "anthropic", "openrouter"]);
 const DEFAULT_PROMPT = [
@@ -31,12 +32,25 @@ function parseArgs(argv) {
     outputDir: path.join(process.cwd(), "audit", "evidence", "live-llm"),
     providers: DEFAULT_PROVIDERS.slice(),
     prompt: DEFAULT_PROMPT,
-    timeoutMs: 30000
+    timeoutMs: 30000,
+    operatorApprove: false,
+    invalidProviders: []
   };
 
   for (let index = 0; index < argv.length; index += 1) {
     const token = String(argv[index] || "");
-    if (token === "--providers") { out.providers = parseCsvOption(argv[index + 1], DEFAULT_PROVIDERS); index += 1; continue; }
+    // Only providers in DEFAULT_PROVIDERS are accepted. An out-of-set name (e.g. claude-code)
+    // used to sail past resolveApiKey's missing-credential short-circuit, which keys off the
+    // three cloud providers only — so it ran on the operator's authenticated session with no
+    // key and no approval. Unknown names are collected and rejected in main().
+    if (token === "--providers") {
+      const requested = parseCsvOption(argv[index + 1], DEFAULT_PROVIDERS);
+      out.providers = requested.filter((name) => DEFAULT_PROVIDERS.includes(name));
+      out.invalidProviders = requested.filter((name) => !DEFAULT_PROVIDERS.includes(name));
+      index += 1;
+      continue;
+    }
+    if (token === "--operator-approve") { out.operatorApprove = true; continue; }
     if (token === "--output-dir") { out.outputDir = path.resolve(String(argv[index + 1] || "").trim() || out.outputDir); index += 1; continue; }
     if (token === "--timeout-ms") { out.timeoutMs = Math.max(1, Number.parseInt(String(argv[index + 1] || "").trim(), 10) || out.timeoutMs); index += 1; continue; }
     if (token === "--max-attempts") { out.maxAttempts = Math.max(1, Number.parseInt(String(argv[index + 1] || "").trim(), 10) || out.maxAttempts); index += 1; continue; }
@@ -204,7 +218,31 @@ function classifyOverallStatus(results) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  if (args.invalidProviders.length > 0) {
+    process.stderr.write(`Unsupported provider(s): ${args.invalidProviders.join(", ")}. `
+      + `Allowed: ${DEFAULT_PROVIDERS.join(", ")}\n`);
+    process.exit(1);
+  }
+
   const providers = args.providers.length > 0 ? args.providers : DEFAULT_PROVIDERS.slice();
+
+  // This harness makes REAL provider calls, so it needs the same operator authorization as the
+  // research CLIs. Gate once, before the first probe.
+  //
+  // The sentinel provider is deliberate: DEFAULT_PROVIDERS contains no "mock", so this lane is
+  // always gated — but passing nothing would make the gate resolve config/agent-config.json
+  // defaultProvider, a value this harness never executes on. Editing that key would then change
+  // this gate's answer for no legitimate reason. The sentinel makes "always gated" true by
+  // construction instead of by coincidence.
+  const gate = enforceOperatorGate({
+    provider: "live-llm-harness",
+    operatorApprove: args.operatorApprove
+  });
+  if (!gate.ok) {
+    process.stderr.write(`Operator-approve denied: ${gate.reason}\n`);
+    process.exit(1);
+  }
+
   const results = [];
 
   for (const provider of providers) {

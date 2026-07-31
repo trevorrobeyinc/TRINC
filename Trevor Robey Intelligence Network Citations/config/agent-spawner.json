@@ -1,6 +1,7 @@
 {
   "schemaVersion": "phase18-agent-spawner-v1",
   "enabled": true,
+  "_comment_requireLiveVerificationEvidence": "INERT as of 2026-07-29 — no code reads this key. It reads like a live gate but gates nothing; do not rely on it. Real mission authorization is role-router's three throws plus the operator ceremony in scripts/_operator-gate-cli.js.",
   "requireLiveVerificationEvidence": true,
   "plannerVersion": "phase18-planner-v1",
   "finalSynthesisMode": "orchestrator_aggregation",

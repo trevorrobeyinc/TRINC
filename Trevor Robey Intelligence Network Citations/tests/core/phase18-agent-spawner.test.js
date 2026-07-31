@@ -112,7 +112,7 @@ test("phase18 agent spawner writes mission artifacts and leaves global runtime s
     topologyConfig: { roles: ["orchestrator", "scout", "analyst", "synthesizer"] }
   });
   const autonomyLadder = createAutonomyLadder({ policyPath: autonomyPath });
-  const roleRouter = createRoleRouter({ registry: agentRegistry, autonomyLadder });
+  const roleRouter = createRoleRouter({ registry: agentRegistry, autonomyLadder, rootDir: root });
 
   for (const [role, actionType] of [["scout", "collect_sources"], ["analyst", "analyze_documents"], ["synthesizer", "synthesize_output"]]) {
     agentRegistry.registerRole(role, async (taskEnvelope) => outputManager.saveOutput(`${taskEnvelope.subtask_id}-task`, `${role} output`, {
@@ -255,7 +255,7 @@ test("phase18 agent spawner records rejected lifecycle when governance approval 
     topologyConfig: { roles: ["orchestrator", "scout"] }
   });
   const autonomyLadder = createAutonomyLadder({ policyPath: autonomyPath });
-  const roleRouter = createRoleRouter({ registry: agentRegistry, autonomyLadder });
+  const roleRouter = createRoleRouter({ registry: agentRegistry, autonomyLadder, rootDir: root });
   agentRegistry.registerRole("scout", async (taskEnvelope) => outputManager.saveOutput(`${taskEnvelope.subtask_id}-task`, "scout output", {
     status: "completed",
     type: taskEnvelope.type,
@@ -385,7 +385,7 @@ test("phase18 spawn orchestration dispatches independent subtasks with bounded l
     topologyConfig: { roles: ["orchestrator", "scout"] }
   });
   const autonomyLadder = createAutonomyLadder({ policyPath: autonomyPath });
-  const roleRouter = createRoleRouter({ registry: agentRegistry, autonomyLadder });
+  const roleRouter = createRoleRouter({ registry: agentRegistry, autonomyLadder, rootDir: root });
 
   let active = 0;
   let maxActive = 0;
@@ -532,7 +532,7 @@ test("phase18 timeout handling pauses mission and preserves open loops for resum
     topologyConfig: { roles: ["orchestrator", "scout"] }
   });
   const autonomyLadder = createAutonomyLadder({ policyPath: autonomyPath });
-  const roleRouter = createRoleRouter({ registry: agentRegistry, autonomyLadder });
+  const roleRouter = createRoleRouter({ registry: agentRegistry, autonomyLadder, rootDir: root });
   agentRegistry.registerRole("scout", async () => new Promise(() => {}));
 
   const skillProvider = createSkillProvider({
@@ -652,7 +652,7 @@ test("phase18 stall detection pauses mission when queued work stops making progr
     topologyConfig: { roles: ["orchestrator", "scout", "analyst"] }
   });
   const autonomyLadder = createAutonomyLadder({ policyPath: autonomyPath });
-  const roleRouter = createRoleRouter({ registry: agentRegistry, autonomyLadder });
+  const roleRouter = createRoleRouter({ registry: agentRegistry, autonomyLadder, rootDir: root });
   agentRegistry.registerRole("scout", async () => new Promise(() => {}));
   agentRegistry.registerRole("analyst", async () => ({ status: "completed" }));
 
@@ -778,7 +778,7 @@ test("phase18 checkpoint synthesis writes deterministic intermediate summaries",
     topologyConfig: { roles: ["orchestrator", "scout", "analyst", "synthesizer"] }
   });
   const autonomyLadder = createAutonomyLadder({ policyPath: autonomyPath });
-  const roleRouter = createRoleRouter({ registry: agentRegistry, autonomyLadder });
+  const roleRouter = createRoleRouter({ registry: agentRegistry, autonomyLadder, rootDir: root });
   for (const [role, actionType] of [["scout", "collect_sources"], ["analyst", "analyze_documents"], ["synthesizer", "synthesize_output"]]) {
     agentRegistry.registerRole(role, async (taskEnvelope) => outputManager.saveOutput(`${taskEnvelope.subtask_id}-task`, `${role} output`, {
       status: "completed",
