@@ -13,7 +13,7 @@
 | **Primary** | **Investor Pre-Mortem** | Per-asset risk dossier — trial design + comparable failures + KOL sentiment + IP runway. Every claim PMID/NCT/ChEMBL-traced. 5–10 business days, written Speed SLA. | Biotech hedge funds, biotech-specialist VC, pharma BD/licensing | **$9,950 / $14,950 / $19,950 (+ KOL primary)** |
 | **Flanking primary** | **Failed Trial Archaeology** | Structured post-mortem of Phase 2/3 terminations in a single mechanism. NCT-indexed failure pattern matrix. | Pharma R&D CI, biotech VC diligence | **$14,950** |
 | Tactical | Conference Synthesis Brief | 500+ ASCO/ESMO/AACR abstracts synthesized in 24–48 hours. | Pharma R&D, investors, BD | **$4,950 / conference** |
-| Tactical | Trial Design Benchmark Pack | Comparative Phase 3 structure analysis vs 10–20 comparable programs. | Biotech R&D, pharma CI | **$4,950** |
+| Tactical | Trial Design Benchmark Pack | Comparative Phase 3 structure analysis vs **up to 20** comparable programs — allocation, masking, intervention model, arms, enrollment, primary endpoints, sponsor class. Cohort is reported as **N of M eligible** under a stated selection rule; where an indication has fewer than 20 eligible programs the pack covers the **entire** eligible population and says so. | Biotech R&D, pharma CI | **$4,950** |
 | Tactical | Cross-Silo Connector Report | Hidden mechanistic links across ChEMBL/PubMed/CT.gov as repurposing opportunities. | Pharma R&D, biotech partnerships | **$9,950 – $24,950** |
 | Tactical | Plain-Language Patient Brief | Regulatory-compliant PLS at 8th-grade health-literacy level (EU CTR 536/2014). | Patient Advocacy Groups, trial sponsors | **$2,500** |
 | Tactical (demoted) | Pharmacovigilance Pack | Safety-signal + AEMS/FAERS analysis with a graded citation-integrity ledger. Existing marketplace listings preserved. | Mid-market pharma safety teams | $2,500 – $4,950 |
@@ -26,11 +26,32 @@
 | Biotech Equity Investors | Hedge fund PM, Biotech VC Partner, Family Office Research Director | 8/30 biotech IPOs above offer (2024); 58.3% Phase 2→3 failure | $10K–$20K/seat; $50K–$100K+/yr enterprise | Pre-deal diligence; phase readout |
 | Academic & Clinical Researchers | PI, Dept Admin, Research Networks | 60%+ hallucination in domain LLMs; <70% citation accuracy | $30K–$62.5K per grant min | Grant cycles; lit synthesis |
 | Patient Advocacy Groups | ED, Scientific Director | <5% rare diseases have treatments | $5K–$50K project-based | Mandated PLS (EU CTR 2022+) |
+| Medical Startup Founders *(added 2026-07-30)* | Founder/CEO, CSO, VP Clinical Development, Head of Regulatory — pre-seed → Series A; biotech, medtech, diagnostics | Investor diligence surfaces prior failures in the indication before the founder has read them. *No published segment statistic was sourced; this cell is deliberately left asymmetric rather than filled.* | SBIR/STTR TABA: up to **$6,500** per Phase I project, **$50,000** per Phase II — "market research and/or validation" is an eligible activity (NIH Guide Notice NOT-OD-26-075, 2026-04-20) | SBIR/STTR application drafting. The vendor must be **named in the budget justification**, so the sale closes *before* submission — the inverse of the other four triggers. |
+
+> **Founder lane — read [`01-brand-system/founder-lane-2026-07-29.md`](01-brand-system/founder-lane-2026-07-29.md) before quoting this segment.**
+> The lane is **additive**: no SKU above is repriced, demoted, or renamed. Today it has exactly **one**
+> transactable SKU — Failed Trial Archaeology, sized to the **Phase II** TABA line, not Phase I. The
+> tactical SKUs a Phase I founder could afford have verified fulfillment gaps and are **not** offered to
+> this segment yet. The patent/IP brief is **not on this ladder** and has no price pending California
+> counsel review.
 
 ## Brand Commitments
 
 - **The Zero-Fabrication Guarantee — only the truth.** Findings are never fabricated to fit what the research is looking for. Every cited identifier is grounded in real evidence actually retrieved for the report, or it is flagged `[UNVERIFIED]` and never presented as fact; if the evidence isn't there, the report says so rather than inventing a result. A report whose citations can't be traced to retrieved evidence does not ship. This is **enforced by the engine at generation time**, not a promise on paper — see the Citation-Integrity Gate below.
 - **Citation-Audit SLA** on every deliverable — refund-backed
+- **Scope of the two commitments above (2026-07-30).** Both describe what the **engine enforces at
+  generation time** on an engine-generated deliverable. The citation engine recognizes seven identifier
+  types — PMID, PubChem CID, NCT, UniProt, ChEMBL, DrugBank, DOI. Evidence carrying none of them is
+  **never extracted as a citation at all**: it is not graded, not counted in the grounded ratio, and not
+  retraction-screened — so it is neither improved nor penalised by the Gate, it is invisible to it.
+  **Patent evidence is the live instance of this** (a patent number matches none of the seven). Two
+  consequences, stated here so no deliverable has to imply otherwise: (a) any section built on evidence
+  outside those seven types sits outside the Guarantee and outside this SLA, and must say so on its face;
+  (b) a bundle's Citation Integrity grade covers only its PMID/NCT/ChEMBL/DOI-traced sections — the
+  deterministic post-gate artifacts (`graveyard-memo.md`, `search-coverage.md`) are grounded **by
+  construction**, rendered with no LLM straight from the records fetched at runtime, but they are **not
+  counted in the ratio that produced that grade**. A hand-assembled deliverable that never ran through the
+  engine claims none of this.
 - **Citation-Integrity Gate** — every cited identifier in the assembled report is cross-checked against the source records actually retrieved at runtime; citations are graded "grounded" (present in retrieved evidence) vs "ungrounded" (likely model-introduced). The report refuses to ship when the grounded ratio falls below threshold, and surviving ungrounded cites are annotated inline `[UNVERIFIED]`. Cited DOIs are screened against Crossref for retractions, and any report citing a retracted paper hard-stops. (Citations are grounded in the retrieved source records + DOI retraction-screened — they are not independently re-resolved against each live external database.)
 - **Speed SLA**: 5–10 business days for Investor Pre-Mortem (written guarantee)
 

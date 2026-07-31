@@ -250,6 +250,20 @@
       },
       {
         "action": "executeTool",
+        "tool_name": "ctgov_design_benchmark",
+        "optional": true,
+        "arguments": {
+          "condition": "{{indication}}",
+          "disease_context": "{{disease_context}}",
+          "disease_name": "{{disease_name}}",
+          "therapeutic_area": "{{therapeutic_area}}",
+          "drug_class": "{{drug_class}}",
+          "pageSize": "{{benchmark_cohort_size}}"
+        },
+        "_comment": "Comparable Phase 3 cohort WITH structural fields (allocation, masking, intervention model, arm count, enrollment, primary endpoints, sponsor class) -> deliverables/design-benchmark.{md,csv} for the Trial Design Benchmark Pack. Same condition-alias rationale as ctgov_stopped_trials above. pageSize binds {{benchmark_cohort_size}} (declared by trial-design-benchmark, default 20); on every other template the placeholder resolves empty, tool-prefetch strips the arg, and the FETCHER's own default of 20 applies -- deliberately NOT the 8 used by ctgov_stopped_trials, which would silently under-deliver against a pack whose promise is a 10-20 program cohort. The fetcher sends an explicit status filter and sort, so the cohort is a stated slice rather than an arbitrary page. Every record carries nctId, so the cohort lands in fetched_citation_ids and in the search-coverage ledger."
+      },
+      {
+        "action": "executeTool",
         "tool_name": "SemanticScholar_search_papers",
         "arguments": {
           "query": "{{indication}} {{drug_class}} clinical landscape",

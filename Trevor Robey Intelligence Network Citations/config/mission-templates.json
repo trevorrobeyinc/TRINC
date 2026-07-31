@@ -583,6 +583,47 @@
         }
       ]
     },
+    "trial_design_benchmark": {
+      "id": "trial_design_benchmark",
+      "enabled": true,
+      "safety_class": "research_only",
+      "spawned_roles": [
+        "competitive_intel_analyst",
+        "literature_reviewer",
+        "synthesizer"
+      ],
+      "steps": [
+        {
+          "role": "competitive_intel_analyst",
+          "action_type": "execute_tools",
+          "task_type": "analyze",
+          "description": "Retrieve the comparable Phase 3 cohort and compare trial structure: allocation, masking, intervention model, arm count, enrollment size and type, primary endpoints and their timeframes, sponsor class",
+          "input_strategy": "mission_inputs",
+          "provider": "tooluniverse"
+        },
+        {
+          "role": "literature_reviewer",
+          "action_type": "collect_sources",
+          "task_type": "extract",
+          "description": "Gather published readouts and regulatory precedent for the endpoints used by the comparator cohort",
+          "input_strategy": "mission_and_dependency_outputs",
+          "depends_on": [
+            1
+          ],
+          "provider": "tooluniverse"
+        },
+        {
+          "role": "synthesizer",
+          "action_type": "synthesize_output",
+          "task_type": "synthesize",
+          "description": "Synthesize the comparative Phase 3 design benchmark, naming the cohort size actually retrieved and the eligible population it was drawn from",
+          "input_strategy": "dependency_outputs",
+          "depends_on": [
+            2
+          ]
+        }
+      ]
+    },
     "competitive_landscape": {
       "id": "competitive_landscape",
       "enabled": true,

@@ -211,7 +211,8 @@ describe("Phase 33 — Claude Code MCP Provider", () => {
       "clinical-trial-landscape",
       "target-validation-pack",
       "rare-disease-brief",
-      "general-research-pack"
+      "general-research-pack",
+      "trial-design-benchmark"
     ];
 
     for (const templateId of templates) {

@@ -17,6 +17,7 @@ const { extractCitations, deduplicateCitations } = require("./citation-extractor
 const { createCitationReresolver } = require("../mcp/citation-reresolver/citation-reresolver.js");
 const { buildReproducibilityManifest, renderManifestMarkdown } = require("./reproducibility-manifest.js");
 const { buildGraveyardMemo, buildAmendmentRisk } = require("../monetization/graveyard-memo.js");
+const { buildDesignBenchmark } = require("../monetization/design-benchmark.js");
 const { buildSearchCoverageLedger, collectSearchCoverage } = require("../monetization/search-coverage-ledger.js");
 
 function ensureDir(dirPath) {
@@ -510,6 +511,60 @@ function createWorkflowEngine(options = {}) {
       }
     }
 
+    // Trial Design Benchmark Pack — the comparative Phase 3 structure matrix. Same discipline as
+    // the graveyard memo above and deliberately placed after it, i.e. AFTER verifyReportCitations
+    // and the re-resolution gate: a thin cohort or a fetch error must never block a report that
+    // already cleared the citation gate. The cohort re-fetch is a session-cache hit from the
+    // competitive_intel_analyst prefetch, so it costs no extra CT.gov round-trip, and the memo
+    // renders from exactly the records the analyst was grounded on.
+    let designBenchmark = null;
+    if (missionResult && missionResult.ok) {
+      try {
+        const bench = researchRuntime.ctgovDesignBenchmark;
+        const condition = safeString(
+          enrichedInputs.indication || enrichedInputs.condition || enrichedInputs.disease
+          || enrichedInputs.therapeutic_area || enrichedInputs.topic
+        ).trim();
+        const requested = Number(enrichedInputs.benchmark_cohort_size) || 20;
+        const drugClass = safeString(enrichedInputs.drug_class || "").trim();
+        if (bench && typeof bench.searchDesignCohort === "function" && condition) {
+          const cohort = await bench.searchDesignCohort({
+            condition,
+            pageSize: requested,
+            drug_class: drugClass
+          });
+          const built = buildDesignBenchmark(cohort, {
+            indication: condition,
+            requested,
+            eligibleTotal: cohort && cohort.eligibleTotal,
+            selectionRule: cohort && cohort.selectionRule,
+            sort: cohort && cohort.sort
+          });
+          if (built.count > 0) {
+            designBenchmark = built;
+            try {
+              const bdir = getWorkflowDir(context.workflowId);
+              ensureDir(bdir);
+              fs.writeFileSync(path.join(bdir, "design-benchmark.md"), built.markdown);
+              fs.writeFileSync(path.join(bdir, "design-benchmark.csv"), built.csv);
+            } catch (persistErr) {
+              logger.warn({ event: "design_benchmark_persist_failed", error: safeString(persistErr && persistErr.message) });
+            }
+            logger.info({
+              event: "design_benchmark",
+              mission_id: missionEnvelope.mission_id,
+              cohort: built.count,
+              eligible_total: built.eligibleTotal,
+              excluded_from_stats: built.excludedFromStats,
+              shortfall: built.shortfall
+            });
+          }
+        }
+      } catch (benchErr) {
+        logger.warn({ event: "design_benchmark_failed", error: safeString(benchErr && benchErr.message) });
+      }
+    }
+
     return {
       ok: Boolean(missionResult && missionResult.ok),
       mission_id: missionEnvelope.mission_id,
@@ -517,6 +572,7 @@ function createWorkflowEngine(options = {}) {
       citation_verification: citationVerification,
       graveyard_memo: graveyardMemo,
       amendment_risk: amendmentRisk,
+      design_benchmark: designBenchmark,
       search_coverage_ledger: searchCoverageLedger
     };
   }
@@ -594,6 +650,8 @@ function createWorkflowEngine(options = {}) {
     if (missionStep && built && built.source_context) {
       if (missionStep.graveyard_memo) built.source_context.graveyard_memo = missionStep.graveyard_memo;
       if (missionStep.amendment_risk) built.source_context.amendment_risk = missionStep.amendment_risk;
+      // Trial Design Benchmark Pack: carry the comparative Phase 3 structure matrix into the bundle.
+      if (missionStep.design_benchmark) built.source_context.design_benchmark = missionStep.design_benchmark;
       // Q5: carry the Search-Coverage Ledger into the bundle so the packager ships the honest-zero.
       if (missionStep.search_coverage_ledger) built.source_context.search_coverage_ledger = missionStep.search_coverage_ledger;
     }

@@ -1,0 +1,62 @@
+{
+  "schema_version": "phase30-workflow-v1",
+  "workflow_template_id": "trial-design-benchmark",
+  "name": "Trial Design Benchmark Pack",
+  "description": "Comparative Phase 3 trial-structure benchmark against the eligible comparable-program cohort in an indication (allocation, masking, intervention model, arm count, enrollment, primary endpoints and timeframes, sponsor class). Cohort size is bounded by the ClinicalTrials.gov eligible population and is reported as N of M, never padded.",
+  "auto_approve": true,
+  "provider_preference": {
+    "primary": "claude-code"
+  },
+  "input_schema": {
+    "required": ["indication"],
+    "properties": {
+      "indication": { "type": "string", "description": "Indication or disease scoping the comparator cohort" },
+      "drug_class": { "type": "string", "description": "Optional mechanism or drug class used to narrow comparators (passed to the agents via the seed document, and to CT.gov as an intervention filter)" },
+      "benchmark_cohort_size": { "type": "number", "description": "Target comparator count (capped at 50; the actual cohort is min(target, eligible population) and both numbers are printed in the deliverable)", "default": 20 },
+      "input_dir": { "type": "string", "description": "Path to seed documents directory", "default": "workspace/research-input/biomedical/" }
+    }
+  },
+  "pipeline": [
+    {
+      "step_id": "research",
+      "type": "mission",
+      "mission_template_id": "trial_design_benchmark",
+      "description_template": "Phase 3 trial-design benchmark for {{indication}}",
+      "mission_type": "research_to_dataset",
+      "dataset_type": "retrieval_qa"
+    },
+    {
+      "step_id": "quality_check",
+      "type": "quality_audit",
+      "depends_on": ["research"],
+      "confidence_threshold": 0.6,
+      "verification_tools": ["ClinicalTrials.gov", "EuropePMC", "PubMed"]
+    },
+    {
+      "step_id": "build_dataset",
+      "type": "dataset",
+      "depends_on": ["quality_check"],
+      "dataset_type": "retrieval_qa",
+      "quality_threshold": 0.5
+    },
+    {
+      "step_id": "package",
+      "type": "offer",
+      "depends_on": ["build_dataset"],
+      "product_line": "biomedical_research_packs",
+      "tier": "standard",
+      "targets": ["datarade"]
+    },
+    {
+      "step_id": "approve",
+      "type": "approve",
+      "depends_on": ["package"]
+    },
+    {
+      "step_id": "export",
+      "type": "export",
+      "depends_on": ["approve"],
+      "format": "zip"
+    }
+  ]
+}

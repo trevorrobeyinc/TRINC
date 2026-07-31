@@ -552,6 +552,21 @@ function createDeliverablePackager(options = {}) {
         writeText(coveragePath, sourceContext.search_coverage_ledger.markdown);
         artifactRefs.search_coverage = relativeFrom(bundleDir, coveragePath);
       }
+      // Trial Design Benchmark Pack: the comparative Phase 3 structure matrix, rendered upstream
+      // from NCT-traced CT.gov records (no LLM), plus its machine-readable CSV twin. Present only
+      // when a cohort was actually retrieved — an empty cohort ships nothing rather than an empty
+      // table. finalizeBundle walks the directory, so writing the files here is the whole
+      // registration: both are hashed into manifest.json and sealed in checksums.txt automatically.
+      if (sourceContext.design_benchmark && safeString(sourceContext.design_benchmark.markdown)) {
+        const benchPath = path.join(deliverablesDir, "design-benchmark.md");
+        writeText(benchPath, sourceContext.design_benchmark.markdown);
+        artifactRefs.design_benchmark = relativeFrom(bundleDir, benchPath);
+        if (safeString(sourceContext.design_benchmark.csv)) {
+          const benchCsvPath = path.join(deliverablesDir, "design-benchmark.csv");
+          writeText(benchCsvPath, sourceContext.design_benchmark.csv);
+          artifactRefs.design_benchmark_csv = relativeFrom(bundleDir, benchCsvPath);
+        }
+      }
       artifactRefs.sample_preview = relativeFrom(bundleDir, previewPath);
 
     } else {

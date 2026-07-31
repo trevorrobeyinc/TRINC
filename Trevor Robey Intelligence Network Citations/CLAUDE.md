@@ -36,16 +36,26 @@ npm test
 npm run phase2:gates
 npm run build:verify
 
-# Run a research task
+# OPERATOR AUTHORIZATION (2026-07-29): any run on a non-mock provider requires --operator-approve
+# with a live armed token. Arm it first — this is a YubiKey PIN + physical touch, 300s TTL, one-shot:
+#   operator-approve-gate arm
+# --confirm alone is NOT authorization to spend model capacity: it only satisfies the supervisor
+# receipt. A `--provider mock` run stays ungated (it cannot spend anything), which is why the
+# research-task example below needs no ceremony. Enforced in scripts/_operator-gate-cli.js.
+
+# Run a research task (mock — ungated, safe to copy/paste)
 node scripts/run-research-task.js --task "..." --type summarize --input workspace/research-input/sample/ --output workspace/research-output/ --provider mock --confirm
 
-# Run a dataset mission
-node scripts/run-dataset-mission.js --task "..." --dataset-type retrieval_qa --input workspace/research-input/sample/ --confirm
+# Run a dataset mission — REFUSED as of 2026-07-29. This lane never threads operator approval into
+# the dispatch context (repo-wide, only run-workflow.js does), so role-router refused it with
+# PHASE15_HUMAN_APPROVAL_REQUIRED anyway. It now says so immediately instead of consuming a YubiKey
+# touch first. Use run-workflow.js below for mission work.
+#   node scripts/run-dataset-mission.js ...   # -> exits 1 with an explanation
 
 # Single-command workflow (Phase 30 — runs mission → dataset → offer → approve → export)
-node scripts/run-workflow.js --template drug-discovery-full --inputs '{"compound_name":"aspirin","indication":"pain"}' --confirm
-node scripts/run-workflow.js --template pharmacovigilance-report --inputs '{"drug_class":"NSAID"}' --confirm
-node scripts/run-workflow.js --template general-research-pack --inputs '{"topic":"AI governance"}' --confirm
+node scripts/run-workflow.js --template drug-discovery-full --inputs '{"compound_name":"aspirin","indication":"pain"}' --operator-approve --confirm
+node scripts/run-workflow.js --template pharmacovigilance-report --inputs '{"drug_class":"NSAID"}' --operator-approve --confirm
+node scripts/run-workflow.js --template general-research-pack --inputs '{"topic":"AI governance"}' --operator-approve --confirm
 
 # Monetization flow (manual step-by-step)
 node scripts/generate-offer.js --source mission-XXX --product-line research_packs --tier standard --targets datarade --confirm
@@ -71,8 +81,8 @@ npm run monetization:verify  # All monetization phases
 ### Commercial Operations
 
 ```bash
-# Generate a research pack for a client
-node scripts/run-workflow.js --template pharmacovigilance-report --inputs '{"drug_class":"NSAID"}' --confirm
+# Generate a research pack for a client (arm the gate first: operator-approve-gate arm)
+node scripts/run-workflow.js --template pharmacovigilance-report --inputs '{"drug_class":"NSAID"}' --operator-approve --confirm
 node scripts/generate-offer.js --source mission-XXX --product-line research_packs --tier standard --targets datarade --confirm
 node scripts/approve-release.js --offer-id offer-XXX --confirm
 node scripts/export-release.js --offer-id offer-XXX --format zip --confirm
@@ -359,7 +369,7 @@ GitHub's built-in secret scanning provides push protection for provider-specific
 | **Primary** | Investor Pre-Mortem | $9,950 / $14,950 / $19,950 (+ KOL primary) | Biotech investors, pharma BD/licensing | Manual ZIP + Snowflake / AWS / BigQuery handoff for enterprise |
 | **Flanking primary** | Failed Trial Archaeology | $14,950 | Pharma R&D CI, biotech VC diligence | Manual ZIP via secure email |
 | Tactical | Conference Synthesis Brief | $4,950 / conference | Pharma R&D, investors, BD | HTML executive summary + filterable table |
-| Tactical | Trial Design Benchmark Pack | $4,950 | Biotech R&D, pharma CI | PDF + Tableau workbook |
+| Tactical | Trial Design Benchmark Pack | $4,950 | Biotech R&D, pharma CI | Manual ZIP — `design-benchmark.md` comparison matrix + `design-benchmark.csv` (**corrected 2026-07-30**: previously claimed "PDF + Tableau workbook", which was unbuildable — `export-release.js` emits only `folder` or `zip`, the sole npm dependency is `zod`, and "tableau" appears nowhere in the codebase) |
 | Tactical | Cross-Silo Connector Report | $9,950 – $24,950 | Pharma R&D, biotech partnerships | Narrative + interactive knowledge-graph export |
 | Tactical | Plain-Language Patient Brief | $2,500 | PAGs, trial sponsors | Word/PDF EMWA-aligned template |
 | Tactical (demoted) | Pharmacovigilance Pack | $2,500 – $4,950 | Mid-market pharma safety | Existing Datarade / HuggingFace listings preserved |

@@ -230,6 +230,11 @@ This is the post-research engine layer that makes the long-standing "citation tr
 | Pharma & Biotech R&D | Head of CI, VP BD/Licensing, SVP R&D Strategy, CMO | Mid-5 to low-6 fig per module / yr |
 | Academic & Clinical Researchers | PI, Department Admin, Research Networks | $30K–$62.5K per grant minimum |
 | Patient Advocacy Groups | Executive Director, Scientific Director | $5K–$50K project-based |
+| Medical Startup Founders *(added 2026-07-30)* | Founder/CEO, CSO, VP Clinical Development, Head of Regulatory (pre-seed → Series A) | SBIR/STTR TABA: up to $6,500 per Phase I project, $50,000 per Phase II (NIH Guide Notice NOT-OD-26-075, 2026-04-20) |
+
+> Fifth segment added 2026-07-30 by operator decision — *"add the founder lane as a second buyer, keep the
+> investor ladder."* Additive only; the ladder below is unchanged. Scope, the single transactable SKU, and
+> the fulfillment gaps that block the rest: [`01-brand-system/founder-lane-2026-07-29.md`](01-brand-system/founder-lane-2026-07-29.md).
 
 ### Offering ladder (2026-04-30)
 
@@ -341,12 +346,30 @@ Most important drift callout:
 
 These are the real operator entry points exposed by the repo today.
 
+> **Operator authorization (2026-07-29).** Every command below that reaches a model requires
+> `--operator-approve` **and** a live armed token — a YubiKey PIN + physical touch, 300s TTL,
+> one-shot. Arm it first with `operator-approve-gate arm`. `--confirm` alone only satisfies the
+> supervisor receipt and is **not** authorization to spend model capacity. Until this date the
+> research-task command ran real research on `claude-code` with `--confirm` alone; that gap is closed.
+>
+> `--provider mock` gives an ungated dry run on the **single research task** lane only. It does
+> **not** exempt the mission lanes: `role-provider-map.json` overrides the flag there, so those
+> resolve to `role-routed` and stay gated.
+>
+> **The mission lanes below are refused up front.** Nothing in `run-research-task.js` or
+> `run-dataset-mission.js` threads operator approval into the dispatch context — repo-wide it is
+> produced only by `run-workflow.js` — so `role-router` refuses them with
+> `PHASE15_HUMAN_APPROVAL_REQUIRED` regardless of flags. They now say so immediately instead of
+> consuming a YubiKey touch first. **Use `run-workflow.js` for mission work.**
+
 | Purpose | Command |
 | --- | --- |
-| Run a single research task | `node scripts/run-research-task.js --task "<description>" --type <task_type> --confirm` |
-| Run a mission | `node scripts/run-research-task.js --mission-template <template_id> --task "<description>" --confirm` |
-| Resume a mission | `node scripts/run-research-task.js --resume-mission <mission_id> --confirm` |
-| Run a research-to-dataset mission | `node scripts/run-dataset-mission.js --task "<description>" --dataset-type <type> --confirm` |
+| **Run a workflow (the mission lane that works)** | `node scripts/run-workflow.js --template <template_id> --inputs '{...}' --operator-approve --confirm` |
+| Run a single research task | `node scripts/run-research-task.js --task "<description>" --type <task_type> --operator-approve --confirm` |
+| Dry-run a research task (ungated) | `node scripts/run-research-task.js --task "<description>" --type <task_type> --provider mock --confirm` |
+| ~~Run a mission~~ | refused — use `run-workflow.js` above |
+| ~~Resume a mission~~ | refused — use `run-workflow.js` above |
+| ~~Run a research-to-dataset mission~~ | refused — use `run-workflow.js` above |
 | Generate an offer/release bundle | `node scripts/generate-offer.js --source <mission_id|dataset_id> --product-line <line> --tier <tier> --confirm` |
 | Approve a release bundle | `node scripts/approve-release.js --offer-id <offer_id> --confirm` |
 | Export a release bundle | `node scripts/export-release.js --offer-id <offer_id> --format zip|folder --confirm` |

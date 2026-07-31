@@ -469,6 +469,13 @@ code {
           <div class="rc-desc">Structured post-mortem of Phase 2/3 terminations in a mechanism or indication. NCT-indexed failure pattern matrix with sponsor stop reasons.</div>
         </label>
 
+        <label class="radio-card" data-value="trial-design-benchmark">
+          <input type="radio" name="question_type" value="trial-design-benchmark">
+          <div class="rc-label">How are comparable Phase 3 trials designed?</div>
+          <div class="rc-sku">Trial Design Benchmark Pack &middot; $4,950</div>
+          <div class="rc-desc">Comparative Phase 3 structure across up to 20 comparable programs &mdash; allocation, masking, intervention model, arms, enrollment, primary endpoints, sponsor class. Cohort reported as N of M eligible under a stated selection rule; never padded.</div>
+        </label>
+
         <label class="radio-card" data-value="pharmacovigilance-report">
           <input type="radio" name="question_type" value="pharmacovigilance-report">
           <div class="rc-label">Safety signal or adverse event review</div>
@@ -520,6 +527,20 @@ code {
           <label class="field-label" for="f-phase_filter">CLINICAL TRIAL PHASE (OPTIONAL)</label>
           <input type="text" id="f-phase_filter" name="phase_filter" placeholder="e.g. Phase 3, Phase 2/3">
           <div class="field-note">Limits ClinicalTrials.gov stop-reason query to this phase</div>
+        </div>
+
+        <!-- Trial Design Benchmark Pack. NOTE: the `name` attributes are deliberately prefixed
+             `tdb_` and are NOT reused from the panels above. val() is a document-wide
+             querySelector on [name=...] and returns the FIRST match, so reusing `indication` or
+             `drug_class` would silently read the hidden inputs in the earlier panels — the
+             required-field check would never pass and the mailto would carry a blank value. -->
+        <div class="field-group" data-for="trial-design-benchmark">
+          <label class="field-label" for="f-tdb-indication">INDICATION</label>
+          <input type="text" id="f-tdb-indication" name="tdb_indication" placeholder="e.g. non-small cell lung cancer, ulcerative colitis">
+          <div class="field-note">Scopes the comparable Phase 3 cohort in ClinicalTrials.gov</div>
+          <label class="field-label" for="f-tdb-drug_class">MECHANISM OR DRUG CLASS (OPTIONAL)</label>
+          <input type="text" id="f-tdb-drug_class" name="tdb_drug_class" placeholder="e.g. PD-1 inhibitor, JAK inhibitor">
+          <div class="field-note">Narrows comparators to a mechanism; leave blank to benchmark the whole indication</div>
         </div>
 
         <div class="field-group" data-for="pharmacovigilance-report">
@@ -742,6 +763,13 @@ const QUESTION_TYPE_MAP = {
     required: ["disease_name"],
     optional: ["focus_area"],
   },
+  "trial-design-benchmark": {
+    label:    "How are comparable Phase 3 trials designed?",
+    sku:      "Trial Design Benchmark Pack",
+    price:    "$4,950",
+    required: ["tdb_indication"],
+    optional: ["tdb_drug_class"],
+  },
   "general-research-pack": {
     label:    "General biomedical research question",
     sku:      "General Research Pack",
@@ -758,6 +786,10 @@ const PANEL_VISIBILITY = {
   "target-validation-pack":   ["h5"],
   "rare-disease-brief":       [],
   "general-research-pack":    [],
+  // Deliberately no panel: h2 advertises the Citation-Integrity grade, and this pack's flagship
+  // artifact (the design-benchmark matrix) is rendered post-gate and is NOT covered by that grade.
+  // Showing the grade panel beside this SKU would be the grade-adjacency overclaim in sales form.
+  "trial-design-benchmark":   [],
 };
 
 const CONDITIONAL_PANELS = ["h2", "h3", "h4", "h5"];
@@ -901,6 +933,8 @@ function onSubmit() {
   addEntity("Rare disease:         ", "disease_name");
   addEntity("Focus area:           ", "focus_area");
   addEntity("Research topic:       ", "topic");
+  addEntity("Indication:           ", "tdb_indication");
+  addEntity("Mechanism/drug class: ", "tdb_drug_class");
 
   var body =
 "Trevor Robey, INC. \u2014 Client Intake\n" +

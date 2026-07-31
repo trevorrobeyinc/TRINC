@@ -6,7 +6,7 @@ The runtime engine behind **Trevor Robey, INC.** — citation-traced biomedical 
 
 > *Trevor Robey, INC. is the wordmark of **Trevor Robey Intelligence Network Citations LLC**, a California limited liability company (filed 2026-05-06). INC = Intelligence Network Citations.*
 
-A single command (`node scripts/run-workflow.js --template <id>`) runs one of six biomedical workflows that feed concrete commercial offerings: **Investor Pre-Mortem** (primary, $9,950–$19,950) and **Failed Trial Archaeology** (flanking, $14,950) drive premium revenue; **Conference Synthesis Brief**, **Trial Design Benchmark Pack**, **Cross-Silo Connector Report**, **Plain-Language Patient Brief**, and **Pharmacovigilance Pack** serve tactical demand.
+A single command (`node scripts/run-workflow.js --template <id>`) runs one of seven biomedical workflows that feed concrete commercial offerings: **Investor Pre-Mortem** (primary, $9,950–$19,950) and **Failed Trial Archaeology** (flanking, $14,950) drive premium revenue; **Conference Synthesis Brief**, **Trial Design Benchmark Pack**, **Cross-Silo Connector Report**, **Plain-Language Patient Brief**, and **Pharmacovigilance Pack** serve tactical demand.
 
 Workflows pull live evidence from ToolUniverse (~2,116 tools, Apache-2.0, Harvard MIMS / Zitnik Lab) plus seven project MCP servers (ChEMBL, ClinicalTrials.gov, PubMed, HuggingFace Hub, NPI Registry, ICD-10, Owkin), and produce ZIP release bundles whose citation-index CSV has a real PMID / NCT / ChEMBL CID / DOI in **every** row — verified at quality-gate time, not flagged as a warning. Every cited identifier in an assembled report is additionally checked against the source records **actually retrieved at runtime** (a report-level grounding gate) and every cited DOI is retraction-screened against Crossref before the report can ship — see [Citation Integrity Layer](#citation-integrity-layer) below.
 
@@ -151,12 +151,20 @@ node scripts/build-dataset-from-task.js \
 
 4. Run a first `research_to_dataset` mission:
 ```bash
-node scripts/run-dataset-mission.js \
-  --task "Build a dataset-ready mission artifact from the sample corpus" \
-  --dataset-type retrieval_qa \
-  --input workspace/research-input/sample/ \
+node scripts/run-workflow.js \
+  --template general-research-pack \
+  --inputs '{"topic":"AI governance"}' \
+  --operator-approve \
   --confirm
 ```
+> Arm the gate first — `operator-approve-gate arm` (YubiKey PIN + touch, 300s TTL, one-shot).
+> `--confirm` alone is not authorization to spend model capacity; the mock research task in step 2
+> above needs no ceremony.
+>
+> **`run-dataset-mission.js` is refused as of 2026-07-29.** It never threaded operator approval into
+> the dispatch context, so `role-router` blocked it with `PHASE15_HUMAN_APPROVAL_REQUIRED`
+> regardless of flags. It now says so immediately rather than consuming a YubiKey touch for a run
+> that cannot complete. `run-workflow.js` is the mission lane that works.
 
 5. Generate a release bundle from a completed mission:
 ```bash

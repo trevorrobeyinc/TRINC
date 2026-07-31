@@ -35,7 +35,7 @@ Structured post-mortem of Phase 2/3 terminations in a single mechanism, with an 
 | SKU | Price | Buyer | What's included |
 | :--- | :--- | :--- | :--- |
 | **Conference Synthesis Brief** | $4,950 / conference | Pharma R&D, investors, BD/licensing (event-driven) | 500+ ASCO / ESMO / AACR abstracts; 24–48 hr |
-| **Trial Design Benchmark Pack** | $4,950 | Biotech R&D, pharma CI | Comparative Phase 3 structure vs 10–20 comparable programs |
+| **Trial Design Benchmark Pack** | $4,950 | Biotech R&D, pharma CI | Comparative Phase 3 structure vs up to 20 comparable programs — cohort stated as N of M eligible, never padded |
 | **Cross-Silo Connector Report** | $9,950 – $24,950 | Pharma R&D, biotech partnerships | Hidden mechanistic links across ChEMBL / PubMed / CT.gov |
 | **Plain-Language Patient Brief** | $2,500 | Patient advocacy groups, trial sponsors | EU CTR 536/2014 plain-language summary at 8th-grade literacy |
 | **Pharmacovigilance Pack** | $2,500 – $4,950 | Mid-market pharma safety teams | Existing marketplace tier; demoted from primary lead — listings preserved |

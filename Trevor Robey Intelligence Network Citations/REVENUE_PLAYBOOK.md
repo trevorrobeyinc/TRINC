@@ -104,15 +104,19 @@ Research Input  ──>  Mission (Phase 18)  ──>  Dataset (Phase 19-20)  ─
 
 ```bash
 node scripts/run-workflow.js --template drug-discovery-full \
-  --inputs '{"compound_name":"aspirin","indication":"pain"}' --confirm
+  --inputs '{"compound_name":"aspirin","indication":"pain"}' --operator-approve --confirm
 ```
+
+> **Arm the operator gate first:** `operator-approve-gate arm` (YubiKey PIN + physical touch, 300s
+> TTL, one-shot). Since 2026-07-29 every non-mock run requires `--operator-approve` — `--confirm`
+> alone satisfies only the supervisor receipt, not authorization to spend model capacity.
 
 Available workflow templates: `drug-discovery-full`, `pharmacovigilance-report`, `clinical-trial-landscape`, `target-validation-pack`, `rare-disease-brief`, `general-research-pack`
 
 **Manual step-by-step (legacy):**
 
 1. **Create input sources** — Drop plain-text seed documents into `workspace/research-input/<domain>/`
-2. **Run a mission** — `node scripts/run-dataset-mission.js --task "..." --dataset-type retrieval_qa --input workspace/research-input/<domain>/ --confirm`
+2. **Run a mission** — use the workflow lane: `node scripts/run-workflow.js --template <id> --inputs '{...}' --operator-approve --confirm`. (`run-dataset-mission.js` is **refused as of 2026-07-29** — it never threaded operator approval, so role-router blocked it regardless; it now says so up front instead of consuming a YubiKey touch first.)
 3. **Generate offer** — `node scripts/generate-offer.js --source mission-XXX --product-line <line> --tier <tier> --targets datarade --confirm`
 4. **Approve release** — `node scripts/approve-release.js --offer-id offer-XXX --confirm`
 5. **Export ZIP** — `node scripts/export-release.js --offer-id offer-XXX --format zip --confirm`
@@ -171,7 +175,7 @@ On a gate-passing mission, two cost-avoidance deliverables are sealed into the r
 | **Investor Pre-Mortem (PRIMARY)** | Biotech hedge funds, biotech-specialist VC, pharma BD/licensing | $9,950 anchor / $14,950 standard / $19,950 custom (+ KOL primary) | Per-asset risk dossier (trial design + comparable failures + KOL sentiment + IP runway), every claim PMID/NCT/ChEMBL-traced; 5–10 business days; refund-backed citation-audit SLA |
 | **Failed Trial Archaeology (FLANKING)** | Pharma R&D CI, biotech VC diligence | $14,950 | Structured post-mortem of Phase 2/3 terminations in a single mechanism; NCT-indexed failure pattern matrix |
 | Conference Synthesis Brief | Pharma R&D, investors, BD/licensing (event-driven) | $4,950 / conference | 500+ ASCO/ESMO/AACR abstracts; 24–48hr |
-| Trial Design Benchmark Pack | Biotech R&D, pharma CI | $4,950 | Comparative Phase 3 structure vs 10–20 comparable programs |
+| Trial Design Benchmark Pack | Biotech R&D, pharma CI | $4,950 | Comparative Phase 3 structure vs up to 20 comparable programs — cohort stated as N of M eligible, never padded |
 | Cross-Silo Connector Report | Pharma R&D, biotech partnerships | $9,950 – $24,950 | Hidden mechanistic links across ChEMBL/PubMed/CT.gov |
 | Plain-Language Patient Brief | Patient Advocacy Groups, trial sponsors | $2,500 | EU CTR 536/2014 PLS at 8th-grade literacy |
 | Pharmacovigilance Pack (tactical) | Mid-market pharma safety teams | $2,500 – $4,950 | Existing marketplace tier; demoted from primary lead — listings preserved |

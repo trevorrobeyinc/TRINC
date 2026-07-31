@@ -337,6 +337,25 @@ Predecessor of qdrant-tls-proxy: a separate subproject at `Claude/qdrant-tls-pro
 
 > Per the global `~/.claude/CLAUDE.md` "Browser MCP Strategy and Context Persistence" rule, every Claude Code session that calls a browser MCP non-trivially appends a structured summary block below. Newest entries at the top. The two surviving browser surfaces are the **Claude Browser pane** (`mcp__Claude_Browser__*` — isolated in-app Chromium clean room for untrusted content, `cb` gate scope) and **Claude in Chrome** (`mcp__claude-in-chrome__*` — identity / logged-in work, `cic` gate scope). Keep the lanes separate. (Corrected 2026-07-25: this line previously named **Playwright MCP (`--isolated`)**, which was superseded by `cdp-pipe` on 2026-06-07 and retired entirely on 2026-07-14 when the clean-room role moved to the Claude Browser pane. Playwright's orphaned 796 MB browser cache was removed from this machine on 2026-07-25.) See the global rule for the entry format, importance filter, and timing.
 
+- 2026-07-30 · Claude-Browser · verify the new **Trial Design Benchmark Pack** option on the local
+  `intake.html` after adding it (radio card, field group, `QUESTION_TYPE_MAP`, `PANEL_VISIBILITY`,
+  `addEntity`) · **PASSED end-to-end**: radio checks, only that field-group becomes visible,
+  `val("tdb_indication")` returns the typed value, the submit validator passes, and the mailto body
+  carries both fields; switching to another SKU cleanly swaps panels. The negative case is the real
+  proof — clearing the required field makes validation **fail**, which it could not do if `val()`
+  were reading a shadowed input. GOTCHAS: (1) **`intake.html`'s `val()` is a document-wide
+  `querySelector('[name=...]')` and returns the FIRST match** — reusing an existing field `name`
+  (`indication`, `drug_class`) in a new panel silently shadows it against the hidden earlier input,
+  so the required-check can never pass and the mailto ships blank. Prefix new panel fields
+  (`tdb_*`). Verified live in the same call: `val("indication")` returned `""` while
+  `val("tdb_indication")` returned the typed text. (2) **`read_page` returned "(empty page)" with
+  `Viewport: 0x0`** right after `navigate()` — the documented hidden-pane state; `resize_window`
+  composited it. Even then the a11y tree surfaced only one link and **omitted every form control**
+  (same omission as the 2026-07-09 Parker Dewey session), so the form was exercised through
+  `javascript_tool` against the page's own `val()` / `QUESTION_TYPE_MAP` rather than the tree.
+  (3) The pane reports *"files outside the project folder render as static snapshots"* — this file
+  is **inside** the project root and JS executed normally, so that notice is not a reliable signal
+  that scripts are dead; test with a trivial eval before concluding the page is static.
 - 2026-07-27 · Claude-Browser · collect real competitor social/review data (Trustpilot, X) for an
   MKT500 marketing-plan assignment, after a fact-check found every figure in the prior draft was
   invented · got verified figures for AlphaSights (Trustpilot 4.9/10,905 reviews, replied to 96% of

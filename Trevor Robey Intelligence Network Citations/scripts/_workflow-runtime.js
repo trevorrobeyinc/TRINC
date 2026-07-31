@@ -94,6 +94,14 @@ async function buildWorkflowRuntime(options = {}) {
     // engine's deliverable-assembly re-fetch, so the re-fetch is a session-cache hit (no extra
     // CT.gov round-trip) and the graveyard memo renders from the very records scout grounded on.
     researchRuntime.ctgovSupplemental = ctgovSupplemental;
+    // Trial Design Benchmark Pack: the comparable Phase 3 cohort with full structural fields.
+    // Sibling of ctgovSupplemental and registered on BOTH seams for the same reason — the
+    // competitive_intel_analyst prefetch and the workflow engine's post-gate deliverable render
+    // share one instance, so the second call is a session-cache hit and the benchmark renders from
+    // exactly the records the analyst was grounded on.
+    const { createCtgovDesignBenchmark } = require("../openclaw-bridge/mcp/ctgov-supplemental/ctgov-design-benchmark.js");
+    const ctgovDesignBenchmark = createCtgovDesignBenchmark({ logger });
+    researchRuntime.ctgovDesignBenchmark = ctgovDesignBenchmark;
     // Vault read-back: lets a role consult PRIOR RESEARCH already in the Obsidian vault
     // (`obsidian_prior_research`) through the same local-fetcher seam. Read-only by default —
     // `allowWrites` stays false so this can never double-write against Command Center's
@@ -118,6 +126,7 @@ async function buildWorkflowRuntime(options = {}) {
       toolUniverseMcp, logger, rootDir, timeProvider: options.timeProvider,
       localFetchers: {
         ctgov_stopped_trials: (args) => ctgovSupplemental.searchStoppedTrials(args),
+        ctgov_design_benchmark: (args) => ctgovDesignBenchmark.searchDesignCohort(args),
         obsidian_prior_research: (args) => obsidianBridge.priorResearch(args),
         opentargets_target_intel: (args) => openTargets.targetIntel(args),
         opentargets_disease_intel: (args) => openTargets.diseaseIntel(args)
