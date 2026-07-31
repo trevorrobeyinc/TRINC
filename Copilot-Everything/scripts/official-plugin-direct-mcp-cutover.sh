@@ -123,7 +123,6 @@ JS_CODE="$(cat <<EOF
         timeoutMs: 20000,
         vaultName: $TARGET_VAULT_NAME_JSON,
         vaultRoot: $PRODUCTION_VAULT_JSON,
-        backendHint: "",
         enabledToolNames: tools,
       },
     ],

@@ -4,7 +4,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib.sh"
 
-require_command node
 require_command obsidian
 require_command jq
 
@@ -21,38 +20,18 @@ TARGET_DATA="$OFFICIAL_PLUGIN_DIR/data.json"
 [[ -f "$TARGET_MANIFEST" ]] || die "Missing official manifest: $TARGET_MANIFEST"
 [[ -f "$TARGET_DATA" ]] || die "Missing official data file: $TARGET_DATA"
 
+MANIFEST_ID="$(jq -r '.id // empty' "$TARGET_MANIFEST")"
+[[ "$MANIFEST_ID" == "$OFFICIAL_PLUGIN_ID" ]] \
+  || die "Official plugin slot manifest declares id '${MANIFEST_ID:-<none>}' (expected '$OFFICIAL_PLUGIN_ID'), refusing to overlay runtime: $TARGET_MANIFEST"
+
 BACKUP_PATH="$(backup_target "$OFFICIAL_PLUGIN_DIR" "copilot-official-runtime-pre-mcp-overlay")"
 ensure_obsidian_running "$TARGET_VAULT_NAME"
-TMP_DIR="$(mktemp -d)"
-trap 'rm -rf "$TMP_DIR"' EXIT
-
-TRANSFORMED_MAIN="$TMP_DIR/main.js"
-TRANSFORMED_STYLES="$TMP_DIR/styles.css"
-
-node - "$SOURCE_MAIN" "$SOURCE_STYLES" "$TRANSFORMED_MAIN" "$TRANSFORMED_STYLES" <<'NODE'
-const fs = require("fs");
-const [sourceMain, sourceStyles, outMain, outStyles] = process.argv.slice(2);
-
-const replacements = [
-  [/copilot-mcp/g, "copilot"],
-  [/Copilot MCP/g, "Copilot"],
-];
-
-let main = fs.readFileSync(sourceMain, "utf8");
-for (const [pattern, value] of replacements) {
-  main = main.replace(pattern, value);
-}
-fs.writeFileSync(outMain, main, "utf8");
-
-let styles = fs.readFileSync(sourceStyles, "utf8");
-for (const [pattern, value] of replacements) {
-  styles = styles.replace(pattern, value);
-}
-fs.writeFileSync(outStyles, styles, "utf8");
-NODE
-
-cp "$TRANSFORMED_MAIN" "$TARGET_MAIN"
-cp "$TRANSFORMED_STYLES" "$TARGET_STYLES"
+# Since 9c7ce09a the fork builds natively under id "copilot", so the runtime is
+# deployed byte-identical. Never reintroduce an id-rewrite transform here: the old
+# /copilot-mcp/g pass also matched inside longer strings like "obsidian-copilot-mcp"
+# (the source repo name), silently diverging the deployed artifact from the build.
+cp "$SOURCE_MAIN" "$TARGET_MAIN"
+cp "$SOURCE_STYLES" "$TARGET_STYLES"
 
 obsidian "vault=$TARGET_VAULT_NAME" plugin:reload "id=$OFFICIAL_PLUGIN_ID" >/dev/null
 

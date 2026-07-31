@@ -4,9 +4,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib.sh"
 
-WITH_OFFICIAL=0
+# --with-official RETIRED 2026-07-31: since 9c7ce09a (2026-05-23) the fork's manifest id
+# IS "copilot", and one id can only load once per vault — a side-by-side install of fork
+# and official is structurally impossible, and the production official slot already runs
+# this fork. A/B-compare across vaults instead (this dev vault vs the production vault).
 if [[ "${1:-}" == "--with-official" ]]; then
-  WITH_OFFICIAL=1
+  die "--with-official was retired 2026-07-31: the fork's manifest id IS \"copilot\" (9c7ce09a), so a same-vault side-by-side is impossible. A/B across vaults instead."
 fi
 
 "$SCRIPT_DIR/dev-build.sh"
@@ -23,11 +26,6 @@ fi
 
 ln -s "$RUNTIME_PLUGIN_DIR" "$TARGET_LINK"
 sync_community_plugins_file "$DEV_CONFIG_DIR" "$PLUGIN_ID"
-
-if [[ "$WITH_OFFICIAL" -eq 1 ]]; then
-  copy_official_plugin_to_dev_vault "$DEV_CONFIG_DIR"
-  sync_community_plugins_file "$DEV_CONFIG_DIR" "$PLUGIN_ID" "$OFFICIAL_PLUGIN_ID"
-fi
 
 record_migration_event "deploy-runtime" "$RUNTIME_PLUGIN_DIR" "$TARGET_LINK" "ok"
 echo "Deployed $PLUGIN_ID into $TARGET_LINK"

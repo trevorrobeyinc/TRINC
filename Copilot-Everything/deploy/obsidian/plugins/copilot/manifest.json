@@ -1,0 +1,14 @@
+{
+  "id": "copilot",
+  "name": "Copilot",
+  "version": "3.3.3",
+  "minAppVersion": "1.11.4",
+  "isDesktopOnly": false,
+  "description": "MCP-first Obsidian Copilot fork — adds Model Context Protocol client support so Copilot chat can call tools exposed by the TrevClaw obsidian-copilot-bridge at https://127.0.0.1:8798. Based on upstream v3.3.3. Versioned to match upstream exactly so Obsidian's auto-update does not silently overwrite this fork (a -mcp.N prerelease suffix sorted BELOW stock and got wiped).",
+  "author": "Logan Yang (upstream); fork by Trevor Robey",
+  "authorUrl": "https://twitter.com/logancyang",
+  "fundingUrl": {
+    "Buy Me a Coffee": "https://www.buymeacoffee.com/logancyang",
+    "GitHub Sponsor": "https://github.com/sponsors/logancyang"
+  }
+}

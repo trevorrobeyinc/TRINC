@@ -8,11 +8,17 @@ PLUGIN_REPO="$WORKSPACE_ROOT/repos/obsidian-copilot-mcp"
 BRIDGE_REPO="$WORKSPACE_ROOT/bridges/obsidian-copilot-bridge"
 DEPLOY_ROOT="$WORKSPACE_ROOT/deploy"
 DEPLOY_PLUGIN_ROOT="$DEPLOY_ROOT/obsidian/plugins"
-RUNTIME_PLUGIN_DIR="$DEPLOY_PLUGIN_ROOT/copilot-mcp"
+RUNTIME_PLUGIN_DIR="$DEPLOY_PLUGIN_ROOT/copilot"
 CONFIG_ROOT="$WORKSPACE_ROOT/configs"
 DOCS_ROOT="$WORKSPACE_ROOT/docs"
 BACKUP_ROOT="$DEPLOY_ROOT/backups"
-PLUGIN_ID="copilot-mcp"
+# Both ids are "copilot" ON PURPOSE. Since 9c7ce09a (2026-05-23) the fork's manifest
+# declares id "copilot" at the upstream-exact version so Obsidian's auto-updater sees
+# installed==latest and cannot wipe the fork (see repos/obsidian-copilot-mcp/manifest.json
+# description — never change that manifest id). PLUGIN_ID is the id the dev-vault lane
+# stages/enables/reloads; OFFICIAL_PLUGIN_ID is the production vault's official plugin
+# slot. Keep both names for call-site meaning; do not "deduplicate" them.
+PLUGIN_ID="copilot"
 OFFICIAL_PLUGIN_ID="copilot"
 OFFICIAL_PLUGIN_DIR="$PRODUCTION_VAULT/.obsidian/plugins/$OFFICIAL_PLUGIN_ID"
 OLD_SOURCE_REPO="$PRODUCTION_VAULT/copilot"
@@ -300,16 +306,6 @@ backup_target() {
   local backup_path="$destination/$(basename "$target_path")"
   cp -R "$target_path" "$backup_path"
   printf '%s\n' "$backup_path"
-}
-
-copy_official_plugin_to_dev_vault() {
-  local dev_config_dir="$1"
-  local destination="$dev_config_dir/plugins/$OFFICIAL_PLUGIN_ID"
-
-  [[ -d "$OFFICIAL_PLUGIN_DIR" ]] || die "Official plugin directory not found: $OFFICIAL_PLUGIN_DIR"
-  ensure_dir "$dev_config_dir/plugins"
-  rm -rf "$destination"
-  rsync -a "$OFFICIAL_PLUGIN_DIR/" "$destination/"
 }
 
 sync_community_plugins_file() {

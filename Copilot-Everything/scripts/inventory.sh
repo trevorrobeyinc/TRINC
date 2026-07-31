@@ -11,7 +11,7 @@ DEV_CONFIG_DIR="$(detect_obsidian_config_dir "$DEV_VAULT")"
 OUTPUT_JSON="$CONFIG_ROOT/path-inventory.json"
 OUTPUT_TXT="$CONFIG_ROOT/path-inventory.txt"
 
-node - "$OUTPUT_JSON" "$WORKSPACE_ROOT" "$PRODUCTION_VAULT" "$PROD_CONFIG_DIR" "$DEV_VAULT" "$DEV_CONFIG_DIR" "$OLD_SOURCE_REPO" "$OLD_BRIDGE_REPO" <<'NODE'
+node - "$OUTPUT_JSON" "$WORKSPACE_ROOT" "$PRODUCTION_VAULT" "$PROD_CONFIG_DIR" "$DEV_VAULT" "$DEV_CONFIG_DIR" "$OLD_SOURCE_REPO" "$OLD_BRIDGE_REPO" "$RUNTIME_PLUGIN_DIR" <<'NODE'
 const fs = require("fs");
 const { execFileSync } = require("child_process");
 
@@ -24,6 +24,7 @@ const [
   devConfigDir,
   oldSourceRepo,
   oldBridgeRepo,
+  runtimePluginBundle,
 ] = process.argv.slice(2);
 
 function run(cmd, args) {
@@ -70,7 +71,7 @@ const inventory = {
     oldBridgeRepo,
     newSourceRepo: `${workspaceRoot}/repos/obsidian-copilot-mcp`,
     newBridgeRepo: `${workspaceRoot}/bridges/raycast-obsidian-extension`,
-    runtimePluginBundle: `${workspaceRoot}/deploy/obsidian/plugins/copilot-mcp`,
+    runtimePluginBundle,
   },
   relatedAssets: searchPatterns.flatMap((pattern) =>
     run("find", [workspaceRoot, productionVault, "/Users/myhome", "-maxdepth", "4", "-iname", pattern])

@@ -89,4 +89,11 @@ playwright-report/
 # Captured vault-settings snapshots contain real userId / license key / encrypted
 # (enc_desk_) secrets — never track the settings file (audit CS-3).
 repos/.upstream-*-vault-snapshot/data.json
+
+# Same rule for the dev-lane runtime bundle staged under deploy/: its data.json is
+# Obsidian-WRITTEN runtime settings (dev-build.sh deliberately preserves it across
+# rebuilds) carrying the full secret-slot schema — a latent plaintext-in-git vector
+# (2026-07 API-key-storage audit, pending item 3). Untracked 2026-07-31; file stays
+# on disk for the dev vault.
+deploy/obsidian/plugins/*/data.json
 # repos/obsidian-copilot-mcp/   # vendored into monorepo 2026-05-07; see repos/obsidian-copilot-mcp/UPSTREAM.md

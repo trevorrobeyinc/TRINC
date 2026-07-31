@@ -11,7 +11,10 @@ if [[ ! -f "$DEV_VAULT/README.md" ]]; then
   cat >"$DEV_VAULT/README.md" <<'EOF'
 # Copilot MCP Dev Vault
 
-This dedicated vault is the primary safe target for `copilot-mcp` development and side-by-side testing.
+This dedicated vault is the primary safe target for developing the `obsidian-copilot-mcp` fork,
+which deploys under its REAL plugin id `copilot` (upstream-exact identity since 9c7ce09a — see
+scripts/lib.sh). Side-by-side fork-vs-official installs were retired 2026-07-31: one id loads
+once per vault.
 
 - Source code lives outside the vault in `/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything`.
 - Built runtime bundles are deployed into the vault's plugin directory.
