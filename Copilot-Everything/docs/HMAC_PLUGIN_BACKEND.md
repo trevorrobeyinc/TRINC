@@ -5,9 +5,12 @@
 > in the bridge consolidation. The replacement is the **Obsidian Local REST API
 > plugin** (https://obsidian.md/plugins?id=obsidian-local-rest-api), which provides
 > end-to-end auth via API key over HTTPS to port 27124 — same security goal,
-> standard transport. The bridge daemon now defaults to a single backend tier:
-> `RestApiBackend` only. CLI subprocess remains in code as an explicit
-> `OBSIDIAN_TRANSPORT=cli` opt-in for headless scenarios.
+> standard transport. The bridge daemon now runs a single backend tier:
+> `RestApiBackend` only. (Correction 2026-07-31: an earlier revision of this note said
+> the CLI subprocess remained in code as an `OBSIDIAN_TRANSPORT=cli` opt-in — that path
+> is gone too. No CLI backend exists in `src/` or `dist/`, and `BackendId` is the single
+> literal `"restApi"`. The CLI-fallback behavior described in the body below is
+> historical.)
 >
 > This file is preserved as historical record. See `~/.claude/plans/warm-strolling-walrus.md`
 > for the consolidation plan.

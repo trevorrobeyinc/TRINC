@@ -2,6 +2,14 @@
 
 Updated: 2026-03-22
 
+> **SUPERSEDED — historical snapshot (banner added 2026-07-31).** This checklist exercises
+> the 2026-03 stack: the backend emulator (retired 2026-04-11, deleted 2026-05-08), Ollama
+> (removed 2026-07-23), and the CLI-backed bridge lane (CLI backend removed 2026-05-09 —
+> the bridge is REST-only via the Obsidian Local REST API `:27124`).
+> `cli-stability-gate.sh` and `direct-cli-stability-gate.sh` are tombstoned and exit
+> immediately as RETIRED. Current health checks: `Copilot-Everything/CLAUDE.md`
+> (Service Health Checks).
+
 ## Scope
 
 This checklist covers the current live production setup centered on `My Digital Garden`.

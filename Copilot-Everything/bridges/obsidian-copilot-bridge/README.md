@@ -1,15 +1,15 @@
 # Obsidian MCP Server
 
-CLI-first local MCP-compatible bridge for Obsidian on the current macOS production stack.
+REST-backed local MCP-compatible bridge for Obsidian on the current macOS production stack (REST-only since 2026-05-09 — the former CLI subprocess backend was removed).
 
-For `My Digital Garden`, the bridge-backed CLI lane is the stable production path for the six live note and command operations.
+For `My Digital Garden`, the bridge lane — `RestApiBackend` → Obsidian **Local REST API** plugin (`https://127.0.0.1:27124`) — is the stable production path for the six live note and command operations.
 
 Workspace source-of-truth:
 
 - Parent Raycast package: `../package.json` (`obsidian-bridge-fork`)
 - Default Codex sync target: `~/.config/raycast/extensions/obsidian` via `../scripts/codex/sync-config.sh`
 
-This server is the CLI-backed execution layer for note and command operations. It is not the entire runtime by itself: PDF/video summarize flows still use the backend emulator for `/v0/parse-doc` and `/v1/self-host/agent-turn`, then return through the hybrid MCP layer for note writes.
+This server is the REST-backed execution layer for note and command operations (sole backend: `src/backends/restApiBackend.ts`). The PDF/video summarize flows that used the backend emulator for `/v0/parse-doc` and `/v1/self-host/agent-turn` predate the emulator's retirement (2026-04-11, deleted 2026-05-08).
 
 ## Quick start
 
@@ -29,6 +29,13 @@ npm --prefix mcp-server run start:https
 
 Default secure transport is UDS on macOS/Linux and named pipe on Windows when `transport.mode` is omitted.
 Set `security.globalRateLimitPerMinute` in `mcp-server/config/obsidian-cli-mcp.local.json` to enforce a global cap in addition to per-client limits.
+
+> **CLI-era sections (historical).** *CLI Stability Controls*, *Raw Direct CLI Track*, and
+> *CLI Baseline* describe the pre-2026-05-09 CLI subprocess backend. That backend was
+> removed in the bridge consolidation — the `cliStability` config block is still parsed by
+> the config loader but no longer consumed, the direct-CLI gate is tombstoned, and the
+> bridge no longer probes the Obsidian CLI binary. `obsidian_health` reports the sole
+> `restApi` backend.
 
 ## CLI Stability Controls
 
@@ -50,7 +57,7 @@ The bridge uses those settings to verify:
 
 Raw direct Obsidian CLI is validated separately from the bridge-backed production lane.
 
-- Operator gate: `scripts/direct-cli-stability-gate.sh`
+- Operator gate: `scripts/direct-cli-stability-gate.sh` (tombstoned 2026-05-09 — exits RETIRED)
 - Validation mode: `OBSIDIAN_LIVE_VALIDATION_CONTRACT=full_direct_cli`
 - Contract under investigation:
   - version detection
@@ -120,6 +127,10 @@ npm --prefix mcp-server run live:communication:cli
 ```
 
 ## Operator Stability Gate
+
+> **Retired 2026-05-09** — `cli-stability-gate.sh` is tombstoned (it exits immediately;
+> its header documents the replacement health checks). The parity item below referenced
+> `CliBackend.probe()` and the backend emulator, both removed.
 
 For the current macOS production stack, the canonical operator-facing gate is:
 

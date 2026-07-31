@@ -26,3 +26,4 @@ timestamp	action	source	destination	status
 2026-03-20T02:40:55Z	deploy-runtime	/Users/trevorrobey/THE Copilot in Obsidian Everything/deploy/obsidian/plugins/copilot-mcp	/Users/trevorrobey/THE Copilot in Obsidian Everything/dev-vault/.obsidian/plugins/copilot-mcp	ok
 2026-03-20T02:44:21Z	build-runtime	/Users/trevorrobey/THE Copilot in Obsidian Everything/repos/obsidian-copilot-mcp	/Users/trevorrobey/THE Copilot in Obsidian Everything/deploy/obsidian/plugins/copilot-mcp	ok
 2026-03-20T02:44:21Z	deploy-runtime	/Users/trevorrobey/THE Copilot in Obsidian Everything/deploy/obsidian/plugins/copilot-mcp	/Users/trevorrobey/THE Copilot in Obsidian Everything/dev-vault/.obsidian/plugins/copilot-mcp	ok
+2026-07-31T22:18:39Z	build-runtime	/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything/repos/obsidian-copilot-mcp	/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything/deploy/obsidian/plugins/copilot-mcp	ok

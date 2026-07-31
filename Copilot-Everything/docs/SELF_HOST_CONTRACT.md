@@ -2,6 +2,17 @@
 
 Date: 2026-03-19
 
+> **Contract amendment (2026-07-31).** The bridge behind `/mcp/tool` has been **REST-only
+> since 2026-05-09** — `RestApiBackend` (Obsidian Local REST API plugin, `:27124`) is the
+> sole backend and the CLI subprocess backend no longer exists. Wherever `backendHint`
+> appears in this contract it is optional and accepts **only the literal `"restApi"`**;
+> the old `"cli"` value is rejected HTTP `400` (`invalid_literal` — see
+> `bridges/obsidian-copilot-bridge/src/server/dispatcher.ts`). The Copilot fork stopped
+> sending `backendHint` entirely on 2026-07-31, and the two `"backendHint": "cli"`
+> examples below were updated to `"restApi"` the same day. Emulator-era text is otherwise
+> preserved as written (the backend emulator itself was retired 2026-04-11, deleted
+> 2026-05-08).
+
 ## Scope
 
 This document separates three things:
@@ -34,6 +45,10 @@ Routes:
     - `X-MCP-Body-Sha256`
   - Body:
     - `{ tool, operation?, backendHint?, input? }`
+    - `backendHint` is optional and accepts **only the literal `"restApi"`** (REST-only
+      since 2026-05-09 — the CLI subprocess backend was removed; a stale `"cli"` value is
+      rejected HTTP `400` `invalid_literal`). Current callers omit the field — the Copilot
+      fork stopped sending it entirely on 2026-07-31.
   - Success envelope:
     - `{ ok: true, data, meta }`
   - Error envelope:
@@ -146,7 +161,7 @@ Request body:
       "category": "mcp",
       "bridge": {
         "toolName": "obsidian_health",
-        "backendHint": "cli",
+        "backendHint": "restApi",
         "serverId": "local-obsidian-mcp",
         "httpEndpoint": "https://127.0.0.1:8798",
         "vaultName": "dev-vault",
@@ -307,7 +322,7 @@ Request body:
 {
   "tool": "obsidian_execute_command",
   "operation": "execute_command",
-  "backendHint": "cli",
+  "backendHint": "restApi",
   "input": {
     "vault": "dev-vault",
     "id": "copilot:refresh-prompts"

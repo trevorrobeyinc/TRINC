@@ -2,6 +2,16 @@
 
 Updated: 2026-03-24
 
+> **SUPERSEDED — historical snapshot (banner added 2026-07-31).** This handoff describes
+> the CLI-backed stack as of 2026-03-24. The bridge has been **REST-only since
+> 2026-05-09**: `RestApiBackend` → Obsidian **Local REST API** plugin (`:27124`) is the
+> sole backend, and `src/backends/cliBackend.ts` no longer exists. Note that later history
+> *inverted* the "What has been removed" list below — the Local REST API came **back** as
+> the bridge's only backend. The backend emulator (retired 2026-04-11, deleted 2026-05-08),
+> the PM2 bridge lane, and the Ollama/LM Studio proxies named here are also gone, and the
+> listed validation scripts are tombstoned or stale. Current architecture:
+> `Copilot-Everything/CLAUDE.md`.
+
 ## Purpose
 
 This document is the handoff summary for the current `My Digital Garden` Obsidian runtime and the `THE Copilot in Obsidian Everything` workspace.

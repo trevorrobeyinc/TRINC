@@ -9,7 +9,7 @@ Three active layers (backend-emulator retired 2026-04-11, deleted from monorepo 
 | Component | Location | Port | Role |
 |---|---|---|---|
 | Obsidian plugin fork | `repos/obsidian-copilot-mcp` | — | Plugin runtime with `direct_plugin_mcp` mode |
-| Shared MCP bridge | `bridges/obsidian-copilot-bridge` | 8798 | Canonical multi-operator daemon. RestApiBackend (Local REST API plugin :27124) is preferred; CLI subprocess is fallback. HTTPS/TLS with HMAC replay-guard. As of 2026-05-09: InprocPluginBackend + Advanced URI parity tools removed; backend priority is `restApi → cli`. |
+| Shared MCP bridge | `bridges/obsidian-copilot-bridge` | 8798 | Canonical multi-operator daemon. **REST-only since 2026-05-09**: RestApiBackend (Local REST API plugin :27124) is the sole backend — the CLI subprocess backend was removed together with InprocPluginBackend + the Advanced URI parity tools (`src/backends/backendSelector.ts` requires restApi; there is no fallback). `/mcp/tool`'s optional `backendHint` accepts only the literal `"restApi"` — a stale `"cli"` hint is rejected HTTP 400 `invalid_literal` (this silently broke the Copilot fork's in-plugin agent vault tools until 2026-07-31, when the fork stopped sending the hint entirely). HTTPS/TLS with HMAC replay-guard. |
 | Consolidated stdio adapter | `bridges/obsidian-stdio-adapter` | — | Single stdio MCP adapter that tunnels Claude/Raycast stdio consumers to :8798. Replaces claude-adapter, obsidian-mcp-stdio, raycast-obsidian-stdio (deletion of those pending). Two profiles via `OBSIDIAN_STDIO_PROFILE`: `claude` (default) and `raycast` (adds `raycast_daily_open`). |
 | Miyo (via TLS proxy) | `scripts/miyo-tls-proxy.mjs` → external Miyo app | 8743 → 8742 | Semantic search via in-monorepo HTTPS proxy at :8743 forwarding to plaintext :8742. Index endpoints deprecated in v4. |
 | Qdrant (via TLS proxy) | `scripts/qdrant-tls-proxy.mjs` → Miyo-bundled Qdrant | 6433 → 6333 | Local vector DB (collection `miyo`) via in-monorepo HTTPS proxy at :6433 forwarding to plaintext :6333. Fallback chunk retrieval for ZK service. |
@@ -61,7 +61,7 @@ curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.
 # Backend emulator (:8789) was retired 2026-04-11; ZettelkastenService runs in-process inside the vault-zettelkasten plugin.
 ```
 
-- Backend emulator (8789) — HTTP
+- Backend emulator (8789) — HTTP (RETIRED 2026-04-11, deleted 2026-05-08 — per the note inside the code block above; verified 2026-07-31: nothing listens on :8789. ZettelkastenService runs in-process inside the `vault-zettelkasten` plugin)
 - MCP bridge (8798) — HTTPS (TLS via mkcert cert at `~/.local/share/mkcert/localhost.pem`)
 - Miyo (8742) — HTTP (third-party upstream; reach via HTTPS proxy on :8743)
 - Qdrant (6333) — HTTP (third-party upstream; reach via HTTPS proxy on :6433)
@@ -106,7 +106,7 @@ bash scripts/bridge-start.sh
 
 ## Zettelkasten Backend
 
-Five vault-grounded knowledge commands plus vault health, exposed at `POST /v1/self-host/zettelkasten/*`:
+Five vault-grounded knowledge commands plus vault health, exposed at `POST /v1/self-host/zettelkasten/*` (HISTORICAL SHAPE — that route namespace belonged to the :8789 emulator, retired 2026-04-11 / deleted 2026-05-08; no HTTP surface exists today. The same commands live on in-process inside the `vault-zettelkasten` Obsidian plugin — `Claude/obsidian-vault-zettelkasten/` — as palette commands `run-serendipity`, `run-cross-domain`, `run-echo-chamber`, `run-semantic-linker`, `run-orphan-rescue`, `run-vault-health`, `run-full-pipeline`; verified against `src/main.ts` 2026-07-31):
 
 | Endpoint | Command |
 |---|---|
@@ -124,11 +124,11 @@ Data strategy (hybrid):
 - **Qdrant** (`QdrantScrollClient`, port 6333) — fallback chunk retrieval
 - **Hosted `copilot-plus-flash`** (via `ModelGateway`, https://models.brevilabs.com/v1) — LLM analysis. Local runtimes removed: LM Studio 2026-07-16, Ollama 2026-07-23.
 
-Also available as MCP tools via agent-turn: `zettelkasten_serendipity`, `zettelkasten_cross_domain`, `zettelkasten_echo_chamber`, `zettelkasten_semantic_linker`, `zettelkasten_orphan_rescue`, `zettelkasten_vault_health`.
+Also available as MCP tools via agent-turn: `zettelkasten_serendipity`, `zettelkasten_cross_domain`, `zettelkasten_echo_chamber`, `zettelkasten_semantic_linker`, `zettelkasten_orphan_rescue`, `zettelkasten_vault_health` (HISTORICAL — as of 2026-07-31 these tool names exist in no live source, only this file, the emulator-era `docs/ZETTELKASTEN_BACKEND_ARCHITECTURE.md`, and `tasks/todo.md`; the stdio adapter exposes only the `obsidian_*`/`miyo_search_context`/dev-console set. Not to be confused with the algorithmic Medical Zettelkasten MCP's differently-named tools, e.g. `generate_serendipity`).
 
-PM2 cron: daily orphan scan (2 AM), weekly health digest (Sun 9 AM), weekly serendipity (Wed 9 AM). Reports written to `Zettelkasten/Reports/` in vault.
+PM2 cron: daily orphan scan (2 AM), weekly health digest (Sun 9 AM), weekly serendipity (Wed 9 AM). Reports written to `Zettelkasten/Reports/` in vault. (RETIRED as PM2 jobs — PM2 has run nothing since 2026-05-03: no daemon, no `dump.pm2`, no crontab, no LaunchAgent. The three schedules — same times — moved into the plugin's in-process `Scheduler`, `src/services/scheduler.ts` ("Replaces 3 PM2 cron jobs"; 15-min tick), which fires only while Obsidian is open. Verified live 2026-07-31: daily orphan scans still land in `Zettelkasten/Reports/` — 29 files, newest that morning 02:00, date gaps = Obsidian closed overnight. Two behavior drifts from the PM2 era: the weekly serendipity job now only emits an `analysis:complete` event and writes NO report, and no `Health Report *.md` has ever been observed despite `enableHealthDigest` defaulting on — its Sun 9–10 AM window requires Obsidian open then.)
 
-Key files: `backend/.../src/services/ZettelkastenService.ts`, `VaultFileSystem.ts`, `QdrantScrollClient.ts`, `routes/zettelkasten.ts`. Docs: `docs/ZETTELKASTEN_BACKEND_ARCHITECTURE.md`.
+Key files (historical `backend/` paths — that tree was deleted 2026-05-08; live equivalents under `Claude/obsidian-vault-zettelkasten/src/`): `ZettelkastenService.ts` → `services/zettelkasten-service.ts`, `VaultFileSystem.ts` → `adapters/vault-fs.ts`, `QdrantScrollClient.ts` → `adapters/qdrant-client.ts`, `routes/zettelkasten.ts` → no equivalent (no HTTP routes; palette commands + `services/scheduler.ts`). Docs: `docs/ZETTELKASTEN_BACKEND_ARCHITECTURE.md` (2026-03 emulator-era snapshot — body stays verbatim).
 
 ## Miyo v4 Notes
 
@@ -145,12 +145,12 @@ Working Miyo endpoints: `/v0/health`, `/v0/search`, `/v0/search/related`, `/v0/p
 
 All in `scripts/`. Key ones:
 
-- `bridge-start.sh` / `bridge-health-check.sh` — MCP bridge
-- `full-functional-sweep.sh` — 21-check validation suite
-- `zettelkasten-smoke-test.sh` — 11-check ZK validation suite
-- `zettelkasten-scheduler.sh` — Scheduled ZK report generation
+- `bridge-start.sh` — MCP bridge manual/dev start (`bridge-health-check.sh` RETIRED 2026-07-31 — tombstoned CLI-era parity gate, same pattern as `cli-stability-gate.sh`; replacement checks in its header)
+- `full-functional-sweep.sh` — 21-check validation suite (RETIRED 2026-05-09 — tombstone; wired against the deleted backend emulator + CLI backend selection. Replacement checks in its header: canonical bridge `healthz` curl + Local REST API :27124 auth probe)
+- `zettelkasten-smoke-test.sh` — 11-check ZK validation suite (RETIRED 2026-05-09 — tombstone; ZettelkastenService moved in-process into the `vault-zettelkasten` plugin, so smoke-testing happens through the plugin's own commands or the canonical bridge — see its header)
+- `zettelkasten-scheduler.sh` — Scheduled ZK report generation (RETIRED 2026-05-09 — tombstone; scheduling is driven by the Command Center plugin's workflow lifecycle. Header notes no LaunchAgents/cron referenced it as of 2026-05-09)
 - `plugin-reload.sh` — Reload plugin in Obsidian
-- `dev-build.sh` / `dev-deploy.sh` — Plugin dev workflow
+- `dev-build.sh` / `dev-deploy.sh` — Plugin dev workflow: stages the fork build into `deploy/obsidian/plugins/copilot` and symlinks it into the dev vault under the fork's REAL plugin id `copilot` (dev lane adopted the official-id identity 2026-07-31; since `9c7ce09a` the fork manifest deliberately matches upstream id+version so auto-update cannot wipe it, so `copilot-mcp` is no longer a plugin id anywhere. `--with-official` retired same day — one id loads once per vault, and the production official slot already runs this fork)
 - `lib.sh` — Shared constants and utilities (WORKSPACE_ROOT, PRODUCTION_VAULT, etc.)
 - `install-tls-proxies.sh` — Stage the three `*-tls-proxy.mjs` (Miyo/Qdrant/SearXNG) to `~/.local/share/trevclaw-tls-proxies/` and repoint + reload their launchd units. Required historically: the monorepo lived on the external `/Volumes/ExtraCurricular` volume until 2026-07-26 and launchd's TCC context cannot read scripts there. The repo is now on the internal disk, so that wall no longer applies — but staging is **retained** so launchd never depends on where the repo lives. Re-run after editing any proxy script. (LM Studio removed 2026-07-16; Ollama removed 2026-07-23.)
 
@@ -225,7 +225,7 @@ The adapter is a transport shim only — it has no independent logic.
 The bridge must be running (`pm2 start` or `scripts/bridge-start.sh`) before tool calls succeed.
 
 **What is NOT exposed as MCP:**
-- Backend emulator (8789) — companion orchestration service, not an MCP server
+- Backend emulator (8789) — companion orchestration service, not an MCP server (RETIRED 2026-04-11, deleted 2026-05-08 — listed here historically; nothing listens on :8789)
 - Miyo (8742) — companion retrieval service, accessed through the bridge's `miyo_search_context` tool
 
 > **Outbound `claude` CLI bridge — ⚠️ RETIRED 2026-05-31** (was `Claude/claude-cli-bridge/`, now archived to `Claude/.archive/claude-cli-bridge/`). Superseded by the native Claude Desktop Code tab; see the root `CLAUDE.md` deletion log. Kept for reference only — do not reintroduce.
@@ -261,7 +261,7 @@ Related workspaces:
 ## Rules
 
 - Preserve the `direct_plugin_mcp` vs `exact_backend_emulator` distinction
-- Preserve bridge-backed CLI as the production note/command lane
+- Preserve the REST-backed bridge as the production note/command lane (`:8798` → `RestApiBackend` → Obsidian Local REST API `:27124`; the CLI subprocess backend was removed 2026-05-09)
 - Preserve replay protection and signed MCP transport
 - Docs and validation artifacts are part of the contract
 - Do not silently merge the official plugin, Raycast, and backend-emulator runtimes

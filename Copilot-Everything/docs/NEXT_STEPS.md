@@ -1,5 +1,12 @@
 # Next Steps
 
+> **SUPERSEDED — historical snapshot (banner added 2026-07-31).** This is a 2026-03-era
+> follow-up list for the backend-emulator stack (emulator retired 2026-04-11, deleted
+> 2026-05-08). The "Re-Run Commands" use the pre-monorepo path and point at scripts since
+> deleted (`backend-contract-test.sh`) or tombstoned (`backend-bridge-compat-test.sh` +
+> `plugin-backend-emulator-check.sh`, both retired 2026-07-31). Body left verbatim as history. Current health checks:
+> `Copilot-Everything/CLAUDE.md` (Service Health Checks).
+
 ## Primary Follow-Ups
 
 1. Exercise the newly aliased `/v0/index/*` routes from the side-by-side official plugin runtime, not just direct emulator forwarding.

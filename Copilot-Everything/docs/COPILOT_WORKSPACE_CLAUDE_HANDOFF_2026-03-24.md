@@ -2,6 +2,13 @@
 
 Updated: 2026-03-24
 
+> **SUPERSEDED — historical snapshot (banner added 2026-07-31).** This handoff predates
+> the bridge consolidation: since **2026-05-09** the shared bridge is **REST-only** —
+> `RestApiBackend` → Obsidian Local REST API (`:27124`) — and `src/backends/cliBackend.ts`
+> plus the "CLI-backed" lane described throughout no longer exist. The backend emulator
+> was retired 2026-04-11 and deleted 2026-05-08. Treat CLI-backed and emulator statements
+> below as past state; the current architecture lives in `Copilot-Everything/CLAUDE.md`.
+
 ## Purpose
 
 This document is the repo-local handoff for the workspace at:
