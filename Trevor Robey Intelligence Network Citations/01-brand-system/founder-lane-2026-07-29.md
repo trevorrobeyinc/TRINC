@@ -6,7 +6,8 @@
 
 
 **Decision (operator, 2026-07-30):** *"add the founder lane as a second buyer, keep the investor ladder."*
-**Status:** lane opened. **One** transactable SKU today. Everything else is build-gated and named below.
+**Status:** lane opened. **TWO** transactable SKUs as of **2026-07-31** — Backlog item #1 shipped and the
+**Phase I tier is now OPEN**. See the update box in §1. Everything else remains build-gated and named below.
 **Method:** designed by an 11-agent workflow — 7 parallel evidence agents, 1 synthesis, 3 adversarial
 lenses. The lenses returned **13 blocking defects** against the first design. This document is what
 survived them.
@@ -30,14 +31,34 @@ Every SKU a Phase I founder *can* fund is one the engine *cannot currently produ
 | SKU | Price | Fundable at Phase I? | Fulfillable today? | The gap |
 |---|---|---|---|---|
 | Failed Trial Archaeology | $14,950 | ✗ (2.3× the line) | **✓ verified** | none — runs as `clinical-trial-landscape` |
-| Trial Design Benchmark Pack | $4,950 | ✓ | **✗** | no workflow template, no mission template, no intake path; its three named connectors are `claude-host-mcp` with adapter missing/blocked; the advertised "PDF + Tableau workbook" is unbuildable — `export-release.js:35-36` emits only folder or zip |
+| **Trial Design Benchmark Pack** | **$4,950** | ✓ | **✅ SHIPPED 2026-07-31** | ~~no workflow template, no mission template, no intake path; connectors `claude-host-mcp`; "PDF + Tableau workbook" unbuildable~~ — **all five cleared, see the update box below** |
 | Conference Synthesis Brief | $4,950 | ✓ | **✗** | no ingestion code at all |
 | Plain-Language Patient Brief | $2,500 | ✓ | **✗** | no code implements the 8th-grade health-literacy or EU CTR 536/2014 transform |
 | Founder Patent Landscape Brief | not set | ✓ | **✗** | `patsnap` is `claude-host-mcp`, deliberately outside prefetch — no engine path; plus the legal review in §5 |
 
 **The resolution:** the lane opens with the one combination that is both fundable and fulfillable —
 **Failed Trial Archaeology sold against the Phase II TABA line ($50,000), not Phase I.** That buyer is
-real, smaller, and reachable. The Phase I tier stays closed until a build lands (§6).
+real, smaller, and reachable. ~~The Phase I tier stays closed until a build lands (§6).~~
+
+> ### 🟢 UPDATE 2026-07-31 — the build landed; the Phase I tier is OPEN
+>
+> Backlog item #1 (§6) shipped in commit `160372c`. **All five blockers named in the row above are
+> cleared**, each verified individually against the files:
+>
+> | # | Blocker as written | Now |
+> |---|---|---|
+> | 1 | no workflow template | ✅ `config/workflow-templates/trial-design-benchmark.json` — `phase30-workflow-v1`, id `trial-design-benchmark`, required input `indication` |
+> | 2 | no mission template | ✅ present in `config/mission-templates.json` |
+> | 3 | no intake path | ✅ `intake.html` carries the `tdb_*` field group |
+> | 4 | connectors `claude-host-mcp`, adapter missing/blocked | ✅ `ctgov-design-benchmark` is `subprocess-mcp`, `adapter_status: wired`, and present in `config/tool-prefetch-map.json` |
+> | 5 | "PDF + Tableau workbook" unbuildable | ✅ corrected 2026-07-30 — `CLAUDE.md` now reads *Manual ZIP — `design-benchmark.md` + `design-benchmark.csv`*; `export-release.js` still emits `folder\|zip` only, and the copy no longer claims otherwise |
+>
+> **So the lane now has a real Phase I anchor.** Trial Design Benchmark Pack at **$4,950** fits inside
+> one **$6,500** TABA Phase I line with room left — which is exactly what §6 said this build would do.
+>
+> **Unchanged:** Failed Trial Archaeology stays the **Phase II** play ($50,000 line), since $14,950 is
+> 2.3× the Phase I cap. The other three SKUs remain unbuildable and must still not be quoted.
+> Operating summary: the `trinc-founder:founder-fit` skill.
 
 This is deliberately *not* a five-SKU reframe. Shipping one would have put prices on four things the
 engine cannot make.
@@ -231,10 +252,11 @@ of the engine guarantees.
 
 Ranked. Each is a decision, not a documentation task.
 
-1. **`trial-design-benchmark.json` workflow template + intake entry**, and rewrite the `CLAUDE.md:362`
-   Delivery cell off *"PDF + Tableau workbook"* onto what `export-release.js` actually emits. **This is the
-   single highest-value build in the lane** — it turns a $4,950 SKU into a real Phase I anchor that fits
-   inside one $6,500 TABA line.
+1. ~~**`trial-design-benchmark.json` workflow template + intake entry**, and rewrite the `CLAUDE.md:362`
+   Delivery cell off *"PDF + Tableau workbook"* onto what `export-release.js` actually emits.~~
+   ✅ **DONE 2026-07-31 — commit `160372c`** (Delivery cell corrected 2026-07-30). This was the single
+   highest-value build in the lane, and it did what it promised: a $4,950 SKU that fits inside one
+   $6,500 TABA Phase I line. **The Phase I tier is open.** Verification table in §1.
 2. **California counsel review** of the direct-to-company FTO-search question (§5, Blocker 1).
 3. **Sourced benchmark files** under `04-pricing-benchmarks/benchmarks/` before any competitor price
    reaches customer copy.
