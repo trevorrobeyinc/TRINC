@@ -1,6 +1,6 @@
 # Trial Graveyard Feed - Data Dictionary
 
-Indication / therapeutic area: idiopathic pulmonary fibrosis - as of 2026-07-24
+Indication / therapeutic area: idiopathic pulmonary fibrosis - as of 2026-07-30
 
 Citation-traced register of terminated, withdrawn, or suspended ClinicalTrials.gov trials.
 Rendered deterministically from public CT.gov records (no LLM). Every row resolves to

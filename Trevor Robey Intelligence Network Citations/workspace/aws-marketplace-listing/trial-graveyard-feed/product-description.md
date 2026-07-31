@@ -12,7 +12,7 @@ The Trial Graveyard Feed is a monthly, citation-traced dataset of every terminat
 - `data-dictionary.md`
 
 **Free sample:** the first 5 trials, identical schema, so you can evaluate quality and format.
-**Paid subscription:** the complete therapeutic-area feed, refreshed monthly as new revisions.
+**Paid subscription:** the complete register for the ClinicalTrials.gov condition query — every terminated, withdrawn or suspended trial the registry counts for that term, stated in the data as N of M — refreshed monthly as new revisions. Condition search is term-based, so completeness is for the term queried, not for every way an indication can be named. Protocol-churn and amendment-risk columns are populated for a bounded sample of rows (change-history must be fetched one trial at a time); the exact split ships with every revision.
 
 ## Categories
 Healthcare, Life Sciences. *(AWS Data Exchange allows a maximum of two — pick these two.)*

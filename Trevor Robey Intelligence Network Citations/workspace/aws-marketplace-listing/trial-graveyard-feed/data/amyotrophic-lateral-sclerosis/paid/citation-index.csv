@@ -1,51 +1,115 @@
 identifier_type,identifier,source_database,nct_id,context
-NCT,NCT02269436,ClinicalTrials.gov,NCT02269436,TERMINATED: Issues with development and supply of infusion system for delivery of IMP. Lack of favorable benefit risk ratio in sNN0029-003 study (review of interim data).
-NCT,NCT04066244,ClinicalTrials.gov,NCT04066244,TERMINATED: Study terminated after assessment of potential benefit-risk from available data
-NCT,NCT02116634,ClinicalTrials.gov,NCT02116634,WITHDRAWN: Because economic problems
-NCT,NCT00839033,ClinicalTrials.gov,NCT00839033,TERMINATED: No inclusion
 NCT,NCT03338114,ClinicalTrials.gov,NCT03338114,WITHDRAWN: Sponsor Decision
-NCT,NCT01950910,ClinicalTrials.gov,NCT01950910,TERMINATED: (none stated by sponsor)
-NCT,NCT05237284,ClinicalTrials.gov,NCT05237284,TERMINATED: The study was terminated as its Part A did not meet the primary endpoint.
-NCT,NCT02000713,ClinicalTrials.gov,NCT02000713,TERMINATED: Principle Investigator was unable to fulfill responsibilities.
-NCT,NCT00213824,ClinicalTrials.gov,NCT00213824,TERMINATED: (none stated by sponsor)
-NCT,NCT02315339,ClinicalTrials.gov,NCT02315339,TERMINATED: (none stated by sponsor)
-NCT,NCT06111014,ClinicalTrials.gov,NCT06111014,"TERMINATED: The AL001-CS-302 study was terminated because its Phase 3 placebo-controlled parent study (AL001-3) failed to meet the clinical co-primary endpoint of slowing FTD-GRN progression, as measured by the Clinical Dementia Rating plus National Alzheimer's"
-NCT,NCT04226144,ClinicalTrials.gov,NCT04226144,TERMINATED: COVID 19 pandemy
-NCT,NCT03196375,ClinicalTrials.gov,NCT03196375,TERMINATED: Sponsor
-NCT,NCT01992029,ClinicalTrials.gov,NCT01992029,TERMINATED: (none stated by sponsor)
-NCT,NCT01945853,ClinicalTrials.gov,NCT01945853,WITHDRAWN: (none stated by sponsor)
-NCT,NCT03659422,ClinicalTrials.gov,NCT03659422,WITHDRAWN: not funded
-NCT,NCT03449212,ClinicalTrials.gov,NCT03449212,SUSPENDED: COVID-19 pandemic
-NCT,NCT06453668,ClinicalTrials.gov,NCT06453668,TERMINATED: The Sponsor has decided to terminate study early due to significant enrolment challenges since restarting the study in Dec 2025. The Sponsor is concerned that the study is not feasible and ultimately the objectives of the study cannot be met.
-NCT,NCT06199284,ClinicalTrials.gov,NCT06199284,SUSPENDED: Recruitment is suspended due to funding issues
-NCT,NCT00537446,ClinicalTrials.gov,NCT00537446,TERMINATED: Insufficient enrollment
-NCT,NCT04931862,ClinicalTrials.gov,NCT04931862,"TERMINATED: Despite robust, sustained reductions in poly(GP), no clinical benefit was seen at 24 weeks, and reductions in poly(GP) were not associated with stabilization in functional outcomes. Based on these data, Wave decided to stop development of WVE-004."
-NCT,NCT00982150,ClinicalTrials.gov,NCT00982150,TERMINATED: Core study unsuccessful
-NCT,NCT05837507,ClinicalTrials.gov,NCT05837507,TERMINATED: lack of recruitement
-NCT,NCT03836716,ClinicalTrials.gov,NCT03836716,"TERMINATED: As a consequence of the results of ORARIALS-01 which did not meet any of its efficacy endpoints. The planned duration was 152 weeks. After termination, the actual mean duration of treatment was approx. 28 weeks (range approx. 2 to 71 weeks)."
-NCT,NCT00818389,ClinicalTrials.gov,NCT00818389,TERMINATED: NINDS DSMB recommended trial be terminated for futility after reviewing an interim analysis of 84 subjects.
-NCT,NCT04428775,ClinicalTrials.gov,NCT04428775,TERMINATED: Low enrollment
-NCT,NCT03068754,ClinicalTrials.gov,NCT03068754,TERMINATED: As recommended by the study's independent Data and Safety Monitoring Board (DSMB)
-NCT,NCT00561366,ClinicalTrials.gov,NCT00561366,WITHDRAWN: Not moving forward with program.
-NCT,NCT03474263,ClinicalTrials.gov,NCT03474263,WITHDRAWN: No enrollment
-NCT,NCT04749433,ClinicalTrials.gov,NCT04749433,TERMINATED: study stopped to enhance protocol and resume under different sponsor
-NCT,NCT00718016,ClinicalTrials.gov,NCT00718016,TERMINATED: New protocol was developed based on preliminary results from this study.
-NCT,NCT05830214,ClinicalTrials.gov,NCT05830214,WITHDRAWN: Difficulty procuring study device
-NCT,NCT02242071,ClinicalTrials.gov,NCT02242071,WITHDRAWN: (none stated by sponsor)
-NCT,NCT03034317,ClinicalTrials.gov,NCT03034317,WITHDRAWN: No participants enrolled
-NCT,NCT02588807,ClinicalTrials.gov,NCT02588807,WITHDRAWN: The sponsor and hospital did not reach agreement
+NCT,NCT02058732,ClinicalTrials.gov,NCT02058732,TERMINATED: Principal investigator was unable to fulfill his responsibilities.
+NCT,NCT04055532,ClinicalTrials.gov,NCT04055532,WITHDRAWN: Lack of regulatory approval
 NCT,NCT03334786,ClinicalTrials.gov,NCT03334786,TERMINATED: Development of Current Formulation has Ceased
+NCT,NCT02242071,ClinicalTrials.gov,NCT02242071,WITHDRAWN: (none stated by sponsor)
+NCT,NCT03755167,ClinicalTrials.gov,NCT03755167,SUSPENDED: Study was suspended due to IPL344 shortage and may resume once drug supply is available. Survival follow-up is still ongoing following participants' consent
+NCT,NCT02315339,ClinicalTrials.gov,NCT02315339,TERMINATED: (none stated by sponsor)
+NCT,NCT06903286,ClinicalTrials.gov,NCT06903286,TERMINATED: patients treated through compassionate use program
+NCT,NCT05003921,ClinicalTrials.gov,NCT05003921,SUSPENDED: Modifying Protocol
+NCT,NCT06199284,ClinicalTrials.gov,NCT06199284,SUSPENDED: Recruitment is suspended due to funding issues
+NCT,NCT06111014,ClinicalTrials.gov,NCT06111014,"TERMINATED: The AL001-CS-302 study was terminated because its Phase 3 placebo-controlled parent study (AL001-3) failed to meet the clinical co-primary endpoint of slowing FTD-GRN progression, as measured by the Clinical Dementia Rating plus National Alzheimer's"
+NCT,NCT01082653,ClinicalTrials.gov,NCT01082653,SUSPENDED: Suspended due to lack of funding.
+NCT,NCT03449212,ClinicalTrials.gov,NCT03449212,SUSPENDED: COVID-19 pandemic
+NCT,NCT03613571,ClinicalTrials.gov,NCT03613571,TERMINATED: Inclusion was stopped with 13 of 15 patients recruited according to protocol. Patients responded with no safety signals. Study stop was due to slow recruitment.
+NCT,NCT04248465,ClinicalTrials.gov,NCT04248465,TERMINATED: The IDMC recommended the study be discontinued due to lack of efficacy with ravulizumab.
+NCT,NCT03679975,ClinicalTrials.gov,NCT03679975,TERMINATED: The study is no longer required
+NCT,NCT05621213,ClinicalTrials.gov,NCT05621213,"TERMINATED: The study was terminated early due to insufficient recruitment despite mitigation measures, as enrolment rates could not meet protocol objectives. Academic thesis scheduling constraints also contributed. No safety concerns were identified."
 NCT,NCT03705390,ClinicalTrials.gov,NCT03705390,TERMINATED: Study initially suspended due to COVID-19 Pandemic- treatment stopped - never reopened to recruitment..
-NCT,NCT04468191,ClinicalTrials.gov,NCT04468191,WITHDRAWN: COVID-19 pandemic restrictions for data collection
+NCT,NCT01984814,ClinicalTrials.gov,NCT01984814,WITHDRAWN: (none stated by sponsor)
+NCT,NCT00982150,ClinicalTrials.gov,NCT00982150,TERMINATED: Core study unsuccessful
+NCT,NCT03836716,ClinicalTrials.gov,NCT03836716,"TERMINATED: As a consequence of the results of ORARIALS-01 which did not meet any of its efficacy endpoints. The planned duration was 152 weeks. After termination, the actual mean duration of treatment was approx. 28 weeks (range approx. 2 to 71 weeks)."
+NCT,NCT06215755,ClinicalTrials.gov,NCT06215755,TERMINATED: Study terminated by Sponsor due to lack of risk-benefit data.
+NCT,NCT04066244,ClinicalTrials.gov,NCT04066244,TERMINATED: Study terminated after assessment of potential benefit-risk from available data
+NCT,NCT00818389,ClinicalTrials.gov,NCT00818389,TERMINATED: NINDS DSMB recommended trial be terminated for futility after reviewing an interim analysis of 84 subjects.
+NCT,NCT03457753,ClinicalTrials.gov,NCT03457753,WITHDRAWN: The Sponsor stopped the study due to a change in study plans
+NCT,NCT01459302,ClinicalTrials.gov,NCT01459302,WITHDRAWN: This study is not a clinical trial.
+NCT,NCT02493491,ClinicalTrials.gov,NCT02493491,TERMINATED: (none stated by sponsor)
+NCT,NCT03068754,ClinicalTrials.gov,NCT03068754,TERMINATED: As recommended by the study's independent Data and Safety Monitoring Board (DSMB)
+NCT,NCT01016522,ClinicalTrials.gov,NCT01016522,TERMINATED: (none stated by sponsor)
+NCT,NCT02405403,ClinicalTrials.gov,NCT02405403,WITHDRAWN: It was more difficult than planned to find patients filling inclusion criteria and those which corresponded didn't agree to participate
+NCT,NCT02000713,ClinicalTrials.gov,NCT02000713,TERMINATED: Principle Investigator was unable to fulfill responsibilities.
+NCT,NCT06453668,ClinicalTrials.gov,NCT06453668,TERMINATED: The Sponsor has decided to terminate study early due to significant enrolment challenges since restarting the study in Dec 2025. The Sponsor is concerned that the study is not feasible and ultimately the objectives of the study cannot be met.
+NCT,NCT05683860,ClinicalTrials.gov,NCT05683860,"TERMINATED: Despite robust, sustained reductions in poly(GP), no clinical benefit was seen at 24 weeks, and reductions in poly(GP) were not associated with stabilization in functional outcomes. Based on these data, Wave decided to stop development of WVE-004."
+NCT,NCT00718107,ClinicalTrials.gov,NCT00718107,TERMINATED: The study was discontinued due to low enrollment. A survey has been implemented in place of a formal study.
+NCT,NCT02269436,ClinicalTrials.gov,NCT02269436,TERMINATED: Issues with development and supply of infusion system for delivery of IMP. Lack of favorable benefit risk ratio in sNN0029-003 study (review of interim data).
+NCT,NCT02116634,ClinicalTrials.gov,NCT02116634,WITHDRAWN: Because economic problems
+NCT,NCT04428775,ClinicalTrials.gov,NCT04428775,TERMINATED: Low enrollment
+NCT,NCT06910384,ClinicalTrials.gov,NCT06910384,TERMINATED: organizational restructure
+NCT,NCT04569084,ClinicalTrials.gov,NCT04569084,TERMINATED: Futility was met.
+NCT,NCT05041114,ClinicalTrials.gov,NCT05041114,WITHDRAWN: Study moved to U.S.
+NCT,NCT02988297,ClinicalTrials.gov,NCT02988297,WITHDRAWN: Withdrawn prior to initiation
 NCT,NCT01384162,ClinicalTrials.gov,NCT01384162,TERMINATED: Issues with development and supply of infusion system for delivery of IMP. Lack of favorable benefit risk ratio in sNN0029-003 study (review of interim data).
+NCT,NCT04749433,ClinicalTrials.gov,NCT04749433,TERMINATED: study stopped to enhance protocol and resume under different sponsor
+NCT,NCT03508453,ClinicalTrials.gov,NCT03508453,WITHDRAWN: No participants enrolled in study
+NCT,NCT00718445,ClinicalTrials.gov,NCT00718445,TERMINATED: Terminated due to lack of funding and support staff
+NCT,NCT01583088,ClinicalTrials.gov,NCT01583088,TERMINATED: in the absence of benefits and because of a statistically significant excess mortality in the group of patients receiving active stimulation.
+NCT,NCT03519880,ClinicalTrials.gov,NCT03519880,TERMINATED: COVID-19 research restrictions
+NCT,NCT04226144,ClinicalTrials.gov,NCT04226144,TERMINATED: COVID 19 pandemy
+NCT,NCT04607044,ClinicalTrials.gov,NCT04607044,TERMINATED: Sponsor decision
+NCT,NCT06008249,ClinicalTrials.gov,NCT06008249,TERMINATED: The planned interim analysis showed no survival benefit of taking the drug when compared with placebo.
+NCT,NCT03652805,ClinicalTrials.gov,NCT03652805,SUSPENDED: Study was suspended due to IPL344 shortage and may resume once drug supply is available.
+NCT,NCT04948645,ClinicalTrials.gov,NCT04948645,TERMINATED: Company Decision
+NCT,NCT00718016,ClinicalTrials.gov,NCT00718016,TERMINATED: New protocol was developed based on preliminary results from this study.
+NCT,NCT03757351,ClinicalTrials.gov,NCT03757351,TERMINATED: Due to change in Sanofi's development strategy for DNL747/SAR443060 - not due to any safety concerns
+NCT,NCT01565395,ClinicalTrials.gov,NCT01565395,"WITHDRAWN: Could not recruit ALS participants, hence ALS arm discontinued"
+NCT,NCT05837507,ClinicalTrials.gov,NCT05837507,TERMINATED: lack of recruitement
+NCT,NCT00159198,ClinicalTrials.gov,NCT00159198,TERMINATED: Completed
+NCT,NCT03580616,ClinicalTrials.gov,NCT03580616,TERMINATED: Study was terminated by the IRB due to continued noncompliance.
+NCT,NCT01999803,ClinicalTrials.gov,NCT01999803,TERMINATED: Issues with development and supply of infusion system for delivery of IMP. Lack of favorable benefit risk ratio in sNN0029-003 study (review of interim data).
+NCT,NCT02588807,ClinicalTrials.gov,NCT02588807,WITHDRAWN: The sponsor and hospital did not reach agreement
+NCT,NCT03076632,ClinicalTrials.gov,NCT03076632,WITHDRAWN: Funding obtained to conduct expanded study - to be posted to ClinicalTrials.gov.
+NCT,NCT00714220,ClinicalTrials.gov,NCT00714220,TERMINATED: Lack of funding and support staff.
+NCT,NCT00231140,ClinicalTrials.gov,NCT00231140,TERMINATED: (none stated by sponsor)
+NCT,NCT05830214,ClinicalTrials.gov,NCT05830214,WITHDRAWN: Difficulty procuring study device
+NCT,NCT01959373,ClinicalTrials.gov,NCT01959373,SUSPENDED: (none stated by sponsor)
+NCT,NCT05237284,ClinicalTrials.gov,NCT05237284,TERMINATED: The study was terminated as its Part A did not meet the primary endpoint.
+NCT,NCT00160004,ClinicalTrials.gov,NCT00160004,TERMINATED: problems with including patients and a large multicenter Trial is now starting as follow-up
+NCT,NCT01992029,ClinicalTrials.gov,NCT01992029,TERMINATED: (none stated by sponsor)
 NCT,NCT01363882,ClinicalTrials.gov,NCT01363882,TERMINATED: Insufficient enrollment \& high rate of failure to complete protocol
+NCT,NCT01759784,ClinicalTrials.gov,NCT01759784,WITHDRAWN: The stereotaxis can be threatful for the patients because of respiratory insufficiency
+NCT,NCT00690118,ClinicalTrials.gov,NCT00690118,TERMINATED: The interim analysis showed no tendency in favour of the verum group. Therefore it was decided to stop the study prematurely.
+NCT,NCT03892863,ClinicalTrials.gov,NCT03892863,WITHDRAWN: Participants were not able to stay for two weeks near our center.
+NCT,NCT01950910,ClinicalTrials.gov,NCT01950910,TERMINATED: (none stated by sponsor)
+NCT,NCT05409508,ClinicalTrials.gov,NCT05409508,WITHDRAWN: no participants enrolled
+NCT,NCT00718003,ClinicalTrials.gov,NCT00718003,TERMINATED: Terminated due to difficulty enrolling subjects.
+NCT,NCT05151471,ClinicalTrials.gov,NCT05151471,TERMINATED: Futility Analysis of parent study MT-1186-A02 was met.
+NCT,NCT04505358,ClinicalTrials.gov,NCT04505358,WITHDRAWN: Samus Therapeutics company closure
+NCT,NCT00839033,ClinicalTrials.gov,NCT00839033,TERMINATED: No inclusion
+NCT,NCT03090932,ClinicalTrials.gov,NCT03090932,"TERMINATED: Study recruitment, data and sample collection terminated due to COVID-19. Data analysis continues."
+NCT,NCT04468191,ClinicalTrials.gov,NCT04468191,WITHDRAWN: COVID-19 pandemic restrictions for data collection
+NCT,NCT03948178,ClinicalTrials.gov,NCT03948178,TERMINATED: This was an open label extension for patients completing the REFALS study (3119002; NCT03505021). Study 3119002 showed lack of efficacy of ODM109 so the sponsor decided to terminate this study
+NCT,NCT00213824,ClinicalTrials.gov,NCT00213824,TERMINATED: (none stated by sponsor)
+NCT,NCT03377309,ClinicalTrials.gov,NCT03377309,TERMINATED: Study halted due to adverse events
+NCT,NCT04579666,ClinicalTrials.gov,NCT04579666,"TERMINATED: The study did not meet primary endpoint at Week 52. The study also did not meet key secondary efficacy endpoints. Pegcetacoplan (APL-2) was well tolerated in the study, and the data were consistent with the established safety profile."
+NCT,NCT03474263,ClinicalTrials.gov,NCT03474263,WITHDRAWN: No enrollment
+NCT,NCT05349721,ClinicalTrials.gov,NCT05349721,TERMINATED: Company decision
+NCT,NCT04150809,ClinicalTrials.gov,NCT04150809,WITHDRAWN: Company shifted focus
+NCT,NCT04944784,ClinicalTrials.gov,NCT04944784,TERMINATED: The DMC recommended the trial be discontinued due to futility following a planned second interim analysis.
+NCT,NCT04326283,ClinicalTrials.gov,NCT04326283,TERMINATED: Terminated as it is considered that necessary data have been collected
+NCT,NCT04288856,ClinicalTrials.gov,NCT04288856,"TERMINATED: There was no evidence of benefit across efficacy endpoints in the randomized trial, 245AS101. Accordingly, Biogen has made the difficult decision to discontinue the BIIB078 program including this open label extension trial, 245AS102."
+NCT,NCT03659422,ClinicalTrials.gov,NCT03659422,WITHDRAWN: not funded
+NCT,NCT04494256,ClinicalTrials.gov,NCT04494256,TERMINATED: Sponsor's decision
+NCT,NCT04031469,ClinicalTrials.gov,NCT04031469,SUSPENDED: Administrative
+NCT,NCT03892382,ClinicalTrials.gov,NCT03892382,WITHDRAWN: Participants were not able to stay near our center for two weeks
+NCT,NCT03020797,ClinicalTrials.gov,NCT03020797,TERMINATED: 1\) Enrolment below study target and 2) too many subjects had early termination due to disease progression.
+NCT,NCT05053035,ClinicalTrials.gov,NCT05053035,"TERMINATED: The Sponsor is considering a subsequent study in ALS, potentially with different inclusion/exclusion criteria."
 NCT,NCT03664206,ClinicalTrials.gov,NCT03664206,WITHDRAWN: The part on MRS could not be completed
+NCT,NCT03196375,ClinicalTrials.gov,NCT03196375,TERMINATED: Sponsor
+NCT,NCT06658977,ClinicalTrials.gov,NCT06658977,"TERMINATED: This is a rollover study following the Lighthouse II trial; it was scheduled to stop when the LH II trial was stopped/completed. The LH II trial has been prematurely terminated so, likewise, this study has also now been stopped."
+NCT,NCT01954875,ClinicalTrials.gov,NCT01954875,WITHDRAWN: Study no longer funded
+NCT,NCT01622088,ClinicalTrials.gov,NCT01622088,TERMINATED: The Initial Phase 3 Study (NCTO1281189) did not meet its primary efficacy endpoint.
+NCT,NCT03034317,ClinicalTrials.gov,NCT03034317,WITHDRAWN: No participants enrolled
+NCT,NCT05193994,ClinicalTrials.gov,NCT05193994,"TERMINATED: A planned interim analysis resulted in the recommendation that the trial be stopped. The results showed no benefit of Triumeq for people with ALS compared with placebo on survival, the primary outcome measure."
+NCT,NCT03843710,ClinicalTrials.gov,NCT03843710,WITHDRAWN: Study execution discontinued at this time.
+NCT,NCT02528071,ClinicalTrials.gov,NCT02528071,TERMINATED: lack of inclusion
+NCT,NCT00561366,ClinicalTrials.gov,NCT00561366,WITHDRAWN: Not moving forward with program.
+NCT,NCT04931862,ClinicalTrials.gov,NCT04931862,"TERMINATED: Despite robust, sustained reductions in poly(GP), no clinical benefit was seen at 24 weeks, and reductions in poly(GP) were not associated with stabilization in functional outcomes. Based on these data, Wave decided to stop development of WVE-004."
+NCT,NCT00537446,ClinicalTrials.gov,NCT00537446,TERMINATED: Insufficient enrollment
+NCT,NCT01945853,ClinicalTrials.gov,NCT01945853,WITHDRAWN: (none stated by sponsor)
 NCT,NCT05949294,ClinicalTrials.gov,NCT05949294,WITHDRAWN: Company business decision
 NCT,NCT05442775,ClinicalTrials.gov,NCT05442775,TERMINATED: The DMC recommended the trial be discontinued due to futility following a planned second interim analysis of the parent trial (CY 5031).
-NCT,NCT02493491,ClinicalTrials.gov,NCT02493491,TERMINATED: (none stated by sponsor)
-NCT,NCT02988297,ClinicalTrials.gov,NCT02988297,WITHDRAWN: Withdrawn prior to initiation
-NCT,NCT05409508,ClinicalTrials.gov,NCT05409508,WITHDRAWN: no participants enrolled
-NCT,NCT01622088,ClinicalTrials.gov,NCT01622088,TERMINATED: The Initial Phase 3 Study (NCTO1281189) did not meet its primary efficacy endpoint.
-NCT,NCT04569084,ClinicalTrials.gov,NCT04569084,TERMINATED: Futility was met.
-NCT,NCT01759784,ClinicalTrials.gov,NCT01759784,WITHDRAWN: The stereotaxis can be threatful for the patients because of respiratory insufficiency
+NCT,NCT00846560,ClinicalTrials.gov,NCT00846560,WITHDRAWN: Changes in the lab's focus and needs
+NCT,NCT05866926,ClinicalTrials.gov,NCT05866926,TERMINATED: After the analysis of the main ADORE study it is concluded that there is no clinical benefit for the patients.
 NCT,NCT06711510,ClinicalTrials.gov,NCT06711510,WITHDRAWN: loss of funding

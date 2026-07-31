@@ -1,29 +1,29 @@
 {
   "condition": "Alzheimer disease",
-  "asOf": "2026-07-24",
+  "asOf": "2026-07-30",
   "teaserRows": 5,
   "paid": {
-    "total": 50,
+    "total": 428,
     "indication": "Alzheimer disease",
-    "as_of": "2026-07-24",
-    "with_history": 50,
-    "no_reason_count": 9,
+    "as_of": "2026-07-30",
+    "with_history": 40,
+    "no_reason_count": 62,
     "band_counts": {
-      "HIGH": 15,
-      "MODERATE": 12,
-      "LOW": 23,
-      "UNKNOWN": 0
+      "HIGH": 8,
+      "MODERATE": 15,
+      "LOW": 17,
+      "UNKNOWN": 388
     }
   },
   "free": {
     "total": 5,
     "indication": "Alzheimer disease",
-    "as_of": "2026-07-24",
+    "as_of": "2026-07-30",
     "with_history": 5,
     "no_reason_count": 1,
     "band_counts": {
-      "HIGH": 1,
-      "MODERATE": 1,
+      "HIGH": 0,
+      "MODERATE": 2,
       "LOW": 3,
       "UNKNOWN": 0
     }

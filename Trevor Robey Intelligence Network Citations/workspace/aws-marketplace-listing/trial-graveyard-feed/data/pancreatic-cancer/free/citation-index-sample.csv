@@ -1,6 +1,6 @@
 identifier_type,identifier,source_database,nct_id,context
-NCT,NCT04141995,ClinicalTrials.gov,NCT04141995,TERMINATED: Due to low accrual and futility
-NCT,NCT01042028,ClinicalTrials.gov,NCT01042028,TERMINATED: Emergence of FOLFIRINOX and slow recruitment
-NCT,NCT04046887,ClinicalTrials.gov,NCT04046887,TERMINATED: Unable to proceed due to Neulasta difficulties and other complications.
-NCT,NCT00831493,ClinicalTrials.gov,NCT00831493,TERMINATED: Slow Accrual.
-NCT,NCT02687230,ClinicalTrials.gov,NCT02687230,TERMINATED: Sponsor decision
+NCT,NCT04258150,ClinicalTrials.gov,NCT04258150,TERMINATED: primary endpoint was not met
+NCT,NCT05631574,ClinicalTrials.gov,NCT05631574,"TERMINATED: Biomea Fusion, Inc., is no longer pursuing oncology indications for BMF-219. No safety concerns or efficacy observations led to this study closure."
+NCT,NCT03165188,ClinicalTrials.gov,NCT03165188,TERMINATED: The IND was withdrawn
+NCT,NCT02650635,ClinicalTrials.gov,NCT02650635,TERMINATED: permanently closed per sponsor's request
+NCT,NCT04306939,ClinicalTrials.gov,NCT04306939,SUSPENDED: Suspended for analysis and to consider further enrollment.

@@ -1,51 +1,180 @@
 identifier_type,identifier,source_database,nct_id,context
-NCT,NCT01568645,ClinicalTrials.gov,NCT01568645,WITHDRAWN: (none stated by sponsor)
-NCT,NCT04817345,ClinicalTrials.gov,NCT04817345,WITHDRAWN: The safety and efficacy of plerixafor in adult and pediatric SCD patients was an unknown when we started. A lot more data from therapeutic trials is available. We feel that recruiting patients without a therapeutic option isn't ethically justifiable.
-NCT,NCT00034528,ClinicalTrials.gov,NCT00034528,TERMINATED: Due to slow recruitment
-NCT,NCT04247594,ClinicalTrials.gov,NCT04247594,TERMINATED: Data will not inform further development of Voxelotor
-NCT,NCT02445144,ClinicalTrials.gov,NCT02445144,TERMINATED: lack of funding
-NCT,NCT02065869,ClinicalTrials.gov,NCT02065869,TERMINATED: Sponsor decision
-NCT,NCT00142051,ClinicalTrials.gov,NCT00142051,"TERMINATED: 18 or 20 enrolled, stopped due to paucity of available participants"
-NCT,NCT04076748,ClinicalTrials.gov,NCT04076748,TERMINATED: Target number of inclusion not reached
-NCT,NCT04541875,ClinicalTrials.gov,NCT04541875,WITHDRAWN: Liquidation of sponsor
-NCT,NCT00834899,ClinicalTrials.gov,NCT00834899,TERMINATED: Slow accrual and no cost extension not approved by NHLBI
-NCT,NCT01522196,ClinicalTrials.gov,NCT01522196,TERMINATED: change in company plans
-NCT,NCT00115336,ClinicalTrials.gov,NCT00115336,TERMINATED: Poor accrual
-NCT,NCT06286046,ClinicalTrials.gov,NCT06286046,WITHDRAWN: Withdrawn prior to study start per sponsor decision. No patients were enrolled.
-NCT,NCT02698761,ClinicalTrials.gov,NCT02698761,TERMINATED: Standard of care changed
-NCT,NCT01374165,ClinicalTrials.gov,NCT01374165,WITHDRAWN: Study cancelled.
-NCT,NCT01932554,ClinicalTrials.gov,NCT01932554,WITHDRAWN: Insufficient recruitment
-NCT,NCT00492531,ClinicalTrials.gov,NCT00492531,TERMINATED: Subjects on drug were more likely to have severe pain crises requiring hospitalization.
+NCT,NCT00773890,ClinicalTrials.gov,NCT00773890,TERMINATED: Study was stopped due to perceived futility because the baseline pain score in first 40 patients was too low to be able demonstrate an improvement
+NCT,NCT01033227,ClinicalTrials.gov,NCT01033227,TERMINATED: Low enrollment
+NCT,NCT02098993,ClinicalTrials.gov,NCT02098993,TERMINATED: Poor enrollment.
+NCT,NCT02678143,ClinicalTrials.gov,NCT02678143,TERMINATED: Closed early due to competing studies
+NCT,NCT04031521,ClinicalTrials.gov,NCT04031521,WITHDRAWN: No eligible patient were available/ found
+NCT,NCT00578344,ClinicalTrials.gov,NCT00578344,TERMINATED: Terminated due to no new subject enrollment during the last 3 year period.
+NCT,NCT03333486,ClinicalTrials.gov,NCT03333486,TERMINATED: Futility analysis determined closure
+NCT,NCT02336373,ClinicalTrials.gov,NCT02336373,TERMINATED: low enrollment
+NCT,NCT00595530,ClinicalTrials.gov,NCT00595530,TERMINATED: Lack of enrollment and patient interest in study
+NCT,NCT05660265,ClinicalTrials.gov,NCT05660265,TERMINATED: Sponsor decision to terminate the study due to strategic business consideration and not related to safety.
+NCT,NCT04852172,ClinicalTrials.gov,NCT04852172,TERMINATED: Impacted by viraemia resulting in higher than expected admissions
+NCT,NCT03825341,ClinicalTrials.gov,NCT03825341,TERMINATED: The study terminated early due to challenges with recruitment during the COVID pandemic.
+NCT,NCT03753854,ClinicalTrials.gov,NCT03753854,TERMINATED: Recruitment difficulties
 NCT,NCT00512577,ClinicalTrials.gov,NCT00512577,TERMINATED: Study was terminated by Trial Steering Committee.
-NCT,NCT04927247,ClinicalTrials.gov,NCT04927247,TERMINATED: Study was terminated due to poor accrual and associated recrutiment challenges
-NCT,NCT02231710,ClinicalTrials.gov,NCT02231710,TERMINATED: due to lack of enrollment and changes to the sponsor development portfolio
-NCT,NCT00131508,ClinicalTrials.gov,NCT00131508,TERMINATED: Due to slow participant accrual
-NCT,NCT01148940,ClinicalTrials.gov,NCT01148940,TERMINATED: insufficent enrollment
-NCT,NCT02887118,ClinicalTrials.gov,NCT02887118,TERMINATED: The recruiting centre was no longer presenting new patients for inclusion
-NCT,NCT00040417,ClinicalTrials.gov,NCT00040417,TERMINATED: unable to accrue patients
-NCT,NCT03978156,ClinicalTrials.gov,NCT03978156,TERMINATED: Covid-19. Relocation of trainee/investigator. Covid-19.
-NCT,NCT04005209,ClinicalTrials.gov,NCT04005209,WITHDRAWN: Decided not to open study
-NCT,NCT00618644,ClinicalTrials.gov,NCT00618644,WITHDRAWN: Withdrawn due to lack of eligible participants
-NCT,NCT02947100,ClinicalTrials.gov,NCT02947100,TERMINATED: manufacturing problem with study drug
-NCT,NCT00663507,ClinicalTrials.gov,NCT00663507,"TERMINATED: Only 1 patient was enrolled. No funding, small number of eligible patients so would not achieve statistical power."
 NCT,NCT00532883,ClinicalTrials.gov,NCT00532883,TERMINATED: Enrollment has been terminated due to a slow rate of enrollment.
-NCT,NCT00040469,ClinicalTrials.gov,NCT00040469,TERMINATED: accrual was slow and sporadic so the study was closed
-NCT,NCT00001850,ClinicalTrials.gov,NCT00001850,TERMINATED: Terminated at the direction of the NIH IRBO.
-NCT,NCT02863068,ClinicalTrials.gov,NCT02863068,"TERMINATED: Study terminated prior to achieving target enrollment due to slow recruitment and high cost of obtaining new study drug. Since no additional funds were to be available due to end of the funding period, remaining funds were expended on analyses."
-NCT,NCT00529061,ClinicalTrials.gov,NCT00529061,"TERMINATED: Funds for study ended September 30, 2008."
-NCT,NCT00981370,ClinicalTrials.gov,NCT00981370,"TERMINATED: 1 consented patient never started on study drug, lost to follow up"
-NCT,NCT03502421,ClinicalTrials.gov,NCT03502421,"WITHDRAWN: Never IRB approved, no intention to proceed with the study"
-NCT,NCT03933397,ClinicalTrials.gov,NCT03933397,TERMINATED: Due to COVID enrollment numbers needed to meet the primary endpoint will not be met.
-NCT,NCT01206907,ClinicalTrials.gov,NCT01206907,WITHDRAWN: The study is no longer required for the PREA for this product.
-NCT,NCT01036802,ClinicalTrials.gov,NCT01036802,TERMINATED: Difficulty in accruing subjects
+NCT,NCT02012777,ClinicalTrials.gov,NCT02012777,TERMINATED: Inability to recruit patients into the study.
+NCT,NCT04150757,ClinicalTrials.gov,NCT04150757,TERMINATED: Poor recruitment secondary to COVID
+NCT,NCT01374165,ClinicalTrials.gov,NCT01374165,WITHDRAWN: Study cancelled.
+NCT,NCT00999245,ClinicalTrials.gov,NCT00999245,TERMINATED: Inability to meet target enrollment prior to ending of network in March 2011.
+NCT,NCT01350232,ClinicalTrials.gov,NCT01350232,TERMINATED: Poor accrual
+NCT,NCT02179359,ClinicalTrials.gov,NCT02179359,TERMINATED: Replaced by another study
+NCT,NCT02698761,ClinicalTrials.gov,NCT02698761,TERMINATED: Standard of care changed
+NCT,NCT01419704,ClinicalTrials.gov,NCT01419704,"WITHDRAWN: Study completed at site, no active participants."
+NCT,NCT03367546,ClinicalTrials.gov,NCT03367546,TERMINATED: Study no longer needed
 NCT,NCT02179177,ClinicalTrials.gov,NCT02179177,TERMINATED: funding has been exhausted
-NCT,NCT02090296,ClinicalTrials.gov,NCT02090296,WITHDRAWN: Participant withdrew consent
+NCT,NCT00040456,ClinicalTrials.gov,NCT00040456,TERMINATED: Lack of accrual
+NCT,NCT00880373,ClinicalTrials.gov,NCT00880373,TERMINATED: The funding withdrawal and early termination of the trial is based upon lack of suitable recruitment figures in order to reach the required trial endpoints.
+NCT,NCT01393847,ClinicalTrials.gov,NCT01393847,TERMINATED: (none stated by sponsor)
+NCT,NCT01987908,ClinicalTrials.gov,NCT01987908,"TERMINATED: Study was terminated early by the Sponsor due to unblinding between study drug and placebo groups at the subject, site and Sponsor levels."
+NCT,NCT01000155,ClinicalTrials.gov,NCT01000155,TERMINATED: The study terminated early due to slow accrual.
+NCT,NCT02162225,ClinicalTrials.gov,NCT02162225,WITHDRAWN: Enrollment was very slow. Hope to reopen as multi-site study
+NCT,NCT02887118,ClinicalTrials.gov,NCT02887118,TERMINATED: The recruiting centre was no longer presenting new patients for inclusion
+NCT,NCT03502421,ClinicalTrials.gov,NCT03502421,"WITHDRAWN: Never IRB approved, no intention to proceed with the study"
+NCT,NCT02186418,ClinicalTrials.gov,NCT02186418,TERMINATED: Sponsor decision due to funding
+NCT,NCT05261711,ClinicalTrials.gov,NCT05261711,TERMINATED: Study is terminated prior to its planned completion as anticipated by the protocol due to enrollment completion. Data clean up and analysis is being performed.
+NCT,NCT05018728,ClinicalTrials.gov,NCT05018728,"TERMINATED: This study was terminated on September 26, 2024 due to voluntary withdrawal of study drug from the market."
+NCT,NCT05445128,ClinicalTrials.gov,NCT05445128,"TERMINATED: This study was voluntarily terminated due to a business decision not to proceed, and not due to any safety issue."
+NCT,NCT01794000,ClinicalTrials.gov,NCT01794000,TERMINATED: The study is being terminated for lack of efficacy.
+NCT,NCT05457790,ClinicalTrials.gov,NCT05457790,SUSPENDED: Study on hold pending consideration for amendment.
+NCT,NCT00530270,ClinicalTrials.gov,NCT00530270,"TERMINATED: Study was closed June 23, 2008 due to low enrollment."
+NCT,NCT05632354,ClinicalTrials.gov,NCT05632354,TERMINATED: Study terminated as data obtained from this non-placebo-controlled trial may not be informative for the interpretation of the benefits and risks of osivelotor
+NCT,NCT04028700,ClinicalTrials.gov,NCT04028700,TERMINATED: Funding not renewed
+NCT,NCT05228834,ClinicalTrials.gov,NCT05228834,TERMINATED: Data will not inform further development of Voxelotor
 NCT,NCT02373241,ClinicalTrials.gov,NCT02373241,TERMINATED: Estimated GFR was determined not to be a reliable endpoint for this study. We identified significant variabilty in annual eGFR that it became inappropriate to randomize to a medication but use EGFR as the primary endpoint.
-NCT,NCT07155031,ClinicalTrials.gov,NCT07155031,WITHDRAWN: This study has been suspended due to a lack of funding. The protocol will be reconsidered within the next 6-12 months if/as funding becomes available.
-NCT,NCT04293172,ClinicalTrials.gov,NCT04293172,"WITHDRAWN: Study halted prematurely, prior to enrolment of first patient."
-NCT,NCT01363908,ClinicalTrials.gov,NCT01363908,TERMINATED: This study was terminated due to treatment stop resulting in an inability to draw conclusions from the data. Evaluation of nonclinical rat findings is ongoing.
-NCT,NCT00840567,ClinicalTrials.gov,NCT00840567,TERMINATED: Key samples protocols will be provided by a collaborator and we were not able to produce IPS lines from human fibroblasts.
-NCT,NCT03055234,ClinicalTrials.gov,NCT03055234,WITHDRAWN: Business decision
+NCT,NCT03820466,ClinicalTrials.gov,NCT03820466,TERMINATED: insufficient recruitment due to the pandemic situation
+NCT,NCT05561140,ClinicalTrials.gov,NCT05561140,TERMINATED: Emerging clinical data evaluated by Pfizer and shared with regulatory authorities indicates that the risk profile of voxelotor in people with SCD exceeds the benefits observed in previously generated global research and requires further assessment.
+NCT,NCT02651272,ClinicalTrials.gov,NCT02651272,TERMINATED: Unable to enroll IRB approved sample of participants.
+NCT,NCT00489281,ClinicalTrials.gov,NCT00489281,TERMINATED: Initiation of CMS BMT study for sickle-cell disease operating under NCT01166009 made further accrual to this study impossible.
 NCT,NCT03013426,ClinicalTrials.gov,NCT03013426,WITHDRAWN: NuvOx Pharma suspended the clinical program related to this study.
-NCT,NCT04207320,ClinicalTrials.gov,NCT04207320,TERMINATED: Study terminated by PI
+NCT,NCT02863068,ClinicalTrials.gov,NCT02863068,"TERMINATED: Study terminated prior to achieving target enrollment due to slow recruitment and high cost of obtaining new study drug. Since no additional funds were to be available due to end of the funding period, remaining funds were expended on analyses."
+NCT,NCT03401125,ClinicalTrials.gov,NCT03401125,WITHDRAWN: Results already published by another team
+NCT,NCT02636387,ClinicalTrials.gov,NCT02636387,TERMINATED: Low recruitment
+NCT,NCT01925001,ClinicalTrials.gov,NCT01925001,WITHDRAWN: Sangart ceased operations
+NCT,NCT00034528,ClinicalTrials.gov,NCT00034528,TERMINATED: Due to slow recruitment
+NCT,NCT01206907,ClinicalTrials.gov,NCT01206907,WITHDRAWN: The study is no longer required for the PREA for this product.
+NCT,NCT03694548,ClinicalTrials.gov,NCT03694548,TERMINATED: Study terminated due to COVID-19 pandemic.
+NCT,NCT04005209,ClinicalTrials.gov,NCT04005209,WITHDRAWN: Decided not to open study
+NCT,NCT05878704,ClinicalTrials.gov,NCT05878704,TERMINATED: Business decision to terminate the trial after the completion of Part 1: Cohort 1 (severe renal impairment). The decision to terminate the trial was not due to any potential safety concerns.
+NCT,NCT00538564,ClinicalTrials.gov,NCT00538564,WITHDRAWN: Trial closed just prior to study receiving Investigational Review Board approval
+NCT,NCT02041299,ClinicalTrials.gov,NCT02041299,"TERMINATED: Difficulties with additional recruitment as pool of potential patients was exhausted, and sufficient information for determination of study outcome measure was already obtained"
+NCT,NCT00368186,ClinicalTrials.gov,NCT00368186,TERMINATED: (none stated by sponsor)
+NCT,NCT00850369,ClinicalTrials.gov,NCT00850369,WITHDRAWN: Slow accrual onto the study
+NCT,NCT03978156,ClinicalTrials.gov,NCT03978156,TERMINATED: Covid-19. Relocation of trainee/investigator. Covid-19.
+NCT,NCT01256281,ClinicalTrials.gov,NCT01256281,TERMINATED: lack of resources
+NCT,NCT02640573,ClinicalTrials.gov,NCT02640573,TERMINATED: Insufficient accrual
+NCT,NCT04156399,ClinicalTrials.gov,NCT04156399,TERMINATED: Due to the Coronavirus Disease 2019 (COVID-19) pandemic
+NCT,NCT01096121,ClinicalTrials.gov,NCT01096121,TERMINATED: Not enough inclusions
+NCT,NCT03132324,ClinicalTrials.gov,NCT03132324,TERMINATED: This study is terminated due to a business decision not to pursue INCB059782 in Sickle Cell Disease indication.
+NCT,NCT00263562,ClinicalTrials.gov,NCT00263562,"TERMINATED: poor enrollment, availability of more effective medications"
+NCT,NCT04293172,ClinicalTrials.gov,NCT04293172,"WITHDRAWN: Study halted prematurely, prior to enrolment of first patient."
+NCT,NCT00711698,ClinicalTrials.gov,NCT00711698,WITHDRAWN: technical difficulties coordinating study
+NCT,NCT04776850,ClinicalTrials.gov,NCT04776850,WITHDRAWN: Competing protocol opened in Adult SCT that will include pediatric patients and is now multi-center. No patients enrolled on study.
+NCT,NCT04930445,ClinicalTrials.gov,NCT04930445,"TERMINATED: Emerging clinical data evaluated by Pfizer and shared with regulatory authorities indicates that the risk profile of voxelotor in people with SCD exceeds the benefits observed in previously generated global research, and requires further assessment."
+NCT,NCT04594031,ClinicalTrials.gov,NCT04594031,WITHDRAWN: Preference given to gene therapy approaches by the SCD research community and patients' associations
+NCT,NCT02443545,ClinicalTrials.gov,NCT02443545,"TERMINATED: Recommendation by DSMB, which felt that sufficient data had been obtained"
+NCT,NCT00142051,ClinicalTrials.gov,NCT00142051,"TERMINATED: 18 or 20 enrolled, stopped due to paucity of available participants"
+NCT,NCT02504619,ClinicalTrials.gov,NCT02504619,TERMINATED: lack of recruitment
+NCT,NCT05033314,ClinicalTrials.gov,NCT05033314,TERMINATED: Study terminated due to slow recruitment.
 NCT,NCT02417298,ClinicalTrials.gov,NCT02417298,TERMINATED: Feasibility
+NCT,NCT04218084,ClinicalTrials.gov,NCT04218084,TERMINATED: Emerging clinical data evaluated by Pfizer and shared with regulatory authorities indicates that the risk profile of voxelotor in people with SCD exceeds the benefits observed in previously generated global research and requires further assessment.
+NCT,NCT01425307,ClinicalTrials.gov,NCT01425307,TERMINATED: The study was stopped early due to successfully meeting the primary endpoint
+NCT,NCT00127543,ClinicalTrials.gov,NCT00127543,WITHDRAWN: Not completed
+NCT,NCT01501643,ClinicalTrials.gov,NCT01501643,TERMINATED: decision of the promoter
+NCT,NCT00122980,ClinicalTrials.gov,NCT00122980,TERMINATED: The study has been stopped due to safety and futility concerns.
+NCT,NCT02231710,ClinicalTrials.gov,NCT02231710,TERMINATED: due to lack of enrollment and changes to the sponsor development portfolio
+NCT,NCT03615924,ClinicalTrials.gov,NCT03615924,TERMINATED: Recommendation from an independent data monitoring committee (DMC) and accepted by AstraZeneca.
+NCT,NCT06098755,ClinicalTrials.gov,NCT06098755,WITHDRAWN: No Participants Enrolled
+NCT,NCT02013375,ClinicalTrials.gov,NCT02013375,TERMINATED: (none stated by sponsor)
+NCT,NCT05228821,ClinicalTrials.gov,NCT05228821,WITHDRAWN: The study has been stopped due to Sponsor's business reasons. The termination is not a result of any safety concerns or change in the benefit-risk ratio.
+NCT,NCT01894594,ClinicalTrials.gov,NCT01894594,TERMINATED: Poor recruitment
+NCT,NCT00001850,ClinicalTrials.gov,NCT00001850,TERMINATED: Terminated at the direction of the NIH IRBO.
+NCT,NCT04207320,ClinicalTrials.gov,NCT04207320,TERMINATED: Study terminated by PI
+NCT,NCT03733249,ClinicalTrials.gov,NCT03733249,TERMINATED: (none stated by sponsor)
+NCT,NCT00276146,ClinicalTrials.gov,NCT00276146,WITHDRAWN: The NHLBI BSMB recommended closure due to poor enrollment.
+NCT,NCT04587661,ClinicalTrials.gov,NCT04587661,TERMINATED: We were unable to obtain the intended sample size.
+NCT,NCT01888614,ClinicalTrials.gov,NCT01888614,WITHDRAWN: Unable to secure equipment to proceed
+NCT,NCT00041574,ClinicalTrials.gov,NCT00041574,TERMINATED: Closed for lack of enrollment
+NCT,NCT00981370,ClinicalTrials.gov,NCT00981370,"TERMINATED: 1 consented patient never started on study drug, lost to follow up"
+NCT,NCT00102791,ClinicalTrials.gov,NCT00102791,TERMINATED: Because of the low probability of achieving the primary endpoint.
+NCT,NCT01568645,ClinicalTrials.gov,NCT01568645,WITHDRAWN: (none stated by sponsor)
+NCT,NCT01279616,ClinicalTrials.gov,NCT01279616,TERMINATED: PI moving to a different institution.
+NCT,NCT06503458,ClinicalTrials.gov,NCT06503458,"TERMINATED: Low enrollment, cohorts were not able to be filled"
+NCT,NCT04420585,ClinicalTrials.gov,NCT04420585,TERMINATED: Study was not able to meet recruitment after 9 years of trying to enroll patients on different versions of the protocol and changing recruitment strategies.
+NCT,NCT04058197,ClinicalTrials.gov,NCT04058197,WITHDRAWN: Lack of enrollment
+NCT,NCT00226083,ClinicalTrials.gov,NCT00226083,WITHDRAWN: PI returned to India
+NCT,NCT04247594,ClinicalTrials.gov,NCT04247594,TERMINATED: Data will not inform further development of Voxelotor
+NCT,NCT02038478,ClinicalTrials.gov,NCT02038478,WITHDRAWN: (none stated by sponsor)
+NCT,NCT00310830,ClinicalTrials.gov,NCT00310830,TERMINATED: Slow enrollment
+NCT,NCT04091737,ClinicalTrials.gov,NCT04091737,"TERMINATED: Unanticipated delays, not for safety reasons"
+NCT,NCT00131508,ClinicalTrials.gov,NCT00131508,TERMINATED: Due to slow participant accrual
+NCT,NCT06286046,ClinicalTrials.gov,NCT06286046,WITHDRAWN: Withdrawn prior to study start per sponsor decision. No patients were enrolled.
+NCT,NCT00257543,ClinicalTrials.gov,NCT00257543,TERMINATED: lack of enrollment
+NCT,NCT01534676,ClinicalTrials.gov,NCT01534676,"TERMINATED: Difficulty recruiting donors and recipients, looking for alternative sites"
+NCT,NCT01363908,ClinicalTrials.gov,NCT01363908,TERMINATED: This study was terminated due to treatment stop resulting in an inability to draw conclusions from the data. Evaluation of nonclinical rat findings is ongoing.
+NCT,NCT00618644,ClinicalTrials.gov,NCT00618644,WITHDRAWN: Withdrawn due to lack of eligible participants
+NCT,NCT02445144,ClinicalTrials.gov,NCT02445144,TERMINATED: lack of funding
+NCT,NCT00040417,ClinicalTrials.gov,NCT00040417,TERMINATED: unable to accrue patients
+NCT,NCT03577691,ClinicalTrials.gov,NCT03577691,TERMINATED: Poor enrollment
+NCT,NCT00528203,ClinicalTrials.gov,NCT00528203,"TERMINATED: Funds for study ended September 30, 2008."
+NCT,NCT00350844,ClinicalTrials.gov,NCT00350844,TERMINATED: Low subject accrual
+NCT,NCT04474626,ClinicalTrials.gov,NCT04474626,WITHDRAWN: Trial did not activate
+NCT,NCT05315908,ClinicalTrials.gov,NCT05315908,"TERMINATED: Because of low testing uptake, slow accrual at participating health centers and continuously changing COVID pandemic, research investigators had to terminate the original study and consider alternate strategies."
+NCT,NCT04817345,ClinicalTrials.gov,NCT04817345,WITHDRAWN: The safety and efficacy of plerixafor in adult and pediatric SCD patients was an unknown when we started. A lot more data from therapeutic trials is available. We feel that recruiting patients without a therapeutic option isn't ethically justifiable.
+NCT,NCT00840567,ClinicalTrials.gov,NCT00840567,TERMINATED: Key samples protocols will be provided by a collaborator and we were not able to produce IPS lines from human fibroblasts.
+NCT,NCT00663507,ClinicalTrials.gov,NCT00663507,"TERMINATED: Only 1 patient was enrolled. No funding, small number of eligible patients so would not achieve statistical power."
+NCT,NCT00834899,ClinicalTrials.gov,NCT00834899,TERMINATED: Slow accrual and no cost extension not approved by NHLBI
+NCT,NCT03997903,ClinicalTrials.gov,NCT03997903,TERMINATED: low accrual
+NCT,NCT03573882,ClinicalTrials.gov,NCT03573882,TERMINATED: Emerging clinical data evaluated by Pfizer and shared with regulatory authorities indicates that the risk profile of voxelotor in people with SCD exceeds the benefits observed in previously generated global research and requires further assessment.
+NCT,NCT02960503,ClinicalTrials.gov,NCT02960503,"WITHDRAWN: Key personnel moved to new location. Therefore, we had insufficient resources to initiate the trial."
+NCT,NCT07431398,ClinicalTrials.gov,NCT07431398,TERMINATED: Sponsor decision
+NCT,NCT05348915,ClinicalTrials.gov,NCT05348915,TERMINATED: Sponsor decision to terminate study based on results of parent study GBT2104-131.
+NCT,NCT01932554,ClinicalTrials.gov,NCT01932554,WITHDRAWN: Insufficient recruitment
+NCT,NCT03055234,ClinicalTrials.gov,NCT03055234,WITHDRAWN: Business decision
+NCT,NCT01589926,ClinicalTrials.gov,NCT01589926,TERMINATED: Low enrollment
+NCT,NCT04443907,ClinicalTrials.gov,NCT04443907,TERMINATED: The decision of early termination was made due to business reasons and was not a consequence of any safety concern.
+NCT,NCT00513864,ClinicalTrials.gov,NCT00513864,WITHDRAWN: lack of funding
+NCT,NCT04927247,ClinicalTrials.gov,NCT04927247,TERMINATED: Study was terminated due to poor accrual and associated recrutiment challenges
+NCT,NCT03421756,ClinicalTrials.gov,NCT03421756,TERMINATED: Trial terminated due to low rate of enrollment
+NCT,NCT00586209,ClinicalTrials.gov,NCT00586209,TERMINATED: Inadequate clinical supplies and Emmaus business decision.
+NCT,NCT02850406,ClinicalTrials.gov,NCT02850406,TERMINATED: Emerging clinical data evaluated by Pfizer and shared with regulatory authorities indicates that the risk profile of voxelotor in people with SCD exceeds the benefits observed in previously generated global research and requires further assessment.
+NCT,NCT02433158,ClinicalTrials.gov,NCT02433158,"TERMINATED: The B5201003 OLE study was terminated based on the failure of the 'parent"" B5201002 study to meet its efficacy endpoints. Termination was not due to safety."
+NCT,NCT01940718,ClinicalTrials.gov,NCT01940718,WITHDRAWN: Funding could not be secured
+NCT,NCT02659644,ClinicalTrials.gov,NCT02659644,WITHDRAWN: Principal Investigator moved to another institution
+NCT,NCT03298399,ClinicalTrials.gov,NCT03298399,WITHDRAWN: Study stopped due to a competing trial.
+NCT,NCT07155031,ClinicalTrials.gov,NCT07155031,WITHDRAWN: This study has been suspended due to a lack of funding. The protocol will be reconsidered within the next 6-12 months if/as funding becomes available.
+NCT,NCT02090296,ClinicalTrials.gov,NCT02090296,WITHDRAWN: Participant withdrew consent
+NCT,NCT00360087,ClinicalTrials.gov,NCT00360087,TERMINATED: Slow enrollment
+NCT,NCT04474314,ClinicalTrials.gov,NCT04474314,"TERMINATED: A recently conducted Interim analysis of IMR-SCD-301 demonstrated that while IMR-687 was generally well-tolerated, it failed to meet its primary efficacy endpoint. So, the sponsor has decided to discontinue this study."
+NCT,NCT05228756,ClinicalTrials.gov,NCT05228756,WITHDRAWN: PI leaving institution
+NCT,NCT02630394,ClinicalTrials.gov,NCT02630394,WITHDRAWN: Principal Investigator has moved to another institution
+NCT,NCT02947100,ClinicalTrials.gov,NCT02947100,TERMINATED: manufacturing problem with study drug
+NCT,NCT05951205,ClinicalTrials.gov,NCT05951205,WITHDRAWN: Modification to the clinical development plan
+NCT,NCT03886753,ClinicalTrials.gov,NCT03886753,TERMINATED: Feasibility
+NCT,NCT05020873,ClinicalTrials.gov,NCT05020873,TERMINATED: sponsor decision
+NCT,NCT01036802,ClinicalTrials.gov,NCT01036802,TERMINATED: Difficulty in accruing subjects
+NCT,NCT00115336,ClinicalTrials.gov,NCT00115336,TERMINATED: Poor accrual
+NCT,NCT00313196,ClinicalTrials.gov,NCT00313196,TERMINATED: Slow enrollment
+NCT,NCT01531387,ClinicalTrials.gov,NCT01531387,TERMINATED: inability to reach a satisfactory endpoint with respect to adequate recruitment
+NCT,NCT00529061,ClinicalTrials.gov,NCT00529061,"TERMINATED: Funds for study ended September 30, 2008."
+NCT,NCT00252122,ClinicalTrials.gov,NCT00252122,TERMINATED: Recruitment was very slow.
+NCT,NCT00937144,ClinicalTrials.gov,NCT00937144,WITHDRAWN: we didnt recieved the medicine
+NCT,NCT05565092,ClinicalTrials.gov,NCT05565092,TERMINATED: Sponsor decision to terminate program.
+NCT,NCT03933397,ClinicalTrials.gov,NCT03933397,TERMINATED: Due to COVID enrollment numbers needed to meet the primary endpoint will not be met.
+NCT,NCT01601340,ClinicalTrials.gov,NCT01601340,TERMINATED: (none stated by sponsor)
+NCT,NCT00492531,ClinicalTrials.gov,NCT00492531,TERMINATED: Subjects on drug were more likely to have severe pain crises requiring hospitalization.
+NCT,NCT00294541,ClinicalTrials.gov,NCT00294541,TERMINATED: Lack of efficacy demonstrated in study ICA-17043-10
+NCT,NCT04362293,ClinicalTrials.gov,NCT04362293,"SUSPENDED: We are holding enrollment, due to some recent SAEs."
+NCT,NCT06078696,ClinicalTrials.gov,NCT06078696,TERMINATED: Closed by the industry collaborator
+NCT,NCT04188509,ClinicalTrials.gov,NCT04188509,TERMINATED: Emerging clinical data evaluated by Pfizer and shared with regulatory authorities indicates that the risk profile of voxelotor in people with SCD exceeds the benefits observed in previously generated global research and requires further assessment.
+NCT,NCT04335721,ClinicalTrials.gov,NCT04335721,TERMINATED: Sponsor voluntarily suspended distribution and removed product from the market
+NCT,NCT01522196,ClinicalTrials.gov,NCT01522196,TERMINATED: change in company plans
+NCT,NCT00040469,ClinicalTrials.gov,NCT00040469,TERMINATED: accrual was slow and sporadic so the study was closed
+NCT,NCT02065869,ClinicalTrials.gov,NCT02065869,TERMINATED: Sponsor decision
+NCT,NCT01319851,ClinicalTrials.gov,NCT01319851,TERMINATED: drug company is no longer making the drug
+NCT,NCT04541875,ClinicalTrials.gov,NCT04541875,WITHDRAWN: Liquidation of sponsor
+NCT,NCT00639392,ClinicalTrials.gov,NCT00639392,WITHDRAWN: Ended early due to inability to identify eligible subjects
+NCT,NCT03387033,ClinicalTrials.gov,NCT03387033,TERMINATED: enrollment closed due to lack of funding
+NCT,NCT04076748,ClinicalTrials.gov,NCT04076748,TERMINATED: Target number of inclusion not reached
+NCT,NCT01148940,ClinicalTrials.gov,NCT01148940,TERMINATED: insufficent enrollment

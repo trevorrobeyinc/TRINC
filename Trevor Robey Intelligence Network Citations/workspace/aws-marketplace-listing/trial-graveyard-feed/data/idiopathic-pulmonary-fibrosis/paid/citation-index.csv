@@ -1,51 +1,77 @@
 identifier_type,identifier,source_database,nct_id,context
-NCT,NCT06097260,ClinicalTrials.gov,NCT06097260,TERMINATED: DSMB recommendation
-NCT,NCT04552899,ClinicalTrials.gov,NCT04552899,TERMINATED: The study was terminated by Sponsor as the futility analysis outcome indicated that the study was unlikely to meet the predefined primary objective of the study. No new safety concerns were identified.
-NCT,NCT05676112,ClinicalTrials.gov,NCT05676112,WITHDRAWN: Company decision
-NCT,NCT01321996,ClinicalTrials.gov,NCT01321996,TERMINATED: enrollment failure (only 29 patients were enrolled during the study period)
 NCT,NCT04306939,ClinicalTrials.gov,NCT04306939,SUSPENDED: Suspended for analysis and to consider further enrollment.
-NCT,NCT04541875,ClinicalTrials.gov,NCT04541875,WITHDRAWN: Liquidation of sponsor
-NCT,NCT01769196,ClinicalTrials.gov,NCT01769196,TERMINATED: The Study was terminated due to lack of efficacy.
 NCT,NCT00625469,ClinicalTrials.gov,NCT00625469,WITHDRAWN: competing studies did not allow enrollment
+NCT,NCT03717012,ClinicalTrials.gov,NCT03717012,TERMINATED: The trial was terminated prematurely due to difficulties with recruitment because of the COVID-19 pandemic.
+NCT,NCT03949530,ClinicalTrials.gov,NCT03949530,TERMINATED: Due to development challenges associated with the SARS-CoV-2 pandemic and emerging nonclinical data
+NCT,NCT04494334,ClinicalTrials.gov,NCT04494334,WITHDRAWN: Study terminated by funder- terminated before CCC and recruitment- no recruitment and no data collection
 NCT,NCT01777737,ClinicalTrials.gov,NCT01777737,TERMINATED: Changes in standards of care
-NCT,NCT01759511,ClinicalTrials.gov,NCT01759511,TERMINATED: The Study was terminated due to lack of efficacy.
-NCT,NCT02013700,ClinicalTrials.gov,NCT02013700,TERMINATED: Study completed
-NCT,NCT05032066,ClinicalTrials.gov,NCT05032066,TERMINATED: The trial was terminated due to not meeting primary or key secondary endpoints.
-NCT,NCT01629667,ClinicalTrials.gov,NCT01629667,TERMINATED: Early termination of the study due to lack of efficacy.
-NCT,NCT04244825,ClinicalTrials.gov,NCT04244825,WITHDRAWN: Withdrawn due to concerns for patient safety during COVID-19 crisis
-NCT,NCT01524068,ClinicalTrials.gov,NCT01524068,WITHDRAWN: (none stated by sponsor)
 NCT,NCT04419558,ClinicalTrials.gov,NCT04419558,TERMINATED: Sponsor Decision
-NCT,NCT00075998,ClinicalTrials.gov,NCT00075998,TERMINATED: test drug showed lack of benefit at interim analysis
-NCT,NCT04263727,ClinicalTrials.gov,NCT04263727,TERMINATED: Sponsor decision to terminate study
-NCT,NCT03711162,ClinicalTrials.gov,NCT03711162,TERMINATED: The benefit-risk profile no longer supports continuing the study
-NCT,NCT03955146,ClinicalTrials.gov,NCT03955146,TERMINATED: Study did not meet its primary endpoint.
 NCT,NCT06317285,ClinicalTrials.gov,NCT06317285,"TERMINATED: The study met futility criteria at pre-planned interim analysis, showing no clinical efficacy of the investigational drug. Based on the lack of efficacy at the interim data review, the sponsor decided to terminate the study."
-NCT,NCT03477526,ClinicalTrials.gov,NCT03477526,TERMINATED: PhD Student stopped working on this project
-NCT,NCT00052039,ClinicalTrials.gov,NCT00052039,TERMINATED: Study design changes were needed based on GIPF-001 results
-NCT,NCT02061852,ClinicalTrials.gov,NCT02061852,TERMINATED: (none stated by sponsor)
 NCT,NCT02989168,ClinicalTrials.gov,NCT02989168,TERMINATED: The study was terminated due to lack of clinically meaningful benefit
+NCT,NCT00879229,ClinicalTrials.gov,NCT00879229,TERMINATED: (none stated by sponsor)
+NCT,NCT01266135,ClinicalTrials.gov,NCT01266135,TERMINATED: (none stated by sponsor)
+NCT,NCT02013700,ClinicalTrials.gov,NCT02013700,TERMINATED: Study completed
+NCT,NCT00212511,ClinicalTrials.gov,NCT00212511,WITHDRAWN: Pending more information from PI
+NCT,NCT01346930,ClinicalTrials.gov,NCT01346930,WITHDRAWN: Due to Protocol AC-055B201 (MUSIC) not meeting it's primary end point
+NCT,NCT01203943,ClinicalTrials.gov,NCT01203943,TERMINATED: The benefit/ risk profile does not support continuation of this study.
+NCT,NCT05644600,ClinicalTrials.gov,NCT05644600,TERMINATED: The study was terminated as no drug-drug interactions were observed in Part-A of the study and therefore Part-B of the study was not required as per protocol.
+NCT,NCT02052297,ClinicalTrials.gov,NCT02052297,TERMINATED: The study was terminated due to challenges recruiting subjects with fibrotic interstitial lung disease associated with a connective tissue disease for Part D
+NCT,NCT02187393,ClinicalTrials.gov,NCT02187393,WITHDRAWN: Technical difficulties with the wet bench side of proposed studies.
+NCT,NCT03720483,ClinicalTrials.gov,NCT03720483,WITHDRAWN: The study encountered challenges during startup due to the COVID-19 epidemic and was withdrawn.
+NCT,NCT03258801,ClinicalTrials.gov,NCT03258801,WITHDRAWN: Clinical evaluation plan outdated and obsolete due to altered clinical routine
+NCT,NCT03142191,ClinicalTrials.gov,NCT03142191,TERMINATED: Business objectives have changed.
+NCT,NCT01769196,ClinicalTrials.gov,NCT01769196,TERMINATED: The Study was terminated due to lack of efficacy.
+NCT,NCT01151527,ClinicalTrials.gov,NCT01151527,TERMINATED: (none stated by sponsor)
+NCT,NCT05785624,ClinicalTrials.gov,NCT05785624,TERMINATED: Sponsor decided to discontinue the study after review of clinical data by the iDMC. This decision was based on unblinded evaluation of clinical efficacy which showed a trend towards futility \& was not related to any safety concerns of vixarelimab.
+NCT,NCT03287414,ClinicalTrials.gov,NCT03287414,TERMINATED: Sponsor decision
+NCT,NCT00005295,ClinicalTrials.gov,NCT00005295,TERMINATED: Not a clinical Trial \& inadvertently entered in the system.
+NCT,NCT03477526,ClinicalTrials.gov,NCT03477526,TERMINATED: PhD Student stopped working on this project
+NCT,NCT05349760,ClinicalTrials.gov,NCT05349760,WITHDRAWN: to focus resources on other studies
+NCT,NCT02061852,ClinicalTrials.gov,NCT02061852,TERMINATED: (none stated by sponsor)
+NCT,NCT05359965,ClinicalTrials.gov,NCT05359965,TERMINATED: Lack of enrollment
+NCT,NCT01841307,ClinicalTrials.gov,NCT01841307,TERMINATED: Difficulty recruiting; Funding ended; interim analysis provided sufficient data for interpretation.
+NCT,NCT06097260,ClinicalTrials.gov,NCT06097260,TERMINATED: DSMB recommendation
+NCT,NCT03562247,ClinicalTrials.gov,NCT03562247,TERMINATED: Principal Investigator left the institution and the study was closed with the IRB
+NCT,NCT00768300,ClinicalTrials.gov,NCT00768300,TERMINATED: Lack of efficacy
+NCT,NCT00957242,ClinicalTrials.gov,NCT00957242,TERMINATED: Excess of mortality in the treatment group created safety concerns.
+NCT,NCT02168530,ClinicalTrials.gov,NCT02168530,WITHDRAWN: (none stated by sponsor)
+NCT,NCT06360094,ClinicalTrials.gov,NCT06360094,TERMINATED: Sponsor decision
+NCT,NCT03573505,ClinicalTrials.gov,NCT03573505,TERMINATED: Study was stopped because of safety concerns.
+NCT,NCT01432080,ClinicalTrials.gov,NCT01432080,TERMINATED: Not meeting recruitment targets
+NCT,NCT02821039,ClinicalTrials.gov,NCT02821039,"TERMINATED: We decided to complete our research in the 4th year, and publish the data. The data are under evaluation."
 NCT,NCT02138825,ClinicalTrials.gov,NCT02138825,"TERMINATED: Study terminated per recommendation of iDMC. On iDMC request, protocol amended to include 4-month safety follow-up for patients after withdrawal of riociguat."
 NCT,NCT00981747,ClinicalTrials.gov,NCT00981747,TERMINATED: Funding was withdrawn.
-NCT,NCT04589260,ClinicalTrials.gov,NCT04589260,TERMINATED: The Sponsor has decided to stop the study due to business reasons. Study was terminated before initiation of part C and D (Decision to not proceed with Parts C and D was not for safety reasons and do not impact the overall risk benefit of the IMP.)
-NCT,NCT03069989,ClinicalTrials.gov,NCT03069989,TERMINATED: Sufficient information was gathered from cohort 1 to terminate the study without proceeding to optional cohort 2.
-NCT,NCT00957242,ClinicalTrials.gov,NCT00957242,TERMINATED: Excess of mortality in the treatment group created safety concerns.
-NCT,NCT03717012,ClinicalTrials.gov,NCT03717012,TERMINATED: The trial was terminated prematurely due to difficulties with recruitment because of the COVID-19 pandemic.
-NCT,NCT02187393,ClinicalTrials.gov,NCT02187393,WITHDRAWN: Technical difficulties with the wet bench side of proposed studies.
-NCT,NCT04494334,ClinicalTrials.gov,NCT04494334,WITHDRAWN: Study terminated by funder- terminated before CCC and recruitment- no recruitment and no data collection
-NCT,NCT00212511,ClinicalTrials.gov,NCT00212511,WITHDRAWN: Pending more information from PI
-NCT,NCT03864328,ClinicalTrials.gov,NCT03864328,TERMINATED: COVID-19 Pandemic
-NCT,NCT05349760,ClinicalTrials.gov,NCT05349760,WITHDRAWN: to focus resources on other studies
-NCT,NCT02052297,ClinicalTrials.gov,NCT02052297,TERMINATED: The study was terminated due to challenges recruiting subjects with fibrotic interstitial lung disease associated with a connective tissue disease for Part D
-NCT,NCT01151527,ClinicalTrials.gov,NCT01151527,TERMINATED: (none stated by sponsor)
-NCT,NCT04594707,ClinicalTrials.gov,NCT04594707,TERMINATED: The study was terminated by Sponsor as the futility analysis outcome indicated that the study was unlikely to meet the predefined primary objective of the study. No new safety concerns were identified.
-NCT,NCT01841307,ClinicalTrials.gov,NCT01841307,TERMINATED: Difficulty recruiting; Funding ended; interim analysis provided sufficient data for interpretation.
-NCT,NCT00690885,ClinicalTrials.gov,NCT00690885,TERMINATED: Insufficient patient accrual
-NCT,NCT00625079,ClinicalTrials.gov,NCT00625079,WITHDRAWN: inclusion/exclusion criteria limited enrollment
 NCT,NCT02759120,ClinicalTrials.gov,NCT02759120,TERMINATED: Terminated for futility after review of first planned interim analysis.
-NCT,NCT03562247,ClinicalTrials.gov,NCT03562247,TERMINATED: Principal Investigator left the institution and the study was closed with the IRB
-NCT,NCT00005295,ClinicalTrials.gov,NCT00005295,TERMINATED: Not a clinical Trial \& inadvertently entered in the system.
-NCT,NCT05785624,ClinicalTrials.gov,NCT05785624,TERMINATED: Sponsor decided to discontinue the study after review of clinical data by the iDMC. This decision was based on unblinded evaluation of clinical efficacy which showed a trend towards futility \& was not related to any safety concerns of vixarelimab.
-NCT,NCT01203943,ClinicalTrials.gov,NCT01203943,TERMINATED: The benefit/ risk profile does not support continuation of this study.
 NCT,NCT04677426,ClinicalTrials.gov,NCT04677426,WITHDRAWN: Sponsor withdrew Funding
-NCT,NCT00768300,ClinicalTrials.gov,NCT00768300,TERMINATED: Lack of efficacy
-NCT,NCT03258801,ClinicalTrials.gov,NCT03258801,WITHDRAWN: Clinical evaluation plan outdated and obsolete due to altered clinical routine
+NCT,NCT01759511,ClinicalTrials.gov,NCT01759511,TERMINATED: The Study was terminated due to lack of efficacy.
+NCT,NCT05032066,ClinicalTrials.gov,NCT05032066,TERMINATED: The trial was terminated due to not meeting primary or key secondary endpoints.
+NCT,NCT05676112,ClinicalTrials.gov,NCT05676112,WITHDRAWN: Company decision
+NCT,NCT01321996,ClinicalTrials.gov,NCT01321996,TERMINATED: enrollment failure (only 29 patients were enrolled during the study period)
+NCT,NCT03744598,ClinicalTrials.gov,NCT03744598,TERMINATED: Clinic visits stopped due to COVID19
+NCT,NCT04594707,ClinicalTrials.gov,NCT04594707,TERMINATED: The study was terminated by Sponsor as the futility analysis outcome indicated that the study was unlikely to meet the predefined primary objective of the study. No new safety concerns were identified.
+NCT,NCT01524068,ClinicalTrials.gov,NCT01524068,WITHDRAWN: (none stated by sponsor)
+NCT,NCT03069989,ClinicalTrials.gov,NCT03069989,TERMINATED: Sufficient information was gathered from cohort 1 to terminate the study without proceeding to optional cohort 2.
+NCT,NCT00052039,ClinicalTrials.gov,NCT00052039,TERMINATED: Study design changes were needed based on GIPF-001 results
+NCT,NCT01135199,ClinicalTrials.gov,NCT01135199,WITHDRAWN: FDA did not accept sponsor's animal toxicology data to support proposed dosing.
+NCT,NCT04263727,ClinicalTrials.gov,NCT04263727,TERMINATED: Sponsor decision to terminate study
+NCT,NCT03562416,ClinicalTrials.gov,NCT03562416,TERMINATED: Low enrollment
+NCT,NCT05951296,ClinicalTrials.gov,NCT05951296,WITHDRAWN: Due to slow initial recruitment and a lack of confidence in our ability to complete recruitment within the forecasted timeframe.
+NCT,NCT03955146,ClinicalTrials.gov,NCT03955146,TERMINATED: Study did not meet its primary endpoint.
+NCT,NCT03591926,ClinicalTrials.gov,NCT03591926,WITHDRAWN: Study withdrawn for business reasons prior to screening or enrolling any subjects.
+NCT,NCT03274544,ClinicalTrials.gov,NCT03274544,TERMINATED: Difficulty in recruiting eligible patients
+NCT,NCT00075998,ClinicalTrials.gov,NCT00075998,TERMINATED: test drug showed lack of benefit at interim analysis
+NCT,NCT03480451,ClinicalTrials.gov,NCT03480451,TERMINATED: Study considered futile
+NCT,NCT00703339,ClinicalTrials.gov,NCT00703339,TERMINATED: Lack of enrollment to the trial. Very difficult population to recruit.
+NCT,NCT04552899,ClinicalTrials.gov,NCT04552899,TERMINATED: The study was terminated by Sponsor as the futility analysis outcome indicated that the study was unlikely to meet the predefined primary objective of the study. No new safety concerns were identified.
+NCT,NCT04589260,ClinicalTrials.gov,NCT04589260,TERMINATED: The Sponsor has decided to stop the study due to business reasons. Study was terminated before initiation of part C and D (Decision to not proceed with Parts C and D was not for safety reasons and do not impact the overall risk benefit of the IMP.)
+NCT,NCT04244825,ClinicalTrials.gov,NCT04244825,WITHDRAWN: Withdrawn due to concerns for patient safety during COVID-19 crisis
+NCT,NCT03864328,ClinicalTrials.gov,NCT03864328,TERMINATED: COVID-19 Pandemic
+NCT,NCT03733444,ClinicalTrials.gov,NCT03733444,TERMINATED: The benefit-risk profile no longer supports continuing the study
+NCT,NCT00690885,ClinicalTrials.gov,NCT00690885,TERMINATED: Insufficient patient accrual
+NCT,NCT05497284,ClinicalTrials.gov,NCT05497284,TERMINATED: Sponsor Decision
+NCT,NCT04643769,ClinicalTrials.gov,NCT04643769,SUSPENDED: Partnership activities ongoing
+NCT,NCT00076635,ClinicalTrials.gov,NCT00076635,TERMINATED: program discontinued based on GIPF-007 results
+NCT,NCT01629667,ClinicalTrials.gov,NCT01629667,TERMINATED: Early termination of the study due to lack of efficacy.
+NCT,NCT04541875,ClinicalTrials.gov,NCT04541875,WITHDRAWN: Liquidation of sponsor
+NCT,NCT00625079,ClinicalTrials.gov,NCT00625079,WITHDRAWN: inclusion/exclusion criteria limited enrollment
+NCT,NCT03711162,ClinicalTrials.gov,NCT03711162,TERMINATED: The benefit-risk profile no longer supports continuing the study

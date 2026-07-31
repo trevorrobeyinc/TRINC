@@ -1,51 +1,735 @@
 identifier_type,identifier,source_database,nct_id,context
-NCT,NCT04141995,ClinicalTrials.gov,NCT04141995,TERMINATED: Due to low accrual and futility
-NCT,NCT01042028,ClinicalTrials.gov,NCT01042028,TERMINATED: Emergence of FOLFIRINOX and slow recruitment
-NCT,NCT04046887,ClinicalTrials.gov,NCT04046887,TERMINATED: Unable to proceed due to Neulasta difficulties and other complications.
-NCT,NCT00831493,ClinicalTrials.gov,NCT00831493,TERMINATED: Slow Accrual.
-NCT,NCT02687230,ClinicalTrials.gov,NCT02687230,TERMINATED: Sponsor decision
-NCT,NCT03207867,ClinicalTrials.gov,NCT03207867,TERMINATED: Sponsor decision
-NCT,NCT01413087,ClinicalTrials.gov,NCT01413087,"TERMINATED: Due to Sponsor's decision, only 12 patients were randomized \& completed study."
-NCT,NCT01830322,ClinicalTrials.gov,NCT01830322,WITHDRAWN: (none stated by sponsor)
-NCT,NCT00593008,ClinicalTrials.gov,NCT00593008,TERMINATED: (none stated by sponsor)
-NCT,NCT06974734,ClinicalTrials.gov,NCT06974734,TERMINATED: The trial was terminated for strategic business reasons; the decision was not based on any safety and/or efficacy concerns
-NCT,NCT00841035,ClinicalTrials.gov,NCT00841035,TERMINATED: Sponsor stopped due to slow enrollment
-NCT,NCT03323944,ClinicalTrials.gov,NCT03323944,TERMINATED: Administrative reasons
-NCT,NCT03053284,ClinicalTrials.gov,NCT03053284,WITHDRAWN: Funding was withdrawn by Sponsor prior to start of study
-NCT,NCT06211933,ClinicalTrials.gov,NCT06211933,"SUSPENDED: Following a decision by the industrial partner, it was decided to permanently close the study to new participants."
-NCT,NCT00529113,ClinicalTrials.gov,NCT00529113,TERMINATED: To pursue other indications
-NCT,NCT04042480,ClinicalTrials.gov,NCT04042480,TERMINATED: Study closed due to portfolio prioritization
-NCT,NCT01888965,ClinicalTrials.gov,NCT01888965,TERMINATED: Adverse Event issues.
-NCT,NCT04682431,ClinicalTrials.gov,NCT04682431,TERMINATED: Sponsor business decision.
-NCT,NCT06341725,ClinicalTrials.gov,NCT06341725,TERMINATED: no patients with inclusion criteria
-NCT,NCT01956812,ClinicalTrials.gov,NCT01956812,"TERMINATED: The DSMB conducted an interim analysis on overall survival, which showed that the treatment arm did not demonstrate a sufficient improvement in OS vs. placebo."
-NCT,NCT04808362,ClinicalTrials.gov,NCT04808362,TERMINATED: Phase 1completed; sponsor decided to change strategy to a combination study
-NCT,NCT01768988,ClinicalTrials.gov,NCT01768988,TERMINATED: Change of PI. Former PI changed from Research Center and Promoter obliged unexpectedly to change the PI.
-NCT,NCT02671890,ClinicalTrials.gov,NCT02671890,TERMINATED: lack of funding
-NCT,NCT03397342,ClinicalTrials.gov,NCT03397342,TERMINATED: Study terminated prematurely well short of enrollment target. Only 5 health participants were enrolled
-NCT,NCT05435053,ClinicalTrials.gov,NCT05435053,"TERMINATED: The study was terminated on the basis on an evaluation of the safety and efficacy of the 9 included patients of which 2 of the patients were excluded before receiving any study treatments, thus 7 patients were treated in the study."
-NCT,NCT04083651,ClinicalTrials.gov,NCT04083651,WITHDRAWN: Due to pandemic challenges and consideration of a different study design in the future.
-NCT,NCT03472833,ClinicalTrials.gov,NCT03472833,"TERMINATED: slow recruitment, patients lost to follow-up due to Covid-19 pandemic."
-NCT,NCT02722616,ClinicalTrials.gov,NCT02722616,TERMINATED: Ultrasound vendor cannot support the study
-NCT,NCT04311047,ClinicalTrials.gov,NCT04311047,TERMINATED: We decided to stop inclusions and start analysis after 26 inclusions.
+NCT,NCT04258150,ClinicalTrials.gov,NCT04258150,TERMINATED: primary endpoint was not met
+NCT,NCT05631574,ClinicalTrials.gov,NCT05631574,"TERMINATED: Biomea Fusion, Inc., is no longer pursuing oncology indications for BMF-219. No safety concerns or efficacy observations led to this study closure."
+NCT,NCT03165188,ClinicalTrials.gov,NCT03165188,TERMINATED: The IND was withdrawn
+NCT,NCT02650635,ClinicalTrials.gov,NCT02650635,TERMINATED: permanently closed per sponsor's request
+NCT,NCT04306939,ClinicalTrials.gov,NCT04306939,SUSPENDED: Suspended for analysis and to consider further enrollment.
+NCT,NCT01887041,ClinicalTrials.gov,NCT01887041,TERMINATED: Recruiting problems
+NCT,NCT03586869,ClinicalTrials.gov,NCT03586869,TERMINATED: Study halted prematurely and will not resume; participants are no longer being examined or receiving intervention
+NCT,NCT01600807,ClinicalTrials.gov,NCT01600807,"WITHDRAWN: Study was pending major changes and was on hold, pending activation; administratively withdrawn; will be submitted as a new protocol if study is revised."
+NCT,NCT03041571,ClinicalTrials.gov,NCT03041571,WITHDRAWN: PI is no longer with UF. No New PI assigned to date.
+NCT,NCT06375967,ClinicalTrials.gov,NCT06375967,SUSPENDED: Class I Recall (Feb 2026): Boston Scientific issued a global recall for specific lots of AXIOS 6x8mm and 8x8mm due to reports of deployment and expansion failure during the procedure.
+NCT,NCT05169437,ClinicalTrials.gov,NCT05169437,TERMINATED: Recruitment challenges
+NCT,NCT03136406,ClinicalTrials.gov,NCT03136406,TERMINATED: Study halted prematurely and will not resume; participants are no longer being examined or receiving intervention
+NCT,NCT03245658,ClinicalTrials.gov,NCT03245658,WITHDRAWN: Organization was changed. The staff was relocated.
+NCT,NCT00683085,ClinicalTrials.gov,NCT00683085,TERMINATED: Lack of eligible patient
+NCT,NCT03757455,ClinicalTrials.gov,NCT03757455,TERMINATED: Not enought participants
 NCT,NCT01760252,ClinicalTrials.gov,NCT01760252,TERMINATED: (none stated by sponsor)
-NCT,NCT04843306,ClinicalTrials.gov,NCT04843306,TERMINATED: Technical difficulties that were not able to be resolved.
-NCT,NCT00429858,ClinicalTrials.gov,NCT00429858,"TERMINATED: Study accrual rate is very slow, it was mandated by NCI to be terminated."
-NCT,NCT00364364,ClinicalTrials.gov,NCT00364364,TERMINATED: Loss of funding
-NCT,NCT01769534,ClinicalTrials.gov,NCT01769534,TERMINATED: Administratively inactivated
-NCT,NCT01086332,ClinicalTrials.gov,NCT01086332,"TERMINATED: Toxicities, lack of funding"
-NCT,NCT05379907,ClinicalTrials.gov,NCT05379907,WITHDRAWN: Determined that the tumor analysis could not be performed in accordance with the protocol.
-NCT,NCT06077487,ClinicalTrials.gov,NCT06077487,TERMINATED: Slow Accrual
-NCT,NCT05432193,ClinicalTrials.gov,NCT05432193,TERMINATED: Business decision
-NCT,NCT02602067,ClinicalTrials.gov,NCT02602067,TERMINATED: Uptake of drug into the tumour lesion was negligible
-NCT,NCT01167816,ClinicalTrials.gov,NCT01167816,TERMINATED: The study was terminated as the Prinicipal Investigator left the site- all previous subjects enrolled are deceased
+NCT,NCT00855634,ClinicalTrials.gov,NCT00855634,TERMINATED: Protocol planned interim analysis after two years showed very low recruitment in cohort 1 and low recruitment in cohort 2.
+NCT,NCT02782182,ClinicalTrials.gov,NCT02782182,TERMINATED: Closed early due to poor accrual.
+NCT,NCT06090318,ClinicalTrials.gov,NCT06090318,WITHDRAWN: Sponsor Decision
+NCT,NCT03848182,ClinicalTrials.gov,NCT03848182,TERMINATED: Slow accrual
+NCT,NCT01569282,ClinicalTrials.gov,NCT01569282,WITHDRAWN: Difficulties to recruit patients
+NCT,NCT00332280,ClinicalTrials.gov,NCT00332280,TERMINATED: Lack of efficacy. Stopped at first interim evaluation point
+NCT,NCT03333486,ClinicalTrials.gov,NCT03333486,TERMINATED: Futility analysis determined closure
+NCT,NCT02672917,ClinicalTrials.gov,NCT02672917,TERMINATED: Sponsor decision
+NCT,NCT02132403,ClinicalTrials.gov,NCT02132403,TERMINATED: Drug Recall
+NCT,NCT03599362,ClinicalTrials.gov,NCT03599362,TERMINATED: PI departure from institution
+NCT,NCT03891979,ClinicalTrials.gov,NCT03891979,WITHDRAWN: Suspended due to Primary Investigator's decision
+NCT,NCT05769959,ClinicalTrials.gov,NCT05769959,"TERMINATED: Sponsor decision (not related to safety, efficacy or quality)."
+NCT,NCT03520790,ClinicalTrials.gov,NCT03520790,TERMINATED: Phase II was not pursued due to futility based on the results of the NAPOLI-3 therapeutic clinical trial.
+NCT,NCT02670746,ClinicalTrials.gov,NCT02670746,TERMINATED: Due to slow recruitment study is being terminated.
 NCT,NCT00867126,ClinicalTrials.gov,NCT00867126,TERMINATED: low accrual
+NCT,NCT00038701,ClinicalTrials.gov,NCT00038701,TERMINATED: Slow accrual.
+NCT,NCT02651727,ClinicalTrials.gov,NCT02651727,TERMINATED: the company's decision to de-prioritize 4718 development
+NCT,NCT03947762,ClinicalTrials.gov,NCT03947762,TERMINATED: Low enrollment
+NCT,NCT00557596,ClinicalTrials.gov,NCT00557596,TERMINATED: (none stated by sponsor)
+NCT,NCT00262951,ClinicalTrials.gov,NCT00262951,TERMINATED: Closed at a planned interim analysis by meeting a predefined toxicity endpoint
+NCT,NCT07026916,ClinicalTrials.gov,NCT07026916,WITHDRAWN: Adjustment of Product Development Strategy
+NCT,NCT03417921,ClinicalTrials.gov,NCT03417921,SUSPENDED: We opened another study.
+NCT,NCT02748798,ClinicalTrials.gov,NCT02748798,TERMINATED: Funding is no longer available due to the failure to enroll the target number of participants within the required timeframe.
+NCT,NCT01911416,ClinicalTrials.gov,NCT01911416,WITHDRAWN: No accrual
+NCT,NCT01938716,ClinicalTrials.gov,NCT01938716,TERMINATED: Early termination due to low accrual
+NCT,NCT02711137,ClinicalTrials.gov,NCT02711137,TERMINATED: Study terminated due to safety issues.
+NCT,NCT00898781,ClinicalTrials.gov,NCT00898781,TERMINATED: Due to poor accrual
+NCT,NCT02031536,ClinicalTrials.gov,NCT02031536,TERMINATED: Slow accrual
+NCT,NCT04975256,ClinicalTrials.gov,NCT04975256,"TERMINATED: The decision was made to terminate this study to further enrollment, as of 08 March 2022. The decision was made primarily due to a change in development strategy."
+NCT,NCT04476537,ClinicalTrials.gov,NCT04476537,TERMINATED: Lack of feasibility
+NCT,NCT01455311,ClinicalTrials.gov,NCT01455311,TERMINATED: funding unavailable
+NCT,NCT03199144,ClinicalTrials.gov,NCT03199144,WITHDRAWN: difficulties to recruit patients
+NCT,NCT00014651,ClinicalTrials.gov,NCT00014651,TERMINATED: Teminated by the DSMB because there are no differences between the control group and the Vapreotide group
+NCT,NCT01080248,ClinicalTrials.gov,NCT01080248,TERMINATED: Closed due to delay by GSK
+NCT,NCT06076837,ClinicalTrials.gov,NCT06076837,TERMINATED: The study was terminated early per the recommendation of the Data and Safety Monitoring Board (DSMB) after a planned interim analysis met pre-specified criteria for futility.
+NCT,NCT02422095,ClinicalTrials.gov,NCT02422095,"WITHDRAWN: This is project was determined to be not research, and the IRB has no oversight"
+NCT,NCT05737706,ClinicalTrials.gov,NCT05737706,TERMINATED: Formulation challenges
+NCT,NCT03948763,ClinicalTrials.gov,NCT03948763,TERMINATED: Business Reasons
+NCT,NCT03585062,ClinicalTrials.gov,NCT03585062,TERMINATED: The paclitaxel-albumin halt production.
+NCT,NCT00003085,ClinicalTrials.gov,NCT00003085,TERMINATED: Insufficient Accrual
+NCT,NCT05131776,ClinicalTrials.gov,NCT05131776,TERMINATED: Inadequate funding
+NCT,NCT00903396,ClinicalTrials.gov,NCT00903396,TERMINATED: Slow accrual
+NCT,NCT06478862,ClinicalTrials.gov,NCT06478862,TERMINATED: Sponsor decision
+NCT,NCT00948688,ClinicalTrials.gov,NCT00948688,TERMINATED: Funding was withdrawn after only 10 participants were enrolled
+NCT,NCT00358397,ClinicalTrials.gov,NCT00358397,TERMINATED: Design Problem
+NCT,NCT00529113,ClinicalTrials.gov,NCT00529113,TERMINATED: To pursue other indications
+NCT,NCT02578459,ClinicalTrials.gov,NCT02578459,WITHDRAWN: The study was never initiated by sponsor. Patients where never recruited.
+NCT,NCT06054308,ClinicalTrials.gov,NCT06054308,WITHDRAWN: Unable to obtain Clinical Trial Certificate due to tech Unable to obtain Clinical Trial Certificate due to technical difficulties
+NCT,NCT02575508,ClinicalTrials.gov,NCT02575508,WITHDRAWN: drug supply issues
+NCT,NCT05212025,ClinicalTrials.gov,NCT05212025,WITHDRAWN: manufacturer choice
+NCT,NCT02952859,ClinicalTrials.gov,NCT02952859,TERMINATED: PI left hospital
+NCT,NCT03329248,ClinicalTrials.gov,NCT03329248,TERMINATED: Study halted prematurely and will not resume; participants are no longer being examined or receiving intervention
+NCT,NCT02446379,ClinicalTrials.gov,NCT02446379,WITHDRAWN: Technology licensed to third party. Sponsor did not proceed with study.
+NCT,NCT01326364,ClinicalTrials.gov,NCT01326364,TERMINATED: (none stated by sponsor)
+NCT,NCT00580021,ClinicalTrials.gov,NCT00580021,WITHDRAWN: (none stated by sponsor)
+NCT,NCT01103128,ClinicalTrials.gov,NCT01103128,TERMINATED: (none stated by sponsor)
+NCT,NCT04182516,ClinicalTrials.gov,NCT04182516,TERMINATED: The study closure is related to sponsor decision to shift towards the clinical development of NMS-03305293 in combination in a broader range of indication and not based on emerging safety or efficacy concerns.
+NCT,NCT00387348,ClinicalTrials.gov,NCT00387348,TERMINATED: DSMB stopped study because placebo arm had more adverse events
+NCT,NCT04311047,ClinicalTrials.gov,NCT04311047,TERMINATED: We decided to stop inclusions and start analysis after 26 inclusions.
+NCT,NCT02159248,ClinicalTrials.gov,NCT02159248,WITHDRAWN: The study closed prior to enrolling any participants.
+NCT,NCT06518538,ClinicalTrials.gov,NCT06518538,WITHDRAWN: due to study redesign
+NCT,NCT00100321,ClinicalTrials.gov,NCT00100321,TERMINATED: (none stated by sponsor)
+NCT,NCT01632306,ClinicalTrials.gov,NCT01632306,TERMINATED: Study has been terminated due to slow enrollment.
+NCT,NCT02310971,ClinicalTrials.gov,NCT02310971,WITHDRAWN: The trial has been terminated per Sponsor direction due to longer than expected clinical and regulatory approvals.
+NCT,NCT02703571,ClinicalTrials.gov,NCT02703571,TERMINATED: Company decision
+NCT,NCT01413451,ClinicalTrials.gov,NCT01413451,TERMINATED: (none stated by sponsor)
+NCT,NCT03610100,ClinicalTrials.gov,NCT03610100,SUSPENDED: Suspended to recruitment following TSC review on efficacy and toxicities
+NCT,NCT04584775,ClinicalTrials.gov,NCT04584775,WITHDRAWN: Covid19 Pandemia
+NCT,NCT00726037,ClinicalTrials.gov,NCT00726037,TERMINATED: Collaborator withdrew support due to a drug supply interruption.
+NCT,NCT03549000,ClinicalTrials.gov,NCT03549000,TERMINATED: After review of data which showed low likelihood of efficacy in these patients Novartis decided to terminate the trial early. Termination was not safety related
+NCT,NCT03525392,ClinicalTrials.gov,NCT03525392,"TERMINATED: Due to agreement to transfer rights for IPN01087 to an external partner, not due to safety concerns"
+NCT,NCT02822716,ClinicalTrials.gov,NCT02822716,TERMINATED: poor case accural
+NCT,NCT00417287,ClinicalTrials.gov,NCT00417287,TERMINATED: Investigator decision
+NCT,NCT01116791,ClinicalTrials.gov,NCT01116791,TERMINATED: Insufficient enrollment in Pancreatic \& Biliary arm
+NCT,NCT01212887,ClinicalTrials.gov,NCT01212887,TERMINATED: due to safety concerns and lack of efficacy
+NCT,NCT00907166,ClinicalTrials.gov,NCT00907166,TERMINATED: Suspended trial was not restarted.
+NCT,NCT05251233,ClinicalTrials.gov,NCT05251233,TERMINATED: Investigator and study team chose to end study early.
+NCT,NCT06528093,ClinicalTrials.gov,NCT06528093,TERMINATED: (none stated by sponsor)
+NCT,NCT01954732,ClinicalTrials.gov,NCT01954732,WITHDRAWN: Slow accrual
+NCT,NCT03397342,ClinicalTrials.gov,NCT03397342,TERMINATED: Study terminated prematurely well short of enrollment target. Only 5 health participants were enrolled
+NCT,NCT03541486,ClinicalTrials.gov,NCT03541486,WITHDRAWN: Not funded
+NCT,NCT02872831,ClinicalTrials.gov,NCT02872831,WITHDRAWN: Principal Investigator let the institution prior to study initiation.
+NCT,NCT03778879,ClinicalTrials.gov,NCT03778879,WITHDRAWN: CCX872-B will not be available in sufficient quantity to conduct the study.
+NCT,NCT06364696,ClinicalTrials.gov,NCT06364696,TERMINATED: Company's strategic decision
+NCT,NCT02926040,ClinicalTrials.gov,NCT02926040,TERMINATED: PI left hospital
+NCT,NCT00967291,ClinicalTrials.gov,NCT00967291,TERMINATED: lack of activity and G3-4 toxicity at interim analysis
+NCT,NCT03637491,ClinicalTrials.gov,NCT03637491,TERMINATED: Available clinical data has shown limited anti-tumor activity and reaching target study drug dose levels may not be feasible.
+NCT,NCT01359410,ClinicalTrials.gov,NCT01359410,TERMINATED: The 3rd interim analysis found superiority in the mesh reinforcement arm
+NCT,NCT01419483,ClinicalTrials.gov,NCT01419483,TERMINATED: poor accrual
+NCT,NCT01621243,ClinicalTrials.gov,NCT01621243,TERMINATED: The study was terminated after a pre-planned futility analyses showed an insufficient level of efficacy in the study population to warrant continuation.
+NCT,NCT03519308,ClinicalTrials.gov,NCT03519308,TERMINATED: The accrual goal could not be met and the drug manufacturer pulled support
+NCT,NCT00544908,ClinicalTrials.gov,NCT00544908,TERMINATED: Toxicity
+NCT,NCT01526590,ClinicalTrials.gov,NCT01526590,WITHDRAWN: Lack of support
+NCT,NCT02117479,ClinicalTrials.gov,NCT02117479,TERMINATED: The study was terminated early based on the results of the planned interim analysis.
+NCT,NCT05395052,ClinicalTrials.gov,NCT05395052,TERMINATED: This study was terminated by the Sponsor.
+NCT,NCT00899132,ClinicalTrials.gov,NCT00899132,TERMINATED: Study due for continuing review
+NCT,NCT03469258,ClinicalTrials.gov,NCT03469258,TERMINATED: Sponsorship for trial was halted after company acquisition
+NCT,NCT04155008,ClinicalTrials.gov,NCT04155008,TERMINATED: The trial was closed after 4 months due to slow to accrual. Only 1 participant was enrolled.
+NCT,NCT01413087,ClinicalTrials.gov,NCT01413087,"TERMINATED: Due to Sponsor's decision, only 12 patients were randomized \& completed study."
+NCT,NCT02736578,ClinicalTrials.gov,NCT02736578,TERMINATED: Logistics
+NCT,NCT00541593,ClinicalTrials.gov,NCT00541593,TERMINATED: SurgAssist device is no longer clinically available.
+NCT,NCT03300921,ClinicalTrials.gov,NCT03300921,TERMINATED: Newer research suggested that paricalcitol may be harmful to a subset of pancreatic cancer patients and it is not feasible to subtype patients in the short time frame before surgery
+NCT,NCT00637364,ClinicalTrials.gov,NCT00637364,SUSPENDED: Sponsor is not proceeding with USA human trial at this time
+NCT,NCT01071434,ClinicalTrials.gov,NCT01071434,TERMINATED: PI left
+NCT,NCT00198081,ClinicalTrials.gov,NCT00198081,TERMINATED: Lack of funding and personnel to conduct study.
+NCT,NCT02757391,ClinicalTrials.gov,NCT02757391,TERMINATED: Study halted prematurely and will not resume; participants are no longer being examined or receiving intervention.
+NCT,NCT05634525,ClinicalTrials.gov,NCT05634525,WITHDRAWN: No participants enrolled
+NCT,NCT03407040,ClinicalTrials.gov,NCT03407040,TERMINATED: Investigator left NIH
+NCT,NCT02268825,ClinicalTrials.gov,NCT02268825,TERMINATED: Merck requested to change MK-3475 dosing schedule; PI decided to close instead
+NCT,NCT00003851,ClinicalTrials.gov,NCT00003851,TERMINATED: Approval lapse
+NCT,NCT01056601,ClinicalTrials.gov,NCT01056601,TERMINATED: Funding not available
+NCT,NCT04083651,ClinicalTrials.gov,NCT04083651,WITHDRAWN: Due to pandemic challenges and consideration of a different study design in the future.
+NCT,NCT06194877,ClinicalTrials.gov,NCT06194877,TERMINATED: Funding terminated due to business reasons
+NCT,NCT02851381,ClinicalTrials.gov,NCT02851381,WITHDRAWN: The patient passed before treatment could be started
+NCT,NCT04315311,ClinicalTrials.gov,NCT04315311,WITHDRAWN: Business Decision
+NCT,NCT01166529,ClinicalTrials.gov,NCT01166529,WITHDRAWN: Unable to identify appropriate patients.
+NCT,NCT05523154,ClinicalTrials.gov,NCT05523154,TERMINATED: lack of funding
+NCT,NCT04152018,ClinicalTrials.gov,NCT04152018,TERMINATED: Study termination was based on strategic considerations and not due to specific safety reasons or a request from a regulatory authority.
+NCT,NCT01741597,ClinicalTrials.gov,NCT01741597,WITHDRAWN: PI chose to close the study
+NCT,NCT01333124,ClinicalTrials.gov,NCT01333124,TERMINATED: Recruitment delay
+NCT,NCT00833859,ClinicalTrials.gov,NCT00833859,TERMINATED: Abandoned - Lack of funding after only 2 patients enrolled
+NCT,NCT01313416,ClinicalTrials.gov,NCT01313416,TERMINATED: Drug supply issues
+NCT,NCT04130399,ClinicalTrials.gov,NCT04130399,WITHDRAWN: Study is being abandoned.
+NCT,NCT04329949,ClinicalTrials.gov,NCT04329949,"TERMINATED: The independent data monitoring committee found no safety issues, however the observed response rate did not meet the predefined threshold for continuing the study. The study was terminated by the Sponsor."
+NCT,NCT02313012,ClinicalTrials.gov,NCT02313012,TERMINATED: (none stated by sponsor)
+NCT,NCT05494866,ClinicalTrials.gov,NCT05494866,TERMINATED: lack of efficacy paired with high toxicity
+NCT,NCT04141995,ClinicalTrials.gov,NCT04141995,TERMINATED: Due to low accrual and futility
+NCT,NCT00753441,ClinicalTrials.gov,NCT00753441,TERMINATED: Low patient accrual
+NCT,NCT02109445,ClinicalTrials.gov,NCT02109445,TERMINATED: The study was terminated on 24JUN15 due to change in strategy of PF-03084014 development.No safety/efficacy concerns were behind the reason of trial termination
+NCT,NCT03244683,ClinicalTrials.gov,NCT03244683,TERMINATED: Closed due to low enrollment
+NCT,NCT00358566,ClinicalTrials.gov,NCT00358566,TERMINATED: Preliminary data showed no survival benefit in the GV1001 group compared to the gemcitabine group.
+NCT,NCT03002831,ClinicalTrials.gov,NCT03002831,TERMINATED: Study halted prematurely and will not resume
+NCT,NCT01303159,ClinicalTrials.gov,NCT01303159,TERMINATED: EndoHPB probe is FDA approved and considered standard of care
+NCT,NCT02205788,ClinicalTrials.gov,NCT02205788,WITHDRAWN: (none stated by sponsor)
+NCT,NCT03481920,ClinicalTrials.gov,NCT03481920,TERMINATED: Stopped Enrollment
+NCT,NCT05610826,ClinicalTrials.gov,NCT05610826,WITHDRAWN: 0 enrollment
+NCT,NCT03392571,ClinicalTrials.gov,NCT03392571,WITHDRAWN: Study was stopped due to lack of funding
+NCT,NCT00841035,ClinicalTrials.gov,NCT00841035,TERMINATED: Sponsor stopped due to slow enrollment
+NCT,NCT01760694,ClinicalTrials.gov,NCT01760694,TERMINATED: Lack of enrollment
+NCT,NCT01314027,ClinicalTrials.gov,NCT01314027,TERMINATED: low recruitment
+NCT,NCT03358095,ClinicalTrials.gov,NCT03358095,WITHDRAWN: Investigators busy with other projects at the moment.
+NCT,NCT01206296,ClinicalTrials.gov,NCT01206296,TERMINATED: Study suspended
+NCT,NCT03099265,ClinicalTrials.gov,NCT03099265,TERMINATED: Paused due to COVID. A determination was made to stop the study because it would be impossible to reach the 65% resection rate as outlined in the protocol.
+NCT,NCT03141398,ClinicalTrials.gov,NCT03141398,WITHDRAWN: Due to issues with study design
+NCT,NCT01461915,ClinicalTrials.gov,NCT01461915,TERMINATED: (none stated by sponsor)
+NCT,NCT03472833,ClinicalTrials.gov,NCT03472833,"TERMINATED: slow recruitment, patients lost to follow-up due to Covid-19 pandemic."
+NCT,NCT01525706,ClinicalTrials.gov,NCT01525706,TERMINATED: Poor recruitment
+NCT,NCT01362582,ClinicalTrials.gov,NCT01362582,TERMINATED: (none stated by sponsor)
+NCT,NCT06466187,ClinicalTrials.gov,NCT06466187,TERMINATED: The trial was terminated for strategic reasons. The decision was not based on any safety concerns
+NCT,NCT02868632,ClinicalTrials.gov,NCT02868632,WITHDRAWN: termination because of low accrual; four subjects enrolled and four screen failures.
+NCT,NCT05360745,ClinicalTrials.gov,NCT05360745,"WITHDRAWN: Few months later the site initiation visit, the principal investigator decided not to continue with the study. He explained that his investigational team was not able to combine the study procedures with their usual clinical practice."
+NCT,NCT02707328,ClinicalTrials.gov,NCT02707328,TERMINATED: Closed after being on administrative hold
+NCT,NCT04843306,ClinicalTrials.gov,NCT04843306,TERMINATED: Technical difficulties that were not able to be resolved.
+NCT,NCT00642733,ClinicalTrials.gov,NCT00642733,TERMINATED: poor recruitment
 NCT,NCT00416793,ClinicalTrials.gov,NCT00416793,TERMINATED: Study was terminated due to poor accrual
+NCT,NCT00904514,ClinicalTrials.gov,NCT00904514,TERMINATED: (none stated by sponsor)
+NCT,NCT03784417,ClinicalTrials.gov,NCT03784417,TERMINATED: device unavalaible
+NCT,NCT05194735,ClinicalTrials.gov,NCT05194735,TERMINATED: Funding
+NCT,NCT02628535,ClinicalTrials.gov,NCT02628535,TERMINATED: Business decision (not for safety reasons)
+NCT,NCT02580422,ClinicalTrials.gov,NCT02580422,TERMINATED: Low accrual
+NCT,NCT00031837,ClinicalTrials.gov,NCT00031837,TERMINATED: (none stated by sponsor)
+NCT,NCT01683422,ClinicalTrials.gov,NCT01683422,TERMINATED: Updated chemotherapy regimens currently evaluated in clinical trials due to lack of progress in treating this condition; analysis continues in the realm of patterns of failure and increasing quality of life
+NCT,NCT00843531,ClinicalTrials.gov,NCT00843531,TERMINATED: Low Accrual
+NCT,NCT01167738,ClinicalTrials.gov,NCT01167738,TERMINATED: concern of detrimental effect
+NCT,NCT05827614,ClinicalTrials.gov,NCT05827614,TERMINATED: Decision was made to halt the study based on overall clinical experience and market considerations. This decision was not driven by any safety signal.
+NCT,NCT06164691,ClinicalTrials.gov,NCT06164691,TERMINATED: PI terminated study due to lack of enrollment.
+NCT,NCT01795274,ClinicalTrials.gov,NCT01795274,WITHDRAWN: Administrative barriers
+NCT,NCT01754623,ClinicalTrials.gov,NCT01754623,TERMINATED: Lack of pre-treatment tissue to make the study plan feasible.
+NCT,NCT05568017,ClinicalTrials.gov,NCT05568017,"TERMINATED: Difficulty in recruiting patients also due to the pandemic period, presence of competitive studies."
+NCT,NCT04042480,ClinicalTrials.gov,NCT04042480,TERMINATED: Study closed due to portfolio prioritization
+NCT,NCT05702385,ClinicalTrials.gov,NCT05702385,WITHDRAWN: The study sponsor did not wish to proceed with the study
+NCT,NCT04025216,ClinicalTrials.gov,NCT04025216,TERMINATED: The sponsor finds the risk/benefit analysis unfavorable and has terminated the study.
+NCT,NCT02366858,ClinicalTrials.gov,NCT02366858,WITHDRAWN: PI decision was made to discontinue the study
+NCT,NCT06554730,ClinicalTrials.gov,NCT06554730,WITHDRAWN: Study is registered /active on RWD Catalogues (https://catalogues.ema.europa.eu) - Please refer to EU PAS number: EUPAS108114
+NCT,NCT02119663,ClinicalTrials.gov,NCT02119663,TERMINATED: The safety committee found no safety issues but recommended halting the study based on a lack of efficacy in a similar trial. The sponsor terminated the trial.
+NCT,NCT03908333,ClinicalTrials.gov,NCT03908333,WITHDRAWN: Request to close per funding sponsor. Site not moving forward with trial.
+NCT,NCT03137706,ClinicalTrials.gov,NCT03137706,TERMINATED: Insufficient accrual
+NCT,NCT05841706,ClinicalTrials.gov,NCT05841706,TERMINATED: slow accrual
 NCT,NCT02767752,ClinicalTrials.gov,NCT02767752,TERMINATED: Poor accrual and change of SOC (FOLFIRINOX in adjuvant setting)
-NCT,NCT00621556,ClinicalTrials.gov,NCT00621556,TERMINATED: Poor patient enrollment due to logistical issues
+NCT,NCT03118349,ClinicalTrials.gov,NCT03118349,TERMINATED: Sponsor Decision
+NCT,NCT00968604,ClinicalTrials.gov,NCT00968604,WITHDRAWN: Stability of the DNA when admixed with the liposome failed
+NCT,NCT05563272,ClinicalTrials.gov,NCT05563272,"TERMINATED: Indication scouting for TLX250-CDx will continue in theranostic studies, with a therapeutic component in the study design."
+NCT,NCT03563352,ClinicalTrials.gov,NCT03563352,WITHDRAWN: Zero accrual
+NCT,NCT00881621,ClinicalTrials.gov,NCT00881621,TERMINATED: slow enrollment
+NCT,NCT04131192,ClinicalTrials.gov,NCT04131192,"TERMINATED: Combined with the analysis of the existing data of the trial, there was no obvious advantage compared with the clinical standard treatments, and the clinical trial was decided to be terminated based on the benefit of the subjects."
+NCT,NCT02943733,ClinicalTrials.gov,NCT02943733,"TERMINATED: closed per sponsor request, for slow enrollment"
+NCT,NCT04659603,ClinicalTrials.gov,NCT04659603,"TERMINATED: Sponsor decision, the decision is not related to any safety concern."
+NCT,NCT04383210,ClinicalTrials.gov,NCT04383210,TERMINATED: Business decision
+NCT,NCT06707896,ClinicalTrials.gov,NCT06707896,WITHDRAWN: Administrative decision
+NCT,NCT02671890,ClinicalTrials.gov,NCT02671890,TERMINATED: lack of funding
+NCT,NCT01012362,ClinicalTrials.gov,NCT01012362,TERMINATED: PI left institution.
+NCT,NCT02910882,ClinicalTrials.gov,NCT02910882,TERMINATED: Safety
+NCT,NCT03852836,ClinicalTrials.gov,NCT03852836,TERMINATED: COVID Pandemy - recruitment issue
+NCT,NCT04046887,ClinicalTrials.gov,NCT04046887,TERMINATED: Unable to proceed due to Neulasta difficulties and other complications.
+NCT,NCT05432193,ClinicalTrials.gov,NCT05432193,TERMINATED: Business decision
+NCT,NCT01962909,ClinicalTrials.gov,NCT01962909,"TERMINATED: From preliminary imaging data, the study was stopped due to futility."
+NCT,NCT01814631,ClinicalTrials.gov,NCT01814631,WITHDRAWN: Closed at PI discretion
+NCT,NCT02047500,ClinicalTrials.gov,NCT02047500,TERMINATED: The trial has been terminated earlier following the company decision to discontinue the clinical development of Evofosfamide
+NCT,NCT02442739,ClinicalTrials.gov,NCT02442739,WITHDRAWN: PI voluntary closure due to low accrual
+NCT,NCT00574275,ClinicalTrials.gov,NCT00574275,TERMINATED: Data Monitoring Committee concluded after a planned interim analysis that aflibercept added to gemcitabine would be unable to demonstrate improved survival
+NCT,NCT01401387,ClinicalTrials.gov,NCT01401387,WITHDRAWN: study never started
+NCT,NCT02405585,ClinicalTrials.gov,NCT02405585,TERMINATED: (none stated by sponsor)
+NCT,NCT01086332,ClinicalTrials.gov,NCT01086332,"TERMINATED: Toxicities, lack of funding"
+NCT,NCT02608229,ClinicalTrials.gov,NCT02608229,TERMINATED: Adverse events
+NCT,NCT03344172,ClinicalTrials.gov,NCT03344172,TERMINATED: Suspected Serious Adverse Events related to treatment
+NCT,NCT04592861,ClinicalTrials.gov,NCT04592861,TERMINATED: Study administratively closed out by the Einstein IRB. NO US enrolling sites.
+NCT,NCT02602067,ClinicalTrials.gov,NCT02602067,TERMINATED: Uptake of drug into the tumour lesion was negligible
+NCT,NCT00947167,ClinicalTrials.gov,NCT00947167,TERMINATED: Extreme toxicity of Pertuzumab and Erlotinib combination
+NCT,NCT03323944,ClinicalTrials.gov,NCT03323944,TERMINATED: Administrative reasons
+NCT,NCT02288377,ClinicalTrials.gov,NCT02288377,TERMINATED: Because of slow recruitment
+NCT,NCT02487277,ClinicalTrials.gov,NCT02487277,TERMINATED: Low accrual
+NCT,NCT03122106,ClinicalTrials.gov,NCT03122106,TERMINATED: Loss of funding
+NCT,NCT05193604,ClinicalTrials.gov,NCT05193604,TERMINATED: Terminated due to the adjustment of sponsor's development strategies and pipeline.
+NCT,NCT00923052,ClinicalTrials.gov,NCT00923052,TERMINATED: (none stated by sponsor)
+NCT,NCT00553813,ClinicalTrials.gov,NCT00553813,TERMINATED: Insufficient funding
+NCT,NCT01050426,ClinicalTrials.gov,NCT01050426,TERMINATED: Data from other trials failed to demonstrate meaningful survival advantage
+NCT,NCT01371240,ClinicalTrials.gov,NCT01371240,WITHDRAWN: Study never started
+NCT,NCT02414100,ClinicalTrials.gov,NCT02414100,WITHDRAWN: No subjects were enrolled. Study team was not able to grow cell lines for the tumors.
+NCT,NCT05571839,ClinicalTrials.gov,NCT05571839,TERMINATED: The trial was terminated for strategic reasons. The decision was not based on any safety concerns.
+NCT,NCT04683939,ClinicalTrials.gov,NCT04683939,TERMINATED: Sponsor decision
+NCT,NCT04387071,ClinicalTrials.gov,NCT04387071,TERMINATED: Study drug no longer available
+NCT,NCT04807972,ClinicalTrials.gov,NCT04807972,TERMINATED: Strategic considerations
+NCT,NCT02106871,ClinicalTrials.gov,NCT02106871,WITHDRAWN: Study did not get funded. Study never started
+NCT,NCT04106167,ClinicalTrials.gov,NCT04106167,TERMINATED: This study was terminated by the Sponsor.
+NCT,NCT03878524,ClinicalTrials.gov,NCT03878524,TERMINATED: Low accrual
+NCT,NCT04965311,ClinicalTrials.gov,NCT04965311,TERMINATED: low enrollment
+NCT,NCT00281996,ClinicalTrials.gov,NCT00281996,TERMINATED: Closed to accrual to allow enrollment on another more promising trial.
+NCT,NCT01092689,ClinicalTrials.gov,NCT01092689,WITHDRAWN: Needed New IND per FDA
+NCT,NCT00482625,ClinicalTrials.gov,NCT00482625,"TERMINATED: The protocol has been completed prematurely (e.g., due to poor accrual, insufficient drug supply, IND closure)."
+NCT,NCT02567396,ClinicalTrials.gov,NCT02567396,WITHDRAWN: Other- Protocol moved to Disapproved
+NCT,NCT01851174,ClinicalTrials.gov,NCT01851174,TERMINATED: PI Leaving Site
+NCT,NCT04306861,ClinicalTrials.gov,NCT04306861,WITHDRAWN: Enrollment and other trial activities have temporarily paused due to COVID-19 and are expected to resume in the future; This is not a suspension of IRB approval
+NCT,NCT00359320,ClinicalTrials.gov,NCT00359320,TERMINATED: Terminated by IRB
+NCT,NCT03376659,ClinicalTrials.gov,NCT03376659,TERMINATED: Study closed due to lack of enrollment.
+NCT,NCT05023291,ClinicalTrials.gov,NCT05023291,TERMINATED: no effective result after first 5 patients
+NCT,NCT03621982,ClinicalTrials.gov,NCT03621982,"TERMINATED: Cami in combination with pembrolizumab in solid tumors showed signals of immunomodulatory activity. However, the signals were insufficiently compelling at the tested dose/schedule to justify continuation of the study."
+NCT,NCT04037241,ClinicalTrials.gov,NCT04037241,WITHDRAWN: Sponsor terminated
+NCT,NCT02681601,ClinicalTrials.gov,NCT02681601,TERMINATED: low accrual
+NCT,NCT03682744,ClinicalTrials.gov,NCT03682744,WITHDRAWN: Unable to enroll subjects
+NCT,NCT01712971,ClinicalTrials.gov,NCT01712971,WITHDRAWN: (none stated by sponsor)
+NCT,NCT02204124,ClinicalTrials.gov,NCT02204124,TERMINATED: Principal Investigator and Study Sponsor decided to terminate the study early
+NCT,NCT04808362,ClinicalTrials.gov,NCT04808362,TERMINATED: Phase 1completed; sponsor decided to change strategy to a combination study
+NCT,NCT01473303,ClinicalTrials.gov,NCT01473303,WITHDRAWN: CALGB 81003 closed about a week after it was activated because of withdrawal of support. No patients were registered on this study.
+NCT,NCT02494388,ClinicalTrials.gov,NCT02494388,TERMINATED: (none stated by sponsor)
+NCT,NCT02779257,ClinicalTrials.gov,NCT02779257,WITHDRAWN: Subject passed away prior to enrollment
+NCT,NCT05922930,ClinicalTrials.gov,NCT05922930,SUSPENDED: PI Request
+NCT,NCT01913275,ClinicalTrials.gov,NCT01913275,WITHDRAWN: Lack of interest
+NCT,NCT03140670,ClinicalTrials.gov,NCT03140670,TERMINATED: Loss of funding
+NCT,NCT02831179,ClinicalTrials.gov,NCT02831179,WITHDRAWN: Loss of funding support
+NCT,NCT02423954,ClinicalTrials.gov,NCT02423954,TERMINATED: Investigator no longer at site to enroll patients or write up data
+NCT,NCT02241551,ClinicalTrials.gov,NCT02241551,TERMINATED: Study was terminated with the IRB ended early as logistical concerns of the SBRT
+NCT,NCT06599502,ClinicalTrials.gov,NCT06599502,TERMINATED: The decision to cease enrolment and proceed with the early termination of the ALAFOSS 01 (D7080C00001) study was based on strategic company portfolio prioritization.
+NCT,NCT04565327,ClinicalTrials.gov,NCT04565327,TERMINATED: Slow accrual
 NCT,NCT02514031,ClinicalTrials.gov,NCT02514031,TERMINATED: The study placed on temporarily hold to enrollment due to quality testing necessary for the study drug.
-NCT,NCT04809766,ClinicalTrials.gov,NCT04809766,TERMINATED: Study terminated due to end of funding.
-NCT,NCT01739439,ClinicalTrials.gov,NCT01739439,TERMINATED: Slow accrual
-NCT,NCT01648465,ClinicalTrials.gov,NCT01648465,TERMINATED: (none stated by sponsor)
-NCT,NCT05417386,ClinicalTrials.gov,NCT05417386,TERMINATED: NIS793 is no longer being developed
+NCT,NCT03450018,ClinicalTrials.gov,NCT03450018,TERMINATED: Changing treatment landscape: The availability of nab-paclitaxel with gemcitabine in the second-line setting has changed the feasibility of further recruitment and potential long-term development opportunities of SLC-0111 with gemcitabine alone.
+NCT,NCT04643405,ClinicalTrials.gov,NCT04643405,TERMINATED: Company Strategy
+NCT,NCT02070705,ClinicalTrials.gov,NCT02070705,TERMINATED: Loss of funding
+NCT,NCT04469504,ClinicalTrials.gov,NCT04469504,TERMINATED: The study was terminated prematurely due to patient inclusion difficulties.
+NCT,NCT03387098,ClinicalTrials.gov,NCT03387098,TERMINATED: Study halted prematurely and will not resume; participants are no longer being examined or receiving intervention
+NCT,NCT03649321,ClinicalTrials.gov,NCT03649321,TERMINATED: Funding was terminated early because research interests were going in a different direction.
+NCT,NCT01562899,ClinicalTrials.gov,NCT01562899,TERMINATED: Study was withdrawn due to scientific and business considerations.
+NCT,NCT06284226,ClinicalTrials.gov,NCT06284226,WITHDRAWN: The project is terminated
+NCT,NCT05489250,ClinicalTrials.gov,NCT05489250,TERMINATED: Sponsor Decision
+NCT,NCT00012246,ClinicalTrials.gov,NCT00012246,TERMINATED: Administratively Terminated
+NCT,NCT01900327,ClinicalTrials.gov,NCT01900327,TERMINATED: Recruitment failure
+NCT,NCT03736720,ClinicalTrials.gov,NCT03736720,TERMINATED: low accrual
+NCT,NCT06704724,ClinicalTrials.gov,NCT06704724,TERMINATED: The trial was terminated for strategic business reasons; the decision was not based on any safety and/or efficacy concerns.
+NCT,NCT04262388,ClinicalTrials.gov,NCT04262388,WITHDRAWN: Overall clinical activity (ORR) for oleclumab + durvalumab is minimal across tumor types and does not support further evaluation of this doublet.
+NCT,NCT04844970,ClinicalTrials.gov,NCT04844970,TERMINATED: The study closure was initiated by the financial sponsor and agreed upon by the site PI. The study is closing because of low enrollment and insufficient funds.
+NCT,NCT03286062,ClinicalTrials.gov,NCT03286062,TERMINATED: Slow accrual
+NCT,NCT01707758,ClinicalTrials.gov,NCT01707758,WITHDRAWN: Trial terminated - Nanoscale Company out of business
+NCT,NCT02166190,ClinicalTrials.gov,NCT02166190,TERMINATED: Enrollment was feasibly not going to be reached.
+NCT,NCT04930991,ClinicalTrials.gov,NCT04930991,TERMINATED: Translational scientist left university
+NCT,NCT01130701,ClinicalTrials.gov,NCT01130701,WITHDRAWN: Study never went beyond FDA application for an IND #. FDAA required institutional DSMC which this institution then lacked.
+NCT,NCT02950025,ClinicalTrials.gov,NCT02950025,TERMINATED: Low accrual
+NCT,NCT06069778,ClinicalTrials.gov,NCT06069778,TERMINATED: Sponsor decision
+NCT,NCT01431794,ClinicalTrials.gov,NCT01431794,TERMINATED: Study was terminated due to cease in manufacturing of study drug.
+NCT,NCT00636883,ClinicalTrials.gov,NCT00636883,TERMINATED: slow accrual rate
+NCT,NCT02714374,ClinicalTrials.gov,NCT02714374,TERMINATED: Insufficient funding
+NCT,NCT01419002,ClinicalTrials.gov,NCT01419002,TERMINATED: lack of recruitment
+NCT,NCT00414570,ClinicalTrials.gov,NCT00414570,TERMINATED: Retirement of former Qualified Investigator and lack of resources to complete study
+NCT,NCT01318642,ClinicalTrials.gov,NCT01318642,TERMINATED: NCT01318642: Planned independent DMC Interim review: ended for futility
+NCT,NCT04058964,ClinicalTrials.gov,NCT04058964,WITHDRAWN: Study withdrawn by supporter
+NCT,NCT02273752,ClinicalTrials.gov,NCT02273752,TERMINATED: Slow accrual
+NCT,NCT00831493,ClinicalTrials.gov,NCT00831493,TERMINATED: Slow Accrual.
+NCT,NCT00159471,ClinicalTrials.gov,NCT00159471,TERMINATED: Insufficient Accrual
+NCT,NCT02745197,ClinicalTrials.gov,NCT02745197,WITHDRAWN: change in concept
+NCT,NCT01094535,ClinicalTrials.gov,NCT01094535,WITHDRAWN: Poor enrollment
+NCT,NCT03707444,ClinicalTrials.gov,NCT03707444,WITHDRAWN: The PI is dealing with recurrent cancer and multiple side effects of treatment. N o one else to do the study.
+NCT,NCT01094600,ClinicalTrials.gov,NCT01094600,WITHDRAWN: (none stated by sponsor)
+NCT,NCT03168594,ClinicalTrials.gov,NCT03168594,TERMINATED: The enrollment was terminated early because the premature analysis found similar response in the two arms.
+NCT,NCT05043987,ClinicalTrials.gov,NCT05043987,WITHDRAWN: New IND sponsor to initiate a separate study
+NCT,NCT05360264,ClinicalTrials.gov,NCT05360264,TERMINATED: Unexpected toxicity events were documented during interim safety evaluations of the investigational drug.
+NCT,NCT00113256,ClinicalTrials.gov,NCT00113256,TERMINATED: (none stated by sponsor)
+NCT,NCT03890198,ClinicalTrials.gov,NCT03890198,"TERMINATED: the Preliminary data, progress of this study and the adjustment of the pipeline and strategy ."
+NCT,NCT04983407,ClinicalTrials.gov,NCT04983407,TERMINATED: Due to business reasons
+NCT,NCT02489604,ClinicalTrials.gov,NCT02489604,TERMINATED: Enrollment target not reached
+NCT,NCT01359007,ClinicalTrials.gov,NCT01359007,TERMINATED: The principal investigator terminated the study due to inactivity and low enrollment
+NCT,NCT01836432,ClinicalTrials.gov,NCT01836432,TERMINATED: Company decision
+NCT,NCT00121745,ClinicalTrials.gov,NCT00121745,TERMINATED: poor enrollment
+NCT,NCT03697239,ClinicalTrials.gov,NCT03697239,WITHDRAWN: FDA indicated the same study could not be conducted under multiple INDs
+NCT,NCT03038477,ClinicalTrials.gov,NCT03038477,WITHDRAWN: Cancelled by PI
+NCT,NCT03829501,ClinicalTrials.gov,NCT03829501,TERMINATED: Early discontinuation based on strategic sponsor decision not driven by any safety concerns.
+NCT,NCT00177853,ClinicalTrials.gov,NCT00177853,TERMINATED: terminated
+NCT,NCT03277209,ClinicalTrials.gov,NCT03277209,TERMINATED: terminated due to slow accrual
+NCT,NCT00658801,ClinicalTrials.gov,NCT00658801,TERMINATED: difficult to register
+NCT,NCT00564720,ClinicalTrials.gov,NCT00564720,TERMINATED: Due to poor accrual of the study
+NCT,NCT01721174,ClinicalTrials.gov,NCT01721174,TERMINATED: Poor recruitment
+NCT,NCT00428597,ClinicalTrials.gov,NCT00428597,TERMINATED: Refer to Detailed Description.
+NCT,NCT04270929,ClinicalTrials.gov,NCT04270929,WITHDRAWN: Insufficient accrual rate
+NCT,NCT00005591,ClinicalTrials.gov,NCT00005591,WITHDRAWN: (none stated by sponsor)
+NCT,NCT00179751,ClinicalTrials.gov,NCT00179751,TERMINATED: (none stated by sponsor)
+NCT,NCT02201381,ClinicalTrials.gov,NCT02201381,WITHDRAWN: Prospective recruitment not possible
+NCT,NCT02465983,ClinicalTrials.gov,NCT02465983,TERMINATED: Lack of efficacy and funding to continue investigation
+NCT,NCT06024174,ClinicalTrials.gov,NCT06024174,TERMINATED: Business objectives have changed
+NCT,NCT00447122,ClinicalTrials.gov,NCT00447122,TERMINATED: slow enrollment and lack of funding
+NCT,NCT00892242,ClinicalTrials.gov,NCT00892242,TERMINATED: Principal Investigator decided to close the study early.
+NCT,NCT00625586,ClinicalTrials.gov,NCT00625586,TERMINATED: Corporate decision
+NCT,NCT00621556,ClinicalTrials.gov,NCT00621556,TERMINATED: Poor patient enrollment due to logistical issues
+NCT,NCT02331251,ClinicalTrials.gov,NCT02331251,TERMINATED: PI not longer at site.
+NCT,NCT01830322,ClinicalTrials.gov,NCT01830322,WITHDRAWN: (none stated by sponsor)
+NCT,NCT03859869,ClinicalTrials.gov,NCT03859869,TERMINATED: Business Considerations (difficulty with enrollment)
+NCT,NCT01065805,ClinicalTrials.gov,NCT01065805,TERMINATED: Retirement of former Qualified Investigator and lack of resources to complete study
+NCT,NCT00101907,ClinicalTrials.gov,NCT00101907,TERMINATED: Study terminated per recommendation of Data Review Team
+NCT,NCT05435053,ClinicalTrials.gov,NCT05435053,"TERMINATED: The study was terminated on the basis on an evaluation of the safety and efficacy of the 9 included patients of which 2 of the patients were excluded before receiving any study treatments, thus 7 patients were treated in the study."
+NCT,NCT01017822,ClinicalTrials.gov,NCT01017822,WITHDRAWN: This study was withdrawn due to study agent availability.
+NCT,NCT02515513,ClinicalTrials.gov,NCT02515513,WITHDRAWN: Original PI left the institution. No subjects enrolled
+NCT,NCT01025570,ClinicalTrials.gov,NCT01025570,TERMINATED: Terminated due to slow accrual
+NCT,NCT00958841,ClinicalTrials.gov,NCT00958841,TERMINATED: Slow recruitment rate into this study with rare tumors of neuroendocrine origin (enrollment issues)
+NCT,NCT03350763,ClinicalTrials.gov,NCT03350763,WITHDRAWN: Investigators busy with other projects at the moment
+NCT,NCT03117556,ClinicalTrials.gov,NCT03117556,WITHDRAWN: no subjects enrolled
+NCT,NCT04464967,ClinicalTrials.gov,NCT04464967,WITHDRAWN: Trial not initiated
+NCT,NCT04915144,ClinicalTrials.gov,NCT04915144,WITHDRAWN: Investigator decision
+NCT,NCT00689065,ClinicalTrials.gov,NCT00689065,TERMINATED: (none stated by sponsor)
+NCT,NCT02496832,ClinicalTrials.gov,NCT02496832,WITHDRAWN: Study was never initiated
+NCT,NCT03328065,ClinicalTrials.gov,NCT03328065,TERMINATED: lack of inclusion
+NCT,NCT04637698,ClinicalTrials.gov,NCT04637698,TERMINATED: Strategy adjustment
+NCT,NCT00499733,ClinicalTrials.gov,NCT00499733,TERMINATED: The study was terminated per PI decision.
+NCT,NCT02404363,ClinicalTrials.gov,NCT02404363,TERMINATED: recruitment problem
+NCT,NCT05983133,ClinicalTrials.gov,NCT05983133,TERMINATED: The trial was terminated for strategic reasons. The decision was not based on any safety concerns
+NCT,NCT00728000,ClinicalTrials.gov,NCT00728000,WITHDRAWN: study withdrawn due to lack of enrollment
+NCT,NCT00889187,ClinicalTrials.gov,NCT00889187,TERMINATED: Excess toxicity was identified intraoperatively
+NCT,NCT04975516,ClinicalTrials.gov,NCT04975516,TERMINATED: Low/slow accrual
+NCT,NCT04481204,ClinicalTrials.gov,NCT04481204,WITHDRAWN: 0 participants
+NCT,NCT05958199,ClinicalTrials.gov,NCT05958199,SUSPENDED: Business decision
+NCT,NCT02376543,ClinicalTrials.gov,NCT02376543,WITHDRAWN: Study stopped for change in needle usage
+NCT,NCT03825289,ClinicalTrials.gov,NCT03825289,TERMINATED: Lack of Funding
+NCT,NCT07173374,ClinicalTrials.gov,NCT07173374,"SUSPENDED: The study was terminated early due to slow patient accrual. Enrollment was substantially lower than anticipated, making it unlikely to achieve the planned sample size within a reasonable timeframe."
+NCT,NCT05252390,ClinicalTrials.gov,NCT05252390,TERMINATED: The Sponsor has achieved its objectives.
+NCT,NCT02072616,ClinicalTrials.gov,NCT02072616,TERMINATED: Analysis not possible at the stage
+NCT,NCT05415917,ClinicalTrials.gov,NCT05415917,WITHDRAWN: No patients enrolled
+NCT,NCT03331640,ClinicalTrials.gov,NCT03331640,TERMINATED: slow recruitment
+NCT,NCT02850874,ClinicalTrials.gov,NCT02850874,WITHDRAWN: no accrual rate
+NCT,NCT04632199,ClinicalTrials.gov,NCT04632199,WITHDRAWN: Business decision not related to any safety or tolerability concern
+NCT,NCT04833959,ClinicalTrials.gov,NCT04833959,WITHDRAWN: Business Decision
+NCT,NCT00226746,ClinicalTrials.gov,NCT00226746,WITHDRAWN: (none stated by sponsor)
+NCT,NCT02108782,ClinicalTrials.gov,NCT02108782,WITHDRAWN: (none stated by sponsor)
+NCT,NCT06017323,ClinicalTrials.gov,NCT06017323,WITHDRAWN: STUDY00006987
+NCT,NCT01434459,ClinicalTrials.gov,NCT01434459,TERMINATED: PI moved to different institution
+NCT,NCT00307723,ClinicalTrials.gov,NCT00307723,TERMINATED: poor accrual
+NCT,NCT02669914,ClinicalTrials.gov,NCT02669914,"TERMINATED: Low accrual, funding withdrawn by AstraZeneca, and change in clinical practice"
+NCT,NCT00640978,ClinicalTrials.gov,NCT00640978,TERMINATED: Significant Adverse Effects - Futility
+NCT,NCT02715804,ClinicalTrials.gov,NCT02715804,TERMINATED: Sponsor decision
+NCT,NCT06211933,ClinicalTrials.gov,NCT06211933,"SUSPENDED: Following a decision by the industrial partner, it was decided to permanently close the study to new participants."
+NCT,NCT00493441,ClinicalTrials.gov,NCT00493441,TERMINATED: (none stated by sponsor)
+NCT,NCT01233505,ClinicalTrials.gov,NCT01233505,TERMINATED: (none stated by sponsor)
+NCT,NCT03300843,ClinicalTrials.gov,NCT03300843,TERMINATED: slow accrual
+NCT,NCT05116917,ClinicalTrials.gov,NCT05116917,TERMINATED: Based on the precpecified interim analysis the predictive probability was below 10% for the prespecified endpoint.
+NCT,NCT05657418,ClinicalTrials.gov,NCT05657418,TERMINATED: Company research and development strategy adjustment
+NCT,NCT00536770,ClinicalTrials.gov,NCT00536770,SUSPENDED: DSMB
+NCT,NCT01946646,ClinicalTrials.gov,NCT01946646,TERMINATED: slow recruitment
+NCT,NCT03600623,ClinicalTrials.gov,NCT03600623,TERMINATED: PI left the institution; no further accruals
+NCT,NCT00843830,ClinicalTrials.gov,NCT00843830,TERMINATED: Study closed early secondary to inability to obtain grant funding to conduct.
+NCT,NCT04779151,ClinicalTrials.gov,NCT04779151,"TERMINATED: Abandon of the partner, GSK"
+NCT,NCT03818165,ClinicalTrials.gov,NCT03818165,TERMINATED: Limited enrollment.
+NCT,NCT02570529,ClinicalTrials.gov,NCT02570529,WITHDRAWN: Investigator decided to stop the study because it was difficult to proceed with the study.
+NCT,NCT04852367,ClinicalTrials.gov,NCT04852367,WITHDRAWN: Lack of recruitment
+NCT,NCT00585845,ClinicalTrials.gov,NCT00585845,TERMINATED: (none stated by sponsor)
+NCT,NCT02985801,ClinicalTrials.gov,NCT02985801,TERMINATED: Study was terminated due to difficulty in recruiting subjects.
+NCT,NCT05379907,ClinicalTrials.gov,NCT05379907,WITHDRAWN: Determined that the tumor analysis could not be performed in accordance with the protocol.
+NCT,NCT06974734,ClinicalTrials.gov,NCT06974734,TERMINATED: The trial was terminated for strategic business reasons; the decision was not based on any safety and/or efficacy concerns
+NCT,NCT05940844,ClinicalTrials.gov,NCT05940844,WITHDRAWN: study terminated due to changes in the drug development plan
+NCT,NCT04276909,ClinicalTrials.gov,NCT04276909,WITHDRAWN: Study not initiated.
+NCT,NCT05831995,ClinicalTrials.gov,NCT05831995,TERMINATED: Due to development strategy change.
+NCT,NCT03536182,ClinicalTrials.gov,NCT03536182,WITHDRAWN: Due to COVID and other recruitment issues the trial could not be initiated.
+NCT,NCT05389462,ClinicalTrials.gov,NCT05389462,TERMINATED: Sponsor decided to halt further development of ADCT-601
+NCT,NCT03531125,ClinicalTrials.gov,NCT03531125,TERMINATED: Study was closed early due to low numbers of evaluable patients
+NCT,NCT06630325,ClinicalTrials.gov,NCT06630325,TERMINATED: Loss of support.
+NCT,NCT03865563,ClinicalTrials.gov,NCT03865563,WITHDRAWN: We need to make significant adjustments to proposed drug and its delivery method
+NCT,NCT04117958,ClinicalTrials.gov,NCT04117958,TERMINATED: Business decision
+NCT,NCT03623984,ClinicalTrials.gov,NCT03623984,WITHDRAWN: no partipants
+NCT,NCT04212026,ClinicalTrials.gov,NCT04212026,TERMINATED: difficult recruitement
+NCT,NCT01921751,ClinicalTrials.gov,NCT01921751,TERMINATED: Trial would not be completed in a reasonable timeframe per CTEP guidelines
+NCT,NCT00769652,ClinicalTrials.gov,NCT00769652,TERMINATED: slow accrual
+NCT,NCT00066677,ClinicalTrials.gov,NCT00066677,TERMINATED: Stopped accordining to early stopping rule for futility
+NCT,NCT00991601,ClinicalTrials.gov,NCT00991601,SUSPENDED: New ultra sound technology have made this present study design less relevant and force us to change the design of the study.
+NCT,NCT02743975,ClinicalTrials.gov,NCT02743975,TERMINATED: Insufficient tumor-to-background ratios in the first three dose groups
+NCT,NCT00837135,ClinicalTrials.gov,NCT00837135,WITHDRAWN: Withdrawn due to transfer of Investigator
+NCT,NCT03432676,ClinicalTrials.gov,NCT03432676,WITHDRAWN: Incyte (supporter of the study) is no longer going to support the study.
+NCT,NCT05911243,ClinicalTrials.gov,NCT05911243,TERMINATED: Study closed per SRC Low Accrual Policy.
+NCT,NCT01768988,ClinicalTrials.gov,NCT01768988,TERMINATED: Change of PI. Former PI changed from Research Center and Promoter obliged unexpectedly to change the PI.
+NCT,NCT01374451,ClinicalTrials.gov,NCT01374451,TERMINATED: The study was stopped for not meeting the primary endpoint for PFS.
+NCT,NCT03718650,ClinicalTrials.gov,NCT03718650,WITHDRAWN: Lack of funding
+NCT,NCT01188109,ClinicalTrials.gov,NCT01188109,TERMINATED: Slow accrual
+NCT,NCT05070247,ClinicalTrials.gov,NCT05070247,TERMINATED: Clinical Futility of TAK 500 met. No further development with this compound
+NCT,NCT03714555,ClinicalTrials.gov,NCT03714555,TERMINATED: Study was closed due to low subject enrollment at site.
+NCT,NCT04348643,ClinicalTrials.gov,NCT04348643,WITHDRAWN: The sponsor requested to terminate the study.
+NCT,NCT06585488,ClinicalTrials.gov,NCT06585488,"TERMINATED: The Sponsor has made the decision to terminate this study due to the lack of promising efficacy, internal prioritization, and highly competitive landscape."
+NCT,NCT01227018,ClinicalTrials.gov,NCT01227018,TERMINATED: interim analysis found the study drug to be ineffective
+NCT,NCT04123574,ClinicalTrials.gov,NCT04123574,WITHDRAWN: No longer relevant to field
+NCT,NCT03490760,ClinicalTrials.gov,NCT03490760,TERMINATED: Slow/poor enrollment
+NCT,NCT06206876,ClinicalTrials.gov,NCT06206876,WITHDRAWN: never opened
+NCT,NCT05451849,ClinicalTrials.gov,NCT05451849,TERMINATED: No participants were enrolled in Phase 2 as Phase I was terminated early due to the lack of a clear signal of robust clinical activity.
+NCT,NCT02921646,ClinicalTrials.gov,NCT02921646,TERMINATED: Protocol is not adapted to cancer pancreas disease as progression is very fast and patients stopped the study before 1st study assessment
+NCT,NCT00364364,ClinicalTrials.gov,NCT00364364,TERMINATED: Loss of funding
+NCT,NCT00896467,ClinicalTrials.gov,NCT00896467,TERMINATED: (none stated by sponsor)
+NCT,NCT04989387,ClinicalTrials.gov,NCT04989387,TERMINATED: This was a strategic business decision. There were no safety concerns contributing to this decision.
+NCT,NCT00739609,ClinicalTrials.gov,NCT00739609,TERMINATED: Lack of enrollment.
+NCT,NCT00524069,ClinicalTrials.gov,NCT00524069,WITHDRAWN: Withdrawn due to no accrual
+NCT,NCT00003434,ClinicalTrials.gov,NCT00003434,TERMINATED: (none stated by sponsor)
+NCT,NCT01096732,ClinicalTrials.gov,NCT01096732,TERMINATED: Slow recruitment
+NCT,NCT02333409,ClinicalTrials.gov,NCT02333409,TERMINATED: Expertise resigned
+NCT,NCT00025532,ClinicalTrials.gov,NCT00025532,WITHDRAWN: (none stated by sponsor)
 NCT,NCT00426127,ClinicalTrials.gov,NCT00426127,TERMINATED: Inadequate number of eligible patients
+NCT,NCT03053284,ClinicalTrials.gov,NCT03053284,WITHDRAWN: Funding was withdrawn by Sponsor prior to start of study
+NCT,NCT00116389,ClinicalTrials.gov,NCT00116389,TERMINATED: FDA Hold May 2007
+NCT,NCT01555489,ClinicalTrials.gov,NCT01555489,TERMINATED: Slow accrual
+NCT,NCT05012397,ClinicalTrials.gov,NCT05012397,TERMINATED: Sponsor Decision
+NCT,NCT01784861,ClinicalTrials.gov,NCT01784861,TERMINATED: Pharmaceutical company decision
+NCT,NCT02269683,ClinicalTrials.gov,NCT02269683,WITHDRAWN: lack of funding
+NCT,NCT00410774,ClinicalTrials.gov,NCT00410774,TERMINATED: low accrual-no data available
+NCT,NCT03960060,ClinicalTrials.gov,NCT03960060,TERMINATED: Adjustment of study strategy
+NCT,NCT01515046,ClinicalTrials.gov,NCT01515046,TERMINATED: Standard of care changed to FOLFIRINOX; poor accrual.
+NCT,NCT02534246,ClinicalTrials.gov,NCT02534246,WITHDRAWN: (none stated by sponsor)
+NCT,NCT04644315,ClinicalTrials.gov,NCT04644315,TERMINATED: The data from this study is no longer needed.
+NCT,NCT01192763,ClinicalTrials.gov,NCT01192763,TERMINATED: (none stated by sponsor)
+NCT,NCT04985604,ClinicalTrials.gov,NCT04985604,TERMINATED: Sponsor decision
+NCT,NCT02713984,ClinicalTrials.gov,NCT02713984,WITHDRAWN: Reform CAR structure due to safety consideration
+NCT,NCT00466856,ClinicalTrials.gov,NCT00466856,TERMINATED: due to slow accrual
+NCT,NCT01897454,ClinicalTrials.gov,NCT01897454,TERMINATED: Study was terminated due to slower than anticipated accrual
+NCT,NCT05471401,ClinicalTrials.gov,NCT05471401,WITHDRAWN: Low accrual
+NCT,NCT05546411,ClinicalTrials.gov,NCT05546411,"TERMINATED: Novartis, the drug manufacturer of NIS793, notified Dana Farber Cancer Institute that they are stopping all clinical development of NIS793 in pancreatic cancer, effective immediately."
+NCT,NCT01888965,ClinicalTrials.gov,NCT01888965,TERMINATED: Adverse Event issues.
+NCT,NCT00878657,ClinicalTrials.gov,NCT00878657,TERMINATED: Slow accrual
+NCT,NCT05114213,ClinicalTrials.gov,NCT05114213,"TERMINATED: Low accrual, close out in November 2025"
+NCT,NCT01484860,ClinicalTrials.gov,NCT01484860,TERMINATED: (none stated by sponsor)
+NCT,NCT00598091,ClinicalTrials.gov,NCT00598091,"TERMINATED: Low accrual, unable to meet endpoint in timely manner"
+NCT,NCT04300114,ClinicalTrials.gov,NCT04300114,TERMINATED: Sponsor R \& D Strategy Adjustment
+NCT,NCT00087191,ClinicalTrials.gov,NCT00087191,TERMINATED: Administratively complete.
+NCT,NCT02449967,ClinicalTrials.gov,NCT02449967,WITHDRAWN: (none stated by sponsor)
+NCT,NCT04171700,ClinicalTrials.gov,NCT04171700,TERMINATED: The study was terminated due to a change in development priorities.
+NCT,NCT01524575,ClinicalTrials.gov,NCT01524575,WITHDRAWN: the trial was never opened and then withdrawn permanently
+NCT,NCT02687230,ClinicalTrials.gov,NCT02687230,TERMINATED: Sponsor decision
+NCT,NCT03760614,ClinicalTrials.gov,NCT03760614,WITHDRAWN: Lack of Funding
+NCT,NCT00868114,ClinicalTrials.gov,NCT00868114,TERMINATED: Poor recruitment
+NCT,NCT01392352,ClinicalTrials.gov,NCT01392352,"TERMINATED: Following DMC review, due to slow recruitment of evaluable patients."
+NCT,NCT01240304,ClinicalTrials.gov,NCT01240304,TERMINATED: no subjects enrolled
+NCT,NCT00783172,ClinicalTrials.gov,NCT00783172,TERMINATED: Problems with IRB
+NCT,NCT00003531,ClinicalTrials.gov,NCT00003531,TERMINATED: Slow accrual
+NCT,NCT04698915,ClinicalTrials.gov,NCT04698915,TERMINATED: Futility Analysis
+NCT,NCT00550004,ClinicalTrials.gov,NCT00550004,TERMINATED: (none stated by sponsor)
+NCT,NCT04253249,ClinicalTrials.gov,NCT04253249,WITHDRAWN: No funding was obtained.
+NCT,NCT06158516,ClinicalTrials.gov,NCT06158516,TERMINATED: This investigator-initiated study closed to recruitment early due to slower-than-anticipated patient accrual.
+NCT,NCT06091930,ClinicalTrials.gov,NCT06091930,TERMINATED: Sponsor decision
+NCT,NCT06130254,ClinicalTrials.gov,NCT06130254,TERMINATED: Sponsor discontinued the trial
+NCT,NCT00909558,ClinicalTrials.gov,NCT00909558,SUSPENDED: (none stated by sponsor)
+NCT,NCT01167816,ClinicalTrials.gov,NCT01167816,TERMINATED: The study was terminated as the Prinicipal Investigator left the site- all previous subjects enrolled are deceased
+NCT,NCT00429858,ClinicalTrials.gov,NCT00429858,"TERMINATED: Study accrual rate is very slow, it was mandated by NCI to be terminated."
+NCT,NCT06336148,ClinicalTrials.gov,NCT06336148,TERMINATED: Sponsor's strategic business decision
+NCT,NCT04504916,ClinicalTrials.gov,NCT04504916,TERMINATED: Business reasons
+NCT,NCT01927393,ClinicalTrials.gov,NCT01927393,WITHDRAWN: Study was not funded
+NCT,NCT01598584,ClinicalTrials.gov,NCT01598584,WITHDRAWN: Gemcitabine is not the first choice for most pancreatic cancer patients nowdays
+NCT,NCT02882503,ClinicalTrials.gov,NCT02882503,WITHDRAWN: (none stated by sponsor)
+NCT,NCT03065062,ClinicalTrials.gov,NCT03065062,SUSPENDED: Funding and drug supply to continue the study are pending.
+NCT,NCT03822936,ClinicalTrials.gov,NCT03822936,TERMINATED: The study was early closed due to low accrual in August 2022.
+NCT,NCT03207867,ClinicalTrials.gov,NCT03207867,TERMINATED: Sponsor decision
+NCT,NCT02548169,ClinicalTrials.gov,NCT02548169,TERMINATED: The study was stopped because of loss of funding and no safety issues
+NCT,NCT03681951,ClinicalTrials.gov,NCT03681951,TERMINATED: The study was terminated following an internal review of the company's current research and development portfolio.
+NCT,NCT00394602,ClinicalTrials.gov,NCT00394602,TERMINATED: Requested by PI during yearly Continuing Review
+NCT,NCT02315625,ClinicalTrials.gov,NCT02315625,TERMINATED: Study closed due to poor accrual.
+NCT,NCT02243007,ClinicalTrials.gov,NCT02243007,TERMINATED: Slow Accrual
+NCT,NCT01395563,ClinicalTrials.gov,NCT01395563,WITHDRAWN: (none stated by sponsor)
+NCT,NCT00326911,ClinicalTrials.gov,NCT00326911,TERMINATED: The planned enrollment was 130 patients and the study was halted prematurely due to lack of efficacy in both arms. Enrolled patients continued treatment.
+NCT,NCT03919292,ClinicalTrials.gov,NCT03919292,SUSPENDED: Pending amendment approval
+NCT,NCT03127098,ClinicalTrials.gov,NCT03127098,TERMINATED: The study was terminated before any dose escalation occurred in order to pursue other studies designed to more extensively evaluate the combination of ETBX-011 and N-803 along with other immunotherapy agents.
+NCT,NCT01688336,ClinicalTrials.gov,NCT01688336,TERMINATED: Results unlikely to impact treatment patterns. Time to complete not justified.
+NCT,NCT05419479,ClinicalTrials.gov,NCT05419479,SUSPENDED: Efficacy concerns.
+NCT,NCT03012282,ClinicalTrials.gov,NCT03012282,TERMINATED: Termination due to slow accrual
+NCT,NCT00662688,ClinicalTrials.gov,NCT00662688,TERMINATED: recruitment prematurely stopped due to a lack of eligible patients.
+NCT,NCT02048943,ClinicalTrials.gov,NCT02048943,WITHDRAWN: Lack of funding
+NCT,NCT02902484,ClinicalTrials.gov,NCT02902484,TERMINATED: The study was terminated due to futility and lack of future funding
+NCT,NCT05251038,ClinicalTrials.gov,NCT05251038,WITHDRAWN: Funder Decision
+NCT,NCT01276613,ClinicalTrials.gov,NCT01276613,TERMINATED: Per memo from study team
+NCT,NCT00470535,ClinicalTrials.gov,NCT00470535,TERMINATED: This study was terminated earlier due to a phase III study that showed this drug inferior to sorafenib
+NCT,NCT06398587,ClinicalTrials.gov,NCT06398587,WITHDRAWN: Sponsor withdrawal
+NCT,NCT05216120,ClinicalTrials.gov,NCT05216120,WITHDRAWN: enrollment challenges
+NCT,NCT00176735,ClinicalTrials.gov,NCT00176735,TERMINATED: (none stated by sponsor)
+NCT,NCT04070313,ClinicalTrials.gov,NCT04070313,"TERMINATED: Study treatment is to use TS-1 (mono-chemotherapy agent) in adjuvant setting for pancreatic cancer, which may be less clinical benefit compared to combination therapy according to current trend at investigators' discretion."
+NCT,NCT05275478,ClinicalTrials.gov,NCT05275478,TERMINATED: Sponsor Decision - Business Decisions
+NCT,NCT04452396,ClinicalTrials.gov,NCT04452396,"TERMINATED: Due to the Covid crisis: clinical changes in staff, bed pressures and time restraints."
+NCT,NCT05605522,ClinicalTrials.gov,NCT05605522,TERMINATED: Sponsor reprioritization of active trials.
+NCT,NCT04021277,ClinicalTrials.gov,NCT04021277,TERMINATED: Business reason
+NCT,NCT01694589,ClinicalTrials.gov,NCT01694589,WITHDRAWN: Lack of accrual
+NCT,NCT01956812,ClinicalTrials.gov,NCT01956812,"TERMINATED: The DSMB conducted an interim analysis on overall survival, which showed that the treatment arm did not demonstrate a sufficient improvement in OS vs. placebo."
+NCT,NCT00602745,ClinicalTrials.gov,NCT00602745,TERMINATED: Following the termination of development and commercialization agreement for S-1 with Taiho Pharmaceutical
+NCT,NCT02736448,ClinicalTrials.gov,NCT02736448,"TERMINATED: Following the publication in the Official Journal of the reclassification of the drug LUTATHERA in band H, it was decided to close the enrolment early on 30/Aug/19."
+NCT,NCT00593008,ClinicalTrials.gov,NCT00593008,TERMINATED: (none stated by sponsor)
+NCT,NCT00049608,ClinicalTrials.gov,NCT00049608,TERMINATED: Principal investigator \[PI\] has left institution.
+NCT,NCT03471468,ClinicalTrials.gov,NCT03471468,TERMINATED: Low recruitment
+NCT,NCT01104116,ClinicalTrials.gov,NCT01104116,TERMINATED: Poor enrollment; PI left the institution
+NCT,NCT04976660,ClinicalTrials.gov,NCT04976660,"WITHDRAWN: Tarus is conducting clinical development under a single IND, specifically IND for TT-10 (PORT-6). Tarus has withdrawn Study TT-4-101 under the TT-4 IND; however the TT-4 IND will remain active."
+NCT,NCT00959946,ClinicalTrials.gov,NCT00959946,TERMINATED: (none stated by sponsor)
+NCT,NCT05188573,ClinicalTrials.gov,NCT05188573,WITHDRAWN: Study not initiated.
+NCT,NCT01198522,ClinicalTrials.gov,NCT01198522,TERMINATED: lack of recruitment
+NCT,NCT03925428,ClinicalTrials.gov,NCT03925428,WITHDRAWN: Other - Protocol moved to Disapproved
+NCT,NCT02576665,ClinicalTrials.gov,NCT02576665,TERMINATED: Sponsor decision
+NCT,NCT05861336,ClinicalTrials.gov,NCT05861336,WITHDRAWN: No patients enrolled
+NCT,NCT06077487,ClinicalTrials.gov,NCT06077487,TERMINATED: Slow Accrual
+NCT,NCT06371716,ClinicalTrials.gov,NCT06371716,TERMINATED: resectable pancreatic adenocarcinoma and neuroendocrine pancreatic neoplasms are difficult to be enrolled. Pancreatic resectable cancers are treated nowadays with chemotherapy and big neuroedocrine pancreatic lesions rare
+NCT,NCT01282333,ClinicalTrials.gov,NCT01282333,TERMINATED: (none stated by sponsor)
+NCT,NCT03745326,ClinicalTrials.gov,NCT03745326,TERMINATED: Study was closed due to lack of accrual and study outcomes overlapped with another protocol's eligibility.
+NCT,NCT00027521,ClinicalTrials.gov,NCT00027521,WITHDRAWN: Program terminated
+NCT,NCT04665921,ClinicalTrials.gov,NCT04665921,TERMINATED: Study closed due to portfolio prioritization
+NCT,NCT04060342,ClinicalTrials.gov,NCT04060342,TERMINATED: No clear benefit of GB1275 was observed either as monotherapy or in combination with pembrolizumab.
+NCT,NCT06341725,ClinicalTrials.gov,NCT06341725,TERMINATED: no patients with inclusion criteria
+NCT,NCT05431582,ClinicalTrials.gov,NCT05431582,WITHDRAWN: No participants enrolled
+NCT,NCT05442749,ClinicalTrials.gov,NCT05442749,"TERMINATED: Study not feasible, patient accrual rate too low."
+NCT,NCT06290856,ClinicalTrials.gov,NCT06290856,TERMINATED: The platform used for detecting ctDNA was not sensitive enough.
+NCT,NCT01386502,ClinicalTrials.gov,NCT01386502,WITHDRAWN: (none stated by sponsor)
+NCT,NCT00767234,ClinicalTrials.gov,NCT00767234,TERMINATED: Accrual issues - Low Accrual
+NCT,NCT06110598,ClinicalTrials.gov,NCT06110598,WITHDRAWN: PI left the institution
+NCT,NCT05275075,ClinicalTrials.gov,NCT05275075,TERMINATED: Translational scientist left university
+NCT,NCT02682082,ClinicalTrials.gov,NCT02682082,TERMINATED: Closed by CHUM REB for incomplete documentation of research activities.
+NCT,NCT02908451,ClinicalTrials.gov,NCT02908451,"TERMINATED: COVID-19 pandemic has caused a huge operational difficulty for this ongoing clinical trial, as many hospitals have set limitations on onsite staff, patient visits, study related procedures and onsite monitoring visits."
+NCT,NCT02309632,ClinicalTrials.gov,NCT02309632,WITHDRAWN: Lack of funding
+NCT,NCT05525286,ClinicalTrials.gov,NCT05525286,TERMINATED: Trial terminated by Sponsor based on benefit- risk reassessment
+NCT,NCT03001505,ClinicalTrials.gov,NCT03001505,WITHDRAWN: Study design changed to clinical database only with no research question to be studied.
+NCT,NCT01050283,ClinicalTrials.gov,NCT01050283,TERMINATED: (none stated by sponsor)
+NCT,NCT03649035,ClinicalTrials.gov,NCT03649035,WITHDRAWN: Stopped for internal decisions
+NCT,NCT06287463,ClinicalTrials.gov,NCT06287463,"TERMINATED: Trial terminated due to a business decision, not based on any safety concerns."
+NCT,NCT01648465,ClinicalTrials.gov,NCT01648465,TERMINATED: (none stated by sponsor)
+NCT,NCT06592664,ClinicalTrials.gov,NCT06592664,WITHDRAWN: Management Decision
+NCT,NCT05181865,ClinicalTrials.gov,NCT05181865,WITHDRAWN: Sponsor Decision
+NCT,NCT03563144,ClinicalTrials.gov,NCT03563144,WITHDRAWN: Trial not initiated
+NCT,NCT00336700,ClinicalTrials.gov,NCT00336700,TERMINATED: Study published November 2010 and no further work will be done
+NCT,NCT00415454,ClinicalTrials.gov,NCT00415454,TERMINATED: Poor enrollment
+NCT,NCT04682431,ClinicalTrials.gov,NCT04682431,TERMINATED: Sponsor business decision.
+NCT,NCT01929941,ClinicalTrials.gov,NCT01929941,TERMINATED: Business decision.
+NCT,NCT03592264,ClinicalTrials.gov,NCT03592264,TERMINATED: Little evidence of clinical activity in tumor types enrolled
+NCT,NCT02352831,ClinicalTrials.gov,NCT02352831,TERMINATED: Insufficient funding and drug supply from manufacturer
+NCT,NCT03492164,ClinicalTrials.gov,NCT03492164,TERMINATED: Early analysis of images after 6 patients showed no activity of the radiotracer in this patient population.
+NCT,NCT00003514,ClinicalTrials.gov,NCT00003514,WITHDRAWN: (none stated by sponsor)
+NCT,NCT01784081,ClinicalTrials.gov,NCT01784081,WITHDRAWN: study was closed by PI due to no accrual
+NCT,NCT04151719,ClinicalTrials.gov,NCT04151719,WITHDRAWN: Due to pandemic challenges and consideration of a different study design in the future.
+NCT,NCT01769534,ClinicalTrials.gov,NCT01769534,TERMINATED: Administratively inactivated
+NCT,NCT02638909,ClinicalTrials.gov,NCT02638909,TERMINATED: Lack of Enrollment
+NCT,NCT00330564,ClinicalTrials.gov,NCT00330564,TERMINATED: Slow accrual.
+NCT,NCT04916236,ClinicalTrials.gov,NCT04916236,TERMINATED: Due to a lack of safety and efficacy.
+NCT,NCT00613730,ClinicalTrials.gov,NCT00613730,TERMINATED: APPRISE closure prompted by SWOG S0205 not meeting primary endpoint-improving OS. APPRISE enrollment closure due to similar design;no unexpected safety data
+NCT,NCT03069599,ClinicalTrials.gov,NCT03069599,TERMINATED: PI left hospital
+NCT,NCT01412684,ClinicalTrials.gov,NCT01412684,WITHDRAWN: Never activated
+NCT,NCT00864513,ClinicalTrials.gov,NCT00864513,TERMINATED: At interim analysis the study did not meet the response criteria to continue
+NCT,NCT02766842,ClinicalTrials.gov,NCT02766842,WITHDRAWN: The reason was the fact that the ProCore needle was removed from clinical use
+NCT,NCT03610490,ClinicalTrials.gov,NCT03610490,TERMINATED: Lack of Efficacy
+NCT,NCT01510561,ClinicalTrials.gov,NCT01510561,WITHDRAWN: no subjects enrolled
+NCT,NCT05518110,ClinicalTrials.gov,NCT05518110,TERMINATED: Study terminated due to futility
+NCT,NCT07121829,ClinicalTrials.gov,NCT07121829,TERMINATED: Sponsor decision
+NCT,NCT05289830,ClinicalTrials.gov,NCT05289830,TERMINATED: Slow accrual
+NCT,NCT04136769,ClinicalTrials.gov,NCT04136769,TERMINATED: Substantial delays in recruitment
+NCT,NCT03956056,ClinicalTrials.gov,NCT03956056,TERMINATED: Insufficient funding/staff
+NCT,NCT00487851,ClinicalTrials.gov,NCT00487851,WITHDRAWN: Withdrawn
+NCT,NCT01302405,ClinicalTrials.gov,NCT01302405,"TERMINATED: closing due to low enrollment, no safety issues"
+NCT,NCT02116322,ClinicalTrials.gov,NCT02116322,TERMINATED: The study stopped as the used needle was difficult to maneuver in the corkscrew method being studied so no more participants were included.
+NCT,NCT05238831,ClinicalTrials.gov,NCT05238831,WITHDRAWN: Withdrawn due to a change in therapeutic interventions.
+NCT,NCT00614601,ClinicalTrials.gov,NCT00614601,TERMINATED: Sponsor proceeded with a phase III study for same indication.
+NCT,NCT02242409,ClinicalTrials.gov,NCT02242409,TERMINATED: Testing of combination no longer relevant
+NCT,NCT01042028,ClinicalTrials.gov,NCT01042028,TERMINATED: Emergence of FOLFIRINOX and slow recruitment
+NCT,NCT02110563,ClinicalTrials.gov,NCT02110563,TERMINATED: Sponsor Decision
+NCT,NCT00310050,ClinicalTrials.gov,NCT00310050,TERMINATED: slow accrual
+NCT,NCT02345460,ClinicalTrials.gov,NCT02345460,TERMINATED: Competing studies
+NCT,NCT06498518,ClinicalTrials.gov,NCT06498518,"WITHDRAWN: One of the pharmaceutical partners (Immodulon) went into administration, the company which bought the assets confirmed to the study team on 23rd May 2025 they were not in position to support the study. Study terminated early"
+NCT,NCT01335945,ClinicalTrials.gov,NCT01335945,TERMINATED: Low enrollment \& subjects didn't survive to study end due to cancer progression.
+NCT,NCT00322712,ClinicalTrials.gov,NCT00322712,TERMINATED: This is only a chart review. This is not a clinical trial and was inadvertently entered in the system.
+NCT,NCT00276744,ClinicalTrials.gov,NCT00276744,TERMINATED: Because there was no longer an active laboratory component to this study.
+NCT,NCT01531712,ClinicalTrials.gov,NCT01531712,TERMINATED: Due to a low recruitment rate since start of recruitment period.
+NCT,NCT00766636,ClinicalTrials.gov,NCT00766636,TERMINATED: Slow Accrual
+NCT,NCT04985357,ClinicalTrials.gov,NCT04985357,WITHDRAWN: Abandoned prior to launch.
+NCT,NCT05716295,ClinicalTrials.gov,NCT05716295,TERMINATED: Corporate decision
+NCT,NCT04992507,ClinicalTrials.gov,NCT04992507,TERMINATED: Principal investigator departed sponsoring organization
+NCT,NCT03187587,ClinicalTrials.gov,NCT03187587,TERMINATED: Study was stopped in agreement with investigator due to slow recruitment.
+NCT,NCT03536208,ClinicalTrials.gov,NCT03536208,WITHDRAWN: no accrual for over 12 months
+NCT,NCT01875198,ClinicalTrials.gov,NCT01875198,TERMINATED: because of difficulties of enrolling appropriate participants
+NCT,NCT03449030,ClinicalTrials.gov,NCT03449030,TERMINATED: Insufficient clinical benefit to participants at the selected recommended phase 2 (RP2D) dose in Part A.
+NCT,NCT02570711,ClinicalTrials.gov,NCT02570711,TERMINATED: Sponsor Decision
+NCT,NCT04870034,ClinicalTrials.gov,NCT04870034,WITHDRAWN: Issues recruiting
+NCT,NCT06545344,ClinicalTrials.gov,NCT06545344,WITHDRAWN: Study closed before opening to accrual; Insufficient staff
+NCT,NCT02376699,ClinicalTrials.gov,NCT02376699,TERMINATED: Study closed due to portfolio prioritization
+NCT,NCT00550108,ClinicalTrials.gov,NCT00550108,TERMINATED: Inability to enroll subjects.
+NCT,NCT01693276,ClinicalTrials.gov,NCT01693276,TERMINATED: Slow accrual
+NCT,NCT02356640,ClinicalTrials.gov,NCT02356640,TERMINATED: Poor recruitment
+NCT,NCT01698710,ClinicalTrials.gov,NCT01698710,TERMINATED: expiration of IRB approval
+NCT,NCT00002947,ClinicalTrials.gov,NCT00002947,TERMINATED: (none stated by sponsor)
+NCT,NCT03724435,ClinicalTrials.gov,NCT03724435,TERMINATED: Competing trial will publish similar results
+NCT,NCT02900248,ClinicalTrials.gov,NCT02900248,"TERMINATED: Registry was built to handle Medicare coverage decision on NGS, but CMS decided to not require data."
+NCT,NCT01330823,ClinicalTrials.gov,NCT01330823,"SUSPENDED: after interims analysis standard errors for inflammatory and nutritional markers varied widely, that the power calculation required unattainable goals"
+NCT,NCT05737615,ClinicalTrials.gov,NCT05737615,WITHDRAWN: Study tracer is currently unavailable
+NCT,NCT03049215,ClinicalTrials.gov,NCT03049215,TERMINATED: Study terminated due to low/difficulty enrollment
+NCT,NCT02202785,ClinicalTrials.gov,NCT02202785,"TERMINATED: Business Decision, No Safety or Efficacy Concerns"
+NCT,NCT00227617,ClinicalTrials.gov,NCT00227617,TERMINATED: Low accrual
+NCT,NCT03085004,ClinicalTrials.gov,NCT03085004,TERMINATED: Grant ended
+NCT,NCT00671463,ClinicalTrials.gov,NCT00671463,WITHDRAWN: Anticipated high risk of pancreatitis
+NCT,NCT01031056,ClinicalTrials.gov,NCT01031056,WITHDRAWN: Change in research focus
+NCT,NCT02124369,ClinicalTrials.gov,NCT02124369,TERMINATED: Poor accrual
+NCT,NCT02456051,ClinicalTrials.gov,NCT02456051,TERMINATED: enrollment was terminated because of the poor recruitment rate
+NCT,NCT04536077,ClinicalTrials.gov,NCT04536077,TERMINATED: Celldex decision
+NCT,NCT01739439,ClinicalTrials.gov,NCT01739439,TERMINATED: Slow accrual
+NCT,NCT01845467,ClinicalTrials.gov,NCT01845467,WITHDRAWN: Unable to enroll participants
+NCT,NCT00882765,ClinicalTrials.gov,NCT00882765,WITHDRAWN: Study has been closed due to no accrual.
+NCT,NCT05685602,ClinicalTrials.gov,NCT05685602,SUSPENDED: Drug Supply Issues
+NCT,NCT02581501,ClinicalTrials.gov,NCT02581501,"WITHDRAWN: Due to no enrollment, Celgene (sponsor) withdrew funding"
+NCT,NCT06270082,ClinicalTrials.gov,NCT06270082,TERMINATED: Limited resources and strategic priorities
+NCT,NCT01940237,ClinicalTrials.gov,NCT01940237,TERMINATED: Low recruitment
+NCT,NCT06626256,ClinicalTrials.gov,NCT06626256,WITHDRAWN: no resource
+NCT,NCT01872377,ClinicalTrials.gov,NCT01872377,TERMINATED: No longer recruiting patients to this study
+NCT,NCT00209677,ClinicalTrials.gov,NCT00209677,"SUSPENDED: Unfortunately, other Phase III clinical Study (GEM+S-1 vs GEM vs S-1) have been started in Japan.h"
+NCT,NCT04799431,ClinicalTrials.gov,NCT04799431,WITHDRAWN: Study never started
+NCT,NCT05380557,ClinicalTrials.gov,NCT05380557,TERMINATED: Low site engagement and accrual
+NCT,NCT00637728,ClinicalTrials.gov,NCT00637728,TERMINATED: Difficulty finding the required patient population
+NCT,NCT03576131,ClinicalTrials.gov,NCT03576131,TERMINATED: Sponsor decision
+NCT,NCT01276002,ClinicalTrials.gov,NCT01276002,WITHDRAWN: No appropriate participants
+NCT,NCT03225781,ClinicalTrials.gov,NCT03225781,TERMINATED: Logistic reasons
+NCT,NCT05515705,ClinicalTrials.gov,NCT05515705,TERMINATED: End of project funding and inclusion difficulties do not justify a request for extension.
+NCT,NCT02919553,ClinicalTrials.gov,NCT02919553,WITHDRAWN: decided not to proceed with study at this time
+NCT,NCT02798003,ClinicalTrials.gov,NCT02798003,TERMINATED: Not feasible to include the needed patients
+NCT,NCT00084461,ClinicalTrials.gov,NCT00084461,TERMINATED: (none stated by sponsor)
+NCT,NCT03512756,ClinicalTrials.gov,NCT03512756,TERMINATED: Sponsor's decision
+NCT,NCT04712721,ClinicalTrials.gov,NCT04712721,TERMINATED: Business reasons
+NCT,NCT02885727,ClinicalTrials.gov,NCT02885727,WITHDRAWN: Funding issues caused the study to not be opened the at local IRB
+NCT,NCT04105062,ClinicalTrials.gov,NCT04105062,WITHDRAWN: One of the investigators is leaving the University.
+NCT,NCT02383433,ClinicalTrials.gov,NCT02383433,TERMINATED: PI discretion based on low accrual
+NCT,NCT05124743,ClinicalTrials.gov,NCT05124743,"TERMINATED: TCR001-002 protocol was combined with TCR001-201 protocol, which was terminated due to business decisions."
+NCT,NCT06065059,ClinicalTrials.gov,NCT06065059,TERMINATED: Terminated due to safety
+NCT,NCT03337997,ClinicalTrials.gov,NCT03337997,WITHDRAWN: We have been unable to secure funding. Now we are in the middle of a pandemic.
+NCT,NCT03797443,ClinicalTrials.gov,NCT03797443,WITHDRAWN: Regulatory Review needed
+NCT,NCT05494697,ClinicalTrials.gov,NCT05494697,SUSPENDED: A business decision to place screening/enrollment on hold. Study redesign/amendment pending additional Ampligen-related data from an ongoing Phase I-II open label study (NCT05927142)
+NCT,NCT04420130,ClinicalTrials.gov,NCT04420130,WITHDRAWN: Failed to pass ethics committee review
+NCT,NCT04090463,ClinicalTrials.gov,NCT04090463,SUSPENDED: Logistic and financial reasons
+NCT,NCT06690281,ClinicalTrials.gov,NCT06690281,WITHDRAWN: PI left NIH.
+NCT,NCT03042780,ClinicalTrials.gov,NCT03042780,TERMINATED: Slow accrual
+NCT,NCT06199466,ClinicalTrials.gov,NCT06199466,TERMINATED: \<75 % participation
+NCT,NCT03723915,ClinicalTrials.gov,NCT03723915,TERMINATED: The total accrual goal of 34 patients was not met. Stage 1 of the study did not meet the interim analysis criteria to move onto Stage 2 of the Simon 2 stage design.
+NCT,NCT04176952,ClinicalTrials.gov,NCT04176952,TERMINATED: Due to funding being withdrawn
+NCT,NCT03374852,ClinicalTrials.gov,NCT03374852,WITHDRAWN: PI Left institution on 8/6/2018 and study has been final reported with IRB. Never opened to accrual
+NCT,NCT01094626,ClinicalTrials.gov,NCT01094626,WITHDRAWN: Pharmaceutical company did not decide to renew contract
+NCT,NCT01834235,ClinicalTrials.gov,NCT01834235,TERMINATED: DSMB terminated the trial for futility.
+NCT,NCT00463840,ClinicalTrials.gov,NCT00463840,TERMINATED: Due to slow accrual
+NCT,NCT05977322,ClinicalTrials.gov,NCT05977322,TERMINATED: The decision was not based on any safety concerns
+NCT,NCT00249301,ClinicalTrials.gov,NCT00249301,TERMINATED: (none stated by sponsor)
+NCT,NCT00386399,ClinicalTrials.gov,NCT00386399,"WITHDRAWN: All consented subjects tested negative for the BRCA2 mutation, therefore, did not meet criteria to start the study, resulting in withdrawal by PI"
+NCT,NCT02215044,ClinicalTrials.gov,NCT02215044,TERMINATED: (none stated by sponsor)
+NCT,NCT00609765,ClinicalTrials.gov,NCT00609765,TERMINATED: Development of new chemotherapy standard of care for treatment rendered the trial obsolete.
+NCT,NCT06653192,ClinicalTrials.gov,NCT06653192,SUSPENDED: Class I Recall (Feb 2026): Boston Scientific issued a global recall for specific lots of AXIOS 6x8mm and 8x8mm due to reports of deployment and expansion failure during the procedure.
+NCT,NCT03009058,ClinicalTrials.gov,NCT03009058,TERMINATED: Commercial reasons
+NCT,NCT01108458,ClinicalTrials.gov,NCT01108458,TERMINATED: Extreme toxicity of Pertuzumab and Erlotinib combination
+NCT,NCT03470948,ClinicalTrials.gov,NCT03470948,TERMINATED: No manpower to conduct the study further
+NCT,NCT05287347,ClinicalTrials.gov,NCT05287347,WITHDRAWN: Lack of funding
+NCT,NCT00253526,ClinicalTrials.gov,NCT00253526,WITHDRAWN: (none stated by sponsor)
+NCT,NCT03685591,ClinicalTrials.gov,NCT03685591,TERMINATED: The decision to stop enrollment was due to strategic considerations and not due to any specific safety reasons or request from a regulatory authority.
+NCT,NCT05465590,ClinicalTrials.gov,NCT05465590,WITHDRAWN: The study was terminated due to Sponsor decision
+NCT,NCT04390243,ClinicalTrials.gov,NCT04390243,TERMINATED: Slow accrual
+NCT,NCT00816179,ClinicalTrials.gov,NCT00816179,TERMINATED: Helical CT scans at our institution preclude the necessity for diagnostic laparoscopy in most cases at our institution.
+NCT,NCT00732082,ClinicalTrials.gov,NCT00732082,TERMINATED: Company manufacturing study drug was unable to continue production.
+NCT,NCT03716596,ClinicalTrials.gov,NCT03716596,TERMINATED: The effect of the regime was not satisfied
+NCT,NCT01025882,ClinicalTrials.gov,NCT01025882,TERMINATED: DSMC closed due to patient deaths
+NCT,NCT04158635,ClinicalTrials.gov,NCT04158635,SUSPENDED: Accrual Goal met
+NCT,NCT01215578,ClinicalTrials.gov,NCT01215578,TERMINATED: lack of recruitement
+NCT,NCT00819169,ClinicalTrials.gov,NCT00819169,TERMINATED: Sponsor decision - subjects rolled over to protocol 20101116
+NCT,NCT01445327,ClinicalTrials.gov,NCT01445327,"TERMINATED: Slow, insufficient accrual."
+NCT,NCT05417386,ClinicalTrials.gov,NCT05417386,TERMINATED: NIS793 is no longer being developed
+NCT,NCT01057355,ClinicalTrials.gov,NCT01057355,WITHDRAWN: slow accural
+NCT,NCT01434550,ClinicalTrials.gov,NCT01434550,WITHDRAWN: research cancelled
+NCT,NCT00227773,ClinicalTrials.gov,NCT00227773,WITHDRAWN: (none stated by sponsor)
+NCT,NCT01895790,ClinicalTrials.gov,NCT01895790,WITHDRAWN: We could not find any candidate eligible for recruitment
+NCT,NCT03073473,ClinicalTrials.gov,NCT03073473,TERMINATED: Poor accrual
+NCT,NCT04134468,ClinicalTrials.gov,NCT04134468,WITHDRAWN: Halozyme halted development of PEGPH20 following Phase 3 failure.
+NCT,NCT04517448,ClinicalTrials.gov,NCT04517448,TERMINATED: End of recruitment - Number of required subjects enrolled
+NCT,NCT01662284,ClinicalTrials.gov,NCT01662284,TERMINATED: Sponsor determined this trial does not support their anticipated clinical development program.
+NCT,NCT02722616,ClinicalTrials.gov,NCT02722616,TERMINATED: Ultrasound vendor cannot support the study
+NCT,NCT04203641,ClinicalTrials.gov,NCT04203641,TERMINATED: The primary reason for early termination was budget constraint.
+NCT,NCT03957096,ClinicalTrials.gov,NCT03957096,TERMINATED: Sponsor decision based on portfolio prioritization
+NCT,NCT04400903,ClinicalTrials.gov,NCT04400903,TERMINATED: Slow accrual
+NCT,NCT02967770,ClinicalTrials.gov,NCT02967770,WITHDRAWN: Issues with patient recruitment.
+NCT,NCT01822756,ClinicalTrials.gov,NCT01822756,"TERMINATED: Dose escalation ended after Cohort B1, RUX 10 mg BID - GCSF in October 2014."
+NCT,NCT03451773,ClinicalTrials.gov,NCT03451773,TERMINATED: Study was closed after one treatment related death.
+NCT,NCT04034745,ClinicalTrials.gov,NCT04034745,WITHDRAWN: lack of funding
+NCT,NCT00730483,ClinicalTrials.gov,NCT00730483,TERMINATED: High incidence of biloma and liver abscess after TACE
+NCT,NCT01583686,ClinicalTrials.gov,NCT01583686,TERMINATED: Study terminated due to slow/insufficient accrual.
+NCT,NCT05188586,ClinicalTrials.gov,NCT05188586,TERMINATED: enrollment targets not met
+NCT,NCT05056805,ClinicalTrials.gov,NCT05056805,WITHDRAWN: No participants enrolled.
+NCT,NCT04077372,ClinicalTrials.gov,NCT04077372,TERMINATED: Covid-19
+NCT,NCT04541875,ClinicalTrials.gov,NCT04541875,WITHDRAWN: Liquidation of sponsor
+NCT,NCT04809766,ClinicalTrials.gov,NCT04809766,TERMINATED: Study terminated due to end of funding.
+NCT,NCT02921737,ClinicalTrials.gov,NCT02921737,TERMINATED: insufficient time to accrue sufficient subjects before end of funding
+NCT,NCT02267707,ClinicalTrials.gov,NCT02267707,TERMINATED: Study population more infrequent than estimated. No study-related safety issues and no safety concerns were identified for the study.
+NCT,NCT03820544,ClinicalTrials.gov,NCT03820544,TERMINATED: Interest in this study changed and it was decided to end enrollment early
+NCT,NCT03509298,ClinicalTrials.gov,NCT03509298,WITHDRAWN: No participants enrolled
+NCT,NCT04193904,ClinicalTrials.gov,NCT04193904,TERMINATED: Sponsor insolvency
+NCT,NCT00587132,ClinicalTrials.gov,NCT00587132,TERMINATED: Lack of funding
+NCT,NCT01045941,ClinicalTrials.gov,NCT01045941,WITHDRAWN: The study was never initiated
+NCT,NCT04327986,ClinicalTrials.gov,NCT04327986,TERMINATED: Study closed to accrual due to the worsening risk: benefit ratio for participants receiving bintrafusp alfa (M7824).
+NCT,NCT02605083,ClinicalTrials.gov,NCT02605083,"TERMINATED: The study was terminated after determination of the RP2D, prior to opening expansion cohorts)"
+NCT,NCT02324868,ClinicalTrials.gov,NCT02324868,TERMINATED: logistic problems
+NCT,NCT00660348,ClinicalTrials.gov,NCT00660348,TERMINATED: Low enrollment
+NCT,NCT04975217,ClinicalTrials.gov,NCT04975217,SUSPENDED: PI request
+NCT,NCT03785210,ClinicalTrials.gov,NCT03785210,TERMINATED: Study was terminated due to poor accrual.
+NCT,NCT03127124,ClinicalTrials.gov,NCT03127124,WITHDRAWN: This study was withdrawn due to no enrollment
+NCT,NCT02431260,ClinicalTrials.gov,NCT02431260,"TERMINATED: As of 31 JAN 2018, the study was terminated by the sponsor due to PK variability."
+NCT,NCT01628913,ClinicalTrials.gov,NCT01628913,TERMINATED: This trial was terminated based on an interim analysis as BEZ235 did not demonstrate a progression free survival advantage to everolimus treatment.

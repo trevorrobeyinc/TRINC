@@ -1,29 +1,29 @@
 {
   "condition": "amyotrophic lateral sclerosis",
-  "asOf": "2026-07-24",
+  "asOf": "2026-07-30",
   "teaserRows": 5,
   "paid": {
-    "total": 50,
+    "total": 114,
     "indication": "amyotrophic lateral sclerosis",
-    "as_of": "2026-07-24",
-    "with_history": 50,
-    "no_reason_count": 7,
+    "as_of": "2026-07-30",
+    "with_history": 40,
+    "no_reason_count": 11,
     "band_counts": {
-      "HIGH": 13,
-      "MODERATE": 17,
-      "LOW": 20,
-      "UNKNOWN": 0
+      "HIGH": 6,
+      "MODERATE": 19,
+      "LOW": 15,
+      "UNKNOWN": 74
     }
   },
   "free": {
     "total": 5,
     "indication": "amyotrophic lateral sclerosis",
-    "as_of": "2026-07-24",
+    "as_of": "2026-07-30",
     "with_history": 5,
-    "no_reason_count": 0,
+    "no_reason_count": 1,
     "band_counts": {
-      "HIGH": 1,
-      "MODERATE": 1,
+      "HIGH": 0,
+      "MODERATE": 2,
       "LOW": 3,
       "UNKNOWN": 0
     }

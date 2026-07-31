@@ -1,30 +1,30 @@
 {
   "condition": "sickle cell disease",
-  "asOf": "2026-07-24",
+  "asOf": "2026-07-30",
   "teaserRows": 5,
   "paid": {
-    "total": 50,
+    "total": 179,
     "indication": "sickle cell disease",
-    "as_of": "2026-07-24",
-    "with_history": 50,
-    "no_reason_count": 1,
+    "as_of": "2026-07-30",
+    "with_history": 40,
+    "no_reason_count": 7,
     "band_counts": {
-      "HIGH": 17,
-      "MODERATE": 17,
-      "LOW": 16,
-      "UNKNOWN": 0
+      "HIGH": 15,
+      "MODERATE": 16,
+      "LOW": 9,
+      "UNKNOWN": 139
     }
   },
   "free": {
     "total": 5,
     "indication": "sickle cell disease",
-    "as_of": "2026-07-24",
+    "as_of": "2026-07-30",
     "with_history": 5,
-    "no_reason_count": 1,
+    "no_reason_count": 0,
     "band_counts": {
-      "HIGH": 2,
+      "HIGH": 1,
       "MODERATE": 3,
-      "LOW": 0,
+      "LOW": 1,
       "UNKNOWN": 0
     }
   }

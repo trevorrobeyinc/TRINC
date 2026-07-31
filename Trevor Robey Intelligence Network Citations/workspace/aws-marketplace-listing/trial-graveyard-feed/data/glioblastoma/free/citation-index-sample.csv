@@ -1,6 +1,6 @@
 identifier_type,identifier,source_database,nct_id,context
-NCT,NCT06806228,ClinicalTrials.gov,NCT06806228,SUSPENDED: The study protocol will be changed
-NCT,NCT01961934,ClinicalTrials.gov,NCT01961934,WITHDRAWN: Awaiting funding
-NCT,NCT00574964,ClinicalTrials.gov,NCT00574964,TERMINATED: PI left the institution.
-NCT,NCT05297864,ClinicalTrials.gov,NCT05297864,TERMINATED: Funder terminated funding.
-NCT,NCT02769806,ClinicalTrials.gov,NCT02769806,TERMINATED: funding
+NCT,NCT01281982,ClinicalTrials.gov,NCT01281982,TERMINATED: (none stated by sponsor)
+NCT,NCT03973879,ClinicalTrials.gov,NCT03973879,WITHDRAWN: Re-submission Planned
+NCT,NCT00943462,ClinicalTrials.gov,NCT00943462,WITHDRAWN: No eligible patients could be recruited.
+NCT,NCT01115036,ClinicalTrials.gov,NCT01115036,"WITHDRAWN: No subjects were enrolled on this study, so study was closed and IND withdrawn."
+NCT,NCT01044225,ClinicalTrials.gov,NCT01044225,TERMINATED: Results of the phase III RTOG0525 trial made the manufacturer of cilengitide decide to end their support to the trial

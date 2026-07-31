@@ -1,51 +1,429 @@
 identifier_type,identifier,source_database,nct_id,context
-NCT,NCT00978536,ClinicalTrials.gov,NCT00978536,TERMINATED: Difficulties of recruitment in a randomization arm
-NCT,NCT03639987,ClinicalTrials.gov,NCT03639987,TERMINATED: Study was discontinued based on futility analysis conducted on Phase 3 trials (NCT02477800 and NCT02484547) and not based on safety concerns.
-NCT,NCT01028209,ClinicalTrials.gov,NCT01028209,TERMINATED: (none stated by sponsor)
-NCT,NCT03702816,ClinicalTrials.gov,NCT03702816,"TERMINATED: GE180 has limited Blood - brain barrier permeation, reducing its utility in neuroinflammation. COVID19 created supply chain issues, impacting enrollment."
-NCT,NCT06185543,ClinicalTrials.gov,NCT06185543,TERMINATED: Company will improve study desig
-NCT,NCT03721042,ClinicalTrials.gov,NCT03721042,TERMINATED: no PI to continue the study
-NCT,NCT01181921,ClinicalTrials.gov,NCT01181921,TERMINATED: The recruitment rate was very low (one screening failure and one early withdrawal patient)
-NCT,NCT02149017,ClinicalTrials.gov,NCT02149017,TERMINATED: SNUH-NM-333 ligand effect was judged to be insufficient.
-NCT,NCT04798989,ClinicalTrials.gov,NCT04798989,TERMINATED: Due to enrollment challenges
-NCT,NCT02992132,ClinicalTrials.gov,NCT02992132,TERMINATED: (none stated by sponsor)
-NCT,NCT00676143,ClinicalTrials.gov,NCT00676143,"TERMINATED: The study was terminated on August 6, 2012, because 2 large Phase 3 studies showed no clinical benefit. This decision was not based on any new safety concerns."
-NCT,NCT04077450,ClinicalTrials.gov,NCT04077450,WITHDRAWN: Changed the direction and aims of the study
-NCT,NCT06382194,ClinicalTrials.gov,NCT06382194,TERMINATED: Recruitment to the study was determined to not be feasible
-NCT,NCT03919162,ClinicalTrials.gov,NCT03919162,TERMINATED: It has been made the strategic decision to terminate the study. This decision to terminate the study early is not being made for safety reasons.
-NCT,NCT02783573,ClinicalTrials.gov,NCT02783573,"TERMINATED: An independent assessment concluded the trial was not likely to meet the primary endpoint upon completion and therefore, trial stopped for futility."
-NCT,NCT06677203,ClinicalTrials.gov,NCT06677203,TERMINATED: Strategic decision
-NCT,NCT00605059,ClinicalTrials.gov,NCT00605059,TERMINATED: Scans showed no visual difference between affected subjects \& healthy volunteers
-NCT,NCT05032482,ClinicalTrials.gov,NCT05032482,WITHDRAWN: funding purposes
-NCT,NCT00886951,ClinicalTrials.gov,NCT00886951,TERMINATED: There seemed to be no uptake of the ligand in the areas of the brain expected for subjects with amyloid.
-NCT,NCT06804837,ClinicalTrials.gov,NCT06804837,TERMINATED: Insufficient funding
-NCT,NCT05097131,ClinicalTrials.gov,NCT05097131,"TERMINATED: As a result of the national policy for coverage, it is expected there will be limited aducanumab-avwa prescription and usage in routine clinical practice making the study not feasible for enrollment."
-NCT,NCT02614131,ClinicalTrials.gov,NCT02614131,TERMINATED: New data suggests that insufficient target engagement would be achieved for efficacy.
-NCT,NCT06169826,ClinicalTrials.gov,NCT06169826,WITHDRAWN: withdrawn by the PI
-NCT,NCT02874820,ClinicalTrials.gov,NCT02874820,TERMINATED: Patient recruitment issues.
-NCT,NCT03393546,ClinicalTrials.gov,NCT03393546,TERMINATED: PI resigned
-NCT,NCT03858283,ClinicalTrials.gov,NCT03858283,"TERMINATED: Due to the COVID pandemic, the lockdown in Spain began on 14 March 2020 and after two years we continue with contagion prevention measures that have not made it possible to implement face-to-face mindfulness courses or to evaluate participants."
-NCT,NCT00960531,ClinicalTrials.gov,NCT00960531,TERMINATED: (none stated by sponsor)
-NCT,NCT01001637,ClinicalTrials.gov,NCT01001637,TERMINATED: lack of support
-NCT,NCT03485898,ClinicalTrials.gov,NCT03485898,TERMINATED: study director job transfer in another departement
-NCT,NCT05169008,ClinicalTrials.gov,NCT05169008,"TERMINATED: Difficulty recruiting subjects, so the study was terminated."
-NCT,NCT00582855,ClinicalTrials.gov,NCT00582855,TERMINATED: (none stated by sponsor)
-NCT,NCT00001178,ClinicalTrials.gov,NCT00001178,TERMINATED: (none stated by sponsor)
-NCT,NCT02130661,ClinicalTrials.gov,NCT02130661,WITHDRAWN: (none stated by sponsor)
-NCT,NCT01000870,ClinicalTrials.gov,NCT01000870,TERMINATED: Results did not show reason to continue with study
-NCT,NCT01825577,ClinicalTrials.gov,NCT01825577,TERMINATED: Administrative Reasons
-NCT,NCT05744401,ClinicalTrials.gov,NCT05744401,TERMINATED: Parent study failed to meet the primary endpoint and there were no treatment effects that favored AL002 on secondary clinical and functional endpoints.
-NCT,NCT02008513,ClinicalTrials.gov,NCT02008513,TERMINATED: Study AFF006A was early terminated by the sponsor based on the results of study AFF006.
-NCT,NCT04886063,ClinicalTrials.gov,NCT04886063,"TERMINATED: ATH-1017-AD-0203 was terminated after the Ph2/3 parent trial (LIFT-AD; NCT04488419) did not meet its primary endpoint, the GST score."
-NCT,NCT05670912,ClinicalTrials.gov,NCT05670912,"TERMINATED: Due to the inability to complete subject enrollment and follow-up as originally scheduled, coupled with funding shortages and overall strategic adjustments from the sponsor, the study was terminated on November 12, 2024."
+NCT,NCT01092546,ClinicalTrials.gov,NCT01092546,TERMINATED: Changed focus of the program
+NCT,NCT03388242,ClinicalTrials.gov,NCT03388242,WITHDRAWN: The research group is too busy to do this study.
+NCT,NCT03635879,ClinicalTrials.gov,NCT03635879,WITHDRAWN: Study redesign
+NCT,NCT02249351,ClinicalTrials.gov,NCT02249351,TERMINATED: (none stated by sponsor)
+NCT,NCT06424236,ClinicalTrials.gov,NCT06424236,TERMINATED: DIAN-TU announced the discontinuation of the DIAN-TU-001 OLE based on the status of the drug program and findings from an interim efficacy analysis and.
+NCT,NCT00160147,ClinicalTrials.gov,NCT00160147,TERMINATED: The study was discontinued prematurely on 25 February 2008 due to slow enrollment
+NCT,NCT04055532,ClinicalTrials.gov,NCT04055532,WITHDRAWN: Lack of regulatory approval
 NCT,NCT02353949,ClinicalTrials.gov,NCT02353949,TERMINATED: Insufficient Recruitment
-NCT,NCT01127633,ClinicalTrials.gov,NCT01127633,TERMINATED: Solanezumab did not meet the primary endpoint in study H8A-MC-LZAX.
-NCT,NCT02322021,ClinicalTrials.gov,NCT02322021,TERMINATED: This study was terminated early by the sponsor on the recommendation of an independent data safety monitoring board following review of unblinded data from the Phase 3 studies E2609-G000-301 (NCT02956486) and E2609-G000-302 (NCT03036280).
-NCT,NCT01738386,ClinicalTrials.gov,NCT01738386,TERMINATED: (none stated by sponsor)
-NCT,NCT03935568,ClinicalTrials.gov,NCT03935568,TERMINATED: Company ceased operations
-NCT,NCT07155980,ClinicalTrials.gov,NCT07155980,WITHDRAWN: The protocol is being withdrawn prior to enrollment due to a redesign of the study approach under the existing IND.
+NCT,NCT02221947,ClinicalTrials.gov,NCT02221947,"TERMINATED: Part 2 of study replaced by NTRP-101-202, assessing 3 doses of bryostatin."
+NCT,NCT01181921,ClinicalTrials.gov,NCT01181921,TERMINATED: The recruitment rate was very low (one screening failure and one early withdrawal patient)
+NCT,NCT03939780,ClinicalTrials.gov,NCT03939780,WITHDRAWN: PI moving to another institution with NIH grant relinquished.
+NCT,NCT06099197,ClinicalTrials.gov,NCT06099197,TERMINATED: Study terminated due to loss of funding.
+NCT,NCT01211782,ClinicalTrials.gov,NCT01211782,WITHDRAWN: Study never started. Study was redesgined.
+NCT,NCT01636596,ClinicalTrials.gov,NCT01636596,WITHDRAWN: (none stated by sponsor)
+NCT,NCT02440646,ClinicalTrials.gov,NCT02440646,TERMINATED: The study is terminated due to cessation of the research collaboration with Russian institutions
+NCT,NCT00369603,ClinicalTrials.gov,NCT00369603,TERMINATED: Reduced access to AchEI medication-naive mild AD patients.
+NCT,NCT02166827,ClinicalTrials.gov,NCT02166827,TERMINATED: Administrative decision
+NCT,NCT05256134,ClinicalTrials.gov,NCT05256134,TERMINATED: Decision to terminate development of gantenerumab for treatment of people at risk for or at earliest stages of Alzheimer disease (AD) following results of a pre-planned analysis of safety \& efficacy of gantenerumab in Graduate I\&II (WN29922/WN39658).
+NCT,NCT01255163,ClinicalTrials.gov,NCT01255163,TERMINATED: AstraZeneca withdrew support for the study.
 NCT,NCT00488670,ClinicalTrials.gov,NCT00488670,TERMINATED: Dr. Rabheru left VCH last year and the study was cancelled according to his research coordinator.
-NCT,NCT01416012,ClinicalTrials.gov,NCT01416012,TERMINATED: (none stated by sponsor)
-NCT,NCT01815112,ClinicalTrials.gov,NCT01815112,TERMINATED: Administrative re-organization of the department. Referent physician left the hospital.
-NCT,NCT00105105,ClinicalTrials.gov,NCT00105105,TERMINATED: (none stated by sponsor)
+NCT,NCT00711204,ClinicalTrials.gov,NCT00711204,WITHDRAWN: No patients were enrolled in the study.
+NCT,NCT01825577,ClinicalTrials.gov,NCT01825577,TERMINATED: Administrative Reasons
+NCT,NCT02029547,ClinicalTrials.gov,NCT02029547,WITHDRAWN: (none stated by sponsor)
+NCT,NCT00582855,ClinicalTrials.gov,NCT00582855,TERMINATED: (none stated by sponsor)
+NCT,NCT03316898,ClinicalTrials.gov,NCT03316898,WITHDRAWN: Business decision to stop the study.
+NCT,NCT01739348,ClinicalTrials.gov,NCT01739348,TERMINATED: (none stated by sponsor)
+NCT,NCT01454453,ClinicalTrials.gov,NCT01454453,TERMINATED: Failure to recruit people with very late onset schizophrenia like psychosis
+NCT,NCT01772537,ClinicalTrials.gov,NCT01772537,TERMINATED: The data did not show clear results
+NCT,NCT06220292,ClinicalTrials.gov,NCT06220292,WITHDRAWN: ethical issues
+NCT,NCT05491902,ClinicalTrials.gov,NCT05491902,TERMINATED: 11C-leucine no longer available at Wolfson Molecular Imaging Centre (after suspension of recruitment due to COVID pandemic)
+NCT,NCT06856681,ClinicalTrials.gov,NCT06856681,WITHDRAWN: sponsor decision to cancel project before enrollment.
+NCT,NCT01001637,ClinicalTrials.gov,NCT01001637,TERMINATED: lack of support
+NCT,NCT03204604,ClinicalTrials.gov,NCT03204604,WITHDRAWN: Unable to obtain intervention materials
+NCT,NCT00693004,ClinicalTrials.gov,NCT00693004,TERMINATED: (none stated by sponsor)
+NCT,NCT04353947,ClinicalTrials.gov,NCT04353947,WITHDRAWN: COVID 19
+NCT,NCT00676143,ClinicalTrials.gov,NCT00676143,"TERMINATED: The study was terminated on August 6, 2012, because 2 large Phase 3 studies showed no clinical benefit. This decision was not based on any new safety concerns."
+NCT,NCT02864303,ClinicalTrials.gov,NCT02864303,TERMINATED: end of the inclusion period
+NCT,NCT00299988,ClinicalTrials.gov,NCT00299988,TERMINATED: (none stated by sponsor)
+NCT,NCT02781220,ClinicalTrials.gov,NCT02781220,TERMINATED: IRB Study Closure - No HRPP Progress Update
+NCT,NCT02874820,ClinicalTrials.gov,NCT02874820,TERMINATED: Patient recruitment issues.
+NCT,NCT01669876,ClinicalTrials.gov,NCT01669876,TERMINATED: Administrative status of active ingredient anatabine
+NCT,NCT01736579,ClinicalTrials.gov,NCT01736579,TERMINATED: The study was terminated because the first Phase 3 did not demonstrate efficacy on the co-primary endpoints. The known safety profile remained unchanged.
+NCT,NCT00146263,ClinicalTrials.gov,NCT00146263,WITHDRAWN: Difficulty in enrolling subjects in the proposed crossover study design
+NCT,NCT05728736,ClinicalTrials.gov,NCT05728736,"WITHDRAWN: Study was terminated due to enrollment difficulties and the inability to obtain necessary study supplies. Five participants signed consent; however, no one was randomized. The study was officially terminated with the funding source on 10/04/2023."
+NCT,NCT00412048,ClinicalTrials.gov,NCT00412048,WITHDRAWN: (none stated by sponsor)
+NCT,NCT01313806,ClinicalTrials.gov,NCT01313806,WITHDRAWN: (none stated by sponsor)
+NCT,NCT06619795,ClinicalTrials.gov,NCT06619795,TERMINATED: The study was interrupted before reaching the planned sample size due to the SARS-CoV-2 pandemic.
+NCT,NCT03929302,ClinicalTrials.gov,NCT03929302,"TERMINATED: As the study involved recruitment of at risk population such as Alzheimer's disease, the study was terminated due to COVID situation/"
+NCT,NCT04520412,ClinicalTrials.gov,NCT04520412,"SUSPENDED: The quality of study was seriously affected by the COVID-19, so it was decided to suspend the trial and restart it at the right time."
+NCT,NCT02783573,ClinicalTrials.gov,NCT02783573,"TERMINATED: An independent assessment concluded the trial was not likely to meet the primary endpoint upon completion and therefore, trial stopped for futility."
+NCT,NCT04678453,ClinicalTrials.gov,NCT04678453,TERMINATED: The study was terminated after completing the dose escalation portion of the study. The expansion cohort was not initiated to conduct a global trial based on the approved US IND using a new manufacturing process.
+NCT,NCT05858515,ClinicalTrials.gov,NCT05858515,WITHDRAWN: This submission for the pilot study has been withdrawn as the full trial opened under a different NCT number before participants enrolled in the pilot.
+NCT,NCT00912288,ClinicalTrials.gov,NCT00912288,TERMINATED: See termination reason in detailed description.
+NCT,NCT00706186,ClinicalTrials.gov,NCT00706186,"TERMINATED: Withdrawn by Investigator, protocol in revision"
+NCT,NCT00960531,ClinicalTrials.gov,NCT00960531,TERMINATED: (none stated by sponsor)
+NCT,NCT05395039,ClinicalTrials.gov,NCT05395039,"WITHDRAWN: Recruitment effort yielded no enrollments, so this study was stopped. We are re-evaluating the study design."
+NCT,NCT02741505,ClinicalTrials.gov,NCT02741505,WITHDRAWN: Funding was not obtained
+NCT,NCT07155980,ClinicalTrials.gov,NCT07155980,WITHDRAWN: The protocol is being withdrawn prior to enrollment due to a redesign of the study approach under the existing IND.
+NCT,NCT03393546,ClinicalTrials.gov,NCT03393546,TERMINATED: PI resigned
+NCT,NCT05321498,ClinicalTrials.gov,NCT05321498,WITHDRAWN: MCI patients will now be enrolled in the XPro1595-AD-02 study.
+NCT,NCT01127633,ClinicalTrials.gov,NCT01127633,TERMINATED: Solanezumab did not meet the primary endpoint in study H8A-MC-LZAX.
+NCT,NCT02263235,ClinicalTrials.gov,NCT02263235,TERMINATED: end of the inclusion period
+NCT,NCT02168920,ClinicalTrials.gov,NCT02168920,TERMINATED: It was difficult to secure enrollment of the targeted number of subjects.
+NCT,NCT06169826,ClinicalTrials.gov,NCT06169826,WITHDRAWN: withdrawn by the PI
+NCT,NCT02612376,ClinicalTrials.gov,NCT02612376,TERMINATED: Loss of funding
+NCT,NCT02263287,ClinicalTrials.gov,NCT02263287,TERMINATED: recruitment problems
+NCT,NCT04408755,ClinicalTrials.gov,NCT04408755,"TERMINATED: The AVP-786 program was discontinued, the recruitment was stopped and all participants are no longer being examined or receiving intervention."
+NCT,NCT02220738,ClinicalTrials.gov,NCT02220738,TERMINATED: Slow subject enrollment
+NCT,NCT00857649,ClinicalTrials.gov,NCT00857649,TERMINATED: (none stated by sponsor)
+NCT,NCT05006781,ClinicalTrials.gov,NCT05006781,SUSPENDED: The trial was suspended due to the budget issue
+NCT,NCT03814382,ClinicalTrials.gov,NCT03814382,TERMINATED: Termination of study funding
+NCT,NCT07429591,ClinicalTrials.gov,NCT07429591,SUSPENDED: Study paused per IRB request.
+NCT,NCT02916056,ClinicalTrials.gov,NCT02916056,TERMINATED: Not due to safety but due to a lack of efficacy at the 5 mg azeliragon dose.
+NCT,NCT01658722,ClinicalTrials.gov,NCT01658722,TERMINATED: (none stated by sponsor)
+NCT,NCT03352557,ClinicalTrials.gov,NCT03352557,TERMINATED: The study (NCT03352557) was terminated based on lack of efficacy following the placebo-controlled period readout.
+NCT,NCT04942184,ClinicalTrials.gov,NCT04942184,WITHDRAWN: Study was never started due to the Covid 19 pandemic.
+NCT,NCT02406027,ClinicalTrials.gov,NCT02406027,TERMINATED: (none stated by sponsor)
 NCT,NCT05921929,ClinicalTrials.gov,NCT05921929,WITHDRAWN: a new trial should be designed
+NCT,NCT01690195,ClinicalTrials.gov,NCT01690195,TERMINATED: Data obtained from the M11-428 study is not critical to the continued evaluation of ABT-126.
+NCT,NCT01416012,ClinicalTrials.gov,NCT01416012,TERMINATED: (none stated by sponsor)
+NCT,NCT01931566,ClinicalTrials.gov,NCT01931566,TERMINATED: Lack of efficacy of the drug; no safety concern
+NCT,NCT01822951,ClinicalTrials.gov,NCT01822951,WITHDRAWN: (none stated by sponsor)
+NCT,NCT03531710,ClinicalTrials.gov,NCT03531710,TERMINATED: United Neuroscience has decided to terminate V203-AD-EXT study based on a treatment assignment error
+NCT,NCT01777789,ClinicalTrials.gov,NCT01777789,TERMINATED: This is a basic research study with no clinical data to report
+NCT,NCT03047694,ClinicalTrials.gov,NCT03047694,TERMINATED: Lack of inclusion
+NCT,NCT04339413,ClinicalTrials.gov,NCT04339413,TERMINATED: Decision to terminate development of Gantenerumab for treatment of prodromal/mild/early stage Alzheimer's disease following results of a pre-planned analysis of the safety and efficacy of Gant in Graduate I\&II (WN29922/WN39658).
+NCT,NCT00605059,ClinicalTrials.gov,NCT00605059,TERMINATED: Scans showed no visual difference between affected subjects \& healthy volunteers
+NCT,NCT02670083,ClinicalTrials.gov,NCT02670083,"TERMINATED: This study was discontinued due to an interim analysis in this study, which indicated that Crenezumab was unlikely to meet its primary endpoint."
+NCT,NCT01738386,ClinicalTrials.gov,NCT01738386,TERMINATED: (none stated by sponsor)
+NCT,NCT01689948,ClinicalTrials.gov,NCT01689948,TERMINATED: difficulties of recruitment
+NCT,NCT02020356,ClinicalTrials.gov,NCT02020356,TERMINATED: (none stated by sponsor)
+NCT,NCT04882735,ClinicalTrials.gov,NCT04882735,WITHDRAWN: Sponsor's decision to cancel study
+NCT,NCT02521558,ClinicalTrials.gov,NCT02521558,TERMINATED: Enrollment was halted early because of low adherence to the intervention.
+NCT,NCT03816228,ClinicalTrials.gov,NCT03816228,WITHDRAWN: We will capture subjects under another study
+NCT,NCT01723670,ClinicalTrials.gov,NCT01723670,WITHDRAWN: (none stated by sponsor)
+NCT,NCT01125683,ClinicalTrials.gov,NCT01125683,TERMINATED: Poor recruitment.
+NCT,NCT02769065,ClinicalTrials.gov,NCT02769065,TERMINATED: Terminated prematurely as data from cohort no longer needed due to indication change.
+NCT,NCT02248116,ClinicalTrials.gov,NCT02248116,TERMINATED: (none stated by sponsor)
+NCT,NCT03149380,ClinicalTrials.gov,NCT03149380,WITHDRAWN: PI withdrawn
+NCT,NCT02080364,ClinicalTrials.gov,NCT02080364,TERMINATED: Not due to safety but due to a lack of efficacy at the 5 mg azeliragon dose.
+NCT,NCT00743743,ClinicalTrials.gov,NCT00743743,WITHDRAWN: PI has left institution
+NCT,NCT02565511,ClinicalTrials.gov,NCT02565511,TERMINATED: (none stated by sponsor)
+NCT,NCT04514328,ClinicalTrials.gov,NCT04514328,WITHDRAWN: the study never opened for pandemic reasons
+NCT,NCT06524817,ClinicalTrials.gov,NCT06524817,WITHDRAWN: The study was terminated due to funding constraints and resource limitations that made further recruitment and continuation unfeasible.
+NCT,NCT00006187,ClinicalTrials.gov,NCT00006187,TERMINATED: (none stated by sponsor)
+NCT,NCT04373616,ClinicalTrials.gov,NCT04373616,WITHDRAWN: decision to proceed with an optimized study design and optimized vaccine formulation
+NCT,NCT00978536,ClinicalTrials.gov,NCT00978536,TERMINATED: Difficulties of recruitment in a randomization arm
+NCT,NCT02838563,ClinicalTrials.gov,NCT02838563,TERMINATED: no new location to open
+NCT,NCT04064021,ClinicalTrials.gov,NCT04064021,WITHDRAWN: due to covid19 pandemic
+NCT,NCT02503501,ClinicalTrials.gov,NCT02503501,TERMINATED: Study will not have power to show a difference between groups.
+NCT,NCT02614131,ClinicalTrials.gov,NCT02614131,TERMINATED: New data suggests that insufficient target engagement would be achieved for efficacy.
+NCT,NCT05670912,ClinicalTrials.gov,NCT05670912,"TERMINATED: Due to the inability to complete subject enrollment and follow-up as originally scheduled, coupled with funding shortages and overall strategic adjustments from the sponsor, the study was terminated on November 12, 2024."
+NCT,NCT01766336,ClinicalTrials.gov,NCT01766336,TERMINATED: (none stated by sponsor)
+NCT,NCT01969123,ClinicalTrials.gov,NCT01969123,TERMINATED: Study has been suspended due to clinical hold.
+NCT,NCT02804789,ClinicalTrials.gov,NCT02804789,"TERMINATED: No further funding available, remaining visits halted due to threat of Covid 19"
+NCT,NCT03062449,ClinicalTrials.gov,NCT03062449,TERMINATED: Stability of investigational product could not be established.
+NCT,NCT02992132,ClinicalTrials.gov,NCT02992132,TERMINATED: (none stated by sponsor)
+NCT,NCT05575076,ClinicalTrials.gov,NCT05575076,TERMINATED: sponsor decision
+NCT,NCT03024944,ClinicalTrials.gov,NCT03024944,WITHDRAWN: 18F-THK5351 was reported non-specific binding of MAO receptors.
+NCT,NCT04798989,ClinicalTrials.gov,NCT04798989,TERMINATED: Due to enrollment challenges
+NCT,NCT00474552,ClinicalTrials.gov,NCT00474552,TERMINATED: (none stated by sponsor)
+NCT,NCT04951284,ClinicalTrials.gov,NCT04951284,TERMINATED: Study only continued to 2 year follow-up.
+NCT,NCT02573740,ClinicalTrials.gov,NCT02573740,TERMINATED: Insufficient target engagement of ABT-957 (preclinical data)
+NCT,NCT03668405,ClinicalTrials.gov,NCT03668405,TERMINATED: New data: The study was terminated based on new efficacy data from another study
+NCT,NCT06382194,ClinicalTrials.gov,NCT06382194,TERMINATED: Recruitment to the study was determined to not be feasible
+NCT,NCT01867372,ClinicalTrials.gov,NCT01867372,TERMINATED: (none stated by sponsor)
+NCT,NCT03056495,ClinicalTrials.gov,NCT03056495,TERMINATED: Insufficient Recruitment
+NCT,NCT05078437,ClinicalTrials.gov,NCT05078437,TERMINATED: Funding ended
+NCT,NCT03132272,ClinicalTrials.gov,NCT03132272,"TERMINATED: slow recruiting, difficulties in finding eligible patients"
+NCT,NCT00548145,ClinicalTrials.gov,NCT00548145,TERMINATED: (none stated by sponsor)
+NCT,NCT04270604,ClinicalTrials.gov,NCT04270604,TERMINATED: The study was voluntarily terminated by the PI to focus efforts on an alternative biobanking protocol.
+NCT,NCT00649220,ClinicalTrials.gov,NCT00649220,TERMINATED: Study terminated due to too slow enrollment
+NCT,NCT02903862,ClinicalTrials.gov,NCT02903862,WITHDRAWN: Could not meet enrollment requirement.
+NCT,NCT00657813,ClinicalTrials.gov,NCT00657813,TERMINATED: Data did not evidence \[123I\]MNI-330 as a useful tool in the detection of AD.
+NCT,NCT05703490,ClinicalTrials.gov,NCT05703490,TERMINATED: The PI has moved to another institution
+NCT,NCT03919162,ClinicalTrials.gov,NCT03919162,TERMINATED: It has been made the strategic decision to terminate the study. This decision to terminate the study early is not being made for safety reasons.
+NCT,NCT03491150,ClinicalTrials.gov,NCT03491150,"TERMINATED: This study was discontinued due to an interim analysis in the BN29552 study, which indicated that Crenezumab was unlikely to meet its primary endpoint."
+NCT,NCT02245737,ClinicalTrials.gov,NCT02245737,"TERMINATED: An independent assessment concluded the trial was not likely to meet the primary endpoint upon completion and therefore, trial stopped for futility"
+NCT,NCT06247345,ClinicalTrials.gov,NCT06247345,TERMINATED: Study discontinued due to sponsor transition and strategic decision not to continue the protocol.
+NCT,NCT02667496,ClinicalTrials.gov,NCT02667496,WITHDRAWN: Slow recruitment
+NCT,NCT00375557,ClinicalTrials.gov,NCT00375557,WITHDRAWN: (none stated by sponsor)
+NCT,NCT04374253,ClinicalTrials.gov,NCT04374253,TERMINATED: Decision to terminate development of Gantenerumab for treatment of prodromal/mild/early-stage Alzheimer's disease following results of a pre-planned analysis of the safety and efficacy of Gant in Graduate I\&II (WN29922/WN39658).
+NCT,NCT06135051,ClinicalTrials.gov,NCT06135051,TERMINATED: IRB administrative closure
+NCT,NCT03959553,ClinicalTrials.gov,NCT03959553,WITHDRAWN: The study was stopped due to protocol amendment and project name change.
+NCT,NCT03762902,ClinicalTrials.gov,NCT03762902,TERMINATED: Sufficient data was collected through the app to achieve initial results
+NCT,NCT02891343,ClinicalTrials.gov,NCT02891343,TERMINATED: sponsor decision
+NCT,NCT00490568,ClinicalTrials.gov,NCT00490568,TERMINATED: Based on preliminary parent study results
+NCT,NCT06453941,ClinicalTrials.gov,NCT06453941,TERMINATED: Only 1 subject has been recruited.
+NCT,NCT01626391,ClinicalTrials.gov,NCT01626391,TERMINATED: This study has been terminated for administrative reasons only.
+NCT,NCT01782248,ClinicalTrials.gov,NCT01782248,TERMINATED: recruitment difficulties
+NCT,NCT02051764,ClinicalTrials.gov,NCT02051764,TERMINATED: Lower than expected enrollment
+NCT,NCT02586909,ClinicalTrials.gov,NCT02586909,TERMINATED: Intepirdine did't meet primary efficacy endpoints in lead-in study RVT-101-3001
+NCT,NCT03307993,ClinicalTrials.gov,NCT03307993,TERMINATED: The study was terminated for strategic reasons.
+NCT,NCT04886063,ClinicalTrials.gov,NCT04886063,"TERMINATED: ATH-1017-AD-0203 was terminated after the Ph2/3 parent trial (LIFT-AD; NCT04488419) did not meet its primary endpoint, the GST score."
+NCT,NCT02817906,ClinicalTrials.gov,NCT02817906,TERMINATED: Pre-specified Interim Analysis Indicated Futility
+NCT,NCT00691340,ClinicalTrials.gov,NCT00691340,WITHDRAWN: was replaced by another study. Problems with recruitment.
+NCT,NCT04846426,ClinicalTrials.gov,NCT04846426,TERMINATED: Study only continued to 2 year follow-up.
+NCT,NCT01978327,ClinicalTrials.gov,NCT01978327,"TERMINATED: Given the strength of CYP3A4 inhibition observed in Cohort 1, there is no rationale to investigate higher doses of GSK2647544 in the following two cohorts"
+NCT,NCT04149197,ClinicalTrials.gov,NCT04149197,TERMINATED: COVID delayed study timelines. Competing studies began enrolling at our sites.
+NCT,NCT04418024,ClinicalTrials.gov,NCT04418024,"WITHDRAWN: After a careful review of the currently available treatments worldwide for patients with ATTR-polyneuropathy, Eidos has made the decision to halt the current study design."
+NCT,NCT00550420,ClinicalTrials.gov,NCT00550420,TERMINATED: Based on preliminary parent study results
+NCT,NCT00811122,ClinicalTrials.gov,NCT00811122,TERMINATED: A Fluorine-18 labeled version of the radiopharmaceutical (Flutemetamol) became available. This version is far superior to the Carbon-11 PiB. There is no need to make this compound available any longer.
+NCT,NCT01066481,ClinicalTrials.gov,NCT01066481,WITHDRAWN: (none stated by sponsor)
+NCT,NCT00001178,ClinicalTrials.gov,NCT00001178,TERMINATED: (none stated by sponsor)
+NCT,NCT05352763,ClinicalTrials.gov,NCT05352763,TERMINATED: Sponsor Decision
+NCT,NCT03472183,ClinicalTrials.gov,NCT03472183,WITHDRAWN: no patients included
+NCT,NCT03444870,ClinicalTrials.gov,NCT03444870,TERMINATED: Decision to terminate development of Gantenerumab for treatment of prodromal/mild/early-stage Alzheimer's disease following results of a pre-planned analysis of the safety and efficacy of Gant in Graduate I\&II (WN29922/WN39658).
+NCT,NCT01000870,ClinicalTrials.gov,NCT01000870,TERMINATED: Results did not show reason to continue with study
+NCT,NCT01568086,ClinicalTrials.gov,NCT01568086,TERMINATED: The study could not be performed as planned for organizational reasons.
+NCT,NCT06257563,ClinicalTrials.gov,NCT06257563,WITHDRAWN: We are withdrawing our study due to regulatory requirements from our funding source.
+NCT,NCT05028114,ClinicalTrials.gov,NCT05028114,"TERMINATED: Part 1 was completed, Part 2 and Part 3 of the study were not conducted under this study protocol due to subject recruitment difficulty."
+NCT,NCT05332678,ClinicalTrials.gov,NCT05332678,WITHDRAWN: Sponsor Decision
+NCT,NCT05169008,ClinicalTrials.gov,NCT05169008,"TERMINATED: Difficulty recruiting subjects, so the study was terminated."
+NCT,NCT01028911,ClinicalTrials.gov,NCT01028911,TERMINATED: This study terminated 27Apr2010 due to slow recruitment and the need to use the existing information to determine dosing for another study.
+NCT,NCT02288000,ClinicalTrials.gov,NCT02288000,TERMINATED: sponsor decision
+NCT,NCT05478031,ClinicalTrials.gov,NCT05478031,TERMINATED: Due to the event of repeated elevated transaminase levels in one subject - elevated ALT/AST up to 6x ULN in the absence of any other potential underlying cause - we have decided to terminate the study.
+NCT,NCT03712787,ClinicalTrials.gov,NCT03712787,TERMINATED: Discontinued because of lack of efficacy in the parent study (Study M15-566; NCT02880956).
+NCT,NCT00857233,ClinicalTrials.gov,NCT00857233,TERMINATED: Please see explanation in the Detailed Description field.
+NCT,NCT00824967,ClinicalTrials.gov,NCT00824967,TERMINATED: (none stated by sponsor)
+NCT,NCT01028209,ClinicalTrials.gov,NCT01028209,TERMINATED: (none stated by sponsor)
+NCT,NCT04464564,ClinicalTrials.gov,NCT04464564,"TERMINATED: The AVP-786 program was discontinued, the recruitment was stopped and all participants are no longer being examined or receiving intervention."
+NCT,NCT06391853,ClinicalTrials.gov,NCT06391853,WITHDRAWN: Not realisable on time planned and with the academic funds
+NCT,NCT00874939,ClinicalTrials.gov,NCT00874939,TERMINATED: (none stated by sponsor)
+NCT,NCT01400542,ClinicalTrials.gov,NCT01400542,TERMINATED: End of the study because of the inclusions were too difficult
+NCT,NCT04094129,ClinicalTrials.gov,NCT04094129,WITHDRAWN: Couldn't sign the contract
+NCT,NCT01560585,ClinicalTrials.gov,NCT01560585,TERMINATED: Adverse events in 2/3 participants; study was halted but not restarted after this due to insufficnet funds as well
+NCT,NCT03819699,ClinicalTrials.gov,NCT03819699,TERMINATED: New data: The study was terminated based on new efficacy data from another study
+NCT,NCT03639987,ClinicalTrials.gov,NCT03639987,TERMINATED: Study was discontinued based on futility analysis conducted on Phase 3 trials (NCT02477800 and NCT02484547) and not based on safety concerns.
+NCT,NCT03052712,ClinicalTrials.gov,NCT03052712,TERMINATED: not enough patients
+NCT,NCT06833281,ClinicalTrials.gov,NCT06833281,TERMINATED: patients treated on compassionate use program
+NCT,NCT01362686,ClinicalTrials.gov,NCT01362686,TERMINATED: Low study accrual caused the study to be ended early.
+NCT,NCT03131453,ClinicalTrials.gov,NCT03131453,TERMINATED: The study was terminated due to safety issues.
+NCT,NCT01815112,ClinicalTrials.gov,NCT01815112,TERMINATED: Administrative re-organization of the department. Referent physician left the hospital.
+NCT,NCT03958630,ClinicalTrials.gov,NCT03958630,TERMINATED: PI closed the protocol due to low recruitment
+NCT,NCT01677572,ClinicalTrials.gov,NCT01677572,TERMINATED: Study was discontinued based on futility analysis conducted on Phase 3 trials (NCT02477800 and NCT02484547) and not based on safety concerns.
+NCT,NCT02343757,ClinicalTrials.gov,NCT02343757,TERMINATED: Not enough patient enrollment
+NCT,NCT00612872,ClinicalTrials.gov,NCT00612872,TERMINATED: Results did not show reason to continue with study.
+NCT,NCT06860373,ClinicalTrials.gov,NCT06860373,TERMINATED: Unable to recruit
+NCT,NCT04795466,ClinicalTrials.gov,NCT04795466,TERMINATED: Terminated by Sponsor
+NCT,NCT05522387,ClinicalTrials.gov,NCT05522387,TERMINATED: Sponsor resource allocation
+NCT,NCT04413877,ClinicalTrials.gov,NCT04413877,WITHDRAWN: Lack of funding to iniciate and conduct the registered study
+NCT,NCT00998764,ClinicalTrials.gov,NCT00998764,"TERMINATED: The study was terminated on August 6, 2012, because 2 large Phase 3 studies showed no clinical benefit. This decision was not based on any new safety concerns."
+NCT,NCT00205621,ClinicalTrials.gov,NCT00205621,SUSPENDED: (none stated by sponsor)
+NCT,NCT00937352,ClinicalTrials.gov,NCT00937352,TERMINATED: (none stated by sponsor)
+NCT,NCT01137799,ClinicalTrials.gov,NCT01137799,TERMINATED: Efficacy signals were insufficiently strong to justify recruitment of additional patients.
+NCT,NCT00954590,ClinicalTrials.gov,NCT00954590,TERMINATED: (none stated by sponsor)
+NCT,NCT00996918,ClinicalTrials.gov,NCT00996918,"TERMINATED: The study was terminated on August 6, 2012, because 2 large Phase 3 studies showed no clinical benefit. This decision was not based on any new safety concerns."
+NCT,NCT05425550,ClinicalTrials.gov,NCT05425550,"TERMINATED: The study was discontinued due to low recruitment rates. Despite various measures, such as training courses and workshops, recruitment rates could not be improved in the long term."
+NCT,NCT00287742,ClinicalTrials.gov,NCT00287742,TERMINATED: A decision was made to discontinue the study due to a change in the strategic direction of the company.
+NCT,NCT04294888,ClinicalTrials.gov,NCT04294888,TERMINATED: The study principle investigator left the institution.
+NCT,NCT03935568,ClinicalTrials.gov,NCT03935568,TERMINATED: Company ceased operations
+NCT,NCT06304883,ClinicalTrials.gov,NCT06304883,TERMINATED: Sponsor business decision
+NCT,NCT05006599,ClinicalTrials.gov,NCT05006599,WITHDRAWN: protocol being rewritten and submitted as new study
+NCT,NCT05220150,ClinicalTrials.gov,NCT05220150,TERMINATED: Poor recruitment and poor scan image quality
+NCT,NCT00626210,ClinicalTrials.gov,NCT00626210,TERMINATED: (none stated by sponsor)
+NCT,NCT00895895,ClinicalTrials.gov,NCT00895895,TERMINATED: See termination reason in detailed description.
+NCT,NCT03114657,ClinicalTrials.gov,NCT03114657,"TERMINATED: This study was discontinued due to an interim analysis in the BN29552 study, which indicated that Crenezumab was unlikely to meet its primary endpoint."
+NCT,NCT05026177,ClinicalTrials.gov,NCT05026177,TERMINATED: Sponsor decision
+NCT,NCT03387267,ClinicalTrials.gov,NCT03387267,TERMINATED: Study terminated due to futility
+NCT,NCT00134953,ClinicalTrials.gov,NCT00134953,TERMINATED: The Principal Investigator left the clinic and there was no one who could take over this study.
+NCT,NCT03998423,ClinicalTrials.gov,NCT03998423,"TERMINATED: SARS-CoV-2 has been detected in fecal material. Although FMT is screened for SARS-CoV-2, the team decided to end the study to minimize risk to participants."
+NCT,NCT01018927,ClinicalTrials.gov,NCT01018927,TERMINATED: PI does not have time to continue study
+NCT,NCT02351388,ClinicalTrials.gov,NCT02351388,TERMINATED: failure to recruit enough number of participants
+NCT,NCT03721042,ClinicalTrials.gov,NCT03721042,TERMINATED: no PI to continue the study
+NCT,NCT00380276,ClinicalTrials.gov,NCT00380276,TERMINATED: Myriad has discontinued the development of Flurizan.
+NCT,NCT06911047,ClinicalTrials.gov,NCT06911047,WITHDRAWN: Study did not receive funding.
+NCT,NCT02249468,ClinicalTrials.gov,NCT02249468,TERMINATED: Stop the study for futility based on recommendation from Independent Data Committee.
+NCT,NCT05986721,ClinicalTrials.gov,NCT05986721,WITHDRAWN: Sponsor decision
+NCT,NCT04228666,ClinicalTrials.gov,NCT04228666,WITHDRAWN: Due to COVID 19 Pandemic
+NCT,NCT00939783,ClinicalTrials.gov,NCT00939783,TERMINATED: See termination reason in detailed description.
+NCT,NCT00870519,ClinicalTrials.gov,NCT00870519,"TERMINATED: Assessment of data shows inadequate brain uptake, suggesting the tracer is inadequate as an imaging biomarker of brain amyloid."
+NCT,NCT04327778,ClinicalTrials.gov,NCT04327778,WITHDRAWN: Impossible d'inclure un premier patient
+NCT,NCT01979432,ClinicalTrials.gov,NCT01979432,TERMINATED: Lack of patients
+NCT,NCT06736509,ClinicalTrials.gov,NCT06736509,TERMINATED: Study AXS-05-AD-305 was terminated due to completion of overall program objectives.
+NCT,NCT02388152,ClinicalTrials.gov,NCT02388152,TERMINATED: New data: The study was terminated based on new efficacy data from another study
+NCT,NCT04505735,ClinicalTrials.gov,NCT04505735,TERMINATED: Issues with local production of 11-cPiB radiotracer
+NCT,NCT00843115,ClinicalTrials.gov,NCT00843115,TERMINATED: See Detailed Description.
+NCT,NCT02072252,ClinicalTrials.gov,NCT02072252,WITHDRAWN: The app was not completed in time to conduct a clinical trial on it within the funding grant's award period
+NCT,NCT06185543,ClinicalTrials.gov,NCT06185543,TERMINATED: Company will improve study desig
+NCT,NCT05097131,ClinicalTrials.gov,NCT05097131,"TERMINATED: As a result of the national policy for coverage, it is expected there will be limited aducanumab-avwa prescription and usage in routine clinical practice making the study not feasible for enrollment."
+NCT,NCT04482036,ClinicalTrials.gov,NCT04482036,"TERMINATED: The Principle Investigator changed careers and relinquished their NIA funded career development award, which funded the MOMENT Study. Career development awards are not transferable. Thus, the study was terminated prematurely."
+NCT,NCT03485898,ClinicalTrials.gov,NCT03485898,TERMINATED: study director job transfer in another departement
+NCT,NCT01382849,ClinicalTrials.gov,NCT01382849,WITHDRAWN: (none stated by sponsor)
+NCT,NCT03371420,ClinicalTrials.gov,NCT03371420,TERMINATED: Company has ceased operations
+NCT,NCT00704782,ClinicalTrials.gov,NCT00704782,TERMINATED: The study was halted after a Phase 3 study of dimebon failed to show efficacy.
+NCT,NCT04619420,ClinicalTrials.gov,NCT04619420,TERMINATED: Posdinemab did not achieve statistical significance in slowing clinical decline
+NCT,NCT00334568,ClinicalTrials.gov,NCT00334568,TERMINATED: Slow recruitment
+NCT,NCT00069849,ClinicalTrials.gov,NCT00069849,TERMINATED: (none stated by sponsor)
+NCT,NCT00606476,ClinicalTrials.gov,NCT00606476,TERMINATED: (none stated by sponsor)
+NCT,NCT02568540,ClinicalTrials.gov,NCT02568540,TERMINATED: Lack of enrollment
+NCT,NCT02008513,ClinicalTrials.gov,NCT02008513,TERMINATED: Study AFF006A was early terminated by the sponsor based on the results of study AFF006.
+NCT,NCT00927108,ClinicalTrials.gov,NCT00927108,WITHDRAWN: (none stated by sponsor)
+NCT,NCT04809961,ClinicalTrials.gov,NCT04809961,WITHDRAWN: Recruitment
+NCT,NCT00165750,ClinicalTrials.gov,NCT00165750,TERMINATED: Lack of patients to enroll.
+NCT,NCT02884492,ClinicalTrials.gov,NCT02884492,TERMINATED: Stopped due to published data regarding THK-5351 non-specificity in Tau imaging
+NCT,NCT03900273,ClinicalTrials.gov,NCT03900273,SUSPENDED: The NYSPI site is currently paused and has been paused since an institutional pause on human subjects research began in June 2023.The U.S. Department of HHS Office of Human Research Protections (OHRP) issued a pause on human subjects research.
+NCT,NCT01524887,ClinicalTrials.gov,NCT01524887,TERMINATED: The study was terminated because the first Phase 3 did not demonstrate efficacy on the co-primary endpoints. The known safety profile remained unchanged.
+NCT,NCT03702816,ClinicalTrials.gov,NCT03702816,"TERMINATED: GE180 has limited Blood - brain barrier permeation, reducing its utility in neuroinflammation. COVID19 created supply chain issues, impacting enrollment."
+NCT,NCT00792662,ClinicalTrials.gov,NCT00792662,WITHDRAWN: No Subjects enrolled
+NCT,NCT03641768,ClinicalTrials.gov,NCT03641768,WITHDRAWN: Funding not received
+NCT,NCT02506374,ClinicalTrials.gov,NCT02506374,WITHDRAWN: Never able to get any subjects enrolled
+NCT,NCT02978742,ClinicalTrials.gov,NCT02978742,WITHDRAWN: Study not funded.
+NCT,NCT07451223,ClinicalTrials.gov,NCT07451223,TERMINATED: The robot had technical problems which couldn't be fixed and the study could not begin.
+NCT,NCT05567120,ClinicalTrials.gov,NCT05567120,"WITHDRAWN: Study not started, investigators opted to focus on other projects."
+NCT,NCT00605046,ClinicalTrials.gov,NCT00605046,TERMINATED: Scans showed no visual difference between affected subjects \& healthy volunteers
+NCT,NCT00667810,ClinicalTrials.gov,NCT00667810,"TERMINATED: The study was terminated on August 6, 2012, because 2 large Phase 3 studies showed no clinical benefit. This decision was not based on any new safety concerns."
+NCT,NCT03757910,ClinicalTrials.gov,NCT03757910,TERMINATED: Difficulty recruiting due to the COVID-19 pandemic and end of funding
+NCT,NCT04282798,ClinicalTrials.gov,NCT04282798,WITHDRAWN: COVID delay and subsequent unavailability of staff.
+NCT,NCT03484143,ClinicalTrials.gov,NCT03484143,SUSPENDED: Recruitment has been too slow. We are considering some changes to the protocol.
+NCT,NCT05978804,ClinicalTrials.gov,NCT05978804,TERMINATED: Lack of funding
+NCT,NCT00679627,ClinicalTrials.gov,NCT00679627,"TERMINATED: Due to a pre-specified imbalance of deaths between treatment groups, the DSMB recommended early termination of the trial"
+NCT,NCT00947934,ClinicalTrials.gov,NCT00947934,WITHDRAWN: probleme of feasibility
+NCT,NCT02319681,ClinicalTrials.gov,NCT02319681,WITHDRAWN: PI relocated to UNCP; Study is not being transferred
+NCT,NCT00890890,ClinicalTrials.gov,NCT00890890,TERMINATED: (none stated by sponsor)
+NCT,NCT07102212,ClinicalTrials.gov,NCT07102212,SUSPENDED: pending amendment
+NCT,NCT04041895,ClinicalTrials.gov,NCT04041895,WITHDRAWN: Unsuccessful in recruiting participants for that study because we needed subjects who had performed Amyloid PET imaging in the last year
+NCT,NCT04263519,ClinicalTrials.gov,NCT04263519,WITHDRAWN: Covid restrictions
+NCT,NCT04759365,ClinicalTrials.gov,NCT04759365,"TERMINATED: Delays with sites, identifying/enrolling patients, impact of COVID, staffing, and duration"
+NCT,NCT01870453,ClinicalTrials.gov,NCT01870453,WITHDRAWN: Participants recruitment failure
+NCT,NCT03443973,ClinicalTrials.gov,NCT03443973,TERMINATED: Decision to terminate development of Gantenerumab for treatment of prodromal/mild/early stage Alzheimer's disease following results of a pre-planned analysis of the safety and efficacy of Gant in Graduate I\&II (WN29922/WN39658).
+NCT,NCT02760602,ClinicalTrials.gov,NCT02760602,TERMINATED: Insufficient scientific evidence that solanezumab would likely demonstrate a meaningful benefit to participants with prodromal AD as defined by study protocol.
+NCT,NCT02860065,ClinicalTrials.gov,NCT02860065,WITHDRAWN: (none stated by sponsor)
+NCT,NCT02844855,ClinicalTrials.gov,NCT02844855,TERMINATED: failure to recruit 83/99
+NCT,NCT02130661,ClinicalTrials.gov,NCT02130661,WITHDRAWN: (none stated by sponsor)
+NCT,NCT03682874,ClinicalTrials.gov,NCT03682874,TERMINATED: Inability to recruit during COVID-19
+NCT,NCT01676935,ClinicalTrials.gov,NCT01676935,TERMINATED: Data obtained from the M11-427 study is not critical to the continued evaluation of ABT-126.
+NCT,NCT00713765,ClinicalTrials.gov,NCT00713765,TERMINATED: Ended prematurely - The trial never commenced.
+NCT,NCT03267992,ClinicalTrials.gov,NCT03267992,TERMINATED: Study enrollment was prematurely stopped for business reasons.
+NCT,NCT00322036,ClinicalTrials.gov,NCT00322036,TERMINATED: Myriad has discontinued the development of Flurizan.
+NCT,NCT02085265,ClinicalTrials.gov,NCT02085265,TERMINATED: Lack of recruitment.
+NCT,NCT02899403,ClinicalTrials.gov,NCT02899403,TERMINATED: sponsor decision COVID
+NCT,NCT04901494,ClinicalTrials.gov,NCT04901494,WITHDRAWN: The PI is leaving the institution.
+NCT,NCT04571502,ClinicalTrials.gov,NCT04571502,TERMINATED: low enrollment
+NCT,NCT03980730,ClinicalTrials.gov,NCT03980730,TERMINATED: for business reasons
+NCT,NCT03585907,ClinicalTrials.gov,NCT03585907,WITHDRAWN: Lack of funding
+NCT,NCT05602727,ClinicalTrials.gov,NCT05602727,TERMINATED: Voluntarily terminated due to benefit/risk assessment
+NCT,NCT02303158,ClinicalTrials.gov,NCT02303158,TERMINATED: futility of the sample
+NCT,NCT00544453,ClinicalTrials.gov,NCT00544453,TERMINATED: Preliminary data showed \[123I\] MNI-308 not a useful tool in detection of AD.
+NCT,NCT00777361,ClinicalTrials.gov,NCT00777361,TERMINATED: (none stated by sponsor)
+NCT,NCT06377241,ClinicalTrials.gov,NCT06377241,TERMINATED: slow enrollment
+NCT,NCT00555204,ClinicalTrials.gov,NCT00555204,TERMINATED: (none stated by sponsor)
+NCT,NCT05518968,ClinicalTrials.gov,NCT05518968,WITHDRAWN: We changed our plan.
+NCT,NCT04100889,ClinicalTrials.gov,NCT04100889,WITHDRAWN: Company focus shifted
+NCT,NCT01482013,ClinicalTrials.gov,NCT01482013,TERMINATED: (none stated by sponsor)
+NCT,NCT00809510,ClinicalTrials.gov,NCT00809510,TERMINATED: (none stated by sponsor)
+NCT,NCT06622135,ClinicalTrials.gov,NCT06622135,TERMINATED: Lack of Funding
+NCT,NCT02467413,ClinicalTrials.gov,NCT02467413,WITHDRAWN: The study was withdrawn before participants were enrolled.
+NCT,NCT03790774,ClinicalTrials.gov,NCT03790774,"TERMINATED: Due to COVID-19 concerns and restrictions in our at-risk population, interactions were halted."
+NCT,NCT03289143,ClinicalTrials.gov,NCT03289143,TERMINATED: Study was terminated during Open Label Extension period because analyses of placebo-controlled Blinded portion of study did not show any evidence of clinical efficacy or modulation of accumulation of tau PET signal at any of the doses studied.
+NCT,NCT01970150,ClinicalTrials.gov,NCT01970150,TERMINATED: 1. New data from a published trial requires substantial change in study protocol2. no funding available to carry the study further
+NCT,NCT03672474,ClinicalTrials.gov,NCT03672474,TERMINATED: Covid19 sanitary crisis
+NCT,NCT01832350,ClinicalTrials.gov,NCT01832350,TERMINATED: Sponsor decided to stop study early
+NCT,NCT01883648,ClinicalTrials.gov,NCT01883648,TERMINATED: Funding limitations and enrollment was too low.
+NCT,NCT05497817,ClinicalTrials.gov,NCT05497817,WITHDRAWN: Study withdrawn and being modified under another protocol
+NCT,NCT02912169,ClinicalTrials.gov,NCT02912169,WITHDRAWN: company dissolved
+NCT,NCT00021723,ClinicalTrials.gov,NCT00021723,TERMINATED: (none stated by sponsor)
+NCT,NCT00543322,ClinicalTrials.gov,NCT00543322,TERMINATED: (none stated by sponsor)
+NCT,NCT01561430,ClinicalTrials.gov,NCT01561430,TERMINATED: Study terminated due to abnormal liver biochemical tests in some participants.
+NCT,NCT04984330,ClinicalTrials.gov,NCT04984330,WITHDRAWN: Funding withdrawn
+NCT,NCT02707978,ClinicalTrials.gov,NCT02707978,WITHDRAWN: Problems with contracts .
+NCT,NCT06217146,ClinicalTrials.gov,NCT06217146,TERMINATED: Part I: Open-label was completed.
+NCT,NCT03748303,ClinicalTrials.gov,NCT03748303,TERMINATED: Study interrupted by COVID-19 pandemic and could not be restarted at current location. Study investigators determined that relocating and continuing the study under its original scope was not feasible given preliminary results from IM injections.
+NCT,NCT02149017,ClinicalTrials.gov,NCT02149017,TERMINATED: SNUH-NM-333 ligand effect was judged to be insufficient.
+NCT,NCT01117948,ClinicalTrials.gov,NCT01117948,TERMINATED: Lack of Efficacy
+NCT,NCT01924858,ClinicalTrials.gov,NCT01924858,TERMINATED: Study objectives met so study concluded earlier than planned hence we terminated the study.
+NCT,NCT02245568,ClinicalTrials.gov,NCT02245568,TERMINATED: This study has been terminated for administrative reasons only.
+NCT,NCT02284906,ClinicalTrials.gov,NCT02284906,TERMINATED: Lack of efficacy of the drug; no safety concern
+NCT,NCT02769000,ClinicalTrials.gov,NCT02769000,"TERMINATED: The study was suspended in March of 2020 due to COVID. Rather than reopen the study, the decision was made to terminate it in July of 2021."
+NCT,NCT03227185,ClinicalTrials.gov,NCT03227185,TERMINATED: No patients populations included ==\> could not be recruited in meaningful numbers to allow conclusions.
+NCT,NCT03752294,ClinicalTrials.gov,NCT03752294,WITHDRAWN: Investigator left institution
+NCT,NCT00672945,ClinicalTrials.gov,NCT00672945,TERMINATED: (none stated by sponsor)
+NCT,NCT01357629,ClinicalTrials.gov,NCT01357629,TERMINATED: The Study could not be done for every potential participant as planned in the protocol for organizational reasons.
+NCT,NCT04311281,ClinicalTrials.gov,NCT04311281,WITHDRAWN: Insufficient Funding
+NCT,NCT03324711,ClinicalTrials.gov,NCT03324711,TERMINATED: Departure of the Principal Investigator
+NCT,NCT01072812,ClinicalTrials.gov,NCT01072812,TERMINATED: Business decision based on funding
+NCT,NCT02477800,ClinicalTrials.gov,NCT02477800,TERMINATED: Study was discontinued based on futility analysis done and not based on safety concerns. Follow-up visits and closing out study activities are completed
+NCT,NCT02226835,ClinicalTrials.gov,NCT02226835,TERMINATED: (none stated by sponsor)
+NCT,NCT00884533,ClinicalTrials.gov,NCT00884533,WITHDRAWN: The whole project was terminated
+NCT,NCT00968097,ClinicalTrials.gov,NCT00968097,TERMINATED: Early Phase I study of \[123I\]MNI-340 did not evidence as marker of disease
+NCT,NCT04241068,ClinicalTrials.gov,NCT04241068,TERMINATED: Sponsor's Decision
+NCT,NCT04440891,ClinicalTrials.gov,NCT04440891,WITHDRAWN: Difficulty with recruitment due to Covid. 3 subjects consented but did not start any study procedures or participate in the study.
+NCT,NCT06328374,ClinicalTrials.gov,NCT06328374,WITHDRAWN: Change of scope of the work given feedback from funding agency leading to new IRB/clinicaltrials.gov registration.
+NCT,NCT06677203,ClinicalTrials.gov,NCT06677203,TERMINATED: Strategic decision
+NCT,NCT04031469,ClinicalTrials.gov,NCT04031469,SUSPENDED: Administrative
+NCT,NCT06199037,ClinicalTrials.gov,NCT06199037,"TERMINATED: Based on the adjustment of the sponsor's R\&D strategy, it is decided to terminate this study in advance."
+NCT,NCT02638519,ClinicalTrials.gov,NCT02638519,TERMINATED: Unable to reach the target enrollment of 40 participants with Alzheimer's disease.
+NCT,NCT05032482,ClinicalTrials.gov,NCT05032482,WITHDRAWN: funding purposes
+NCT,NCT04311515,ClinicalTrials.gov,NCT04311515,TERMINATED: Samus Therapeutics company closure
+NCT,NCT05673759,ClinicalTrials.gov,NCT05673759,TERMINATED: The sponsor stopped funding the study.
+NCT,NCT05744401,ClinicalTrials.gov,NCT05744401,TERMINATED: Parent study failed to meet the primary endpoint and there were no treatment effects that favored AL002 on secondary clinical and functional endpoints.
+NCT,NCT02359864,ClinicalTrials.gov,NCT02359864,TERMINATED: Staffing and budget limitations. Administrative decision to halt enrollment due to coronavirus-19 (COVID) pandemic
+NCT,NCT03179501,ClinicalTrials.gov,NCT03179501,TERMINATED: Poor recruitment
+NCT,NCT00105105,ClinicalTrials.gov,NCT00105105,TERMINATED: (none stated by sponsor)
+NCT,NCT06242574,ClinicalTrials.gov,NCT06242574,WITHDRAWN: Submission to EC abandonned
+NCT,NCT01969136,ClinicalTrials.gov,NCT01969136,TERMINATED: Study has been suspended due to clinical hold.
+NCT,NCT03044249,ClinicalTrials.gov,NCT03044249,TERMINATED: Statistical futility; totality of evidence suggests study unlikely to meet endpoint
+NCT,NCT02500784,ClinicalTrials.gov,NCT02500784,"WITHDRAWN: Funding ran out before study started, prior PI left institution."
+NCT,NCT00916617,ClinicalTrials.gov,NCT00916617,"TERMINATED: The study was terminated on August 6, 2012, because 2 large Phase 3 studies showed no clinical benefit. This decision was not based on any new safety concerns."
+NCT,NCT01238991,ClinicalTrials.gov,NCT01238991,TERMINATED: (none stated by sponsor)
+NCT,NCT01852110,ClinicalTrials.gov,NCT01852110,TERMINATED: Stage 1 interim analysis of efficacy met the criteria for early trial termination (futility). The trial was terminated at Stage 1; did not proceed to Stage 2.
+NCT,NCT03342326,ClinicalTrials.gov,NCT03342326,TERMINATED: failure to recruit
+NCT,NCT03740178,ClinicalTrials.gov,NCT03740178,WITHDRAWN: Development program discontinuation
+NCT,NCT04614532,ClinicalTrials.gov,NCT04614532,TERMINATED: Reduced recruitment potential for study participants.
+NCT,NCT06804837,ClinicalTrials.gov,NCT06804837,TERMINATED: Insufficient funding
+NCT,NCT04592341,ClinicalTrials.gov,NCT04592341,TERMINATED: Decision to terminate development of Gantenerumab for treatment of prodromal/mild/early-stage Alzheimer's disease following results of a pre-planned analysis of the safety and efficacy of Gant in Graduate I\&II (WN29922/WN39658).
+NCT,NCT02246075,ClinicalTrials.gov,NCT02246075,WITHDRAWN: Forum has decided not to proceed with this study at this time.
+NCT,NCT02626377,ClinicalTrials.gov,NCT02626377,TERMINATED: inclusions problems
+NCT,NCT04255329,ClinicalTrials.gov,NCT04255329,WITHDRAWN: health context of covid-19
+NCT,NCT04205539,ClinicalTrials.gov,NCT04205539,WITHDRAWN: Pending COVID-19 pandemic
+NCT,NCT04019665,ClinicalTrials.gov,NCT04019665,WITHDRAWN: no participants enrolled
+NCT,NCT01082965,ClinicalTrials.gov,NCT01082965,TERMINATED: The study was terminated because of slow enrollment. The decision to terminate the trial was not based on any safety or efficacy concerns.
+NCT,NCT01900665,ClinicalTrials.gov,NCT01900665,TERMINATED: Solanezumab did not meet the study's primary endpoint.
+NCT,NCT00739037,ClinicalTrials.gov,NCT00739037,TERMINATED: (none stated by sponsor)
+NCT,NCT05453539,ClinicalTrials.gov,NCT05453539,"TERMINATED: A temperature excursion occurred at the drug supplier's storage facility, which led to the loss of a significant portion of the IMP stock. Consequently, there is not enough IMP available to support continued recruitment"
+NCT,NCT05476783,ClinicalTrials.gov,NCT05476783,TERMINATED: Resource Constraints
+NCT,NCT02484547,ClinicalTrials.gov,NCT02484547,TERMINATED: Study was discontinued based on futility analysis done and not based on safety concerns. Follow-up visits and closing out study activities are completed
+NCT,NCT01143350,ClinicalTrials.gov,NCT01143350,TERMINATED: (none stated by sponsor)
+NCT,NCT01733355,ClinicalTrials.gov,NCT01733355,TERMINATED: Study was terminated in anticipation of transfer of ownership to Avid Radiopharmaceuticals.
+NCT,NCT05402423,ClinicalTrials.gov,NCT05402423,WITHDRAWN: It was not possible to acquire the medical device
+NCT,NCT02327182,ClinicalTrials.gov,NCT02327182,TERMINATED: This study was terminated due to the benefit-risk balance of MT-4666.
+NCT,NCT03352024,ClinicalTrials.gov,NCT03352024,WITHDRAWN: internal organizational problem and dysfunction of study material
+NCT,NCT02317250,ClinicalTrials.gov,NCT02317250,WITHDRAWN: Study withdrawn. No participants enrolled.
+NCT,NCT04855643,ClinicalTrials.gov,NCT04855643,TERMINATED: PI moved to a new institution
+NCT,NCT03991624,ClinicalTrials.gov,NCT03991624,TERMINATED: Challenges in inclusion
+NCT,NCT03656107,ClinicalTrials.gov,NCT03656107,TERMINATED: Covid-19 pandemic
+NCT,NCT05389644,ClinicalTrials.gov,NCT05389644,TERMINATED: Unable to fulfill recruitment goals
+NCT,NCT02446132,ClinicalTrials.gov,NCT02446132,"TERMINATED: The AVP-786 program was discontinued, the recruitment was stopped and all participants are no longer being examined or receiving intervention."
+NCT,NCT00500500,ClinicalTrials.gov,NCT00500500,TERMINATED: Inability to recruit sufficient number of patients
+NCT,NCT02362880,ClinicalTrials.gov,NCT02362880,"TERMINATED: On 15 January 2019, the sponsor decided to stop the study prematurely due to lack of patient recruitment because of supply problems with 18 F-Florbetaben."
+NCT,NCT01152216,ClinicalTrials.gov,NCT01152216,TERMINATED: (none stated by sponsor)
+NCT,NCT01615666,ClinicalTrials.gov,NCT01615666,WITHDRAWN: This was never a clinical trial and should never have been approved.
+NCT,NCT06721156,ClinicalTrials.gov,NCT06721156,TERMINATED: Termination Notes: Business reason
+NCT,NCT04187547,ClinicalTrials.gov,NCT04187547,WITHDRAWN: Study replaced with a new study
+NCT,NCT06673069,ClinicalTrials.gov,NCT06673069,TERMINATED: Sponsor decision to terminate study early. Decision not based on safety concerns.
+NCT,NCT05124561,ClinicalTrials.gov,NCT05124561,WITHDRAWN: The trial protocol was not approved by the regulatory authorities.
+NCT,NCT02664571,ClinicalTrials.gov,NCT02664571,WITHDRAWN: experimental drug prohibited by the ANSM (French competent authority)
+NCT,NCT07529912,ClinicalTrials.gov,NCT07529912,TERMINATED: This study has been transferred to the Human Research Ethics Committee of St Vincent's Hospital Melbourne.
+NCT,NCT01953601,ClinicalTrials.gov,NCT01953601,TERMINATED: (none stated by sponsor)
+NCT,NCT02004392,ClinicalTrials.gov,NCT02004392,TERMINATED: Study has been suspended due to clinical hold.
+NCT,NCT02972658,ClinicalTrials.gov,NCT02972658,"TERMINATED: As the feeder study (AZES) was stopped for futility after an independent assessment, this trial was also stopped."
+NCT,NCT00596024,ClinicalTrials.gov,NCT00596024,TERMINATED: Lack of enrollment
+NCT,NCT04121208,ClinicalTrials.gov,NCT04121208,TERMINATED: Delayed due to COVID19. Study drug expired before could be used.
+NCT,NCT03962439,ClinicalTrials.gov,NCT03962439,TERMINATED: Analysis of cognitive data from the first 50 participants indicated that there was not a significant effect of the intervention on any key outcome measures and that a small increase in sample size was unlikely to improve this.
+NCT,NCT03858283,ClinicalTrials.gov,NCT03858283,"TERMINATED: Due to the COVID pandemic, the lockdown in Spain began on 14 March 2020 and after two years we continue with contagion prevention measures that have not made it possible to implement face-to-face mindfulness courses or to evaluate participants."
+NCT,NCT02956486,ClinicalTrials.gov,NCT02956486,"TERMINATED: Due to an unfavorable risk-benefit ratio including no evidence of potential efficacy, and the adverse event profile of E2609 being worse than placebo."
+NCT,NCT01385033,ClinicalTrials.gov,NCT01385033,TERMINATED: (none stated by sponsor)
+NCT,NCT03274817,ClinicalTrials.gov,NCT03274817,TERMINATED: Insufficient Enrollment
+NCT,NCT02569398,ClinicalTrials.gov,NCT02569398,TERMINATED: Change in benefit-risk profile for individuals with early sporadic Alzheimer Disease because of elevations in liver enzymes in subjects receiving atabecestat
+NCT,NCT02791191,ClinicalTrials.gov,NCT02791191,TERMINATED: Low likelihood of identifying a statistically significant treatment effect.
+NCT,NCT01812213,ClinicalTrials.gov,NCT01812213,TERMINATED: (none stated by sponsor)
+NCT,NCT00362024,ClinicalTrials.gov,NCT00362024,TERMINATED: (none stated by sponsor)
+NCT,NCT00602680,ClinicalTrials.gov,NCT00602680,TERMINATED: Insufficient expected benefit risk
+NCT,NCT03487380,ClinicalTrials.gov,NCT03487380,"TERMINATED: Despite an extension of the planned duration of inclusion and an enrolled patient number inferior than planned, coordinating investigator considered that it was more reasonable to stop inclusions in order to analyze the data already available"
+NCT,NCT02322021,ClinicalTrials.gov,NCT02322021,TERMINATED: This study was terminated early by the sponsor on the recommendation of an independent data safety monitoring board following review of unblinded data from the Phase 3 studies E2609-G000-301 (NCT02956486) and E2609-G000-302 (NCT03036280).
+NCT,NCT01723488,ClinicalTrials.gov,NCT01723488,TERMINATED: Study was terminated in anticipation of transfer of ownership to Avid Radiopharmaceuticals.
+NCT,NCT00087724,ClinicalTrials.gov,NCT00087724,TERMINATED: (none stated by sponsor)
+NCT,NCT02033941,ClinicalTrials.gov,NCT02033941,TERMINATED: difficulty with enrollment due to pandemic.
+NCT,NCT04812769,ClinicalTrials.gov,NCT04812769,WITHDRAWN: Principal Investigator is taking a leave of absence. Study terminated.
+NCT,NCT03514875,ClinicalTrials.gov,NCT03514875,WITHDRAWN: discontinued due to change in operating plans prior to study initiation and enrollment
+NCT,NCT01066546,ClinicalTrials.gov,NCT01066546,TERMINATED: See termination reason in detailed description.
+NCT,NCT03256539,ClinicalTrials.gov,NCT03256539,"TERMINATED: Unexpected closure of study components -- the digital intervention (CBT-I) was no longer accessible, and alternatives were not feasible."
+NCT,NCT00886951,ClinicalTrials.gov,NCT00886951,TERMINATED: There seemed to be no uptake of the ligand in the areas of the brain expected for subjects with amyloid.
+NCT,NCT01553929,ClinicalTrials.gov,NCT01553929,TERMINATED: (none stated by sponsor)
+NCT,NCT05310071,ClinicalTrials.gov,NCT05310071,TERMINATED: Sponsor's Decision
+NCT,NCT04010175,ClinicalTrials.gov,NCT04010175,TERMINATED: Recruitment stopped for thesis defense. It was not possible to extend the period of inclusion to achieve the patient objective
+NCT,NCT04096261,ClinicalTrials.gov,NCT04096261,WITHDRAWN: Resources had to be focused on other projects.
+NCT,NCT04077450,ClinicalTrials.gov,NCT04077450,WITHDRAWN: Changed the direction and aims of the study
+NCT,NCT01712074,ClinicalTrials.gov,NCT01712074,"TERMINATED: The study was terminated October 23, 2015 as pre-specified, interim analysis futility criteria were met. The termination was not due to safety concerns."
