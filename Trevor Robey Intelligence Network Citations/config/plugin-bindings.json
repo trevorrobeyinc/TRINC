@@ -760,7 +760,8 @@
       "guardrails": [
         "sign places a signature IMAGE on a PDF. Executing a binding agreement is an operator act — propose the placement, let the operator confirm before the file is treated as executed.",
         "For text extraction or summarization use native Read / the pdf skill instead; this plugin is for visual collaboration."
-      ]
+      ],
+      "ASSESSED_2026-07-31": "KEEP AS-IS. Zero placeholders, authenticated, 9 live tools. Scopes itself honestly ('Not for summarization or text extraction - use native Read'), so it complements the global pdf skill and Read rather than duplicating them. The sign command carries its own correct caveat that binding e-signatures need a dedicated service. Uses npx -y @modelcontextprotocol/server-pdf v1.7.5 (cached) - same unpinned pattern as others but from the official MCP org. Nothing to tailor."
     },
     "vpai": {
       "surface": "desktop-rpm",
@@ -780,7 +781,8 @@
         "SAMPLE-FIRST: leave the 5-entity preview on. Only run vpai:skip_sample on an explicit operator request — full-scale enrichment is costly and hard to undo.",
         "Prospect data is third-party personal data: keep it out of the vault and out of git. Session-scope only.",
         "Enrichment output is NOT citable evidence and never enters a research deliverable."
-      ]
+      ],
+      "ASSESSED_2026-07-31": "KEEP AS-IS but DORMANT. Only plugin with real substance (37 business refs, 21 MCP-tool refs) and the only enrichment surface. ZERO value to the research engine: B2B firmographics carry no PMID/NCT/ChEMBL/DOI so nothing it returns can pass the citation gate. INSTALL-PATTERN WARNING: in Claude Code its primary path is 'npm install -g @vibeprospecting/vpai@latest', which the doc says to run at the START OF EVERY WORKFLOW and never skip - the same unpinned auto-updating shape as desktop-commander, though lower severity (data-fetch tools not shell; needs an explicit Bash call). Currently inert: not installed, not authenticated. If activated, PIN THE VERSION rather than following that instruction."
     },
     "frontend-design": {
       "surface": "cli-marketplace",
@@ -825,7 +827,8 @@
         "NEVER loop an outward-facing action — publish, send, post, deploy, or an AWS listing change.",
         "Always define the exit condition before starting, and confirm cancel-ralph works. Its Stop hook keeps the session alive by design.",
         "Loop work stays on a branch or a throwaway worktree; leave commits for the operator to sign."
-      ]
+      ],
+      "GUARDRAIL_HARDENED_2026-07-31": "The 'never loop a YubiKey ceremony' rule is no longer theoretical. Commit 0bc4654 put the operator ceremony on EVERY model-reaching CLI, so a Ralph loop pointed at run-workflow.js / run-research-task.js / run-dataset-mission.js / run-live-llm-verification.js / test-llm-connection.js would demand a physical YubiKey touch PER ITERATION. Combined with the standing bar on sub-agents triggering ceremonies, the rule is now concrete: NEVER point a Ralph loop at an engine run. Mechanics verified by reading hooks/stop-hook.sh - hard iteration cap that deletes the state file and exits cleanly, session isolation via session_id so another session's loop cannot block yours, numeric validation, project-scoped state at .claude/ralph-loop.local.md. Verdict: KEEP AS-IS, nothing to tailor."
     }
   },
   "installed_not_bound": {

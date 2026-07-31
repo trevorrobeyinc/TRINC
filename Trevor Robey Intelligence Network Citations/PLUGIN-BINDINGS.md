@@ -473,6 +473,54 @@ hand-edited. Uninstall in the Claude Desktop plugin UI, then fully quit and reop
 
 ---
 
+## ✅ FINAL SWEEP — the last four plugins (2026-07-31)
+
+### `ralph-loop` — **KEEP AS-IS**, guardrail now concrete
+
+Genuinely well-engineered, verified by reading `hooks/stop-hook.sh`: a **hard iteration cap** that
+deletes the state file and exits cleanly at the limit; **session isolation** via `session_id`, so
+another session's loop cannot block yours; numeric-field validation on the state file; state is
+project-scoped at `.claude/ralph-loop.local.md`. No loop active in this repo. Nothing to tailor.
+
+**But its guardrail stopped being theoretical today.** Commit `0bc4654` put the operator ceremony on
+**every model-reaching CLI**, so a Ralph loop pointed at any of these would demand a **YubiKey touch
+per iteration**:
+
+`run-workflow.js` · `run-research-task.js` · `run-dataset-mission.js` ·
+`run-live-llm-verification.js` · `test-llm-connection.js`
+
+Combined with the standing rule that sub-agents must never trigger a ceremony, the guardrail is now:
+**never point a Ralph loop at an engine run.** Safe targets remain bounded local loops — driving the
+unit suite to green, working down `.learnings/FEATURE_REQUESTS.md`, grinding a dataset-validation
+pass. Always define the exit condition first and confirm `cancel-ralph` works.
+
+### `pdf-viewer` — **KEEP AS-IS**
+
+Zero placeholders, authenticated, 9 live tools, and it scopes itself honestly: *"Not for
+summarization or text extraction (use native Read instead)"* — genuinely complementary to the global
+`pdf` skill (merge/split/OCR) and to native `Read`. `sign` carries its own correct caveat: *"for
+legally binding e-signatures, use a dedicated signing service."* Uses `npx -y
+@modelcontextprotocol/server-pdf` (v1.7.5, cached) — the same unpinned pattern as others, but from
+the official MCP org. Real documents waiting: the CA SOS certified copy, the AWS StandardDSA
+comparison, `CommonPaper-Mutual-NDA-v2.pdf`.
+
+### `vpai` — **KEEP AS-IS, dormant**
+
+The only plugin with real substance (37 business refs, 21 MCP-tool refs) and the only enrichment
+surface, resolving `~~data enrichment`. **Zero value to the research engine** — B2B firmographics
+carry no PMID/NCT/ChEMBL/DOI, so nothing it returns can pass the citation gate.
+
+> ⚠️ **Before first use:** in Claude Code its primary path is a CLI it instructs Claude to install
+> **globally at the start of every workflow** — `npm install -g @vibeprospecting/vpai@latest`, with
+> the doc insisting *"always run this install… never skip because the CLI is already on PATH."* Same
+> unpinned auto-updating shape as Desktop Commander, though lower severity (data-fetch tools, not
+> shell; requires an explicit Bash call). **Currently inert** — not installed, not authenticated. If
+> activated, **pin the version** rather than following that instruction.
+
+### `frontend-design` — **KEEP AS-IS** (collision fixed, see its section above)
+
+---
+
 ## Operator remainder
 
 The plugins' *skills* work today with no authentication at all — only the MCP servers need OAuth,
@@ -522,7 +570,7 @@ applied to every remaining plugin. Measured across all `.md` files in each packa
 | marketing | 8 | 13 | 0 | 0 | **TAILORED → `trinc-marketing`** (2026-07-29); brand voice already went to `trinc-business:brand-check` — see below |
 | data | 10 | 8 | 0 | 0 | **DROPPED** (2026-07-29) — tailored, then removed; see below |
 | design | 7 | 9 | 0 | 0 | **TAILORED → `trinc-design`** (2026-07-29) — see below |
-| product-management | 8 | 16 | 2* | 0 | **DROP** — no analytics, pre-revenue; `offer-quote` covers the ladder |
+| product-management | 8 | 16 | 2* | 0 | **DROP — assessed 2026-07-31.** All 8 skills dead or covered: `metrics-review` (no analytics), `sprint-planning` (team of one), `roadmap-update`/`stakeholder-update` (the roadmap IS the continuity board → `orient`/`triage`), `synthesize-research` (no users), `competitive-brief` (citable path is CT.gov `search_by_sponsor`), `write-spec`/`product-brainstorming` (native). 14 of 16 servers need auth and map to NONE. |
 | sales | 9 | 14 | 2* | 0 | **DROP as a plugin** (2026-07-29) — but the `~~CRM` binding was CORRECTED; see below |
 | bio-research | 6 | 11 | 6* | 0 | **SPLIT VERDICT** (2026-07-29) — keep the servers, skills marked DO-NOT-USE; see below |
 | engineering | 10 | 10 | 0 | 0 | **DROPPED** → replaced by `trinc-engineering` |
