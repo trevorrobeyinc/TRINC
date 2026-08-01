@@ -928,8 +928,9 @@ async function downloadViaDownie(videoUrl: string, destinationDir: string, dispa
  * `action=open_in_uge` opens the page in Downie's own logged-in browser, autoplays it, and detects
  * the stream — the operator then clicks the detected stream ONCE to start the download. UGE ignores
  * the `destination` param and saves to Downie's default `~/Downloads`, so we watch there and move
- * the claimed file into the pipeline folder afterward. This is the ONE unavoidable manual step;
- * everything before and after it is automatic.
+ * the claimed file into the pipeline folder afterward (subtitle sidecars ride along via
+ * moveDownieSubtitleSidecars). This is the ONE unavoidable manual step; everything before and after
+ * it is automatic.
  */
 async function downloadViaDownieUGE(videoUrl: string, downloadsDir: string, dispatchedAtMs: number): Promise<string> {
   const schemeUrl = `downie://XUOpenURL?url=${encodeDownieParam(videoUrl)}&action=open_in_uge`;
@@ -940,6 +941,17 @@ async function downloadViaDownieUGE(videoUrl: string, downloadsDir: string, disp
   return file;
 }
 
+/** Replace-move: drop any stale destination, rename, fall back to copy+remove across filesystems. */
+async function moveFileReplacing(sourceFile: string, destFile: string): Promise<void> {
+  await fs.rm(destFile, { force: true }).catch(() => undefined);
+  try {
+    await fs.rename(sourceFile, destFile);
+  } catch {
+    await fs.copyFile(sourceFile, destFile);
+    await fs.rm(sourceFile, { force: true }).catch(() => undefined);
+  }
+}
+
 /**
  * Move a UGE download out of `~/Downloads` into the pipeline's dedicated Downie folder, so it is
  * pipeline-owned (cleaned up after the summary like every other downloaded video) and `~/Downloads`
@@ -948,15 +960,85 @@ async function downloadViaDownieUGE(videoUrl: string, downloadsDir: string, disp
 async function moveIntoDownieFolder(sourceFile: string, downieFolder: string): Promise<string> {
   await fs.mkdir(downieFolder, { recursive: true });
   const dest = path.join(downieFolder, path.basename(sourceFile));
-  await fs.rm(dest, { force: true }).catch(() => undefined);
-  try {
-    await fs.rename(sourceFile, dest);
-  } catch {
-    await fs.copyFile(sourceFile, dest);
-    await fs.rm(sourceFile, { force: true }).catch(() => undefined);
-  }
+  await moveFileReplacing(sourceFile, dest);
   await appendRunLog(`moved UGE download into pipeline folder: ${dest}`);
   return dest;
+}
+
+/**
+ * Claim the subtitle sidecars Downie exported NEXT TO a downloaded video, moving them into the same
+ * folder the video was claimed into — without this, the UGE lane orphans the `.srt` in `~/Downloads`
+ * (the video is moved away alone, findSubtitleSidecars then scans next to the MOVED video and finds
+ * nothing) and every run pays ~2 min of Whisper for a transcript the sidecar already held.
+ *
+ * Matching is by loose basename PREFIX, not `<base>.srt` exactly: a re-download of a title whose
+ * sidecar still exists gets a disambiguating suffix BEFORE the extension (observed 2026-07-31:
+ * "<base> -  - 2026-07-31 16-54-58.srt"). The loose prefix is safe here — and ONLY here — because
+ * claiming is guarded by file mtime ≥ dispatch exactly like waitForNewStableVideo guards the video,
+ * so a stale sidecar from an earlier run is never claimed. findSubtitleSidecars itself must stay
+ * strict (local-file mode points it at arbitrary folders where a bare prefix could pair the wrong
+ * video's subtitles), so each claimed extension's first sidecar is RENAMED to the canonical
+ * `<base>.srt`/`<base>.vtt` findSubtitleSidecars looks for. `.vtt` is claimed for tidiness/cleanup
+ * even though transcript extraction currently reads only `.srt`.
+ *
+ * `detectedVideoFile` is the video's ORIGINAL detected path — only its dirname/basename are used, so
+ * it is fine that the file itself has already been moved. In the direct-Downie lane source and
+ * destination folders coincide; an already-canonical sidecar is then claimed in place (no move).
+ * Fail-soft by design: any error logs and returns what was claimed so far — the run degrades to the
+ * Whisper fallback instead of failing.
+ */
+export async function moveDownieSubtitleSidecars(
+  detectedVideoFile: string,
+  destinationDir: string,
+  dispatchedAtMs: number
+): Promise<string[]> {
+  const claimed: string[] = [];
+  try {
+    const sourceDir = path.dirname(detectedVideoFile);
+    const videoBase = path.basename(detectedVideoFile, path.extname(detectedVideoFile));
+
+    const siblings = await fs.readdir(sourceDir);
+    const matches: string[] = [];
+    for (const name of siblings.sort((left, right) => left.localeCompare(right))) {
+      const lower = name.toLowerCase();
+      if ((!lower.endsWith(".srt") && !lower.endsWith(".vtt")) || !name.startsWith(videoBase)) {
+        continue;
+      }
+      const filePath = path.join(sourceDir, name);
+      try {
+        const stat = await fs.stat(filePath);
+        if (stat.isFile() && stat.mtimeMs >= dispatchedAtMs - 1000) {
+          matches.push(filePath);
+        }
+      } catch {
+        // File vanished mid-scan — ignore.
+      }
+    }
+    if (matches.length === 0) {
+      return claimed;
+    }
+
+    await fs.mkdir(destinationDir, { recursive: true });
+    const canonicalTaken = new Set<string>();
+    for (const sourceFile of matches) {
+      const extension = path.extname(sourceFile).toLowerCase();
+      const destName = canonicalTaken.has(extension) ? path.basename(sourceFile) : `${videoBase}${extension}`;
+      canonicalTaken.add(extension);
+      const destFile = path.join(destinationDir, destName);
+      if (destFile !== sourceFile) {
+        await moveFileReplacing(sourceFile, destFile);
+      }
+      claimed.push(destFile);
+      await appendRunLog(`claimed subtitle sidecar: ${sourceFile} -> ${destFile}`);
+    }
+  } catch (error) {
+    await appendRunLog(
+      `subtitle sidecar claim failed (continuing without sidecars): ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
+  return claimed;
 }
 
 export async function runVideoTranscribeCommand(
@@ -971,6 +1053,9 @@ export async function runVideoTranscribeCommand(
   // A Downie-downloaded video lives in the pipeline's own dedicated folder, so (unlike a user's
   // file-picker selection) it IS ours to clean up after the summary lands.
   let downieDownloadedFile = "";
+  // Subtitle sidecars Downie saved next to that video, claimed into the pipeline folder alongside
+  // it — pipeline-owned artifacts, deleted with the video after the summary lands.
+  let downieSubtitleFiles: string[] = [];
 
   try {
     const videoUrl = values.videoUrl.trim();
@@ -1027,20 +1112,26 @@ export async function runVideoTranscribeCommand(
         if (isLoginGatedHost(videoUrl)) {
           // Login-gated (LinkedIn): direct download always fails, so go straight to UGE.
           toast.title = "Opening Downie — select the detected stream to download...";
-          const ugeFile = await downloadViaDownieUGE(videoUrl, downloadsFolder, Date.now());
+          const dispatchedAtMs = Date.now();
+          const ugeFile = await downloadViaDownieUGE(videoUrl, downloadsFolder, dispatchedAtMs);
           primaryVideoFile = await moveIntoDownieFolder(ugeFile, downieFolder);
+          downieSubtitleFiles = await moveDownieSubtitleSidecars(ugeFile, downieFolder, dispatchedAtMs);
         } else {
           // Public site: try the zero-click direct download first; if Downie can't extract it
           // headlessly, fall through to UGE (one click).
           try {
             toast.title = "Downloading via Downie...";
-            primaryVideoFile = await downloadViaDownie(videoUrl, downieFolder, Date.now());
+            const dispatchedAtMs = Date.now();
+            primaryVideoFile = await downloadViaDownie(videoUrl, downieFolder, dispatchedAtMs);
+            downieSubtitleFiles = await moveDownieSubtitleSidecars(primaryVideoFile, downieFolder, dispatchedAtMs);
           } catch (directError) {
             const dreason = directError instanceof Error ? directError.message : String(directError);
             await appendRunLog(`downie direct failed (${dreason}) — opening UGE`);
             toast.title = "Opening Downie — select the detected stream to download...";
-            const ugeFile = await downloadViaDownieUGE(videoUrl, downloadsFolder, Date.now());
+            const dispatchedAtMs = Date.now();
+            const ugeFile = await downloadViaDownieUGE(videoUrl, downloadsFolder, dispatchedAtMs);
             primaryVideoFile = await moveIntoDownieFolder(ugeFile, downieFolder);
+            downieSubtitleFiles = await moveDownieSubtitleSidecars(ugeFile, downieFolder, dispatchedAtMs);
           }
         }
         downieDownloadedFile = primaryVideoFile;
@@ -1198,13 +1289,15 @@ export async function runVideoTranscribeCommand(
       // Provenance-aware cleanup: only files the PIPELINE created are disposable. Files inside the
       // vault's video folder qualify; a user-picked local source video never does (not outside the
       // vault, e.g. ~/Downloads, and not when it happens to sit in Video Downloads). A Downie-
-      // downloaded video lives in the pipeline's dedicated folder and IS ours, so it is added explicitly.
+      // downloaded video — and any subtitle sidecars claimed alongside it — lives in the pipeline's
+      // dedicated folder and IS ours, so both are added explicitly.
       await cleanupRunArtifacts({
         files: [
           ...artifacts.filter(
             (artifactPath) => artifactPath.startsWith(outputDir + path.sep) && artifactPath !== localVideoPath
           ),
           ...(downieDownloadedFile ? [downieDownloadedFile] : []),
+          ...downieSubtitleFiles,
           transcriptAbsolutePath,
           path.join(vaultPath, ...sourceNotePath.split("/")),
         ],
