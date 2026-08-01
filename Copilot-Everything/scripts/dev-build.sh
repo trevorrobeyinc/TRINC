@@ -40,6 +40,12 @@ cp "$PLUGIN_REPO/LICENSE" "$RUNTIME_PLUGIN_DIR/LICENSE"
 
 if [[ -n "${TEMP_PRESERVE_DIR:-}" && -f "$TEMP_PRESERVE_DIR/data.json" ]]; then
   cp "$TEMP_PRESERVE_DIR/data.json" "$RUNTIME_PLUGIN_DIR/data.json"
+  # 0600, every time. The wipe above deletes the original inode, so the restored copy
+  # is a NEW file created at the shell's umask (0644) — which silently un-hardens the
+  # one file here that carries Obsidian-written runtime settings and the full
+  # secret-slot schema. A manual chmod does not survive the next rebuild; this does.
+  # (2026-07 API-key-storage audit; drift observed and re-fixed 2026-07-31.)
+  chmod 600 "$RUNTIME_PLUGIN_DIR/data.json"
 fi
 
 node - "$PLUGIN_REPO/manifest.json" "$RUNTIME_PLUGIN_DIR/build-info.json" <<'NODE'
