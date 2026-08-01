@@ -178,10 +178,7 @@ export async function raycastObsidianAppendNote(input: {
   idempotencyKey: string;
 }): Promise<{ appended: boolean; path: string; idempotencyState: string }> {
   const client = new RaycastObsidianMcpClient();
-  const response = await client.callTool<
-    typeof input,
-    { appended: boolean; path: string; idempotencyState: string }
-  >({
+  const response = await client.callTool<typeof input, { appended: boolean; path: string; idempotencyState: string }>({
     tool: "obsidian_append_note",
     operation: "append_note",
     input,

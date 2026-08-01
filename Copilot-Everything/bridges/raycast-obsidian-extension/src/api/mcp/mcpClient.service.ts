@@ -150,8 +150,8 @@ export class MCPClient {
       this.transport === "uds"
         ? process.env.OBSIDIAN_MCP_UDS_PATH || "/tmp/obsidian-mcp-bridge.sock"
         : process.env.OBSIDIAN_MCP_PIPE_NAME
-          ? `\\\\.\\pipe\\${process.env.OBSIDIAN_MCP_PIPE_NAME}`
-          : "\\\\.\\pipe\\obsidian-mcp-bridge";
+        ? `\\\\.\\pipe\\${process.env.OBSIDIAN_MCP_PIPE_NAME}`
+        : "\\\\.\\pipe\\obsidian-mcp-bridge";
 
     return await new Promise<string>((resolve, reject) => {
       const req = http.request(

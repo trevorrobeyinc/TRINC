@@ -1,10 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { open } from "@raycast/api";
 import { execFile } from "node:child_process";
-import {
-  getRefreshPromptRegistryCommandCandidates,
-  getSummarizeCommandCandidates,
-} from "@/api/copilot/commandIds";
+import { getRefreshPromptRegistryCommandCandidates, getSummarizeCommandCandidates } from "@/api/copilot/commandIds";
 import { hybridReadNote } from "@/api/mcp/hybridObsidian.service";
 import { getVaultsFromPreferencesOrObsidianJson } from "@/obsidian/internal/obsidian";
 import { runAiSummarizeCommand } from "@/tools/aiSummarizeCommandFlow";
@@ -47,9 +44,7 @@ describe("runAiSummarizeCommand", () => {
   function mockExecFileImplementation(
     implementation: (file: string, args: string[]) => { error: Error | null; stdout?: string; stderr?: string }
   ) {
-    mockExecFile.mockImplementation(((
-      ...args: unknown[]
-    ) => {
+    mockExecFile.mockImplementation(((...args: unknown[]) => {
       const [file, commandArgs, optionsOrCallback, maybeCallback] = args;
       const callback = typeof maybeCallback === "function" ? maybeCallback : optionsOrCallback;
       if (typeof callback === "function") {
@@ -119,8 +114,7 @@ describe("runAiSummarizeCommand", () => {
       activationDelayMs: 0,
     });
 
-    const openedUri =
-      "obsidian://open?path=%2FUsers%2Fmyhome%2FMy%20Digital%20Garden%2FInbox%2FTest%20Note.md";
+    const openedUri = "obsidian://open?path=%2FUsers%2Fmyhome%2FMy%20Digital%20Garden%2FInbox%2FTest%20Note.md";
 
     expect(mockReadNote).toHaveBeenCalledWith({
       vault: "My Digital Garden",

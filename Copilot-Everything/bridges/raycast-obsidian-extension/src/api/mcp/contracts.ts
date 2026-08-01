@@ -1,10 +1,4 @@
-export type Operation =
-  | "open_vault"
-  | "create_note"
-  | "append_note"
-  | "read_note"
-  | "search_notes"
-  | "execute_command";
+export type Operation = "open_vault" | "create_note" | "append_note" | "read_note" | "search_notes" | "execute_command";
 
 export interface PlannerState {
   epochId: number;
