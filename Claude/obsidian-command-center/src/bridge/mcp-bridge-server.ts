@@ -45,7 +45,8 @@ function loadOrCreateBridgeToken(): string {
 
 /**
  * Constant-time bearer-token verification (added 2026-05-04 H2 hardening).
- * Routes that bypass auth: GET / and GET /health (so health probes work).
+ * Routes that bypass auth: GET /, GET /health and GET /healthz (so health probes work;
+ * /healthz matches the canonical :8798 bridge's path, which is what clients probe).
  * All other routes require either Authorization: Bearer <token>
  * or X-MCP-Token: <token>.
  */
@@ -237,10 +238,16 @@ export class McpBridgeServer {
       `http://${HOST}:${this.settings.bridgePort}`
     );
 
-    // GET /health or / — health probes are open by design (no auth required).
+    // GET /health, /healthz or / — health probes are open by design (no auth required).
+    // `/healthz` is an alias, not a new surface: same handler, already reachable
+    // unauthenticated at `/` and `/health`. It exists because the canonical bridge on
+    // :8798 serves `/healthz`, so every client in this monorepo probes that path —
+    // including the Copilot fork's MCP diagnostics panel, which sends no auth header
+    // and therefore hit the Bearer gate below and reported a misleading HTTP 401
+    // against a bridge whose token was correct all along (diagnosed 2026-07-31).
     if (
       req.method === "GET" &&
-      (url.pathname === "/" || url.pathname === "/health")
+      (url.pathname === "/" || url.pathname === "/health" || url.pathname === "/healthz")
     ) {
       this.sendJson(res, 200, this.handleHealth());
       return;
