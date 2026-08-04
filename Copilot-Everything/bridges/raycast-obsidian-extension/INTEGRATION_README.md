@@ -41,7 +41,7 @@ Raycast video pipeline
   -> Downie 4 download (direct, or UGE for login-gated hosts)
     -> yt-dlp + YubiKey-sealed cookies as last resort
   -> subtitle sidecars, else Whisper (whisper-ctranslate2) transcription
-  -> source note via MCP Bridge create_note (:8798)
+  -> source note via direct vault filesystem write (fs `writeGeneratedNote` — no bridge `create_note` since `20d9a63`)
   -> headless Copilot summarize (copilot:summarize-to-note)
     -> dispatched via Obsidian Local REST API :27124 (/open + command execute)
     -> fallback: extension-side template summary (Anthropic API if key set, else Raycast AI)
@@ -78,8 +78,9 @@ Raycast video pipeline
 
 - Downloads via Downie 4 first (zero-click direct, or one-click UGE for login-gated hosts like LinkedIn Learning); `yt-dlp` — unsealing the YubiKey-GPG cookies jar when configured — survives only as the last resort. A local file / `file://` input skips download entirely.
 - Transcribes from subtitle sidecars when present, else Whisper (`whisper-ctranslate2`).
-- Writes the source note through the bridge (`raycastObsidianCreateNote` → `:8798`).
+- Writes the source note straight to the vault filesystem (`writeGeneratedNote` — direct `fs.writeFile`; since `20d9a63` the bridge `create_note` lane is no longer used for pipeline notes, which is what makes the ingestion gate below necessary).
 - Summarizes primarily by dispatching the Copilot fork's headless `copilot:summarize-to-note` command over the Local REST API (`/open` + command execute — background, no focus change), then renames the note Copilot writes into the pipeline's summary path.
+  - **Ingestion/active-file gate (verified 2026-08-04):** the fork's headless runner (`src/commands/customCommandHeadless.ts`) reads `app.workspace.getActiveFile()` and `app.vault.cachedRead(...)` — it needs the source note to be both *ingested by Obsidian's cache* and the *workspace-active file* at dispatch time. Because the note is fs-written, Obsidian's watcher may not have ingested it yet when the extension's fixed 1500 ms open→dispatch delay elapses; the fork then silently fails with `Nothing to process: no selection and the active note is empty.` (plugin swallows the error; the extension just polls to timeout). Gate the dispatch on `GET /vault/<path>` returning the note content (ingestion) and `GET /active/`'s `Content-Location` header naming the source note (active file). Note: the fork's `GET /active/` returns the active file's **raw content**, not JSON.
 - Falls back to the extension-side template summarizer: Anthropic API (`anthropicApiKey`, default `claude-sonnet-4-6`) when a key is set, else Raycast AI.
 - Cleans up every per-run artifact after the summary lands (toggle: `cleanupAfterSummary`), leaving only the summary note.
 
