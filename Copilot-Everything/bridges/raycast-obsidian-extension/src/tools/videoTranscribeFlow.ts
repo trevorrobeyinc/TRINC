@@ -6,7 +6,6 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 
-import { raycastObsidianCreateNote } from "@/api/mcp/raycastObsidianMcp";
 import { getVaultsFromPreferencesOrObsidianJson } from "@/obsidian/internal/obsidian";
 import { generateTemplateSummaryText } from "@/tools/aiSummarizeFlow";
 import { buildDeterministicTranscriptSection } from "@/tools/transcriptSection";
@@ -88,6 +87,13 @@ async function appendRunLog(line: string): Promise<void> {
     // Never let logging break the run.
   }
 }
+
+export async function writeGeneratedNote(vaultPath: string, notePath: string, content: string): Promise<void> {
+  const absolutePath = path.join(vaultPath, ...notePath.split("/"));
+  await fs.mkdir(path.dirname(absolutePath), { recursive: true });
+  await fs.writeFile(absolutePath, content, "utf-8");
+}
+
 const defaultVideoDownloadFolder = "Video Downloads";
 const defaultSummaryOutputFolder = "obsidian-copilot-summaries";
 // Downie 4 downloads URL-mode videos here. Downie is sandboxed — it can only write to a folder the
@@ -1065,7 +1071,6 @@ export async function runVideoTranscribeCommand(
     }
 
     const vaultPath = await resolvePrimaryVaultPath(prefs);
-    const vaultName = path.basename(vaultPath);
     const videoFolder = normalizeVaultRelativeFolder(prefs.videoDownloadFolder, defaultVideoDownloadFolder);
     const outputDir = path.join(vaultPath, ...videoFolder.split("/"));
     await fs.mkdir(outputDir, { recursive: true });
@@ -1225,13 +1230,7 @@ export async function runVideoTranscribeCommand(
     });
 
     toast.title = "Saving source note...";
-    await raycastObsidianCreateNote({
-      vault: vaultName,
-      vaultRoot: vaultPath,
-      path: sourceNotePath,
-      content: sourceNoteContent,
-      overwrite: true,
-    });
+    await writeGeneratedNote(vaultPath, sourceNotePath, sourceNoteContent);
     await appendRunLog(`source note written: ${sourceNotePath}`);
 
     // PRIMARY summary lane: the Obsidian Copilot plugin summarizes the transcription note in
@@ -1270,13 +1269,7 @@ export async function runVideoTranscribeCommand(
         anthropicModel: prefs.anthropicModel,
       });
 
-      await raycastObsidianCreateNote({
-        vault: vaultName,
-        vaultRoot: vaultPath,
-        path: summaryNotePath,
-        content: summary.summaryText,
-        overwrite: true,
-      });
+      await writeGeneratedNote(vaultPath, summaryNotePath, summary.summaryText);
       summaryModelLabel = summary.model;
       usedFallbackSummarizer = true;
       await appendRunLog(`summary written via ${summary.model} (fallback): ${summaryNotePath}`);
