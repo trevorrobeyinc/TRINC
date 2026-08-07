@@ -63,6 +63,17 @@ Hosting: **local-only as of 2026-05-26.** The private GitHub remote `trevoralexa
 > `config/tool-prefetch-map.json`. Verify with `node scripts/audit-connector-coverage.js` from the
 > business folder; the plugin section must show zero ⚠.
 
+## 🔗 opencode ↔ Claude delegation bridge
+
+> Claude can delegate cheap mechanical + biomedical research to opencode's **free** models at $0.
+> **Every file of this setup — where it lives and why — is mapped in ONE place:**
+> **[`_opencode-bridge/README.md`](_opencode-bridge/README.md).** The operational files live
+> *outside* this repo on purpose (opencode's config discovery in `~/.config/opencode/`, the
+> `~/Security Everything` artifact policy, machine-tooling-not-in-monorepo, no-secrets-in-git);
+> that hub is the index, not a store. The only in-repo piece is the `opencode` server stanza in
+> [`.mcp.json`](.mcp.json). Security model: a read-only + public-data + no-exfil **allowlist** for
+> the free worker (full detail in `~/Security Everything/opencode-delegation-guard/README.md`).
+
 ## Repo Topology
 
 > **Folder consolidation (2026-05-19).** The two former sibling folders
