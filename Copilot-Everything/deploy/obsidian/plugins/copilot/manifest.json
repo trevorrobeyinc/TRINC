@@ -1,14 +1,15 @@
 {
   "id": "copilot",
   "name": "Copilot",
-  "version": "3.3.3",
+  "version": "99.4.0",
   "minAppVersion": "1.11.4",
   "isDesktopOnly": false,
-  "description": "MCP-first Obsidian Copilot fork — adds Model Context Protocol client support so Copilot chat can call tools exposed by the TrevClaw obsidian-copilot-bridge at https://127.0.0.1:8798. Based on upstream v3.3.3. Versioned to match upstream exactly so Obsidian's auto-update does not silently overwrite this fork (a -mcp.N prerelease suffix sorted BELOW stock and got wiped).",
+  "description": "MCP-first Obsidian Copilot fork \u2014 adds Model Context Protocol client support so Copilot chat can call tools exposed by the TrevClaw obsidian-copilot-bridge at https://127.0.0.1:8798 and the OpenClaw Command Center at https://127.0.0.1:8799. Based on upstream v4.0.0. VERSION IS DELIBERATELY 99.x SO OBSIDIAN'S AUTO-UPDATE NEVER SORTS ABOVE IT: matching upstream exactly (3.3.3) failed on 2026-08-12 when upstream shipped 4.0.0 and silently overwrote this fork. Real upstream base is recorded in upstreamBase below.",
   "author": "Logan Yang (upstream); fork by Trevor Robey",
   "authorUrl": "https://twitter.com/logancyang",
   "fundingUrl": {
     "Buy Me a Coffee": "https://www.buymeacoffee.com/logancyang",
     "GitHub Sponsor": "https://github.com/sponsors/logancyang"
-  }
+  },
+  "upstreamBase": "4.0.0"
 }

@@ -8,7 +8,7 @@ Three active layers (backend-emulator retired 2026-04-11, deleted from monorepo 
 
 | Component | Location | Port | Role |
 |---|---|---|---|
-| Obsidian plugin fork | `repos/obsidian-copilot-mcp` | — | Plugin runtime with `direct_plugin_mcp` mode |
+| Obsidian plugin fork | **`repos/obsidian-copilot-mcp-v4`** (LIVE) | — | MCP-first fork, **ported onto upstream 4.0.0 on 2026-08-12**, manifest `99.4.0`. Exposes 12 MCP tools to Copilot chat over HTTPS. The old `repos/obsidian-copilot-mcp` (3.3.3) is now the HISTORICAL source — do not build or deploy it. |
 | Shared MCP bridge | `bridges/obsidian-copilot-bridge` | 8798 | Canonical multi-operator daemon. **REST-only since 2026-05-09**: RestApiBackend (Local REST API plugin :27124) is the sole backend — the CLI subprocess backend was removed together with InprocPluginBackend + the Advanced URI parity tools (`src/backends/backendSelector.ts` requires restApi; there is no fallback). `/mcp/tool`'s optional `backendHint` accepts only the literal `"restApi"` — a stale `"cli"` hint is rejected HTTP 400 `invalid_literal` (this silently broke the Copilot fork's in-plugin agent vault tools until 2026-07-31, when the fork stopped sending the hint entirely). HTTPS/TLS with HMAC replay-guard. |
 | Consolidated stdio adapter | `bridges/obsidian-stdio-adapter` | — | Single stdio MCP adapter that tunnels Claude/Raycast stdio consumers to :8798. Replaces claude-adapter, obsidian-mcp-stdio, raycast-obsidian-stdio (deletion of those pending). Two profiles via `OBSIDIAN_STDIO_PROFILE`: `claude` (default) and `raycast` (adds `raycast_daily_open`). |
 | Miyo (via TLS proxy) | `scripts/miyo-tls-proxy.mjs` → external Miyo app | 8743 → 8742 | Semantic search via in-monorepo HTTPS proxy at :8743 forwarding to plaintext :8742. Index endpoints deprecated in v4. |
@@ -16,6 +16,87 @@ Three active layers (backend-emulator retired 2026-04-11, deleted from monorepo 
 | SearXNG (via TLS proxy) | `scripts/searxng-tls-proxy.mjs` → external SearXNG (launchd) | 8891 → 8890 | Local private metasearch via in-monorepo HTTPS proxy at :8891 forwarding to plaintext :8890 (JSON API for the `searxng-search` MCP connector). |
 
 > The retired backend emulator on :8789 (`/v1/self-host/*`, `/v0/*` exact-self-host orchestration) and its `exact_backend_emulator` plugin runtime mode are gone. ZettelkastenService now runs in-process inside the `vault-zettelkasten` Obsidian plugin (Claude/obsidian-vault-zettelkasten/). The Raycast extension's `src/api/backend-emulator/` client was deleted with the emulator.
+
+## Fork wipe 2026-08-12 — the version-matching defense failed
+
+On 2026-08-12 02:41 Obsidian auto-updated the `copilot` plugin slot to **stock upstream
+v4.0.0**, overwriting the fork. Verified by manifest (`"version":"4.0.0"`, `"author":"Logan
+Yang"`, 441 bytes) and bundle size (5,232,787 B vs the fork's 3,462,372 B).
+
+**Why the documented defense did not hold.** The fork pinned its manifest to match upstream
+**exactly** (`3.3.3`), on the reasoning — recorded in the fork's own manifest description —
+that a `-mcp.N` prerelease suffix sorted BELOW stock and got wiped. Matching exactly only
+defends until upstream ships a higher version. Upstream released **4.0.0**, which sorts above
+`3.3.3`, so Obsidian updated. *Version matching is a defense with an expiry date, not a lock.*
+The durable fix is to pin the fork's manifest **above** any plausible upstream (e.g. `99.x.y`),
+since Obsidian only offers an update when the registry version sorts higher.
+`.obsidian/community-plugins-versions.json` is NOT a usable pin — it is stale since 2026-05-04
+and still records `"copilot": "3.2.8"`.
+
+**What was lost, and what was not.** `data.json` is not touched by plugin updates, so ALL fork
+configuration survived — including `mcp.servers[]` pointing at `https://127.0.0.1:8798` and
+`https://127.0.0.1:8799` (both already HTTPS), and `autonomousAgentEnabledToolIds` still listing
+`mcp_local-obsidian-mcp_*` ids. **Config intact; the code that reads it is gone.** Upstream 4.0.0
+has no HTTP MCP client at all — verified by signal count in the bundle:
+
+| signal | fork 3.3.3 | upstream 4.0.0 |
+|---|---|---|
+| `mcp/tool` | 1 | **0** |
+| `httpEndpoint` | 4 | **0** |
+| `mcpServers` | 0 | 7 *(bundled Claude Agent SDK, unrelated)* |
+
+**No native 4.0.0 config surface can substitute.** `agentMode.mcpServers` has zero readers and is
+stripped by the `L0n` normalizer, which whitelists only `byok`, `activeBackend`,
+`backends{opencode,claude,codex}`, `deviceProfiles`, `debugFullFrames`, `welcomeDismissed`,
+`claudeCli`, `skills`. The `claude` backend normalizer (`j0n`) accepts only `defaultModel`,
+`defaultMode`, `autoModePermission`, `enableThinking`, `envOverrides`. Restoring the tools on
+4.0.0 therefore REQUIRES porting the fork's MCP module, not configuring it.
+
+**Port surface (measured).** Self-contained: `src/mcp/{McpToolProvider,McpEventClient,McpEventBridge}.ts`
+(+ test) and `src/settings/v2/components/McpSettings.tsx` — 1,225 lines total. Integration is
+**15 touchpoints across 4 files**: `src/main.ts`, `src/settings/model.ts`,
+`src/settings/v2/SettingsMainV2.tsx`, `src/tools/ToolRegistry.ts`. Note 4.0.0 replaced the
+settings layer (`activeModels` → `providers`/`configuredModels` registry, `settingsVersion: 8`),
+so the two settings touchpoints will need real rework rather than a straight copy.
+
+**Operator decision 2026-08-12: do NOT downgrade to 3.3.3.** Staying on 4.0.0 keeps the Claude
+agent lane (5 models enabled under `backends.claude`) and the BYOK provider registry. Upstream
+4.0.0 bundle backed up at `deploy/backups/copilot-upstream-4.0.0-20260812-035227/`.
+
+## PORT COMPLETE — 2026-08-12
+
+The MCP module was ported onto upstream 4.0.0 and is **live**. New vendored fork:
+`repos/obsidian-copilot-mcp-v4` (upstream `4.0.0` tag `a78b69b` + the MCP module).
+
+**What the port required** — 13 touchpoints plus two things the 15-touchpoint count missed:
+
+| area | change |
+|---|---|
+| `src/mcp/*` (6 files) | copied verbatim from the 3.3.3 fork |
+| `src/settings/v2/components/McpSettings.tsx` | copied verbatim |
+| `src/main.ts` | 5 hooks: imports, `mcpEventBridge?` field, `syncFromSettings` in the `subscribeToSettingsChange` callback, initial sync after `initializeBuiltinTools`, `McpEventBridge` ctor after `initWebSelectionWatcher()` |
+| `src/settings/model.ts` | `import type { McpSettings }` + `mcp: McpSettings` on `CopilotSettings` |
+| `src/constants.ts` | `mcp` block in `DEFAULT_SETTINGS` |
+| `src/settings/v2/SettingsMainV2.tsx` | `Plug` icon import, `McpSettings` import, `TAB_IDS`, icon, component, label — 4.0.0 restructured tabs (`byok`/`miyo`/`selfhost`/`skills`), so this was NOT a copy |
+| **`src/tools/ToolRegistry.ts`** | **the fork ADDED `providerId?` to `ToolMetadata` plus `removeByProvider()` / `replaceByProvider()`.** The original touchpoint scan saw only a doc comment here and undercounted it — `tsc` caught it. |
+| **`src/mcp/catalog.ts`** | **Zod v3 → v4**: upstream 4.0.0 moved to zod `4.4.3`; `z.record(valueType)` must become `z.record(keyType, valueType)`. |
+
+`tsc -noEmit -skipLibCheck` exits **0**; `npm run build` exits **0**.
+
+**`miyo_search_context` was added** (catalog went 11 → 12 tools). Its schema mirrors the bridge's
+own zod schema in `bridges/obsidian-copilot-bridge/src/server/tools/miyoSearchContext.ts`
+(`query` required, optional `limit` 1–20). Note `McpToolProvider` sends BOTH `tool: entry.toolName`
+and `operation`, and the bridge dispatcher keys on the **full tool name** — which is why a
+non-`obsidian_`-prefixed tool routes correctly.
+
+**Auto-update hardening.** The manifest is pinned to **`99.4.0`**, deliberately above any plausible
+upstream, with the true base recorded in a custom `upstreamBase: "4.0.0"` field. Obsidian only
+offers an update when the registry version sorts *higher*, so 99.x can never be superseded.
+Matching upstream exactly is what failed on 2026-08-12 — do not go back to it.
+
+**Live proof.** After deploy + reload, `GET https://127.0.0.1:8798/healthz` reports
+`"sse_subscribers_total{stream=research}": 1` — that counter was empty before, and it is the ported
+`McpEventBridge` holding an SSE connection. Runtime evidence, not just a successful build.
 
 ## Key Paths
 
@@ -150,7 +231,7 @@ All in `scripts/`. Key ones:
 - `zettelkasten-smoke-test.sh` — 11-check ZK validation suite (RETIRED 2026-05-09 — tombstone; ZettelkastenService moved in-process into the `vault-zettelkasten` plugin, so smoke-testing happens through the plugin's own commands or the canonical bridge — see its header)
 - `zettelkasten-scheduler.sh` — Scheduled ZK report generation (RETIRED 2026-05-09 — tombstone; scheduling is driven by the Command Center plugin's workflow lifecycle. Header notes no LaunchAgents/cron referenced it as of 2026-05-09)
 - `plugin-reload.sh` — Reload plugin in Obsidian
-- `dev-build.sh` / `dev-deploy.sh` — Plugin dev workflow: stages the fork build into `deploy/obsidian/plugins/copilot` and symlinks it into the dev vault under the fork's REAL plugin id `copilot` (dev lane adopted the official-id identity 2026-07-31; since `9c7ce09a` the fork manifest deliberately matches upstream id+version so auto-update cannot wipe it, so `copilot-mcp` is no longer a plugin id anywhere. `--with-official` retired same day — one id loads once per vault, and the production official slot already runs this fork)
+- `dev-build.sh` / `dev-deploy.sh` — Plugin dev workflow: stages the fork build into `deploy/obsidian/plugins/copilot` and symlinks it into the dev vault under the fork's REAL plugin id `copilot` (dev lane adopted the official-id identity 2026-07-31; since `9c7ce09a` the fork manifest matches upstream id+version — **which DID NOT prevent a wipe: upstream 4.0.0 sorted above the pinned 3.3.3 and overwrote the fork on 2026-08-12. Pin ABOVE upstream (99.x.y), not equal to it.** `copilot-mcp` is no longer a plugin id anywhere. `--with-official` retired same day — one id loads once per vault, and the production official slot already runs this fork)
 - `lib.sh` — Shared constants and utilities (WORKSPACE_ROOT, PRODUCTION_VAULT, etc.)
 - `install-tls-proxies.sh` — Stage the three `*-tls-proxy.mjs` (Miyo/Qdrant/SearXNG) to `~/.local/share/trevclaw-tls-proxies/` and repoint + reload their launchd units. Required historically: the monorepo lived on the external `/Volumes/ExtraCurricular` volume until 2026-07-26 and launchd's TCC context cannot read scripts there. The repo is now on the internal disk, so that wall no longer applies — but staging is **retained** so launchd never depends on where the repo lives. Re-run after editing any proxy script. (LM Studio removed 2026-07-16; Ollama removed 2026-07-23.)
 
