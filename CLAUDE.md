@@ -26,8 +26,10 @@ YubiKey PIN, touch:
 git push origin main
 ```
 
-Repo visibility reads as **not publicly readable** (unauthenticated GitHub API returns 404) — private **or**
-nonexistent; those cannot be distinguished without an authenticated call, so it stays unconfirmed here. Auth is the **YubiKey FIDO2 `ecdsa-sk` resident key** (rotated
+**Visibility: CONFIRMED PRIVATE (2026-08-12).** The unauthenticated GitHub API returns **404** while an
+authenticated push **succeeds** — so the repository provably exists and is provably not publicly readable.
+Those two facts together are what settle it; the 404 alone never could, since it means "private *or*
+nonexistent". First operator-run push landed 10 commits, `6e1319e` → `87900f1`. Auth is the **YubiKey FIDO2 `ecdsa-sk` resident key** (rotated
 2026-08-07, the ONLY GitHub identity), over **port 443** because outbound 22 is blocked on this network, via the
 sk-capable `/opt/homebrew/bin/ssh` pinned in `core.sshCommand` — `/usr/bin/ssh` has no FIDO provider and fails
 with a misleading `Permission denied (publickey)`. **Every push needs a physical touch.** The `git bundle` below
