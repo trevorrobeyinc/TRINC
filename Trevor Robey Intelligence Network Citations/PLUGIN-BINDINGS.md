@@ -528,14 +528,37 @@ All verdicts are final and every replacement is installed. The nine dropped Desk
 product-management` → *"not found in installed plugins"*; the CLI manages only the marketplace and
 `trinc-local` sets). The rpm `manifest.json` is cloud-synced and must never be hand-edited.
 
-**In Claude Desktop → Settings → Plugins, uninstall these nine:**
+**✅ DONE 2026-08-12 — the operator uninstalled seven:**
 
-`productivity` · `operations` · `engineering` · `data` · `product-management` · `sales` ·
-`marketing` · `design` · `bio-research`
+`productivity` · `operations` · `engineering` · `product-management` · `sales` · `marketing` · `design`
 
-**Keep:** `pdf-viewer`, `vibe-prospecting` (vpai), `cowork-plugin-management`.
-(Keeping `bio-research` is justified ONLY if Synapse will be authorized — otherwise it contributes
-nothing that is not available elsewhere.)
+**KEPT — and the two DROP verdicts are REVERSED (see the correction below):** `bio-research`, `data`,
+plus `pdf-viewer`, `vibe-prospecting` (vpai), `cowork-plugin-management`.
+
+> ### 🔄 CORRECTION 2026-08-12 — `bio-research` and `data` stay, and the doctrine was the bug
+>
+> Both were assessed against ONE question — *"does this add a capability the citation-gated engine
+> doesn't have?"* — and both correctly answered no. **That was the wrong question**, and the reason it
+> got asked is a gap in this file's own doctrine: it named a **research lane** and a **business lane**
+> and had no name for the work the operator does most — ad-hoc analyst work in a Claude session
+> (pre-sale scoping, feasibility, founder conversations, questions matching no template). Every tool
+> serving that lane scored zero because the lane was not in the model.
+>
+> **Fixed:** `posture.rules` now carries `THREE-LANES-NOT-TWO` and `ANALYST-LANE-PROMOTION-RULE`.
+>
+> Two concrete errors this produced:
+>
+> | Plugin | What I got wrong |
+> |---|---|
+> | `bio-research` | I called all six skills wet-lab DO-NOT-USE. **Only four are.** `scientific-problem-selection` — which I never opened — implements Fischbach & Walsh, *Cell* 2024, with nine reference files, and is aimed exactly at the founder lane's buyer: someone deciding what to pursue. Its five "duplicate" servers are redundant *to the engine* and useful *in the analyst lane*, where the engine isn't running. |
+> | `data` | Correct that there is no warehouse (sql-queries/write-query/build-dashboard have no referent). **Wrong** that the plugin is therefore valueless — the Trial Graveyard Feed is a real tabular product: **1,921 paid rows, 6 indications, 13 columns**, and `analyze`/`explore-data`/`validate-data`/`create-viz` all accept a **file**, not only a warehouse table. |
+>
+> **Unchanged, and load-bearing:** the four wet-lab skills stay DO-NOT-USE — that is a liability
+> boundary (no QMS, no method validation, outside the citation guarantee), and a founder buyer who
+> owns a lab makes it *more* important, not less. No plugin MCP server enters `tool-prefetch-map.json`.
+>
+> **Companions built:** `trinc-bioresearch` (problem-selection · ad-hoc-research) and `trinc-data`
+> (feed-analytics · deliverable-data).
 
 Nothing breaks either way: none of the nine's MCP servers is authorized, and the replacements are
 live. **After uninstalling, say so** — the nine get tombstoned in the binding files and the audit's
@@ -599,7 +622,7 @@ applied to every remaining plugin. Measured across all `.md` files in each packa
 | design | 7 | 9 | 0 | 0 | **TAILORED → `trinc-design`** (2026-07-29) — see below |
 | product-management | 8 | 16 | 2* | 0 | **DROP — assessed 2026-07-31.** All 8 skills dead or covered: `metrics-review` (no analytics), `sprint-planning` (team of one), `roadmap-update`/`stakeholder-update` (the roadmap IS the continuity board → `orient`/`triage`), `synthesize-research` (no users), `competitive-brief` (citable path is CT.gov `search_by_sponsor`), `write-spec`/`product-brainstorming` (native). 14 of 16 servers need auth and map to NONE. |
 | sales | 9 | 14 | 2* | 0 | **DROP as a plugin** (2026-07-29) — but the `~~CRM` binding was CORRECTED; see below |
-| bio-research | 6 | 11 | 6* | 0 | **SPLIT → narrowed to DROP-recommended** (2026-07-29→31): skills DO-NOT-USE; five servers duplicate engine adapters; Wiley = the already-connected Scholar Gateway; BioRender/Owkin = independent claude.ai connectors. Unique value = **Synapse only** (unauthenticated). Uninstall pending operator — see below |
+| bio-research | 6 | 11 | 6* | 0 | **KEEP — DROP REVERSED 2026-08-12** (see correction; the engine-only test was the wrong question). Superseded detail: (2026-07-29→31): skills DO-NOT-USE; five servers duplicate engine adapters; Wiley = the already-connected Scholar Gateway; BioRender/Owkin = independent claude.ai connectors. Unique value = **Synapse only** (unauthenticated). Uninstall pending operator — see below |
 | engineering | 10 | 10 | 0 | 0 | **DROPPED** → replaced by `trinc-engineering` |
 | cowork-plugin-management | 2 | 0 | — | — | installed, not bound (its customizer cannot run in CLI) |
 | desktop-commander | — | — | — | — | **REMOVED 2026-07-28** (tombstoned) |
