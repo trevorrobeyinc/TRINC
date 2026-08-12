@@ -4,20 +4,30 @@ Single-repo monorepo for the **Trevor Robey, INC.** biomedical research intellig
 
 Hosting: **PRIVATE GitHub remote, restored (recorded 2026-08-12).** `origin` =
 `ssh://git@ssh.github.com:443/trevorrobeyinc/TrevClaw-Obsidianodus.git` — a **different account** from the
-`trevoralexanderrobey/…` remote deleted 2026-05-26. **⛔ PUSH AUTH IS CURRENTLY BROKEN (2026-08-12) — 8 commits are stranded locally.** GitHub rejects
-**both** the primary and backup FIDO2 keys with `Permission denied (publickey)`, *before* any touch is
-requested — which means the server does not recognise the key, not that the hardware or config is wrong.
-Verified: YubiKey present (`ioreg` matches), key handle present, `ssh -vv` offers the right identity
-(`ECDSA-SK SHA256:ke2ZoL0v3WRqS+i2uBlmeQAixuQxBWiwD+THaFFiAo0`). Most likely cause: the 2026-08-07 rotation
-registered the new key on a **different account** than `trevorrobeyinc` (the old remote was
-`trevoralexanderrobey/…`), or it was never added there. **Fix is operator-only** — add
-`~/.ssh/id_ecdsa_sk.pub` to the GitHub account that owns this repo, at github.com → Settings → SSH and GPG
-keys. That is an account-settings change and cannot be automated from here.
+`trevoralexanderrobey/…` remote deleted 2026-05-26. **🔑 PUSHES MUST BE RUN BY THE OPERATOR, IN A REAL TERMINAL — this is the security model working, not a
+fault (established 2026-08-12).** The GitHub key setup is **correct and accepted**; `ssh -vvv` shows
+`debug1: Server accepts key: … ECDSA-SK SHA256:ke2ZoL0v3WRqS+i2uBlmeQAixuQxBWiwD+THaFFiAo0`. What fails from
+an agent is the step after: the FIDO2 credential is **PIN-protected**, so ssh calls `read_passphrase` and
+dies with `can't open /dev/tty: Device not configured`, because Claude's Bash tool is **not a TTY**. OpenSSH
+then reports the badly misleading **`Permission denied (publickey)`** — which reads as "wrong/unregistered
+key" and is not. Both keys fail identically for this one reason.
 
-An `origin/main` remote-tracking ref exists, so a push DID succeed at some point — consistent with it
-happening *before* the 2026-08-07 key rotation. Repo visibility reads as **not publicly readable**
-(unauthenticated GitHub API returns 404), which means private **or nonexistent** — the two cannot be
-distinguished without working auth, so do not record it as confirmed-private until a push succeeds. Auth is the **YubiKey FIDO2 `ecdsa-sk` resident key** (rotated
+> **Diagnostic rule: never conclude "key not registered" from `Permission denied (publickey)` alone.** Run
+> `ssh -vvv` and look for `Server accepts key` — if it is present, the key is fine and the problem is the
+> prompt. A filtered grep that omits that line will produce exactly the wrong diagnosis (it did, on
+> 2026-08-12).
+
+This is the same class as the documented pinentry/Aqua rule elsewhere in this stack: a detached process
+cannot render an auth prompt, and privileged/credential operations belong on the operator's own
+login-session lane. **So `git push` is an operator action here, by design** — run it in Terminal, enter the
+YubiKey PIN, touch:
+
+```
+git push origin main
+```
+
+Repo visibility reads as **not publicly readable** (unauthenticated GitHub API returns 404) — private **or**
+nonexistent; those cannot be distinguished without an authenticated call, so it stays unconfirmed here. Auth is the **YubiKey FIDO2 `ecdsa-sk` resident key** (rotated
 2026-08-07, the ONLY GitHub identity), over **port 443** because outbound 22 is blocked on this network, via the
 sk-capable `/opt/homebrew/bin/ssh` pinned in `core.sshCommand` — `/usr/bin/ssh` has no FIDO provider and fails
 with a misleading `Permission denied (publickey)`. **Every push needs a physical touch.** The `git bundle` below
