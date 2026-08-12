@@ -1,6 +1,5 @@
 import type { ChildProcess } from "child_process";
 import { createHash } from "crypto";
-import type { App } from "obsidian";
 import type { ConsoleCapture } from "./consoleCapture";
 import type { ConsoleLevel } from "./types";
 
@@ -20,13 +19,12 @@ interface JsonRpcRequest {
 }
 
 interface RpcDeps {
-  app: App;
   capture: ConsoleCapture;
-  evalEnabled: () => boolean;
   /**
    * Security audit sink (the launcher's JSONL feed into OSSEC/Falcon). Injected rather
-   * than imported so this module stays unit-testable. `console.eval` is an arbitrary-code
-   * primitive in renderer scope; before this existed it ran with NO trace anywhere.
+   * than imported so this module stays unit-testable. `console.eval` no longer executes
+   * anything, but attempts are still recorded here: removing a capability must not also
+   * remove the detection that something went looking for it.
    */
   audit: (event: Record<string, unknown>) => void;
 }
@@ -116,76 +114,31 @@ async function dispatch(method: string, params: unknown, deps: RpcDeps): Promise
       return deps.capture.getErrors({ limit: p.limit, sinceMs: p.sinceMs });
     }
     case "console.eval": {
-      const p = (params ?? {}) as { code?: string; timeoutMs?: number };
+      // The code-execution primitive was REMOVED (2026-08-11). There is no longer any
+      // path from this method to execution — no `new Function`, no `eval`, no `vm`. The
+      // method is kept as an explicit, audited denial rather than deleted outright so an
+      // older bridge asking for it gets a clear answer instead of "unknown method".
+      //
+      // The audit event is deliberately RETAINED. Nothing in normal operation calls
+      // console.eval, so an attempt is still the security-interesting signal — removing
+      // the capability must not also remove the detection that something probed for it.
+      // The sha256 keeps replayed payloads correlatable and the 200-char prefix keeps a
+      // detection readable without letting a huge payload flood the sink.
+      const p = (params ?? {}) as { code?: string };
       const code = typeof p.code === "string" ? p.code : "";
-      // Fingerprint the payload for the audit trail: the sha256 makes repeat/replayed
-      // payloads correlatable, the prefix makes a detection readable at a glance, and
-      // truncating at 200 chars keeps an arbitrarily large payload from flooding the sink.
-      const fingerprint = {
+      deps.audit({
+        eventType: "DEV_CONSOLE_EVAL_DENIED",
+        reason: "eval-primitive-removed",
         codeLength: code.length,
         codeSha256: code ? createHash("sha256").update(code).digest("hex") : null,
         codePrefix: code.slice(0, 200),
-      };
-
-      if (!deps.evalEnabled()) {
-        // A denial is the more security-interesting event of the two: nothing in normal
-        // operation calls this, so an attempt while disabled means something is probing.
-        deps.audit({ eventType: "DEV_CONSOLE_EVAL_DENIED", reason: "devConsoleEvalEnabled=false", ...fingerprint });
-        throw new Error(
-          "obsidian_dev_console_eval is disabled by launcher settings (devConsoleEvalEnabled=false). Enable it in 'Obsidian Bridge Launcher' settings."
-        );
-      }
-      if (!code) {
-        throw new Error("console.eval requires non-empty 'code' string");
-      }
-
-      const timeoutMs = p.timeoutMs ?? 5000;
-      deps.audit({ eventType: "DEV_CONSOLE_EVAL", timeoutMs, ...fingerprint });
-      try {
-        const out = await runEval(code, timeoutMs, deps.app);
-        deps.audit({ eventType: "DEV_CONSOLE_EVAL_RESULT", outcome: "ok", durationMs: out.durationMs, codeSha256: fingerprint.codeSha256 });
-        return out;
-      } catch (err) {
-        deps.audit({
-          eventType: "DEV_CONSOLE_EVAL_RESULT",
-          outcome: "error",
-          message: err instanceof Error ? err.message : String(err),
-          codeSha256: fingerprint.codeSha256,
-        });
-        throw err;
-      }
+      });
+      throw new Error(
+        "obsidian_dev_console_eval has been removed: the launcher no longer contains a " +
+          "code-execution primitive. Read-only console.logs / console.errors remain available."
+      );
     }
     default:
       throw new Error(`unknown launcher IPC method: ${method}`);
   }
-}
-
-async function runEval(code: string, timeoutMs: number, app: App): Promise<{
-  result: unknown;
-  type: string;
-  durationMs: number;
-}> {
-  const t0 = Date.now();
-  // SECURITY NOTE — the timeout below bounds how long the CALLER waits, it does NOT stop the
-  // code. Promise.race settles the returned promise, but `fn` keeps running to completion in
-  // renderer scope; there is no way to abort a running `new Function` body in-process. So a
-  // "timeout" is a reporting deadline, not containment. The real containment is the
-  // devConsoleEvalEnabled gate (default OFF) plus the audit events emitted by the caller —
-  // do not add a longer timeout under the impression that it limits blast radius.
-  const fn = new Function("app", "window", "document", `"use strict"; return (async () => { ${code} })();`);
-  const promise = Promise.resolve().then(() => fn(app, window, document));
-  const result = await Promise.race([
-    promise,
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error(`eval timeout after ${timeoutMs}ms`)), timeoutMs)
-    ),
-  ]);
-  const durationMs = Date.now() - t0;
-  let safe: unknown = result;
-  try {
-    safe = JSON.parse(JSON.stringify(result));
-  } catch {
-    safe = String(result);
-  }
-  return { result: safe, type: typeof result, durationMs };
 }

@@ -272,9 +272,7 @@ export default class BridgeLauncherPlugin extends Plugin {
 
     if (this.capture) {
       this.detachIpcServer = attachLauncherIpcServer(this.child, {
-        app: this.app,
         capture: this.capture,
-        evalEnabled: () => this.settings.devConsoleEvalEnabled,
         audit: emitLauncherAudit,
       });
     }

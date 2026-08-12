@@ -6,12 +6,6 @@ export interface BridgeLauncherSettings {
   bridgePort: number;
   shutdownTimeoutMs: number;
   staleProcessKillEnabled: boolean;
-  /**
-   * If true, the bridge tool `obsidian_dev_console_eval` will execute caller-supplied
-   * JS in renderer scope. Default OFF — arbitrary eval is a powerful capability,
-   * even on loopback HTTPS with auth. Logs/errors capture (read-only) is always on.
-   */
-  devConsoleEvalEnabled: boolean;
   /** Maximum log entries kept in the in-renderer ring buffer for console.logs. */
   consoleBufferSize: number;
   /** Maximum error entries kept in the in-renderer ring buffer for console.errors. */

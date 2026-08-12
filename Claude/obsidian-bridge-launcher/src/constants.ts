@@ -13,7 +13,6 @@ export const DEFAULT_SETTINGS: BridgeLauncherSettings = {
   bridgePort: 8798,
   shutdownTimeoutMs: 5000,
   staleProcessKillEnabled: true,
-  devConsoleEvalEnabled: false,
   consoleBufferSize: 500,
   consoleErrorsBufferSize: 200,
 };

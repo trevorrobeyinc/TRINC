@@ -149,23 +149,10 @@ export class BridgeLauncherSettingTab extends PluginSettingTab {
     containerEl.createEl("p", {
       text:
         "The bridge exposes obsidian_dev_console_logs and obsidian_dev_console_errors " +
-        "(read-only) via the launcher IPC channel. obsidian_dev_console_eval is " +
-        "additionally available when explicitly enabled below — it executes caller-" +
-        "supplied JS in renderer scope, which is powerful and should stay off unless " +
-        "you actively need it.",
+        "(read-only) via the launcher IPC channel. obsidian_dev_console_eval was removed " +
+        "in 2026-08 — the launcher no longer carries a code-execution primitive, so there " +
+        "is no setting that can re-enable it. Attempts are still recorded to the audit log.",
     });
-
-    new Setting(containerEl)
-      .setName("Enable dev console eval tool")
-      .setDesc("Allow obsidian_dev_console_eval to run JavaScript in renderer scope. Default OFF.")
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.devConsoleEvalEnabled)
-          .onChange(async (value) => {
-            this.plugin.settings.devConsoleEvalEnabled = value;
-            await this.plugin.saveSettings();
-          })
-      );
 
     new Setting(containerEl)
       .setName("Console log buffer size")
