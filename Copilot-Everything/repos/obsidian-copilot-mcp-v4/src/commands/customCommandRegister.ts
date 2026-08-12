@@ -10,6 +10,8 @@ import {
 } from "@/commands/customCommandUtils";
 import { App, Editor, Plugin, TFile, Vault } from "obsidian";
 import { CustomCommandChatModal } from "@/commands/CustomCommandChatModal";
+import { runCustomCommandToNote } from "@/commands/customCommandHeadless";
+import type { ModelManagementApi } from "@/modelManagement";
 import { debounce } from "@/utils/debounce";
 import { CustomCommand } from "@/commands/type";
 import {
@@ -247,5 +249,43 @@ export class CustomCommandRegister {
           .catch((err) => logError("recordUsage failed", err));
       },
     });
+
+    // FORK ADDITION (ported from the 3.3.3 fork on 2026-08-12).
+    // Headless sibling: same prompt, no modal — the result is written directly as a note in
+    // the configured customCommandNoteFolder (see runCustomCommandToNote). Registered for
+    // every custom command so any prompt can be automated, not just Summarize. A plain
+    // callback (not editorCallback) so background dispatch — e.g. the Local REST API with
+    // Obsidian unfocused — works: it operates on the active file, using the editor selection
+    // only when an editor happens to be active.
+    //
+    // `copilot:summarize-to-note` produced by this registration is a CONTRACT with the
+    // Raycast "Video Pipeline Runner" command; without it that pipeline silently falls back
+    // to its paid Anthropic path.
+    const toNoteCommandId = getToNoteCommandId(commandId);
+    (this.plugin as unknown as { removeCommand: (id: string) => void }).removeCommand(
+      toNoteCommandId
+    );
+    this.plugin.addCommand({
+      id: toNoteCommandId,
+      name: `${customCommand.title} → New Note`,
+      callback: () => {
+        const modelManagement = (this.plugin as unknown as { modelManagement: ModelManagementApi })
+          .modelManagement;
+        void runCustomCommandToNote(this.app, modelManagement, customCommand);
+        void CustomCommandManager.getInstance()
+          .recordUsage(customCommand)
+          .catch((err) => logError("recordUsage failed", err));
+      },
+    });
   }
+}
+
+/**
+ * Command id for the headless "→ New Note" sibling of a custom command.
+ *
+ * Fork addition. The `-to-note` suffix is depended on externally (Raycast dispatches
+ * `copilot:summarize-to-note`), so this shape must not change.
+ */
+function getToNoteCommandId(commandId: string): string {
+  return `${commandId}-to-note`;
 }

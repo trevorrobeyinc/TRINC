@@ -338,6 +338,13 @@ export interface CopilotSettings {
 
   /** MCP client settings (forked addition — ported to 4.0.0 2026-08-12). */
   mcp: McpSettings;
+
+  /**
+   * Output folder for the headless "→ New Note" custom-command runner.
+   * Fork addition: upstream 4.0.0 removed this field, but the Raycast
+   * "Video Pipeline Runner" polls this folder for its summary note.
+   */
+  customCommandNoteFolder: string;
 }
 
 /**

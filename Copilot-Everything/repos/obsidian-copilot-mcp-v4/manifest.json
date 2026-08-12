@@ -1,11 +1,11 @@
 {
   "id": "copilot",
-  "name": "Copilot",
+  "name": "TR-Obsidian Copilot",
   "version": "99.4.0",
   "minAppVersion": "1.11.4",
   "isDesktopOnly": false,
-  "description": "MCP-first Obsidian Copilot fork \u2014 adds Model Context Protocol client support so Copilot chat can call tools exposed by the TrevClaw obsidian-copilot-bridge at https://127.0.0.1:8798 and the OpenClaw Command Center at https://127.0.0.1:8799. Based on upstream v4.0.0. VERSION IS DELIBERATELY 99.x SO OBSIDIAN'S AUTO-UPDATE NEVER SORTS ABOVE IT: matching upstream exactly (3.3.3) failed on 2026-08-12 when upstream shipped 4.0.0 and silently overwrote this fork. Real upstream base is recorded in upstreamBase below.",
-  "author": "Logan Yang (upstream); fork by Trevor Robey",
+  "description": "MCP-first Obsidian Copilot fork, part of the TR-Obsidian Intelligence Network Citations suite. Adds a Model Context Protocol client so Copilot chat can call tools exposed by the TrevClaw obsidian-copilot-bridge at https://127.0.0.1:8798 and the OpenClaw Command Center at https://127.0.0.1:8799, plus a headless custom-command runner that writes results straight to a note. MODIFIED FROM UPSTREAM v4.0.0 by Trevor Robey (2026-08-12) \u2014 see UPSTREAM.md for the full delta, as required by AGPL-3.0 section 5. VERSION IS DELIBERATELY 99.x SO OBSIDIAN'S AUTO-UPDATE NEVER SORTS ABOVE IT: matching upstream exactly (3.3.3) failed on 2026-08-12 when upstream shipped 4.0.0 and silently overwrote this fork.",
+  "author": "Logan Yang (upstream) \u00b7 fork by Trevor Robey",
   "authorUrl": "https://twitter.com/logancyang",
   "fundingUrl": {
     "Buy Me a Coffee": "https://www.buymeacoffee.com/logancyang",

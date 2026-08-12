@@ -52,6 +52,7 @@ Everything else is stock upstream. The MCP delta is:
 | `src/mcp/types.ts` | `McpSettings` / `McpServerConfig` |
 | `src/mcp/McpToolProvider.test.ts` | unit test |
 | `src/settings/v2/components/McpSettings.tsx` | settings panel |
+| `src/commands/customCommandHeadless.ts` | **fork addition, ported 2026-08-12.** Headless "→ New Note" runner: executes a custom command with no modal and writes the result to `customCommandNoteFolder`. Adapted for 4.0.0 — model now resolved via `resolveChatBackendModel` (3.3.3 used the legacy `settings.activeModels`), and `app` is threaded in rather than read from the global |
 
 **Modified upstream files** (5). Note `src/mcp/McpToolProvider.test.ts` was additionally adapted to
 upstream's obsidian mock API — see bug 3 below; `__mocks__/obsidian.js` itself is left stock:
@@ -63,6 +64,9 @@ upstream's obsidian mock API — see bug 3 below; `__mocks__/obsidian.js` itself
 | `src/constants.ts` | `mcp` block in `DEFAULT_SETTINGS` (servers default to `https://127.0.0.1:8798`) |
 | `src/settings/v2/SettingsMainV2.tsx` | `Plug` icon import; `McpSettings` import; `"mcp"` in `TAB_IDS`; icon / component / label entries |
 | `src/tools/ToolRegistry.ts` | `providerId?` on `ToolMetadata`; `removeByProvider()`; `replaceByProvider()` |
+| `src/commands/customCommandRegister.ts` | `getToNoteCommandId()` + a second `addCommand` registering `${commandId}-to-note` per custom command |
+| `src/settings/model.ts` | additionally: `customCommandNoteFolder: string` (upstream 4.0.0 removed the field) |
+| `src/constants.ts` | additionally: `customCommandNoteFolder: "obsidian-copilot-summaries"` default |
 
 ## Three live bugs found by testing the tools (2026-08-12)
 
@@ -95,6 +99,20 @@ defects a UI smoke test would likely have masked:
 Verified live after the fixes — all 5 exercised tools return HTTP 200 `ok:true`:
 `obsidian_health`, `obsidian_search_notes`, `obsidian_read_note`, `miyo_search_context` (:8798)
 and `obsidian_openclaw_templates` (:8799, returns the 7 real workflow templates).
+
+## ⚠️ The 3.3.3 delta table was INCOMPLETE — verify against the tree, not the doc
+
+The predecessor `UPSTREAM.md` documented only the MCP module. It never mentioned
+`customCommandHeadless.ts` or the `-to-note` registration, so the 2026-08-12 port copied the
+MCP files, passed `tsc`, built clean — and silently dropped a whole second fork feature.
+
+Nothing surfaced it: the plugin worked, the tests passed, and the loss only appeared when the
+Raycast "Video Pipeline Runner" was checked and found to be falling back to its paid Anthropic
+path because `copilot:summarize-to-note` no longer existed.
+
+**On any future re-port, diff the whole `src/` tree against pristine upstream** rather than
+trusting this table. A delta table records what someone remembered; a diff records what is
+actually there.
 
 ## Two things that bite on re-port
 
