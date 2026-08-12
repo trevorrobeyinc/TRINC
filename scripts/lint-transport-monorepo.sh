@@ -136,6 +136,11 @@ LEGITIMATE_OUTBOUND_PLAINTEXT=(
   "Copilot-Everything/scripts/miyo-tls-proxy.mjs"
   "Copilot-Everything/scripts/qdrant-tls-proxy.mjs"
   "Copilot-Everything/scripts/searxng-tls-proxy.mjs"
+  # Re-added 2026-08-12: Ollama.app was reinstalled and resumed serving plaintext
+  # :11434 (exactly the silent return this port ban guards against). The :11435
+  # wrap is restored so the Obsidian Copilot plugin reaches local qwen2.5-coder
+  # over TLS. Removed 2026-07-23 when Ollama was decommissioned.
+  "Copilot-Everything/scripts/ollama-tls-proxy.mjs"
 )
 
 cd "$ROOT" || { echo "cannot cd to $ROOT" >&2; exit 2; }
@@ -160,6 +165,7 @@ done < <(find \
     -not -path '*/.git/*' \
     -not -path '*/vendor/*' \
     -not -path '*/repos/obsidian-copilot-mcp/*' \
+    -not -path '*/repos/obsidian-copilot-mcp-v4/*' \
     -not -path '*/.archive/*' \
     -not -path '*/deploy/backups/*' \
     -not -path '*/audit/evidence/*' \

@@ -43,8 +43,11 @@ LAUNCH_AGENTS="$HOME/Library/LaunchAgents"
 PLIST_BUDDY="/usr/libexec/PlistBuddy"
 
 # launchd label suffix == proxy script basename stem
-# (lm-studio removed 2026-07-16 — LM Studio decommissioned; Ollama kept for the Obsidian side)
-UNITS=(miyo qdrant searxng)
+# (lm-studio removed 2026-07-16 — LM Studio decommissioned. Ollama RE-ADDED 2026-08-12:
+#  Ollama.app was reinstalled and resumed serving plaintext :11434, which the transport
+#  lint still forbids; the :11435 wrap is restored so the Obsidian Copilot plugin can
+#  reach local qwen2.5-coder over TLS instead of plaintext loopback.)
+UNITS=(miyo qdrant searxng ollama)
 
 mkdir -p "$STAGE_DIR"
 
