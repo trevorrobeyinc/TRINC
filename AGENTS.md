@@ -8,7 +8,7 @@
 
 Single-repo monorepo for the **Trevor Robey, INC.** biomedical research intelligence stack. As of 2026-05-07 this is the canonical source of truth — three previously separate sub-trees (`Claude/`, `Copilot-Everything/`, `trevor-robey-inc-agents/`) plus the brand canon at `trevor-robey-inc/` are all first-class members of this repo.
 
-Hosting: **local-only as of 2026-05-26.** The private GitHub remote `trevoralexanderrobey/TrevClaw-Obsidianodus` was **deleted** on 2026-05-26; the monorepo now lives only on this machine with **no git remotes**. Durable backup is a verified `git bundle --all` in **`~/Documents/`** (current: `TrevClaw-Obsidianodus-FULL-backup-20260806-2047.bundle`, HEAD `6e1319e`, SHA-256 `ab362a67…`, verified-matching copy at `/Volumes/ExtraCurricular/Backups/`). Cut a fresh bundle after any substantial batch of commits; a bundle carries no gitignored files, so local configs/tokens are NOT in it. Do not re-add a remote or push without an explicit decision to reverse this local-only posture.
+Hosting: **local-only as of 2026-05-26.** The private GitHub remote `trevoralexanderrobey/TrevClaw-Obsidianodus` was **deleted** on 2026-05-26; the monorepo now lives only on this machine with **no git remotes**. Durable backup is a verified `git bundle --all` in **`~/Documents/`** (current: `TrevClaw-Obsidianodus-FULL-backup-20260811-1754.bundle`, HEAD `175571b`, SHA-256 `ca90a6e9…`, verified-matching copy at `/Volumes/ExtraCurricular/Backups/`). Cut a fresh bundle after any substantial batch of commits; a bundle carries no gitignored files, so local configs/tokens are NOT in it. Do not re-add a remote or push without an explicit decision to reverse this local-only posture.
 
 ## 📌 Shared Continuity Board — read this first
 
