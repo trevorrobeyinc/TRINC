@@ -277,7 +277,7 @@ cd "Trevor Robey Intelligence Network Citations" && bash scripts/verify-phase29-
 # Live services
 curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:8798/healthz
 curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:8743/v0/health
-curl http://127.0.0.1:6333/collections/miyo
+curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:6433/collections/miyo
 ```
 
 ---

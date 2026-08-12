@@ -2,7 +2,7 @@
 
 Single-repo monorepo for the **Trevor Robey, INC.** biomedical research intelligence stack. As of 2026-05-07 this is the canonical source of truth — three previously separate sub-trees (`Claude/`, `Copilot-Everything/`, `trevor-robey-inc-agents/`) plus the brand canon at `trevor-robey-inc/` are all first-class members of this repo.
 
-Hosting: **local-only as of 2026-05-26.** The private GitHub remote `trevoralexanderrobey/TrevClaw-Obsidianodus` was **deleted** on 2026-05-26; the monorepo now lives only on this machine with **no git remotes**. Durable backup is a verified `git bundle --all` in **`~/Documents/`** (current: `TrevClaw-Obsidianodus-FULL-backup-20260806-1943.bundle`, HEAD `f7c14ab`, SHA-256 `a0d070b6…`, verified-matching copy at `/Volumes/ExtraCurricular/Backups/`). *(Corrected 2026-07-31: this line said `~/Downloads/`, where no bundle exists — the 2026-06-04 bundle had been sitting in `~/Documents/` and was 134 commits stale before the 07-31 refresh. Cut a fresh bundle after any substantial batch of commits; a bundle carries no gitignored files, so local configs/tokens are NOT in it.)* Do not re-add a remote or push without an explicit decision to reverse this local-only posture.
+Hosting: **local-only as of 2026-05-26.** The private GitHub remote `trevoralexanderrobey/TrevClaw-Obsidianodus` was **deleted** on 2026-05-26; the monorepo now lives only on this machine with **no git remotes**. Durable backup is a verified `git bundle --all` in **`~/Documents/`** (current: `TrevClaw-Obsidianodus-FULL-backup-20260806-2047.bundle`, HEAD `6e1319e`, SHA-256 `ab362a67…`, verified-matching copy at `/Volumes/ExtraCurricular/Backups/`). *(Corrected 2026-07-31: this line said `~/Downloads/`, where no bundle exists — the 2026-06-04 bundle had been sitting in `~/Documents/` and was 134 commits stale before the 07-31 refresh. Cut a fresh bundle after any substantial batch of commits; a bundle carries no gitignored files, so local configs/tokens are NOT in it.)* Do not re-add a remote or push without an explicit decision to reverse this local-only posture.
 
 ## 📌 Shared Continuity Board — read this first
 
@@ -204,7 +204,8 @@ All HTTPS services use mkcert certificates at `~/.local/share/mkcert/localhost.p
 curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:8798/healthz
 curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:8743/v0/health   # Miyo via TLS proxy
 lsof -nP -iTCP:8742 -sTCP:LISTEN | grep -i miyo   # plaintext Miyo upstream (proxy backs onto this)
-curl http://127.0.0.1:6333/collections/miyo
+curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:6433/collections/miyo   # Qdrant via TLS proxy
+lsof -nP -iTCP:6333 -sTCP:LISTEN | grep -i qdrant   # plaintext Qdrant upstream (proxy backs onto this)
 # Biomedical workflow runtime check (no persistent service — verify the subprocess path is wired):
 cd "/Users/myhome/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations" && bash scripts/verify-phase29-policy.sh | tail -1
 ```
@@ -289,10 +290,12 @@ CrowdStrike/Falcon reference docs are mirrored offline at `~/Security Everything
 - **Read-only recon first**, then cross-correlate, then **strict propose-only**:
   every console-mutating Falcon action is surfaced for an explicitly
   typed, per-item authorization before apply. "Go" never authorizes a mutation.
-- The first hardening any review should produce is the one already named in the
-  HTTPS-only section below as not-yet-implemented: restrict loopback
-  :8742/:6333/:8890 to the proxy UIDs (Falcon `firewall` module is a
-  candidate vehicle).
+- The old "restrict loopback :8742/:6333/:8890 to the proxy UIDs" item is **CLOSED as unbuildable**
+  (2026-07-10; do not re-propose pf/UID/Falcon-firewall vehicles for it — proxy, upstream, and threat
+  all run as UID 501, pf skips `lo0`, and the firewall schema has no CommandLine field). The live
+  compensating control is Falcon Custom-IOA group `117393db…` "Mac - Loopback Upstream Watch"
+  (Monitor-only, on sensor since 2026-07-10; Detect-promotion pending its per-item token). Canonical
+  record + P3 verdict: `~/Security Everything/pf/LOOPBACK-UPSTREAM-HARDENING-PROPOSAL.md`.
 - Never weaken Falcon Custom-IOA rule 1. Infra-security only — no PHI is hosted
   or processed.
 
@@ -323,7 +326,7 @@ Every network-facing TCP listener owned by code in this monorepo MUST be HTTPS. 
 | Qdrant (Miyo-bundled child process, no TLS config exposed) | `http://127.0.0.1:6333` | `https://127.0.0.1:6433` | [`Copilot-Everything/scripts/qdrant-tls-proxy.mjs`](Copilot-Everything/scripts/qdrant-tls-proxy.mjs) | `com.trevorrobey.qdrant-tls-proxy` |
 | SearXNG (`python -m searx.webapp` via werkzeug, no TLS config exposed) | `http://127.0.0.1:8890` | `https://127.0.0.1:8891` | [`Copilot-Everything/scripts/searxng-tls-proxy.mjs`](Copilot-Everything/scripts/searxng-tls-proxy.mjs) | `com.trevorrobey.searxng-tls-proxy` |
 
-All monorepo consumers (Copilot plugin's `MiyoServiceDiscovery`, Command Center's `miyo-client.ts`, `trevorobeyinc-research-memory-mcp/src/qdrant.ts`, `obsidian-vault-zettelkasten/src/{constants,settings,adapters/{miyo-client,qdrant-client,model-gateway}}.ts`, and the `searxng-search` connector's `config.js` — consumed by both the Claude MCP surfaces and the openclaw-bridge engine adapter) now point at the HTTPS proxies. The plaintext upstream ports keep listening (we can't make Miyo, Qdrant, or SearXNG stop), but the documented architecture no longer routes through them. The next hardening step (not yet implemented) is `pf` rules restricting :8742, :6333, and :8890 inbound to the proxy UIDs only. (:1234 and :11434 no longer exist — LM Studio and Ollama were removed.)
+All monorepo consumers (Copilot plugin's `MiyoServiceDiscovery`, Command Center's `miyo-client.ts`, `trevorobeyinc-research-memory-mcp/src/qdrant.ts`, `obsidian-vault-zettelkasten/src/{constants,settings,adapters/{miyo-client,qdrant-client,model-gateway}}.ts`, and the `searxng-search` connector's `config.js` — consumed by both the Claude MCP surfaces and the openclaw-bridge engine adapter) now point at the HTTPS proxies. The plaintext upstream ports keep listening (we can't make Miyo, Qdrant, or SearXNG stop), but the documented architecture no longer routes through them. The pf-per-UID idea for :8742/:6333/:8890 was **closed 2026-07-10 as unbuildable** (all parties are UID 501 and pf skips `lo0` — full analysis + the P3 app-layer-auth verdict of 2026-08-07 in `~/Security Everything/pf/LOOPBACK-UPSTREAM-HARDENING-PROPOSAL.md`); the live compensating control is the Monitor-only Falcon Custom-IOA "Mac - Loopback Upstream Watch" (group `117393db…`). (:1234 and :11434 no longer exist — LM Studio and Ollama were removed.)
 
 > **launchd ↔ external-volume gotcha (2026-06-03; superseded 2026-07-26).** This monorepo *used to live* on `/Volumes/ExtraCurricular` (external); it moved to `/Users/myhome/TrevClaw-Obsidianodus` on the internal FileVault disk on 2026-07-26, so the TCC wall below no longer applies to this repo. The staging pattern is kept regardless, so launchd never depends on the repo's location. A launchd user-agent's TCC context **cannot read scripts on that volume**, so after the machine wipe all proxy units died at startup with `EPERM` opening their `.mjs` (an interactive shell *can* read it, which masks the problem). Fix: [`Copilot-Everything/scripts/install-tls-proxies.sh`](Copilot-Everything/scripts/install-tls-proxies.sh) stages the five proxy scripts to `~/.local/share/trevclaw-tls-proxies/` (internal volume) and repoints each plist's `ProgramArguments` there, then reloads via `launchctl bootout`/`bootstrap`. The repo copies under `Copilot-Everything/scripts/` remain source-of-truth — **re-run the installer after editing any `*-tls-proxy.mjs`** to re-sync the staged copy. This changes only *where launchd reads the proxy source from*; transport behavior (throw-on-cert-failure, no plaintext fallback) is unchanged.
 
