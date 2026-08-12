@@ -846,33 +846,23 @@
     "rule": "Authorize a plugin MCP server ONLY when its category is bound to a real tool in this file. A server whose category resolves to NONE corresponds to a tool this business does not use — leaving it unauthenticated is the CORRECT end state, not a gap to close. Authorizing it would create a live surface for a tool with no role here.",
     "authorize": [
       {
-        "server": "plugin:bio-research:wiley",
-        "category": "~~journal access",
-        "why": "unlocks paywalled full text for paid deliverables; NOT registered anywhere else",
-        "priority": 1
-      },
-      {
-        "server": "plugin:bio-research:biorender",
+        "server": "claude.ai BioRender connector (mcp.services.biorender.com)",
         "category": "~~scientific illustration",
-        "why": "figures for the $9,950+ reports; NOT registered anywhere else",
-        "priority": 2
+        "why": "figures for deliverables and SBIR/STTR applications — the ONE genuine capability gain left. Authorize via claude.ai CONNECTOR SETTINGS, not via the bio-research plugin (byte-identical endpoint).",
+        "priority": 1
       },
       {
         "server": "plugin:bio-research:synapse",
         "category": "~~data repository",
-        "why": "public biomedical dataset access; NOT registered anywhere else",
-        "priority": 3
-      },
-      {
-        "server": "plugin:bio-research:owkin",
-        "category": "~~AI research",
-        "why": "DEMOTED 2026-07-29 — duplicates the existing owkin subprocess-mcp engine adapter, so it only adds a chat-side surface. Authorize last, or not at all.",
-        "priority": 4
+        "why": "CONDITIONAL — only if Synapse datasets are actually wanted; it is the sole server unique to the bio-research plugin, and the only reason not to uninstall it.",
+        "priority": 2
       }
     ],
     "do_not_authorize": {
       "plugin:engineering:github": "SECURITY — the engineering plugin ships its own github server at https://api.githubcopilot.com/mcp/ (HTTP OAuth, ungated). The host-level GitHub MCP in ~/.claude.json is /Users/myhome/.local/bin/github-mcp-keychain-wrapper.sh, which carries its own arm plus a per-unseal PIN+touch. Authorizing the plugin copy would create a SECOND GitHub path bypassing the YubiKey gate — the global ~/.claude/CLAUDE.md marks this NON-NEGOTIABLE: 'github MCP stays EXACTLY as-is ... never fold it into the Claude-triggered flow.' Same shape as the desktop-commander inline-MCP finding: a plugin quietly re-providing a surface that was deliberately gated elsewhere. Currently unauthenticated — the bypass does not exist unless someone authorizes it. CONTAINED 2026-07-28 by `permissions.deny: [\"mcp__plugin_engineering_github__*\"]` at BOTH the user scope (~/.claude/settings.json) and the repo scope (.claude/settings.json — version-controlled, so a global settings reset cannot silently drop it). The audit verifies both scopes on every run and nags if only the user-global copy survives. Rejected as disproportionate: a network block on api.githubcopilot.com (it resolves via glb-<hash>.github.com to GitHub's shared load balancer, so it would risk collateral damage to other GitHub services and VS Code Copilot). Available but PROPOSE-ONLY: adding mcp__plugin_engineering_github__ to the PreToolUse session-gate hook's MATCHER + sub-agent policy path, exactly as zoho-mail/zoho-trinc are handled — a fourth layer in a different mechanism, deliberately not applied because it touches security-critical infra that stays propose-only and requires MATCHER/scope_for() lockstep plus a re-install.",
-      "everything_else": "~26 further servers (slack, notion, atlassian, asana, linear, monday, clickup, hubspot, close, apollo, outreach, clay, zoominfo, amplitude, amplitude-eu, pendo, intercom, figma, canva, ahrefs, similarweb, klaviyo, supermetrics, snowflake, databricks, bigquery, hex, definite, datadog, pagerduty, benchling, fireflies) all map to categories that resolve to an explicit NONE. Leave them unauthenticated."
+      "everything_else": "~26 further servers (slack, notion, atlassian, asana, linear, monday, clickup, hubspot, close, apollo, outreach, clay, zoominfo, amplitude, amplitude-eu, pendo, intercom, figma, canva, ahrefs, similarweb, klaviyo, supermetrics, snowflake, databricks, bigquery, hex, definite, datadog, pagerduty, benchling, fireflies) all map to categories that resolve to an explicit NONE. Leave them unauthenticated.",
+      "plugin:bio-research:wiley": "CORRECTED 2026-08-11 (discovery verified live 2026-07-30) — do not authorize; you ALREADY HAVE THIS. The plugin's wiley server is byte-identical to the claude.ai 'Scholar Gateway' connector, which is connected and verified working (live call returned full text of a paywalled Wiley article). Authorizing the plugin's copy would add a redundant second registration of the same endpoint.",
+      "plugin:bio-research:owkin": "DEMOTED to do-not-authorize 2026-08-11 — duplicates the engine's own owkin-mcp subprocess adapter AND the claude.ai Owkin connector (same endpoint). Authorizing adds only a redundant chat-side surface."
     },
     "already_working_no_auth_needed": [
       "pubmed",

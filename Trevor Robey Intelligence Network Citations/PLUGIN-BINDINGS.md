@@ -521,6 +521,30 @@ carry no PMID/NCT/ChEMBL/DOI, so nothing it returns can pass the citation gate.
 
 ---
 
+## 🗑️ PENDING OPERATOR UNINSTALL — nine rpm plugins (2026-08-11)
+
+All verdicts are final and every replacement is installed. The nine dropped Desktop/Cowork plugins
+**cannot be uninstalled from the CLI** — re-verified 2026-08-11 (`claude plugin uninstall
+product-management` → *"not found in installed plugins"*; the CLI manages only the marketplace and
+`trinc-local` sets). The rpm `manifest.json` is cloud-synced and must never be hand-edited.
+
+**In Claude Desktop → Settings → Plugins, uninstall these nine:**
+
+`productivity` · `operations` · `engineering` · `data` · `product-management` · `sales` ·
+`marketing` · `design` · `bio-research`
+
+**Keep:** `pdf-viewer`, `vibe-prospecting` (vpai), `cowork-plugin-management`.
+(Keeping `bio-research` is justified ONLY if Synapse will be authorized — otherwise it contributes
+nothing that is not available elsewhere.)
+
+Nothing breaks either way: none of the nine's MCP servers is authorized, and the replacements are
+live. **After uninstalling, say so** — the nine get tombstoned in the binding files and the audit's
+resurrection check starts verifying they stay gone (the desktop-commander pattern). Tombstones are
+deliberately NOT added before the uninstall, because the audit would fire nine standing warnings
+for a known pending action — the alarm-fatigue failure this stack avoids on principle.
+
+---
+
 ## Operator remainder
 
 The plugins' *skills* work today with no authentication at all — only the MCP servers need OAuth,
@@ -532,14 +556,17 @@ session. Claude cannot run those flows non-interactively.
 > per-plugin `mcp_connected` / `mcp_needs_auth` numbers in the registry are *slot* counts; never sum
 > them into a server total.
 
-**Authorize these four — all research-lane, in business-value order:**
+**Authorize ONE thing — corrected 2026-08-11, per the 2026-07-30 live Scholar Gateway verification:**
 
-| # | Server | Category | Why |
+| # | Server | Where | Why |
 |---|---|---|---|
-| 1 | **Wiley** | `~~journal access` | paywalled full text for paid deliverables |
-| 2 | **BioRender** | `~~scientific illustration` | figures for the $9,950+ reports |
-| 3 | **Synapse** | `~~data repository` | public biomedical datasets |
-| 4 | **Owkin** | `~~AI research` | histopathology / AI-for-biology |
+| 1 | **BioRender** | **claude.ai → Settings → Connectors** (NOT via the bio-research plugin — byte-identical endpoint) | figures for deliverables and SBIR/STTR applications — the one genuine capability gain left |
+| 2 | Synapse | bio-research plugin | **conditional** — only if its datasets are wanted; it is the sole reason not to uninstall the plugin |
+
+~~Wiley~~ — **do not authorize; you already have it.** The plugin's `wiley` is byte-identical to the
+**connected, working** `claude.ai Scholar Gateway` connector (live call returned full text of a
+paywalled Wiley article). ~~Owkin~~ — do not authorize; duplicates both the engine's `owkin-mcp`
+adapter and the claude.ai Owkin connector.
 
 **Do NOT authorize `plugin:engineering:github` — security. Contained 2026-07-28.** See the section
 below for why a redirect to the gated server is impossible and what was done instead.
@@ -572,7 +599,7 @@ applied to every remaining plugin. Measured across all `.md` files in each packa
 | design | 7 | 9 | 0 | 0 | **TAILORED → `trinc-design`** (2026-07-29) — see below |
 | product-management | 8 | 16 | 2* | 0 | **DROP — assessed 2026-07-31.** All 8 skills dead or covered: `metrics-review` (no analytics), `sprint-planning` (team of one), `roadmap-update`/`stakeholder-update` (the roadmap IS the continuity board → `orient`/`triage`), `synthesize-research` (no users), `competitive-brief` (citable path is CT.gov `search_by_sponsor`), `write-spec`/`product-brainstorming` (native). 14 of 16 servers need auth and map to NONE. |
 | sales | 9 | 14 | 2* | 0 | **DROP as a plugin** (2026-07-29) — but the `~~CRM` binding was CORRECTED; see below |
-| bio-research | 6 | 11 | 6* | 0 | **SPLIT VERDICT** (2026-07-29) — keep the servers, skills marked DO-NOT-USE; see below |
+| bio-research | 6 | 11 | 6* | 0 | **SPLIT → narrowed to DROP-recommended** (2026-07-29→31): skills DO-NOT-USE; five servers duplicate engine adapters; Wiley = the already-connected Scholar Gateway; BioRender/Owkin = independent claude.ai connectors. Unique value = **Synapse only** (unauthenticated). Uninstall pending operator — see below |
 | engineering | 10 | 10 | 0 | 0 | **DROPPED** → replaced by `trinc-engineering` |
 | cowork-plugin-management | 2 | 0 | — | — | installed, not bound (its customizer cannot run in CLI) |
 | desktop-commander | — | — | — | — | **REMOVED 2026-07-28** (tombstoned) |
