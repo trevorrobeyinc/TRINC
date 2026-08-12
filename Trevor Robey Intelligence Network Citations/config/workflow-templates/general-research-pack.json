@@ -2,16 +2,25 @@
   "schema_version": "phase30-workflow-v1",
   "workflow_template_id": "general-research-pack",
   "name": "General Research Pack",
-  "description": "General-purpose research workflow: mission execution, dataset build, offer packaging, approval, and ZIP export. Runs the standard biomedical prefetch + citation-integrity gate; a topic that yields no groundable biomedical evidence is BLOCKED by the gate (INSUFFICIENT_EVIDENCE), not shipped. Not for sale as a general/non-biomedical research product — see Q9/Q26.",
+  "description": "General-purpose research workflow: mission execution, dataset build, offer packaging, approval, and ZIP export. Runs the standard biomedical prefetch + citation-integrity gate; a topic that yields no groundable biomedical evidence is BLOCKED by the gate (INSUFFICIENT_EVIDENCE), not shipped. SELLABLE as the Scoped Research Pack ($4,950, added 2026-08-12) for a BIOMEDICAL question — bounded to one question at fixed depth. Still NOT for sale as a general/NON-biomedical research product: the gate is a biomedical citation gate, so a non-biomedical topic yields no groundable PMID/NCT/ChEMBL/DOI and is blocked as INSUFFICIENT_EVIDENCE. NOTE on Q9/Q26 (2026-07-10 questionnaire): Q9's stated 'current reality' is STALE — it described this template as lacking a quality_check step, prefetch, and a working citation gate. Verified 2026-08-12: quality_audit step present (pipeline identical to trial-design-benchmark), prefetch live (scout 7 sources / analyst 5 / synthesizer 1), and minGroundedCitationRatio = 0.75 fail-closed. Of Q9's four options, 're-engineer to feed real prefetch queries' was the one taken.",
   "auto_approve": true,
   "provider_preference": {
     "primary": "claude-code"
   },
   "input_schema": {
-    "required": ["topic"],
+    "required": [
+      "topic"
+    ],
     "properties": {
-      "topic": { "type": "string", "description": "Research topic or question" },
-      "input_dir": { "type": "string", "description": "Path to seed documents directory", "default": "workspace/research-input/sample/" }
+      "topic": {
+        "type": "string",
+        "description": "Research topic or question"
+      },
+      "input_dir": {
+        "type": "string",
+        "description": "Path to seed documents directory",
+        "default": "workspace/research-input/sample/"
+      }
     }
   },
   "pipeline": [
@@ -26,35 +35,52 @@
     {
       "step_id": "quality_check",
       "type": "quality_audit",
-      "depends_on": ["research"],
+      "depends_on": [
+        "research"
+      ],
       "description_template": "Quality gate: citation-density confidence (>= 0.6) plus >= 5 verified citations and per-section primary-source coverage; halts the run (PHASE30_QUALITY_BELOW_THRESHOLD) if the report is under-evidenced.",
       "confidence_threshold": 0.6,
-      "verification_tools": ["PubMed", "ClinicalTrials.gov", "EuropePMC", "SemanticScholar"]
+      "verification_tools": [
+        "PubMed",
+        "ClinicalTrials.gov",
+        "EuropePMC",
+        "SemanticScholar"
+      ]
     },
     {
       "step_id": "build_dataset",
       "type": "dataset",
-      "depends_on": ["quality_check"],
+      "depends_on": [
+        "quality_check"
+      ],
       "dataset_type": "retrieval_qa",
       "quality_threshold": 0.3
     },
     {
       "step_id": "package",
       "type": "offer",
-      "depends_on": ["build_dataset"],
+      "depends_on": [
+        "build_dataset"
+      ],
       "product_line": "research_packs",
       "tier": "standard",
-      "targets": ["datarade"]
+      "targets": [
+        "datarade"
+      ]
     },
     {
       "step_id": "approve",
       "type": "approve",
-      "depends_on": ["package"]
+      "depends_on": [
+        "package"
+      ]
     },
     {
       "step_id": "export",
       "type": "export",
-      "depends_on": ["approve"],
+      "depends_on": [
+        "approve"
+      ],
       "format": "zip"
     }
   ]

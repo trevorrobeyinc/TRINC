@@ -176,6 +176,7 @@ On a gate-passing mission, two cost-avoidance deliverables are sealed into the r
 | **Failed Trial Archaeology (FLANKING)** | Pharma R&D CI, biotech VC diligence | $14,950 | Structured post-mortem of Phase 2/3 terminations in a single mechanism; NCT-indexed failure pattern matrix |
 | Conference Synthesis Brief | Pharma R&D, investors, BD/licensing (event-driven) | $4,950 / conference | 500+ ASCO/ESMO/AACR abstracts; 24–48hr |
 | Trial Design Benchmark Pack | Biotech R&D, pharma CI | $4,950 | Comparative Phase 3 structure vs up to 20 comparable programs — cohort stated as N of M eligible, never padded |
+| **Scoped Research Pack** | Medical-startup founders (SBIR/STTR Phase I), investors with an off-ladder question | $4,950 | One agreed biomedical question, scoped in writing, run through `general-research-pack` with the full Phase-30 gate; bounded to a single question at fixed depth. Fits inside ONE $6,500 TABA Phase I line. Added 2026-08-12 — closes the verified gap where no SKU covered research matching no template. |
 | Cross-Silo Connector Report | Pharma R&D, biotech partnerships | $9,950 – $24,950 | Hidden mechanistic links across ChEMBL/PubMed/CT.gov |
 | Plain-Language Patient Brief | Patient Advocacy Groups, trial sponsors | $2,500 | EU CTR 536/2014 PLS at 8th-grade literacy |
 | Pharmacovigilance Pack (tactical) | Mid-market pharma safety teams | $2,500 – $4,950 | Existing marketplace tier; demoted from primary lead — listings preserved |
