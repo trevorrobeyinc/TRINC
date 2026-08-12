@@ -4,9 +4,20 @@ Single-repo monorepo for the **Trevor Robey, INC.** biomedical research intellig
 
 Hosting: **PRIVATE GitHub remote, restored (recorded 2026-08-12).** `origin` =
 `ssh://git@ssh.github.com:443/trevorrobeyinc/TrevClaw-Obsidianodus.git` — a **different account** from the
-`trevoralexanderrobey/…` remote deleted 2026-05-26. Verified **private** (unauthenticated GitHub API returns
-404) and already carrying prior pushes, so the local-only posture had in fact been reversed some time before
-this note; the text below simply never caught up. Auth is the **YubiKey FIDO2 `ecdsa-sk` resident key** (rotated
+`trevoralexanderrobey/…` remote deleted 2026-05-26. **⛔ PUSH AUTH IS CURRENTLY BROKEN (2026-08-12) — 8 commits are stranded locally.** GitHub rejects
+**both** the primary and backup FIDO2 keys with `Permission denied (publickey)`, *before* any touch is
+requested — which means the server does not recognise the key, not that the hardware or config is wrong.
+Verified: YubiKey present (`ioreg` matches), key handle present, `ssh -vv` offers the right identity
+(`ECDSA-SK SHA256:ke2ZoL0v3WRqS+i2uBlmeQAixuQxBWiwD+THaFFiAo0`). Most likely cause: the 2026-08-07 rotation
+registered the new key on a **different account** than `trevorrobeyinc` (the old remote was
+`trevoralexanderrobey/…`), or it was never added there. **Fix is operator-only** — add
+`~/.ssh/id_ecdsa_sk.pub` to the GitHub account that owns this repo, at github.com → Settings → SSH and GPG
+keys. That is an account-settings change and cannot be automated from here.
+
+An `origin/main` remote-tracking ref exists, so a push DID succeed at some point — consistent with it
+happening *before* the 2026-08-07 key rotation. Repo visibility reads as **not publicly readable**
+(unauthenticated GitHub API returns 404), which means private **or nonexistent** — the two cannot be
+distinguished without working auth, so do not record it as confirmed-private until a push succeeds. Auth is the **YubiKey FIDO2 `ecdsa-sk` resident key** (rotated
 2026-08-07, the ONLY GitHub identity), over **port 443** because outbound 22 is blocked on this network, via the
 sk-capable `/opt/homebrew/bin/ssh` pinned in `core.sshCommand` — `/usr/bin/ssh` has no FIDO provider and fails
 with a misleading `Permission denied (publickey)`. **Every push needs a physical touch.** The `git bundle` below
