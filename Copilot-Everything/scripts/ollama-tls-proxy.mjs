@@ -69,7 +69,53 @@ try {
   process.exit(1);
 }
 
+// CORS handling (added 2026-08-12).
+//
+// Obsidian's Copilot plugin has two request paths. Its own Plus adapter calls
+// `safeFetch`, which wraps Obsidian's `requestUrl` and therefore bypasses CORS
+// entirely. BYOK providers (BaseModelAdapter) instead use the renderer's native
+// request API, so the browser enforces CORS against Ollama. Ollama answers an
+// `Origin: null` preflight with 403 and advertises a fixed allow-headers list,
+// which is enough to make the renderer drop the real POST — observed as 49
+// preflights with zero POSTs reaching Ollama.
+//
+// We terminate the preflight here and echo back exactly what was requested.
+// Scoped to the Obsidian app origins ONLY — deliberately not "*", so an
+// ordinary web page cannot reach the local model via DNS rebinding.
+const ALLOWED_ORIGINS = new Set(["app://obsidian.md", "null", "capacitor://localhost"]);
+
+function corsHeadersFor(req) {
+  const origin = req.headers["origin"];
+  if (!origin) return null;
+  if (!ALLOWED_ORIGINS.has(origin)) return null;
+  const requested = req.headers["access-control-request-headers"];
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS",
+    "Access-Control-Allow-Headers": requested ? requested : "*",
+    "Access-Control-Max-Age": "600",
+    Vary: "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+  };
+}
+
 const server = https.createServer({ cert, key }, (clientReq, clientRes) => {
+  const cors = corsHeadersFor(clientReq);
+
+  // Set OLLAMA_TLS_PROXY_DEBUG=1 to log what the renderer actually sends.
+  if (process.env.OLLAMA_TLS_PROXY_DEBUG === "1") {
+    const org = clientReq.headers["origin"] ? clientReq.headers["origin"] : "-";
+    const acrh = clientReq.headers["access-control-request-headers"] ? clientReq.headers["access-control-request-headers"] : "-";
+    const verdict = cors ? "allow" : "deny";
+    console.log(`[ollama-tls-proxy] ${clientReq.method} ${clientReq.url} origin=${org} acrh=${acrh} cors=${verdict}`);
+  }
+
+  // Answer the preflight ourselves so the renderer never sees Ollama's 403.
+  if (clientReq.method === "OPTIONS" && cors) {
+    clientRes.writeHead(204, { ...cors, "Content-Length": "0" });
+    clientRes.end();
+    return;
+  }
+
   const upstreamHeaders = { ...clientReq.headers };
   // Rewrite Host so Ollama never sees a TLS-port host string in logs.
   upstreamHeaders.host = `${UPSTREAM_HOST}:${UPSTREAM_PORT}`;
@@ -83,7 +129,26 @@ const server = https.createServer({ cert, key }, (clientReq, clientRes) => {
       headers: upstreamHeaders,
     },
     (upstreamRes) => {
-      clientRes.writeHead(upstreamRes.statusCode ?? 502, upstreamRes.headers);
+      // The real POST is subject to the same origin check as the preflight, so
+      // CORS must be present on the actual response too.
+      //
+      // Ollama already sets its own access-control-* headers. Node lowercases
+      // incoming header names, so simply spreading ours on top APPENDS rather
+      // than replaces, and the response goes out with TWO
+      // Access-Control-Allow-Origin values. The CORS spec allows exactly one —
+      // a browser rejects the response outright, which presents as a client
+      // "connection error" even though the server returned 200. Strip theirs
+      // first so exactly one set survives.
+      const outHeaders = {};
+      for (const [name, value] of Object.entries(upstreamRes.headers)) {
+        const lower = name.toLowerCase();
+        if (cors && (lower.startsWith("access-control-") || lower === "vary")) continue;
+        outHeaders[name] = value;
+      }
+      clientRes.writeHead(upstreamRes.statusCode ?? 502, {
+        ...outHeaders,
+        ...(cors ? cors : {}),
+      });
       upstreamRes.pipe(clientRes);
     },
   );
