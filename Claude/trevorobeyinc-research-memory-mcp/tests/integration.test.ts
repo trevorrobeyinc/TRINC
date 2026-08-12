@@ -2,7 +2,8 @@
  * End-to-end integration tests against a real Qdrant + Xenova embedding pipeline.
  * Uses a dedicated `trevorobeyinc-packs-test` collection that is dropped before each run.
  *
- * Requires Qdrant running at QDRANT_URL (default http://127.0.0.1:6333).
+ * Requires Qdrant reachable at QDRANT_URL (default https://127.0.0.1:6433 — the TLS proxy,
+ * same as src/qdrant.ts; needs NODE_EXTRA_CA_CERTS pointing at the mkcert root CA).
  * First run will download the nomic-embed-text-v1 ONNX (~140 MB) — expect a slow first test.
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
@@ -23,7 +24,7 @@ const { packGetSection } = await import("../src/tools/pack_get_section.js");
 
 const FIX = (name: string) => readFileSync(`tests/fixtures/${name}`, "utf8");
 
-const QDRANT_URL = process.env.QDRANT_URL || "http://127.0.0.1:6333";
+const QDRANT_URL = process.env.QDRANT_URL || "https://127.0.0.1:6433";
 const adminClient = new QdrantClient({ url: QDRANT_URL });
 
 beforeAll(async () => {

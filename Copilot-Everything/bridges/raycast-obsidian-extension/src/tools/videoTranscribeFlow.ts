@@ -9,7 +9,7 @@ import { promisify } from "node:util";
 import { getVaultsFromPreferencesOrObsidianJson } from "@/obsidian/internal/obsidian";
 import { generateTemplateSummaryText } from "@/tools/aiSummarizeFlow";
 import { buildDeterministicTranscriptSection } from "@/tools/transcriptSection";
-import { executeCommand, openFile } from "@/utils/restApiClient";
+import { executeCommand, getActiveFilePath, openFile, readNoteIfExists } from "@/utils/restApiClient";
 
 const execFileAsync = promisify(execFile);
 
@@ -726,8 +726,154 @@ ${params.transcriptSection}`;
 
 const copilotSummarizeToNoteCommandId = "copilot:summarize-to-note";
 const copilotSummaryPollIntervalMs = 3000;
-const copilotSummaryTimeoutMs = 240_000;
+const copilotSummaryTimeoutMs = 60_000;
+const copilotIngestionPollIntervalMs = 500;
+const copilotIngestionTimeoutMs = 15_000;
+const copilotActiveFilePollIntervalMs = 500;
+const copilotActiveFileTimeoutMs = 10_000;
+const copilotActiveFileProbeIntervalMs = 15_000;
 const defaultCopilotCommandNoteFolder = "obsidian-copilot-summaries";
+
+/**
+ * Normalize a vault-relative note path for comparison — tolerates a decoded/encoded mix,
+ * leading slashes, platform backslashes, and doubled separators.
+ */
+function normalizeVaultRelativeNotePath(value: string): string {
+  let decoded = value;
+  try {
+    decoded = decodeURIComponent(value);
+  } catch {
+    // Not valid percent-encoding — compare the raw value.
+  }
+  return decoded.replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+/g, "/");
+}
+
+function isSameVaultNote(a: string, b: string): boolean {
+  return normalizeVaultRelativeNotePath(a) === normalizeVaultRelativeNotePath(b);
+}
+
+/**
+ * PRIMARY summary lane: have the Obsidian Copilot plugin summarize the transcription note
+ * entirely in the background — no modal, no focus change. Opens the note via the Local REST
+ * API's /open endpoint (which does NOT activate the Obsidian app), dispatches the fork's
+ * headless "Summarize → New Note" command, polls for the note Copilot writes, then renames
+ * it to the pipeline's "<title> summary.md" convention and leaves Obsidian (still in the
+ * background) showing the finished summary. Throws on dispatch failure or timeout so the
+ * caller can invoke the extension-side summarizer as a last resort.
+ *
+ * Two gates run BEFORE the dispatch because the fork's headless runner reads Obsidian's
+ * in-memory cache of the ACTIVE file and fails silently when that is not our note:
+ *   GATE 1 (ingestion): poll the REST API's vault view until the fs-written source note is
+ *     known to Obsidian and non-empty (observed: the fixed 1500ms sleep raced the watcher;
+ *     the fork then read an empty active note and died with no error).
+ *   GATE 2 (active file): poll /active/ until it reports the source note as the active file.
+ * During the wait for Copilot's output the active file is probed every ~15s: a non-null
+ * active file that is no longer the source note means the fork's turn never started, so we
+ * fail fast instead of blind-polling to the timeout.
+ */
+async function runCopilotHeadlessSummary(params: {
+  vaultPath: string;
+  sourceNotePath: string;
+  summaryNotePath: string;
+}): Promise<void> {
+  const { vaultPath, sourceNotePath, summaryNotePath } = params;
+
+  // GATE 1 — ingestion: the fork's headless runner reads Obsidian's in-memory cache, so an
+  // fs-written note that Obsidian has not ingested yet reads as empty and the fork fails
+  // silently ("Nothing to process: no selection and the active note is empty.").
+  const ingestionDeadlineMs = Date.now() + copilotIngestionTimeoutMs;
+  let ingestedContent: string | null = null;
+  while (Date.now() < ingestionDeadlineMs) {
+    ingestedContent = await readNoteIfExists(sourceNotePath);
+    if (ingestedContent !== null && ingestedContent.trim().length > 0) {
+      await appendRunLog(`source note ingested by Obsidian: ${sourceNotePath}`);
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, copilotIngestionPollIntervalMs));
+  }
+  if (ingestedContent === null || ingestedContent.trim().length === 0) {
+    throw new Error(
+      `Source note was never ingested by Obsidian within ${Math.round(
+        copilotIngestionTimeoutMs / 1000
+      )}s: ${sourceNotePath}`
+    );
+  }
+
+  await openFile(sourceNotePath);
+
+  // GATE 2 — active file: the fork's headless runner reads app.workspace.getActiveFile(), so
+  // the /open above must actually make OUR note the active file before the dispatch.
+  const activeDeadlineMs = Date.now() + copilotActiveFileTimeoutMs;
+  let confirmedActivePath: string | null = null;
+  while (Date.now() < activeDeadlineMs) {
+    confirmedActivePath = await getActiveFilePath();
+    if (confirmedActivePath !== null && isSameVaultNote(confirmedActivePath, sourceNotePath)) {
+      await appendRunLog(`active file confirmed: ${sourceNotePath}`);
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, copilotActiveFilePollIntervalMs));
+  }
+  if (confirmedActivePath === null || !isSameVaultNote(confirmedActivePath, sourceNotePath)) {
+    throw new Error(
+      `Source note never became the active file within ${Math.round(
+        copilotActiveFileTimeoutMs / 1000
+      )}s: ${sourceNotePath} (active: ${confirmedActivePath ?? "none"})`
+    );
+  }
+
+  const dispatchedAtMs = Date.now();
+  await executeCommand(copilotSummarizeToNoteCommandId);
+  await appendRunLog(`copilot summarize dispatched (background) for: ${sourceNotePath}`);
+
+  const copilotFolder = await readCopilotCommandNoteFolder(vaultPath);
+  const sourceBase = path.posix.basename(sourceNotePath, ".md");
+  const copilotNoteRelative = `${copilotFolder}/${sourceBase} — Summarize.md`;
+  const copilotNoteAbsolute = path.join(vaultPath, ...copilotNoteRelative.split("/"));
+
+  const deadlineMs = dispatchedAtMs + copilotSummaryTimeoutMs;
+  let lastActiveProbeAtMs = Date.now();
+  let detected = false;
+  while (Date.now() < deadlineMs) {
+    try {
+      const stat = await fs.stat(copilotNoteAbsolute);
+      // mtime guard: an older note with the same name (prior run) must not count as done.
+      if (stat.mtimeMs >= dispatchedAtMs - 1000) {
+        detected = true;
+        break;
+      }
+    } catch {
+      // Not written yet.
+    }
+    // Fail fast if the fork's turn never started: the fork needs the source note as the
+    // active file only in its first ~second, so a displaced active file later means the
+    // dispatch raced a stale state and the note will never appear — surface it now instead
+    // of blind-polling to the timeout.
+    if (Date.now() - lastActiveProbeAtMs >= copilotActiveFileProbeIntervalMs) {
+      lastActiveProbeAtMs = Date.now();
+      const activePath = await getActiveFilePath();
+      if (activePath !== null && !isSameVaultNote(activePath, sourceNotePath)) {
+        throw new Error(`Copilot summary not started: active file is ${activePath}, expected ${sourceNotePath}`);
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, copilotSummaryPollIntervalMs));
+  }
+  if (!detected) {
+    throw new Error(
+      `Copilot summary did not appear within ${Math.round(copilotSummaryTimeoutMs / 1000)}s: ${copilotNoteRelative}`
+    );
+  }
+  await appendRunLog(`copilot summary detected: ${copilotNoteRelative}`);
+
+  const summaryAbsolute = path.join(vaultPath, ...summaryNotePath.split("/"));
+  if (copilotNoteAbsolute !== summaryAbsolute) {
+    await fs.mkdir(path.dirname(summaryAbsolute), { recursive: true });
+    await fs.rm(summaryAbsolute, { force: true }).catch(() => undefined);
+    await fs.rename(copilotNoteAbsolute, summaryAbsolute);
+    await appendRunLog(`summary renamed to: ${summaryNotePath}`);
+  }
+
+  await openFile(summaryNotePath).catch(() => undefined);
+}
 
 /**
  * Copilot's own output folder for headless "-to-note" commands, read from the plugin's
@@ -748,67 +894,6 @@ async function readCopilotCommandNoteFolder(vaultPath: string): Promise<string> 
     // Missing/unreadable plugin config — use the shipped default.
   }
   return defaultCopilotCommandNoteFolder;
-}
-
-/**
- * PRIMARY summary lane: have the Obsidian Copilot plugin summarize the transcription note
- * entirely in the background — no modal, no focus change. Opens the note via the Local REST
- * API's /open endpoint (which does NOT activate the Obsidian app), dispatches the fork's
- * headless "Summarize → New Note" command, polls for the note Copilot writes, then renames
- * it to the pipeline's "<title> summary.md" convention and leaves Obsidian (still in the
- * background) showing the finished summary. Throws on dispatch failure or timeout so the
- * caller can invoke the extension-side summarizer as a last resort.
- */
-async function runCopilotHeadlessSummary(params: {
-  vaultPath: string;
-  sourceNotePath: string;
-  summaryNotePath: string;
-}): Promise<void> {
-  const { vaultPath, sourceNotePath, summaryNotePath } = params;
-
-  await openFile(sourceNotePath);
-  // Give the background leaf a moment to become the active file before the dispatch.
-  await new Promise((resolve) => setTimeout(resolve, 1500));
-  const dispatchedAtMs = Date.now();
-  await executeCommand(copilotSummarizeToNoteCommandId);
-  await appendRunLog(`copilot summarize dispatched (background) for: ${sourceNotePath}`);
-
-  const copilotFolder = await readCopilotCommandNoteFolder(vaultPath);
-  const sourceBase = path.posix.basename(sourceNotePath, ".md");
-  const copilotNoteRelative = `${copilotFolder}/${sourceBase} — Summarize.md`;
-  const copilotNoteAbsolute = path.join(vaultPath, ...copilotNoteRelative.split("/"));
-
-  const deadlineMs = dispatchedAtMs + copilotSummaryTimeoutMs;
-  let detected = false;
-  while (Date.now() < deadlineMs) {
-    try {
-      const stat = await fs.stat(copilotNoteAbsolute);
-      // mtime guard: an older note with the same name (prior run) must not count as done.
-      if (stat.mtimeMs >= dispatchedAtMs - 1000) {
-        detected = true;
-        break;
-      }
-    } catch {
-      // Not written yet.
-    }
-    await new Promise((resolve) => setTimeout(resolve, copilotSummaryPollIntervalMs));
-  }
-  if (!detected) {
-    throw new Error(
-      `Copilot summary did not appear within ${Math.round(copilotSummaryTimeoutMs / 1000)}s: ${copilotNoteRelative}`
-    );
-  }
-  await appendRunLog(`copilot summary detected: ${copilotNoteRelative}`);
-
-  const summaryAbsolute = path.join(vaultPath, ...summaryNotePath.split("/"));
-  if (copilotNoteAbsolute !== summaryAbsolute) {
-    await fs.mkdir(path.dirname(summaryAbsolute), { recursive: true });
-    await fs.rm(summaryAbsolute, { force: true }).catch(() => undefined);
-    await fs.rename(copilotNoteAbsolute, summaryAbsolute);
-    await appendRunLog(`summary renamed to: ${summaryNotePath}`);
-  }
-
-  await openFile(summaryNotePath).catch(() => undefined);
 }
 
 /**

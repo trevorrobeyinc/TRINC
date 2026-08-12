@@ -153,6 +153,24 @@ export async function readNote(path: string): Promise<string> {
   return res.text();
 }
 
+/**
+ * Read a note's content if Obsidian has already ingested it into its vault cache, or null
+ * when the vault does not know the file yet. Expects a vault-relative path. This is the
+ * ingestion gate for the Copilot headless-summary lane: an fs-written note 404s here until
+ * Obsidian's watcher ingests it, and dispatching the headless command before that point
+ * makes the fork read an empty active note and fail silently.
+ */
+export async function readNoteIfExists(path: string): Promise<string | null> {
+  try {
+    return await readNote(path);
+  } catch (error) {
+    if (error instanceof Error && /→ 404 /.test(error.message)) {
+      return null;
+    }
+    throw error;
+  }
+}
+
 export async function createNote(path: string, content: string): Promise<void> {
   await restApiFetch(`/vault/${encodeVaultPath(path)}`, {
     method: "PUT",
@@ -236,4 +254,31 @@ export async function executeCommand(commandId: string): Promise<void> {
 export async function openFile(path: string, newLeaf = false): Promise<void> {
   const qs = newLeaf ? "?newLeaf=true" : "";
   await restApiFetch(`/open/${encodeVaultPath(path)}${qs}`, { method: "POST" });
+}
+
+/**
+ * Vault-relative path (POSIX separators) of the note currently active in Obsidian, or null
+ * when no file is active. GET /active/ serves the active file's RAW content (not JSON) with
+ * the path in the Content-Location header ("Vault-relative path of the file that was acted
+ * on" per the plugin's API spec), and 404s when nothing is active. This is the active-file
+ * gate for the Copilot headless-summary lane: the fork's headless runner reads
+ * app.workspace.getActiveFile(), so the /open we issue must have made OUR note active before
+ * the command is dispatched.
+ */
+export async function getActiveFilePath(): Promise<string | null> {
+  let res: Response;
+  try {
+    res = await restApiFetch("/active/", { method: "GET" });
+  } catch (error) {
+    if (error instanceof Error && /→ 404 /.test(error.message)) {
+      return null;
+    }
+    throw error;
+  }
+  const location = res.headers.get("content-location");
+  if (!location) {
+    return null;
+  }
+  const decoded = decodeURIComponent(location).replace(/\\/g, "/").replace(/^\/+/, "");
+  return decoded || null;
 }
