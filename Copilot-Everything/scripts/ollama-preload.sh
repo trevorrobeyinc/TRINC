@@ -31,6 +31,33 @@ CA="${MKCERT_ROOT_CA:-$HOME/Library/Application Support/mkcert/rootCA.pem}"
 
 log() { printf '[ollama-preload] %s %s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$1"; }
 
+# Keep OLLAMA_NUM_PARALLEL in the GUI session's environment.
+#
+# Ollama.app registers itself through SMAppService, so there is no plist to add
+# EnvironmentVariables to — `launchctl setenv` is the only lever, and it is
+# session-scoped (lost on reboot). Re-asserting it on every tick means any
+# LATER Ollama restart picks it up.
+#
+# Caveat, stated rather than papered over: at login Ollama.app may start BEFORE
+# this agent's first tick, in which case the daemon runs with the default single
+# slot until it is next restarted. `launchctl kickstart -k gui/$(id -u)/com.ollama.ollama`
+# applies it immediately. We deliberately do NOT auto-restart Ollama here —
+# killing a daemon another app may be mid-request against is worse than one
+# slow-but-correct session.
+# Deliberately 1, not 2. Measured 2026-08-12 on this 16 GB machine:
+#   granite4.1:8b-16k @ 1 slot  ~7.9 GB
+#   granite4.1:8b-16k @ 2 slots ~10 GB, leaving 0.8 GB free
+# Two slots stop Goose and Obsidian queueing behind each other (client B went
+# 2.91s -> 2.23s), but at a 16K context each slot carries its own KV cache, and
+# the second one costs more than this machine can spare. Queueing costs seconds;
+# swapping costs the whole machine. Raise to 2 only with more RAM or a smaller
+# context tag.
+NUM_PARALLEL="${OLLAMA_PRELOAD_NUM_PARALLEL:-1}"
+if [[ "$(launchctl getenv OLLAMA_NUM_PARALLEL)" != "$NUM_PARALLEL" ]]; then
+  launchctl setenv OLLAMA_NUM_PARALLEL "$NUM_PARALLEL"
+  log "set OLLAMA_NUM_PARALLEL=$NUM_PARALLEL (takes effect on the next Ollama restart)"
+fi
+
 if [[ ! -f "$CA" ]]; then
   log "FATAL: mkcert CA missing at $CA — refusing to fall back to plaintext."
   exit 1
