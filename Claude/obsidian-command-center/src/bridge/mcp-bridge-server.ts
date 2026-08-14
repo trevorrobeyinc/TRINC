@@ -2,8 +2,9 @@ import * as http from "http";
 import * as https from "https";
 import * as os from "os";
 import * as path from "path";
-import { readFileSync, writeFileSync, mkdirSync, chmodSync } from "fs";
+import { readFileSync, writeFileSync, mkdirSync, chmodSync, existsSync } from "fs";
 import { createHash, timingSafeEqual, randomBytes } from "crypto";
+import { execFile } from "child_process";
 import { App, TFile, normalizePath } from "obsidian";
 import type { OpenClawSettings } from "../types";
 
@@ -18,6 +19,54 @@ const ALLOWED_COMMAND_IDS: string[] = [];
 function isCommandAllowed(commandId: string): boolean {
   if (ALLOWED_COMMAND_IDS.includes(commandId)) return true;
   return ALLOWED_COMMAND_PREFIXES.some((p) => commandId.startsWith(p));
+}
+
+// Video pipeline tools: expose the Raycast "Obsidian Bridge Fork" Video Pipeline Runner to
+// MCP clients (the Copilot agent chat reaches this bridge per ACP session). The pipeline
+// itself — Downie/UGE download, subtitle claim or Whisper transcription, the headless
+// copilot:summarize-to-note relay, cleanup — stays in the Raycast extension; this bridge
+// only dispatches its deeplink and reads its durable run log.
+//
+// Security posture (same audit-P0 stance as the command allowlist above): this is NOT an
+// exec primitive. The binary is fixed (/usr/bin/open), arguments are an argv array (no
+// shell), and the only caller-controlled value is a strictly validated http(s) URL or
+// absolute local video path that travels INSIDE the URL-encoded deeplink payload.
+const VIDEO_PIPELINE_DEEPLINK_BASE =
+  "raycast://extensions/marcjulian/obsidian-bridge-fork/videoTranscribeRunnerCommand";
+const VIDEO_PIPELINE_LOG_SEGMENTS = [".local", "share", "raycast-obsidian", "video-transcribe.log"];
+const VIDEO_FILE_EXTENSIONS = [".mp4", ".mkv", ".webm", ".mov", ".m4v"];
+
+function videoPipelineLogPath(): string {
+  return path.join(os.homedir(), ...VIDEO_PIPELINE_LOG_SEGMENTS);
+}
+
+function resolveVideoPipelineSource(raw: unknown): string {
+  const value = typeof raw === "string" ? raw.trim() : "";
+  if (!value) {
+    throw new Error(
+      "videoUrl is required — an http(s) video URL or an absolute local video file path."
+    );
+  }
+  if (/^https?:\/\//i.test(value)) {
+    const parsed = new URL(value); // throws on malformed input
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      throw new Error(`Unsupported URL scheme: ${parsed.protocol}`);
+    }
+    return value;
+  }
+  const localPath = value.startsWith("file://")
+    ? decodeURIComponent(value.slice("file://".length))
+    : value;
+  if (!path.isAbsolute(localPath)) {
+    throw new Error("Local video paths must be absolute (or pass an http(s) URL).");
+  }
+  if (!VIDEO_FILE_EXTENSIONS.includes(path.extname(localPath).toLowerCase())) {
+    throw new Error(`Local file must be a video (${VIDEO_FILE_EXTENSIONS.join(", ")}).`);
+  }
+  if (!existsSync(localPath)) {
+    throw new Error(`Local video file does not exist: ${localPath}`);
+  }
+  return localPath;
 }
 
 // Security (audit P0): the bridge bearer token must NOT live in Obsidian's
@@ -412,6 +461,10 @@ export class McpBridgeServer {
         return this.handleGetResults();
       case "obsidian_openclaw_templates":
         return this.handleListTemplates();
+      case "video_pipeline_run":
+        return await this.handleVideoPipelineRun(input);
+      case "video_pipeline_status":
+        return this.handleVideoPipelineStatus();
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -440,6 +493,8 @@ export class McpBridgeServer {
         "obsidian_openclaw_status",
         "obsidian_openclaw_results",
         "obsidian_openclaw_templates",
+        "video_pipeline_run",
+        "video_pipeline_status",
       ],
     };
   }
@@ -723,6 +778,81 @@ export class McpBridgeServer {
     return { templates: this.pluginActions.listTemplates() };
   }
 
+  // ─── Video Pipeline Tools ───────────────────────────────────
+
+  private async handleVideoPipelineRun(
+    params: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
+    const source = resolveVideoPipelineSource(params.videoUrl);
+    const deeplink = `${VIDEO_PIPELINE_DEEPLINK_BASE}?arguments=${encodeURIComponent(
+      JSON.stringify({ videoUrl: source })
+    )}`;
+
+    if (params.dry_run === true) {
+      return { dispatched: false, dryRun: true, videoUrl: source, deeplink };
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      execFile("/usr/bin/open", [deeplink], (err) => (err ? reject(err) : resolve()));
+    });
+
+    return {
+      success: true,
+      dispatched: true,
+      videoUrl: source,
+      message:
+        "Video pipeline dispatched through Raycast. Public hosts (e.g. YouTube) download " +
+        "hands-free; login-gated hosts (e.g. LinkedIn Learning) open Downie's UGE window " +
+        "where the HUMAN must click the detected stream once — tell the user to click it. " +
+        "The finished summary lands in the vault at " +
+        "obsidian-copilot-summaries/'<video title> summary.md' and intermediates are " +
+        "cleaned up. Poll video_pipeline_status every ~20s; typical runs finish 1-4 " +
+        "minutes after the download starts.",
+    };
+  }
+
+  private handleVideoPipelineStatus(): Record<string, unknown> {
+    let text: string;
+    try {
+      text = readFileSync(videoPipelineLogPath(), "utf8");
+    } catch {
+      return {
+        status: "unknown",
+        message: "No pipeline run log exists yet — no run has ever been dispatched on this machine.",
+      };
+    }
+
+    const lines = text.trimEnd().split("\n");
+    let startIdx = -1;
+    for (let i = lines.length - 1; i >= 0; i--) {
+      if (lines[i].includes("RUN START")) {
+        startIdx = i;
+        break;
+      }
+    }
+    if (startIdx < 0) {
+      return { status: "unknown", message: "Run log exists but contains no RUN START entry." };
+    }
+
+    const run = lines.slice(startIdx);
+    const terminal = run.some((l) => l.includes("RUN SUCCESS"))
+      ? "success"
+      : run.some((l) => l.includes("RUN FAIL"))
+        ? "failed"
+        : "running";
+    const summaryLine = run.find((l) => l.includes("summary written via"));
+    const urlMatch = run[0].match(/url=(.+)$/);
+
+    return {
+      status: terminal,
+      startedAt: run[0].slice(0, 24).trim(),
+      ...(urlMatch ? { videoUrl: urlMatch[1] } : {}),
+      latest: run[run.length - 1],
+      ...(summaryLine ? { summary: summaryLine } : {}),
+      recentLines: run.slice(-8),
+    };
+  }
+
   // ─── tools/list ─────────────────────────────────────────────
 
   private handleToolsList(): Record<string, unknown> {
@@ -865,6 +995,32 @@ export class McpBridgeServer {
           name: "obsidian_openclaw_templates",
           description:
             "List all available OpenClaw workflow templates with their IDs, descriptions, and required input fields.",
+          inputSchema: { type: "object", properties: {} },
+        },
+        {
+          name: "video_pipeline_run",
+          description:
+            "Run the video-to-summary pipeline on a video URL (YouTube, LinkedIn Learning, etc.) or an absolute local video file path. Dispatches the Raycast 'Video Pipeline Runner': the video is downloaded (login-gated hosts like LinkedIn Learning need ONE human click in Downie's UGE window — tell the user to click the detected stream), transcribed from subtitles or Whisper, summarized by Copilot's free local relay, and saved to the vault as obsidian-copilot-summaries/'<title> summary.md' with all intermediates cleaned up. Returns immediately; poll video_pipeline_status for progress.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              videoUrl: {
+                type: "string",
+                description:
+                  "http(s) video URL, or an absolute local video file path (.mp4/.mkv/.webm/.mov/.m4v)",
+              },
+              dry_run: {
+                type: "boolean",
+                description: "Validate the input and return the Raycast deeplink without dispatching.",
+              },
+            },
+            required: ["videoUrl"],
+          },
+        },
+        {
+          name: "video_pipeline_status",
+          description:
+            "Progress of the most recent video pipeline run, read from its durable run log: running/success/failed, the latest stage line, and the summary confirmation when finished.",
           inputSchema: { type: "object", properties: {} },
         },
       ],
