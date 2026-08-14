@@ -66,6 +66,10 @@ const defaultWhisperPathCandidates = [
   "/usr/local/bin/whisper",
 ] as const;
 const defaultGpgPathCandidates = ["/opt/homebrew/bin/gpg", "/usr/local/bin/gpg"] as const;
+// Official Obsidian CLI (ships inside the app bundle, Obsidian 1.12.7+). GATE 2's activation
+// fallback shells out to it because the REST API's /open cannot promote a note to ACTIVE from
+// every workspace state, while the CLI can (see runCopilotHeadlessSummary).
+const defaultObsidianCliPathCandidates = ["/Applications/Obsidian.app/Contents/MacOS/obsidian"] as const;
 // Well-known drop location for the sealed jar written by scripts/seal-yt-cookies.sh — internal
 // volume so it survives an external-volume unmount, outside every git worktree.
 const defaultSealedCookiesPath = path.join(
@@ -731,6 +735,7 @@ const copilotIngestionPollIntervalMs = 500;
 const copilotIngestionTimeoutMs = 15_000;
 const copilotActiveFilePollIntervalMs = 500;
 const copilotActiveFileTimeoutMs = 10_000;
+const copilotActiveFileCliFallbackAfterMs = 4_000;
 const copilotActiveFileProbeIntervalMs = 15_000;
 const defaultCopilotCommandNoteFolder = "obsidian-copilot-summaries";
 
@@ -753,6 +758,35 @@ function isSameVaultNote(a: string, b: string): boolean {
 }
 
 /**
+ * GATE 2 activation fallback: ask the official Obsidian CLI to open the note. Unlike the
+ * REST API's /open, the CLI reliably makes the note the ACTIVE file even when no file view
+ * has held focus since launch (the agent-chat cold-start state), and it does so without
+ * bringing Obsidian frontmost, so the pipeline stays in the background. Fail-soft: a missing
+ * binary or a CLI error is logged and GATE 2 simply keeps polling toward its deadline.
+ */
+async function activateNoteViaObsidianCli(vaultPath: string, sourceNotePath: string): Promise<void> {
+  const cliPath = defaultObsidianCliPathCandidates.find((candidate) => existsSync(candidate));
+  if (!cliPath) {
+    await appendRunLog("REST /open did not activate the note and no Obsidian CLI binary exists — still polling");
+    return;
+  }
+  try {
+    // Vault names match their folder basename; passing it keeps the open correct even when
+    // this vault is not Obsidian's default.
+    await execFileAsync(cliPath, ["open", `file=${sourceNotePath}`, `vault=${path.basename(vaultPath)}`], {
+      timeout: 15_000,
+    });
+    await appendRunLog(`REST /open did not activate the note — forced activation via Obsidian CLI: ${sourceNotePath}`);
+  } catch (error) {
+    await appendRunLog(
+      `Obsidian CLI activation fallback failed (${
+        error instanceof Error ? error.message : String(error)
+      }) — still polling`
+    );
+  }
+}
+
+/**
  * PRIMARY summary lane: have the Obsidian Copilot plugin summarize the transcription note
  * entirely in the background — no modal, no focus change. Opens the note via the Local REST
  * API's /open endpoint (which does NOT activate the Obsidian app), dispatches the fork's
@@ -766,7 +800,8 @@ function isSameVaultNote(a: string, b: string): boolean {
  *   GATE 1 (ingestion): poll the REST API's vault view until the fs-written source note is
  *     known to Obsidian and non-empty (observed: the fixed 1500ms sleep raced the watcher;
  *     the fork then read an empty active note and died with no error).
- *   GATE 2 (active file): poll /active/ until it reports the source note as the active file.
+ *   GATE 2 (active file): poll /active/ until it reports the source note as the active file,
+ *     forcing activation through the Obsidian CLI once when REST /open alone hasn't done it.
  * During the wait for Copilot's output the active file is probed every ~15s: a non-null
  * active file that is no longer the source note means the fork's turn never started, so we
  * fail fast instead of blind-polling to the timeout.
@@ -803,13 +838,27 @@ async function runCopilotHeadlessSummary(params: {
 
   // GATE 2 — active file: the fork's headless runner reads app.workspace.getActiveFile(), so
   // the /open above must actually make OUR note the active file before the dispatch.
-  const activeDeadlineMs = Date.now() + copilotActiveFileTimeoutMs;
+  //
+  // REST /open alone is not enough in the agent-chat-era workspace: after an Obsidian
+  // relaunch that restores the Copilot (agent) chat as the focused surface, no file view has
+  // held focus yet, getActiveFile() reports nothing, and /open never promotes the note — two
+  // real runs died here on 2026-08-11 with "(active: none)" and silently paid the API
+  // fallback. The official Obsidian CLI's `open file=` DOES promote the note to active in
+  // that state, without bringing the app frontmost (verified 2026-08-14), so after a few
+  // seconds of REST-only polling force activation through the CLI once and keep polling.
+  const activeStartedAtMs = Date.now();
+  const activeDeadlineMs = activeStartedAtMs + copilotActiveFileTimeoutMs;
   let confirmedActivePath: string | null = null;
+  let cliActivationAttempted = false;
   while (Date.now() < activeDeadlineMs) {
     confirmedActivePath = await getActiveFilePath();
     if (confirmedActivePath !== null && isSameVaultNote(confirmedActivePath, sourceNotePath)) {
       await appendRunLog(`active file confirmed: ${sourceNotePath}`);
       break;
+    }
+    if (!cliActivationAttempted && Date.now() - activeStartedAtMs >= copilotActiveFileCliFallbackAfterMs) {
+      cliActivationAttempted = true;
+      await activateNoteViaObsidianCli(vaultPath, sourceNotePath);
     }
     await new Promise((resolve) => setTimeout(resolve, copilotActiveFilePollIntervalMs));
   }
