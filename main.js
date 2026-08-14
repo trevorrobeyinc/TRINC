@@ -12,8 +12,13 @@
  *   - 'decorate' (Tier 1): count badge on origin notes + rail/indent/dim on child notes.
  *   - 'nest' (Tier 2): a collapsible group of the children is rendered directly beneath
  *     the origin note's row, and the children's real rows are hidden in their own folders.
- *     Tier 2 uses synthetic, plugin-owned rows (not reparented native nodes), so it never
- *     fights Obsidian's virtual scroller and is fully reversible.
+ *     Tier 2 uses synthetic, plugin-owned rows (not reparented native nodes) and anchors
+ *     each group INSIDE its origin's .nav-file element — the explorer is virtualized
+ *     (InfinityScroll measures tree-items), so injected height must live inside a measured
+ *     row; a free-floating sibling corrupts the scroller's geometry model and produced the
+ *     jumpy-scroll / unstable-right-click glitch fixed in 0.3.1. Re-decoration is skipped
+ *     while the pane is actively scrolling and whenever a mutation burst changed nothing
+ *     relevant, so Obsidian's own mount/unmount churn no longer triggers rebuild storms.
  *
  * The ONE feature that writes to your notes (opt-in, default OFF): "Maintain a Definitions
  * list on origin notes" keeps a marker-delimited "## Definitions" block on each origin note
@@ -56,9 +61,12 @@ class OriginNestPlugin extends Plugin {
     this._parentByChild = new Map();    // childPath  -> parentPath
     this._childrenByParent = new Map(); // parentPath -> Set<childPath>
     this._collapsed = new Set(this.settings.collapsed || []);
-    this._observers = [];               // [{ obs, container }]
+    this._observers = [];               // [{ obs, container, onScroll }]
     this._applyScheduled = false;
     this._applying = false;
+    this._lastSig = new WeakMap();      // container -> signature of the last applied state
+    this._scrollingUntil = 0;           // defer re-decoration while a pane is actively scrolling
+    this._graphScheduled = false;
     this._writingPaths = new Set();     // backlink-write guard (ignore our own file events)
     this._syncing = false;
     this._backlinkScheduled = false;
@@ -74,11 +82,13 @@ class OriginNestPlugin extends Plugin {
     });
 
     // Keep the origin graph (and backlinks) in sync with metadata + vault changes.
-    this.registerEvent(this.app.metadataCache.on('resolved', () => { this.rebuildGraph(); this.scheduleApply(); this.scheduleBacklinkSync(); }));
-    this.registerEvent(this.app.metadataCache.on('changed', () => { this.rebuildGraph(); this.scheduleApply(); this.scheduleBacklinkSync(); }));
-    this.registerEvent(this.app.vault.on('rename', () => { this.rebuildGraph(); this.scheduleApply(); this.scheduleBacklinkSync(); }));
+    // metadataCache 'changed' fires on every edit burst, so the O(all files) graph rebuild
+    // is debounced — decorations were being torn down and rebuilt while the user typed.
+    this.registerEvent(this.app.metadataCache.on('resolved', () => { this.scheduleGraphRefresh(); }));
+    this.registerEvent(this.app.metadataCache.on('changed', () => { this.scheduleGraphRefresh(); }));
+    this.registerEvent(this.app.vault.on('rename', () => { this.scheduleGraphRefresh(); }));
     this.registerEvent(this.app.vault.on('create', () => { this.scheduleApply(); }));
-    this.registerEvent(this.app.vault.on('delete', () => { this.rebuildGraph(); this.scheduleApply(); this.scheduleBacklinkSync(); }));
+    this.registerEvent(this.app.vault.on('delete', () => { this.scheduleGraphRefresh(); }));
 
     // Explorer panes can open/close/move; active file changes the highlight.
     this.registerEvent(this.app.workspace.on('layout-change', () => { this.attachObservers(); this.scheduleApply(); }));
@@ -221,13 +231,19 @@ class OriginNestPlugin extends Plugin {
     for (const container of this.getExplorerContainers()) {
       const obs = new MutationObserver(() => { if (!this._applying) this.scheduleApply(); });
       obs.observe(container, { childList: true, subtree: true });
-      this._observers.push({ obs, container });
+      // The explorer is virtualized: scrolling mounts/unmounts rows, which fires the
+      // observer. Rebuilding mid-scroll shifts content under the pointer, so mark the
+      // pane as scrolling and let scheduleApply wait for idle.
+      const onScroll = () => { this._scrollingUntil = Date.now() + 160; };
+      container.addEventListener('scroll', onScroll, { passive: true });
+      this._observers.push({ obs, container, onScroll });
     }
   }
 
   detachObservers() {
     for (const o of this._observers) {
       try { o.obs.disconnect(); } catch (_) { /* noop */ }
+      try { if (o.onScroll) o.container.removeEventListener('scroll', o.onScroll); } catch (_) { /* noop */ }
     }
     this._observers = [];
   }
@@ -237,14 +253,41 @@ class OriginNestPlugin extends Plugin {
   scheduleApply() {
     if (this._applyScheduled) return;
     this._applyScheduled = true;
-    window.setTimeout(() => { this._applyScheduled = false; this.applyDecorations(); }, 40);
+    const attempt = () => {
+      const wait = this._scrollingUntil - Date.now();
+      if (wait > 0) { window.setTimeout(attempt, wait + 20); return; }
+      this._applyScheduled = false;
+      this.applyDecorations();
+    };
+    window.setTimeout(attempt, 40);
+  }
+
+  scheduleGraphRefresh() {
+    if (this._graphScheduled) return;
+    this._graphScheduled = true;
+    window.setTimeout(() => {
+      this._graphScheduled = false;
+      this.rebuildGraph();
+      this.scheduleApply();
+      this.scheduleBacklinkSync();
+    }, 250);
   }
 
   applyDecorations() {
     this._applying = true;
     for (const o of this._observers) { try { o.obs.disconnect(); } catch (_) { /* noop */ } }
     try {
-      for (const container of this.getExplorerContainers()) this.decorateContainer(container);
+      for (const container of this.getExplorerContainers()) {
+        // Skip the teardown-and-rebuild entirely when this pane's relevant state is
+        // unchanged AND our decorations are still physically present. Obsidian's
+        // virtualized explorer fires mutation bursts constantly (mount/unmount, its own
+        // re-renders); nuking and rebuilding every group on each burst is what made
+        // scrolling and right-clicking glitch.
+        const sig = this.containerSignature(container);
+        if (this._lastSig.get(container) === sig && this.decorationsIntact(container)) continue;
+        this.decorateContainer(container);
+        this._lastSig.set(container, sig);
+      }
     } catch (e) {
       console.error('[Origin Nest] applyDecorations failed', e);
     } finally {
@@ -253,6 +296,61 @@ class OriginNestPlugin extends Plugin {
       }
       this._applying = false;
     }
+  }
+
+  // What the decorated state of a container depends on — used to detect no-op mutation bursts.
+  containerSignature(container) {
+    const s = this.settings;
+    const head = [
+      s.mode, s.showCountBadge ? 1 : 0, s.hideNestedInFolder ? 1 : 0,
+      (this.app.workspace.getActiveFile() || {}).path || '',
+    ].join('~');
+    const seen = [];
+    container.querySelectorAll('.nav-file-title[data-path]').forEach((el) => {
+      const p = el.getAttribute('data-path');
+      if (!p) return;
+      const kids = this._childrenByParent.get(p);
+      const isChild = this._parentByChild.has(p);
+      if (kids && kids.size) seen.push(`${p}:P${kids.size}${this._collapsed.has(p) ? 'c' : 'e'}`);
+      if (isChild) seen.push(`${p}:C`);
+    });
+    seen.sort();
+    return head + '||' + seen.join('|');
+  }
+
+  // True when every decoration we expect in this container is still physically present
+  // (Obsidian re-rendering a row silently strips our badge/group — that must rebuild).
+  decorationsIntact(container) {
+    if (this.settings.mode === 'off') return true;
+    const titles = container.querySelectorAll('.nav-file-title[data-path]');
+    for (const el of titles) {
+      const p = el.getAttribute('data-path');
+      if (!p) continue;
+      const kids = this._childrenByParent.get(p);
+      if (kids && kids.size) {
+        if (!el.classList.contains('origin-nest-parent')) return false;
+        if (this.settings.showCountBadge && !el.querySelector('.origin-nest-count')) return false;
+        if (this.settings.mode === 'nest') {
+          const row = el.closest('.nav-file');
+          if (!el.classList.contains('origin-nest-has-group')) return false;
+          if (!row || !row.querySelector(':scope > .origin-nest-group')) return false;
+        }
+      }
+      if (this._parentByChild.has(p)) {
+        if (!el.classList.contains('origin-nest-child')) return false;
+        if (this.settings.mode === 'nest' && this.settings.hideNestedInFolder) {
+          // Only expected hidden when its parent's row is actually rendered here —
+          // buildNesting leaves children visible when their origin is off-screen/collapsed.
+          const parentPath = this._parentByChild.get(p);
+          const parentTitle = container.querySelector(`.nav-file-title[data-path="${cssEscape(parentPath)}"]`);
+          if (parentTitle) {
+            const row = el.closest('.nav-file');
+            if (row && !row.classList.contains('origin-nest-hidden')) return false;
+          }
+        }
+      }
+    }
+    return true;
   }
 
   undoContainer(container) {
@@ -270,10 +368,12 @@ class OriginNestPlugin extends Plugin {
     this.undoContainer(container);
     if (this.settings.mode === 'off') return;
 
+    const titleByPath = new Map();
     const titles = container.querySelectorAll('.nav-file-title[data-path]');
     titles.forEach((el) => {
       const p = el.getAttribute('data-path');
       if (!p) return;
+      titleByPath.set(p, el);
 
       const kids = this._childrenByParent.get(p);
       if (kids && kids.size) {
@@ -292,14 +392,14 @@ class OriginNestPlugin extends Plugin {
       }
     });
 
-    if (this.settings.mode === 'nest') this.buildNesting(container);
+    if (this.settings.mode === 'nest') this.buildNesting(container, titleByPath);
   }
 
-  buildNesting(container) {
+  buildNesting(container, titleByPath) {
     for (const [parentPath, childSet] of this._childrenByParent) {
       if (!childSet || !childSet.size) continue;
 
-      const parentTitle = container.querySelector(`.nav-file-title[data-path="${cssEscape(parentPath)}"]`);
+      const parentTitle = titleByPath.get(parentPath);
       if (!parentTitle) continue;
       const parentRow = parentTitle.closest('.nav-file');
       if (!parentRow) continue;
@@ -342,13 +442,17 @@ class OriginNestPlugin extends Plugin {
         group.appendChild(item);
 
         if (this.settings.hideNestedInFolder) {
-          const realTitle = container.querySelector(`.nav-file-title[data-path="${cssEscape(cf.path)}"]`);
+          const realTitle = titleByPath.get(cf.path);
           const realRow = realTitle && realTitle.closest('.nav-file');
           if (realRow && realRow !== parentRow) realRow.classList.add('origin-nest-hidden');
         }
       }
 
-      parentRow.insertAdjacentElement('afterend', group);
+      // INSIDE the parent's .nav-file, not as a following sibling: the explorer's
+      // virtual scroller (InfinityScroll) measures tree-items, so height injected here
+      // is accounted for; a foreign sibling's height is not, and corrupts the
+      // scrollTop-to-content mapping in proportion to the expanded groups.
+      parentRow.appendChild(group);
     }
   }
 

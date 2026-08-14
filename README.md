@@ -109,7 +109,7 @@ a path — to another note, that note becomes the **origin** and this note one o
 Lives directly in the vault's plugin folder (no symlink):
 
 ```
-/Volumes/ExtraCurricular/My Digital Garden/.obsidian/plugins/origin-nest/
+/Users/myhome/My Digital Garden/.obsidian/plugins/origin-nest/
 ```
 
 Enable it in **Settings → Community plugins → Origin Nest**, then reload the File Explorer
