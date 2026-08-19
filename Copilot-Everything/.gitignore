@@ -86,6 +86,16 @@ coverage/
 test-results/
 playwright-report/
 
+# ─────────────────────────────────────────────
+# Personal side-repos passthrough (added 2026-08-18)
+#   Copilot-Everything/Code is a SYMLINK to /Users/myhome/Code — the real,
+#   canonical home of the independent side-repos (Obsidian Clipper,
+#   obsidian-auto-wiki-summarize, whisper-transcriber, TR-Portfolio,
+#   trevorrobeyinc.github.io, Scripts). They are separate git repos and must
+#   never be tracked by the monorepo — ignore the link itself.
+# ─────────────────────────────────────────────
+/Code
+
 # Captured vault-settings snapshots contain real userId / license key / encrypted
 # (enc_desk_) secrets — never track the settings file (audit CS-3).
 repos/.upstream-*-vault-snapshot/data.json

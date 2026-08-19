@@ -103,6 +103,29 @@ Matching upstream exactly is what failed on 2026-08-12 — do not go back to it.
 - Workspace root: `/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything/` (corrected 2026-07-31 — this line still carried the pre-wipe home `/Users/trevorrobey/…`, which has not existed since the 2026-05-31 machine wipe. Historical: the workspace lived at `~/Code/THE Copilot in Obsidian Everything/` until the 2026-05-07 monorepo consolidation, and the whole monorepo moved off `/Volumes/ExtraCurricular` onto the internal FileVault disk on 2026-07-26)
 - Target vault: `/Users/myhome/My Digital Garden`
 - Official plugin dir: `<vault>/.obsidian/plugins/copilot`
+- Personal side-repos: `Code/` → **symlink** to `/Users/myhome/Code` (added 2026-08-18; see next section)
+
+## `Code/` — personal side-repos (symlink, 2026-08-18)
+
+`Copilot-Everything/Code` is a **symlink** to **`/Users/myhome/Code`** — the real and only home
+of the independent side-repos: `Obsidian Clipper/`, `obsidian-auto-wiki-summarize/` (the vault's
+`contextual-wiki-definitions` plugin is itself a symlink into this repo — its `main.js` IS the
+source), `whisper-transcriber/`, `TR-Portfolio/`, `trevorrobeyinc.github.io/`, `Scripts/`, plus
+two July-2026 `.bundle` DR files.
+
+A symlink was chosen over a physical move **on purpose** (operator decision 2026-08-18):
+every existing reference to `/Users/myhome/Code/…` (the vault plugin symlink, docs, tool
+placeholders) stays valid with zero rewrites, and the monorepo can never ingest the nested
+repos — git does not follow directory symlinks, and the link itself is ignored
+(`.gitignore` → `/Code`). **Do NOT git-track the link, and do not vendor copies of these
+repos into the monorepo** — they are separate git repositories with their own histories.
+
+History: a stale 2026-07-06-era duplicate of this folder lived at `/Volumes/ExtraCurricular/Code`.
+On 2026-08-18 it was verified byte-redundant (whisper-transcriber, obsidian-auto-wiki-summarize,
+Scripts, and both bundles identical; Obsidian Clipper's only 3 differing files all newer on the
+internal side; zero files unique to the external copy; zero references to the external path
+anywhere on the machine) and handed to the operator for deletion. Nothing may reference the
+external path again.
 
 ## Runtime Modes (preserve these)
 
