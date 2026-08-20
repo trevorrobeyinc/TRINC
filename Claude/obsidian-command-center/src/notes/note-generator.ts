@@ -22,12 +22,72 @@ import {
   buildDatasetNote,
 } from "./content-builder";
 
-interface GeneratedNotes {
+export interface GeneratedNotes {
   overviewPath: string;
   agentPaths: Array<{ role: string; path: string }>;
   qualityPath: string | null;
   datasetPath: string | null;
   synthesizerContent: string | null;
+}
+
+/**
+ * Vault folder for a run's notes — one formula, shared with the bridge's
+ * artifacts tool so it can locate a run's notes without re-deriving the layout.
+ */
+export function computeNotesFolderPath(
+  state: Pick<WorkflowState, "created_at" | "inputs" | "template_id">,
+  vaultOutputFolder: string
+): string {
+  const dateStr = new Date(state.created_at).toISOString().slice(0, 10);
+  const inputLabel = sanitizeFolderName(
+    Object.values(state.inputs || {})
+      .slice(0, 2)
+      .join(" ")
+  );
+  return `${vaultOutputFolder}/${state.template_id}/${dateStr} ${inputLabel}`;
+}
+
+/**
+ * Read a run's synthesizer output straight from the engine's on-disk
+ * artifacts (workflow.json → mission status.json → the synthesizer subtask's
+ * output file). This is the engine's own persistence contract — it exists
+ * whether or not vault notes were generated, which is what lets the
+ * research-memory ingest stage run independently of the notes stage.
+ */
+export function readSynthesizerOutput(
+  openclawPath: string,
+  workflowId: string
+): string | null {
+  const resolver = new PathResolver(openclawPath);
+  const state = readJsonFile<WorkflowState>(resolver.workflowStateFile(workflowId));
+  const missionId = state?.artifacts?.mission_id;
+  if (!missionId) return null;
+  const status = readJsonFile<MissionStatus>(resolver.missionStatusFile(missionId));
+  if (!status) return null;
+
+  const subtasks =
+    ((status as unknown as { subtask_results?: unknown[] }).subtask_results as Array<
+      Record<string, unknown>
+    >) ||
+    (status.subtasks as unknown as Array<Record<string, unknown>>) ||
+    [];
+
+  for (const subtask of subtasks) {
+    const role =
+      (subtask.role as string) ||
+      extractRoleFromAgentId((subtask.agent_id as string) || "");
+    if (role !== "synthesizer") continue;
+    const outputPath = subtask.output_path as string | undefined;
+    if (outputPath && existsSync(outputPath)) {
+      return readFileSync(outputPath, "utf8");
+    }
+    const taskId = (subtask.task_id as string) || (subtask.subtask_id as string) || "";
+    if (taskId) {
+      const conventional = resolver.agentOutputFile(taskId);
+      if (existsSync(conventional)) return readFileSync(conventional, "utf8");
+    }
+  }
+  return null;
 }
 
 /**
@@ -55,14 +115,8 @@ export async function generateWorkflowNotes(
     );
   }
 
-  // 2. Build folder path
-  const dateStr = new Date(state.created_at).toISOString().slice(0, 10);
-  const inputLabel = sanitizeFolderName(
-    Object.values(state.inputs || {})
-      .slice(0, 2)
-      .join(" ")
-  );
-  const folderPath = `${vaultOutputFolder}/${state.template_id}/${dateStr} ${inputLabel}`;
+  // 2. Build folder path (shared formula — see computeNotesFolderPath)
+  const folderPath = computeNotesFolderPath(state, vaultOutputFolder);
 
   // Ensure folder exists
   await ensureFolder(vault, folderPath);

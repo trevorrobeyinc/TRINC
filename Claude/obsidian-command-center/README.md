@@ -20,7 +20,7 @@ An Obsidian plugin that turns your vault into the command center for **trevor-ro
 | Obsidian | 1.4.0+ | Plugin host |
 | Node.js | 22.13.1 | Subprocess runtime (nvm recommended) |
 | [trevor-robey-inc-agents](https://github.com/trevorrobey/trevor-robey-inc-agents) (powered by OpenClaw) | Phase 30+ | Workflow engine, agent roles, quality auditor |
-| [Medical Zettelkasten MCP](https://github.com/trevorrobey/Medical-Zettelkasten-MCP) | Latest | Graph intelligence server (optional) |
+| vault-zettelkasten plugin (in-vault) | Latest | Graph intelligence, in-process (the stdio Medical-Zettelkasten server was retired 2026-08-20) |
 | Miyo | Latest | Semantic search backend (optional) |
 
 ## Installation
@@ -70,20 +70,20 @@ An Obsidian plugin that turns your vault into the command center for **trevor-ro
 ### Miyo Semantic Search
 
 - **Enable Miyo** -- use vector search to find related notes during auto-linking
-- **Miyo port** -- default `8742`
+- **Miyo port** -- default `8743` (the HTTPS TLS-proxy port, never Miyo's plaintext upstream)
 - **Similarity threshold** -- minimum score (0-1) for matches
 - **Max results** -- cap on semantic matches per query
 
 ### Copilot Bridge
 
-- **Bridge status** -- live indicator ("Running on port 8798" / "Stopped") with Start and Stop buttons
+- **Bridge status** -- live indicator ("Running on port 8799" / "Stopped") with Start and Stop buttons
 - **Enable on startup** -- auto-start the bridge when Obsidian loads (default: on)
-- **Bridge port** -- HTTP port for the MCP bridge (default: `8798`)
+- **Bridge port** -- HTTPS port for the MCP bridge (default: `8799`)
 
 ### Advanced
 
 - **Poll interval** -- how often to check workflow state (default: 2000ms)
-- **Workflow timeout** -- max time before killing a workflow (default: 600000ms / 10 min)
+- **Workflow timeout warning** -- console warning threshold; never kills the run (default: 1800000ms / 30 min — use Cancel Workflow to stop)
 
 ## MCP Bridge
 
@@ -110,7 +110,13 @@ The plugin runs an HTTP bridge server inside the Obsidian process. This replaces
 | `obsidian_create_note` | Create a new note (with folder creation) |
 | `obsidian_append_note` | Append content to an existing note |
 
-All tools use the Obsidian API directly -- no filesystem access or Advanced URI subprocess calls.
+Plus the **engine suite** (2026-08-20): `obsidian_openclaw_{run_workflow, status, results,
+templates, cancel, history, artifacts, engine_health, research_task, research_tasks_list,
+research_output, delivery_evidence, citation_integrity, feed_stats}`, the seven `zk_*`
+Zettelkasten tools, and `video_pipeline_{run,status}` — 30 tools total (see
+`src/bridge/mcp-bridge-server.ts` for the contract of record).
+
+The `obsidian_*` tools use the Obsidian API directly -- no filesystem access or Advanced URI subprocess calls.
 
 ### Copilot Integration
 
@@ -118,8 +124,8 @@ The bridge works with the Copilot plugin's MCP configuration. Add this to your C
 
 ```json
 {
-  "obsidian-bridge": {
-    "url": "https://127.0.0.1:8798"
+  "command-center": {
+    "url": "https://127.0.0.1:8799"
   }
 }
 ```

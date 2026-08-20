@@ -1,9 +1,7 @@
 import { Modal, Setting, App, Notice } from "obsidian";
-import { readdirSync } from "fs";
-import { join } from "path";
 import type OpenClawPlugin from "../main";
 import type { WorkflowTemplate, InputProperty } from "../types";
-import { readJsonFile } from "../util/json-reader";
+import { loadTemplates } from "../util/template-loader";
 
 export class WorkflowModal extends Modal {
   private plugin: OpenClawPlugin;
@@ -32,24 +30,9 @@ export class WorkflowModal extends Modal {
   }
 
   private loadTemplates(): WorkflowTemplate[] {
-    const templatesDir = join(
-      this.plugin.settings.openclawPath,
-      "config",
-      "workflow-templates"
-    );
-    try {
-      const files = readdirSync(templatesDir).filter((f) =>
-        f.endsWith(".json")
-      );
-      const templates: WorkflowTemplate[] = [];
-      for (const file of files) {
-        const t = readJsonFile<WorkflowTemplate>(join(templatesDir, file));
-        if (t && t.workflow_template_id) templates.push(t);
-      }
-      return templates.sort((a, b) => a.name.localeCompare(b.name));
-    } catch {
-      return [];
-    }
+    // Shared loader (util/template-loader.ts) — includes the sort guard for
+    // templates without the optional `name` field.
+    return loadTemplates(this.plugin.settings.openclawPath);
   }
 
   private renderTemplateList(): void {

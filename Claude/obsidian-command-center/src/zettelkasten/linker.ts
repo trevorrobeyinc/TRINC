@@ -1,6 +1,5 @@
 import { Vault } from "obsidian";
 import type { App } from "obsidian";
-import type { ZettelkastenClient } from "../subprocess/zettelkasten-client";
 import type { MiyoClient, MiyoSearchResult } from "../copilot-integration/miyo-client";
 
 interface ZkToolResult {
@@ -23,94 +22,32 @@ export interface MiyoLinkingOptions {
   searchRetries: number;
 }
 
-/**
- * Run the 5 Zettelkasten linking commands on the synthesizer output,
- * optionally query Miyo for semantic connections, then write
- * all results back into the vault note.
- */
-export async function runZettelkastenLinking(
-  zkClient: ZettelkastenClient,
-  synthesizerText: string,
-  synthesizerNotePath: string,
-  vault: Vault,
-  miyoClient?: MiyoClient | null,
-  miyoOptions?: MiyoLinkingOptions
-): Promise<void> {
-  // Start Miyo search concurrently with ZK tools (no longer sequential)
-  const miyoPromise: Promise<MiyoSearchResult[]> = (async () => {
-    if (!miyoClient || !miyoOptions?.enabled) return [];
-    try {
-      const healthy = await miyoClient.healthCheck();
-      if (!healthy) return [];
-      const queryText = synthesizerText.slice(0, 2000);
-      return await miyoClient.searchWithRetry(
-        queryText,
-        miyoOptions.maxResults,
-        miyoOptions.threshold,
-        miyoOptions.searchRetries
-      );
-    } catch {
-      return [];
-    }
-  })();
-
-  // Run all 5 ZK commands in parallel
-  const [crossDomain, echoChamber, semantic, orphans, serendipity] =
-    await Promise.allSettled([
-      zkClient.callTool("cross_domain_connect", {
-        text: synthesizerText,
-        input_type: "openclaw_report",
-      }),
-      zkClient.callTool("break_echo_chamber", {
-        text: synthesizerText,
-        input_type: "openclaw_report",
-      }),
-      zkClient.callTool("link_semantically", {
-        text: synthesizerText,
-        input_type: "openclaw_report",
-      }),
-      zkClient.callTool("rescue_orphans", {
-        text: synthesizerText,
-        input_type: "openclaw_report",
-      }),
-      zkClient.callTool("generate_serendipity", {
-        text: synthesizerText,
-        input_type: "openclaw_report",
-      }),
-    ]);
-
-  const results: LinkingResults = {
-    crossDomain: extractResult(crossDomain),
-    echoChamber: extractResult(echoChamber),
-    semantic: extractResult(semantic),
-    orphans: extractResult(orphans),
-    serendipity: extractResult(serendipity),
-  };
-
-  // Await Miyo results (already running in parallel with ZK tools)
-  const miyoResults = await miyoPromise;
-
-  // Append results to the synthesizer note
-  const note = vault.getAbstractFileByPath(synthesizerNotePath);
-  if (!note) return;
-
-  const existingContent = await vault.read(note as any);
-  const appendix = buildLinkingAppendix(results, miyoResults);
-  if (appendix) {
-    await vault.modify(note as any, existingContent + "\n" + appendix);
-  }
-}
+// NOTE (2026-08-20): the stdio-subprocess linking lane (runZettelkastenLinking +
+// subprocess/zettelkasten-client.ts) was RETIRED — it had been unreachable since
+// the vault-zettelkasten plugin became the lane of record, and the bridge's
+// zk_* tools never had a subprocess fallback. runVaultZKLinking below is the
+// only linking path.
 
 /**
  * VaultZK plugin API type (matches vault-zettelkasten's VaultZettelkastenAPI).
  * Declared here to avoid a hard dependency on the VaultZK plugin package.
  */
-interface VaultZKApi {
+export interface VaultZKApi {
   serendipity(req: Record<string, unknown>): Promise<{ ok: boolean; content: string; suggestions?: unknown[] }>;
   crossDomain(req: Record<string, unknown>): Promise<{ ok: boolean; content: string; suggestions?: unknown[] }>;
   echoChamber(req: Record<string, unknown>): Promise<{ ok: boolean; content: string; suggestions?: unknown[] }>;
   semanticLinker(req: Record<string, unknown>): Promise<{ ok: boolean; content: string; suggestions?: unknown[] }>;
   orphanRescue(req: Record<string, unknown>): Promise<{ ok: boolean; content: string; suggestions?: unknown[] }>;
+  // Bridge additions (zk_* MCP tools, 2026-08-20): vault-wide health + the
+  // multi-step pipeline. Same VaultZettelkastenAPI object; kept loose here to
+  // preserve the no-hard-dependency stance above.
+  vaultHealth(
+    req: Record<string, unknown>
+  ): Promise<{ ok: boolean; content: string; healthScore?: unknown }>;
+  pipeline(
+    steps: Array<{ command: string; options?: Record<string, unknown> }>,
+    baseRequest: Record<string, unknown>
+  ): Promise<{ ok: boolean; combinedContent: string; steps?: unknown[] }>;
 }
 
 /**
@@ -196,15 +133,6 @@ function wrapVaultZKResult(
 ): ZkToolResult | null {
   if (settled.status === "fulfilled" && settled.value?.ok) {
     return { content: [{ type: "text", text: settled.value.content }] };
-  }
-  return null;
-}
-
-function extractResult(
-  settled: PromiseSettledResult<unknown>
-): ZkToolResult | null {
-  if (settled.status === "fulfilled" && settled.value) {
-    return settled.value as ZkToolResult;
   }
   return null;
 }

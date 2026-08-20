@@ -1,5 +1,11 @@
 # Cowork Handoff: OpenClaw Command Center Plugin
 
+> **HISTORICAL (2026-05 era) — do not follow verbatim.** Paths (`/Users/trevorrobey/…`),
+> ports (Miyo 8742, bridge 8798) and the Zettelkasten-subprocess steps are all stale:
+> the home is `/Users/myhome`, Miyo is HTTPS :8743, the bridge is HTTPS :8799 (30 tools),
+> and the ZK stdio lane was retired 2026-08-20 (in-process vault-zettelkasten api instead).
+> Current truth lives in `CLAUDE.md` / `README.md` beside this file.
+
 End-to-end test checklist for the OpenClaw Command Center Obsidian plugin. Run these steps inside Obsidian on Trevor's Mac.
 
 ## Prerequisites

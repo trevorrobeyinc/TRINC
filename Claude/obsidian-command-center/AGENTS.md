@@ -29,7 +29,7 @@ Plugin output goes to `main.js` in the project root, which Obsidian loads.
 
 ### MCP Bridge (port 8799)
 
-The plugin runs an in-process HTTP bridge providing 11 tools (7 `obsidian_*` + 4 `obsidian_openclaw_*`). Default port is **8799** to avoid collision with the canonical copilot-everything bridge at **8798**.
+The plugin runs an in-process HTTPS bridge providing **30 tools** (7 `obsidian_*` + 14 `obsidian_openclaw_*` + 7 `zk_*` + 2 `video_pipeline_*`; engine suite added 2026-08-20). Default port is **8799** to avoid collision with the canonical copilot-everything bridge at **8798**.
 
 The canonical Obsidian MCP bridge (with auth, replay protection, idempotency) lives at:
 `/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge/`
@@ -40,9 +40,13 @@ Spawns `scripts/run-workflow.js` in `/Users/myhome/TrevClaw-Obsidianodus/Trevor 
 
 - **PATH enrichment**: `src/subprocess/openclaw-runner.ts:73-89` enriches the spawned subprocess PATH to include `~/.local/bin` (claude CLI), nvm node bin, `/opt/homebrew/bin`, and `/usr/local/bin`. Without this, Obsidian launched from Finder/Spotlight inherits a minimal PATH that breaks `claude -p` spawning.
 
-### Zettelkasten MCP
+### Zettelkasten (in-process via vault-zettelkasten)
 
-Spawns Medical Zettelkasten MCP server on-demand (`/Users/myhome/TrevClaw-Obsidianodus/Claude/Medical-Zettelkasten-MCP/src/server.js`) for graph analysis of research output. Uses 5 analytical tools: cross-domain connect, echo-chamber breaker, semantic linker, orphan rescue, serendipity generator.
+Graph analysis of research output runs in-process through the `vault-zettelkasten`
+plugin's api (5 analyses: cross-domain, echo-chamber, semantic linker, orphan rescue,
+serendipity). **The Medical Zettelkasten stdio-subprocess lane was RETIRED 2026-08-20**
+(it had been unreachable since the plugin lane became preferred; the server files remain
+on disk, unused).
 
 ### Miyo
 
@@ -54,7 +58,7 @@ Queries Miyo semantic search via TLS proxy at `https://127.0.0.1:8743` (upstream
 |--------|-----------|----------|---------|
 | OpenClaw Agents | subprocess | child_process.spawn() | Workflow execution |
 | Obsidian MCP Bridge (canonical) | HTTPS | :8798 | Vault operations |
-| Medical Zettelkasten MCP | stdio (subprocess) | N/A | Graph analysis |
+| vault-zettelkasten plugin | in-process api | N/A | Graph analysis |
 | Miyo (via TLS proxy) | HTTPS | :8743 → upstream :8742 | Semantic search |
 
 ## manifest.json version is pinned at 9.9.9 on purpose (2026-07-26)

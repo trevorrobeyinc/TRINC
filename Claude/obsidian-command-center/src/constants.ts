@@ -6,8 +6,6 @@ export const PLUGIN_ID = "command-center";
 
 export const DEFAULT_SETTINGS: OpenClawSettings = {
   openclawPath: "/Users/myhome/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations",
-  zettelkastenServerPath:
-    "/Users/myhome/TrevClaw-Obsidianodus/Claude/Medical-Zettelkasten-MCP/src/server.js",
   nodePath: "/Users/myhome/.nvm/versions/node/v22.13.1/bin/node",
   vaultOutputFolder: "OpenClaw",
   autoGenerateNotes: true,
@@ -26,8 +24,6 @@ export const DEFAULT_SETTINGS: OpenClawSettings = {
   miyoSearchRetries: 3,
   enableCopilotBridge: true,
   bridgePort: 8799,
-  bridgeToken: "",
-  vaultZKPreferPlugin: true,
   // Trevorobeyinc Research Memory MCP — auto-ingest hook (added 2026-04-26).
   autoIngestToResearchMemory: true,
   researchMemoryCliPath:
@@ -52,14 +48,6 @@ export const STEP_STATUS_ICONS: Record<string, string> = {
   failed: "\u2717",
 };
 
-/** MCP protocol version for Zettelkasten handshake */
-export const MCP_PROTOCOL_VERSION = "2025-06-18";
-
-/** Zettelkasten tool names used for vault linking */
-export const ZK_LINKING_TOOLS = [
-  "cross_domain_connect",
-  "break_echo_chamber",
-  "link_semantically",
-  "rescue_orphans",
-  "generate_serendipity",
-] as const;
+// (The Zettelkasten stdio-subprocess lane — MCP_PROTOCOL_VERSION +
+// ZK_LINKING_TOOLS — was retired 2026-08-20; linking runs in-process via the
+// vault-zettelkasten plugin api.)

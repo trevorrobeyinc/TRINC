@@ -4,6 +4,7 @@ import { createHash, randomUUID } from "crypto";
 import { join } from "path";
 import { existsSync, readdirSync, readFileSync, statSync } from "fs";
 import type { WorkflowResult, WorkflowState, StderrEvent, OpenClawSettings } from "../types";
+import { buildEngineEnv, resolveNodeBin } from "../util/engine-spawn";
 
 export interface RunWorkflowOptions {
   template: string;
@@ -42,6 +43,33 @@ export class OpenClawRunner {
     }
   }
 
+  /**
+   * Bounded await of the workflow id (Decision 1, 2026-08-20): the id is
+   * captured asynchronously from the engine's stderr events (or the tracker's
+   * dir scan via setDetectedWorkflowId) seconds after spawn. The bridge's
+   * run tool blocks on this so the agent gets a correlation handle for
+   * status/cancel/artifacts at submit time — mirroring the id-based async
+   * contract in openclaw-bridge/bridge/research-api.js.
+   */
+  awaitWorkflowId(timeoutMs: number): Promise<string | null> {
+    if (this.detectedWorkflowId) return Promise.resolve(this.detectedWorkflowId);
+    const deadline = Date.now() + timeoutMs;
+    return new Promise((resolve) => {
+      const poll = () => {
+        if (this.detectedWorkflowId) {
+          resolve(this.detectedWorkflowId);
+          return;
+        }
+        if (Date.now() >= deadline || (!this.proc && !this.detectedWorkflowId)) {
+          resolve(this.detectedWorkflowId);
+          return;
+        }
+        setTimeout(poll, 250);
+      };
+      poll();
+    });
+  }
+
   run(options: RunWorkflowOptions, settings: OpenClawSettings): void {
     if (this.proc) {
       this.onError(new Error("A workflow is already running."));
@@ -56,7 +84,7 @@ export class OpenClawRunner {
       return;
     }
 
-    const nodePath = settings.nodePath || process.execPath;
+    const nodePath = resolveNodeBin(settings.nodePath);
     this.killed = false;
     this.openclawPath = settings.openclawPath;
     this.detectedWorkflowId = null;
@@ -74,39 +102,16 @@ export class OpenClawRunner {
       "--operator-approve",
     ];
 
-    // Enrich PATH so the spawned subprocess can find `claude`, `node`, `npx`, `uv`, etc.
-    // Obsidian launched from Finder/Spotlight inherits a minimal PATH (~/usr/bin:/bin)
-    // that lacks ~/.local/bin (claude) and ~/.nvm/versions/node/<v>/bin (node/npx).
-    // Without this enrichment, claude -p fails to spawn and the workflow falls back
-    // to LM Studio, which then fails on context-length for analyst-sized prompts.
-    const home = process.env.HOME || "";
-    const nodeBinDir = nodePath.replace(/\/node$/, "");
-    const enrichedPath = [
-      `${home}/.local/bin`,
-      nodeBinDir,
-      "/opt/homebrew/bin",
-      "/usr/local/bin",
-      process.env.PATH || "/usr/bin:/bin:/usr/sbin:/sbin",
-    ].filter(Boolean).join(":");
+    // PATH enrichment + mkcert CA trust: shared helper (util/engine-spawn.ts) —
+    // one env contract for every engine/CLI spawn in this plugin.
+    const env = buildEngineEnv(nodePath, { OPENCLAW_ROOT: settings.openclawPath });
 
     console.log("[OpenClaw:Runner] Spawning subprocess:", nodePath, args.slice(0, 3).join(" "));
-    console.log("[OpenClaw:Runner] Enriched PATH first entries:", enrichedPath.split(":").slice(0, 4).join(":"));
 
     this.proc = spawn(nodePath, args, {
       cwd: settings.openclawPath,
       stdio: ["pipe", "pipe", "pipe"],
-      env: {
-        ...process.env,
-        OPENCLAW_ROOT: settings.openclawPath,
-        PATH: enrichedPath,
-        // Trust the mkcert root CA so the stack's HTTPS loopback proxies validate
-        // (Miyo :8743, Qdrant :6433, SearXNG :8891) from an Obsidian launch.
-        // The local-model proxies this used to name are gone: LM Studio :1235
-        // decommissioned 2026-07-16, Ollama :11435 removed 2026-07-23.
-        NODE_EXTRA_CA_CERTS:
-          process.env.NODE_EXTRA_CA_CERTS ||
-          `${home}/Library/Application Support/mkcert/rootCA.pem`,
-      },
+      env,
     });
 
     console.log("[OpenClaw:Runner] Subprocess spawned, PID:", this.proc.pid);
@@ -384,6 +389,10 @@ export interface NotifyResearchArrivedOptions {
   taskId: string;
   /** Human-readable bubble title. */
   title: string;
+  /** Run outcome (added 2026-08-20 — failures now notify too, not just successes). */
+  status?: "success" | "failure";
+  /** Short error description when status is "failure". */
+  error?: string;
   /** Vault-relative path to the note the chat bubble should link to (optional). */
   mainNotePath?: string;
   /** Vault display name (optional). */
@@ -422,6 +431,8 @@ export async function notifyResearchArrived(
     input: {
       taskId: opts.taskId,
       title: opts.title,
+      ...(opts.status ? { status: opts.status } : {}),
+      ...(opts.error ? { error: opts.error.slice(0, 300) } : {}),
       ...(opts.mainNotePath ? { mainNotePath: opts.mainNotePath } : {}),
       ...(opts.vault ? { vault: opts.vault } : {}),
     },

@@ -5,6 +5,8 @@ import { join } from "path";
 
 export class OpenClawSettingTab extends PluginSettingTab {
   plugin: OpenClawPlugin;
+  private statusInterval: number | null = null;
+  private pathValidationEl: HTMLElement | null = null;
 
   constructor(app: App, plugin: OpenClawPlugin) {
     super(app, plugin);
@@ -17,43 +19,34 @@ export class OpenClawSettingTab extends PluginSettingTab {
 
     containerEl.createEl("h2", { text: "OpenClaw Command Center" });
 
-    // --- Paths ---
-    containerEl.createEl("h3", { text: "Paths" });
+    // --- Engine ---
+    containerEl.createEl("h3", { text: "Engine" });
 
     new Setting(containerEl)
-      .setName("OpenClaw path")
-      .setDesc("Absolute path to the trevor-robey-inc-agents repository root (OpenClaw engine)")
+      .setName("OpenClaw engine path")
+      .setDesc(
+        "Absolute path to the research-engine workspace root (the Trevor Robey Intelligence Network Citations directory in the TrevClaw-Obsidianodus monorepo)."
+      )
       .addText((text) =>
         text
-          .setPlaceholder("/Users/myhome/Code/trevor-robey-inc-agents")
+          .setPlaceholder(
+            "/Users/myhome/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations"
+          )
           .setValue(this.plugin.settings.openclawPath)
           .onChange(async (value) => {
             this.plugin.settings.openclawPath = value.trim();
             await this.plugin.saveSettings();
-            this.validateOpenClawPath(containerEl);
+            this.validateOpenClawPath();
           })
       );
 
-    new Setting(containerEl)
-      .setName("Zettelkasten MCP server path")
-      .setDesc("Absolute path to the Medical Zettelkasten MCP server.js")
-      .addText((text) =>
-        text
-          .setPlaceholder(
-            "/Users/myhome/Code/Claude/Medical-Zettelkasten-MCP/src/server.js"
-          )
-          .setValue(this.plugin.settings.zettelkastenServerPath)
-          .onChange(async (value) => {
-            this.plugin.settings.zettelkastenServerPath = value.trim();
-            await this.plugin.saveSettings();
-          })
-      );
+    // Validation message renders directly under the path field it validates
+    // (it used to append to the bottom of the whole settings tab).
+    this.pathValidationEl = containerEl.createDiv({ cls: "oc-path-validation" });
 
     new Setting(containerEl)
       .setName("Node.js path")
-      .setDesc(
-        "Path to Node.js binary. Leave empty to use the system default."
-      )
+      .setDesc("Path to the Node.js binary. Leave empty to use Obsidian's bundled Node.")
       .addText((text) =>
         text
           .setPlaceholder("(auto-detect)")
@@ -80,12 +73,20 @@ export class OpenClawSettingTab extends PluginSettingTab {
           })
       );
 
-    // --- Behavior ---
-    containerEl.createEl("h3", { text: "Behavior" });
+    // --- Pipeline stages ---
+    containerEl.createEl("h3", { text: "Pipeline stages" });
+    containerEl.createEl("p", {
+      cls: "setting-item-description",
+      text:
+        "Post-workflow stages are independent: turning one off never disables the others. " +
+        "The chat notification and Research Memory ingest always run on their own toggles; " +
+        "Miyo indexing and Zettelkasten linking operate on the generated notes, so they " +
+        "additionally need note generation to have produced output.",
+    });
 
     new Setting(containerEl)
       .setName("Auto-generate notes")
-      .setDesc("Automatically create vault notes when a workflow completes")
+      .setDesc("Create vault notes when a workflow completes (the notes stage only).")
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.autoGenerateNotes)
@@ -98,7 +99,7 @@ export class OpenClawSettingTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName("Auto-run Zettelkasten")
       .setDesc(
-        "Automatically run Zettelkasten graph analysis after note generation"
+        "Run graph analysis on the synthesizer note after note generation — in-process via the vault-zettelkasten plugin (the old subprocess server was retired 2026-08-20)."
       )
       .addToggle((toggle) =>
         toggle
@@ -115,7 +116,7 @@ export class OpenClawSettingTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName("Enable Miyo")
       .setDesc(
-        "Use Miyo semantic search to find related vault notes during auto-linking"
+        "Use Miyo semantic search to find related vault notes during auto-linking, and index freshly generated notes."
       )
       .addToggle((toggle) =>
         toggle
@@ -227,9 +228,7 @@ export class OpenClawSettingTab extends PluginSettingTab {
     // --- Copilot Bridge ---
     containerEl.createEl("h3", { text: "Copilot Bridge" });
 
-    // Live status indicator + Start/Stop buttons
-    const bridgeStatusSetting = new Setting(containerEl)
-      .setName("Bridge status");
+    const bridgeStatusSetting = new Setting(containerEl).setName("Bridge status");
 
     const statusEl = bridgeStatusSetting.descEl.createSpan({
       cls: "oc-bridge-status",
@@ -249,6 +248,12 @@ export class OpenClawSettingTab extends PluginSettingTab {
     };
 
     updateBridgeStatus();
+    // Auto-refresh while the tab is open (the status used to only update on
+    // open and on button clicks). Cleared in hide().
+    if (this.statusInterval !== null) {
+      window.clearInterval(this.statusInterval);
+    }
+    this.statusInterval = window.setInterval(updateBridgeStatus, 2000);
 
     bridgeStatusSetting
       .addButton((btn) =>
@@ -279,9 +284,7 @@ export class OpenClawSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Enable on startup")
-      .setDesc(
-        "Automatically start the bridge when Obsidian loads"
-      )
+      .setDesc("Automatically start the bridge when Obsidian loads")
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.enableCopilotBridge)
@@ -293,7 +296,9 @@ export class OpenClawSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Bridge port")
-      .setDesc("Port for the MCP bridge HTTP server")
+      .setDesc(
+        "Port for the HTTPS MCP bridge (default 8799 — coordinated in the monorepo port map). If the bridge is running, changing this restarts it on the new port."
+      )
       .addText((text) =>
         text
           .setPlaceholder("8799")
@@ -303,6 +308,20 @@ export class OpenClawSettingTab extends PluginSettingTab {
             if (!isNaN(n) && n > 0 && n < 65536) {
               this.plugin.settings.bridgePort = n;
               await this.plugin.saveSettings();
+              // Rebind: the server captures the port at listen time, so a port
+              // change on a running bridge silently kept the old socket before.
+              if (this.plugin.isBridgeRunning) {
+                try {
+                  await this.plugin.stopBridge();
+                  await this.plugin.startBridge();
+                } catch (err: unknown) {
+                  console.error(
+                    "[OpenClaw] Bridge rebind failed:",
+                    err instanceof Error ? err.message : String(err)
+                  );
+                }
+                updateBridgeStatus();
+              }
             }
           })
       );
@@ -313,7 +332,7 @@ export class OpenClawSettingTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName("Auto-ingest pack to Research Memory")
       .setDesc(
-        "On workflow completion, embed and store the synthesizer output in the trevorobeyinc-research-memory MCP (Qdrant + nomic-embed-text-v1). Builds a permanent searchable memory of every shipped pack. Failure is non-blocking — the pack still ships, ingestion logs to ~/Claude/.logs/research-memory.log."
+        "On workflow completion, embed and store the synthesizer output in the trevorobeyinc-research-memory store (Qdrant collection trevorobeyinc-packs + nomic-embed-text-v1, both local). Runs on its own toggle — works even when note generation is off (reads the engine's on-disk synthesizer artifact). Failure is non-blocking: the pack still ships; the CLI logs to ~/Claude/.logs/research-memory.log."
       )
       .addToggle((toggle) =>
         toggle
@@ -329,6 +348,9 @@ export class OpenClawSettingTab extends PluginSettingTab {
       .setDesc("Absolute path to the trevorobeyinc-research-memory CLI (dist/cli.js).")
       .addText((text) =>
         text
+          .setPlaceholder(
+            "/Users/myhome/TrevClaw-Obsidianodus/Claude/trevorobeyinc-research-memory-mcp/dist/cli.js"
+          )
           .setValue(this.plugin.settings.researchMemoryCliPath)
           .onChange(async (value) => {
             this.plugin.settings.researchMemoryCliPath = value.trim();
@@ -337,8 +359,10 @@ export class OpenClawSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Default client tag")
-      .setDesc("Client value passed to pack_ingest when no per-workflow override is set.")
+      .setName("Client tag")
+      .setDesc(
+        "Client value passed to pack_ingest — a tenant tag stored as a filterable field on every ingested pack."
+      )
       .addText((text) =>
         text
           .setValue(this.plugin.settings.researchMemoryDefaultClient)
@@ -350,7 +374,9 @@ export class OpenClawSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Ingest timeout (ms)")
-      .setDesc("Hard cap on how long the ingest subprocess can run before being killed. Embedding ~30s + Qdrant write — 60000ms (60s) is safe.")
+      .setDesc(
+        "Hard cap on how long the ingest subprocess can run before being killed. Embedding ~30s + Qdrant write — 60000ms (60s) is safe."
+      )
       .addText((text) =>
         text
           .setValue(String(this.plugin.settings.researchMemoryTimeoutMs))
@@ -363,29 +389,12 @@ export class OpenClawSettingTab extends PluginSettingTab {
           })
       );
 
-    // --- VaultZK Plugin ---
-    containerEl.createEl("h3", { text: "VaultZK Plugin" });
-
-    new Setting(containerEl)
-      .setName("Prefer VaultZK plugin (in-process)")
-      .setDesc(
-        "When the VaultZK plugin is installed, use its in-process API for Zettelkasten analysis instead of the subprocess MCP server. Falls back to subprocess automatically if the plugin is not available."
-      )
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.vaultZKPreferPlugin)
-          .onChange(async (value) => {
-            this.plugin.settings.vaultZKPreferPlugin = value;
-            await this.plugin.saveSettings();
-          })
-      );
-
     // --- Advanced ---
     containerEl.createEl("h3", { text: "Advanced" });
 
     new Setting(containerEl)
       .setName("Poll interval (ms)")
-      .setDesc("How often to check workflow state file for progress updates")
+      .setDesc("How often to check the workflow state file for progress updates")
       .addText((text) =>
         text
           .setPlaceholder("2000")
@@ -400,11 +409,13 @@ export class OpenClawSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Workflow timeout (ms)")
-      .setDesc("Maximum time to wait for a workflow before killing it")
+      .setName("Workflow timeout warning (ms)")
+      .setDesc(
+        "After this long the plugin logs a console WARNING — it never kills the run (completion is detected from workflow.json regardless). Use the Cancel Workflow command to force-stop. Default 1800000 (30 min)."
+      )
       .addText((text) =>
         text
-          .setPlaceholder("600000")
+          .setPlaceholder("1800000")
           .setValue(String(this.plugin.settings.workflowTimeoutMs))
           .onChange(async (value) => {
             const n = parseInt(value, 10);
@@ -415,19 +426,25 @@ export class OpenClawSettingTab extends PluginSettingTab {
           })
       );
 
-    this.validateOpenClawPath(containerEl);
+    this.validateOpenClawPath();
   }
 
-  private validateOpenClawPath(containerEl: HTMLElement): void {
-    const existing = containerEl.querySelector(".oc-path-validation");
-    if (existing) existing.remove();
+  hide(): void {
+    if (this.statusInterval !== null) {
+      window.clearInterval(this.statusInterval);
+      this.statusInterval = null;
+    }
+  }
+
+  private validateOpenClawPath(): void {
+    const el = this.pathValidationEl;
+    if (!el) return;
+    el.empty();
 
     const p = this.plugin.settings.openclawPath;
     if (!p) return;
 
-    const el = containerEl.createDiv({ cls: "oc-path-validation" });
     const scriptPath = join(p, "scripts", "run-workflow.js");
-
     if (existsSync(scriptPath)) {
       el.createEl("p", {
         text: "OpenClaw path verified.",
@@ -435,7 +452,7 @@ export class OpenClawSettingTab extends PluginSettingTab {
       });
     } else {
       el.createEl("p", {
-        text: `Could not find scripts/run-workflow.js at the configured path.`,
+        text: "Could not find scripts/run-workflow.js at the configured path.",
         cls: "oc-path-invalid",
       });
     }

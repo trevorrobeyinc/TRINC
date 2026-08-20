@@ -223,7 +223,6 @@ export interface AgentMetadata {
 
 export interface OpenClawSettings {
   openclawPath: string;
-  zettelkastenServerPath: string;
   nodePath: string;
   vaultOutputFolder: string;
   autoGenerateNotes: boolean;
@@ -239,11 +238,11 @@ export interface OpenClawSettings {
   miyoSearchRetries: number;
   enableCopilotBridge: boolean;
   bridgePort: number;
-  // Bearer token required by external HTTP callers of the Command Center bridge.
-  // Auto-generated (32-byte hex) on first start if empty. /health and / remain
-  // public so health-check probes don't need the token. Added 2026-05-04.
-  bridgeToken: string;
-  vaultZKPreferPlugin: boolean;
+  // (bridgeToken removed 2026-08-20: the bearer token lives ONLY in the 0600
+  // file ~/.config/openclaw-command-center/bridge-token — it must never return
+  // to data.json, which Obsidian persists world-readably with .bak copies.
+  // vaultZKPreferPlugin removed same day: the vault-zettelkasten plugin api is
+  // the only Zettelkasten lane; the stdio subprocess was retired.)
   // Trevorobeyinc Research Memory MCP — auto-ingest synthesizer output as a vector
   // memory of every shipped pack (added 2026-04-26).
   autoIngestToResearchMemory: boolean;

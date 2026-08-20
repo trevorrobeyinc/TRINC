@@ -3,7 +3,6 @@ import { basename } from "path";
 import type {
   OpenClawSettings,
   WorkflowResult,
-  WorkflowTemplate,
   StderrEvent,
 } from "./types";
 import { DEFAULT_SETTINGS, VIEW_TYPE_WORKFLOW } from "./constants";
@@ -12,21 +11,28 @@ import { OpenClawRunner, notifyResearchArrived } from "./subprocess/openclaw-run
 import { WorkflowTracker } from "./workflow/workflow-tracker";
 import { WorkflowModal } from "./workflow/workflow-modal";
 import { WorkflowStatusView } from "./views/workflow-sidebar";
-import { generateWorkflowNotes } from "./notes/note-generator";
-import { ZettelkastenClient } from "./subprocess/zettelkasten-client";
-import { runZettelkastenLinking, runVaultZKLinking, getVaultZKApi } from "./zettelkasten/linker";
+import {
+  generateWorkflowNotes,
+  readSynthesizerOutput,
+  computeNotesFolderPath,
+  type GeneratedNotes,
+} from "./notes/note-generator";
+import { runVaultZKLinking, getVaultZKApi } from "./zettelkasten/linker";
 import { MiyoClient } from "./copilot-integration/miyo-client";
 import { McpBridgeServer } from "./bridge/mcp-bridge-server";
 import type { PluginActions } from "./bridge/mcp-bridge-server";
-import { readdirSync } from "fs";
+import { getWorkflowHistory } from "./workflow/workflow-history";
+import { listTemplateSummaries } from "./util/template-loader";
+import { runEngineScript, resolveNodeBin, buildEngineEnv } from "./util/engine-spawn";
+import { readdirSync, existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { readJsonFile } from "./util/json-reader";
+import type { WorkflowState } from "./types";
 
 export default class OpenClawPlugin extends Plugin {
   settings: OpenClawSettings = DEFAULT_SETTINGS;
   runner: OpenClawRunner = new OpenClawRunner();
   private tracker: WorkflowTracker | null = null;
-  private zkClient: ZettelkastenClient | null = null;
   private bridgeServer: McpBridgeServer | null = null;
   private bridgeStarting = false;
   private statusBarItem: HTMLElement | null = null;
@@ -102,11 +108,13 @@ export default class OpenClawPlugin extends Plugin {
 
     // MCP bridge for Copilot integration — wait for layout to be ready
     this.app.workspace.onLayoutReady(() => {
-      // Migrate (audit P0): the bridge token now lives in a 0600 file outside
-      // data.json. Clear any legacy token so it stops leaking via data.json (and
-      // Obsidian's auto-generated .bak copies).
-      if (this.settings.bridgeToken) {
-        this.settings.bridgeToken = "";
+      // Migrate (audit P0): the bridge token lives in a 0600 file outside
+      // data.json. Scrub any legacy `bridgeToken` key out of stored settings so
+      // it stops leaking via data.json (and Obsidian's auto-generated .bak
+      // copies). The field itself was removed from OpenClawSettings 2026-08-20.
+      const legacy = this.settings as unknown as { bridgeToken?: string };
+      if (typeof legacy.bridgeToken === "string") {
+        delete legacy.bridgeToken;
         void this.saveSettings();
       }
       if (this.settings.enableCopilotBridge) {
@@ -115,10 +123,6 @@ export default class OpenClawPlugin extends Plugin {
           this.settings,
           this.createPluginActions()
         );
-        // Persist any auto-generated bridge token (added 2026-05-04 H2 hardening).
-        (this.bridgeServer as unknown as { onTokenGenerated?: (t: string) => void }).onTokenGenerated = async (_t: string) => {
-          await this.saveSettings();
-        };
         this.bridgeServer.start().catch((err) => {
           console.error("[OpenClaw] Bridge failed to start:", err.message);
         });
@@ -161,10 +165,6 @@ export default class OpenClawPlugin extends Plugin {
         this.settings,
         this.createPluginActions()
       );
-      // Persist any auto-generated bridge token (added 2026-05-04 H2 hardening).
-      (this.bridgeServer as unknown as { onTokenGenerated?: (t: string) => void }).onTokenGenerated = async (_t: string) => {
-        await this.saveSettings();
-      };
       await this.bridgeServer.start();
     } catch (err) {
       // start() failed — null out the zombie so next Start attempt works
@@ -187,7 +187,6 @@ export default class OpenClawPlugin extends Plugin {
   onunload(): void {
     this.runner.cancel();
     this.tracker?.stop();
-    this.zkClient?.shutdown();
     this.bridgeServer?.stop().catch(() => {});
     this.bridgeServer = null;
   }
@@ -244,6 +243,22 @@ export default class OpenClawPlugin extends Plugin {
         new Notice(`Workflow failed: ${msg}`);
         this.updateStatusBar("failed");
         this.getSidebarView()?.showError(msg);
+        // Failure-path notify (added 2026-08-20): a failed run used to emit
+        // nothing at all — the chat only ever heard about successes. Fail-soft.
+        try {
+          await notifyResearchArrived({
+            taskId: result.workflow_id || "workflow",
+            title: `${result.template_id || "Research"} FAILED`,
+            status: "failure",
+            error: msg,
+            vault: this.app.vault.getName(),
+          });
+        } catch (notifyErr: unknown) {
+          console.warn(
+            "[OpenClaw:Main] failure notify failed (non-fatal):",
+            notifyErr instanceof Error ? notifyErr.message : String(notifyErr)
+          );
+        }
       }
     };
 
@@ -332,144 +347,149 @@ export default class OpenClawPlugin extends Plugin {
    */
   private async onWorkflowComplete(result: WorkflowResult): Promise<void> {
     console.log("[OpenClaw:Main] onWorkflowComplete called for:", result.workflow_id);
-    console.log("[OpenClaw:Main] autoGenerateNotes:", this.settings.autoGenerateNotes);
 
-    // Phase 3: Note generation
+    // Independently-gated, fail-soft stages (decoupled 2026-08-20). The old
+    // single `if (autoGenerateNotes)` umbrella silently disabled Miyo indexing,
+    // Zettelkasten linking AND the Research Memory ingest whenever note
+    // generation was off or threw. Now each stage owns its toggle and its
+    // try/catch. Miyo and ZK operate ON the generated notes, so they still
+    // need stage 1's output; the chat notify and the Research Memory ingest do
+    // not (ingest falls back to the engine's on-disk synthesizer artifact).
+
+    // ── Stage 1: vault notes ──
+    let notes: GeneratedNotes | null = null;
+    let noteCount = 0;
     if (this.settings.autoGenerateNotes) {
       try {
         this.updateStatusBar("generating notes...");
-        console.log("[OpenClaw:Main] Generating vault notes...");
-        const notes = await generateWorkflowNotes(
+        notes = await generateWorkflowNotes(
           this.app.vault,
           result,
           this.settings.openclawPath,
           this.settings.vaultOutputFolder
         );
-
-        const noteCount =
+        noteCount =
           1 + notes.agentPaths.length + (notes.qualityPath ? 1 : 0) + (notes.datasetPath ? 1 : 0);
-        console.log("[OpenClaw:Main] Notes generated:", noteCount);
+        console.log("[OpenClaw:Main] Stage 1 notes: generated", noteCount);
         new Notice(`Created ${noteCount} research notes.`);
-
-        // Auto-bubble: tell the Copilot chat a research run arrived. Emit-only
-        // (research_notify → :8798 `research` SSE), linking to the overview note
-        // we just created — it never re-writes the output, so no duplication.
-        // Fail-soft: a notify failure must not block note delivery or the rest
-        // of the completion pipeline (Miyo scan, Zettelkasten, memory ingest).
-        try {
-          await notifyResearchArrived({
-            taskId: result.workflow_id || "workflow",
-            title: `${result.template_id || "Research"} complete — ${noteCount} notes`,
-            mainNotePath: notes.overviewPath,
-            vault: this.app.vault.getName(),
-          });
-          console.log("[OpenClaw:Main] research_notify emitted → Copilot chat bubble");
-        } catch (notifyErr: unknown) {
-          console.warn(
-            "[OpenClaw:Main] research_notify failed (non-fatal):",
-            notifyErr instanceof Error ? notifyErr.message : String(notifyErr)
-          );
-        }
-
-        // Phase 3.5: Trigger Miyo rescan and wait for indexing
-        if (this.settings.miyoEnabled) {
-          try {
-            const miyoScan = new MiyoClient(this.settings.miyoPort);
-            const vaultBase = this.getVaultBasePath();
-            if (vaultBase) {
-              const vaultName = basename(vaultBase);
-              await miyoScan.scanFolder(vaultBase, false);
-              const miyoPaths = [
-                notes.overviewPath,
-                ...notes.agentPaths.map((a) => a.path),
-                ...(notes.qualityPath ? [notes.qualityPath] : []),
-                ...(notes.datasetPath ? [notes.datasetPath] : []),
-              ].map((p) => `${vaultName}/${p}`);
-              console.log("[OpenClaw:Main] Waiting for Miyo to index", miyoPaths.length, "notes...");
-              const indexResult = await miyoScan.waitForFilesIndexed(
-                vaultBase,
-                miyoPaths,
-                this.settings.miyoIndexWaitMs,
-                this.settings.miyoIndexPollIntervalMs
-              );
-              console.log(
-                `[OpenClaw:Main] Miyo indexed ${indexResult.indexed.length}/${miyoPaths.length} notes` +
-                (indexResult.missing.length > 0 ? ` (${indexResult.missing.length} still pending)` : "")
-              );
-            }
-          } catch (err: unknown) {
-            const scanMsg = err instanceof Error ? err.message : String(err);
-            console.warn("[OpenClaw:Main] Miyo scan/wait failed (non-fatal):", scanMsg);
-          }
-        }
-
-        // Phase 4: Zettelkasten linking
-        if (this.settings.autoRunZettelkasten && notes.synthesizerContent) {
-          console.log("[OpenClaw:Main] Running Zettelkasten analysis...");
-          await this.runZettelkastenOnNotes(notes);
-          console.log("[OpenClaw:Main] Zettelkasten analysis complete.");
-        }
-
-        // [REMOVED 2026-04-28] Post-workflow auto-open of Obsidian's native
-        // Graph view (graph:open-local) was removed because it accumulated
-        // duplicate Graph tabs across multiple workflow runs. Graph view
-        // is now opened on demand by the user (Cmd+P → "Graph: Open local
-        // graph") or by an explicit bridge MCP call from the main
-        // conversation, never automatically by this plugin.
-
-        // Auto-ingest synthesizer output to Trevorobeyinc Research Memory
-        // (Mode B: subprocess CLI spawn). Non-blocking — failure logs to
-        // ~/Claude/.logs/research-memory.log and does NOT block the user-visible
-        // pack delivery. Added 2026-04-26.
-        if (
-          this.settings.autoIngestToResearchMemory &&
-          notes.synthesizerContent
-        ) {
-          console.log("[OpenClaw:Main] Starting Research Memory auto-ingest...");
-          this.ingestToResearchMemory(
-            notes.synthesizerContent,
-            result.workflow_id,
-            result.template_id || "unknown"
-          ).then((ingest) => {
-            console.log(
-              "[OpenClaw:Main] Research Memory auto-ingest: SUCCESS",
-              `(action=${ingest.action}, pack_id=${ingest.pack_id})`
-            );
-          }).catch((err: Error) => {
-            console.warn(
-              "[OpenClaw:Main] Research Memory auto-ingest FAILED (non-fatal):",
-              err.message
-            );
-          });
-        } else {
-          console.log(
-            "[OpenClaw:Main] Research Memory auto-ingest skipped:",
-            !this.settings.autoIngestToResearchMemory
-              ? "disabled in settings"
-              : "no synthesizer content"
-          );
-        }
-
-        // Open the overview note
-        const overviewFile = this.app.vault.getAbstractFileByPath(
-          notes.overviewPath
-        );
-        if (overviewFile) {
-          const leaf = this.app.workspace.getLeaf(false);
-          await leaf.openFile(overviewFile as any);
-        }
-
-        this.updateStatusBar("complete");
-        console.log("[OpenClaw:Main] ========== WORKFLOW PIPELINE COMPLETE ==========");
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
-        console.error("[OpenClaw:Main] Note generation failed:", msg);
+        console.error("[OpenClaw:Main] Stage 1 notes FAILED (continuing):", msg);
         new Notice(`Note generation failed: ${msg}`);
         this.updateStatusBar("notes failed");
       }
     } else {
-      console.log("[OpenClaw:Main] Note generation disabled — skipping post-completion pipeline");
+      console.log("[OpenClaw:Main] Stage 1 notes: disabled");
     }
+
+    // ── Stage 2: chat bubble (always — emit-only research_notify → :8798) ──
+    try {
+      await notifyResearchArrived({
+        taskId: result.workflow_id || "workflow",
+        title: `${result.template_id || "Research"} complete${noteCount ? ` — ${noteCount} notes` : ""}`,
+        status: "success",
+        ...(notes ? { mainNotePath: notes.overviewPath } : {}),
+        vault: this.app.vault.getName(),
+      });
+      console.log("[OpenClaw:Main] Stage 2 notify: research_notify emitted");
+    } catch (notifyErr: unknown) {
+      console.warn(
+        "[OpenClaw:Main] Stage 2 notify FAILED (non-fatal):",
+        notifyErr instanceof Error ? notifyErr.message : String(notifyErr)
+      );
+    }
+
+    // ── Stage 3: Miyo index scan (operates on the new notes) ──
+    if (this.settings.miyoEnabled && notes) {
+      try {
+        const miyoScan = new MiyoClient(this.settings.miyoPort);
+        const vaultBase = this.getVaultBasePath();
+        if (vaultBase) {
+          const vaultName = basename(vaultBase);
+          await miyoScan.scanFolder(vaultBase, false);
+          const miyoPaths = [
+            notes.overviewPath,
+            ...notes.agentPaths.map((a) => a.path),
+            ...(notes.qualityPath ? [notes.qualityPath] : []),
+            ...(notes.datasetPath ? [notes.datasetPath] : []),
+          ].map((p) => `${vaultName}/${p}`);
+          console.log("[OpenClaw:Main] Stage 3 Miyo: waiting to index", miyoPaths.length, "notes...");
+          const indexResult = await miyoScan.waitForFilesIndexed(
+            vaultBase,
+            miyoPaths,
+            this.settings.miyoIndexWaitMs,
+            this.settings.miyoIndexPollIntervalMs
+          );
+          console.log(
+            `[OpenClaw:Main] Stage 3 Miyo: indexed ${indexResult.indexed.length}/${miyoPaths.length}` +
+              (indexResult.missing.length > 0 ? ` (${indexResult.missing.length} still pending)` : "")
+          );
+        }
+      } catch (err: unknown) {
+        console.warn(
+          "[OpenClaw:Main] Stage 3 Miyo FAILED (non-fatal):",
+          err instanceof Error ? err.message : String(err)
+        );
+      }
+    } else {
+      console.log(
+        "[OpenClaw:Main] Stage 3 Miyo: skipped —",
+        !this.settings.miyoEnabled ? "disabled" : "no notes generated"
+      );
+    }
+
+    // ── Stage 4: Zettelkasten linking (appends to the synthesizer note) ──
+    if (this.settings.autoRunZettelkasten && notes?.synthesizerContent) {
+      console.log("[OpenClaw:Main] Stage 4 ZK: running graph analysis...");
+      await this.runZettelkastenOnNotes(notes);
+    } else {
+      console.log(
+        "[OpenClaw:Main] Stage 4 ZK: skipped —",
+        !this.settings.autoRunZettelkasten ? "disabled" : "no synthesizer note"
+      );
+    }
+
+    // ── Stage 5: Research Memory ingest (independent of note generation) ──
+    if (this.settings.autoIngestToResearchMemory) {
+      const content =
+        notes?.synthesizerContent ??
+        readSynthesizerOutput(this.settings.openclawPath, result.workflow_id);
+      if (content) {
+        console.log("[OpenClaw:Main] Stage 5 RM: starting auto-ingest...");
+        this.ingestToResearchMemory(
+          content,
+          result.workflow_id,
+          result.template_id || "unknown"
+        )
+          .then((ingest) => {
+            console.log(
+              "[OpenClaw:Main] Stage 5 RM: SUCCESS",
+              `(action=${ingest.action}, pack_id=${ingest.pack_id})`
+            );
+          })
+          .catch((err: Error) => {
+            console.warn("[OpenClaw:Main] Stage 5 RM FAILED (non-fatal):", err.message);
+          });
+      } else {
+        console.log(
+          "[OpenClaw:Main] Stage 5 RM: skipped — no synthesizer output in vault notes or on disk"
+        );
+      }
+    } else {
+      console.log("[OpenClaw:Main] Stage 5 RM: disabled");
+    }
+
+    // ── Stage 6: open the overview note ──
+    if (notes) {
+      const overviewFile = this.app.vault.getAbstractFileByPath(notes.overviewPath);
+      if (overviewFile) {
+        const leaf = this.app.workspace.getLeaf(false);
+        await leaf.openFile(overviewFile as any);
+      }
+    }
+
+    this.updateStatusBar("complete");
+    console.log("[OpenClaw:Main] ========== WORKFLOW PIPELINE COMPLETE ==========");
   }
 
   private async runZettelkastenOnNotes(notes: {
@@ -496,40 +516,23 @@ export default class OpenClawPlugin extends Plugin {
         searchRetries: this.settings.miyoSearchRetries,
       };
 
-      // Dual-path: prefer VaultZK plugin API (in-process), fall back to subprocess MCP
-      const vaultZK = this.settings.vaultZKPreferPlugin
-        ? getVaultZKApi(this.app)
-        : null;
-
-      if (vaultZK) {
-        console.log("[OpenClaw:Main] Using VaultZK plugin API (in-process)");
-        await runVaultZKLinking(
-          vaultZK,
-          notes.synthesizerContent,
-          synthPath,
-          this.app.vault,
-          miyoClient,
-          miyoOptions
+      // In-process vault-zettelkasten plugin api is the ONLY lane (the stdio
+      // subprocess fallback was retired 2026-08-20 — it had been unreachable).
+      const vaultZK = getVaultZKApi(this.app);
+      if (!vaultZK) {
+        new Notice(
+          "Zettelkasten analysis skipped: enable the vault-zettelkasten plugin under Community plugins."
         );
-      } else {
-        console.log("[OpenClaw:Main] Using Zettelkasten MCP subprocess");
-        if (!this.zkClient) {
-          this.zkClient = new ZettelkastenClient(
-            this.settings.zettelkastenServerPath,
-            this.settings.nodePath || process.execPath
-          );
-        }
-        await this.zkClient.ensureReady();
-
-        await runZettelkastenLinking(
-          this.zkClient,
-          notes.synthesizerContent,
-          synthPath,
-          this.app.vault,
-          miyoClient,
-          miyoOptions
-        );
+        return;
       }
+      await runVaultZKLinking(
+        vaultZK,
+        notes.synthesizerContent,
+        synthPath,
+        this.app.vault,
+        miyoClient,
+        miyoOptions
+      );
 
       new Notice("Zettelkasten analysis complete.");
     } catch (err: unknown) {
@@ -569,37 +572,22 @@ export default class OpenClawPlugin extends Plugin {
         searchRetries: this.settings.miyoSearchRetries,
       };
 
-      const vaultZK = this.settings.vaultZKPreferPlugin
-        ? getVaultZKApi(this.app)
-        : null;
-
-      if (vaultZK) {
-        await runVaultZKLinking(
-          vaultZK,
-          content,
-          file.path,
-          this.app.vault,
-          miyoClient,
-          miyoOptions
+      const vaultZK = getVaultZKApi(this.app);
+      if (!vaultZK) {
+        new Notice(
+          "Zettelkasten analysis unavailable: enable the vault-zettelkasten plugin under Community plugins."
         );
-      } else {
-        if (!this.zkClient) {
-          this.zkClient = new ZettelkastenClient(
-            this.settings.zettelkastenServerPath,
-            this.settings.nodePath || process.execPath
-          );
-        }
-        await this.zkClient.ensureReady();
-
-        await runZettelkastenLinking(
-          this.zkClient,
-          content,
-          file.path,
-          this.app.vault,
-          miyoClient,
-          miyoOptions
-        );
+        this.updateStatusBar("idle");
+        return;
       }
+      await runVaultZKLinking(
+        vaultZK,
+        content,
+        file.path,
+        this.app.vault,
+        miyoClient,
+        miyoOptions
+      );
 
       new Notice("Zettelkasten analysis appended to note.");
       this.updateStatusBar("idle");
@@ -653,10 +641,22 @@ export default class OpenClawPlugin extends Plugin {
     return {
       runWorkflow: (templateId, inputs) =>
         this.runWorkflow(templateId, inputs),
+      awaitWorkflowId: (timeoutMs) => this.runner.awaitWorkflowId(timeoutMs),
+      cancelWorkflow: () => {
+        if (!this.runner.isRunning) {
+          return { cancelled: false, workflow_id: this.lastWorkflowId, reason: "no_run" };
+        }
+        const id = this.runner.getDetectedWorkflowId() || this.lastWorkflowId;
+        this.runner.cancel();
+        this.tracker?.stop();
+        this.updateStatusBar("cancelled");
+        this.getSidebarView()?.renderIdle();
+        return { cancelled: true, workflow_id: id };
+      },
       isRunning: () => this.runner.isRunning,
       getLastResult: () => {
         if (this.lastWorkflowResult) {
-          return this.lastWorkflowResult as Record<string, unknown>;
+          return this.lastWorkflowResult as unknown as Record<string, unknown>;
         }
         // Fallback: read from workflow.json if runner callback didn't fire
         return this.readWorkflowStateFromDisk();
@@ -664,10 +664,164 @@ export default class OpenClawPlugin extends Plugin {
       getWorkflowState: () => {
         // Try live tracker first, then fall back to disk
         const live = this.tracker?.readCurrentState();
-        if (live) return live as Record<string, unknown>;
+        if (live) return live as unknown as Record<string, unknown>;
         return this.readWorkflowStateFromDisk();
       },
-      listTemplates: () => this.loadTemplateList(),
+      listTemplates: () => listTemplateSummaries(this.settings.openclawPath),
+      getHistory: (limit) =>
+        getWorkflowHistory(this.settings.openclawPath, limit) as unknown as Array<
+          Record<string, unknown>
+        >,
+      getArtifacts: (workflowId) => this.readWorkflowArtifacts(workflowId),
+      runEngineScript: (spec) =>
+        runEngineScript({
+          openclawPath: this.settings.openclawPath,
+          nodeBin: resolveNodeBin(this.settings.nodePath),
+          scriptRel: spec.scriptRel,
+          args: spec.args,
+          timeoutMs: spec.timeoutMs,
+        }),
+      getFeedStats: () => this.readFeedStats(),
+      getCitationIntegrity: (workflowId) => this.readCitationIntegrity(workflowId),
+    };
+  }
+
+  /** Resolve a workflow id: explicit → last run this session → newest on disk. */
+  private resolveWorkflowId(workflowId?: string): string | null {
+    if (workflowId) return workflowId;
+    if (this.lastWorkflowId) return this.lastWorkflowId;
+    const history = getWorkflowHistory(this.settings.openclawPath, 1);
+    return history[0]?.workflowId ?? null;
+  }
+
+  private readWorkflowArtifacts(workflowId?: string): Record<string, unknown> {
+    const id = this.resolveWorkflowId(workflowId);
+    if (!id) {
+      return {
+        error: "no_workflow",
+        message: "No workflow id known — pass workflow_id or run a workflow first.",
+      };
+    }
+    const runDir = join(this.settings.openclawPath, "workspace", "workflows", id);
+    const state = readJsonFile<WorkflowState>(join(runDir, "workflow.json"));
+    if (!state) {
+      return { error: "not_found", workflow_id: id, message: `No workflow.json under ${id}` };
+    }
+    let runDirFiles: string[] = [];
+    try {
+      runDirFiles = readdirSync(runDir).sort();
+    } catch {
+      /* dir unreadable — report empty */
+    }
+    const notesFolder = computeNotesFolderPath(state, this.settings.vaultOutputFolder);
+    const folder = this.app.vault.getAbstractFileByPath(notesFolder);
+    const vaultNotes =
+      folder && "children" in (folder as object)
+        ? ((folder as unknown as { children: Array<{ path: string }> }).children || []).map(
+            (c) => c.path
+          )
+        : [];
+    return {
+      workflow_id: id,
+      template_id: state.template_id,
+      status: state.status,
+      artifacts: state.artifacts || {},
+      run_dir: runDir,
+      run_dir_files: runDirFiles,
+      notes_folder: notesFolder,
+      vault_notes: vaultNotes,
+    };
+  }
+
+  private readCitationIntegrity(workflowId?: string): Record<string, unknown> {
+    const id = this.resolveWorkflowId(workflowId);
+    if (!id) {
+      return {
+        error: "no_workflow",
+        message: "No workflow id known — pass workflow_id or run a workflow first.",
+      };
+    }
+    const runDir = join(this.settings.openclawPath, "workspace", "workflows", id);
+    const state = readJsonFile<WorkflowState>(join(runDir, "workflow.json"));
+    const cv = readJsonFile<Record<string, unknown>>(join(runDir, "citation-verification.json"));
+    const manifest = readJsonFile<{ summary?: Record<string, unknown> }>(
+      join(runDir, "reproducibility-manifest.json")
+    );
+    return {
+      workflow_id: id,
+      template_id: state?.template_id ?? null,
+      status: state?.status ?? null,
+      citation_verification: cv ?? null,
+      reproducibility_summary: manifest?.summary ?? null,
+      offer_id: state?.artifacts?.offer_id ?? null,
+      export_path: state?.artifacts?.export_path ?? null,
+      note:
+        "verdict/grounded_ratio vs min_grounded_ratio is the shippable gate. " +
+        "cited/grounded are extraction tallies from the runtime evidence cross-check — " +
+        "never present them as accuracy claims.",
+    };
+  }
+
+  private readFeedStats(): Record<string, unknown> {
+    const base = join(
+      this.settings.openclawPath,
+      "workspace",
+      "aws-marketplace-listing",
+      "trial-graveyard-feed",
+      "data"
+    );
+    let indications: string[] = [];
+    try {
+      indications = readdirSync(base).filter((d) => !d.startsWith("."));
+    } catch {
+      return { error: "feed_data_not_found", path: base };
+    }
+    const perIndication: Array<Record<string, unknown>> = [];
+    for (const ind of indications.sort()) {
+      const entry: Record<string, unknown> = { indication: ind };
+      for (const lane of ["paid", "free"] as const) {
+        const csvPath = join(base, ind, lane, "register.csv");
+        if (!existsSync(csvPath)) {
+          entry[lane] = null;
+          continue;
+        }
+        try {
+          const rows = parseCsv(readFileSync(csvPath, "utf8"));
+          const header = rows[0] || [];
+          const idx = (name: string) => header.indexOf(name);
+          const statusIdx = idx("overall_status");
+          const riskIdx = idx("amendment_risk_band");
+          const asOfIdx = idx("as_of");
+          const statuses: Record<string, number> = {};
+          const riskBands: Record<string, number> = {};
+          let asOf = "";
+          for (const row of rows.slice(1)) {
+            if (statusIdx >= 0 && row[statusIdx]) {
+              statuses[row[statusIdx]] = (statuses[row[statusIdx]] || 0) + 1;
+            }
+            if (riskIdx >= 0 && row[riskIdx]) {
+              riskBands[row[riskIdx]] = (riskBands[row[riskIdx]] || 0) + 1;
+            }
+            if (asOfIdx >= 0 && row[asOfIdx] && row[asOfIdx] > asOf) {
+              asOf = row[asOfIdx];
+            }
+          }
+          entry[lane] = {
+            rows: Math.max(rows.length - 1, 0),
+            as_of: asOf || null,
+            overall_status: statuses,
+            amendment_risk_band: riskBands,
+          };
+        } catch (err: unknown) {
+          entry[lane] = { error: err instanceof Error ? err.message : String(err) };
+        }
+      }
+      perIndication.push(entry);
+    }
+    return {
+      source: base,
+      indications: perIndication,
+      note: "Read-only profile of the shipped Trial Graveyard register.csv files.",
     };
   }
 
@@ -683,43 +837,8 @@ export default class OpenClawPlugin extends Plugin {
     return readJsonFile<Record<string, unknown>>(statePath);
   }
 
-  private loadTemplateList(): Array<{
-    id: string;
-    name: string;
-    description: string;
-    requiredInputs: string[];
-  }> {
-    const templatesDir = join(
-      this.settings.openclawPath,
-      "config",
-      "workflow-templates"
-    );
-    try {
-      const files = readdirSync(templatesDir).filter((f) =>
-        f.endsWith(".json")
-      );
-      const result: Array<{
-        id: string;
-        name: string;
-        description: string;
-        requiredInputs: string[];
-      }> = [];
-      for (const file of files) {
-        const t = readJsonFile<WorkflowTemplate>(join(templatesDir, file));
-        if (t && t.workflow_template_id) {
-          result.push({
-            id: t.workflow_template_id,
-            name: t.name,
-            description: t.description,
-            requiredInputs: t.input_schema.required || [],
-          });
-        }
-      }
-      return result.sort((a, b) => a.name.localeCompare(b.name));
-    } catch {
-      return [];
-    }
-  }
+  // (Template listing moved to util/template-loader.ts — shared with the
+  // workflow modal, with a sort guard for name-less templates.)
 
   // ─── Trevorobeyinc Research Memory ingest (Mode B subprocess CLI) ───
   // Spawns the trevorobeyinc-research-memory-mcp CLI with the synthesizer
@@ -734,7 +853,7 @@ export default class OpenClawPlugin extends Plugin {
   ): Promise<{ action: string; pack_id: string; content_sha256: string }> {
     const { spawn } = await import("child_process");
     const { tmpdir } = await import("os");
-    const { writeFileSync, unlinkSync } = await import("fs");
+    const { writeFileSync, unlinkSync, existsSync: tmpExists } = await import("fs");
     const { join } = await import("path");
 
     const tmpFile = join(
@@ -742,14 +861,29 @@ export default class OpenClawPlugin extends Plugin {
       `openclaw-pack-${workflowId.slice(0, 8)}-${Date.now()}.md`
     );
     writeFileSync(tmpFile, synthesizerContent, "utf8");
+    // Idempotent cleanup — previously the timeout path leaked the temp file
+    // whenever the SIGTERM'd process failed to reach its close handler.
+    const removeTmp = () => {
+      try {
+        if (tmpExists(tmpFile)) unlinkSync(tmpFile);
+      } catch {
+        /* ignore */
+      }
+    };
 
     const today = new Date().toISOString().slice(0, 10);
     const packId = `pack-${today}-${templateId}-${workflowId.slice(0, 8)}`;
     const tags = ["openclaw", "synthesizer", templateId].join(",");
 
+    // Fixed 2026-08-20: this spawn previously passed NO env (so no mkcert CA —
+    // the CLI could never validate HTTPS Qdrant :6433 from a Finder-launched
+    // Obsidian) and used bare settings.nodePath with no fallback. Both now go
+    // through the shared engine-spawn helpers.
+    const nodeBin = resolveNodeBin(this.settings.nodePath);
+
     return await new Promise((resolve, reject) => {
       const proc = spawn(
-        this.settings.nodePath,
+        nodeBin,
         [
           this.settings.researchMemoryCliPath,
           "ingest",
@@ -761,7 +895,7 @@ export default class OpenClawPlugin extends Plugin {
           "--synthesizer-version", "openclaw-auto",
           "--pack-id", packId,
         ],
-        { stdio: ["ignore", "pipe", "pipe"] }
+        { stdio: ["ignore", "pipe", "pipe"], env: buildEngineEnv(nodeBin) }
       );
 
       let stdout = "";
@@ -771,18 +905,19 @@ export default class OpenClawPlugin extends Plugin {
 
       const timer = setTimeout(() => {
         proc.kill("SIGTERM");
+        setTimeout(removeTmp, 5000);
         reject(new Error(`research-memory ingest timed out after ${this.settings.researchMemoryTimeoutMs}ms`));
       }, this.settings.researchMemoryTimeoutMs);
 
       proc.on("error", (err: Error) => {
         clearTimeout(timer);
-        try { unlinkSync(tmpFile); } catch { /* ignore */ }
+        removeTmp();
         reject(err);
       });
 
       proc.on("close", (code: number) => {
         clearTimeout(timer);
-        try { unlinkSync(tmpFile); } catch { /* ignore */ }
+        removeTmp();
         if (code !== 0) {
           reject(new Error(`research-memory CLI exited ${code}: ${stderr.trim() || stdout.trim()}`));
           return;
@@ -796,4 +931,47 @@ export default class OpenClawPlugin extends Plugin {
       });
     });
   }
+
+  // ── CSV (quote-aware) ─────────────────────────────────────────
+}
+
+/** Minimal RFC-4180-ish CSV parser — register.csv titles carry commas. */
+function parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = "";
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') {
+          field += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        field += ch;
+      }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ",") {
+      row.push(field);
+      field = "";
+    } else if (ch === "\n" || ch === "\r") {
+      if (ch === "\r" && text[i + 1] === "\n") i++;
+      row.push(field);
+      field = "";
+      if (row.length > 1 || row[0] !== "") rows.push(row);
+      row = [];
+    } else {
+      field += ch;
+    }
+  }
+  if (field !== "" || row.length > 0) {
+    row.push(field);
+    if (row.length > 1 || row[0] !== "") rows.push(row);
+  }
+  return rows;
 }

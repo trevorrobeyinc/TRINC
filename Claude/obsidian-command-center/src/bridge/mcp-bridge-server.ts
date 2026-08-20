@@ -7,6 +7,12 @@ import { createHash, timingSafeEqual, randomBytes } from "crypto";
 import { execFile } from "child_process";
 import { App, TFile, normalizePath } from "obsidian";
 import type { OpenClawSettings } from "../types";
+import { getVaultZKApi, type VaultZKApi } from "../zettelkasten/linker";
+import {
+  isGateRefusal,
+  gateNotArmedError,
+  type EngineScriptResult,
+} from "../util/engine-spawn";
 
 const HOST = "127.0.0.1";
 
@@ -79,6 +85,41 @@ function resolveVideoPipelineSource(raw: unknown): string {
   }
   return canonical;
 }
+
+// Vault Zettelkasten tools: expose the vault-zettelkasten plugin's in-process
+// graph-analysis api (serendipity, cross-domain, echo-chamber, semantic-linker,
+// orphan-rescue, vault health, pipeline) to MCP clients — the Copilot agent
+// chat reaches this bridge through its MCP catalog. This reuses the same
+// in-renderer api that zettelkasten/linker.ts already consumes
+// (vaultZKPreferPlugin): zero subprocess, zero new network surface. Analyses
+// call the local Miyo/Qdrant services plus the configured model gateway and
+// return JSON; NOTHING here writes the vault (writeReport is pinned false —
+// the model saves results explicitly via obsidian_create_note if asked).
+const ZK_NOTE_COMMANDS: Record<
+  string,
+  "serendipity" | "crossDomain" | "echoChamber" | "semanticLinker" | "orphanRescue"
+> = {
+  zk_serendipity: "serendipity",
+  zk_cross_domain: "crossDomain",
+  zk_echo_chamber: "echoChamber",
+  zk_semantic_linker: "semanticLinker",
+  zk_orphan_rescue: "orphanRescue",
+};
+const ZK_PIPELINE_STEPS = [
+  "serendipity",
+  "cross-domain",
+  "echo-chamber",
+  "semantic-linker",
+  "orphan-rescue",
+  "health",
+];
+const ZK_DEFAULT_PIPELINE: Array<{ command: string }> = [
+  { command: "serendipity" },
+  { command: "cross-domain" },
+  { command: "semantic-linker" },
+  { command: "echo-chamber" },
+];
+const ZK_LIMIT_MAX = 50;
 
 // Security (audit P0): the bridge bearer token must NOT live in Obsidian's
 // data.json — Obsidian persists it world-readably and auto-creates .bak copies,
@@ -167,6 +208,9 @@ const SERVER_INFO = { name: "obsidian-mcp-bridge", version: "2.0.0" };
  */
 export interface PluginActions {
   runWorkflow(templateId: string, inputs: Record<string, string>): void;
+  /** Bounded await of the async-captured workflow id (Decision 1, 2026-08-20). */
+  awaitWorkflowId(timeoutMs: number): Promise<string | null>;
+  cancelWorkflow(): { cancelled: boolean; workflow_id: string | null; reason?: string };
   isRunning(): boolean;
   getLastResult(): Record<string, unknown> | null;
   getWorkflowState(): Record<string, unknown> | null;
@@ -176,6 +220,16 @@ export interface PluginActions {
     description: string;
     requiredInputs: string[];
   }>;
+  getHistory(limit: number): Array<Record<string, unknown>>;
+  getArtifacts(workflowId?: string): Record<string, unknown>;
+  /** Bounded argv-array spawn of an engine script (cwd = engine root). */
+  runEngineScript(spec: {
+    scriptRel: string;
+    args: string[];
+    timeoutMs: number;
+  }): Promise<EngineScriptResult>;
+  getFeedStats(): Record<string, unknown>;
+  getCitationIntegrity(workflowId?: string): Record<string, unknown>;
 }
 
 /**
@@ -252,7 +306,7 @@ export class McpBridgeServer {
           `[OpenClaw] MCP bridge started on https://${HOST}:${this.settings.bridgePort}`
         );
         console.log(
-          `[OpenClaw] Vault: ${this.app.vault.getName()} | Tools: 11 (7 obsidian_* + 4 obsidian_openclaw_*)`
+          `[OpenClaw] Vault: ${this.app.vault.getName()} | Tools: ${(this.handleHealth().tools as string[]).length}`
         );
         resolve();
       });
@@ -465,17 +519,47 @@ export class McpBridgeServer {
       case "obsidian_append_note":
         return await this.handleAppendNote(input);
       case "obsidian_openclaw_run_workflow":
-        return this.handleRunWorkflow(input);
+        return await this.handleRunWorkflow(input);
       case "obsidian_openclaw_status":
         return this.handleGetStatus();
       case "obsidian_openclaw_results":
         return this.handleGetResults();
       case "obsidian_openclaw_templates":
         return this.handleListTemplates();
+      case "obsidian_openclaw_cancel":
+        return this.handleCancelWorkflow();
+      case "obsidian_openclaw_history":
+        return this.handleHistory(input);
+      case "obsidian_openclaw_artifacts":
+        return this.handleArtifacts(input);
+      case "obsidian_openclaw_engine_health":
+        return await this.handleEngineHealth();
+      case "obsidian_openclaw_research_task":
+        return await this.handleResearchTask(input);
+      case "obsidian_openclaw_research_tasks_list":
+        return await this.handleResearchTasksList();
+      case "obsidian_openclaw_research_output":
+        return await this.handleResearchOutput(input);
+      case "obsidian_openclaw_delivery_evidence":
+        return await this.handleDeliveryEvidence(input);
+      case "obsidian_openclaw_citation_integrity":
+        return this.handleCitationIntegrity(input);
+      case "obsidian_openclaw_feed_stats":
+        return this.handleFeedStats();
       case "video_pipeline_run":
         return await this.handleVideoPipelineRun(input);
       case "video_pipeline_status":
         return this.handleVideoPipelineStatus();
+      case "zk_serendipity":
+      case "zk_cross_domain":
+      case "zk_echo_chamber":
+      case "zk_semantic_linker":
+      case "zk_orphan_rescue":
+        return await this.handleZkAnalysis(name, input);
+      case "zk_vault_health":
+        return await this.handleZkVaultHealth(input);
+      case "zk_full_pipeline":
+        return await this.handleZkPipeline(input);
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -504,8 +588,25 @@ export class McpBridgeServer {
         "obsidian_openclaw_status",
         "obsidian_openclaw_results",
         "obsidian_openclaw_templates",
+        "obsidian_openclaw_cancel",
+        "obsidian_openclaw_history",
+        "obsidian_openclaw_artifacts",
+        "obsidian_openclaw_engine_health",
+        "obsidian_openclaw_research_task",
+        "obsidian_openclaw_research_tasks_list",
+        "obsidian_openclaw_research_output",
+        "obsidian_openclaw_delivery_evidence",
+        "obsidian_openclaw_citation_integrity",
+        "obsidian_openclaw_feed_stats",
         "video_pipeline_run",
         "video_pipeline_status",
+        "zk_serendipity",
+        "zk_cross_domain",
+        "zk_echo_chamber",
+        "zk_semantic_linker",
+        "zk_orphan_rescue",
+        "zk_vault_health",
+        "zk_full_pipeline",
       ],
     };
   }
@@ -716,32 +817,46 @@ export class McpBridgeServer {
 
   // ─── OpenClaw Workflow Tools ─────────────────────────────────
 
-  private handleRunWorkflow(
+  private async handleRunWorkflow(
     params: Record<string, unknown>
-  ): Record<string, unknown> {
-    if (!this.pluginActions) {
-      throw new Error("OpenClaw plugin actions not available");
-    }
-    if (this.pluginActions.isRunning()) {
+  ): Promise<Record<string, unknown>> {
+    const actions = this.requireActions();
+    if (actions.isRunning()) {
       throw new Error(
-        "A workflow is already running. Cancel it first or wait for it to complete."
+        "A workflow is already running. Cancel it with obsidian_openclaw_cancel or wait for it to complete."
       );
     }
 
-    const templateId = params.template as string;
-    const inputs = (params.inputs || {}) as Record<string, string>;
-
+    const templateId = this.validateId(params.template, "template");
     if (!templateId) {
       throw new Error(
         "template is required. Use obsidian_openclaw_templates to list available templates."
       );
     }
+    const rawInputs = (params.inputs || {}) as Record<string, unknown>;
+    const inputs: Record<string, string> = {};
+    for (const [k, v] of Object.entries(rawInputs)) {
+      this.validateId(k, "inputs key");
+      inputs[k] = this.cleanText(v, `inputs.${k}`, 2000);
+    }
 
-    this.pluginActions.runWorkflow(templateId, inputs);
+    actions.runWorkflow(templateId, inputs);
+
+    // Decision 1 (2026-08-20): block briefly for the async-captured workflow id
+    // so the agent gets a correlation handle for status/cancel/artifacts.
+    const workflowId = await actions.awaitWorkflowId(15_000);
 
     return {
       success: true,
-      message: `Workflow '${templateId}' started. Use obsidian_openclaw_status to check progress. Workflows typically take 5-10 minutes.`,
+      started: true,
+      workflow_id: workflowId,
+      id_pending: !workflowId,
+      message:
+        `Workflow '${templateId}' started` +
+        (workflowId
+          ? ` (workflow_id ${workflowId}).`
+          : " (id not yet visible — obsidian_openclaw_status will carry it shortly).") +
+        " Poll obsidian_openclaw_status; stop with obsidian_openclaw_cancel. Runs typically take 5-10 minutes and require a freshly armed operator-approve token.",
       template: templateId,
       inputs,
     };
@@ -787,6 +902,223 @@ export class McpBridgeServer {
     }
 
     return { templates: this.pluginActions.listTemplates() };
+  }
+
+  // ─── OpenClaw Engine Suite (added 2026-08-20) ────────────────
+  // Client-edge validation lives HERE (the bridge previously forwarded inputs
+  // unvalidated): ids match a strict token pattern, enums are literal lists,
+  // free text is length-capped and control-stripped, and every engine call is
+  // an argv-array spawn — agent input never touches a shell string.
+
+  private static readonly ID_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
+  private static readonly TASK_TYPES = [
+    "summarize",
+    "extract",
+    "analyze",
+    "synthesize",
+    "freeform",
+  ];
+
+  private requireActions(): PluginActions {
+    if (!this.pluginActions) {
+      throw new Error("OpenClaw plugin actions not available");
+    }
+    return this.pluginActions;
+  }
+
+  private validateId(value: unknown, field: string): string | undefined {
+    if (value === undefined || value === null || value === "") return undefined;
+    const s = String(value);
+    if (!McpBridgeServer.ID_RE.test(s)) {
+      throw new Error(`${field} must match [A-Za-z0-9_-] (max 64 chars)`);
+    }
+    return s;
+  }
+
+  private cleanText(value: unknown, field: string, max = 2000): string {
+    const s = typeof value === "string" ? value : "";
+    if (!s.trim()) throw new Error(`${field} is required`);
+    if (s.length > max) throw new Error(`${field} exceeds ${max} characters`);
+    // eslint-disable-next-line no-control-regex
+    return s.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, "").trim();
+  }
+
+  private handleCancelWorkflow(): Record<string, unknown> {
+    const result = this.requireActions().cancelWorkflow();
+    return { ...result };
+  }
+
+  private handleHistory(params: Record<string, unknown>): Record<string, unknown> {
+    const raw = Number(params.limit);
+    const limit = Number.isFinite(raw) ? Math.min(Math.max(Math.floor(raw), 1), 50) : 20;
+    return { history: this.requireActions().getHistory(limit) };
+  }
+
+  private handleArtifacts(params: Record<string, unknown>): Record<string, unknown> {
+    const id = this.validateId(params.workflow_id, "workflow_id");
+    return this.requireActions().getArtifacts(id);
+  }
+
+  private handleCitationIntegrity(params: Record<string, unknown>): Record<string, unknown> {
+    const id = this.validateId(params.workflow_id, "workflow_id");
+    return this.requireActions().getCitationIntegrity(id);
+  }
+
+  private handleFeedStats(): Record<string, unknown> {
+    return this.requireActions().getFeedStats();
+  }
+
+  private async handleEngineHealth(): Promise<Record<string, unknown>> {
+    const actions = this.requireActions();
+    const runtime = await actions.runEngineScript({
+      scriptRel: "scripts/verify-node-runtime.js",
+      args: [],
+      timeoutMs: 20_000,
+    });
+    // Mock provider only — engine_health must never trigger real model spend
+    // or the operator gate.
+    const llm = await actions.runEngineScript({
+      scriptRel: "scripts/test-llm-connection.js",
+      args: ["--provider", "mock"],
+      timeoutMs: 60_000,
+    });
+    const audit = await actions.runEngineScript({
+      scriptRel: "scripts/audit-connector-coverage.js",
+      args: [],
+      timeoutMs: 120_000,
+    });
+    const tail = (r: EngineScriptResult, lines: number) =>
+      (r.stdout || r.stderr).trim().split("\n").slice(-lines).join("\n");
+    return {
+      ok: runtime.code === 0 && llm.code === 0 && audit.code === 0,
+      node_runtime: { ok: runtime.code === 0, detail: tail(runtime, 6) },
+      llm_mock_probe: { ok: llm.code === 0, detail: tail(llm, 10) },
+      connector_audit: { ok: audit.code === 0, detail: tail(audit, 30) },
+      note: "Mock-provider probe only; a real-provider run additionally needs an armed operator-approve token.",
+    };
+  }
+
+  private async handleResearchTask(
+    params: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
+    const actions = this.requireActions();
+    const task = this.cleanText(params.task, "task", 2000);
+    const type = String(params.type ?? "freeform");
+    if (!McpBridgeServer.TASK_TYPES.includes(type)) {
+      throw new Error(`type must be one of: ${McpBridgeServer.TASK_TYPES.join(", ")}`);
+    }
+    const provider = String(params.provider ?? "mock");
+    if (provider !== "mock" && provider !== "real") {
+      throw new Error("provider must be 'mock' (fast, ungated) or 'real' (default engine provider — needs an armed operator token)");
+    }
+
+    const args = ["--task", task, "--type", type, "--format", "markdown", "--confirm"];
+    if (provider === "mock") {
+      args.push("--provider", "mock");
+    } else {
+      // Real lane: the engine's default provider chain; fail-closed behind the
+      // one-shot operator-approve gate.
+      args.push("--operator-approve");
+    }
+
+    const res = await actions.runEngineScript({
+      scriptRel: "scripts/run-research-task.js",
+      args,
+      timeoutMs: provider === "mock" ? 120_000 : 600_000,
+    });
+
+    if (res.code !== 0) {
+      if (isGateRefusal(res.stdout, res.stderr)) {
+        return gateNotArmedError();
+      }
+      throw new Error(
+        `run-research-task exited ${res.code}${res.timedOut ? " (timed out)" : ""}: ${(res.stderr || res.stdout).trim().slice(-800)}`
+      );
+    }
+
+    let parsed: unknown = null;
+    try {
+      parsed = JSON.parse(res.stdout);
+    } catch {
+      parsed = null;
+    }
+    return {
+      success: true,
+      provider,
+      type,
+      ...(parsed && typeof parsed === "object"
+        ? { result: parsed }
+        : { output: res.stdout.trim().slice(-4000) }),
+    };
+  }
+
+  private async handleResearchTasksList(): Promise<Record<string, unknown>> {
+    const res = await this.requireActions().runEngineScript({
+      scriptRel: "scripts/list-research-tasks.js",
+      args: [],
+      timeoutMs: 30_000,
+    });
+    if (res.code !== 0) {
+      throw new Error(`list-research-tasks exited ${res.code}: ${(res.stderr || res.stdout).trim().slice(-400)}`);
+    }
+    try {
+      return { tasks: JSON.parse(res.stdout) };
+    } catch {
+      return { raw: res.stdout.trim().slice(-4000) };
+    }
+  }
+
+  private async handleResearchOutput(
+    params: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
+    const taskId = this.validateId(params.task_id, "task_id");
+    if (!taskId) throw new Error("task_id is required");
+    const res = await this.requireActions().runEngineScript({
+      scriptRel: "scripts/view-research-output.js",
+      args: ["--task-id", taskId],
+      timeoutMs: 30_000,
+    });
+    if (res.code !== 0) {
+      throw new Error(`view-research-output exited ${res.code}: ${(res.stderr || res.stdout).trim().slice(-400)}`);
+    }
+    const capped = res.stdout.length > 100_000;
+    const body = capped ? res.stdout.slice(0, 100_000) : res.stdout;
+    try {
+      return { task_id: taskId, output: JSON.parse(body), truncated: capped };
+    } catch {
+      return { task_id: taskId, raw: body.trim(), truncated: capped };
+    }
+  }
+
+  private async handleDeliveryEvidence(
+    params: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
+    const mode = String(params.mode ?? "incremental");
+    // `rebuild` writes derived snapshots — operator-only, excluded at the enum.
+    if (mode !== "full" && mode !== "incremental") {
+      throw new Error("mode must be 'full' or 'incremental' (rebuild is operator-only)");
+    }
+    const offerId = this.validateId(params.offer_id, "offer_id");
+    const args = ["--mode", mode, ...(offerId ? ["--offer-id", offerId] : [])];
+    const res = await this.requireActions().runEngineScript({
+      scriptRel: "scripts/verify-delivery-evidence.js",
+      args,
+      timeoutMs: 300_000,
+    });
+    let parsed: unknown = null;
+    try {
+      parsed = JSON.parse(res.stdout);
+    } catch {
+      parsed = null;
+    }
+    return {
+      ok: res.code === 0,
+      mode,
+      ...(offerId ? { offer_id: offerId } : {}),
+      ...(parsed && typeof parsed === "object"
+        ? { result: parsed }
+        : { output: (res.stdout || res.stderr).trim().slice(-4000) }),
+    };
   }
 
   // ─── Video Pipeline Tools ───────────────────────────────────
@@ -936,6 +1268,115 @@ export class McpBridgeServer {
     }
   }
 
+  // ─── Vault Zettelkasten Tools ───────────────────────────────
+
+  private requireVaultZK(): VaultZKApi {
+    const api = getVaultZKApi(this.app);
+    if (!api) {
+      throw new Error(
+        "The vault-zettelkasten plugin is not loaded. Enable it under Settings → Community plugins, then retry."
+      );
+    }
+    return api;
+  }
+
+  private buildZkRequest(
+    input: Record<string, unknown>,
+    requireNote: boolean
+  ): Record<string, unknown> {
+    const notePath =
+      typeof input.notePath === "string" && input.notePath.trim()
+        ? this.safePath(input.notePath.trim())
+        : undefined;
+    const noteContent =
+      typeof input.noteContent === "string" && input.noteContent.trim()
+        ? (input.noteContent as string)
+        : undefined;
+
+    if (requireNote && !notePath && !noteContent) {
+      throw new Error(
+        "Provide notePath (vault-relative) or noteContent (raw text) for this analysis."
+      );
+    }
+    if (notePath) {
+      const file = this.app.vault.getAbstractFileByPath(notePath);
+      if (!file || !(file instanceof TFile)) {
+        throw new Error(`Note not found: ${notePath}`);
+      }
+    }
+
+    const rawLimit = typeof input.limit === "number" ? Math.floor(input.limit) : NaN;
+    const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(rawLimit, 1), ZK_LIMIT_MAX) : 10;
+
+    return {
+      ...(notePath ? { notePath } : {}),
+      ...(noteContent ? { noteContent } : {}),
+      vault: this.app.vault.getName(),
+      options: { limit, batchMode: false, writeReport: false },
+    };
+  }
+
+  /** Unwrap a VaultZK api response; surface its error variant as a thrown Error. */
+  private zkResult(result: { ok: boolean } & Record<string, unknown>): Record<string, unknown> {
+    if (!result || result.ok !== true) {
+      const err = (result as { error?: { code?: string; message?: string } } | null)?.error;
+      throw new Error(
+        err?.message
+          ? `VaultZK ${err.code ?? "error"}: ${err.message}`
+          : "VaultZK analysis failed without an error message."
+      );
+    }
+    return result as Record<string, unknown>;
+  }
+
+  private async handleZkAnalysis(
+    toolName: string,
+    input: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
+    const api = this.requireVaultZK();
+    const method = ZK_NOTE_COMMANDS[toolName];
+    if (!method) throw new Error(`Unknown VaultZK tool: ${toolName}`);
+    const request = this.buildZkRequest(input, true);
+    const result = await api[method](request);
+    return this.zkResult(result);
+  }
+
+  private async handleZkVaultHealth(
+    input: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
+    const api = this.requireVaultZK();
+    const request = this.buildZkRequest(input, false);
+    const result = await api.vaultHealth(request);
+    return this.zkResult(result);
+  }
+
+  private async handleZkPipeline(
+    input: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
+    const api = this.requireVaultZK();
+    const request = this.buildZkRequest(input, true);
+
+    let steps: Array<{ command: string }>;
+    if (Array.isArray(input.steps) && input.steps.length > 0) {
+      const requested = input.steps.map((s) => String(s));
+      const invalid = requested.filter((s) => !ZK_PIPELINE_STEPS.includes(s));
+      if (invalid.length > 0) {
+        throw new Error(
+          `Unknown pipeline step(s): ${invalid.join(", ")}. Valid: ${ZK_PIPELINE_STEPS.join(", ")}.`
+        );
+      }
+      if (requested.length > 5) {
+        throw new Error("Pipeline supports at most 5 steps.");
+      }
+      steps = requested.map((command) => ({ command }));
+    } else {
+      steps = ZK_DEFAULT_PIPELINE.map((s) => ({ ...s }));
+    }
+
+    const result = await api.pipeline(steps, request);
+    return this.zkResult(result);
+  }
+
   // ─── tools/list ─────────────────────────────────────────────
 
   private handleToolsList(): Record<string, unknown> {
@@ -1051,7 +1492,7 @@ export class McpBridgeServer {
               template: {
                 type: "string",
                 description:
-                  "Workflow template ID (e.g. 'general-research-pack', 'drug-discovery-full', 'pharmacovigilance-report', 'target-validation-pack', 'clinical-trial-landscape', 'rare-disease-brief')",
+                  "Workflow template ID — list available ids and their required inputs with obsidian_openclaw_templates (do not guess; the set changes as templates are added)",
               },
               inputs: {
                 type: "object",
@@ -1081,6 +1522,112 @@ export class McpBridgeServer {
           inputSchema: { type: "object", properties: {} },
         },
         {
+          name: "obsidian_openclaw_cancel",
+          description:
+            "Cancel the currently running OpenClaw workflow (SIGTERM, then SIGKILL after 5s). The runner's timeout is warn-only, so this is the ONLY way to stop a run.",
+          inputSchema: { type: "object", properties: {} },
+        },
+        {
+          name: "obsidian_openclaw_history",
+          description:
+            "List past workflow runs from the engine workspace, newest first: workflow_id, template, status, created/completed timestamps, inputs.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              limit: { type: "number", description: "Max entries (1-50, default 20)" },
+            },
+          },
+        },
+        {
+          name: "obsidian_openclaw_artifacts",
+          description:
+            "Artifacts of a workflow run: engine run-dir file list, artifact ids, the vault notes folder and its notes (read them with obsidian_read_note). Defaults to the most recent run.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              workflow_id: { type: "string", description: "Workflow id (default: latest)" },
+            },
+          },
+        },
+        {
+          name: "obsidian_openclaw_engine_health",
+          description:
+            "Engine health check, read-only and ungated: Node runtime verification, a mock-provider LLM probe (never real model spend), and the connector-coverage audit.",
+          inputSchema: { type: "object", properties: {} },
+        },
+        {
+          name: "obsidian_openclaw_research_task",
+          description:
+            "Run a single ad-hoc research task on the engine (run-research-task.js). provider 'mock' is fast and ungated (pipeline test); provider 'real' uses the engine's default provider chain and REQUIRES a freshly armed operator-approve token — if unarmed, returns operator_gate_not_armed with instructions.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              task: { type: "string", description: "Task description (max 2000 chars)" },
+              type: {
+                type: "string",
+                enum: ["summarize", "extract", "analyze", "synthesize", "freeform"],
+                description: "Task type (default freeform)",
+              },
+              provider: {
+                type: "string",
+                enum: ["mock", "real"],
+                description: "mock = fast/ungated; real = default provider chain, gate-protected",
+              },
+            },
+            required: ["task"],
+          },
+        },
+        {
+          name: "obsidian_openclaw_research_tasks_list",
+          description: "List past ad-hoc research tasks (read-only, instant).",
+          inputSchema: { type: "object", properties: {} },
+        },
+        {
+          name: "obsidian_openclaw_research_output",
+          description:
+            "Read one ad-hoc research task's stored output by task id (read-only; large outputs are truncated at 100k chars).",
+          inputSchema: {
+            type: "object",
+            properties: {
+              task_id: { type: "string", description: "Task id from research_tasks_list" },
+            },
+            required: ["task_id"],
+          },
+        },
+        {
+          name: "obsidian_openclaw_delivery_evidence",
+          description:
+            "Verify delivery evidence for a shipped offer (verify-delivery-evidence.js). Modes: full or incremental only — rebuild is operator-only and not exposed.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              mode: {
+                type: "string",
+                enum: ["full", "incremental"],
+                description: "Verification mode (default incremental)",
+              },
+              offer_id: { type: "string", description: "Optional offer id to scope to" },
+            },
+          },
+        },
+        {
+          name: "obsidian_openclaw_citation_integrity",
+          description:
+            "Read a run's citation-integrity record: the runtime verification verdict (grounded_ratio vs min_grounded_ratio gate), ungrounded/retracted lists, and the reproducibility manifest summary. These are the honest fields — never quote extraction tallies as accuracy claims.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              workflow_id: { type: "string", description: "Workflow id (default: latest)" },
+            },
+          },
+        },
+        {
+          name: "obsidian_openclaw_feed_stats",
+          description:
+            "Read-only profile of the shipped Trial Graveyard Feed registers: per indication, paid/free row counts, as_of dates, status and amendment-risk distributions. Never rebuilds or modifies feed data.",
+          inputSchema: { type: "object", properties: {} },
+        },
+        {
           name: "video_pipeline_run",
           description:
             "Run the video-to-summary pipeline on a video URL (YouTube, LinkedIn Learning, etc.) or an absolute local video file path. Dispatches the Raycast 'Video Pipeline Runner': the video is downloaded (login-gated hosts like LinkedIn Learning need ONE human click in Downie's UGE window — tell the user to click the detected stream), transcribed from subtitles or Whisper, summarized by Copilot's free local relay, and saved to the vault as Copilot Summaries/'<title> summary.md' with all intermediates cleaned up. Returns immediately; poll video_pipeline_status for progress.",
@@ -1105,6 +1652,106 @@ export class McpBridgeServer {
           description:
             "Progress of the most recent video pipeline run, read from its durable run log: running/success/failed, the latest stage line, and the summary confirmation when finished.",
           inputSchema: { type: "object", properties: {} },
+        },
+        {
+          name: "zk_serendipity",
+          description:
+            "Surface unexpected, cross-cutting connections between a note and the rest of the vault (vault-zettelkasten engine). Returns markdown plus wikilink suggestions with rationales; writes nothing.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              notePath: { type: "string", description: "Vault-relative note path" },
+              noteContent: { type: "string", description: "Raw note text instead of a path" },
+              limit: { type: "number", description: "Max suggestions (default 10, max 50)" },
+            },
+          },
+        },
+        {
+          name: "zk_cross_domain",
+          description:
+            "Identify structural isomorphisms — patterns in this note that mirror structures in other knowledge domains across the vault. Returns markdown plus suggestions; writes nothing.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              notePath: { type: "string", description: "Vault-relative note path" },
+              noteContent: { type: "string", description: "Raw note text instead of a path" },
+              limit: { type: "number", description: "Max suggestions (default 10, max 50)" },
+            },
+          },
+        },
+        {
+          name: "zk_echo_chamber",
+          description:
+            "Challenge a note's assumptions with vault-grounded counterarguments and missing perspectives. Returns markdown plus suggestions; writes nothing.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              notePath: { type: "string", description: "Vault-relative note path" },
+              noteContent: { type: "string", description: "Raw note text instead of a path" },
+              limit: { type: "number", description: "Max suggestions (default 10, max 50)" },
+            },
+          },
+        },
+        {
+          name: "zk_semantic_linker",
+          description:
+            "Propose semantically related notes and TYPED relationships (supports/contradicts/extends/…) for a note. Returns markdown, suggestions, and typed relationships; writes nothing.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              notePath: { type: "string", description: "Vault-relative note path" },
+              noteContent: { type: "string", description: "Raw note text instead of a path" },
+              limit: { type: "number", description: "Max suggestions (default 10, max 50)" },
+            },
+          },
+        },
+        {
+          name: "zk_orphan_rescue",
+          description:
+            "Reconnect a note into the vault's link graph: concrete [[wikilink]] suggestions with rationales, plus the vault's top orphan notes. Writes nothing.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              notePath: { type: "string", description: "Vault-relative note path" },
+              noteContent: { type: "string", description: "Raw note text instead of a path" },
+              limit: { type: "number", description: "Max suggestions (default 10, max 50)" },
+            },
+          },
+        },
+        {
+          name: "zk_vault_health",
+          description:
+            "Vault-wide Zettelkasten health score: totals, orphan count/ratio, average connectivity, staleness, tag coverage. No inputs; writes nothing.",
+          inputSchema: { type: "object", properties: {} },
+        },
+        {
+          name: "zk_full_pipeline",
+          description:
+            "Run several Zettelkasten analyses in sequence on one note and get combined markdown plus per-step results. Slowest zk tool — can take minutes. Default steps: serendipity, cross-domain, semantic-linker, echo-chamber.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              notePath: { type: "string", description: "Vault-relative note path" },
+              noteContent: { type: "string", description: "Raw note text instead of a path" },
+              limit: { type: "number", description: "Max suggestions per step (default 10, max 50)" },
+              steps: {
+                type: "array",
+                items: {
+                  type: "string",
+                  enum: [
+                    "serendipity",
+                    "cross-domain",
+                    "echo-chamber",
+                    "semantic-linker",
+                    "orphan-rescue",
+                    "health",
+                  ],
+                },
+                description:
+                  "Analysis steps to run in order (1-5). Default: serendipity, cross-domain, semantic-linker, echo-chamber.",
+              },
+            },
+          },
         },
       ],
     };
