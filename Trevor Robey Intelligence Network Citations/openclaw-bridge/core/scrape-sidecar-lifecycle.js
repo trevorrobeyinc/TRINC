@@ -19,8 +19,23 @@
  *     poll /health until ready, return a handle. SIGTERM (then SIGKILL after
  *     5 s) when the parent exits.
  *
- * Disable via environment:
- *   OPENCLAW_AUTOSTART_SCRAPE_SIDECAR=0   (default "1" — on)
+ * RETIRED BY OPERATOR DECISION 2026-08-12 — autostart now defaults OFF.
+ *   The operator declined Playwright for the engine ("I don't want playwright"), which is the
+ *   only engine this sidecar drives. The Claude-side browser surfaces (Claude Browser pane /
+ *   Claude in Chrome) can NOT take its place: they are claude-host MCP tools — per the
+ *   connector registry "NOT reachable from subprocess" — Claude in Chrome is the logged-in
+ *   IDENTITY lane (routing engine scraping of untrusted pages through it violates the
+ *   lane-separation rule), it is extension-based (no headless mode, no CDP endpoint), and both
+ *   are YubiKey-gated interactive surfaces a scheduled headless run cannot arm. So the lane is
+ *   retired rather than rewired. Engine evidence continues through the API fetchers (PubMed,
+ *   EuropePMC, CT.gov, Open Targets, SearXNG, ToolUniverse), which is where every grounded
+ *   citation comes from anyway.
+ *
+ * Re-enable (deliberately, not by drift) via environment:
+ *   OPENCLAW_AUTOSTART_SCRAPE_SIDECAR=1   (default "0" — off since 2026-08-12; was on before)
+ *   If re-enabling, note the sidecar venv carries absolute paths from the pre-2026-07-26 repo
+ *   location (.venv/bin/playwright shebang points at /Volumes/ExtraCurricular/… — verified
+ *   dead 2026-08-12); recreate the venv first or start-sidecar.sh exits 3.
  *
  * TLS:
  *   The sidecar listens on HTTPS via mkcert; this module requires
@@ -54,8 +69,10 @@ const MKCERT_CA_DEFAULT = path.join(
 );
 
 function isAutostartEnabled() {
-  const flag = String(process.env.OPENCLAW_AUTOSTART_SCRAPE_SIDECAR || "1").trim();
-  return flag !== "0" && flag.toLowerCase() !== "false";
+  // Default OFF (operator declined Playwright 2026-08-12 — see header). Only an explicit
+  // opt-in enables the spawn, so the retired lane cannot return by drift.
+  const flag = String(process.env.OPENCLAW_AUTOSTART_SCRAPE_SIDECAR || "0").trim().toLowerCase();
+  return flag === "1" || flag === "true";
 }
 
 function readCaIfAvailable() {
@@ -146,10 +163,20 @@ function spawnSidecar({ logger }) {
   return child;
 }
 
-async function waitForHealth({ host, port, ca, timeoutMs, intervalMs, logger }) {
+async function waitForHealth({ host, port, ca, timeoutMs, intervalMs, logger, isAborted }) {
   const deadline = nowMs() + timeoutMs;
   let lastReason = "no_attempt";
   while (nowMs() < deadline) {
+    // Fast-fail: if the child already exited, no amount of polling will make /health answer.
+    // Without this check a launcher that exits immediately (e.g. the venv's stale-path exit 3)
+    // pinned the run to the FULL boot timeout — 90 s of silence after an error line, which the
+    // operator reasonably read as a hang (observed live 2026-08-12, cost a one-shot YubiKey arm).
+    if (typeof isAborted === "function") {
+      const abort = isAborted();
+      if (abort) {
+        throw new Error(`scrape-sidecar exited during boot (code=${abort.code}, signal=${abort.signal})`);
+      }
+    }
     const result = await probeHealth({ host, port, timeoutMs: intervalMs * 2, ca });
     if (result.alive) {
       return result;
@@ -222,7 +249,10 @@ async function ensureSidecar(options = {}) {
   });
 
   try {
-    const ready = await waitForHealth({ host, port, ca, timeoutMs: bootTimeoutMs, intervalMs, logger });
+    const ready = await waitForHealth({
+      host, port, ca, timeoutMs: bootTimeoutMs, intervalMs, logger,
+      isAborted: () => earlyExit
+    });
     if (earlyExit !== null) {
       throw new Error(`scrape-sidecar exited during boot (code=${earlyExit.code}, signal=${earlyExit.signal})`);
     }

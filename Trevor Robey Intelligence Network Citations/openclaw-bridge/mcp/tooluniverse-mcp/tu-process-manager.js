@@ -73,6 +73,14 @@ function createToolUniverseProcessManager(options = {}) {
     if (isUvBinary(pythonPath)) {
       return [
         "run",
+        // --no-sync: run against the existing pinned .venv, never re-resolve dependencies at
+        // spawn time. Without it, `uv run` revalidates the lock on every spawn and a purely
+        // UPSTREAM registry change can kill the engine: verified live 2026-08-12 — resolution
+        // of the pinned v1.1.10 pyproject started failing on `fitz>=0.0.1.dev2` for the
+        // python-3.10 marker split (submodule clean vs HEAD, venv imports fine) and every
+        // ToolUniverse prefetch died with "Process exited before ready (code=1)". The venv is
+        // the build artifact of the pinned SHA; syncing belongs to setup, not to run start.
+        "--no-sync",
         "--directory", toolUniverseDir,
         "tooluniverse-smcp-stdio",
         "--compact-mode"

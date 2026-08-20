@@ -112,7 +112,7 @@
         "action": "executeTool",
         "tool_name": "obsidian_prior_research",
         "optional": true,
-        "_comment": "Vault read-back via the canonical :8798 bridge. optional+fail-soft: when Obsidian is closed (e.g. run-workflow.js launched standalone) this yields nothing and the run proceeds with no prior-vault context. READ-ONLY — Command Center's autoGenerateNotes owns vault writes.",
+        "_comment": "Vault read-back via the canonical :8798 bridge. optional+fail-soft: when Obsidian is closed (e.g. run-workflow.js launched standalone) this yields nothing and the run proceeds with no prior-vault context. READ-ONLY \u2014 Command Center's autoGenerateNotes owns vault writes.",
         "arguments": {
           "topic": "{{compound_name}} {{indication}} mechanism",
           "limit": 5
@@ -205,20 +205,9 @@
       },
       {
         "action": "executeTool",
-        "tool_name": "scrape_target",
-        "optional": true,
-        "arguments": {
-          "target": "elife",
-          "params": {
-            "article_id": "{{elife_article_id}}"
-          }
-        }
-      },
-      {
-        "action": "executeTool",
         "tool_name": "obsidian_prior_research",
         "optional": true,
-        "_comment": "Vault read-back via the canonical :8798 bridge. optional+fail-soft: when Obsidian is closed (e.g. run-workflow.js launched standalone) this yields nothing and the run proceeds with no prior-vault context. READ-ONLY — Command Center's autoGenerateNotes owns vault writes.",
+        "_comment": "Vault read-back via the canonical :8798 bridge. optional+fail-soft: when Obsidian is closed (e.g. run-workflow.js launched standalone) this yields nothing and the run proceeds with no prior-vault context. READ-ONLY \u2014 Command Center's autoGenerateNotes owns vault writes.",
         "arguments": {
           "topic": "{{indication}} {{drug_class}} {{compound_name}}",
           "limit": 5
@@ -292,7 +281,7 @@
         "action": "executeTool",
         "tool_name": "obsidian_prior_research",
         "optional": true,
-        "_comment": "Vault read-back via the canonical :8798 bridge. optional+fail-soft: when Obsidian is closed (e.g. run-workflow.js launched standalone) this yields nothing and the run proceeds with no prior-vault context. READ-ONLY — Command Center's autoGenerateNotes owns vault writes.",
+        "_comment": "Vault read-back via the canonical :8798 bridge. optional+fail-soft: when Obsidian is closed (e.g. run-workflow.js launched standalone) this yields nothing and the run proceeds with no prior-vault context. READ-ONLY \u2014 Command Center's autoGenerateNotes owns vault writes.",
         "arguments": {
           "topic": "{{indication}} {{drug_class}} competitive landscape",
           "limit": 5
