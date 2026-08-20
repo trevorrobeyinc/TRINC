@@ -1064,6 +1064,46 @@ async function cleanupRunArtifacts(targets: { files: string[]; tempDirs: string[
   ]);
 }
 
+const subtitleSweepExtensions = [".srt", ".vtt", ".ass", ".ssa", ".sub", ".lrc"];
+
+/**
+ * Post-summary re-sweep for subtitle sidecars that arrived AFTER moveDownieSubtitleSidecars'
+ * one-shot claim scan. Downie can export a subtitle file seconds behind the video; by then the
+ * video has been moved away and the claim scan has already run, so the late sidecar is orphaned
+ * where it landed (observed: a leftover "<title>.srt" in ~/Downloads). Same safety guards as
+ * claiming — basename prefix match on THIS run's video plus an mtime-at-or-after-dispatch gate —
+ * so earlier runs' files and the user's own subtitles are never touched. Fail-soft: the summary
+ * is already written and the main cleanup has already happened when this runs.
+ */
+async function sweepLateSubtitleSidecars(dirs: string[], videoBase: string, sinceMs: number): Promise<void> {
+  if (!videoBase || sinceMs <= 0) {
+    return;
+  }
+  for (const dir of [...new Set(dirs)]) {
+    try {
+      const names = await fs.readdir(dir);
+      for (const name of names) {
+        const lower = name.toLowerCase();
+        if (!subtitleSweepExtensions.some((ext) => lower.endsWith(ext)) || !name.startsWith(videoBase)) {
+          continue;
+        }
+        const filePath = path.join(dir, name);
+        try {
+          const stat = await fs.stat(filePath);
+          if (stat.isFile() && stat.mtimeMs >= sinceMs - 1000) {
+            await fs.rm(filePath, { force: true });
+            await appendRunLog(`late subtitle sidecar removed: ${filePath}`);
+          }
+        } catch {
+          // File vanished mid-scan — ignore.
+        }
+      }
+    } catch {
+      // Folder unreadable — nothing to sweep there.
+    }
+  }
+}
+
 function resolveDownieDownloadFolder(prefs: VideoCommandPreferences): string {
   const configured = prefs.downieDownloadFolder?.trim();
   if (configured) {
@@ -1308,6 +1348,12 @@ export async function runVideoTranscribeCommand(
   // Subtitle sidecars Downie saved next to that video, claimed into the pipeline folder alongside
   // it — pipeline-owned artifacts, deleted with the video after the summary lands.
   let downieSubtitleFiles: string[] = [];
+  // Retained for the post-summary sidecar re-sweep: where this run's Downie lane landed files,
+  // the run's video base name, and the dispatch time — so a subtitle exported AFTER the claim
+  // scan (the late-sidecar orphan case) still gets deleted with the video.
+  let subtitleSweepDirs: string[] = [];
+  let subtitleSweepBase = "";
+  let subtitleSweepSinceMs = 0;
 
   try {
     const videoUrl = values.videoUrl.trim();
@@ -1376,6 +1422,9 @@ export async function runVideoTranscribeCommand(
           const ugeFile = await downloadViaDownieUGE(videoUrl, downloadsFolder, dispatchedAtMs);
           primaryVideoFile = await moveIntoDownieFolder(ugeFile, downieFolder);
           downieSubtitleFiles = await moveDownieSubtitleSidecars(ugeFile, downieFolder, dispatchedAtMs);
+          subtitleSweepDirs = [downloadsFolder, downieFolder];
+          subtitleSweepBase = path.basename(ugeFile, path.extname(ugeFile));
+          subtitleSweepSinceMs = dispatchedAtMs;
         } else {
           // Public site: try the zero-click direct download first; if Downie can't extract it
           // headlessly, fall through to UGE (one click).
@@ -1384,6 +1433,9 @@ export async function runVideoTranscribeCommand(
             const dispatchedAtMs = Date.now();
             primaryVideoFile = await downloadViaDownie(videoUrl, downieFolder, dispatchedAtMs);
             downieSubtitleFiles = await moveDownieSubtitleSidecars(primaryVideoFile, downieFolder, dispatchedAtMs);
+            subtitleSweepDirs = [downieFolder];
+            subtitleSweepBase = path.basename(primaryVideoFile, path.extname(primaryVideoFile));
+            subtitleSweepSinceMs = dispatchedAtMs;
           } catch (directError) {
             const dreason = directError instanceof Error ? directError.message : String(directError);
             await appendRunLog(`downie direct failed (${dreason}) — opening UGE`);
@@ -1392,6 +1444,9 @@ export async function runVideoTranscribeCommand(
             const ugeFile = await downloadViaDownieUGE(videoUrl, downloadsFolder, dispatchedAtMs);
             primaryVideoFile = await moveIntoDownieFolder(ugeFile, downieFolder);
             downieSubtitleFiles = await moveDownieSubtitleSidecars(ugeFile, downieFolder, dispatchedAtMs);
+            subtitleSweepDirs = [downloadsFolder, downieFolder];
+            subtitleSweepBase = path.basename(ugeFile, path.extname(ugeFile));
+            subtitleSweepSinceMs = dispatchedAtMs;
           }
         }
         downieDownloadedFile = primaryVideoFile;
@@ -1564,6 +1619,9 @@ export async function runVideoTranscribeCommand(
           path.join(os.tmpdir(), "raycast-obsidian", "whisper", timestamp),
         ],
       });
+      // Second pass for subtitle sidecars Downie exported AFTER the claim scan — they were not in
+      // downieSubtitleFiles, but they are this run's artifacts and go out with the video.
+      await sweepLateSubtitleSidecars(subtitleSweepDirs, subtitleSweepBase, subtitleSweepSinceMs);
     }
 
     toast.style = Toast.Style.Success;
