@@ -72,7 +72,7 @@ const defaultExecPathEntries = [
   "/sbin",
 ] as const;
 const defaultSummaryTemplateRelativePath = "copilot/copilot-custom-prompts/Summarize.md";
-const defaultSummaryOutputFolder = "obsidian-copilot-summaries";
+const defaultSummaryOutputFolder = "Copilot Summaries";
 const defaultPdfDownloadFolder = "PDF Downloads";
 const defaultPdfOcrLanguage = "eng";
 const defaultPdfOcrDpi = 220;

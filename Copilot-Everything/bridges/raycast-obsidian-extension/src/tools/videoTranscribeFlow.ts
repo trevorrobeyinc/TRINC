@@ -29,6 +29,7 @@ export interface VideoCommandPreferences {
   downieDownloadFolder?: string;
   whisperPath?: string;
   whisperModel?: string;
+  whisperTask?: string;
   raycastObsidianMcpEndpoint?: string;
   raycastObsidianMcpAuthToken?: string;
   raycastObsidianMcpConfigPath?: string;
@@ -92,6 +93,31 @@ async function appendRunLog(line: string): Promise<void> {
   }
 }
 
+/**
+ * Return the previous run's RUN START line when that run never logged RUN SUCCESS/RUN FAIL.
+ *
+ * Raycast REPLACES the running instance when the same no-view command is launched again, so a
+ * re-dispatch kills an in-flight run mid-wait with no catch block and no terminal log line
+ * (observed 2026-08-19: a run sat in Downie's UGE wait, the operator re-dispatched, and the
+ * first run vanished between two log lines — which later got misdiagnosed as a URL-parameter
+ * problem). Calling this before RUN START lets the new run leave an honest breadcrumb.
+ */
+async function findUnterminatedPreviousRun(): Promise<string | null> {
+  try {
+    const text = await fs.readFile(runLogPath, "utf-8");
+    const lines = text.trimEnd().split("\n");
+    for (let i = lines.length - 1; i >= 0; i--) {
+      if (lines[i].includes("RUN START")) {
+        const terminated = lines.slice(i + 1).some((l) => l.includes("RUN SUCCESS") || l.includes("RUN FAIL"));
+        return terminated ? null : lines[i];
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export async function writeGeneratedNote(vaultPath: string, notePath: string, content: string): Promise<void> {
   const absolutePath = path.join(vaultPath, ...notePath.split("/"));
   await fs.mkdir(path.dirname(absolutePath), { recursive: true });
@@ -99,7 +125,7 @@ export async function writeGeneratedNote(vaultPath: string, notePath: string, co
 }
 
 const defaultVideoDownloadFolder = "Video Downloads";
-const defaultSummaryOutputFolder = "obsidian-copilot-summaries";
+const defaultSummaryOutputFolder = "Copilot Summaries";
 // Downie 4 downloads URL-mode videos here. Downie is sandboxed — it can only write to a folder the
 // user has granted it (via Downie Settings → File, which security-scoped-bookmarks the folder), so
 // this default matches the one-time-configured destination. Absolute path (not vault-relative).
@@ -206,6 +232,25 @@ function resolveYtDlpPath(prefs: VideoCommandPreferences): string {
   }
 
   return "yt-dlp";
+}
+
+/**
+ * Whisper's own task selector: `transcribe` is X->X speech recognition, `translate` is X->English.
+ *
+ * Default `translate`, because the Whisper lane is what a run falls back to when the subtitle
+ * sidecar is rejected — and the whole point of that rejection is to end up with English. Leaving
+ * the CLI default (`transcribe`) would reproduce the 2026-08-17 defect by a different route: there
+ * the Arabic came from a translated SUBTITLE track, but non-English AUDIO under `transcribe`
+ * produces exactly the same result — an English summary quoting a foreign-language transcript.
+ * English audio is unaffected in practice, since X->English from English is English.
+ *
+ * `transcribe` stays reachable through the command's "Whisper Task" preference for anyone who
+ * wants a verbatim same-language transcript instead.
+ */
+const DEFAULT_WHISPER_TASK = "translate";
+
+function resolveWhisperTask(prefs: VideoCommandPreferences): "translate" | "transcribe" {
+  return prefs.whisperTask?.trim() === "transcribe" ? "transcribe" : DEFAULT_WHISPER_TASK;
 }
 
 async function resolveWhisperPathOrThrow(prefs: VideoCommandPreferences): Promise<string> {
@@ -448,6 +493,18 @@ export function stripRunTimestamp(baseName: string): string {
 }
 
 /**
+ * Strip Downie's re-download disambiguation suffix (" -  - 2026-08-19 03-58-00_0") from a video
+ * base name. Downie appends it when the destination already holds a file of that name — which
+ * happens whenever a run is re-dispatched after an earlier download of the same video survived.
+ * Without stripping, the suffix leaks into every derived NOTE name (observed 2026-08-19:
+ * "K-means clustering | LinkedIn Learning -  - 2026-08-19 03-58-00_0 summary.md"). Only note
+ * naming uses the stripped form — the mp4 on disk keeps whatever name Downie gave it.
+ */
+export function stripDownieDisambiguationSuffix(baseName: string): string {
+  return baseName.replace(/\s+-\s+-\s+\d{4}-\d{2}-\d{2}[ T]\d{2}-\d{2}-\d{2}(?:_\d+)?$/, "");
+}
+
+/**
  * Build the base name used for the transcript/transcription/summary notes. yt-dlp returns a generic
  * title for some hosts (e.g. Wiley course pages → "Videoplayer"), which would name every note
  * "Videoplayer (1)-<timestamp>". When the title looks generic, derive a readable base name from the
@@ -579,12 +636,24 @@ async function transcribeWithWhisper(
   tempDir: string
 ): Promise<string> {
   const whisperModel = prefs.whisperModel?.trim() || "medium";
+  const whisperTask = resolveWhisperTask(prefs);
   const outputDir = path.join(tempDir, "whisper-output");
   await fs.mkdir(outputDir, { recursive: true });
 
+  await appendRunLog(`whisper task=${whisperTask} model=${whisperModel}`);
   await execFileAsync(
     whisperPath,
-    [videoFilePath, "--model", whisperModel, "--output_format", "txt", "--output_dir", outputDir],
+    [
+      videoFilePath,
+      "--model",
+      whisperModel,
+      "--task",
+      whisperTask,
+      "--output_format",
+      "txt",
+      "--output_dir",
+      outputDir,
+    ],
     {
       env: createExecEnv(),
       maxBuffer: 64 * 1024 * 1024,
@@ -711,6 +780,43 @@ function normalizeExtractedText(value: string): string {
   return value.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
 }
 
+/**
+ * Minimum share of a transcript's letters that must be Latin-script for a subtitle sidecar to be
+ * accepted as the transcript.
+ *
+ * Sidecars are the fast transcript path, but nothing upstream pins their LANGUAGE: Downie exports
+ * whatever track its own settings select, and moveDownieSubtitleSidecars renames the first claimed
+ * one to the canonical `<base>.srt`, erasing any language tag that would have revealed the choice.
+ * A foreign-language track then transcribes silently and the defect surfaces only downstream — the
+ * summarizer, prompted in English, writes an English summary whose VERBATIM quotes stay in the
+ * source script (observed 2026-08-17: an Arabic LinkedIn Learning track produced a fully English
+ * note whose "Notable Quotes" section was Arabic). Discarding such a sidecar routes the run through
+ * the existing Whisper fallback, which transcribes the actual audio.
+ */
+const MIN_LATIN_LETTER_RATIO = 0.6;
+
+function isLatinScriptTranscript(value: string): boolean {
+  let latinLetters = 0;
+  let totalLetters = 0;
+  for (const character of value) {
+    if (!/\p{L}/u.test(character)) continue;
+    totalLetters += 1;
+    if (/\p{Script=Latin}/u.test(character)) latinLetters += 1;
+  }
+  // No letters at all is not a script problem — the empty-transcript check already handles it.
+  if (totalLetters === 0) return true;
+  return latinLetters / totalLetters >= MIN_LATIN_LETTER_RATIO;
+}
+
+/**
+ * Sort key that gives an English-tagged sidecar the canonical `<base>.<ext>` slot. A multi-track
+ * download otherwise hands that slot to whichever filename sorts first — `.ar.srt` beats `.en.srt`
+ * — and the canonical rename then erases the tag.
+ */
+function englishSubtitlePriority(filePath: string): number {
+  return /\.(en|en[-_](?:us|gb|orig))\.(srt|vtt)$/i.test(path.basename(filePath)) ? 0 : 1;
+}
+
 function buildVideoSourceNoteContent(params: {
   title: string;
   sourceVideoRef: string;
@@ -737,7 +843,7 @@ const copilotActiveFilePollIntervalMs = 500;
 const copilotActiveFileTimeoutMs = 10_000;
 const copilotActiveFileCliFallbackAfterMs = 4_000;
 const copilotActiveFileProbeIntervalMs = 15_000;
-const defaultCopilotCommandNoteFolder = "obsidian-copilot-summaries";
+const defaultCopilotCommandNoteFolder = "Copilot Summaries";
 
 /**
  * Normalize a vault-relative note path for comparison — tolerates a decoded/encoded mix,
@@ -948,7 +1054,7 @@ async function readCopilotCommandNoteFolder(vaultPath: string): Promise<string> 
 /**
  * Remove every leftover artifact from a run once the summary note is safely written — the downloaded
  * video + subtitle/format-variant sidecars, the transcript .txt, the transcription note, and the temp
- * dirs — leaving ONLY the summary note in obsidian-copilot-summaries. The summary note is never in the
+ * dirs — leaving ONLY the summary note in Copilot Summaries. The summary note is never in the
  * target list, so it is never touched; missing/locked files are tolerated.
  */
 async function cleanupRunArtifacts(targets: { files: string[]; tempDirs: string[] }): Promise<void> {
@@ -1158,6 +1264,12 @@ export async function moveDownieSubtitleSidecars(
       return claimed;
     }
 
+    // English-tagged tracks first, so a multi-track export cannot hand the canonical (tag-erasing)
+    // name to a translated track; ties keep the existing deterministic name order.
+    matches.sort(
+      (left, right) => englishSubtitlePriority(left) - englishSubtitlePriority(right) || left.localeCompare(right)
+    );
+
     await fs.mkdir(destinationDir, { recursive: true });
     const canonicalTaken = new Set<string>();
     for (const sourceFile of matches) {
@@ -1216,7 +1328,16 @@ export async function runVideoTranscribeCommand(
     const outputTemplate = path.join(outputDir, `%(title).150B-${timestamp}.%(ext)s`);
     const ytDlpPath = resolveYtDlpPath(prefs);
 
+    const supersededRun = await findUnterminatedPreviousRun();
     await appendRunLog(`RUN START ${localVideoPath ? `file=${localVideoPath}` : `url=${videoUrl}`}`);
+    if (supersededRun) {
+      await appendRunLog(
+        "warning: previous run never logged a terminal state — it is either still running or was " +
+          `killed when this dispatch relaunched the command (Raycast replaces the running instance): ${supersededRun.slice(
+            25
+          )}`
+      );
+    }
     // Fail fast — verify a usable Whisper binary BEFORE the (slow) download, so a misconfigured
     // Whisper Path errors in ~1s with an actionable message instead of failing cryptically after
     // the video has already downloaded. Whisper is this command's transcription engine.
@@ -1309,7 +1430,15 @@ export async function runVideoTranscribeCommand(
     const subtitleFiles = await findSubtitleSidecars(primaryVideoFile);
     let transcriptText = "";
     if (subtitleFiles.length > 0) {
-      transcriptText = normalizeExtractedText(await extractTranscriptFromSubtitle(subtitleFiles[0]));
+      const subtitleText = normalizeExtractedText(await extractTranscriptFromSubtitle(subtitleFiles[0]));
+      if (subtitleText && !isLatinScriptTranscript(subtitleText)) {
+        await appendRunLog(
+          `subtitle sidecar is not Latin-script (${path.basename(subtitleFiles[0])}) — ` +
+            `discarding it so Whisper transcribes the audio instead`
+        );
+      } else {
+        transcriptText = subtitleText;
+      }
     }
 
     if (!transcriptText) {
@@ -1325,7 +1454,9 @@ export async function runVideoTranscribeCommand(
       await appendRunLog(`transcript from subtitles (${subtitleFiles.length} sidecar(s))`);
     }
 
-    const rawBaseName = path.basename(primaryVideoFile, path.extname(primaryVideoFile));
+    const rawBaseName = stripDownieDisambiguationSuffix(
+      path.basename(primaryVideoFile, path.extname(primaryVideoFile))
+    );
     // Name notes from a readable title (derived from the URL) when yt-dlp's title is generic
     // (e.g. Wiley → "Videoplayer"); the mp4 keeps its own yt-dlp filename. In local mode the URL
     // field may hold an unrelated leftover URL — the filename is the only trustworthy title source.

@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 import { BackendEmulatorService } from "@/api/backend-emulator/backendEmulator.service";
 import { hybridCreateNote } from "@/api/mcp/hybridObsidian.service";
 
-const defaultSummaryFolder = "obsidian-copilot-summaries";
+const defaultSummaryFolder = "Copilot Summaries";
 
 function sanitizeFilename(rawValue: string): string {
   // Intentional control-character range: C0 chars are stripped from filenames along with Windows-reserved chars.
