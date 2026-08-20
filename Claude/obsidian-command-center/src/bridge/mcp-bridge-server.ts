@@ -2,7 +2,7 @@ import * as http from "http";
 import * as https from "https";
 import * as os from "os";
 import * as path from "path";
-import { readFileSync, writeFileSync, mkdirSync, chmodSync, existsSync } from "fs";
+import { readFileSync, writeFileSync, mkdirSync, chmodSync, existsSync, realpathSync, statSync } from "fs";
 import { createHash, timingSafeEqual, randomBytes } from "crypto";
 import { execFile } from "child_process";
 import { App, TFile, normalizePath } from "obsidian";
@@ -47,6 +47,10 @@ function resolveVideoPipelineSource(raw: unknown): string {
       "videoUrl is required — an http(s) video URL or an absolute local video file path."
     );
   }
+  // Explicit NUL reject (previously only incidentally rejected by existsSync, with a mangled message).
+  if (value.includes("\0")) {
+    throw new Error("videoUrl contains a null byte.");
+  }
   if (/^https?:\/\//i.test(value)) {
     const parsed = new URL(value); // throws on malformed input
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
@@ -66,7 +70,14 @@ function resolveVideoPipelineSource(raw: unknown): string {
   if (!existsSync(localPath)) {
     throw new Error(`Local video file does not exist: ${localPath}`);
   }
-  return localPath;
+  // Canonicalize: resolve symlinks and any ../ segments so the extension receives one true
+  // path, then re-assert the extension on the canonical leaf (a video-named symlink could
+  // otherwise smuggle a non-video target).
+  const canonical = realpathSync(localPath);
+  if (!VIDEO_FILE_EXTENSIONS.includes(path.extname(canonical).toLowerCase())) {
+    throw new Error(`Local file must be a video (${VIDEO_FILE_EXTENSIONS.join(", ")}).`);
+  }
+  return canonical;
 }
 
 // Security (audit P0): the bridge bearer token must NOT live in Obsidian's
@@ -792,20 +803,60 @@ export class McpBridgeServer {
       return { dispatched: false, dryRun: true, videoUrl: source, deeplink };
     }
 
-    await new Promise<void>((resolve, reject) => {
-      execFile("/usr/bin/open", [deeplink], (err) => (err ? reject(err) : resolve()));
+    // Pre-flight: report whether Raycast is up. Non-fatal — /usr/bin/open auto-launches the
+    // URL handler — but a cold launch is a known replay risk, so surface it.
+    const raycastWasRunning = await new Promise<boolean>((resolve) => {
+      execFile("/usr/bin/pgrep", ["-x", "Raycast"], (err) => resolve(!err));
     });
+
+    // Byte-anchor the run log BEFORE dispatch so the confirmation watch below only ever
+    // matches a RUN START appended by THIS dispatch, never a previous run's.
+    const logBytesBeforeDispatch = this.videoPipelineLogSize();
+
+    await new Promise<void>((resolve, reject) => {
+      execFile("/usr/bin/open", [deeplink], (err, _stdout, stderr) => {
+        if (err) {
+          reject(
+            new Error(
+              `/usr/bin/open failed (exit ${err.code ?? "?"}): ${String(stderr || err.message).trim()}`
+            )
+          );
+        } else {
+          resolve();
+        }
+      });
+    });
+
+    // Bounded confirmation: the runner appends RUN START within ~2s of a healthy dispatch.
+    // Its absence after 15s is the stale-registration signature observed 2026-08-17 (open
+    // exits 0, Raycast running, command not registered, total silence).
+    const confirmation = await this.waitForVideoPipelineRunStart(
+      source,
+      logBytesBeforeDispatch,
+      15_000
+    );
 
     return {
       success: true,
       dispatched: true,
       videoUrl: source,
+      raycastWasRunning,
+      dispatchConfirmed: confirmation.confirmed,
+      ...(confirmation.confirmed
+        ? { startedAt: confirmation.startedAt }
+        : {
+            warning:
+              "macOS accepted the dispatch but no RUN START appeared in the pipeline log within 15s. " +
+              "Most likely the Raycast extension registration is stale (observed 2026-08-17): run " +
+              "`npm run dev` once in Copilot-Everything/bridges/raycast-obsidian-extension, then retry. " +
+              "A queued replay may still fire late — check video_pipeline_status before re-dispatching.",
+          }),
       message:
         "Video pipeline dispatched through Raycast. Public hosts (e.g. YouTube) download " +
         "hands-free; login-gated hosts (e.g. LinkedIn Learning) open Downie's UGE window " +
         "where the HUMAN must click the detected stream once — tell the user to click it. " +
         "The finished summary lands in the vault at " +
-        "obsidian-copilot-summaries/'<video title> summary.md' and intermediates are " +
+        "Copilot Summaries/'<video title> summary.md' and intermediates are " +
         "cleaned up. Poll video_pipeline_status every ~20s; typical runs finish 1-4 " +
         "minutes after the download starts.",
     };
@@ -851,6 +902,38 @@ export class McpBridgeServer {
       ...(summaryLine ? { summary: summaryLine } : {}),
       recentLines: run.slice(-8),
     };
+  }
+
+  private videoPipelineLogSize(): number {
+    try {
+      return statSync(videoPipelineLogPath()).size;
+    } catch {
+      return 0;
+    }
+  }
+
+  /** Watch the run log (byte-anchored) for a RUN START naming this dispatch's source. */
+  private async waitForVideoPipelineRunStart(
+    source: string,
+    fromByte: number,
+    timeoutMs: number
+  ): Promise<{ confirmed: boolean; startedAt?: string }> {
+    const deadline = Date.now() + timeoutMs;
+    for (;;) {
+      try {
+        // Buffer slice by BYTES — the anchor is a byte offset, and log lines carry
+        // multibyte video titles, so a string slice would mis-anchor.
+        const fresh = readFileSync(videoPipelineLogPath()).subarray(fromByte).toString("utf8");
+        const line = fresh
+          .split("\n")
+          .find((l) => l.includes("RUN START") && l.includes(source));
+        if (line) return { confirmed: true, startedAt: line.slice(0, 24).trim() };
+      } catch {
+        /* log may not exist yet */
+      }
+      if (Date.now() >= deadline) return { confirmed: false };
+      await new Promise((r) => setTimeout(r, 500));
+    }
   }
 
   // ─── tools/list ─────────────────────────────────────────────
@@ -1000,7 +1083,7 @@ export class McpBridgeServer {
         {
           name: "video_pipeline_run",
           description:
-            "Run the video-to-summary pipeline on a video URL (YouTube, LinkedIn Learning, etc.) or an absolute local video file path. Dispatches the Raycast 'Video Pipeline Runner': the video is downloaded (login-gated hosts like LinkedIn Learning need ONE human click in Downie's UGE window — tell the user to click the detected stream), transcribed from subtitles or Whisper, summarized by Copilot's free local relay, and saved to the vault as obsidian-copilot-summaries/'<title> summary.md' with all intermediates cleaned up. Returns immediately; poll video_pipeline_status for progress.",
+            "Run the video-to-summary pipeline on a video URL (YouTube, LinkedIn Learning, etc.) or an absolute local video file path. Dispatches the Raycast 'Video Pipeline Runner': the video is downloaded (login-gated hosts like LinkedIn Learning need ONE human click in Downie's UGE window — tell the user to click the detected stream), transcribed from subtitles or Whisper, summarized by Copilot's free local relay, and saved to the vault as Copilot Summaries/'<title> summary.md' with all intermediates cleaned up. Returns immediately; poll video_pipeline_status for progress.",
           inputSchema: {
             type: "object",
             properties: {
