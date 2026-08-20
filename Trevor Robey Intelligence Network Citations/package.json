@@ -21,7 +21,6 @@
   },
   "scripts": {
     "test": "node scripts/verify-node-runtime.js && node --test \"tests/**/*.test.js\"",
-    "ggshield:install": "bash scripts/install-ggshield.sh",
     "secrets:verify": "bash scripts/verify-secrets.sh",
     "runtime:verify": "node scripts/verify-node-runtime.js",
     "sbom:generate": "node scripts/generate-sbom.js",
