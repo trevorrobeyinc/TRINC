@@ -98,6 +98,42 @@ Matching upstream exactly is what failed on 2026-08-12 — do not go back to it.
 `"sse_subscribers_total{stream=research}": 1` — that counter was empty before, and it is the ported
 `McpEventBridge` holding an SSE connection. Runtime evidence, not just a successful build.
 
+## Command Center agent tools — zk_* + video pipeline (2026-08-20)
+
+The Copilot Chat Agent can now call the `vault-zettelkasten` plugin AND the video pipeline.
+Seven zk catalog entries (`zk_serendipity`, `zk_cross_domain`, `zk_echo_chamber`,
+`zk_semantic_linker`, `zk_orphan_rescue`, `zk_vault_health`, `zk_full_pipeline`) route through
+the **:8799 Command Center bridge**, whose dispatcher calls
+`app.plugins["vault-zettelkasten"].api` in-process — the same api `zettelkasten/linker.ts`
+already used (zero subprocess, zero new listeners, no `operation` field per the miyo/viz
+precedent). Two more entries (`video_pipeline_run`, `video_pipeline_status`) close a gap: the
+bridge had served them for a while (and the stdio adapter proxies them for Claude/Raycast),
+but without catalog entries the in-plugin agent could not call them. Contract of record:
+`Claude/obsidian-command-center/src/bridge/mcp-bridge-server.ts` (bridge **30 tools**; catalog
+27 entries after zk, 29 after the video pair, **39** after the engine suite — see below). zk analyses are synchronous (single ones
+seconds-to-a-minute, `zk_full_pipeline` minutes — size the :8799 server `timeoutMs`
+accordingly) and write NOTHING to the vault (`writeReport` pinned false; the model saves
+results via `obsidian_create_note`). Activation is config, not code: add the `zk_*` +
+`video_pipeline_*` names to the `command-center` server's `enabledToolNames` and enable the
+matching `mcp_command-center_*` ids in the agent tool list.
+
+**Engine suite — same day, later wave (2026-08-20).** Ten more catalog entries extend the
+agent to the research engine's full agent-safe surface, all via :8799:
+`obsidian_openclaw_{cancel, history, artifacts, engine_health, research_task,
+research_tasks_list, research_output, delivery_evidence, citation_integrity, feed_stats}`,
+plus `run_workflow` now returns the **workflow_id** (bounded 15s await of the stderr id
+capture). Command-center side: `onWorkflowComplete` decoupled into independent fail-soft
+stages (notes / notify / Miyo / ZK / research-memory — ingest now reads the on-disk
+synthesizer artifact so it works with notes off), `research_notify` fires on FAILURE too
+(payload gained `status`/`error`), the research-memory ingest spawn finally gets the mkcert
+CA env + node fallback (it could never reach HTTPS Qdrant from a Finder launch before), the
+ZK stdio-subprocess lane + `zettelkastenServerPath` + `bridgeToken` settings were RETIRED,
+and the settings UI was regrouped/corrected. Never exposed, by design: dataset missions,
+interaction logs, release/token scripts, feed rebuilds, delivery-evidence rebuild mode.
+Real-provider engine calls surface `operator_gate_not_armed` when the one-shot YubiKey
+token isn't freshly armed; `engine_health`/default `research_task` use the ungated mock
+lane only.
+
 ## Key Paths
 
 - Workspace root: `/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything/` (corrected 2026-07-31 — this line still carried the pre-wipe home `/Users/trevorrobey/…`, which has not existed since the 2026-05-31 machine wipe. Historical: the workspace lived at `~/Code/THE Copilot in Obsidian Everything/` until the 2026-05-07 monorepo consolidation, and the whole monorepo moved off `/Volumes/ExtraCurricular` onto the internal FileVault disk on 2026-07-26)
