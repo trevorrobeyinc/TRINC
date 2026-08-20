@@ -35,7 +35,7 @@ sk-capable `/opt/homebrew/bin/ssh` pinned in `core.sshCommand` — `/usr/bin/ssh
 with a misleading `Permission denied (publickey)`. **Every push needs a physical touch.** The `git bundle` below
 remains the offline DR copy; a remote is not a backup. *(Superseded: local-only as of 2026-05-26.)*
 
-Historical note — **local-only as of 2026-05-26.** The private GitHub remote `trevoralexanderrobey/TrevClaw-Obsidianodus` was **deleted** on 2026-05-26; the monorepo now lives only on this machine with **no git remotes**. Durable backup is a verified `git bundle --all` in **`~/Documents/`** (current: `TrevClaw-Obsidianodus-FULL-backup-20260814-1605.bundle`, HEAD `5b9de01`, SHA-256 `ff1e13d2…`, verified-matching copy at `/Volumes/ExtraCurricular/Backups/`; all older bundles deleted 2026-08-14 at the operator's request — one current version only). *(Corrected 2026-07-31: this line said `~/Downloads/`, where no bundle exists — the 2026-06-04 bundle had been sitting in `~/Documents/` and was 134 commits stale before the 07-31 refresh. Cut a fresh bundle after any substantial batch of commits; a bundle carries no gitignored files, so local configs/tokens are NOT in it.)* Do not re-add a remote or push without an explicit decision to reverse this local-only posture.
+Historical note — **local-only as of 2026-05-26.** The private GitHub remote `trevoralexanderrobey/TrevClaw-Obsidianodus` was **deleted** on 2026-05-26; the monorepo now lives only on this machine with **no git remotes**. Durable backup is a verified `git bundle --all` in **`~/Documents/`** (current: `TrevClaw-Obsidianodus-FULL-backup-20260817-2023.bundle`, HEAD `03b0496`, SHA-256 `fd2eeae0…`, verified-matching copy at `/Volumes/ExtraCurricular/Backups/`; the superseded `20260814-1605` generation was deleted 2026-08-19 after both current copies re-verified — one current version only). The **offsite** leg is not the bundle: it is the unpacked `.git`-less copy of the same commit at `GoogleDrive-trevor@trevorobeyinc.com/My Drive/TRINC/Monorepo/` (business Workspace Drive; moved there from the personal Drive 2026-08-19, diff-clean + server-accepted), with `TRINC/Backups/{README-RESTORE.md,SHA256SUMS.txt}` beside it — the bundle itself is deliberately kept OFF cloud storage (2026-08-17 decision). *(Corrected 2026-07-31: this line said `~/Downloads/`, where no bundle exists — the 2026-06-04 bundle had been sitting in `~/Documents/` and was 134 commits stale before the 07-31 refresh. Cut a fresh bundle after any substantial batch of commits; a bundle carries no gitignored files, so local configs/tokens are NOT in it.)* Do not re-add a remote or push without an explicit decision to reverse this local-only posture.
 
 ## 📌 Shared Continuity Board — read this first
 
@@ -200,6 +200,7 @@ Biomedical Workflow Observability Stack (optional, Docker Compose)
 |------|---------|----------|-----------------|------------|
 | 8798 | Obsidian MCP Bridge (canonical) | HTTPS | Copilot-Everything | obsidian-bridge-launcher plugin (Obsidian lifecycle) |
 | 8799 | Command Center Bridge (additive) | HTTPS | Claude (Obsidian plugin) | Obsidian plugin lifecycle |
+| 8800 | Viz Studio Bridge (additive — local mermaid/chart/canvas/graph rendering + Guided Learning explainer cards into the vault, 7 `viz_*` MCP tools; added 2026-08-16) | HTTPS | Claude (Obsidian plugin `trinc-viz-studio`) | Obsidian plugin lifecycle |
 | 8743 | Miyo TLS proxy (HTTPS terminator → :8742) | HTTPS | Copilot-Everything | launchd `com.trevorrobey.miyo-tls-proxy` |
 | 8742 | Miyo Semantic Search (plaintext upstream — only the proxy at :8743 should reach it) | HTTP | external | External process (`/Applications/Miyo.app`) |
 | 6433 | Qdrant TLS proxy (HTTPS terminator → :6333) | HTTPS | Copilot-Everything | launchd `com.trevorrobey.qdrant-tls-proxy` |
@@ -214,7 +215,27 @@ Biomedical Workflow Observability Stack (optional, Docker Compose)
 | 8891 | SearXNG TLS proxy (HTTPS terminator → :8890) | HTTPS | Copilot-Everything | launchd `com.trevorrobey.searxng-tls-proxy` |
 | 8890 | SearXNG (private metasearch; plaintext upstream — only the proxy at :8891 should reach it. JSON API for the Tavily-style `searxng-search` MCP connector — Docker-free, third-party upstream like Miyo/Qdrant) | HTTP | Claude (`Claude/searxng-search-mcp`) | launchd `com.trevorrobey.searxng` |
 
-> **:8798 vs :8799 disambiguation**: `:8798` is the **canonical** Obsidian MCP bridge — every operator (Claude Desktop, Cowork, the Command Center plugin) reads/writes the vault through it. As of 2026-05-03, ownership migrated from PM2 to the `obsidian-bridge-launcher` Obsidian plugin (`Claude/obsidian-bridge-launcher/`), which spawns the bridge as a child process tied to Obsidian's lifecycle: bridge dies when Obsidian quits. `:8799` is the **additive** Command Center bridge owned by the Obsidian plugin lifecycle — it exposes biomedical-workflow tools to the plugin's own UI and only exists while Obsidian is running. Different scopes (canonical vault access vs. workflow tools), but both now share Obsidian's lifecycle. Trade-off: vault is unreachable to Claude Desktop / Cowork / Raycast when Obsidian is closed (acceptable for "Obsidian is always open" workflows).
+> **:8798 vs :8799 disambiguation**: `:8798` is the **canonical** Obsidian MCP bridge — every operator (Claude Desktop, Cowork, the Command Center plugin) reads/writes the vault through it. As of 2026-05-03, ownership migrated from PM2 to the `obsidian-bridge-launcher` Obsidian plugin (`Claude/obsidian-bridge-launcher/`), which spawns the bridge as a child process tied to Obsidian's lifecycle: bridge dies when Obsidian quits. `:8799` is the **additive** Command Center bridge owned by the Obsidian plugin lifecycle — it exposes biomedical-workflow tools to the plugin's own UI and only exists while Obsidian is running. Different scopes (canonical vault access vs. workflow tools), but both now share Obsidian's lifecycle. `:8800` (added 2026-08-16) is a **second additive** bridge with the same pattern — owned by the `trinc-viz-studio` plugin, visualization tools only (`viz_*`), same lifecycle, bearer token at `~/.config/trinc-viz-studio/bridge-token`. Trade-off: vault is unreachable to Claude Desktop / Cowork / Raycast when Obsidian is closed (acceptable for "Obsidian is always open" workflows).
+
+> **Client-edge aggregation pattern (2026-08-20).** When one MCP *client* (Raycast chat, Claude
+> Desktop, …) needs tools from more than one of these bridges, the aggregation happens in the
+> **stdio adapter** (`Copilot-Everything/bridges/obsidian-stdio-adapter/`), per client profile —
+> NEVER by merging the daemons. The bridges stay separate on purpose: each is owned by its own
+> Obsidian plugin with its own lifecycle, token, and port (table above). An externally-drafted
+> "single unified MCP gateway" merge of :8798/:8799 was evaluated and **DECLINED 2026-08-20** —
+> it saved one duplicate health check at the cost of rewriting two plugins plus a shared
+> lifecycle supervisor. Current profiles: `claude` = the 7 canonical vault tools, :8798 only
+> (Claude Desktop surface — frozen); `raycast` = those 7 + `raycast_daily_open` +
+> `video_pipeline_run`/`video_pipeline_status` proxied to :8799 (Bearer token read per-call from
+> `~/.config/openclaw-command-center/bridge-token`). How to extend, and rollback: the adapter's
+> README. Regression guard: `npm run test:profiles` in the adapter package.
+>
+> **Explicitly declined hardening (2026-08-20 — do not re-propose without new evidence):**
+> - **Token TTL cache** for the :8799 Bearer read — the token is ~64 bytes read only on rare,
+>   seconds-long video calls; the per-call read IS the rotation-safe design, and a cache adds a
+>   staleness footgun for no measurable win.
+> - **Homegrown rotating log file** in the adapter — MCP hosts already capture a server's stderr
+>   into their own managed logs; rotation is the host's job, not a stateless shim's.
 
 ## TLS Configuration
 
@@ -226,10 +247,11 @@ All HTTPS services use mkcert certificates at `~/.local/share/mkcert/localhost.p
 > - backend-emulator (:8789) was retired 2026-04-11 — ZettelkastenService now runs in-process inside the `vault-zettelkasten` Obsidian plugin.
 > - The biomedical research engine (`/Users/myhome/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations/`) runs as on-demand subprocess via `node scripts/run-workflow.js` — there is no persistent gateway service. The previous launchd entry on :18789 was for the unrelated homebrew `openclaw` (a consumer "Personal AI assistant" from openclaw.ai, different product entirely; removed 2026-04-27).
 
-1. **Obsidian** — opening Obsidian loads two bridge-owning plugins:
+1. **Obsidian** — opening Obsidian loads three bridge-owning plugins:
    - `obsidian-bridge-launcher` spawns the canonical MCP bridge child process on :8798 (HTTPS).
    - `command-center` starts the additive bridge on :8799 (HTTPS) and dispatches workflow runs that spawn `Trevor Robey Intelligence Network Citations/scripts/run-workflow.js` on demand.
-   Both bridges die when Obsidian quits.
+   - `trinc-viz-studio` starts the additive Viz Studio bridge on :8800 (HTTPS) — local visualization rendering (mermaid/charts/canvas/graph) into the vault.
+   All three bridges die when Obsidian quits.
 2. **PM2 ecosystem** (no apps as of 2026-05-03 — `mcp-bridge` migrated to obsidian-bridge-launcher; the file is preserved for the canonical-pattern reference and `bridge-start.sh` is still usable for manual / dev invocation).
 3. **launchd: `com.trevorrobey.miyo-tls-proxy`** (added 2026-05-07) — wraps Miyo's plaintext :8742 with HTTPS on :8743 using the existing mkcert pair. RunAtLoad + KeepAlive on crash. Logs to `~/.miyo-tls-proxy.log`. Reload after edits with `launchctl unload ~/Library/LaunchAgents/com.trevorrobey.miyo-tls-proxy.plist && launchctl load ~/Library/LaunchAgents/com.trevorrobey.miyo-tls-proxy.plist`.
 
@@ -237,6 +259,7 @@ All HTTPS services use mkcert certificates at `~/.local/share/mkcert/localhost.p
 
 ```bash
 curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:8798/healthz
+curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:8800/healthz   # Viz Studio bridge (trinc-viz-studio plugin)
 curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:8743/v0/health   # Miyo via TLS proxy
 lsof -nP -iTCP:8742 -sTCP:LISTEN | grep -i miyo   # plaintext Miyo upstream (proxy backs onto this)
 curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:6433/collections/miyo   # Qdrant via TLS proxy
@@ -334,6 +357,31 @@ CrowdStrike/Falcon reference docs are mirrored offline at `~/Security Everything
 - Never weaken Falcon Custom-IOA rule 1. Infra-security only — no PHI is hosted
   or processed.
 
+### Argv hygiene — no detection rule's trigger vocabulary on any command line (ported 2026-08-15)
+
+Falcon Custom-IOA rules match **CommandLine**, and with `zsh -c` the ENTIRE script — heredoc
+bodies included — is the shell's own argv, so the sensor cannot tell *doing* a thing from
+*writing about* it. Proven in this repo 2026-08-14 ~22:47 PDT: rule 1 (Critical/Block) killed a
+Desktop Code session's `cat > file <<'EOF'` write of
+`Copilot-Everything/docs/OPENCODE-AGENT-HANDOFF.md` — the doc's pipeline examples carried
+fetch-tool + pipe + shell vocabulary, so the write itself matched the dropper shape ("Exit
+code 1", nothing on disk). The same session recovered 51 s later by re-authoring with the
+**Write tool**, ALSO rewording the vocabulary ("Fetch"→"Retrieve"; box-drawing diagram → plain
+text) so future shell operations quoting the doc stay clean. Records:
+`~/Security Everything/alertdesk/incident-2026-08-15.md` signal #1 (with correction) + memory
+`claude-disclaimer-helper-rule1-selftrip`; full doctrine: `~/Security Everything/CLAUDE.md`
+§"Argv hygiene". The fix is ALWAYS writer-side — never weaken, exclude, or touch a Falcon rule:
+
+- **Docs / file contents → the Write/Edit tools**, never Bash `cat <<EOF`, `echo`, or `printf`.
+  ("Heredoc into an interpreter is safe" covers only the *interpreter's* argv — the outer
+  `zsh -c` still carries the whole body.)
+- **Commit messages → `git commit -F <file>`** (message file authored via Write), never inline
+  `-m` for anything that could carry a rule's vocabulary.
+- **Search patterns → `grep -f <patternfile>`**, not inline patterns quoting trigger tokens.
+- **Anything a watcher/notifier must say → stdin**, never argv.
+- On a collision, fix the caller — never add an exclusion for `git`/`zsh`/an agent binary; those
+  are exactly the carriers a real dropper would use.
+
 ## HTTPS-only invariant (non-negotiable, monorepo-wide)
 
 Every network-facing TCP listener owned by code in this monorepo MUST be HTTPS. There are zero permitted plaintext-fallback paths — no env-var escape hatches, no "try TLS then degrade to http", no `tls ? https : http` ternaries, no silent `null`-on-cert-read returns.
@@ -381,11 +429,27 @@ Predecessor of qdrant-tls-proxy: a separate subproject at `Claude/qdrant-tls-pro
 - `obsidian-devtools` MCP path retired 2026-05-08 — Claude Desktop's `obsidian-devtools` chrome-devtools-mcp entry (CDP on plain-HTTP `:8315`), `~/Library/LaunchAgents/com.trevorrobey.obsidian-debug.plist`, and `~/bin/launch-obsidian.sh` are all deleted. Replaced by three in-bridge tools that go through the canonical HTTPS bridge on `:8798` instead of CDP: `obsidian_dev_console_logs`, `obsidian_dev_console_errors` (read-only ring buffers, always on), and `obsidian_dev_console_eval` (gated by the `devConsoleEvalEnabled` setting on the obsidian-bridge-launcher plugin, default OFF). Wire: bridge child process ↔ launcher plugin via a new fd-3 line-delimited JSON-RPC channel (`stdio: ["ignore","pipe","pipe","pipe"]` + `BRIDGE_IPC_FD=3`); launcher captures `console.{log,info,warn,error,debug}` + `window.error` + `unhandledrejection` into ring buffers at plugin onload. The retired homebrew CDP path should not be reintroduced.
 - `chrome-devtools-mcp` fully retired 2026-05-12 — process tree killed; caches, profile clone, npx cache, and `chrome-devtools-headless` entry in `claude_desktop_config.json` deleted; the `~/Code/chrome-devtools-mcp/` clone removed; **Playwright MCP (`--isolated`) + Claude in Chrome** are now the only two browser-control surfaces. The scrape-sidecar at `trevor-robey-inc-agents/scrape-sidecar/` was migrated off `seleniumbase` + `camoufox[geoip]` onto Playwright Firefox + Chromium (isolated profile per fetch) on the same day. See `~/.local/share/browser-tools/CONTEXT-HANDOFF-browser-mcp-downsize.md` for the full purge inventory and the new global `~/.claude/CLAUDE.md` "Browser MCP Strategy and Context Persistence" rule.
 - `claude-cli-bridge` retired 2026-05-31 — superseded by the native Claude Desktop Code tab, which replaces BOTH the OUTBOUND `claude-cli-bridge` adapter AND the INBOUND `claude mcp serve` registration. Archived to `Claude/.archive/claude-cli-bridge/` (git history + `.learnings/LEARNINGS.md` preserved; `git log --follow` works). Do NOT reintroduce a custom `claude -p` subprocess bridge or a `claude mcp serve` wiring; drive Claude Code through the native Desktop Code tab instead.
+- "Single unified MCP gateway" (:8798+:8799 daemon merge) — proposed 2026-08-20, **never built, DECLINED by design**: merging the bridges would break per-plugin ownership and lifecycles for the sake of one deduplicated health check. The one-tool-list goal is achieved client-side instead — see "Client-edge aggregation pattern" under the Unified Port Map. Future consolidators: extend the stdio adapter's profiles, not the daemons.
 
 ## Browser Session History
 
 > Per the global `~/.claude/CLAUDE.md` "Browser MCP Strategy and Context Persistence" rule, every Claude Code session that calls a browser MCP non-trivially appends a structured summary block below. Newest entries at the top. The two surviving browser surfaces are the **Claude Browser pane** (`mcp__Claude_Browser__*` — isolated in-app Chromium clean room for untrusted content, `cb` gate scope) and **Claude in Chrome** (`mcp__claude-in-chrome__*` — identity / logged-in work, `cic` gate scope). Keep the lanes separate. (Corrected 2026-07-25: this line previously named **Playwright MCP (`--isolated`)**, which was superseded by `cdp-pipe` on 2026-06-07 and retired entirely on 2026-07-14 when the clean-room role moved to the Claude Browser pane. Playwright's orphaned 796 MB browser cache was removed from this machine on 2026-07-25.) See the global rule for the entry format, importance filter, and timing.
 
+- 2026-08-19 · claude-in-chrome · move `My Drive/TRINC` from the personal Gmail Drive to the
+  business Workspace Drive (both logged-in Drive UIs; personal = Default profile, business = work
+  profile `907df4a2…`) · files went mount→mount and were verified (`diff -rq` clean; 3,963/3,963
+  server-accepted via `com.google.drivefs.item-id#S` xattr) but the 3 native Google Docs required
+  the web lane: **consumer→Workspace ownership transfer is not allowed**, so share folder →
+  business-side "Make a copy" → Organize/Move → strip "Copy of " via mount `mv`; personal `TRINC`
+  then trashed as ONE web-UI folder-trash (30-day recovery; `rm -rf` on the mount would have made
+  thousands of trash items). GOTCHAS: (1) Drive's **multi-select Share dialog rendered unstyled,
+  silently dropped both `form_input` and typed text, then closed itself** — the single-item/folder
+  Share dialog works; verify with `read_page`, not pixels. (2) Only Chrome profiles with an open
+  window appear in `list_connected_browsers`; `open -na "Google Chrome" --args --profile-picker`
+  + an operator click surfaces the work profile (never read Chrome profile files from a shell —
+  Falcon blocks it). (3) A `/u/1` Drive URL redirecting back to `/u/0` proves the profile has no
+  second Google session. (4) Copies made in a shared folder land IN that folder but are owned by
+  the copier — the Move dialog's "everyone will lose access" warning is the desired outcome.
 - 2026-07-30 · Claude-Browser · verify the new **Trial Design Benchmark Pack** option on the local
   `intake.html` after adding it (radio card, field group, `QUESTION_TYPE_MAP`, `PANEL_VISIBILITY`,
   `addEntity`) · **PASSED end-to-end**: radio checks, only that field-group becomes visible,

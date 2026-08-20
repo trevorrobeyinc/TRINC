@@ -10,7 +10,7 @@ Three active layers (backend-emulator retired 2026-04-11, deleted from monorepo 
 |---|---|---|---|
 | Obsidian plugin fork | **`repos/obsidian-copilot-mcp-v4`** (LIVE) | — | MCP-first fork, **ported onto upstream 4.0.0 on 2026-08-12**, manifest `99.4.0`. Exposes 12 MCP tools to Copilot chat over HTTPS. The old `repos/obsidian-copilot-mcp` (3.3.3) is now the HISTORICAL source — do not build or deploy it. |
 | Shared MCP bridge | `bridges/obsidian-copilot-bridge` | 8798 | Canonical multi-operator daemon. **REST-only since 2026-05-09**: RestApiBackend (Local REST API plugin :27124) is the sole backend — the CLI subprocess backend was removed together with InprocPluginBackend + the Advanced URI parity tools (`src/backends/backendSelector.ts` requires restApi; there is no fallback). `/mcp/tool`'s optional `backendHint` accepts only the literal `"restApi"` — a stale `"cli"` hint is rejected HTTP 400 `invalid_literal` (this silently broke the Copilot fork's in-plugin agent vault tools until 2026-07-31, when the fork stopped sending the hint entirely). HTTPS/TLS with HMAC replay-guard. |
-| Consolidated stdio adapter | `bridges/obsidian-stdio-adapter` | — | Single stdio MCP adapter that tunnels Claude/Raycast stdio consumers to :8798. Replaces claude-adapter, obsidian-mcp-stdio, raycast-obsidian-stdio (deletion of those pending). Two profiles via `OBSIDIAN_STDIO_PROFILE`: `claude` (default) and `raycast` (adds `raycast_daily_open`). |
+| Consolidated stdio adapter | `bridges/obsidian-stdio-adapter` | — | Single stdio MCP adapter that tunnels Claude/Raycast stdio consumers to :8798. Replaces claude-adapter, obsidian-mcp-stdio, raycast-obsidian-stdio (deletion of those pending). Two profiles via `OBSIDIAN_STDIO_PROFILE`: `claude` (default) and `raycast` (adds `raycast_daily_open`; since 2026-08-20 also proxies `video_pipeline_run`/`video_pipeline_status` to the Command Center bridge on :8799 — client-edge aggregation, see root `CLAUDE.md`). |
 | Miyo (via TLS proxy) | `scripts/miyo-tls-proxy.mjs` → external Miyo app | 8743 → 8742 | Semantic search via in-monorepo HTTPS proxy at :8743 forwarding to plaintext :8742. Index endpoints deprecated in v4. |
 | Qdrant (via TLS proxy) | `scripts/qdrant-tls-proxy.mjs` → Miyo-bundled Qdrant | 6433 → 6333 | Local vector DB (collection `miyo`) via in-monorepo HTTPS proxy at :6433 forwarding to plaintext :6333. Fallback chunk retrieval for ZK service. |
 | SearXNG (via TLS proxy) | `scripts/searxng-tls-proxy.mjs` → external SearXNG (launchd) | 8891 → 8890 | Local private metasearch via in-monorepo HTTPS proxy at :8891 forwarding to plaintext :8890 (JSON API for the `searxng-search` MCP connector). |
@@ -289,13 +289,20 @@ and auto-injects vault defaults so Claude does not need to specify them on every
 
 Profiles (set via `OBSIDIAN_STDIO_PROFILE`): `claude` (default — exposes the seven
 canonical `obsidian_*` tools) and `raycast` (adds `raycast_daily_open`, mapped locally
-to `obsidian_execute_command id="daily-notes"`).
+to `obsidian_execute_command id="daily-notes"`, plus — since 2026-08-20 —
+`video_pipeline_run`/`video_pipeline_status` proxied to the Command Center bridge on
+:8799 with its own Bearer token, read per-call from
+`~/.config/openclaw-command-center/bridge-token`; the :8799 daemon is unmodified).
+Regression guard for both surfaces: `npm run test:profiles` in the adapter package.
 
-Exposed tools: `obsidian_open_vault`, `obsidian_create_note`, `obsidian_append_note`,
+Exposed tools (adapter — verified against a live tools/list 2026-08-20):
+`obsidian_open_vault`, `obsidian_create_note`, `obsidian_append_note`,
 `obsidian_read_note`, `obsidian_search_notes`, `obsidian_execute_command`,
-`obsidian_health`, `miyo_search_context`,
-`obsidian_dev_console_logs`, `obsidian_dev_console_errors`,
-`obsidian_dev_console_eval` (gated; see Dev console section below).
+`obsidian_health` (+ profile extras above). *Correction 2026-08-20: this list
+previously also named `miyo_search_context` and the three `obsidian_dev_console_*`
+tools — those exist on the :8798 bridge daemon itself, but the stdio adapter does NOT
+surface them; reach them via a client wired to the daemon's own tool surface (e.g. the
+Copilot fork's MCP client), not via the adapter.*
 
 ### Dev console tools (renderer-side, no CDP)
 
