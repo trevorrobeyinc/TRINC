@@ -240,4 +240,84 @@ describe("Phase 33 — Claude Code MCP Provider", () => {
       assert.equal(config.defaultModel, "claude-sonnet-4-6");
     });
   });
+
+  // ------------------------------------------------------------------
+  // cc error envelope — REGRESSION (2026-08-12)
+  //
+  // An expired CLI OAuth session made `claude -p --output-format json` return
+  //   { type:"result", is_error:true, result:"Failed to authenticate: OAuth session
+  //     expired and could not be refreshed" }
+  // and the adapter recorded that 72-char string as a COMPLETED response for all
+  // three roles; only the citation gate (NO_CITATIONS) stopped the junk shipping.
+  // A provider error envelope must reject the call loudly, never masquerade as text.
+  // The fixture drives the REAL spawn path by pointing providerConfig.claudeCommand
+  // at a script that emits the captured envelope.
+  // ------------------------------------------------------------------
+
+  describe("cc error envelope — regression 2026-08-12", () => {
+    const fs = require("node:fs");
+    const os = require("node:os");
+    const path = require("node:path");
+
+    let fixtureDir;
+    beforeEach(() => {
+      fixtureDir = fs.mkdtempSync(path.join(os.tmpdir(), "cc-envelope-"));
+    });
+    afterEach(() => {
+      fs.rmSync(fixtureDir, { recursive: true, force: true });
+    });
+
+    function fakeClaude(name, body) {
+      const p = path.join(fixtureDir, name);
+      fs.writeFileSync(p, `#!/usr/bin/env node\n${body}\n`, { mode: 0o755 });
+      return p;
+    }
+
+    const AUTH_MSG = "Failed to authenticate: OAuth session expired and could not be refreshed";
+
+    it("rejects PROVIDER_CC_ERROR_ENVELOPE on is_error:true instead of recording it as output", async () => {
+      const cmd = fakeClaude("fake-claude-err", `
+        process.stdin.resume(); process.stdin.on("end", () => {
+          process.stdout.write(JSON.stringify({ type: "result", subtype: "error_during_execution", is_error: true, result: ${JSON.stringify(AUTH_MSG)} }));
+          process.exit(0);
+        });`);
+      const adapter = createLLMAdapter({ provider: "claude-code", config: { claudeCommand: cmd, executionTimeoutMs: 15_000 } });
+      // complete() wraps every provider failure as PHASE33_CC_PROVIDER_ERROR and carries the
+      // inner code in details.originalCode — assert the house contract, not the inner throw.
+      await assert.rejects(
+        () => adapter.complete("ping"),
+        (err) =>
+          err.code === "PHASE33_CC_PROVIDER_ERROR" &&
+          err.details && err.details.originalCode === "PROVIDER_CC_ERROR_ENVELOPE" &&
+          /oauth session expired/i.test(err.message)
+      );
+    });
+
+    it("rejects the same failure in bare non-JSON form", async () => {
+      const cmd = fakeClaude("fake-claude-bare", `
+        process.stdin.resume(); process.stdin.on("end", () => {
+          process.stdout.write(${JSON.stringify(AUTH_MSG)});
+          process.exit(0);
+        });`);
+      const adapter = createLLMAdapter({ provider: "claude-code", config: { claudeCommand: cmd, executionTimeoutMs: 15_000 } });
+      await assert.rejects(
+        () => adapter.complete("ping"),
+        (err) =>
+          err.code === "PHASE33_CC_PROVIDER_ERROR" &&
+          err.details && err.details.originalCode === "PROVIDER_CC_ERROR_ENVELOPE"
+      );
+    });
+
+    it("still returns text for a healthy envelope (no false positives)", async () => {
+      const cmd = fakeClaude("fake-claude-ok", `
+        process.stdin.resume(); process.stdin.on("end", () => {
+          process.stdout.write(JSON.stringify({ type: "result", is_error: false, result: "BRCA1 findings with PMID: 12345678", usage: { input_tokens: 10, output_tokens: 8 } }));
+          process.exit(0);
+        });`);
+      const adapter = createLLMAdapter({ provider: "claude-code", config: { claudeCommand: cmd, executionTimeoutMs: 15_000 } });
+      const res = await adapter.complete("ping");
+      assert.match(res.text, /BRCA1 findings/);
+      assert.equal(res.tokenCount, 18);
+    });
+  });
 });

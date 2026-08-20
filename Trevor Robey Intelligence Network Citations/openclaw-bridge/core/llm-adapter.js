@@ -292,6 +292,22 @@ async function callClaudeCode(prompt, providerConfig, logger) {
       const parsed = JSON.parse(stdout);
       // claude -p --output-format json returns:
       // { type: "result", result: "response text", usage: {...}, ... }
+      // The envelope carries its own error contract: is_error / an error subtype. Honor it.
+      // Verified live 2026-08-12: an expired CLI OAuth session returned
+      // "Failed to authenticate: OAuth session expired and could not be refreshed" (72 chars)
+      // in `result` — and because only `code !== 0 && !out` was checked, all three roles
+      // recorded that string as a COMPLETED research response. The citation gate was the only
+      // thing that stopped it shipping (NO_CITATIONS). A provider auth failure must fail the
+      // task loudly, not masquerade as output.
+      if (parsed.is_error === true || /^error/i.test(safeString(parsed.subtype))) {
+        const detail = safeString(parsed.result || parsed.error || "").slice(0, 300);
+        const authErr = new Error(
+          `Claude Code returned an error envelope${detail ? `: ${detail}` : ""} — ` +
+          "if this is an OAuth/session failure, re-authenticate the claude CLI (run `claude` in Terminal and complete /login), then re-run."
+        );
+        authErr.code = "PROVIDER_CC_ERROR_ENVELOPE";
+        throw authErr;
+      }
       text = safeString(parsed.result || parsed.text || parsed.output || "");
       raw = parsed;
 
@@ -304,8 +320,21 @@ async function callClaudeCode(prompt, providerConfig, logger) {
         const outputTokens = Number(u.output_tokens || 0);
         raw._tokenCount = inputTokens + outputTokens;
       }
-    } catch {
-      // If not valid JSON, use raw stdout as text
+    } catch (parseOrEnvelopeError) {
+      // The error-envelope rejection above must NOT be swallowed by the JSON fallback.
+      if (parseOrEnvelopeError && parseOrEnvelopeError.code === "PROVIDER_CC_ERROR_ENVELOPE") {
+        throw parseOrEnvelopeError;
+      }
+      // If not valid JSON, use raw stdout as text — but a bare auth-failure line is still a
+      // provider failure, not a response (same 2026-08-12 incident, non-JSON form).
+      if (/failed to authenticate|oauth session expired|please run \/login/i.test(stdout)) {
+        const authErr = new Error(
+          `Claude Code returned an authentication failure: ${safeString(stdout).slice(0, 200)} — ` +
+          "re-authenticate the claude CLI (run `claude` in Terminal and complete /login), then re-run."
+        );
+        authErr.code = "PROVIDER_CC_ERROR_ENVELOPE";
+        throw authErr;
+      }
       text = safeString(stdout);
       raw = { stdout };
     }
