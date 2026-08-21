@@ -4,7 +4,12 @@ const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
 
-const { validateWorkflowDefinition, resolveTemplateVariables } = require("./workflow-schema.js");
+const {
+  validateWorkflowDefinition,
+  resolveTemplateVariables,
+  findMissingRequiredInputs,
+  formatMissingRequiredInputs
+} = require("./workflow-schema.js");
 const { validateMissionEnvelope } = require("./mission-envelope-schema.js");
 const { canonicalize, canonicalJson, safeString } = require("../../workflows/governance-automation/common.js");
 const { createSchemaEngine } = require("../dataset/schema-engine.js");
@@ -930,6 +935,37 @@ function createWorkflowEngine(options = {}) {
 
     writeWorkflowState(workflowId, state);
     activeWorkflows.set(workflowId, state);
+
+    // Required-input enforcement (2026-08-20). Templates declared input_schema.required and
+    // NOTHING checked it: resolveTemplateVariables leaves an unsupplied key as the literal
+    // "{{topic}}", which then reached both the mission description and the seed document, so
+    // the run spent full compute researching a placeholder. Authoritative check for every
+    // caller of the engine; run-workflow.js repeats it BEFORE the operator-gate ceremony so a
+    // typo cannot consume the one-shot YubiKey token.
+    //
+    // The failure is recorded in workflow.json rather than thrown bare, deliberately: the
+    // Obsidian runner falls back to the NEWEST workflow dir when it never saw a workflow_id,
+    // so a run that died without its own state file could surface a PREVIOUS run's terminal
+    // result as this one's. Writing a failed state for this workflow_id keeps that honest.
+    const missingRequiredInputs = findMissingRequiredInputs(validated, inputs);
+    if (missingRequiredInputs.length > 0) {
+      const inputError = new Error(formatMissingRequiredInputs(validated, missingRequiredInputs));
+      inputError.code = "PHASE30_MISSING_REQUIRED_INPUT";
+      state.status = "failed";
+      state.updated_at = timeProvider.nowIso();
+      state.completed_at = timeProvider.nowIso();
+      state.error = { code: inputError.code, message: inputError.message };
+      writeWorkflowState(workflowId, state);
+      activeWorkflows.set(workflowId, state);
+      logger.error({
+        event: "phase30_missing_required_input",
+        workflow_id: workflowId,
+        template_id: validated.workflow_template_id,
+        missing: missingRequiredInputs.map((item) => item.key),
+        code: inputError.code
+      });
+      throw inputError;
+    }
 
     // Reset interaction log at workflow boundary to prevent chain corruption
     // from previous runs blocking this workflow. Each workflow run starts fresh.

@@ -21,7 +21,11 @@ if (!process.env.NODE_EXTRA_CA_CERTS && !process.env.__OPENCLAW_CA_REEXEC) {
   }
 }
 
-const { buildWorkflowRuntime } = require("./_workflow-runtime.js");
+const { buildWorkflowRuntime, loadWorkflowTemplate } = require("./_workflow-runtime.js");
+const {
+  findMissingRequiredInputs,
+  formatMissingRequiredInputs
+} = require("../openclaw-bridge/core/workflow-schema.js");
 const { withSidecar } = require("../openclaw-bridge/core/scrape-sidecar-lifecycle.js");
 const { enforceOperatorGate } = require("./_operator-gate-cli.js");
 
@@ -101,6 +105,28 @@ async function main() {
     warn(data) { process.stderr.write(`[WARN] ${JSON.stringify(data)}\n`); },
     error(data) { process.stderr.write(`[ERROR] ${JSON.stringify(data)}\n`); }
   };
+
+  // Input preflight — ABOVE the gate on purpose (2026-08-20). The operator's armed token is
+  // ONE-SHOT with a 300s TTL, so a bad template id or a missing required input must not
+  // consume it: previously the template was not even loaded until after the ceremony, inside
+  // withSidecar. loadWorkflowTemplate is filesystem-only (no runtime build, no sidecar, no
+  // spawn), which is what makes it safe to run before the gate. The engine repeats this check
+  // authoritatively for every other caller.
+  let preflightTemplate;
+  try {
+    preflightTemplate = loadWorkflowTemplate(process.cwd(), args.template);
+  } catch (templateError) {
+    process.stderr.write(`${String(templateError.message || templateError)}\n`);
+    process.exit(1);
+  }
+  const missingRequiredInputs = findMissingRequiredInputs(preflightTemplate, inputs);
+  if (missingRequiredInputs.length > 0) {
+    process.stderr.write(
+      `${formatMissingRequiredInputs(preflightTemplate, missingRequiredInputs)}\n` +
+      "No operator-approve token was consumed.\n"
+    );
+    process.exit(1);
+  }
 
   // YubiKey consent gate: --operator-approve is only honored if a FRESH armed token
   // exists (minted by `operator-approve-gate arm` — PIN via pinentry + physical touch).

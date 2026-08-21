@@ -21,6 +21,15 @@ export class OpenClawRunner {
   private killed = false;
   private openclawPath = "";
   private detectedWorkflowId: string | null = null;
+  /**
+   * Wall-clock at spawn, used to reject PRE-EXISTING workflow dirs in the
+   * newest-dir fallback below. Without it, a run that dies before creating its
+   * own state file (e.g. the engine's pre-gate input preflight, added
+   * 2026-08-20) makes findLatestWorkflowId return the PREVIOUS run's directory
+   * — and the plugin then announces that older run's terminal result as this
+   * one's. A failed start must surface as a failure, not as a stale success.
+   */
+  private runStartedAtMs = 0;
 
   onProgress: ProgressCallback = () => {};
   onComplete: CompleteCallback = () => {};
@@ -88,6 +97,8 @@ export class OpenClawRunner {
     this.killed = false;
     this.openclawPath = settings.openclawPath;
     this.detectedWorkflowId = null;
+    // 3s of slack absorbs clock/mtime granularity without admitting an older run.
+    this.runStartedAtMs = Date.now() - 3000;
 
     const args = [
       scriptPath,
@@ -288,6 +299,11 @@ export class OpenClawRunner {
   /**
    * Find the most recently modified workflow directory if we didn't
    * capture the workflow_id from stderr events.
+   *
+   * Only dirs whose state file was written AFTER this run started qualify: a
+   * run that never got far enough to create its own state file must yield
+   * null (→ the caller reports the real error) rather than the previous run's
+   * result. See runStartedAtMs.
    */
   findLatestWorkflowId(): string | null {
     const workflowsDir = join(this.openclawPath, "workspace", "workflows");
@@ -302,6 +318,7 @@ export class OpenClawRunner {
         const statePath = join(workflowsDir, entry.name, "workflow.json");
         try {
           const stat = statSync(statePath);
+          if (stat.mtimeMs < this.runStartedAtMs) continue; // predates this run
           if (!latest || stat.mtimeMs > latest.mtime) {
             latest = { name: entry.name, mtime: stat.mtimeMs };
           }
@@ -310,6 +327,12 @@ export class OpenClawRunner {
         }
       }
 
+      if (!latest) {
+        console.log(
+          "[OpenClaw:Runner] findLatestWorkflowId: no workflow dir created since this run started —" +
+          " refusing to report an older run's result"
+        );
+      }
       return latest?.name ?? null;
     } catch {
       return null;

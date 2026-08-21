@@ -840,6 +840,28 @@ export class McpBridgeServer {
       inputs[k] = this.cleanText(v, `inputs.${k}`, 2000);
     }
 
+    // Required-input preflight (2026-08-20). The engine enforces this
+    // authoritatively (PHASE30_MISSING_REQUIRED_INPUT, checked before its
+    // operator-gate ceremony), but catching it HERE means an agent that
+    // mis-assembles inputs gets an immediate, actionable error instead of a
+    // spawn that dies two seconds later with no workflow id to inspect.
+    const template = actions.listTemplates().find((t) => t.id === templateId);
+    if (!template) {
+      throw new Error(
+        `Unknown template '${templateId}'. Use obsidian_openclaw_templates to list valid ids.`
+      );
+    }
+    const missing = (template.requiredInputs || []).filter((key) => {
+      const value = inputs[key];
+      return value === undefined || value.trim() === "" || /^\{\{\w+\}\}$/.test(value.trim());
+    });
+    if (missing.length > 0) {
+      throw new Error(
+        `Template '${templateId}' requires ${template.requiredInputs.join(", ")} — ` +
+          `missing or empty: ${missing.join(", ")}. Nothing was started and no operator token was used.`
+      );
+    }
+
     actions.runWorkflow(templateId, inputs);
 
     // Decision 1 (2026-08-20): block briefly for the async-captured workflow id

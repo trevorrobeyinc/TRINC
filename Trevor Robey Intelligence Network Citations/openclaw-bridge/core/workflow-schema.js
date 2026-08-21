@@ -147,6 +147,78 @@ function resolveTemplateVariables(template, inputs) {
   });
 }
 
+/** A value that is itself still a template placeholder, e.g. "{{topic}}" passed through verbatim. */
+const UNRESOLVED_PLACEHOLDER_RE = /^\{\{\w+\}\}$/;
+
+/**
+ * Required inputs a caller did not actually supply.
+ *
+ * Templates have always DECLARED `input_schema.required`, but nothing enforced it: the engine
+ * applied `properties[].default` and moved on, and `resolveTemplateVariables` leaves an
+ * unsubstituted key as the literal `{{key}}`. A run missing `topic` therefore spent full
+ * compute researching the string "{{topic}}" — declared-but-unenforced, and newly reachable
+ * by agents that construct inputs themselves (2026-08-20).
+ *
+ * A required input counts as supplied when, after schema defaults are applied, it is present,
+ * non-null, and not blank/whitespace — and is not an unresolved placeholder.
+ *
+ * @returns {Array<{key: string, reason: "absent"|"blank"|"unresolved_placeholder"}>} empty when valid.
+ */
+function findMissingRequiredInputs(workflowDef, inputs) {
+  const schema = workflowDef && workflowDef.input_schema;
+  const required = Array.isArray(schema && schema.required) ? schema.required : [];
+  if (required.length === 0) {
+    return [];
+  }
+  const properties = (schema && schema.properties) || {};
+  const supplied = inputs && typeof inputs === "object" ? inputs : {};
+  const missing = [];
+
+  for (const key of required) {
+    let value = supplied[key];
+    if (value === undefined || value === null) {
+      // Schema defaults satisfy a required input — mirrors applyInputSchemaDefaults.
+      const fallback = properties[key] && properties[key].default;
+      if (fallback !== undefined && fallback !== null) {
+        value = fallback;
+      }
+    }
+    if (value === undefined || value === null) {
+      missing.push({ key, reason: "absent" });
+      continue;
+    }
+    const text = String(value).trim();
+    if (text === "") {
+      missing.push({ key, reason: "blank" });
+      continue;
+    }
+    if (UNRESOLVED_PLACEHOLDER_RE.test(text)) {
+      missing.push({ key, reason: "unresolved_placeholder" });
+    }
+  }
+
+  return missing;
+}
+
+/** Operator/agent-facing message for findMissingRequiredInputs() output. */
+function formatMissingRequiredInputs(workflowDef, missing) {
+  const templateId = (workflowDef && workflowDef.workflow_template_id) || "workflow";
+  const schema = (workflowDef && workflowDef.input_schema) || {};
+  const required = Array.isArray(schema.required) ? schema.required : [];
+  const properties = schema.properties || {};
+  const detail = missing
+    .map(({ key, reason }) => {
+      const description = properties[key] && properties[key].description;
+      return `  - ${key} (${reason})${description ? `: ${description}` : ""}`;
+    })
+    .join("\n");
+  return (
+    `Workflow '${templateId}' is missing required input(s):\n${detail}\n` +
+    `Required inputs for this template: ${required.length > 0 ? required.join(", ") : "(none)"}. ` +
+    "Supply every required input as a non-empty value and re-run — nothing was executed."
+  );
+}
+
 module.exports = {
   WORKFLOW_SCHEMA_VERSION,
   WORKFLOW_STATUSES,
@@ -155,5 +227,7 @@ module.exports = {
   PipelineStepSchema,
   validateWorkflowDefinition,
   resolveTemplateVariables,
+  findMissingRequiredInputs,
+  formatMissingRequiredInputs,
   detectCircularDependencies
 };
