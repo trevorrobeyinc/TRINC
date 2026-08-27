@@ -5,9 +5,12 @@ const refreshPromptRegistryCommandCandidates = [
 ] as const;
 
 const summarizeCommandCandidates = [
-  // Headless "-to-note" variant (Copilot fork, 2026-07-06): runs the Summarize template with NO
-  // modal and writes "<note basename> — Summarize.md" into the plugin's customCommandNoteFolder
-  // (default Copilot Summaries). Preferred; the modal variants below are fallbacks.
+  // Headless "-to-note" variants (Copilot fork, 2026-07-06): run a custom prompt with NO modal
+  // and write "<note basename> — <command title>.md" into the plugin's customCommandNoteFolder
+  // (default Copilot Summaries). Super-Summarize (2026-08-27) is the ONE canonical summary
+  // prompt shared with the Contextual Wiki Definitions plugin and the video pipeline; the
+  // legacy Summarize ids stay as fallbacks so a missing super note degrades gracefully.
+  "copilot:super-summarize-to-note",
   "copilot:summarize-to-note",
   "copilot:summarize",
   "copilot:summarize-active-note",

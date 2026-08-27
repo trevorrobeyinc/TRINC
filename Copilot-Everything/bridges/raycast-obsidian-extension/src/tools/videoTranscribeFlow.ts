@@ -834,7 +834,16 @@ function buildVideoSourceNoteContent(params: {
 ${params.transcriptSection}`;
 }
 
-const copilotSummarizeToNoteCommandId = "copilot:summarize-to-note";
+// Ordered dispatch candidates for the headless Copilot summary. Super-Summarize
+// (vault note copilot/copilot-custom-prompts/Super-Summarize.md) is the ONE canonical
+// summarize prompt shared with the Contextual Wiki Definitions plugin; the legacy
+// Summarize command stays as a dispatch fallback so a deleted/renamed super note
+// degrades to the old prompt instead of the paid extension-side lane. commandTitle
+// drives the fork's contract note name: `<source basename> — <command title>.md`.
+const copilotSummarizeCandidates = [
+  { commandId: "copilot:super-summarize-to-note", commandTitle: "Super-Summarize" },
+  { commandId: "copilot:summarize-to-note", commandTitle: "Summarize" },
+] as const;
 const copilotSummaryPollIntervalMs = 3000;
 const copilotSummaryTimeoutMs = 60_000;
 const copilotIngestionPollIntervalMs = 500;
@@ -896,7 +905,8 @@ async function activateNoteViaObsidianCli(vaultPath: string, sourceNotePath: str
  * PRIMARY summary lane: have the Obsidian Copilot plugin summarize the transcription note
  * entirely in the background — no modal, no focus change. Opens the note via the Local REST
  * API's /open endpoint (which does NOT activate the Obsidian app), dispatches the fork's
- * headless "Summarize → New Note" command, polls for the note Copilot writes, then renames
+ * headless "Super-Summarize → New Note" command (falling back to the legacy "Summarize →
+ * New Note" if the super prompt is missing), polls for the note Copilot writes, then renames
  * it to the pipeline's "<title> summary.md" convention and leaves Obsidian (still in the
  * background) showing the finished summary. Throws on dispatch failure or timeout so the
  * caller can invoke the extension-side summarizer as a last resort.
@@ -977,12 +987,29 @@ async function runCopilotHeadlessSummary(params: {
   }
 
   const dispatchedAtMs = Date.now();
-  await executeCommand(copilotSummarizeToNoteCommandId);
-  await appendRunLog(`copilot summarize dispatched (background) for: ${sourceNotePath}`);
+  let dispatched: (typeof copilotSummarizeCandidates)[number] | undefined;
+  for (const candidate of copilotSummarizeCandidates) {
+    try {
+      await executeCommand(candidate.commandId);
+      dispatched = candidate;
+      break;
+    } catch (dispatchError) {
+      const reason = dispatchError instanceof Error ? dispatchError.message : String(dispatchError);
+      await appendRunLog(`copilot dispatch candidate ${candidate.commandId} failed: ${reason}`);
+    }
+  }
+  if (!dispatched) {
+    throw new Error(
+      `No Copilot summarize command could be dispatched (tried: ${copilotSummarizeCandidates
+        .map((candidate) => candidate.commandId)
+        .join(", ")}).`
+    );
+  }
+  await appendRunLog(`copilot ${dispatched.commandId} dispatched (background) for: ${sourceNotePath}`);
 
   const copilotFolder = await readCopilotCommandNoteFolder(vaultPath);
   const sourceBase = path.posix.basename(sourceNotePath, ".md");
-  const copilotNoteRelative = `${copilotFolder}/${sourceBase} — Summarize.md`;
+  const copilotNoteRelative = `${copilotFolder}/${sourceBase} — ${dispatched.commandTitle}.md`;
   const copilotNoteAbsolute = path.join(vaultPath, ...copilotNoteRelative.split("/"));
 
   const deadlineMs = dispatchedAtMs + copilotSummaryTimeoutMs;
@@ -1554,9 +1581,10 @@ export async function runVideoTranscribeCommand(
     await appendRunLog(`source note written: ${sourceNotePath}`);
 
     // PRIMARY summary lane: the Obsidian Copilot plugin summarizes the transcription note in
-    // the BACKGROUND (fork command copilot:summarize-to-note — no modal, no focus change; see
-    // runCopilotHeadlessSummary). The extension-side template summarizer below survives ONLY
-    // as a last resort when the Copilot lane genuinely fails (dispatch error or timeout).
+    // the BACKGROUND (fork command copilot:super-summarize-to-note, legacy summarize-to-note
+    // as dispatch fallback — no modal, no focus change; see runCopilotHeadlessSummary). The
+    // extension-side template summarizer below survives ONLY as a last resort when the
+    // Copilot lane genuinely fails (dispatch error or timeout).
     const summaryFolder = normalizeVaultRelativeFolder(prefs.summaryOutputFolder, defaultSummaryOutputFolder);
     const summaryNotePath = toPosixPath(path.posix.join(summaryFolder, `${noteTitle} summary.md`));
 
@@ -1572,9 +1600,11 @@ export async function runVideoTranscribeCommand(
         `copilot summary lane FAILED (${reason}) — LAST-RESORT fallback to the extension-side summarizer`
       );
 
+      const templateDir = path.join(vaultPath, "copilot", "copilot-custom-prompts");
+      const superTemplatePath = path.join(templateDir, "Super-Summarize.md");
       const summarizeTemplatePath =
         prefs.summarizeTemplatePath?.trim() ||
-        path.join(vaultPath, "copilot", "copilot-custom-prompts", "Summarize.md");
+        (existsSync(superTemplatePath) ? superTemplatePath : path.join(templateDir, "Summarize.md"));
 
       toast.title = prefs.anthropicApiKey?.trim()
         ? "Copilot lane failed — falling back to Claude (Summarize template)..."

@@ -83,10 +83,10 @@ describe("runAiSummarizeCommand", () => {
     expect(mockOpen).not.toHaveBeenCalled();
     // The preferred headless candidate succeeds first try, so exactly one dispatch happens.
     expect(mockExecuteCommand).toHaveBeenCalledTimes(1);
-    expect(mockExecuteCommand).toHaveBeenCalledWith("copilot:summarize-to-note");
+    expect(mockExecuteCommand).toHaveBeenCalledWith("copilot:super-summarize-to-note");
     expect(result.normalizedPath).toBe("");
     expect(result.openedUri).toBe("");
-    expect(result.usedCommandId).toBe("copilot:summarize-to-note");
+    expect(result.usedCommandId).toBe("copilot:super-summarize-to-note");
   });
 
   it("falls back to a vault open URI if macOS app activation fails", async () => {
@@ -140,7 +140,7 @@ describe("runAiSummarizeCommand", () => {
     // attempted on both passes (before and after the refresh).
     expect(mockExecuteCommand).toHaveBeenCalledWith(getRefreshPromptRegistryCommandCandidates()[0]);
     const preferredAttempts = mockExecuteCommand.mock.calls.filter(
-      ([commandId]) => commandId === "copilot:summarize-to-note"
+      ([commandId]) => commandId === "copilot:super-summarize-to-note"
     );
     expect(preferredAttempts).toHaveLength(2);
   });
@@ -162,6 +162,6 @@ describe("runAiSummarizeCommand", () => {
     const result = await runAiSummarizeCommand({ activationDelayMs: 0 });
 
     expect(mockExecuteCommand).toHaveBeenCalledWith(getRefreshPromptRegistryCommandCandidates()[0]);
-    expect(result.usedCommandId).toBe("copilot:summarize-to-note");
+    expect(result.usedCommandId).toBe("copilot:super-summarize-to-note");
   });
 });

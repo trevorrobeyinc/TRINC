@@ -20,7 +20,7 @@ describe("copilot command ids", () => {
     expect(getRefreshPromptRegistryCommandCandidates()).toContain("copilot:refresh-prompts");
     // The headless fork variant (writes the note with no modal) is preferred; the modal
     // command stays available as a fallback for stock-plugin installs.
-    expect(getSummarizeCommandCandidates()[0]).toBe("copilot:summarize-to-note");
+    expect(getSummarizeCommandCandidates()[0]).toBe("copilot:super-summarize-to-note");
     expect(getSummarizeCommandCandidates()).toContain("copilot:summarize");
   });
 });
