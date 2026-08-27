@@ -53,7 +53,7 @@ So this hub **documents and links**; it does not relocate.
 | Path | Role |
 |---|---|
 | `~/.config/opencode/opencode.jsonc` | Interactive opencode config (the app + CLI). `biomed-readonly` is enabled here so the **app** can use it. 0600 (holds a Zoho token). |
-| `~/.config/opencode/delegation-guardrail.json` | The **worker allowlist** applied via `OPENCODE_CONFIG`. Enables only read-only research servers (`searxng-search`, `scholar-sidekick`, `alphaxiv`, `biomed-readonly`); disables all action/identity/secret servers. 0600. |
+| `~/.config/opencode/delegation-guardrail.json` | The **worker allowlist** applied via `OPENCODE_CONFIG`. Enables only read-only research servers (`searxng-search`, `alphaxiv`, `biomed-readonly`); disables all action/identity/secret servers (`scholar-sidekick` retired 2026-08-27, entry kept as `enabled:false`). 0600. |
 | `~/.config/opencode/AGENTS.md` | opencode's global instructions (auto-loaded every session) — points opencode at the continuity board and at THIS hub. |
 | `~/.local/share/opencode/auth.json` | opencode free-model auth (Zen key). Do not move or commit. |
 
@@ -88,7 +88,7 @@ Every stanza sets `OPENCODE_MCP_BIN=/opt/homebrew/bin/opencode` (GUI servers don
 
 **Classification Rule:** the delegation worker may use an MCP server **only if it is read-only AND
 public-data AND cannot exfiltrate.** That keeps the prompt-injection lethal trifecta broken.
-Enabled for the worker: `searxng-search`, `scholar-sidekick`, `alphaxiv`, `biomed-readonly`.
+Enabled for the worker: `searxng-search`, `alphaxiv`, `biomed-readonly` (`scholar-sidekick` retired 2026-08-27 — service removed everywhere).
 Never enabled: `sudo-gate`, `gmail`, `firewalla`, `filesystem-plus`, `phone-gate`, `github`,
 `zoho-mail`, `zoho-trinc`, `falcon`, `perseus-business`, `perseus-vault`.
 

@@ -37,13 +37,6 @@
         "OPENCODE_CONFIG": "/Users/myhome/.config/opencode/delegation-guardrail.json",
         "OPENCODE_MCP_ALLOWED_DIRS": "/Users/myhome/TrevClaw-Obsidianodus"
       }
-    },
-    "scholar-sidekick": {
-      "type": "http",
-      "url": "https://scholar-sidekick.com/api/mcp",
-      "headers": {
-        "Authorization": "Bearer ${SCHOLAR_SIDEKICK_MCP_KEY}"
-      }
     }
   }
 }
