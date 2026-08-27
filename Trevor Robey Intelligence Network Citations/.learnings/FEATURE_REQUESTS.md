@@ -234,7 +234,7 @@ Scaffold adapter at `openclaw-bridge/mcp/obsidian-bridge-mcp/ (would proxy to th
 
 **Logged**: 2026-07-24T06:30:54.747Z
 **Priority**: medium
-**Status**: pending
+**Status**: MOOT — connector RETIRED EVERYWHERE 2026-08-27 by operator direction (API key leaked into a transcript; rotation failed twice service-side). Do NOT build this adapter and do NOT reinstall the server. Tombstone: config/connector-registry.json (scholar-sidekick, business_value 'superseded'); canonical record: ~/Security Everything/docs/scholar-sidekick-removal-2026-08-27.md. Ticket body kept below as history.
 **Area**: backend
 
 ### Summary

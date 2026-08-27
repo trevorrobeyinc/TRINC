@@ -334,9 +334,17 @@ gate computes and inflate a token budget already near 300K per template.
   `instrument-data-to-allotrope` are reference / public-data only (GEO, SRA). Never imply in-house
   sequencing, instruments, or sample handling.
 - **No PHI.**
-- Verify every citation with `scholar-sidekick` (`verifyCitation`, `checkRetraction`) before it
-  ships. A resolvable DOI paired with an invented title is the dominant fabrication pattern and
-  `resolveIdentifier` alone will not catch it.
+- Verify every citation before it ships. `scholar-sidekick` was **retired everywhere 2026-08-27**
+  (operator-directed after its API key leaked; do not call it and do not reinstall it — tombstone in
+  `config/connector-registry.json`, canonical record in
+  `~/Security Everything/docs/scholar-sidekick-removal-2026-08-27.md`). The check it performed is
+  now manual: resolve the identifier at its source and compare the claimed title against the record
+  it actually resolves to (PMIDs → this plugin's `pubmed` `get_article_metadata` /
+  `lookup_article_by_citation`; DOIs → Crossref/OpenAlex via `searxng-search` topic `science`).
+  A resolvable DOI paired with an invented title is the dominant fabrication pattern, and
+  resolution alone will not catch it. Retraction status: PubMed pubtype `Retracted Publication`
+  chat-side; engine-bound claims are already screened by `crossref-retraction.js` +
+  `pubmed-retraction.js`.
 
 ---
 
