@@ -177,7 +177,7 @@ module.exports = class ContextualWikiDefinitions extends Plugin {
             this._markProcessed(file.path);
             const term = file.basename;
             const originLink = this._computeOriginLinktext(effectiveOrigin, file);
-            const prompt = this.buildPrompt(term, this._truncateContext(context), originLink, this._zkPlaceholderTraits());
+            const prompt = await this.composePrompt(term, this._truncateContext(context), originLink, this._zkPlaceholderTraits());
             new Notice('Generating definition…');
             let definition = await this.queryCopilot(prompt);
             if (definition) {              definition = this._sanitizeOutput(definition);              definition = this._ensureSourceContextFromLine(definition, originLink);              await this.app.vault.modify(file, definition);
@@ -195,7 +195,7 @@ module.exports = class ContextualWikiDefinitions extends Plugin {
                   try {
                     const freshCtx = await this.app.vault.read(effectiveOrigin);
                     const retryOriginLink = this._computeOriginLinktext(effectiveOrigin, file);
-                    const retryPrompt = this.buildPrompt(term, this._truncateContext(freshCtx), retryOriginLink, this._zkPlaceholderTraits());
+                    const retryPrompt = await this.composePrompt(term, this._truncateContext(freshCtx), retryOriginLink, this._zkPlaceholderTraits());
                     let second = await this.queryCopilot(retryPrompt);
                     if (second) {
                       second = this._sanitizeOutput(second);
@@ -610,6 +610,68 @@ module.exports = class ContextualWikiDefinitions extends Plugin {
     }
   }
 
+  /**
+   * SUPER-SUMMARIZE (2026-08-27): the vault custom-prompt note at
+   * `copilot/copilot-custom-prompts/Super-Summarize.md` is the ONE canonical summarize
+   * prompt, shared with the Copilot plugin's custom commands (copilot:super-summarize /
+   * copilot:super-summarize-to-note) and the Raycast video pipeline. When that note
+   * exists, this plugin routes definition generation through it in DEFINITION MODE
+   * (a leading `TERM:` envelope the prompt switches on). The embedded buildPrompt()
+   * below stays as the fail-soft fallback so generation never goes blank when the
+   * note is missing, renamed, or malformed.
+   */
+  async _loadSuperPromptTemplate() {
+    try {
+      if (this.settings && this.settings.useSuperPrompt === false) return null;
+      const configured = ((this.settings && this.settings.superPromptPath) || 'copilot/copilot-custom-prompts/Super-Summarize.md').trim();
+      if (!configured) return null;
+      const file = this.app.vault.getAbstractFileByPath(this._normalizeVaultPath(configured));
+      if (!file) return null;
+      let body = await this.app.vault.read(file);
+      // Strip the command-metadata frontmatter — it configures Copilot, not the model.
+      body = body.replace(/^---\n[\s\S]*?\n---\n/, '');
+      if (!body.includes('{}')) return null; // malformed template — fall back to built-in
+      return body;
+    } catch (e) {
+      console.warn('[CWD] Super-Summarize template load failed; using built-in prompt', e);
+      return null;
+    }
+  }
+
+  async composePrompt(term, context, originLink, traits = {}) {
+    const template = await this._loadSuperPromptTemplate();
+    if (!template) return this.buildPrompt(term, context, originLink, traits);
+    const t = traits || {};
+    const hasTraits = [t.echoChamber, t.crossDomain, t.semanticLinker, t.serendipity, t.orphanRescue]
+      .some((v) => v && String(v).trim());
+    const traitBlock = hasTraits ? `
+
+VAULT-GROUNDED TRAIT OUTPUTS (real data from the Vault Zettelkasten link graph — prefer their concrete note names for the graph/link sections):
+
+[ECHO_CHAMBER]
+${t.echoChamber || '(none)'}
+
+[CROSS_DOMAIN]
+${t.crossDomain || '(none)'}
+
+[SEMANTIC_LINKER]
+${t.semanticLinker || '(none)'}
+
+[SERENDIPITY]
+${t.serendipity || '(none)'}
+
+[ORPHAN_RESCUE]
+${t.orphanRescue || '(none)'}` : '';
+    const envelope = `TERM: ${term}
+ORIGIN: ${originLink}
+
+ORIGINATING NOTE CONTEXT:
+${context}${traitBlock}`;
+    // Function replacement: the envelope may contain `$`-sequences that a plain
+    // String.replace would treat as substitution patterns and silently mangle.
+    return template.replace('{}', () => envelope);
+  }
+
   buildPrompt(term, context, originLink, traits = {}) {
     const t = {
       echoChamber:    traits.echoChamber    || '',
@@ -820,7 +882,7 @@ ${context}`;
 
     const term = target.basename;
     const originLink = this._computeOriginLinktext(source, target);
-    const prompt = this.buildPrompt(term, this._truncateContext(context), originLink, this._zkPlaceholderTraits());
+    const prompt = await this.composePrompt(term, this._truncateContext(context), originLink, this._zkPlaceholderTraits());
     new Notice('Generating definition…');
     let definition = await this.queryCopilot(prompt);
     if (definition) {
@@ -1319,6 +1381,8 @@ ${safeContext}`;
       maxOutputLength: 60000, // SECURITY: Cap output to prevent huge writes
       apiTimeoutMs: 180000, // Full Feynman generations measured >100s on copilot-plus-flash; 30s was aborting every real request
       definitionsFolder: 'Contextual Wiki Definitions', // All new definition notes are created/relocated here
+      useSuperPrompt: true, // SUPER-SUMMARIZE: route generation through the shared vault prompt note when it exists
+      superPromptPath: 'copilot/copilot-custom-prompts/Super-Summarize.md', // The ONE canonical summarize prompt (shared with Copilot custom commands + the video pipeline)
       customApiBaseUrl: '', // FORK: When set, replaces Brevilabs endpoints with this OpenAI-compatible base URL
       customApiModel: ''    // FORK: Model name to send to custom endpoint (e.g. "llama3.2", "gpt-4o-mini"); empty falls back to "gpt-4o-mini"
     }, loaded);  }
@@ -1533,6 +1597,27 @@ class ContextualDefinitionSettingTab extends PluginSettingTab {
         .setValue(this.plugin.settings.requireOriginLinkToTrigger)
         .onChange(async (value) => {
           this.plugin.settings.requireOriginLinkToTrigger = value;
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
+      .setName('Use the shared Super-Summarize prompt')
+      .setDesc('Route definition generation through the vault\'s canonical Super-Summarize custom prompt (shared with Copilot commands and the video pipeline). Falls back to the built-in Feynman prompt when the note is missing. Default: ON.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.useSuperPrompt !== false)
+        .onChange(async (value) => {
+          this.plugin.settings.useSuperPrompt = value;
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
+      .setName('Super-Summarize prompt path')
+      .setDesc('Vault-relative path of the shared prompt note. Default: "copilot/copilot-custom-prompts/Super-Summarize.md".')
+      .addText(text => text
+        .setPlaceholder('copilot/copilot-custom-prompts/Super-Summarize.md')
+        .setValue(this.plugin.settings.superPromptPath || '')
+        .onChange(async (value) => {
+          this.plugin.settings.superPromptPath = value.trim();
           await this.plugin.saveSettings();
         }));
 
