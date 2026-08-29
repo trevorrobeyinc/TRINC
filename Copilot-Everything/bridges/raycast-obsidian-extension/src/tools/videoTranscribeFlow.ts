@@ -845,7 +845,12 @@ const copilotSummarizeCandidates = [
   { commandId: "copilot:summarize-to-note", commandTitle: "Summarize" },
 ] as const;
 const copilotSummaryPollIntervalMs = 3000;
-const copilotSummaryTimeoutMs = 60_000;
+// Super-Summarize is a materially longer prompt than the legacy Summarize it replaced, and
+// generation time grew with it: measured 15s and 48s on the old prompt (2026-08-20 runs) but
+// 67s on the new one (2026-08-29), which blew the old 60s ceiling and demoted a WORKING free
+// lane to the paid fallback. 180s matches the measured ceiling for this prompt class on
+// copilot-plus-flash (the wiki-definitions plugin sets the same 180s for the same reason).
+const copilotSummaryTimeoutMs = 180_000;
 const copilotIngestionPollIntervalMs = 500;
 const copilotIngestionTimeoutMs = 15_000;
 const copilotActiveFilePollIntervalMs = 500;
@@ -870,6 +875,58 @@ function normalizeVaultRelativeNotePath(value: string): string {
 
 function isSameVaultNote(a: string, b: string): boolean {
   return normalizeVaultRelativeNotePath(a) === normalizeVaultRelativeNotePath(b);
+}
+
+/**
+ * Copilot lane timeout that carries the contract-note path, so the caller can still claim the
+ * note when Copilot finishes AFTER the deadline. Without it the late note is orphaned beside
+ * the fallback summary and the run leaves TWO summaries in the vault — observed 2026-08-29,
+ * where Copilot landed 7s past the deadline and both notes survived.
+ */
+class CopilotSummaryTimeoutError extends Error {
+  constructor(
+    message: string,
+    readonly contractNoteAbsolute: string,
+    readonly dispatchedAtMs: number
+  ) {
+    super(message);
+    this.name = "CopilotSummaryTimeoutError";
+  }
+}
+
+/**
+ * Move a Copilot contract note that landed after the lane timed out over the fallback summary,
+ * so a run always leaves exactly ONE summary note — and the one from the preferred lane, which
+ * carries the source URL and created date the extension-side summarizer cannot see.
+ *
+ * @param contractNoteAbsolute Absolute path Copilot writes its headless output to.
+ * @param dispatchedAtMs Dispatch timestamp; guards against claiming a note from an earlier run.
+ * @returns true when a late note was found and claimed.
+ */
+export async function claimLateCopilotSummary(params: {
+  vaultPath: string;
+  contractNoteAbsolute: string;
+  dispatchedAtMs: number;
+  summaryNotePath: string;
+}): Promise<boolean> {
+  const { vaultPath, contractNoteAbsolute, dispatchedAtMs, summaryNotePath } = params;
+  try {
+    const stat = await fs.stat(contractNoteAbsolute);
+    if (stat.mtimeMs < dispatchedAtMs - 1000) {
+      return false;
+    }
+  } catch {
+    return false;
+  }
+
+  const summaryAbsolute = path.join(vaultPath, ...summaryNotePath.split("/"));
+  if (contractNoteAbsolute === summaryAbsolute) {
+    return true;
+  }
+  await fs.mkdir(path.dirname(summaryAbsolute), { recursive: true });
+  await fs.rm(summaryAbsolute, { force: true }).catch(() => undefined);
+  await fs.rename(contractNoteAbsolute, summaryAbsolute);
+  return true;
 }
 
 /**
@@ -1040,8 +1097,10 @@ async function runCopilotHeadlessSummary(params: {
     await new Promise((resolve) => setTimeout(resolve, copilotSummaryPollIntervalMs));
   }
   if (!detected) {
-    throw new Error(
-      `Copilot summary did not appear within ${Math.round(copilotSummaryTimeoutMs / 1000)}s: ${copilotNoteRelative}`
+    throw new CopilotSummaryTimeoutError(
+      `Copilot summary did not appear within ${Math.round(copilotSummaryTimeoutMs / 1000)}s: ${copilotNoteRelative}`,
+      copilotNoteAbsolute,
+      dispatchedAtMs
     );
   }
   await appendRunLog(`copilot summary detected: ${copilotNoteRelative}`);
@@ -1128,6 +1187,45 @@ async function sweepLateSubtitleSidecars(dirs: string[], videoBase: string, sinc
     } catch {
       // Folder unreadable — nothing to sweep there.
     }
+  }
+}
+
+/**
+ * Final invariant guard: a run must leave exactly ONE summary note. Copilot's headless output
+ * lands at `<source base> — <command title>.md` and is normally renamed away by whichever lane
+ * claimed it, so anything still sitting there at the end of a run is a duplicate of the summary
+ * already written — the lane timed out and Copilot finished afterwards. Sweeping it makes the
+ * one-note invariant structural instead of dependent on the summary lane winning a race.
+ * Mirrors sweepLateSubtitleSidecars, which exists for the same late-artifact problem.
+ *
+ * @param sinceMs Start of this run's summary phase; guards notes left by earlier runs.
+ */
+async function sweepOrphanedCopilotContractNotes(
+  vaultPath: string,
+  sourceNotePath: string,
+  sinceMs: number
+): Promise<void> {
+  try {
+    const copilotFolder = await readCopilotCommandNoteFolder(vaultPath);
+    const folderAbsolute = path.join(vaultPath, ...copilotFolder.split("/"));
+    const prefix = `${path.posix.basename(sourceNotePath, ".md")} — `;
+    for (const name of await fs.readdir(folderAbsolute)) {
+      if (!name.startsWith(prefix) || !name.endsWith(".md")) {
+        continue;
+      }
+      const filePath = path.join(folderAbsolute, name);
+      try {
+        const stat = await fs.stat(filePath);
+        if (stat.isFile() && stat.mtimeMs >= sinceMs - 1000) {
+          await fs.rm(filePath, { force: true });
+          await appendRunLog(`orphaned copilot contract note removed: ${copilotFolder}/${name}`);
+        }
+      } catch {
+        // File vanished mid-scan — ignore.
+      }
+    }
+  } catch {
+    // Copilot output folder unreadable or absent — nothing to sweep.
   }
 }
 
@@ -1590,6 +1688,7 @@ export async function runVideoTranscribeCommand(
 
     let summaryModelLabel = "obsidian-copilot";
     let usedFallbackSummarizer = false;
+    const summaryPhaseStartedAtMs = Date.now();
     try {
       toast.title = "Summarizing via Obsidian Copilot (background)...";
       await runCopilotHeadlessSummary({ vaultPath, sourceNotePath, summaryNotePath });
@@ -1623,6 +1722,22 @@ export async function runVideoTranscribeCommand(
       summaryModelLabel = summary.model;
       usedFallbackSummarizer = true;
       await appendRunLog(`summary written via ${summary.model} (fallback): ${summaryNotePath}`);
+
+      // Copilot can still finish while the fallback is being generated. Claim that late note
+      // over the fallback so the run leaves exactly ONE summary, from the preferred lane.
+      if (copilotError instanceof CopilotSummaryTimeoutError) {
+        const claimed = await claimLateCopilotSummary({
+          vaultPath,
+          contractNoteAbsolute: copilotError.contractNoteAbsolute,
+          dispatchedAtMs: copilotError.dispatchedAtMs,
+          summaryNotePath,
+        });
+        if (claimed) {
+          summaryModelLabel = "obsidian-copilot (late)";
+          usedFallbackSummarizer = false;
+          await appendRunLog(`late copilot summary claimed — superseded the fallback: ${summaryNotePath}`);
+        }
+      }
     }
 
     // Summary is safely written — remove every leftover (mp4 + subtitle/variants, transcript .txt,
@@ -1653,6 +1768,10 @@ export async function runVideoTranscribeCommand(
       // downieSubtitleFiles, but they are this run's artifacts and go out with the video.
       await sweepLateSubtitleSidecars(subtitleSweepDirs, subtitleSweepBase, subtitleSweepSinceMs);
     }
+
+    // Runs regardless of the cleanup preference: a leftover contract note is a duplicate of the
+    // summary, not a disposable intermediate, so the one-note invariant must not be opt-out.
+    await sweepOrphanedCopilotContractNotes(vaultPath, sourceNotePath, summaryPhaseStartedAtMs);
 
     toast.style = Toast.Style.Success;
     toast.title = "Transcribe & Save complete";
