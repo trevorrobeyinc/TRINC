@@ -1,4 +1,11 @@
-#!/usr/bin/env node
+#!/Users/myhome/.nvm/versions/node/v22.13.1/bin/node
+// ^ ABSOLUTE interpreter on purpose (2026-09-01). `#!/usr/bin/env node` resolved through the
+// ACP-provided PATH to /opt/homebrew/bin/node, which a Homebrew upgrade left dyld-broken
+// (merve 1.2.2_1 wants libsimdutf.34, simdutf 9.1.0 ships .35) — the proxy then died at
+// spawn and opencode marked command-center/viz-studio "failed", silently stripping every
+// agent-chat MCP tool. This nvm path is the stack's canonical node (same literal path as
+// the sudo-gate/phone-gate/searxng servers in ~/.config/opencode/opencode.jsonc); if that
+// node version is ever removed, update all of them together.
 // openclaw-stdio-proxy
 //
 // Transparent stdio<->HTTP JSON-RPC proxy for the Command Center bridge (:8799).
@@ -18,6 +25,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import * as https from "node:https";
+import { homedir } from "node:os";
 import { createInterface } from "node:readline";
 
 const BRIDGE_URL = process.env.OPENCLAW_BRIDGE_URL || "https://127.0.0.1:8799";
@@ -31,9 +39,10 @@ if (!BRIDGE_TOKEN) {
 
 // Trust the private CA the bridge is served with. Falls back to the system store when the
 // mkcert root is absent, so a differently-provisioned host still works.
+// os.homedir() rather than $HOME: it resolves via the passwd entry, so the mkcert root is
+// still found when a spawning host passes a minimal environment without HOME.
 const caPath =
-  process.env.NODE_EXTRA_CA_CERTS ||
-  `${process.env.HOME}/Library/Application Support/mkcert/rootCA.pem`;
+  process.env.NODE_EXTRA_CA_CERTS || `${homedir()}/Library/Application Support/mkcert/rootCA.pem`;
 const agent = new https.Agent(existsSync(caPath) ? { ca: readFileSync(caPath) } : {});
 
 /** POST one JSON-RPC frame to the bridge and resolve its parsed response. */
