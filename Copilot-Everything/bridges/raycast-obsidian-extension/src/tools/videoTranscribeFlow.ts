@@ -1200,7 +1200,7 @@ async function sweepLateSubtitleSidecars(dirs: string[], videoBase: string, sinc
  *
  * @param sinceMs Start of this run's summary phase; guards notes left by earlier runs.
  */
-async function sweepOrphanedCopilotContractNotes(
+export async function sweepOrphanedCopilotContractNotes(
   vaultPath: string,
   sourceNotePath: string,
   sinceMs: number
@@ -1227,6 +1227,92 @@ async function sweepOrphanedCopilotContractNotes(
   } catch {
     // Copilot output folder unreadable or absent — nothing to sweep.
   }
+}
+
+/** Quote a YAML scalar only when leaving it bare would change how it parses. */
+function toYamlScalar(value: string): string {
+  const needsQuoting = /^[\s>|&*!%@`{}[\]#-]|:\s|\s#|["']|^$/.test(value);
+  return needsQuoting ? `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"` : value;
+}
+
+/**
+ * Force the summary note's `title`, `source` and `created` frontmatter to the facts the PIPELINE
+ * knows, so every run produces identical frontmatter no matter which summary lane wrote the note.
+ *
+ * Both lanes get part of this wrong on their own, and neither can fix itself:
+ *  - the Copilot lane titles from the note it summarised, so the title keeps the " transcription"
+ *    suffix of the transient source note (observed: "… | LinkedIn Learning transcription");
+ *  - the extension-side fallback never sees the note's metadata, so it emits `source:` and
+ *    `created:` empty.
+ * Asking the model to strip the suffix was rejected as the fix: it is prompt-dependent and was
+ * observed to vary between runs on the same prompt. The pipeline already holds all three values,
+ * so writing them here is deterministic and lane-independent.
+ *
+ * Other keys the model chose (description, tags, author, published) are left untouched, and a
+ * note with no frontmatter block is left alone rather than guessed at.
+ *
+ * @param sourceUrl Original video URL; empty in local-file mode, where `source` is left as-is.
+ */
+export async function normalizeSummaryFrontmatter(params: {
+  vaultPath: string;
+  summaryNotePath: string;
+  title: string;
+  sourceUrl: string;
+  createdIso: string;
+}): Promise<void> {
+  const { vaultPath, summaryNotePath, title, sourceUrl, createdIso } = params;
+  const absolute = path.join(vaultPath, ...summaryNotePath.split("/"));
+  let content: string;
+  try {
+    content = await fs.readFile(absolute, "utf-8");
+  } catch {
+    return;
+  }
+
+  const match = /^---\r?\n([\s\S]*?)\r?\n---(\r?\n|$)/.exec(content);
+  if (!match) {
+    await appendRunLog("summary note has no frontmatter block — leaving it untouched");
+    return;
+  }
+
+  const desired: Array<[string, string]> = [
+    ["title", title],
+    ["created", createdIso.slice(0, 10)],
+  ];
+  if (sourceUrl) {
+    desired.push(["source", sourceUrl]);
+  }
+
+  const lines = match[1].split(/\r?\n/);
+  const changed: string[] = [];
+  for (const [key, value] of desired) {
+    const rendered = `${key}: ${toYamlScalar(value)}`;
+    // Only top-level keys: an indented line is a nested value (e.g. a list item under `tags`).
+    const index = lines.findIndex((line) => new RegExp(`^${key}:`).test(line));
+    if (index === -1) {
+      lines.unshift(rendered);
+      changed.push(key);
+    } else if (lines[index] !== rendered) {
+      lines[index] = rendered;
+      changed.push(key);
+    }
+  }
+  if (changed.length === 0) {
+    return;
+  }
+
+  // The body's H1 carries the same suffix for the same reason, and it is the heading the reader
+  // actually sees — the prompt's contract is that it mirrors the note title, so align it too.
+  let body = content.slice(match[0].length);
+  const h1 = /^#[ \t]+(.*)$/m.exec(body);
+  if (h1 && h1[1].trim() !== title) {
+    body = `${body.slice(0, h1.index)}# ${title}${body.slice(h1.index + h1[0].length)}`;
+    changed.push("h1");
+  }
+
+  const patched = `---\n${lines.join("\n")}\n---${match[2] || "\n"}${body}`;
+  await fs.writeFile(absolute, patched, "utf-8");
+  await appendRunLog(`summary frontmatter normalized (${changed.join(", ")}): ${summaryNotePath}`);
 }
 
 function resolveDownieDownloadFolder(prefs: VideoCommandPreferences): string {
@@ -1739,6 +1825,16 @@ export async function runVideoTranscribeCommand(
         }
       }
     }
+
+    // Whichever lane produced the note, its frontmatter is normalized to the pipeline's own facts
+    // so the two lanes are indistinguishable downstream.
+    await normalizeSummaryFrontmatter({
+      vaultPath,
+      summaryNotePath,
+      title: noteTitle,
+      sourceUrl: localVideoPath ? "" : videoUrl,
+      createdIso: new Date().toISOString(),
+    });
 
     // Summary is safely written — remove every leftover (mp4 + subtitle/variants, transcript .txt,
     // transcription note, temp dirs), leaving ONLY the summary note. Toggle via the cleanup pref.
