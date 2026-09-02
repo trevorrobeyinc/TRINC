@@ -174,9 +174,9 @@ Command Center plugin (workflow dispatch + monitoring, Obsidian plugin at obsidi
   │                              ├── ToolUniverse subprocess (vendor/tooluniverse, ~2,116 tools)
   │                              └── 7 project MCP servers (chembl, clinicaltrials-gov, pubmed, huggingface metadata-only, npi, icd10, owkin)
   ├── [child_process.spawn()] → trevorobeyinc-research-memory CLI (auto-ingest pack to Qdrant)
-  ├── [MCP stdio] → Medical Zettelkasten MCP (post-workflow graph analysis)
-  ├── [HTTP :8742] → Miyo semantic search
-  └── [HTTP :8799] → Own additive MCP bridge (biomedical workflow tools)
+  ├── [in-process api] → vault-zettelkasten plugin (post-workflow graph analysis; the Medical-Zettelkasten stdio spawn was RETIRED 2026-08-20)
+  ├── [HTTPS :8743] → Miyo semantic search (TLS proxy; never the :8742 plaintext upstream)
+  └── [HTTPS :8799] → Own additive MCP bridge (30 tools: vault + OpenClaw engine suite + zk_* + video, 2026-08-20)
 
 Biomedical Workflow Observability Stack (optional, Docker Compose)
   ├── Traefik :11480/:11481 → (former Ollama/LM Studio failover) — HISTORICAL / dead: both local runtimes removed (LM Studio 2026-07-16, Ollama 2026-07-23)

@@ -125,6 +125,15 @@ are *logical*, and each has a guard:
 > The single source of "what are we working on right now." Overwrite this to keep it true.
 > If nothing is in flight, leave the placeholder so the next surface knows the board is idle.
 
+**🔴 2026-09-01 SETUP AUDIT — START HERE.** Full state + prioritized P0–P3 plan:
+[`AUDIT-2026-09-01-business-setup.md`](AUDIT-2026-09-01-business-setup.md). **P0 this week (operator):**
+Statement of Information (due ≈ **09-16**) · confirm the $800 franchise tax (past due 08-15, unverified)
+· EIN · the gated smoke run (`trial-design-benchmark` through Copilot Agent Chat) · publish the **FREE**
+Graveyard Feed offer · decide price + StandardDSA for the paid offer. Copilot Agent Chat ⇄ research
+engine is wired and live-verified on both lanes (:8799 = 30 tools, :8800 = 12); the end-to-end gated run
+remains the one unproven link. The two-week uncommitted backlog is cleared (`10f6dcd`, `ad31f56`, + the
+docs commit). Everything below this paragraph is older context that still holds.
+
 **🟢 FOUNDER LANE OPENED 2026-07-30 — a fifth ICP segment, additive, ONE transactable SKU.** Operator
 decision, verbatim: *"add the founder lane as a second buyer, keep the investor ladder."* Executed —
 fifth segment row in **both** canonical ICP tables, ladder byte-intact (no removed diff line contains a
@@ -291,6 +300,14 @@ five orphaned `-Volumes-ExtraCurricular-*` keys hold **~57** sessions in total, 
 ## 📋 Log — newest first
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
+
+### 2026-09-01T23:00Z · Desktop Claude Code · **Business setup audit — 3 signed commits clear the two-week uncommitted backlog (the Viz Studio plugin source was never in git); Agent Chat ⇄ engine verified live on both lanes; prioritized P0–P3 plan written**
+- **SCOPE NOTE:** business audit + repo hygiene; the tooling lesson is in project memory `board-shipped-is-not-committed`. **Current focus:** a pointer paragraph was added at the top; the body is untouched.
+- **Did:** Operator asked (via `/promptify`): *has anything been added since the 08-21 handoff? commit everything business; is Copilot Agent Chat wired to the research engine? audit the whole setup against logs/memory/docs/the TR-INC Biz sessions; Workspace / AWS products / MCP+plugins / branding+marketing — organize it.* Full report: [`AUDIT-2026-09-01-business-setup.md`](AUDIT-2026-09-01-business-setup.md). Commits: `10f6dcd` (fork ACP-MCP wiring `acpMcpServers.ts` + `mcp/http` gate, 4 viz catalog entries → 45, deploy scripts stage the stdio proxy, `lib.sh` → v4 fork, deploy mirror re-synced to the live 08-27 build), `ad31f56` (**`Claude/obsidian-viz-studio/` — 46 files, live on :8800 since 08-16, never tracked** — plus `obsidian-copilot-terminal-relay/` and the engine viz adapter at 12 tools), and this commit (AGENTS.md ×3 + identity-map + the audit). **Live-verified:** :8799 = 30 tools (names identical to the vault `AGENTS.md` list), :8800 = 12, vault `copilot/main.js` == fork build `80171157…`, engine suite **1070/1070**, transport lint 0, connector audit 13 plugins / 0 ⚠, ACP + catalog tests 23/23. Stale "7/8 viz tools" counts corrected in root `CLAUDE.md`, `Claude/CLAUDE.md`, and the vault `AGENTS.md`.
+- **Found (all in the audit §5–§7):** the gated smoke run is STILL not run — no real engine run since 07-31, Research Memory lane never fired; `viz-bridge-mcp` still has zero consumers; engine tools are not in the stdio adapter; `scholar-sidekick` is absent from all three registries but survives in the stale worktree `.claude/worktrees/priceless-tesla-c90ab5/.mcp.json`; **Statement of Information due ≈ 09-16 (15 days)**; **$800 franchise tax past due 08-15 and unverified**; EIN never applied; AWS **free** Graveyard Feed offer is publishable today, the paid offer waits only on price + StandardDSA; NDA template names a non-existent entity (`workspace/legal/nda-mutual-template.md:35`); the primary SKUs have no one-pager and no sample.
+- **State:** audit done · P0 list open (operator-gated)
+- **Next:** audit §6 P0 — file the SOI, confirm/pay franchise tax, EIN, gated smoke run (`trial-design-benchmark`), publish the FREE feed offer, decide price + StandardDSA. Operator go needed to delete `_probe*.js` and remove the stale worktree; cut a fresh `git bundle --all` (HEAD is 10 commits past the 08-17 bundle).
+- **Touches:** `_continuity/{CONTINUITY.md, AUDIT-2026-09-01-business-setup.md}`, `AGENTS.md`, `CLAUDE.md`, `Claude/{AGENTS,CLAUDE}.md`, `Claude/obsidian-viz-studio/**`, `Claude/obsidian-copilot-terminal-relay/**`, `Copilot-Everything/{AGENTS.md, repos/obsidian-copilot-mcp-v4/src/agentMode/acp/*, src/mcp/catalog*, scripts/*.sh, deploy/obsidian/plugins/copilot/*, configs/migration-log.tsv, docs/OPENCODE-AGENT-HANDOFF.md, docs/transcribe-and-save/README.md}`, engine `openclaw-bridge/mcp/viz-bridge-mcp/index.js` + test, `03-platforms/business-identity-map.md`; vault `AGENTS.md` (outside the repo).
 
 ### 2026-08-28T03:05Z · CLI Claude Code · **Viz Studio absorbed the FULL visualize design layer — 12 tools: Cove-restyled charts + viz_stat_tiles + viz_mockup + CSP-inert viz_interactive**
 - **SCOPE NOTE:** repo plugin/bridge infra only; token capture + per-tool detail in project memory `viz-studio-plugin-and-8800-bridge`. **Current focus untouched.**

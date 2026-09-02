@@ -44,6 +44,22 @@ These are not interchangeable.
 > `POST /mcp/tool` to a configured bridge (:8798 vault tools + `research` SSE; :8799 OpenClaw
 > research-workflow tools). Treat the mode names above as historical intent, not code.
 
+> **2026-08-20 update (twin of the CLAUDE.md sections of the same date):** the :8799 Command
+> Center bridge now serves **30 tools** and the fork catalog **39 entries** — seven `zk_*`
+> Zettelkasten tools, `video_pipeline_{run,status}`, and the ten-tool OpenClaw engine suite
+> (`obsidian_openclaw_{cancel, history, artifacts, engine_health, research_task,
+> research_tasks_list, research_output, delivery_evidence, citation_integrity, feed_stats}`);
+> `run_workflow` returns the workflow_id. Agent-mode ACP sessions (opencode/claude/codex
+> backends) additionally receive `command-center` + `viz-studio` as per-session stdio MCP
+> servers via `src/agentMode/acp/acpMcpServers.ts` + the shipped `openclaw-stdio-proxy.mjs` —
+> the ACP lane sees the bridge's full tools/list (no enabledToolNames gating; that gates only
+> the Quick-Chat McpToolProvider lane), and the servers are deliberately NEVER added to
+> opencode's global config (shared with the stripped delegation worker). Real-compute engine
+> calls fail closed to `operator_gate_not_armed` unless the one-shot YubiKey token is freshly
+> armed. The vault-root `AGENTS.md` in "My Digital Garden" is the agent-facing role file for
+> these sessions. Never exposed: dataset missions, interaction logs, release/token scripts,
+> feed rebuilds, delivery-evidence rebuild mode.
+
 Current nuance:
 
 - the intended official-plugin target runtime is still direct MCP plus native Miyo

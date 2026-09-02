@@ -25,8 +25,8 @@ If you ever wonder "this Obsidian plugin is ours, why isn't it under `Copilot-Ev
 
 | Project | Path | Role |
 |---------|------|------|
-| Medical Zettelkasten MCP | `Medical-Zettelkasten-MCP/` | Algorithmic graph engine (10 MCP tools, stdio transport, no LLM) |
-| OpenClaw Command Center | `obsidian-command-center/` | Obsidian plugin — agent dispatch, monitoring, vault notes. Owns the additive `:8799` HTTPS bridge (11 tools = 7 vault + 4 workflow). Directory renamed 2026-06-30; plugin id is now `command-center`. |
+| Medical Zettelkasten MCP | `Medical-Zettelkasten-MCP/` | Algorithmic graph engine (10 MCP tools, stdio transport, no LLM). **No longer spawned by Command Center** — its stdio lane was retired 2026-08-20 (vault-zettelkasten's in-process api is the lane of record); code kept on disk, unused. |
+| OpenClaw Command Center | `obsidian-command-center/` | Obsidian plugin — agent dispatch, monitoring, vault notes. Owns the additive `:8799` HTTPS bridge (**30 tools** = 7 vault + 14 OpenClaw engine + 7 `zk_*` + 2 video; engine suite added 2026-08-20). Directory renamed 2026-06-30; plugin id is now `command-center`. |
 | Obsidian Bridge Launcher | `obsidian-bridge-launcher/` | Obsidian plugin — spawns the canonical MCP bridge child process on `:8798` tied to Obsidian's plugin host lifecycle. Owns the fd-3 line-delimited JSON-RPC IPC channel (`BRIDGE_IPC_FD=3`) used for renderer-scope console capture and gated eval. Bridge **code** lives in `Copilot-Everything/bridges/obsidian-copilot-bridge/`; this plugin owns only the lifecycle. |
 | Obsidian Vault Zettelkasten | `obsidian-vault-zettelkasten/` | Obsidian plugin — hosts the in-process `ZettelkastenService` (LLM-driven, vault-grounded). Migrated here 2026-04-11 from the now-deleted backend emulator on `:8789`. Consumes Miyo via `:8743` HTTPS proxy, Qdrant via `:6433` HTTPS proxy, and the hosted `copilot-plus-flash` model (no local runtime as of 2026-07-23). |
 | Trevor Robey INC Research Memory MCP | `trevorobeyinc-research-memory-mcp/` | Stdio MCP server. Qdrant-backed pack storage via `:6433` HTTPS proxy. Auto-ingested by the Command Center plugin after workflow completion. |
@@ -36,8 +36,8 @@ If you ever wonder "this Obsidian plugin is ours, why isn't it under `Copilot-Ev
 > **TR-Obsidian Intelligence Network Citations** suite (Command Center · Zettelkasten · Bridge
 > Launcher · Wiki Definitions) so they group together in Obsidian's plugin list. Their **plugin IDs
 > are FROZEN** (`command-center`, `vault-zettelkasten`, `obsidian-bridge-launcher`,
-> `contextual-wiki-definitions`) and must never be renamed: Copilot's 4 `mcp_command-center_*` MCP
-> tool ids and `mcp.servers[].id`, the wiki-definition plugin's `plugins['vault-zettelkasten']`
+> `contextual-wiki-definitions`) and must never be renamed: Copilot's `mcp_command-center_*` MCP
+> tool ids (23 enabled as of 2026-08-20) and `mcp.servers[].id`, the wiki-definition plugin's `plugins['vault-zettelkasten']`
 > api lookup (a **separate git repo**), Command Center's own lookup in `zettelkasten/linker.ts`,
 > the 0600 token at `~/.config/openclaw-command-center/bridge-token`, and the on-disk directory
 > names under `.obsidian/plugins/` all key on the IDs, not the names.
@@ -59,7 +59,7 @@ operator-topology diagram, the unified port map (`:8798`, `:8799`, `:8743`, `:64
 etc.), the TLS proxy table, and the startup order. All questions about ports, protocols,
 ownership, or startup sequence MUST be answered from the root file.
 
-This workspace's role-within-the-topology, in one sentence: Claude Hub owns the Obsidian-plugin lifecycle for the two HTTPS bridges (`:8798` canonical via `obsidian-bridge-launcher`; `:8799` additive via `obsidian-command-center`) and houses the stdio MCP servers that those plugins spawn (Medical Zettelkasten MCP, Research Memory MCP).
+This workspace's role-within-the-topology, in one sentence: Claude Hub owns the Obsidian-plugin lifecycle for the two HTTPS bridges (`:8798` canonical via `obsidian-bridge-launcher`; `:8799` additive via `obsidian-command-center`) and houses the Research Memory stdio MCP/CLI that Command Center spawns (the Medical Zettelkasten stdio spawn was retired 2026-08-20 — Zettelkasten now runs in-process via the vault-zettelkasten plugin api).
 
 ## Workspace Conventions
 

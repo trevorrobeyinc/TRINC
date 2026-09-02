@@ -136,7 +136,7 @@ so the browsing surface is separated, and track the ownership fix separately (§
 
 | Deadline | Item | Source |
 |---|---|---|
-| **2026-08-15** | **$800 CA Franchise Tax** to FTB — *~3 weeks out* | `00-business-formation/llc/certificate-of-formation.md:56` |
+| **2026-08-15** | **$800 CA Franchise Tax** to FTB — *⚠️ due date has PASSED (checked 2026-08-20: no payment record anywhere in-repo — that means unverified, not unpaid; operator confirm at FTB, late penalty + interest accrue if unpaid)* | `00-business-formation/llc/certificate-of-formation.md:56` |
 | **~2026-09-16** | Statement of Information (Form LLC-12, $20) — within 90 days of the 2026-06-18 approval | same, :55 |
 | open | IRS EIN (free, instant online) — gates bank account + AWS legal-entity field | same, :54 |
 | ~~resolved~~ | ~~AWS Seller-Operations escalation letter~~ — **moot 2026-07-22** (disbursement cleared without it; do not send) | `03-platforms/aws-data-exchange/correspondence-2026-05.md` §6 |
