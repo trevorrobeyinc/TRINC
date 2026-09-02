@@ -37,6 +37,13 @@ cp "$PLUGIN_REPO/main.js" "$RUNTIME_PLUGIN_DIR/main.js"
 [[ -f "$PLUGIN_REPO/styles.css" ]] && cp "$PLUGIN_REPO/styles.css" "$RUNTIME_PLUGIN_DIR/styles.css"
 [[ -f "$PLUGIN_REPO/versions.json" ]] && cp "$PLUGIN_REPO/versions.json" "$RUNTIME_PLUGIN_DIR/versions.json"
 cp "$PLUGIN_REPO/LICENSE" "$RUNTIME_PLUGIN_DIR/LICENSE"
+# Agent Mode spawns this proxy from the plugin dir (acpMcpServers.ts builds the command as
+# "<pluginDir>/openclaw-stdio-proxy.mjs"), so a bundle without it breaks every ACP MCP server
+# spawn — and until 2026-08-16 no script staged it (the live copy was a one-off manual cp).
+STDIO_PROXY_SOURCE="$WORKSPACE_ROOT/bridges/openclaw-stdio-proxy/index.mjs"
+[[ -f "$STDIO_PROXY_SOURCE" ]] || die "Missing stdio proxy source: $STDIO_PROXY_SOURCE"
+cp "$STDIO_PROXY_SOURCE" "$RUNTIME_PLUGIN_DIR/openclaw-stdio-proxy.mjs"
+chmod +x "$RUNTIME_PLUGIN_DIR/openclaw-stdio-proxy.mjs"
 
 if [[ -n "${TEMP_PRESERVE_DIR:-}" && -f "$TEMP_PRESERVE_DIR/data.json" ]]; then
   cp "$TEMP_PRESERVE_DIR/data.json" "$RUNTIME_PLUGIN_DIR/data.json"

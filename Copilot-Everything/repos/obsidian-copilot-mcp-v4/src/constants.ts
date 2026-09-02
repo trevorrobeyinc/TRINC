@@ -1116,7 +1116,7 @@ export const DEFAULT_SETTINGS: CopilotSettings = {
   // Output folder for the headless "→ New Note" custom-command runner (fork
   // addition). Value matches the 3.3.3 DEFAULT_CUSTOM_COMMAND_NOTE_FOLDER, and
   // the Raycast "Video Pipeline Runner" polls exactly this folder.
-  customCommandNoteFolder: "obsidian-copilot-summaries",
+  customCommandNoteFolder: "Copilot Summaries",
 
   // MCP defaults (forked addition, ported to upstream 4.0.0 on 2026-08-12).
   // Points at the canonical TrevClaw-Obsidianodus obsidian-copilot-bridge

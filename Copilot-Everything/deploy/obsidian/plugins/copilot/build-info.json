@@ -1,8 +1,7 @@
 {
-  "builtAt": "2026-08-12T11:11:34.000Z",
+  "builtAt": "2026-08-28T02:51:02.000Z",
   "manifestId": "copilot",
-  "manifestName": "Copilot",
+  "manifestName": "TR-Obsidian Copilot",
   "manifestVersion": "99.4.0",
-  "upstreamBase": "4.0.0",
-  "note": "MCP module ported from fork 3.3.3 onto upstream 4.0.0 on 2026-08-12"
+  "note": "staging mirror re-synced 2026-09-01 to the fork build deployed live 2026-08-27 (sha256 80171157...)"
 }

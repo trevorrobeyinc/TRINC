@@ -105,7 +105,7 @@ Key invariants:
   Spotlight `kMDItemTitle` > humanized URL slug from `kMDItemWhereFroms` > filename.
 - **Destination precedence**: parent folder of the active markdown editor
   (read from Obsidian's `workspace.json`) > Summary Output Folder preference
-  fallback (default `obsidian-copilot-summaries`) > vault root.
+  fallback (default `Copilot Summaries`) > vault root.
 
 ---
 

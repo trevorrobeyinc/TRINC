@@ -33,10 +33,7 @@ const zkAnalysisSchema = z.object({
     .string()
     .optional()
     .describe("Vault-relative path of the note to analyze (this or noteContent is required)"),
-  noteContent: z
-    .string()
-    .optional()
-    .describe("Raw note text to analyze instead of a vault path"),
+  noteContent: z.string().optional().describe("Raw note text to analyze instead of a vault path"),
   limit: z
     .number()
     .int()
@@ -761,6 +758,261 @@ export const MCP_TOOL_CATALOG: Record<string, McpCatalogEntry> = {
       targetNote: z.string().optional(),
       overwrite: z.boolean().optional(),
       returnContent: z.boolean().optional(),
+    }),
+    buildInput: (args) => ({ ...args }),
+  },
+  viz_diagram: {
+    toolName: "viz_diagram",
+    displayName: "Viz Studio Card Diagram",
+    description:
+      "Create a styled system/architecture CARD DIAGRAM: rounded cards with a bold title and a " +
+      "muted subtitle line, semantic color roles per card, faint section headers over groups, " +
+      "and thin grey arrows (dashed for pending/planned links). Layout is automatic: nodes " +
+      "layer left-to-right by edge flow, grouped nodes share one labeled column, disconnected " +
+      "subgraphs stack as bands. PREFER THIS over viz_mermaid for infrastructure/system/" +
+      "component diagrams where the polished card look matters. Use 2-3 color kinds per " +
+      "diagram, gray for neutral, ink for hub/terminal nodes. Returns the vault path and an " +
+      "![[embed]] string — insert the embed into a note to display; images do not render in chat.",
+    isMutating: true,
+    schema: z.object({
+      title: z.string().optional().describe("Diagram headline; also the default filename"),
+      nodes: z
+        .array(
+          z.object({
+            id: z.string(),
+            title: z.string().optional().describe("Card title (defaults to id)"),
+            subtitle: z.string().optional().describe("Muted second line, keep under ~5 words"),
+            kind: z
+              .enum([
+                "ink",
+                "purple",
+                "teal",
+                "coral",
+                "pink",
+                "gray",
+                "blue",
+                "green",
+                "amber",
+                "red",
+              ])
+              .optional()
+              .describe("Card color role; ink = near-black hub/terminal card, default gray"),
+            group: z
+              .string()
+              .optional()
+              .describe("Cluster name; members share one column under a faint section header"),
+          })
+        )
+        .min(1)
+        .max(40),
+      edges: z
+        .array(
+          z.object({
+            from: z.string(),
+            to: z.string(),
+            label: z.string().optional().describe("Rarely needed; prefer box subtitles"),
+            dashed: z.boolean().optional().describe("Dashed connector for pending/planned links"),
+          })
+        )
+        .optional(),
+      options: z
+        .object({
+          style: z
+            .enum(["solid", "soft"])
+            .optional()
+            .describe("solid = saturated dark cards (default); soft = light-tinted cards"),
+          background: z.string().optional(),
+        })
+        .optional(),
+      format: z.enum(["svg", "png"]).optional(),
+      targetCanvas: z
+        .string()
+        .optional()
+        .describe("Canvas to insert the diagram image into as a card (created if missing)"),
+      useActiveTab: z
+        .boolean()
+        .optional()
+        .describe(
+          "Put the diagram where the user is working: appended to the open NOTE, or added to the open CANVAS (detected automatically)"
+        ),
+      open: z.boolean().optional().describe("Open the result in Obsidian when done (default true)"),
+      fileName: z.string().optional(),
+      folder: z.string().optional(),
+      targetNote: z.string().optional(),
+      overwrite: z.boolean().optional(),
+      returnContent: z.boolean().optional(),
+    }),
+    buildInput: (args) => ({ ...args }),
+  },
+  viz_stat_tiles: {
+    toolName: "viz_stat_tiles",
+    displayName: "Viz Studio Stat Tiles",
+    description:
+      "Render headline numbers the right way — stat tiles, a KPI row, or meters — instead of a " +
+      "chart. Use when the data is a single current value (+ trend), a handful of headline " +
+      "numbers, or a ratio against a limit. Each tile: muted label, large serif hero number, " +
+      "status-colored delta (up green / down red), optional sparkline or progress meter. " +
+      "Returns the vault path and an ![[embed]] string — insert the embed into a note to " +
+      "display; images do not render in chat.",
+    isMutating: true,
+    schema: z.object({
+      title: z.string().optional().describe("Row headline; also the default filename"),
+      tiles: z
+        .array(
+          z.object({
+            label: z.string().describe("Muted caption above the number"),
+            value: z
+              .union([z.string(), z.number()])
+              .describe('Hero figure, preformatted (e.g. "$14,950", "82%", 37)'),
+            unit: z.string().optional().describe('Small suffix after the hero (e.g. "/mo")'),
+            delta: z
+              .union([z.string(), z.number()])
+              .optional()
+              .describe('Change readout under the hero (e.g. "+12% vs last month", -3)'),
+            direction: z
+              .enum(["up", "down", "flat"])
+              .optional()
+              .describe("Colors the delta; inferred from a numeric delta's sign"),
+            spark: z.array(z.number()).optional().describe("Sparkline values, oldest first"),
+            meter: z
+              .object({ value: z.number(), max: z.number() })
+              .optional()
+              .describe("Ratio tile: renders a progress meter instead of a spark"),
+          })
+        )
+        .min(1)
+        .max(12),
+      options: z
+        .object({
+          columns: z.number().optional().describe("Tiles per row (1-4)"),
+          width: z.number().optional(),
+          background: z.string().optional(),
+        })
+        .optional(),
+      format: z.enum(["svg", "png"]).optional(),
+      targetCanvas: z.string().optional(),
+      useActiveTab: z.boolean().optional(),
+      open: z.boolean().optional().describe("Open the result when done (default true)"),
+      fileName: z.string().optional(),
+      folder: z.string().optional(),
+      targetNote: z.string().optional(),
+      overwrite: z.boolean().optional(),
+      returnContent: z.boolean().optional(),
+    }),
+    buildInput: (args) => ({ ...args }),
+  },
+  viz_mockup: {
+    toolName: "viz_mockup",
+    displayName: "Viz Studio UI Mockup",
+    description:
+      "Draw a UI mockup from typed blocks in the design-system component language — headers, " +
+      "metric cards, fields, selects, buttons (at most ONE filled per view), text/wireframe " +
+      "bars, avatar lists, badges, image placeholders — framed as a browser window, phone, " +
+      "raised card, or bare. Use for wireframes, screen concepts, and form layouts. Returns " +
+      "the vault path and an ![[embed]] string — insert the embed into a note to display; " +
+      "images do not render in chat.",
+    isMutating: true,
+    schema: z.object({
+      title: z.string().optional().describe("Browser-frame address text; default filename"),
+      frame: z.enum(["browser", "phone", "card", "none"]).optional(),
+      blocks: z
+        .array(
+          z.object({
+            type: z.enum([
+              "header",
+              "metric_row",
+              "field",
+              "select",
+              "button_row",
+              "text",
+              "list",
+              "badge_row",
+              "image",
+              "divider",
+            ]),
+            title: z.string().optional(),
+            subtitle: z.string().optional(),
+            initials: z.string().optional(),
+            metrics: z.array(z.object({ label: z.string(), value: z.string() })).optional(),
+            label: z.string().optional(),
+            placeholder: z.string().optional(),
+            value: z.string().optional(),
+            buttons: z
+              .array(
+                z.object({
+                  label: z.string(),
+                  variant: z.enum(["primary", "secondary", "accent"]).optional(),
+                })
+              )
+              .optional(),
+            lines: z.array(z.string()).optional(),
+            placeholderLines: z.number().optional(),
+            items: z
+              .array(
+                z.object({
+                  title: z.string(),
+                  meta: z.string().optional(),
+                  initials: z.string().optional(),
+                })
+              )
+              .optional(),
+            badges: z
+              .array(
+                z.object({
+                  label: z.string(),
+                  role: z.enum(["accent", "success", "warning", "danger", "neutral"]).optional(),
+                })
+              )
+              .optional(),
+            height: z.number().optional(),
+          })
+        )
+        .min(1)
+        .max(30),
+      options: z.object({ background: z.string().optional() }).optional(),
+      format: z.enum(["svg", "png"]).optional(),
+      targetCanvas: z.string().optional(),
+      useActiveTab: z.boolean().optional(),
+      open: z.boolean().optional().describe("Open the result when done (default true)"),
+      fileName: z.string().optional(),
+      folder: z.string().optional(),
+      targetNote: z.string().optional(),
+      overwrite: z.boolean().optional(),
+      returnContent: z.boolean().optional(),
+    }),
+    buildInput: (args) => ({ ...args }),
+  },
+  viz_interactive: {
+    toolName: "viz_interactive",
+    displayName: "Viz Studio Interactive Explainer",
+    description:
+      "Create an interactive explainer as a self-contained HTML file in the vault — sliders, " +
+      "buttons, live computed readouts — in the design-system look (pre-styled bare form tags; " +
+      ".card/.metric/.hero/.badge/.row/.grid helpers). Obsidian cannot run scripts in embeds, " +
+      "so the file opens in the SYSTEM BROWSER (open: true does this; the note gets a link). " +
+      "A strict CSP blocks every network request — write self-contained JS with no fetch and " +
+      "no external src. Use for what-if calculators and parameter explorers; use viz_guided " +
+      "for a static teaching card.",
+    isMutating: true,
+    schema: z.object({
+      title: z.string().min(1).describe("Document title (H1 + <title>); default filename"),
+      body: z
+        .string()
+        .min(1)
+        .describe(
+          "HTML fragment; bare form tags are pre-styled, inline onclick allowed, external refs stripped"
+        ),
+      script: z
+        .string()
+        .optional()
+        .describe("Raw inline JS (no <script> tag); round every displayed number"),
+      css: z.string().optional().describe("Extra CSS appended after the base stylesheet"),
+      fileName: z.string().optional(),
+      folder: z.string().optional(),
+      targetNote: z.string().optional().describe("Note to append the [[link]] to"),
+      overwrite: z.boolean().optional(),
+      returnContent: z.boolean().optional().describe("Include the full HTML in the result"),
+      open: z.boolean().optional().describe("Open in the system browser when done (default true)"),
     }),
     buildInput: (args) => ({ ...args }),
   },

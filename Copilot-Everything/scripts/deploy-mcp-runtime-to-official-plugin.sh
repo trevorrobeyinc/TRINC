@@ -10,13 +10,18 @@ require_command jq
 TARGET_VAULT_NAME="$(vault_name "$PRODUCTION_VAULT")"
 SOURCE_MAIN="$PLUGIN_REPO/main.js"
 SOURCE_STYLES="$PLUGIN_REPO/styles.css"
+# Agent Mode spawns this proxy from the plugin dir (acpMcpServers.ts builds the command as
+# "<pluginDir>/openclaw-stdio-proxy.mjs"); deploying without it breaks every ACP MCP server.
+SOURCE_PROXY="$WORKSPACE_ROOT/bridges/openclaw-stdio-proxy/index.mjs"
 TARGET_MAIN="$OFFICIAL_PLUGIN_DIR/main.js"
 TARGET_STYLES="$OFFICIAL_PLUGIN_DIR/styles.css"
+TARGET_PROXY="$OFFICIAL_PLUGIN_DIR/openclaw-stdio-proxy.mjs"
 TARGET_MANIFEST="$OFFICIAL_PLUGIN_DIR/manifest.json"
 TARGET_DATA="$OFFICIAL_PLUGIN_DIR/data.json"
 
 [[ -f "$SOURCE_MAIN" ]] || die "Missing source runtime: $SOURCE_MAIN"
 [[ -f "$SOURCE_STYLES" ]] || die "Missing source stylesheet: $SOURCE_STYLES"
+[[ -f "$SOURCE_PROXY" ]] || die "Missing stdio proxy source: $SOURCE_PROXY"
 [[ -f "$TARGET_MANIFEST" ]] || die "Missing official manifest: $TARGET_MANIFEST"
 [[ -f "$TARGET_DATA" ]] || die "Missing official data file: $TARGET_DATA"
 
@@ -32,6 +37,8 @@ ensure_obsidian_running "$TARGET_VAULT_NAME"
 # (the source repo name), silently diverging the deployed artifact from the build.
 cp "$SOURCE_MAIN" "$TARGET_MAIN"
 cp "$SOURCE_STYLES" "$TARGET_STYLES"
+cp "$SOURCE_PROXY" "$TARGET_PROXY"
+chmod +x "$TARGET_PROXY"
 
 obsidian "vault=$TARGET_VAULT_NAME" plugin:reload "id=$OFFICIAL_PLUGIN_ID" >/dev/null
 

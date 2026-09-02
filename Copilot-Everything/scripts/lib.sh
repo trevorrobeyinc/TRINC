@@ -4,7 +4,10 @@ set -euo pipefail
 WORKSPACE_ROOT="/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything"
 PRODUCTION_VAULT="/Users/myhome/My Digital Garden"
 DEV_VAULT="$WORKSPACE_ROOT/dev-vault"
-PLUGIN_REPO="$WORKSPACE_ROOT/repos/obsidian-copilot-mcp"
+# LIVE fork since the 2026-08-12 port onto upstream 4.0.0. The old repos/obsidian-copilot-mcp
+# (3.3.3) is HISTORICAL — pointing PLUGIN_REPO back at it would deploy a build with no ACP/MCP
+# code and regress the production plugin (that stale pointer survived here until 2026-08-16).
+PLUGIN_REPO="$WORKSPACE_ROOT/repos/obsidian-copilot-mcp-v4"
 BRIDGE_REPO="$WORKSPACE_ROOT/bridges/obsidian-copilot-bridge"
 DEPLOY_ROOT="$WORKSPACE_ROOT/deploy"
 DEPLOY_PLUGIN_ROOT="$DEPLOY_ROOT/obsidian/plugins"
@@ -12,12 +15,13 @@ RUNTIME_PLUGIN_DIR="$DEPLOY_PLUGIN_ROOT/copilot"
 CONFIG_ROOT="$WORKSPACE_ROOT/configs"
 DOCS_ROOT="$WORKSPACE_ROOT/docs"
 BACKUP_ROOT="$DEPLOY_ROOT/backups"
-# Both ids are "copilot" ON PURPOSE. Since 9c7ce09a (2026-05-23) the fork's manifest
-# declares id "copilot" at the upstream-exact version so Obsidian's auto-updater sees
-# installed==latest and cannot wipe the fork (see repos/obsidian-copilot-mcp/manifest.json
-# description — never change that manifest id). PLUGIN_ID is the id the dev-vault lane
-# stages/enables/reloads; OFFICIAL_PLUGIN_ID is the production vault's official plugin
-# slot. Keep both names for call-site meaning; do not "deduplicate" them.
+# Both ids are "copilot" ON PURPOSE. The fork occupies the official plugin slot; its manifest
+# pins version 99.4.0 — ABOVE any plausible upstream — because matching upstream exactly is the
+# defense that FAILED on 2026-08-12 (upstream 4.0.0 sorted above the pinned 3.3.3 and wiped the
+# fork; see repos/obsidian-copilot-mcp-v4/manifest.json description — never change that id or
+# renumber the version down). PLUGIN_ID is the id the dev-vault lane stages/enables/reloads;
+# OFFICIAL_PLUGIN_ID is the production vault's official plugin slot. Keep both names for
+# call-site meaning; do not "deduplicate" them.
 PLUGIN_ID="copilot"
 OFFICIAL_PLUGIN_ID="copilot"
 OFFICIAL_PLUGIN_DIR="$PRODUCTION_VAULT/.obsidian/plugins/$OFFICIAL_PLUGIN_ID"

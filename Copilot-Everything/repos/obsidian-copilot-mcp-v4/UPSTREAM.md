@@ -66,7 +66,7 @@ upstream's obsidian mock API — see bug 3 below; `__mocks__/obsidian.js` itself
 | `src/tools/ToolRegistry.ts` | `providerId?` on `ToolMetadata`; `removeByProvider()`; `replaceByProvider()` |
 | `src/commands/customCommandRegister.ts` | `getToNoteCommandId()` + a second `addCommand` registering `${commandId}-to-note` per custom command |
 | `src/settings/model.ts` | additionally: `customCommandNoteFolder: string` (upstream 4.0.0 removed the field) |
-| `src/constants.ts` | additionally: `customCommandNoteFolder: "obsidian-copilot-summaries"` default |
+| `src/constants.ts` | additionally: `customCommandNoteFolder: "Copilot Summaries"` default |
 
 ## Three live bugs found by testing the tools (2026-08-12)
 

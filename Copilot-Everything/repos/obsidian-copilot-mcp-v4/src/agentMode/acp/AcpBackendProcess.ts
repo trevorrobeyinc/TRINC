@@ -4,6 +4,7 @@ import {
   PROTOCOL_VERSION,
   RequestError,
   ndJsonStream,
+  type McpServer,
   type NewSessionRequest,
   type RequestPermissionRequest,
   type RequestPermissionResponse,
@@ -15,6 +16,8 @@ import {
 } from "@agentclientprotocol/sdk";
 import { App, FileSystemAdapter } from "obsidian";
 import { AcpProcessManager, AcpProcessManagerOptions } from "./AcpProcessManager";
+import { acpMcpServersFromSettings } from "./acpMcpServers";
+import { getSettings } from "@/settings/model";
 import { VaultClient } from "./VaultClient";
 import { JSONRPC_METHOD_NOT_FOUND, MethodUnsupportedError } from "@/agentMode/session/errors";
 import type {
@@ -64,7 +67,8 @@ export type AcpCapability =
   | "session/set_model"
   | "session/set_mode"
   | "session/set_config_option"
-  | "session/additional_directories";
+  | "session/additional_directories"
+  | "mcp/http";
 
 /**
  * Detect a JSON-RPC -32601 (method not found) error from the ACP SDK. The SDK
@@ -236,6 +240,12 @@ export class AcpBackendProcess implements BackendProcess {
       if (init.agentCapabilities?.sessionCapabilities?.additionalDirectories != null) {
         this.capabilities.set("session/additional_directories", true);
       }
+      // Fork addition: HTTP MCP servers are an optional agent capability. Only attach the
+      // fork's bridges when the agent advertises it, so a backend without HTTP MCP support
+      // is never handed an endpoint it cannot handshake with.
+      if (init.agentCapabilities?.mcpCapabilities?.http === true) {
+        this.capabilities.set("mcp/http", true);
+      }
       logInfo(
         `[AgentMode] initialized backend ${this.backend.id} (negotiated protocol v${init.protocolVersion}, listSessions=${this.hasCapability("session/list")}, resumeSession=${this.hasCapability("session/resume")}, loadSession=${this.hasCapability("session/load")}, additionalDirectories=${this.hasCapability("session/additional_directories")})`
       );
@@ -299,7 +309,7 @@ export class AcpBackendProcess implements BackendProcess {
   async newSession(params: OpenSessionInput): Promise<OpenSessionOutput> {
     const req: NewSessionRequest = {
       cwd: params.cwd,
-      mcpServers: [],
+      ...this.mcpServersField(),
       ...this.additionalDirectoriesField(params.additionalDirectories),
     };
     const wireResp = await this.requireConnection().newSession(req);
@@ -367,6 +377,28 @@ export class AcpBackendProcess implements BackendProcess {
   // loses its off-vault context roots. Agents that don't advertise the capability
   // get no field at all; sending one they'll silently ignore would be misleading.
   // Empty/absent roots also send nothing, so non-project sessions stay untouched.
+  /**
+   * Fork addition: the fork's own MCP bridges, as ACP session payload. Empty when the agent does
+   * not advertise HTTP MCP support or no bridge is routable, which keeps the previous
+   * (always-empty) behavior for backends that cannot use it.
+   */
+  private mcpServersField(): { mcpServers: McpServer[] } {
+    if (!this.hasCapability("mcp/http")) return { mcpServers: [] };
+    const adapter = this.app.vault.adapter;
+    const pluginDir =
+      adapter instanceof FileSystemAdapter
+        ? `${adapter.getBasePath()}/${this.app.vault.configDir}/plugins/copilot`
+        : "";
+    const servers = acpMcpServersFromSettings(getSettings().mcp, pluginDir);
+    if (servers.length > 0) {
+      logInfo(
+        `[AgentMode] attaching ${servers.length} MCP server(s) to ${this.backend.id} session: ` +
+          servers.map((server) => server.name).join(", ")
+      );
+    }
+    return { mcpServers: [...servers] };
+  }
+
   private additionalDirectoriesField(roots: string[] | undefined): {
     additionalDirectories?: string[];
   } {
@@ -500,7 +532,7 @@ export class AcpBackendProcess implements BackendProcess {
         c.resumeSession({
           sessionId: sessionIdToAcp(params.sessionId),
           cwd: params.cwd,
-          mcpServers: [],
+          ...this.mcpServersField(),
           ...this.additionalDirectoriesField(params.additionalDirectories),
         }),
       { mustBeAdvertised: true }
@@ -523,7 +555,7 @@ export class AcpBackendProcess implements BackendProcess {
         c.loadSession({
           sessionId: sessionIdToAcp(params.sessionId),
           cwd: params.cwd,
-          mcpServers: [],
+          ...this.mcpServersField(),
           ...this.additionalDirectoriesField(params.additionalDirectories),
         }),
       { mustBeAdvertised: true }

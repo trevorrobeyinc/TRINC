@@ -49,11 +49,16 @@ export const McpSettings: React.FC = () => {
     }
 
     let cancelled = false;
-    McpToolProvider.probeConfiguredServers(settings.mcp).then((statuses) => {
-      if (!cancelled) {
-        setHealthStatuses(statuses);
-      }
-    });
+    McpToolProvider.probeConfiguredServers(settings.mcp)
+      .then((statuses) => {
+        if (!cancelled) {
+          setHealthStatuses(statuses);
+        }
+      })
+      .catch(() => {
+        // Probe failures already surface per-server in healthStatuses; a
+        // rejected probe batch must not become an unhandled rejection.
+      });
 
     return () => {
       cancelled = true;

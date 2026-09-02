@@ -1,4 +1,11 @@
 #!/usr/bin/env bash
+# ⚠️ STALE — NOT MIGRATED TO THE v4 FORK (flagged 2026-08-16, when lib.sh's PLUGIN_REPO moved
+# to repos/obsidian-copilot-mcp-v4). The fork is VENDORED in the monorepo: this dir has no git
+# repo of its own and no "upstream" remote, so git commands here operate on the MONOREPO —
+# the stash prompt below would stash unrelated monorepo work before `git fetch upstream` dies.
+# It also deploys manifest.json to production, which would clobber the 99.4.0 anti-auto-update
+# pin. Re-sync procedure lives in repos/obsidian-copilot-mcp-v4/UPSTREAM.md; rework this
+# script against that before ever running it.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
