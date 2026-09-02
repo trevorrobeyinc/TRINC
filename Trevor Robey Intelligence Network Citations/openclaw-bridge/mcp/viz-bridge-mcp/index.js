@@ -53,6 +53,10 @@ const VIZ_TOOLS = Object.freeze([
   "viz_graph_snapshot",
   "viz_guided",
   "viz_perceptual_map",
+  "viz_diagram",
+  "viz_stat_tiles",
+  "viz_mockup",
+  "viz_interactive",
 ]);
 
 function defaultTokenPath() {
@@ -207,6 +211,34 @@ function createVizBridgeMcp(options = {}) {
     return callTool("viz_perceptual_map", { returnContent: true, ...args });
   }
 
+  /**
+   * Styled system/architecture card diagram — visualize-language cards,
+   * groups, dashed pending links (see viz_diagram contract). SVG form for
+   * deliverables.
+   */
+  async function cardDiagram(args = {}) {
+    return callTool("viz_diagram", { returnContent: true, ...args });
+  }
+
+  /** Stat tiles / KPI row / meters (see viz_stat_tiles contract). SVG form fits bundles. */
+  async function statTiles(args = {}) {
+    return callTool("viz_stat_tiles", { returnContent: true, ...args });
+  }
+
+  /** UI mockup from typed blocks (see viz_mockup contract). */
+  async function mockup(args = {}) {
+    return callTool("viz_mockup", { returnContent: true, ...args });
+  }
+
+  /**
+   * Interactive HTML explainer (see viz_interactive contract). NOT for report
+   * bundles — the deliverable packager ships SVG only; this writes .html into
+   * the vault for operator-side exploration.
+   */
+  async function interactiveDoc(args = {}) {
+    return callTool("viz_interactive", { returnContent: true, ...args });
+  }
+
   return {
     available,
     health,
@@ -217,6 +249,10 @@ function createVizBridgeMcp(options = {}) {
     graphSnapshot,
     guided,
     perceptualMap,
+    cardDiagram,
+    statTiles,
+    mockup,
+    interactiveDoc,
     // exposed for tests / diagnostics
     _spec: { bridgeUrl, tokenPath, timeoutMs, VIZ_TOOLS },
   };

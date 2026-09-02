@@ -1,0 +1,15 @@
+/* Viz Studio — settings-tab status pill */
+.vz-bridge-status {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
+}
+.vz-bridge-running {
+  background-color: rgba(0, 160, 80, 0.18);
+  color: var(--color-green, #2e7d32);
+}
+.vz-bridge-stopped {
+  background-color: rgba(180, 60, 60, 0.15);
+  color: var(--color-red, #b43c3c);
+}

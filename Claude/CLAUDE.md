@@ -25,18 +25,23 @@ If you ever wonder "this Obsidian plugin is ours, why isn't it under `Copilot-Ev
 | Obsidian Bridge Launcher | `obsidian-bridge-launcher/` | Obsidian plugin — spawns the canonical MCP bridge child process on `:8798` tied to Obsidian's plugin host lifecycle. Owns the fd-3 line-delimited JSON-RPC IPC channel (`BRIDGE_IPC_FD=3`) used for renderer-scope console capture and gated eval. Bridge **code** lives in `Copilot-Everything/bridges/obsidian-copilot-bridge/`; this plugin owns only the lifecycle. |
 | Obsidian Vault Zettelkasten | `obsidian-vault-zettelkasten/` | Obsidian plugin — hosts the in-process `ZettelkastenService` (LLM-driven, vault-grounded). Migrated here 2026-04-11 from the now-deleted backend emulator on `:8789`. Consumes Miyo via `:8743` HTTPS proxy, Qdrant via `:6433` HTTPS proxy, and the hosted `copilot-plus-flash` model (no local runtime as of 2026-07-23). |
 | Trevor Robey INC Research Memory MCP | `trevorobeyinc-research-memory-mcp/` | Stdio MCP server. Qdrant-backed pack storage via `:6433` HTTPS proxy. Auto-ingested by the Command Center plugin after workflow completion. |
+| Viz Studio | `obsidian-viz-studio/` | Obsidian plugin (id `trinc-viz-studio`, added 2026-08-16) — local visualization rendering into the vault: mermaid diagrams (native fence or SVG/PNG export via Obsidian's bundled `loadMermaid()`), dependency-free SVG charts, JSONCanvas boards, metadata-cache link-graph snapshots, and **Guided Learning explainer cards** (`viz_guided` — staged pedagogical diagram + legend + step key composed into one SVG, 4 presets). Grew 2026-08-19 → 08-28 to add perceptual maps, visualize-language **card diagrams** (`viz_diagram`), **stat tiles / KPI rows** (`viz_stat_tiles`), **UI mockups** (`viz_mockup`), and **interactive HTML explainers** (`viz_interactive` — strict no-network CSP, opens in the system browser, never bundle-eligible). Owns the additive `:8800` HTTPS bridge (**12 `viz_*` tools** as of 2026-08-28; bearer token at `~/.config/trinc-viz-studio/bridge-token`). Consumers: both Copilot agent-chat lanes + the engine's `viz-bridge-mcp` adapter. Tool results are text-only by platform constraint — every tool writes into `Visualizations/` and returns an `![[embed]]` string. |
 | Outbound `claude` CLI bridge ⚠️ **RETIRED 2026-05-31** | `.archive/claude-cli-bridge/` | **Retired** — superseded by the native Claude Desktop Code tab; archived to `Claude/.archive/claude-cli-bridge/` (history + LEARNINGS preserved). Was a stdio MCP server wrapping the local `claude` CLI for OUTBOUND delegation. See the root `CLAUDE.md` deletion log; do not reintroduce. |
 
 
-> **Plugin display names vs IDs (2026-07-23).** The Obsidian plugins are display-branded as the
-> **TR-Obsidian Intelligence Network Citations** suite (Command Center · Zettelkasten · Bridge
-> Launcher · Wiki Definitions) so they group together in Obsidian's plugin list. Their **plugin IDs
-> are FROZEN** (`command-center`, `vault-zettelkasten`, `obsidian-bridge-launcher`,
-> `contextual-wiki-definitions`) and must never be renamed: Copilot's 4 `mcp_command-center_*` MCP
-> tool ids and `mcp.servers[].id`, the wiki-definition plugin's `plugins['vault-zettelkasten']`
-> api lookup (a **separate git repo**), Command Center's own lookup in `zettelkasten/linker.ts`,
-> the 0600 token at `~/.config/openclaw-command-center/bridge-token`, and the on-disk directory
-> names under `.obsidian/plugins/` all key on the IDs, not the names.
+> **Plugin display names vs IDs (2026-07-23; Viz Studio added 2026-08-16).** The Obsidian plugins
+> are display-branded as the **TR-Obsidian Intelligence Network Citations** suite (Command Center ·
+> Zettelkasten · Bridge Launcher · Wiki Definitions · Viz Studio) so they group together in
+> Obsidian's plugin list. Their **plugin IDs are FROZEN** (`command-center`, `vault-zettelkasten`,
+> `obsidian-bridge-launcher`, `contextual-wiki-definitions`, `trinc-viz-studio`) and must never be
+> renamed: Copilot's 23 `mcp_command-center_*` + 12 `mcp_viz-studio_*` MCP tool ids (Quick-Chat lane, as of 2026-08-28) and
+> `mcp.servers[].id`, the wiki-definition plugin's `plugins['vault-zettelkasten']` api lookup (a
+> **separate git repo**), Command Center's own lookup in `zettelkasten/linker.ts`, the 0600 tokens
+> at `~/.config/openclaw-command-center/bridge-token` and `~/.config/trinc-viz-studio/bridge-token`,
+> the fork's `ACP_MCP_CAPABLE_SERVER_IDS` allow-set (`command-center`, `viz-studio`), the engine's
+> `viz-bridge-mcp` adapter, and the on-disk directory names under `.obsidian/plugins/` all key on
+> the IDs, not the names. (Note the Viz Studio *fork server id* is `viz-studio` — deliberately
+> shorter than the plugin id so Lane A tool ids stay readable.)
 
 ## Outbound `claude` CLI bridge — `claude-cli-bridge/` ⚠️ RETIRED 2026-05-31
 
@@ -74,7 +79,7 @@ Tools exposed (stdio MCP, single Node entry at `claude-cli-bridge/index.mjs`):
 
 **Canonical source of truth**: [`/Users/myhome/TrevClaw-Obsidianodus/CLAUDE.md`](../CLAUDE.md) (root monorepo CLAUDE.md). It owns the operator-topology diagram, the unified port map (`:8798`, `:8799`, `:8743`, `:6433`, `:8891`, etc.), the TLS proxy table, and the startup order. This file used to duplicate that content; it is now stale-prone, so all questions about ports, protocols, ownership, or startup sequence MUST be answered from the root file.
 
-This workspace's role-within-the-topology, in one sentence: Claude Hub owns the Obsidian-plugin lifecycle for the two HTTPS bridges (`:8798` canonical via `obsidian-bridge-launcher`; `:8799` additive via `obsidian-command-center`) and houses the stdio MCP servers that those plugins spawn (Medical Zettelkasten MCP, Research Memory MCP).
+This workspace's role-within-the-topology, in one sentence: Claude Hub owns the Obsidian-plugin lifecycle for the three HTTPS bridges (`:8798` canonical via `obsidian-bridge-launcher`; `:8799` additive via `obsidian-command-center`; `:8800` additive via `obsidian-viz-studio`) and houses the stdio MCP servers that those plugins spawn (Medical Zettelkasten MCP, Research Memory MCP).
 
 ## Workspace Conventions
 

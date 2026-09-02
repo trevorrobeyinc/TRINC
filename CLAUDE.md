@@ -200,7 +200,7 @@ Biomedical Workflow Observability Stack (optional, Docker Compose)
 |------|---------|----------|-----------------|------------|
 | 8798 | Obsidian MCP Bridge (canonical) | HTTPS | Copilot-Everything | obsidian-bridge-launcher plugin (Obsidian lifecycle) |
 | 8799 | Command Center Bridge (additive) | HTTPS | Claude (Obsidian plugin) | Obsidian plugin lifecycle |
-| 8800 | Viz Studio Bridge (additive — local mermaid/chart/canvas/graph rendering + Guided Learning explainer cards into the vault, 7 `viz_*` MCP tools; added 2026-08-16) | HTTPS | Claude (Obsidian plugin `trinc-viz-studio`) | Obsidian plugin lifecycle |
+| 8800 | Viz Studio Bridge (additive — local mermaid/chart/canvas/graph rendering + Guided Learning explainer cards, perceptual maps, card diagrams, stat tiles, UI mockups and interactive HTML explainers into the vault; **12 `viz_*` MCP tools** as of 2026-08-28; added 2026-08-16) | HTTPS | Claude (Obsidian plugin `trinc-viz-studio`) | Obsidian plugin lifecycle |
 | 8743 | Miyo TLS proxy (HTTPS terminator → :8742) | HTTPS | Copilot-Everything | launchd `com.trevorrobey.miyo-tls-proxy` |
 | 8742 | Miyo Semantic Search (plaintext upstream — only the proxy at :8743 should reach it) | HTTP | external | External process (`/Applications/Miyo.app`) |
 | 6433 | Qdrant TLS proxy (HTTPS terminator → :6333) | HTTPS | Copilot-Everything | launchd `com.trevorrobey.qdrant-tls-proxy` |

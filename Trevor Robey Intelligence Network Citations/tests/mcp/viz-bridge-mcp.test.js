@@ -120,7 +120,7 @@ test("missing token fails closed without touching the network", async () => {
   assert.equal(calls.length, 0);
 });
 
-test("exposes the eight-tool surface for the connector registry", () => {
+test("exposes the twelve-tool surface for the connector registry", () => {
   assert.deepEqual(VIZ_TOOLS, [
     "viz_health",
     "viz_mermaid",
@@ -130,7 +130,22 @@ test("exposes the eight-tool surface for the connector registry", () => {
     "viz_graph_snapshot",
     "viz_guided",
     "viz_perceptual_map",
+    "viz_diagram",
+    "viz_stat_tiles",
+    "viz_mockup",
+    "viz_interactive",
   ]);
+});
+
+test("statTiles posts viz_stat_tiles and defaults to returnContent", async () => {
+  const { fetchImpl, calls } = makeFetch(() => okResponse({ path: "tiles.svg", svg: "<svg/>" }));
+  const mcp = createVizBridgeMcp({ fetchImpl, authToken: "token-viz-0123456789abcdef0123456789ab" });
+  const res = await mcp.statTiles({ tiles: [{ label: "Revenue", value: "$1" }] });
+
+  assert.equal(res.ok, true);
+  const body = JSON.parse(calls[0].init.body);
+  assert.equal(body.tool, "viz_stat_tiles");
+  assert.equal(body.input.returnContent, true);
 });
 
 test("guided posts viz_guided and defaults to returnContent for deliverable renderers", async () => {
@@ -159,5 +174,20 @@ test("perceptualMap posts viz_perceptual_map and defaults to returnContent", asy
   assert.equal(res.data.svg, "<svg/>");
   const body = JSON.parse(calls[0].init.body);
   assert.equal(body.tool, "viz_perceptual_map");
+  assert.equal(body.input.returnContent, true);
+});
+
+test("cardDiagram posts viz_diagram and defaults to returnContent", async () => {
+  const { fetchImpl, calls } = makeFetch(() => okResponse({ path: "diagram.svg", svg: "<svg/>" }));
+  const mcp = createVizBridgeMcp({ fetchImpl, authToken: "token-viz-0123456789abcdef0123456789ab" });
+  const res = await mcp.cardDiagram({
+    title: "T",
+    nodes: [{ id: "a", title: "A", kind: "ink" }],
+  });
+
+  assert.equal(res.ok, true);
+  assert.equal(res.data.svg, "<svg/>");
+  const body = JSON.parse(calls[0].init.body);
+  assert.equal(body.tool, "viz_diagram");
   assert.equal(body.input.returnContent, true);
 });

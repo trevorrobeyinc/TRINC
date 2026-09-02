@@ -1,0 +1,10 @@
+{
+  "id": "trinc-viz-studio",
+  "name": "TR-Obsidian Intelligence Network Citations — Viz Studio",
+  "version": "9.9.9",
+  "minAppVersion": "1.4.0",
+  "description": "Local visualization studio: agent-callable Mermaid diagrams, SVG charts, Canvas boards, and vault graph snapshots, written into the vault by the additive :8800 MCP bridge (6 viz_* tools, all rendering offline). Plugin ID is intentionally FROZEN — Copilot MCP tool ids (mcp_viz-studio_*), the research engine's viz-bridge adapter, and the bridge-token path ~/.config/trinc-viz-studio/ all key on it. Version is pinned 9.9.9 so a community-registry id collision can never offer a false 'update' that would overwrite this plugin.",
+  "author": "Trevor Robey",
+  "authorUrl": "https://trevorobeyinc.com",
+  "isDesktopOnly": true
+}

@@ -1,0 +1,18 @@
+{
+  "name": "obsidian-viz-studio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Viz Studio: local diagram/chart/canvas/graph generation for Obsidian, exposed to agent chat over the additive :8800 MCP bridge",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "node esbuild.config.mjs production",
+    "check": "tsc -noEmit",
+    "lint:transport": "if grep -nE 'http\\.createServer\\(|VIZ_BRIDGE_TLS_DISABLE\\s*={2,3}|tlsDisable\\s*\\?' src/bridge/bridge-server.ts; then echo 'lint:transport FAILED: forbidden plaintext pattern in Viz Studio bridge. The :8800 bridge MUST be HTTPS-only.'; exit 1; else echo 'lint:transport OK'; fi"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.24.0",
+    "obsidian": "^1.7.2",
+    "typescript": "^5.6.0"
+  }
+}
