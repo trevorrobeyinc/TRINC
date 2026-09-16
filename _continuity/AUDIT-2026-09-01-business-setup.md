@@ -103,7 +103,7 @@ Tree after commit 3: only the five `_probe*.js` remain.
 | File | Servers |
 |---|---|
 | repo `.mcp.json` | `opencode`, `perseus-business`, `searxng-search` |
-| `~/.claude.json` (CLI + Desktop Code) | `alphaxiv`, `courtlistener`, `falcon`, `firewalla`, `github`, `gmail`, `opencode`, `perseus-vault`, `phone-gate`, `searxng-search`, `sudo-gate`, `zoho-trinc` |
+| `~/.claude.json` (CLI + Desktop Code) | `alphaxiv`, `falcon`, `firewalla`, `github`, `gmail`, `opencode`, `perseus-vault`, `phone-gate`, `searxng-search`, `sudo-gate`, `zoho-trinc` |
 | `claude_desktop_config.json` (Chat + Cowork) | `FilesystemPlus`, `miyo`, `opencode`, `perseus-business`, `perseus-vault`, `searxng-search` |
 
 Findings:
@@ -114,7 +114,7 @@ Findings:
   ("never call"), not a live instruction.
 - **`github` MCP failed to connect at session start** (`CONNECTION_CLOSED`). Expected: it is
   user-initiated (`gh` gate), not auto-armed. Not a fault.
-- **Needs OAuth (operator-only):** `alphaxiv`, `courtlistener`, `bio-research:{biorender, owkin,
+- **Needs OAuth (operator-only):** `alphaxiv`, `bio-research:{biorender, owkin,
   synapse, wiley}`, `data:{amplitude, amplitude-eu, atlassian, bigquery, definite, hex}`. Recorded
   decisions stand: authorize **BioRender only**; Synapse conditional; Wiley/Owkin do-not-authorize;
   `data:*` unbound by design (no warehouse) — leave unauthorized.
@@ -144,7 +144,7 @@ from Zoho; 12 filters / 11 labels (`gmail-filters.xml`); send-as ×3 (`trevor@`,
 
 | Item | Why it matters | Source |
 |---|---|---|
-| Business Starter **trial ended ~08-05** — is the paid plan active? | mailbox continuity | `google-workspace.md` §1 — **unverified** |
+| ~~Business Starter **trial ended ~08-05** — is the paid plan active?~~ **ANSWERED 2026-09-13:** yes — **Enterprise Standard** Active (annual, monthly payment, 1 seat), verified live in Billing → Subscriptions | mailbox continuity | `google-workspace.md` §1 — **verified 2026-09-13** |
 | **AWS root email is still `Trevor.Robey@my.strayer.edu`** (risk R1, HIGH) | listing outcomes + payout failures route to a school address that ends at graduation | `business-identity-map.md`; vault `aws-root-email-is-still-the-strayer-edu-address` |
 | Zoho Mail Lite downgrade (~$1/mo) | safe since migration verified | 08-20 handoff |
 | SPF tighten to Google-only; remove `zoho._domainkey`; DMARC `p=none` → `quarantine` | the "2 clean weeks" wait elapsed in early August | `google-workspace.md` §4 |
@@ -269,7 +269,7 @@ Owner key: **OP** = only the operator can do it · **CL** = Claude can do it on 
 ## 7 · Open questions (operator)
 
 1. Was the $800 franchise tax paid on/before 08-15? (No record in-repo.)
-2. Is the Workspace paid plan active post-trial?
+2. ~~Is the Workspace paid plan active post-trial?~~ **ANSWERED 2026-09-13:** yes — Enterprise Standard, Active (see the row above).
 3. Graveyard Feed paid price? StandardDSA vs custom DSA?
 4. AWS root email target: `aws@` Group (recommended) or alias?
 5. Keep `zoho-trinc` MCP registered after the Zoho downgrade?

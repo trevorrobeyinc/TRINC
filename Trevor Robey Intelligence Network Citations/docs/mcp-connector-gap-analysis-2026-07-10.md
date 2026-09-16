@@ -92,7 +92,7 @@ call, which is exactly the identifier spread your citation indexes carry.
 
 | Connector | What it adds | Note |
 |---|---|---|
-| **AdisInsight** (Springer/Clarivate) | Drug, trial, and pharma-pipeline intelligence | ❌ **DECIDED — DROPPED 2026-07-24; decline REAFFIRMED 2026-07-31 on different grounds.** ⚠️ **CORRECTION 2026-07-31:** the original reason — *no AdisInsight MCP server to connect to; zero results in the connector directory* — is **no longer true**. `claude mcp list` now shows `claude.ai AdisInsight: https://adisinsight-mcp.springer.com/mcp - ! Needs authentication`. This was **not** a research failure: the dated 2026-07-16 correction below names the exact live needs-auth set with AdisInsight explicitly absent, so it genuinely was not there on 07-16 or 07-24 — it appeared between 2026-07-24 and 2026-07-30 (not datable more precisely; all `mcp-needs-auth-cache.json` timestamps read 23:36–23:37 on 07-30, one refresh event). **The decline stands on its other leg:** authenticating requires a Springer Nature **institutional subscription** — only site-license terms and 'contact your licensing representative' are published, no free or self-serve tier found. **Do not re-open on the grounds that the connector exists**; revisit only if a Springer subscription is bought for another reason. It is a Springer Nature **subscription-only web database with no public MCP server and no free API**. The local `adisinsight-mcp` was deleted 2026-04-29 and its `.bak` purged 2026-05-08. **Coverage rationale:** the failed-trial intelligence it was wanted for is already delivered, citation-graded, by `ctgov-supplemental` → `ctgov_stopped_trials` → `deliverables/graveyard-memo.md` (NCT-traced stop reasons, protocol churn, LOW/MODERATE/HIGH amendment-risk). Residual delta = curated non-registry discontinuations + ex-US registries (EU-CTR/jRCT/CTRI); if ever needed, **add an EU-CTR fetcher — far cheaper than a Springer enterprise contract.** (Prior correction 2026-07-16: never was in the live needs-auth set — that set is `owkin` / `biorender` / `synapse` / `wiley` / `alphaxiv` / `courtlistener`; see §9.) |
+| **AdisInsight** (Springer/Clarivate) | Drug, trial, and pharma-pipeline intelligence | ❌ **DECIDED — DROPPED 2026-07-24; decline REAFFIRMED 2026-07-31 on different grounds.** ⚠️ **CORRECTION 2026-07-31:** the original reason — *no AdisInsight MCP server to connect to; zero results in the connector directory* — is **no longer true**. `claude mcp list` now shows `claude.ai AdisInsight: https://adisinsight-mcp.springer.com/mcp - ! Needs authentication`. This was **not** a research failure: the dated 2026-07-16 correction below names the exact live needs-auth set with AdisInsight explicitly absent, so it genuinely was not there on 07-16 or 07-24 — it appeared between 2026-07-24 and 2026-07-30 (not datable more precisely; all `mcp-needs-auth-cache.json` timestamps read 23:36–23:37 on 07-30, one refresh event). **The decline stands on its other leg:** authenticating requires a Springer Nature **institutional subscription** — only site-license terms and 'contact your licensing representative' are published, no free or self-serve tier found. **Do not re-open on the grounds that the connector exists**; revisit only if a Springer subscription is bought for another reason. It is a Springer Nature **subscription-only web database with no public MCP server and no free API**. The local `adisinsight-mcp` was deleted 2026-04-29 and its `.bak` purged 2026-05-08. **Coverage rationale:** the failed-trial intelligence it was wanted for is already delivered, citation-graded, by `ctgov-supplemental` → `ctgov_stopped_trials` → `deliverables/graveyard-memo.md` (NCT-traced stop reasons, protocol churn, LOW/MODERATE/HIGH amendment-risk). Residual delta = curated non-registry discontinuations + ex-US registries (EU-CTR/jRCT/CTRI); if ever needed, **add an EU-CTR fetcher — far cheaper than a Springer enterprise contract.** (Prior correction 2026-07-16: never was in the live needs-auth set — that set is `owkin` / `biorender` / `synapse` / `wiley` / `alphaxiv`; see §9.) |
 | **Cortellis Regulatory Intelligence** (Clarivate) | Global pharma regulatory intelligence — the closest thing to multi-region EMA/MHRA/PMDA/Health Canada coverage that exists as a connector | Paid/enterprise. See §5: no free MCP covers these regulators at all. |
 | **CMS Coverage Database** | Medicare national and local coverage determinations | Directly feeds payer/market-access sections; you already have ICD-10 and NPI, this completes the reimbursement triad |
 | **Turquoise Health** | Hospital and payer negotiated-price transparency data | Market-access evidence generation |
@@ -131,9 +131,6 @@ All paid. There is **no official Crunchbase connector** — only a community ser
 
 - **Solve Intelligence** (Legal) — patent prior-art search, claim drafting, prosecution history,
   portfolio charting. **This is the only maintained, click-install answer to your patent/FTO gap.**
-- **CourtListener** (Legal; OAuth, **125 req/day** — see §8) — millions of court records, docket monitoring. Underrated for
-  **Failed Trial Archaeology**: securities class actions filed after a readout failure are a rich,
-  citable, public record of what the sponsor knew and when.
 - **Trellis** — state trial-court data, judge analytics.
 
 ### 2f. Business operations
@@ -339,7 +336,7 @@ remove it. This is a propose-only finding; no action was taken.
 
 ## Recommended sequence
 
-1. ~~**Free, high-leverage, today:** Scholar Sidekick, alphaXiv, Enrichr, CourtListener.~~ **Superseded — see §8.** Adversarial verification on 2026-07-10 showed only Scholar Sidekick is free-and-anonymous; alphaXiv and CourtListener are OAuth-gated; Enrichr has no authentic server.
+1. ~~**Free, high-leverage, today:** Scholar Sidekick, alphaXiv, Enrichr.~~ **Superseded — see §8.** Adversarial verification on 2026-07-10 showed only Scholar Sidekick is free-and-anonymous; alphaXiv is OAuth-gated; Enrichr has no authentic server.
 2. **Resolve the security item:** identify or remove `7bb47381… semanticSearch`; drop Tavily.
 3. **Revenue-unblocking:** evaluate Guidepoint or Third Bridge — the $19,950 KOL tier depends on it. *(Both now in the registry as procurement-gated placeholders, added 2026-07-16 — connect one on the first signed KOL deal. See §9.)*
 4. **Spike `biomcp`** (`pip install biomcp-cli`) behind the role-prefetch path; measure what it adds
@@ -398,26 +395,6 @@ relevant because these are paid client deliverables.
 
 ### Config added, OAuth pending (you must complete these interactively)
 
-**`courtlistener`** → `https://mcp.courtlistener.com/` — `claude mcp list` → `! Needs authentication`.
-
-Authentic: the RFC-9728 protected-resource doc at `/.well-known/oauth-protected-resource` names
-`authorization_servers: ["https://www.courtlistener.com"]` — Free Law Project's own domain, not a
-lookalike. Dynamic client registration is supported, so Claude Code can drive the OAuth grant.
-
-> **Gotcha:** the endpoint is the **root** `https://mcp.courtlistener.com/`. Both `/mcp` and `/sse`
-> return `404`. The obvious guess is wrong.
-
-**⚠️ Rate limit makes the planned use questionable.** Free Law Project's own wiki states: *"APIs are
-available as a membership benefit and through commercial agreements."* The current authenticated
-throttle is **5 req/min, 50 req/hour, 125 req/day** (rolling, most-restrictive-wins) — the prior
-5,000/hr default was removed in May 2026. 125/day supports roughly one or two multi-hop docket
-lookups. The Failed Trial Archaeology use case (securities class actions per indication) will hit
-this immediately. FLP maintainers direct commercial-scale users to their partnerships manager.
-**Treat a paid membership as a prerequisite, not an optimization.**
-
-Separately: the `courtlistener` *application* is AGPL-3.0. That does **not** encumber calling FLP's
-own hosted endpoint as a client — but it would if the engine ever vendored or self-hosted their code.
-
 **`alphaxiv`** → `https://api.alphaxiv.org/mcp/v1` — `claude mcp list` → `! Needs authentication`.
 
 Authentic (OAuth discovery chain resolves to alphaXiv's own `api.alphaxiv.org/auth`). But it is
@@ -460,7 +437,7 @@ which needs no key and could be wrapped in-house as a subprocess MCP alongside t
 
 Configs were snapshotted first: `~/.claude.json.bak-20260710-054416` and
 `~/Library/Application Support/Claude/claude_desktop_config.json.bak-20260710-054416`.
-To undo: `claude mcp remove scholar-sidekick -s user` (likewise `courtlistener`, `alphaxiv`).
+To undo: `claude mcp remove scholar-sidekick -s user` (likewise `alphaxiv`).
 
 All three are HTTPS remote endpoints, so the monorepo's HTTPS-only invariant is satisfied and no
 TLS proxy is needed — none of them is a TCP listener owned by repo code.
@@ -488,8 +465,8 @@ State changes since this 2026-07-10 analysis, reconciled against the live
   on the operator's API key + a per-run generation-budget decision. (Registry entry +
   `.learnings/FEATURE_REQUESTS.md [FEAT-20260511-001]` updated.)
 - **AdisInsight is not a live needs-auth connector** (§2b corrected). The live unauthenticated
-  biomedical set is exactly `owkin` (host-side) / `biorender` / `synapse` / `wiley` / `alphaxiv` /
-  `courtlistener`; AdisInsight is not registered.
+  biomedical set is exactly `owkin` (host-side) / `biorender` / `synapse` / `wiley` / `alphaxiv`;
+  AdisInsight is not registered.
 - **Tavily** remains a superseded (2026-07-04) registry tombstone bound to nothing — §6's "drop
   Tavily" recommendation still stands and is unactioned.
 

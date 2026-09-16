@@ -14,7 +14,9 @@
 | Organization | Trevor Robey Intelligence Network Citations LLC (CA LLC, entity B20260217250; principal office 8161 Oahu Dr, Fair Oaks, CA 95628-3745) |
 | Super-admin | **trevor@trevorobeyinc.com** (sole user, 1 seat) |
 | Created | 2026-07-22 (signup by operator) |
-| Edition | **Business Starter**, 14-day trial — trial ends **~2026-08-05** (verify exact date: Admin console → Billing); ~$7/user/mo annual (~$8.40 flexible) after |
+| Edition | **Google Workspace Enterprise Standard** — Active, annual plan (monthly payment), 1 license assigned / 0 available. Verified live 2026-09-13 in Admin console → Billing → Subscriptions. Path: Business Starter trial (07-22 → ~08-05) → Business Plus → **Enterprise Standard (operator upgrade 2026-09-12)**; no Business Plus row remains, so there is no double subscription. *(Superseded 2026-09-13: "Business Starter, 14-day trial — trial ends ~2026-08-05; ~$7/user/mo annual after.")* |
+| Other subscriptions | **Chrome Enterprise Core** (Active, free) · **Android Enterprise** (Active, free) · **AI Expanded Access** add-on (Active, flexible plan, 1 assigned — keep/cancel decision open). Device and browser *security posture* from these (which browser is enrolled, which policies reach which Chrome profile, the phone's work profile) is recorded in the Security Everything repo, not here. |
+| Chrome Enterprise Premium | **60-day trial started 2026-09-14** (Billing → Subscriptions: 5,000 trial licenses, **1 assigned** to trevor@, auto-assign OFF). It licenses the DLP rules and the Chrome content-analysis connectors (upload / download / paste / print scanning). By the operator's 2026-09-14 decision that coverage now reaches **every Chrome profile on the Mac mini, personal profiles included**, through machine-scope inheritance from the work OU (this supersedes the 09-13 scope-down); proven 2026-09-14 by a paste in a personal profile producing a rule event. Trial ends **~2026-11-13** — keep-or-cancel decision open (§8); what the connectors do when a Premium trial lapses has not been verified, so decide before then. **Re-checked live 2026-09-15 evening (Billing → Subscriptions → the Premium row's detail page):** it reads *Active · Since Sep 14, 2026 · Payment plan: Contracted pricing · 5,000 purchased · 4,999 available, 1 assigned · Auto-assign OFF · Estimated monthly bill: Contracted pricing* and **shows no trial end date anywhere** (the subscriptions list also carries no "trial" wording), so ~11-13 remains a derived figure (start + 60 days), not a console fact — confirm it from the signup email or Google's billing support before relying on it. The browser OU's Upload-content-analysis panel reads **Chrome Enterprise Premium**, inherited from the root OU; its red "You need a Chrome Enterprise Premium license" line is still displayed and is static boilerplate (its own text says "If you already have one, please disregard"), not a license check. Security detail (OU inheritance, the two DLP rules, the mgmtwatch/OSSEC watch) lives in `~/Security Everything`. |
 | Primary domain | trevorobeyinc.com — **Verified · Gmail activated** (Admin console → Account → Domains → Manage domains) |
 | Admin console | admin.google.com — sign in as trevor@trevorobeyinc.com ONLY (personal Gmails have no console) |
 | Password | operator's Bitwarden (recovered 2026-07-22 via Bitwarden *generator history* after an unsaved-password lockout scare — generator history retains every generated password) |
@@ -106,7 +108,10 @@ goes through the scoped token.
 
 | Item | Cost | Status |
 |---|---|---|
-| Workspace Business Starter (1 seat) | $0 during trial → ~$7/user/mo annual (~$8.40 flexible) | trial ends ~2026-08-05; payment method on file (operator-entered) |
+| Workspace **Enterprise Standard** (1 seat) | annual plan, monthly payment — the live amount is not captured in-repo; read it in Admin console → Billing → Subscriptions | Active, verified 2026-09-13. *(Superseded 2026-09-15: "Business Starter — $0 during trial → ~$7/user/mo annual (~$8.40 flexible); trial ends ~2026-08-05." The path was Business Starter → Business Plus → Enterprise Standard, operator upgrade 2026-09-12.)* |
+| Chrome Enterprise Premium | $0 during the 60-day trial (started 2026-09-14); list price not captured in-repo | trial ends ~2026-11-13 — keep/cancel decision open (§1, §8) |
+| AI Expanded Access add-on | flexible plan, 1 assigned — amount not captured in-repo | keep/cancel decision open (§1) |
+| Chrome Enterprise Core · Android Enterprise | $0 (free) | Active |
 | Zoho Mail Lite | ~$1/user/mo | temporary — bought for IMAP; downgrade after migration verifies |
 | Cloudflare (domain + DNS + worker) | unchanged | no new cost from the mail work |
 
@@ -147,6 +152,46 @@ goes through the scoped token.
       plan: [`../business-identity-map.md`](../business-identity-map.md).
 
 **Open — operator-gated:**
+- [ ] **Chrome Enterprise Premium trial — keep or cancel before ~2026-11-13** (started 2026-09-14;
+      decide together with the AI Expanded Access add-on). Billing decisions only; the browser/DLP
+      coverage that depends on Premium is recorded in `~/Security Everything`.
+- [x] ~~**Drive DLP hit to eyeball:** the Google Doc **"Building OpenClaw Research Engine"**~~ — ✅ **CLOSED
+      2026-09-15 evening: the operator DELETED the Doc** (operator-reported, not re-verified from the console).
+      It had matched the PASSWORD detector during the 2026-09-14 Drive rescan; the other 8 secret-type hits
+      were checked (`qdrant.ts`, two `dependency-update-*-sample.json`, test fixtures — all clean). Note: a
+      deleted Drive file sits in Trash for 30 days and can still show in the rule log / lock count until
+      purged, so the "9 still locked" figure below may read 8 or 9 depending on when it is re-read. If the
+      Doc did hold a real credential, rotating it is still the operator's call — deletion alone does not
+      rotate anything.
+- [ ] **External-sharing lock on ~714 monorepo files in Drive (note, not a task):** on 2026-09-14 the
+      Workspace DLP rule "Chrome Enterprise Core - Sensitive uploads" re-scanned Drive after its logic
+      was switched to OR and applied its *Block external sharing* action to ~714 files of the
+      `TRINC/Monorepo` copy (568 System-log + 188 IP-address matches, none real). The Drive audit log
+      showed nothing was actually unshared. Both detectors were removed on 2026-09-15 (14 detectors
+      remain). **RESOLVED 2026-09-15 evening (read-only re-check from the Admin console's Rule log
+      events search, window "after 2026-09-15 02:21"):** the narrowed rule re-scanned Drive at
+      02:48 on 09-15 and the log DOES record the release — grouped by Event it holds exactly two
+      kinds, **705 × "Content unmatched"** (content no longer matched a policy or rule) and
+      **705 × "Action complete" / Drive Unflag Document**, and **zero new matches** of any kind.
+      714 locked files minus the 9 secret-type hits = 705, so every file except those 9 is
+      unlocked; the 9 still match the remaining detectors and keep *Block external sharing*
+      (`qdrant.ts`, the two `dependency-update-*-sample.json`, the test fixtures, and the Google
+      Doc below). Spot-check: the Drive share dialog of an unflagged file (`failure-modes.md`) and
+      of a still-locked one (`qdrant.ts`) look identical — owner only, General access
+      "Restricted", **no banner about the rule** — so the share panel is not a witness to the
+      block either way; the rule log is. Still: do not test by attempting an external share.
+- [x] **Alert Center backlog from the 09-14/15 DLP episode — CLOSED 2026-09-15/16 (operator-confirmed
+      item A1).** The open set was **69 alerts**, all "Data Loss Prevention (DLP)", High, unassigned,
+      none from the 714 Drive matches: 49 × the 09-14 22:53–22:57 email loop ("Rule triggered: …"),
+      19 × Falcon "[High] Malicious activity" mails matched by the System-log detector (4 on 09-14
+      22:56, 15 on 09-15 00:15–02:01, before the detector was removed at 02:14), and 1 × the deliberate
+      T1 proof paste (09-14 22:52, Chrome Premium rule). Alert Center has no false-positive disposition
+      and the list's only bulk control is DELETE (permanent), so each alert was closed on its detail
+      page: Status → Closed, Feedback → "Not Useful" (68), a one-line cause comment; the T1 alert was
+      closed with a "true-positive test" note and no feedback. Verified: a fresh Alert Center load shows
+      "You have no alerts at this time"; three random detail pages re-read Closed / Not Useful / comment.
+      Nothing was deleted. The loop itself has been dead since 09-14 22:57 (K1 removed the rule's email
+      recipient; D2 removed the detector) — this item was only the leftover rows.
 - [ ] **Zoho downgrade off Mail Lite (~$1/mo)** — now SAFE: import verified, MX moved, so the Zoho
       archive is frozen and no delta import is needed. Downgrading kills IMAP; the webmail archive
       remains readable. Operator billing decision.

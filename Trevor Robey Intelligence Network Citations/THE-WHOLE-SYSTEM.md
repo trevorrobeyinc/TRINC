@@ -133,7 +133,7 @@ There are **three layers**, and only two of them feed your reports:
 | **claude.ai-level connectors (23)** | ❌ **No — chat only** | the PubMed/ChEMBL/etc. you see in Claude chat, plus Figma, Gmail, Synthesize Bio… richer, but invisible to the automated engine (Tavily is a superseded tombstone) |
 | **Infra / ops (in `~/.claude.json`)** | n/a (not product) | falcon (security), github, cdp-pipe (browser), zoho-mail (**archive-reader since the 2026-07-22 Gmail cutover** — live mailbox is Google Workspace Gmail; see `03-platforms/google-workspace/google-workspace.md`) |
 
-No rogue or broken connectors were found — the only issue was that nothing documented this split. Six claude.ai connectors are unauthenticated (Owkin host-side, BioRender, Synapse, Wiley, alphaXiv, CourtListener; Synthesize Bio is now authenticated) → authenticate the useful ones or stop listing them. Full detail: `CONNECTOR-ALIGNMENT.md`.
+No rogue or broken connectors were found — the only issue was that nothing documented this split. Five claude.ai connectors are unauthenticated (Owkin host-side, BioRender, Synapse, Wiley, alphaXiv; Synthesize Bio is now authenticated) → authenticate the useful ones or stop listing them. Full detail: `CONNECTOR-ALIGNMENT.md`.
 
 ---
 
