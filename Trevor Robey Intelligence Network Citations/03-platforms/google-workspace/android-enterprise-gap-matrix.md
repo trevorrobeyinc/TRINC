@@ -1,0 +1,310 @@
+# Android Enterprise — feature inventory, tenant gap matrix, proposals (Google endpoint management, the S24 work profile)
+
+> **Status: v0.5 — 2026-09-16. Research complete (Google's public docs, three read-only research agents,
+> ~150 rows consolidated below) AND tenant read complete (one `cic` arm 18:49 PDT, read-only,
+> 2026-09-16 18:52–19:00 PDT, root OU `03ph8a2z4esi3y6`, every section read from the console's own
+> per-platform views, ZERO console mutations).** Every *tenant state* cell carries its read date.
+> **Applied 2026-09-16 on typed confirms (standing decision 8): M1 ≈19:10 PDT, then M2, M3, M4, M5, M7, M8,
+> M9, M10 and the console half of M11 at 20:14–20:49 PDT (`confirm M2-M11`), each verified from a fresh load
+> (v0.5). M6 was first held back — the rule wizard forces a super-admin e-mail whenever Alert Center is ticked,
+> which differed from what was confirmed — then applied 21:02–21:08 PDT on the operator's `M6 option A`
+> (three Active device rules). Every numbered proposal except M12 is now applied; M12 waits for the P9 review.** Sibling of [`chrome-enterprise-premium-gap-matrix.md`](chrome-enterprise-premium-gap-matrix.md)
+> (P1–P11, all applied 2026-09-16); proposals here are numbered **M1…** so the two series never collide.
+> *(The v0.1 draft numbered the proposals before the read; several turned out to be already in place, so
+> §4 was renumbered by value — the interim "M2 Bitwarden" and "M13 Chrome on Android" are now M9 and M1.)*
+>
+> **The one structural fact that shapes everything below:** the S24 is a **personally-owned phone with a
+> work profile** (Google's "profile owner" mode). Google's own docs confine the admin to the work profile —
+> *"The work profile lets their managed account and apps exist in a separate space that device management
+> doesn't have access to"* — and mark most of the Android hardware and network controls **company-owned
+> only**. Adding a work-profile phone to the company-owned inventory does not unlock them: *"If a device has
+> a work profile and you add it to the company-owned inventory, it's blocked from syncing work data until
+> it's removed … or the device is factory reset."* So "the entirety of Android Enterprise" for this tenant
+> is the work-profile half of the catalog; that half is what §3 and §4 cover, and the other half is recorded
+> in §3-L so nobody re-researches it.
+>
+> **Headline of the read:** the work profile is already tighter than the draft assumed — sideloading into
+> it is blocked, developer options are blocked, the work-profile password requirement is on (Strong, 1-minute
+> lock), the work profile is enforced, adding other Google accounts is blocked, approvals / compromised /
+> CTS blocks are on, and all three device alerts are active. What is **not** there: any managed-app list
+> (0 apps, store = All apps), any device-management rule, auto-wipe, the failed-attempts wipe, the
+> work→personal sharing boundary, and **Chrome on Android is off**, so none of the Chrome policies applied
+> today reach the phone's Chrome.
+
+**Standing decisions that bind this file** (from the 2026-09-16 handoff): (1) the personal side of the phone
+is untouched by design — work profile only; (5) alerts go to Alert Center, never into a feedback loop with an
+inbox the tenant's own rules scan; (8) every console mutation is propose-only with a typed per-item confirm,
+"go" alone never authorizes a mutation; (9) Alert Center false positives are closed, never deleted. Plus the
+device facts of record: S24 `SM-S921U`, device id `38e210cfdacbc2a5`, enrolled 2026-09-13 (first sync 02:44
+PDT), Google as the EMM (not Intune, not adb), Falcon for Mobile on the personal side with WireGuard holding
+the personal VpnService slot (`~/Security Everything/mobile/mobile-policy-target.md`).
+
+---
+
+## 1 · Edition and management facts (public docs, read 2026-09-16) vs this tenant
+
+| Fact | Google's documentation | This tenant (date) |
+|---|---|---|
+| Edition gating | Google endpoint management is three stacked tiers — *Fundamental* (basic management, basic passcode, account wipe, block, endpoint verification), *Advanced* (standard/strong passcodes, security policies, **Android work profiles**, approvals, device wipe, zero-touch), *Enterprise* (iOS data protection, device certificates, **Context-Aware Access, management rules, Devices audit log**, company-owned inventory). **Enterprise Standard is listed for all three** (Business Plus lacks the Enterprise tier) | Workspace **Enterprise Standard** (09-13) → nothing in this file is edition-gated; the only ceiling is the ownership model |
+| Subscription | Android Enterprise is a free subscription row that makes Google the EMM | **Android Enterprise · Active · free** (Billing → Subscriptions, 09-13); **Third-party Android EMM: Not enabled** (09-16) |
+| Management level | *Basic* is on by default and agentless; *Advanced* "requires management client installation and work profile setup on personal devices" and is what every Android settings page depends on | Universal → General → Mobile management = **Custom: Android Advanced · iOS Basic · Google Sync Unmanaged** (09-16; the panel also carries a "set up an Apple Push Certificate for advanced iOS" banner — N/A). The S24: **Management level Advanced · Privilege Profile owner · Android Device Policy 166.38.0 (10864560)** · Ownership User owned · Managed account on owner No (09-16) |
+| Device | Android 6.0+ that supports work profiles; only one work profile and one managed account per device | Samsung **S24 SM-S921U · Android 16** · build `BP4A.251205.006.S921USQS6DZH3` · kernel 6.1.145 · **OS security patch 2026-08-04** · first sync 09-13 02:44 · last sync 09-16 18:47 · **Approved** · 376 apps on the device, **no potentially harmful apps** (09-16). Android 16 clears the Android 15+ gate for the Password-managers setting |
+| What the admin can do on a work-profile phone | Everything inside the work profile: apps, work-profile password, the data-sharing boundary, wipe of the work profile. *"[You] can wipe the work account from the device, but you can't wipe the entire device."* | consistent with the device page and the settings views — every company-owned-only row renders but carries the "(company-owned devices only)" suffix (09-16) |
+| What the admin cannot do | Device-owner controls — system apps, networks, device features, lock-screen features, remote lock / password reset, OS update policy in practice, zero-touch. Company-owned inventory is **incompatible** with a work profile (blocks sync) | company-owned inventory **empty** (09-16) — keep it that way; §3-L |
+| Wipe semantics | On a personal device with a work profile every "wipe" (rule action, failed-attempts wipe, auto wipe, admin wipe) removes **the work profile only** | the console says so on the Auto wipe panel: *"For devices with Android Device Policy, the work profile is removed"* (09-16) — drives M5/M7's blast radius: zero personal data at risk |
+| Password rules on Android 12+ BYOD | custom device-level strength and minimum length **not supported**; the **work-profile password** remains fully settable | Universal password = **Required · Strong · lock after 1 minute**, with **Work profile password = ON** ("apply password requirements only on work profile apps"), so the requirement lands on the work challenge, which Android 12+ honours (09-16) |
+| CAA on Android | Advanced-mode CEL exposes `device.android_device_security.{verified_boot, cts_profile_match, verify_apps_enabled, has_potentially_harmful_apps}` | **P9 applied 2026-09-16 17:30**: level "TRINC managed endpoint" in Monitor mode uses screen lock + encryption + verified_boot + cts_profile_match + no PHA (not `verify_apps_enabled`); the device page reads Verified boot Passed · CTS Yes · Verify apps Enabled · no PHA (09-16) — the level should evaluate true |
+| Chrome on the phone | Chrome Enterprise **Core** covers Android via *Chrome on Android → Apply supported user settings to Chrome on Android* for the signed-in work account; Chrome Enterprise **Premium's** content-analysis connectors are documented for Windows / Mac / Linux / ChromeOS only (the "Android download protection since 151" line from the Chrome matrix could not be re-verified — the platform-matrix page 404s) | Chrome browser → Settings → Users & browsers (root) → **Chrome on Android = "Do not apply supported user settings to Chrome on Android"** (09-16) and Managed profiles show **no Android entry** (Chrome matrix I1, 09-16) → nothing applied today reaches the phone's Chrome |
+| Premium licence side effect | — | the **Password Managers** panel states: *"Applies only to your users with Google Workspace Enterprise Standard licenses … Users with Chrome Enterprise Premium licenses have the following fixed setting: Turned on: 'Enable Google Password Manager for work profiles on Android 15+'"* (09-16 18:5x). The same "fixed settings" line sits on both Support-message panels (20:4x). trevor@ holds **both** an Enterprise Standard and a Premium licence, so which value wins for him cannot be told from the console; M9 set the checkbox ON, which makes the question moot for the password manager, and the custom support-message text is a phone-side check |
+| Docs hygiene | Nine of the eleven legacy `support.google.com/a/answer/<id>` pages now redirect to the knowledge-base home; the live canon is `knowledge.workspace.google.com/admin/devices/*` (§7) | — |
+
+---
+
+## 2 · Reading the matrix
+
+- **Scope** — `WP` = reaches the work profile on this personally-owned phone; `WP-only` = explicitly scoped to
+  the work profile by Google; `COD` = company-owned / device-owner only (**does not apply here**, kept in §3-L);
+  `partly` = applies with a documented caveat.
+- **Tenant state** — the value with its read date (09-16 = 2026-09-16 18:52–19:00 PDT unless another date is
+  given); "Google default" = not set anywhere in the tree. Every value below is "Applied at Trevor Robey
+  Intelligence Network Citations LLC" (the root OU) — the console showed no OU-level overrides.
+- **Recommendation** — `ADOPT` (proposal in §4) · `ADOPT-LATER` · `KEEP` · `DECLINE` (with the reason) ·
+  `USE` (a report or signal, nothing to configure) · `N/A`.
+- **Blast radius** — always stated against decision 1: what, if anything, the personal side would notice.
+- Console paths use the tenant's menu (`Devices → Mobile & endpoints → Settings → …`). Verified routes in §6.
+
+---
+
+## 3 · Feature inventory + gap matrix
+
+### A · Foundations — management level, enrollment, inventory
+
+| # | Capability | Console path | Protects against / does | Scope | Tenant state (date) | Recommendation | Blast radius / prerequisite |
+|---|---|---|---|---|---|---|---|
+| A1 | Mobile management type (Basic / Advanced / Custom per platform) | Settings → Universal → General → Mobile management | master switch for every Android setting below | WP | **Custom — Android Advanced · iOS Basic · Google Sync Unmanaged** (09-16) | KEEP | switching Android back to Basic may leave only a device wipe available (docs) |
+| A2 | Android Sync | Settings → Universal → Data access → Android Sync | the kill switch for work data on Android | WP | **ON** ("Allow work data to sync on Android devices"); iOS Sync ON; Discover OFF (09-16) | KEEP | off = no Gmail/Drive/Calendar in the work profile |
+| A3 | Android Device Policy (the management client) | device page → Privilege / User agent | the agent that applies everything here | WP | **Profile owner · Android Device Policy 166.38.0 (10864560)** (09-16; was 165.35.0 on 09-13 — it self-updates) | USE | — |
+| A4 | Device approvals | Settings → Universal → Security → Device approvals | a newly enrolling device cannot reach work data until an admin approves it | WP | **Require admin approval — ON** (09-16; set 09-14, approval e-mails to the operator's admin address); S24 **Approved** (09-16) | KEEP | serial-registered company devices auto-approve *except Android with a work profile* — irrelevant here |
+| A5 | Device inventory entry | `/ac/devices/list?category=mobile` → device page `/summary`, `/security`, `/information`, `/apps` | the record | WP | **S24 · Android 16 · User owned · Approved · Password On · Not compromised · Encrypted · ADB Disabled · Developer options Disabled · Verified boot Passed · CTS Yes · Verify apps Enabled · no PHA · patch 2026-08-04 · last sync 09-16 18:47** (09-16) | USE | — |
+| A6 | Company-owned inventory | Devices → Mobile & endpoints → Company owned inventory | unlocks device-owner controls **for company-owned devices** | COD | **empty — "No devices match your current selection"** (09-16) | **DECLINE** — docs: a work-profile phone added here is blocked from syncing until removed or factory-reset | would break the S24's work sync |
+| A7 | Third-party Android EMM · Security and MDM partners | Settings → Third-party integrations | hands management to another EMM / BeyondCorp partners | — | **Not enabled** (09-16) | KEEP | Google stays the EMM; Falcon's own Intune-shaped "MDM connected" note lives in the Falcon console, not here |
+| A8 | Zero-touch enrollment · Samsung Knox Mobile Enrollment | Settings → Enrollment / Samsung Knox portal | out-of-box enrollment of company-bought devices | COD | not configured (09-16) | N/A — retail personal phone; Google does not recommend zero-touch for BYOD | — |
+
+### B · Universal security settings
+
+| # | Capability | Console path | Protects against / does | Scope | Tenant state (date) | Recommendation | Blast radius / prerequisite |
+|---|---|---|---|---|---|---|---|
+| B1 | Compromised devices — block rooted Android | Settings → Universal → Security → Compromised devices | a rooted phone loses work sync | WP (device signal) | **Block compromised Android devices ON**; jailbroken-iOS block OFF (09-16) | KEEP | — |
+| B2 | Encryption required | Settings → Universal → Security → Encryption | unencrypted storage cannot sync | WP | **OFF** (09-16 18:5x) → **Require device encryption ON since ≈20:42 (M8)**; the S24 reads Encrypted | **DONE (M8)** — a future-proof no-op on this phone | none |
+| B3 | Camera (universal) | Settings → Universal → Security → Camera | blocks the camera **in work apps only** on a work-profile phone | partly | **Allow camera ON** (09-16) | DECLINE — Drive/Meet/Chat in the work profile need it; closes no leak path | — |
+| B4 | Password required + strength | Settings → Universal → General → Password requirements | forces a screen lock before sync; here it lands on the work-profile challenge (D2) | partly | **Require users to set a password ✓ · Strong** (09-16) | KEEP | — |
+| B5 | Minimum characters | same | length floor | **N/A on Android 12+ BYOD** — the panel says so | not set (09-16) | N/A | — |
+| B6 | Time before screen locks | same | idle timeout | WP | **1 minute** (09-16) | KEEP — already the tightest option | — |
+| B7 | Password lifespan | same | forced rotation | WP | **OFF** (field default 90 days) (09-16) | DECLINE — rotation without a compromise signal is friction only | — |
+| B8 | Block reuse of previous N passwords | same | history | WP | **OFF** (3) (09-16) | DECLINE — same reason | — |
+| B9 | Wipe after N failed unlock attempts | same | brute-force protection; **on this phone the wipe is the work profile only** | WP | **OFF** (field default 5) (09-16 18:5x) → **ON, 10 attempts since ≈20:41 (M7)** | **DONE (M7)** | personal side untouched by definition |
+| B10 | Device signals — Chrome browser · Endpoint Verification | Settings → Universal → Data access | desktop/Chrome device signals for CAA | not mobile | **both ON** (09-16); Endpoint Verification is not installed on the Mac (Chrome matrix E5) | N/A for the phone | — |
+| B11 | Discover with the managed account | Settings → Universal → Data access | feed access for the work account | WP | **OFF** (09-16) | KEEP | — |
+| B12 | Inactive company-owned devices report | Settings → Universal → Security | monthly report to super admins | COD | **ON**, "Also notify" empty (09-16) | KEEP (inert — no company-owned devices) | — |
+
+### C · Android → General settings
+
+| # | Capability | Console path | Protects against / does | Scope | Tenant state (date) | Recommendation | Blast radius / prerequisite |
+|---|---|---|---|---|---|---|---|
+| C1 | CTS compliance — block non-CTS devices | Android → General → CTS Compliance | custom ROMs / uncertified firmware lose sync | WP | **ON** (09-16; set 09-14); S24 CTS Yes | KEEP | — |
+| C2 | Auto wipe — inactive devices (N days, user notified first; the panel: "For devices with Android Device Policy, the work profile is removed") | Android → General → Auto wipe | a lost phone that never syncs again sheds its **work data** | WP-only wipe | **OFF** (09-16 18:5x) → **ON, 30 days since ≈20:39 (M5)** | **DONE (M5)** | personal side untouched; the operator's own phone idle 30 days is the only false-positive path |
+| C3 | Application auditing | Android → General | app inventory **for personal devices with no work profile** | not this device | **OFF** (09-16) | N/A — the S24 has a work profile | — |
+| C4 | User device wipe (My Devices) | Android → General | lets the user wipe the work profile from My Devices | WP | **OFF** (09-16) | ADOPT-LATER — a self-service remote wipe of the work profile from a browser; low value while the admin console is one tab away | — |
+| C5 | Older Android devices — enforce only available policies | Android → General | legacy carve-out | legacy | **OFF** (09-16) | KEEP | — |
+
+### D · Android → Work profile, Password, Users & accounts
+
+| # | Capability | Console path | Protects against / does | Scope | Tenant state (date) | Recommendation | Blast radius / prerequisite |
+|---|---|---|---|---|---|---|---|
+| D1 | Work profile setup — optional / **Enforce** | Android → Work profile → Work Profile Setup | whether a personal phone must carry a work profile (the panel notes it "doesn't apply to devices with Android Device Policy because a work profile is required") | WP | **ON — "Enforce work profile creation"** (radio read, 09-16) | KEEP | — |
+| D2 | Work profile password (separate challenge; Android 7.0+) | Android → Work profile → Work profile password | applies the Universal password requirement to the work profile — the one password control Android 12+ BYOD honours fully | WP-only | **ON** ("Apply password requirements only on work profile apps") → Strong, 1-minute lock on the work challenge (09-16) | KEEP — already what v0.1 proposed | — |
+| D3 | Password managers in the work profile (Android 15+) | Android → Apps and data sharing → Password Managers | Google Password Manager autofill inside work apps and sites; **no third-party toggle exists in this console** | WP-only | checkbox **OFF** with a panel note that Chrome Enterprise Premium licence holders get the fixed value ON (09-16 18:5x; trevor@ holds both licences, so which won was not determinable) → **checkbox ON since ≈20:46 (M9)**, so both readings now agree | **DONE (M9)**; Bitwarden in the work profile is a phone-side autofill choice, not a console control — it is in the work store since M2 | none on the personal side |
+| D4 | Google Accounts — block adding other Google accounts · Accounts add/remove | Android → Users and accounts | keeps the work profile single-identity | WP | **Google Accounts: add OFF (blocked)** · Accounts add/remove ON (09-16) | KEEP | — |
+
+### E · Android → Apps and data sharing (the BYOD data boundary)
+
+| # | Capability | Console path | Protects against / does | Scope | Tenant state (date) | Recommendation | Blast radius / prerequisite |
+|---|---|---|---|---|---|---|---|
+| E1 | Available apps — all Play apps vs **only allowed apps** | Android → Apps and data sharing → Available apps | restricts what can be installed **into the work profile** to the managed-Play allowlist (F1) | WP-only | **All apps** (09-16 18:5x) → **Only allowed apps since ≈20:35 (M3)** | **DONE (M3)**, after F1 was curated (M2) | the personal Play Store is untouched; the work-profile store shows only approved apps |
+| E2 | Unknown sources — block sideloading **in the work profile** (Android 8.0+) | same → Unknown sources | an APK from outside Play cannot land in the work profile | WP-only | **ON — "Block users from installing apps from unknown sources in their work profile"** (09-16) | KEEP — already in place (the v0.1 M1) | — |
+| E3 | Sharing to other profiles (work → personal share sheet) | same | blocks handing work files/URLs/contacts to personal apps | WP | **Allow ON** (09-16 18:5x) → **OFF since ≈20:37 (M4)** | **DONE (M4)** | personal apps stop appearing in the work share sheet; files still move via Drive on both sides |
+| E4 | Cross-profile copy (work → personal clipboard) | same | blocks pasting work text into personal apps | WP | **Allow ON** (09-16 18:5x) → **OFF since ≈20:47 (M10)** — the console wording is "pasting between the work profile and personal space", i.e. both directions | **DONE (M10)** — applied inside the operator's M2–M11 range; re-tick if the friction is too high | personal → work paste is blocked too |
+| E5 | Screen capture in work apps | same | blocks screenshots of work apps | WP | **Allow ON** (09-16) | DECLINE for now — removes a tool the operator uses, closes no external leak path | — |
+| E6 | Runtime permissions default | same | default answer to permission prompts in work apps | WP | **Prompt user** (09-16) | KEEP | — |
+| E7 | Location sharing | same | work apps may use location | WP | **Allow ON** (09-16) | KEEP | — |
+| E8 | Android Beam | same | legacy NFC beam-out | unclear | **Allow ON** (09-16) | KEEP (obsolete on Android 16) | — |
+| E9 | Developer options | same | blocks developer mode | WP (device page reads Disabled) | **OFF — "Allow developer options"** (09-16) | KEEP — already in place | — |
+| E10 | Verify apps — stop users disabling Play Protect | same | keeps Play Protect on | **COD** (the row says "company-owned devices only") | Allow ON (inert) (09-16) | N/A — read it via CAA `verify_apps_enabled` instead (J1); the device reports Verify apps Enabled | — |
+| E11 | USB file transfer · App settings · System apps · Google Play private apps | same | device-owner app controls / internal apps | **COD** / N/A | USB Allow · App settings Allow (both company-owned only) · System apps "Allow all" Turned off · private apps OFF/OFF (09-16) | N/A | — |
+
+### F · App management — managed Google Play (Apps → Web and mobile apps)
+
+| # | Capability | Console path | Protects against / does | Scope | Tenant state (date) | Recommendation | Blast radius / prerequisite |
+|---|---|---|---|---|---|---|---|
+| F1 | The Android app list (install types *Available* / *Force installed*, per OU) | Apps → Web and mobile apps (`/ac/apps/unified`) | what the work profile's Play Store offers; becomes the allowlist once E1 flips | WP | **Apps (0) — "No web or mobile apps found"** (09-16 18:5x) → **Apps (13), all Android · Available · ON for everyone since ≈20:33 / 20:49 (M2 + M11)** → **Apps (14) since 21:15 — Facebook added at the operator's instruction (M2b)**. **Access scoping (read 21:20, nothing changed):** an app's *User access* page offers only **Groups** and **Organizational Units** — there is no per-user selector, and the tenant has no groups. "ON for everyone" is one checkbox at the root OU ("Make this app available to users in this organizational unit"); with one user in the tenant that already means trevor@ only. The operator asked for "only me" and then chose **option A — leave it** (21:2x); the one-member security group alternative (M15) is declined for now. Revisit before any second user is ever added. **Apps (15) since 21:26 — Messenger added** | **DONE (M2)** — curated: Gmail, Google Calendar, Drive, Docs, Sheets, Slides, Chat, Meet, Keep, Chrome, Google Authenticator, Bitwarden (+ any app already installed in the work profile, so M3 cannot orphan it) | apps not on the list vanish from the **work** store only |
+| F2 | Force install | same → app → install type | pushes an app into the work profile with no opt-out | WP | none (09-16) | ADOPT-LATER — only if the operator wants the work profile pre-built after a re-enrol | — |
+| F3 | Managed configurations | same → app → Managed configurations | pre-sets an app's own settings (developer-dependent) | WP | none (09-16) | USE when an app offers one (Chrome, Gmail) | — |
+| F4 | Private Android apps | same → Add private Android app | internal APKs via managed Play | WP | access OFF, publish OFF (09-16) | N/A — no internal apps | — |
+| F5 | App collections | Web and mobile apps → Settings → Android app collections | cosmetic grouping in the work store | WP | none (09-16) | DECLINE — one user | — |
+| F6 | **Falcon for Mobile inside the work profile** | managed Play → Falcon for Mobile → Available in the work profile | gives Falcon its own VpnService slot (WireGuard keeps the personal one); the option `mobile-policy-target.md` has carried since 09-07 | WP | not installed in the work profile (option only, 09-16 18:5x) → **CrowdStrike Falcon Available in the work store since ≈20:49 (M11, console half)**; install + enrolment are the operator's | **IN PROGRESS (M11)** — a second Falcon enrolment (new aid) and a posture change; its own decision after M1–M8 | the personal Falcon sensor and WireGuard are untouched |
+
+### G · Android → Lock screen, Device features, Networks, System updates, Support messages
+
+| # | Capability | Console path | Protects against / does | Scope | Tenant state (date) | Recommendation | Blast radius / prerequisite |
+|---|---|---|---|---|---|---|---|
+| G1 | Lock screen features (camera shortcut, face / fingerprint / iris unlock, notifications, notification details, periodic authentication, trust agents) | Android → Lock screen features | lock-screen hardening | the console labels the section "company-owned devices and devices without personal profiles only" → **inert on this phone** | all Allow ON; lock-screen widgets OFF; periodic authentication OFF (09-16) | N/A | — |
+| G2 | OS update policy | Android → System updates | update cadence | device-owner capability | **Never** (= no forced policy) (09-16) | N/A — the S24 carries the 2026-08 patch on its own | — |
+| G3 | Networks — VPN config, tethering, mobile networks, cell broadcasts, Bluetooth, Wi-Fi | Android → Networks ("Manage networks on company-owned devices") | network lockdown | **COD** | VPN configuration Allow ON; tethering / mobile networks / cell broadcasts / Bluetooth / Wi-Fi changes OFF (09-16, inert) | N/A | — |
+| G4 | Device features — physical media, trusted credentials, microphone, speaker, admin-restriction PIN, factory reset, FRP, edit time, roaming, safe boot | Android → Device Features ("for company owned devices") | hardware lockdown | **COD** | all Allow ON · FRP "no admins" · restriction PIN OFF (09-16, inert) | N/A | — |
+| G5 | Support messages — enforced-settings message · work-profile-wipe message | Android → Support Messages | tells the user why a control is blocked and what a wipe means | WP | **both Default message** (09-16 18:5x) → **both Custom since ≈20:45 (M8)**, TRINC wording | **DONE (M8)** | none |
+| G6 | Users and accounts — Add users / Remove users | Android → Users and accounts | multi-user profiles (company-owned Android 6.0 only) | **COD** | Add users ON · Remove users OFF (09-16, inert) | N/A | — |
+
+### H · Compliance rules and alerts (Rules → Device management rules; Security → Alert center)
+
+| # | Capability | Console path | Protects against / does | Scope | Tenant state (date) | Recommendation | Blast radius / prerequisite |
+|---|---|---|---|---|---|---|---|
+| H1 | Device management rules — triggers: Device compliance status · Device compromise · Failed screen unlock attempts · Suspicious activity · Work profile support · Device ownership · Account registration change; actions: Block · Approve · **Wipe (work profile only here)** · No action · Send to Alert Center | `/ac/devices/rules` | automated response to device state | WP | **"You haven't added any rules yet"** (09-16 18:5x) → **three Active rules since 21:02–21:08 (M6, option A)**: failed unlocks > 5 → Block · suspicious activity → alert only · compromise → Block; each Alert Center + the forced super-admin e-mail | **DONE (M6)** — *Failed unlock attempts > 5 → Block device + Alert Center*; *Suspicious activity → Alert Center only*; *Device compromise → Block device + Alert Center* | a Block is reversible in the console; no wipe actions proposed |
+| H2 | Predefined templates — auto-approve registration · failed unlock > 5 → Block · suspicious activity → wipe | same | one-click rules | WP | none used (09-16) | DECLINE auto-approve (A4 is the control) · adopt the failed-unlock template inside M6 · **DECLINE the wipe template** | — |
+| H3 | Activity rules on Device log events | `/ac/ax` | alerts on device events | WP | **"Work device unregistered or non-compliant"** (Account registration change, High) and **"Work device compliance status change"** (Device compliance status, High), Active, Alert Center + e-mail all super admins (09-14; re-verified 09-15) | KEEP | e-mail here is not the decision-5 loop |
+| H4 | System-defined device alerts — Device compromised · Suspicious device activity · Mobile settings changed | `/ac/ax?ruleType=system_defined` | Google's own device alerts | WP | **all three Active, notification On** (Mobile settings changed since 09-14 05:15) (09-16) | KEEP | — |
+| H5 | Inactive company-owned devices report | Settings → Universal → Security | inventory hygiene | **COD** | ON, inert (09-16) | N/A | — |
+
+### I · Visibility and audit
+
+| # | Capability | Console path | Protects against / does | Scope | Tenant state (date) | Recommendation | Blast radius / prerequisite |
+|---|---|---|---|---|---|---|---|
+| I1 | Devices audit log (Device log events) | Reporting → Audit and investigation → Device log events (`/ac/sc/investigation`); Mobile & endpoints → Audits / Reports | the record | WP | not opened this pass (the device page's security block was read instead) | USE — monthly glance; the P9 monitor review reads it too | — |
+| I2 | Per-device audit info | device row → View Audit Info | same, per device | WP | available on the S24 row (09-16) | USE | — |
+| I3 | Device details — Device security · Device information · Installed apps | `/ac/devices/details/38e210cfdacbc2a5/{security,information,apps}` | the posture the CAA level reads | WP | as A5; Installed apps = 376 device apps, PHA none (09-16) | USE | the sub-routes load directly; no Expand click needed |
+| I4 | Security investigation tool — Device log events search | `/ac/sc/investigation` | ad-hoc queries | WP | — | USE | dropdown traps in memory `google-admin-console-panel-traps` |
+
+### J · Access control
+
+| # | Capability | Console path | Protects against / does | Scope | Tenant state (date) | Recommendation | Blast radius / prerequisite |
+|---|---|---|---|---|---|---|---|
+| J1 | Context-Aware Access — Android leg of the access level | Security → Context-Aware Access | a phone that is rooted, non-CTS, unlocked-bootloader or carrying a PHA loses Workspace access (once Active) | WP (device signals via Google endpoint management) | **P9 Monitor mode since 2026-09-16 17:30**; the S24's signals all read compliant (09-16) | KEEP; **ADOPT-LATER (M12)**: add `verify_apps_enabled == true` before the switch to Active, since E10 cannot be forced on this phone | monitor review ~2026-09-30 |
+| J2 | Basic-mode attributes | same | coarse gate | WP | not used | KEEP | — |
+| J3 | Endpoint Verification | Settings → Universal → Data access | desktop signals only | not Android | ON, no Mac extension installed | N/A for the phone | — |
+
+### K · Chrome and Workspace apps on the phone
+
+| # | Capability | Console path | Protects against / does | Scope | Tenant state (date) | Recommendation | Blast radius / prerequisite |
+|---|---|---|---|---|---|---|---|
+| K1 | **Chrome on Android — "Apply supported user settings to Chrome on Android"** (Chrome Enterprise Core) | Chrome browser → Settings → Users & browsers → Chrome on Android | the Chrome user policies already set at root (Safe Browsing, Password alert, URL checks, Gen AI defaults, blocked hosts, P1–P8's work) reach the phone's Chrome once it is signed in as trevor@ | WP (signed-in Chrome) | was **"Do not apply"** at the root OU (09-16 18:5x) → **"Apply supported user settings to Chrome on Android" since 2026-09-16 ≈19:10 (M1)**, inherited at the browser OU; the prerequisite *Chrome management for signed-in users* reads "Apply all user policies … managed Chrome experience" | **DONE (M1)** — the operator's sign-in of the work-profile Chrome is the remaining step | personal Chrome on the phone is untouched — it is not signed in to trevor@ |
+| K2 | Chrome Enterprise Premium content-analysis connectors on Android | — | upload/download/paste scanning | documented desktop/ChromeOS only | **TESTED 2026-09-16 19:27:51 PDT (operator's download in the work-profile Chrome, read from Chrome log events at 19:33):** a 500 MB `application/x-zip-compressed` file from netwet.net, profile path `/data/user/10/com.android.chrome/…` (Android user 10 = the work profile), client type Chrome profile, via the WireGuard tunnel IP `10.126.93.2` → event **Content unscanned · CONTENT_UNSCANNED_SERVICE_UNAVAILABLE · result Allowed** (fail-open, as P2 set it), content hash recorded, server scan latency 0, scan status Unknown. Size is **not** the cause: the same log holds a Mac event of 2026-09-13 15:46 logged as `CONTENT_UNSCANNED_FILE_TOO_LARGE`, which is how Chrome reports an oversize file. **Second sample 19:34:02 (read 19:37):** a **15 MB** zip from testfile.org, profile identifier `IPpASmnrKIsRjYM20yqVugkt6wc` (the Android managed profile), same verdict — **Content unscanned · SERVICE_UNAVAILABLE · Allowed**, scan latency 0 | **NEGATIVE, two samples (500 MB and 15 MB), Chrome 153 / Android 16:** the download connector is delivered to and engaged by Android Chrome (it hashes, sizes and types the file and reports), but the content-analysis service does not answer it, so nothing is scanned and every download is allowed under P2's fail-open. Still open: whether this is a platform gap or a same-hour service outage — a download of the same 15 MB file in the Mac's work profile, logged as *Content transfer* (scanned) rather than *unscanned*, would separate the two | no protection is lost that existed before; Play Protect and the personal-side Falcon sensor are unchanged |
+| K3 | Chrome managed profile on the phone | `/ac/chrome/profiles` | reporting from the phone's Chrome | WP | **no Android entry** (09-16 18:5x) → **Android 16 profile present since 19:18 — Chrome 153, 13 policies, Profile-only** (09-16 19:23, M1 outcome) | **DONE (M1)** | the row is the witness for every later Chrome-policy change reaching the phone |
+| K4 | Workspace apps data controls on Android | — | iOS has dedicated pages; Android has no sibling — the work profile is the boundary | WP | — | N/A (covered by E3/E4) | — |
+
+### L · Not applicable to a personally-owned work-profile phone (recorded so nobody re-researches them)
+
+Company-owned inventory (A6, would break sync) · zero-touch and Knox Mobile Enrollment (A8) · fully-managed /
+device-owner mode (Google's own console does not offer it) · System apps allow/block · App settings locks ·
+Verify-apps enforcement (E10; read via CAA instead) · USB file transfer · the whole **Networks** group · the
+whole **Device Features** group · remote **Lock device / Reset password** · Lock-screen features (G1 — the
+console itself labels them company-owned / no-personal-profile only) · OS update policy (G2) · inactive
+company-owned report · application auditing (no-work-profile devices) · minimum password length and custom
+device-level strength on Android 12+ BYOD · iOS (Basic; an Apple Push Certificate banner is showing and can be
+ignored — no iOS device) and Windows (Windows device management Disabled) · multi-user Add/Remove users · private
+apps and app collections · **third-party password managers** (no such control exists in this console — a
+phone-side autofill choice inside the work profile).
+
+---
+
+## 4 · Proposals — one at a time, typed confirm each; M1–M11 APPLIED 2026-09-16, M12 after the P9 review
+
+Ordered by value ÷ risk. Every item: exact setting · scope · value · rollback · how it is verified from a **fresh
+tab** and, where one exists, on the phone (work-profile Settings or the work-profile Play Store). All of them touch
+**only the work profile**; the personal side of the S24 never changes.
+
+| # | Proposal | Setting · scope · value | Rollback | Verify |
+|---|---|---|---|---|
+| **M1** — **APPLIED 2026-09-16 ≈19:10 PDT (operator `confirm M1`; the 18:49 cic session reused)** | **Chrome policies reach the phone's Chrome** | Chrome browser → Settings → Users & browsers → *Chrome on Android* (`/ac/chrome/settings/user/details/chrome_on_android?ac_ouid=03ph8a2z4esi3y6`) = **Apply supported user settings to Chrome on Android**, saved at the root OU ("Update saved."). Prerequisite checked after the save: *Chrome management for signed-in users* (`…/details/chrome_management_setting`) = **Apply all user policies when users sign into Chrome, and provide a managed Chrome experience** (Locally applied = the Google default), so the new setting can take effect. **The operator signed the S24's work-profile Chrome in as trevor@ at ≈19:18** | back to "Do not apply" | **VERIFIED** — fresh tab at root: *Locally applied* · Apply; fresh tab at the browser OU `03ph8a2z3dk2e3a`: *Inherited from …LLC* · Apply. **OUTCOME 19:18 PDT, eight minutes after the save (read 19:23):** Chrome browser → Managed profiles gained the **Android row — trevor@ · profile "Trevor" · Chrome 153.0.8010.47 Stable · Android 16 · last policy sync Sep 16, 7:18 PM · 13 profile policies · 0 extensions · Affiliation Profile-only**. Its Policies tab (page 1 of 2 read) lists ChromeDataRegionSetting 0 · CloudProfileReportingEnabled true · CloudReportingEnabled (Invalid — a machine-only policy, same as on the Mac) · **EnterpriseRealTimeUrlCheckMode 1** · ExtensionInstallBlocklist · **ExtensionSettings** (P8's blocked hosts + P11's block) · **GenAiDefaultSettings 1** (P5) · MandatoryExtensionsForIncognito… · NTPContentSuggestionsEnabled false · **OnFileDownloadedEnterpriseConnector** (P2's download connector, delivered to the phone's Chrome) — the second page holds the remaining three |
+| **M2** — **APPLIED 2026-09-16 ≈20:14–20:33 PDT (operator `confirm M2-M11`; one cic arm 20:09, a passkey re-auth completed by the operator)** | **Curate the managed-Play app list** | Apps → Web and mobile apps → Add app → *Search for apps* → per app **Select → User access: All users in your organization → Access method: Available → FINISH**: Gmail · Google Calendar · Google Drive · Google Docs · Google Sheets · Google Slides · Google Chat · Google Meet · Google Keep - Notes and lists · Google Chrome · Google Authenticator · **Bitwarden Password Manager**. Pre-check: the S24's work-profile package list (377 entries, read from the device page across 8 pages) holds only system, Samsung, carrier and Google packages — **no third-party app was installed in the work profile**, so nothing could be orphaned. Trap: Calendar and Drive were first lost because the wizard's FINISH button sits at a different height when an app has no managed-configuration section; re-added with a text-matched button click and a header check (`Add '<name>'`) before each save | remove the entries (app page → DELETE APP) | **VERIFIED** — fresh `/ac/apps/unified`: **Apps (12), every row Android · ON for everyone** (13 with M11's Falcon) |
+| **M3** — **APPLIED ≈20:35 PDT** | **Only allowed apps in the work profile** | Android → Apps and data sharing → *Available apps*: All apps → **Only allowed apps** (panel note: "Installed apps not in the app list stay on devices") → SAVE ("Your settings have been saved") | back to *All apps* | **VERIFIED** — fresh Android settings view: "Set which apps users can install from the Play Store: **Only allowed apps**". Phone-side: the work-profile Play Store should now offer only the M2 list |
+| **M4** — **APPLIED ≈20:37 PDT** | **No work → personal sharing** | Android → Apps and data sharing → *Sharing to other profiles* → "Allow content sharing from the work profile to the personal space" **unticked** → SAVE | re-tick | **VERIFIED** — fresh view: *Turned off* |
+| **M5** — **APPLIED ≈20:39 PDT** | **Auto wipe of an abandoned work profile** | Android → General → *Auto wipe* → "Wipe if a device isn't synced within a set time" ✓, days 20 → **30** → SAVE (the panel states: with Android Device Policy the work profile is removed, not the device) | untick | **VERIFIED** — fresh tab: Auto wipe **ON** (saved panel read 30) |
+| **M6** — **APPLIED 2026-09-16 21:02–21:08 PDT (operator `M6 option A` — Alert Center with the forced super-admin e-mail; the 20:09 cic session reused)** | **Device management rules — three Active rules.** (a) **"Block account on multiple failed screen unlocks"** (template): trigger *Failed screen unlock attempts*, conditions *> 5* AND *Device type is Android*, action **Block device**, created 21:02. (b) **"Alert on suspicious device activity"** (from the *Perform wipe on suspicious event* template, renamed; trigger *Suspicious activity*, *Device type is All devices*; **action changed Perform wipe → No action**), created 21:04. (c) **"Block compromised device"** (new rule): trigger *Device compromise*, conditions *Device type is Android* AND *Device compromised state is "Is compromised"* (so it does not fire when the phone recovers), **action Block device — a blank rule defaults to Perform wipe and was changed before saving**, created 21:08. All three: scope root, Alert center ✓ with Email → All super admins (forced, checkbox disabled), status Active. **VERIFIED** — fresh `/ac/devices/rules`: three rows, Active · Block mobile device / No action / Block mobile device · Device management. Wizard facts: FINISH is followed by a **status dialog (Active / Inactive) that needs COMPLETE** — a navigate before COMPLETE drops the rule (lost one build); a blocked device is released from the device list (Unblock). *History of the first attempt, kept for the record:* | Rules → Device management rules → ADD RULE → *Rule from template* → "Block account on multiple failed screen unlocks" (trigger *Failed screen unlock attempts*; conditions *> 5* AND *Device type is Android*; action **Block device**). **Finding:** ticking *Alert center* on a device-management rule forces **Email → All super admins ON — the checkbox is disabled**, so "Alert Center, no e-mail recipients" as confirmed cannot be built. The wizard was discarded ("This rule will not be created") and the rules list is still empty (20:53). Choices: **(A)** Alert Center + the forced super-admin e-mail — the same pattern the two 09-14 device activity rules already use, and not the decision-5 loop (these mails carry no detector-matching content); **(B)** Block with no notification at all. The other two rules (suspicious activity → alert only; device compromise → block) inherit the same choice. Wizard facts for the rebuild: the final button is **FINISH**, not Create; the three templates are auto-approve registration · block on failed unlocks · wipe on suspicious event | delete the rules | fresh `/ac/devices/rules` |
+| **M7** — **APPLIED ≈20:41 PDT** | **Work-profile wipe after failed unlocks** | Settings → Universal → General → Password requirements → *Wipe device after failed attempts* ✓, attempts 5 → **10** → SAVE ("Password requirements settings updated"); nothing else in the panel touched (Strong · 1-minute lock · lifespan, history and custom strength unticked) | untick | **VERIFIED** — fresh load, panel reopened: wipe ✓ · attempts 10 |
+| **M8** — **APPLIED ≈20:42–20:45 PDT** | **Housekeeping** | Universal → Security → *Encryption* → "Require device encryption" ✓ · Android → Support Messages → *Enforced settings* = **Custom messages** — short (92 chars) "Blocked by Trevor Robey Intelligence Network Citations LLC device policy. Work profile only." · long (183) "This setting is managed by Trevor Robey Intelligence Network Citations LLC and applies to the work profile only. Your personal side is not managed. Questions: trevor@trevorobeyinc.com" · *Work profile wipe* = **Custom message** (118) "Your TRINC work profile was removed. If you did not expect this, contact trevor@trevorobeyinc.com from another device." Both support-message panels carry a "Users with Chrome Enterprise Premium licenses have the following fixed settings: Default message" line — see §1 | untick / back to Default | **VERIFIED** — fresh Universal view: Encryption *Turned on*; fresh Android view: Enforced settings *Custom messages*, Work profile wipe *Custom message* |
+| **M9** — **APPLIED ≈20:46 PDT** | **Google Password Manager in the work profile stays on after Nov 13** | Android → Apps and data sharing → *Password Managers* → "Enable Google Password Manager for work profiles on Android 15+" ✓ → SAVE. Operator-side, not a console item: Bitwarden is now in the work store (M2) — install it in the work profile and pick it as that profile's autofill service if it is the preferred manager | untick | **VERIFIED** — fresh tab: **ON** |
+| **M10** — **APPLIED ≈20:47 PDT (inside the operator's M2–M11 range, so applied now rather than two weeks after M4)** | **No work ↔ personal clipboard** | *Cross profile copy* → "Allow pasting between the work profile and personal space" **unticked** → SAVE. **The console's wording is bidirectional** — pasting is blocked in both directions, so a password or code copied on the personal side can no longer be pasted into a work app (one more reason for Bitwarden inside the work profile) | re-tick | **VERIFIED** — fresh Android view: *Turned off* (the same view re-confirmed M3, M4 and M9) |
+| **M11** — **console half APPLIED ≈20:49 PDT; the install and enrolment are the operator's** | **Falcon for Mobile in the work profile** | Apps → Web and mobile apps → **CrowdStrike Falcon** (Android) → All users · **Available**. Operator: open the work-profile Play Store → install CrowdStrike Falcon → enrol it with the Falcon customer ID (a second enrolment, new aid) → it takes the work profile's own VpnService slot; WireGuard keeps the personal slot | delete the app entry; uninstall from the work profile; retire the aid in Falcon | **VERIFIED (console)** — fresh app list: **Apps (13)**, CrowdStrike Falcon · Android · ON for everyone. Device side pending: Falcon host list shows the new aid with the `mobile` policy applied |
+| **M2b** — **APPLIED 2026-09-16 21:15 PDT (operator: "just do the facebook one first"; one cic arm 21:13, passkey re-auth by the operator)** | **Facebook in the work store — first step of a possible personal-app migration** | Apps → Web and mobile apps → Search for apps → **Facebook** (Android; the other hits were Workplace by Facebook (SAML), Facebook Lite, Forum) → All users · **Available** → FINISH. It is only *offered* in the work-profile Play Store; nothing installs until the operator installs it there. **The wider plan is NOT decided** — the operator wants to move his personal apps into the work profile so the personal Google account lives only on the desktop. Recorded cautions: (1) it inverts the container's purpose — Meta's apps would sit beside business Gmail/Drive, and with Contacts/Files granted they can read the work profile's contacts and files; (2) everything in the profile shares its fate — the 30-day auto-wipe, the 10-failed-unlock wipe and the two Block rules would take personal app sessions and local data too; (3) work-profile app installs land in the tenant's device audit log (his own tenant — informed choice, same class as decision 4); (4) the personal side cannot be removed on a personally-owned phone — phone/SMS, Samsung system apps, the Falcon sensor and WireGuard stay there, and signing the personal Google account out stops personal-side Play updates. **Proposed mitigation if he proceeds (M14, not applied):** per personal app, Apps → Web and mobile apps → app → *Runtime permissions* → Contacts and Files/Storage = **Deny**. Named alternative, not proposed: re-enrol the phone as company-owned, fully managed (factory reset) **Messenger added 21:26 PDT (operator: "option A, now add messenger")** — same flow; the search hits were Messenger · Messenger Kids · WhatsApp Messenger · Signal · KakaoTalk · Viber · Handcent, row 1 selected and gated on the header `Add 'Messenger'`. **Access-scope decision 21:2x: option A — leave "ON for everyone" as is** (the console scopes only by OU or group; one user in the tenant, so it already means trevor@ only; revisit before any second user is added; the one-member-group alternative M15 is declined for now). **Personal-side check ≈21:40 PDT (operator-authorized one-off Falcon probe, `com.facebook.*` only):** the personal-side sensor logged Facebook uninstalled 21:25:05 and Messenger 21:25:15 (the operator's own action); three carrier-preloaded Meta system packages remain there (Meta App Manager, Meta App Installer, Meta Services — disable-only, by the user). Neither Google's console nor Falcon can remove anything from the personal side. **Re-check 21:57 PDT (authorized again, same scope):** a fourth Meta package, Meta Attribution, was uninstalled at 21:53:30; the operator also disabled the three system packages, which Falcon cannot confirm because it has no event for a disabled app; its app inventory is a once-a-day snapshot at about 18:25 PDT, so the first confirming inventory is 2026-09-17 evening. **Work side, read from the device page at the 22:01 sync:** Facebook 578.0.0.40.75 and Messenger 578.0.0.45.92 are installed in the work profile (380 packages, was 377). **CrowdStrike Falcon set to Force install ≈21:59 PDT on the operator's instruction** and installed at the same sync (2026.08.4250006); uninstall-prevention, always-on VPN and managed configuration left at their defaults; the app is not yet enrolled in Falcon (second aid). An enrolment invite of the managed-device type went to the work address at 22:13 PDT on the operator's instruction (5-day code); he activated it at 22:14 PDT and Falcon now lists the work-profile sensor as a second Android host (`7cf52885`), verified by API. Flag: the Falcon summary read "2 of 1 sensors used" before this third sensor. Falcon policy parity verified 22:22 PDT: the work-side host took the same mobile, global-config and content-update policies with identical settings fingerprints, no change needed. **Four more Force installs 22:24–22:26 PDT on the operator's named instruction: Bitwarden, Google Drive, Google Authenticator, Gmail** — verified from fresh loads and present on the device at the 22:26 sync (Bitwarden 2026.8.1, Drive 2.26.365.0, Authenticator 7.2, Gmail 2026.08.31). Five of the fifteen store apps are now Force install; the other ten stay Available until the operator says otherwise. **Flag, not applied:** Bitwarden's per-app switch "Password manager for Android 15+" is OFF, and the phone runs Android 16, so Bitwarden may be refused as the work profile's password manager until it is ON (separate from the tenant-level setting M9 turned on). **22:49–22:53 PDT: The Roku App (Official) and WireGuard added to the store as Force install on the operator's named instruction (Apps (17), seven forced); both on the device at the 22:53 sync.** The operator turned Bitwarden's Android 15+ password-manager switch ON himself (verified). **23:10 PDT: uninstall prevention turned ON for WireGuard and Roku on the operator's named instruction (verified).** He then built the work-side tunnel as a new Firewalla client (`work VPN`, 10.126.93.3) with the Roku app excluded from it, deleted the personal-side copies, and gave the personal VPN slot to Falcon; the network-plane follow-ups are staged in `~/Security Everything/alertdesk/proposals/work-vpn-peer-2026-09-16.md`. Consequence to note against F6: WireGuard in the work profile will hold the work-side VPN slot, so Falcon's network protection cannot run there either; the personal slot becomes free once he removes the personal copy. Open: a separate mobile policy for the work-side sensor, where the VPN slot is free. Bitwarden is still not installed. Still open: the Contacts/Files runtime-permission denial (M14) for Facebook and Messenger, and which further personal apps to add | DELETE APP on the Facebook / Messenger entries | **VERIFIED** — fresh `/ac/apps/unified`: **Apps (14)** with Facebook at 21:15, then **Apps (15)** with Messenger at 21:26, each Android · ON for everyone |
+| **M12** *(after the P9 review)* | **CAA level tightening** | add `device.android_device_security.verify_apps_enabled == true` to the Android leg of "TRINC managed endpoint" before switching it to Active | remove the term | fresh level detail; monitor log stays clean |
+
+**Already in place (read 09-16, no proposal needed):** sideloading into the work profile blocked (E2) ·
+developer options blocked (E9) · work-profile password on — Strong, 1-minute lock (B4/B6/D2) · work profile
+enforced (D1) · adding other Google accounts blocked (D4) · device approvals (A4) · compromised-device block
+(B1) · CTS block (C1) · all three device alerts + the two 09-14 activity rules (H3/H4) · Discover off (B11).
+
+**Declined (recorded so they are not re-proposed):** universal Camera block (B3) · password lifespan and history
+(B7/B8) · screen-capture block (E5) · the suspicious-activity **wipe** template and the auto-approve template (H2)
+· anything in §3-L.
+
+---
+
+## 5 · Recommendation
+
+Adopt **M1 → M2 → M3 → M4 → M5 → M6 → M7 → M8 → M9** in that order; each is one panel, one save, one fresh-tab
+verify, and none of them reaches the personal side of the phone. **M1 is the one that matters most**: everything
+P1–P8 built for Chrome on the Mac stops at the phone today because "Chrome on Android" is off and the work-profile
+Chrome is not signed in — one setting plus one sign-in extends Safe Browsing, Password alert, the blocked hosts
+and the Gen AI defaults to the browser the operator carries everywhere. **M2 + M3** turn the work profile into an
+allowlisted appliance, which is the most an admin can do on a phone he does not own. **M6** gives the existing
+alerts teeth without ever wiping anything. **M11** (Falcon inside the work profile) is real defense in depth but a
+second sensor enrolment and a new aid; decide it separately once M1–M9 have settled. Everything in §3-L is out of
+reach by Google's design, not by this tenant's edition — Enterprise Standard already licenses all three
+endpoint-management tiers, so there is nothing to buy, and the read shows the work profile already carries most of
+the defaults a careful admin would set by hand.
+
+---
+
+## 6 · The tenant read — DONE 2026-09-16 (routes verified, for the next read)
+
+One `cic` arm (18:49 PDT; a Google passkey re-auth on the first console load was completed by the operator), one
+tab reused, read-only, closed at the end. Routes that work: the **per-platform views dump every section's current
+value as text** — `/ac/managedsettings/724141353720?vid=EMM_ANDROID_SETTINGS_VIEW` (all Android sections) and
+`…?vid=EMM_UNIVERSAL_SETTINGS_VIEW` (Data access + Security; the General card only shows its title) — one
+`get_page_text` each; section tabs `…/AndroidGeneralSettingsTab`, `…/AndroidWorkProfileTab`,
+`…/AndroidAppsAndDataSharingTab`, `…/UniversalSecurityTab`; Universal **General** (Mobile management + Password
+requirements) lives at `/ac/devices/settings/general` (`…/UniversalGeneralSettingsTab` 404s) and its two rows expand
+on a click (script click on the row's description text works) into radios, a lock-timeout list and checkboxes;
+device list `/ac/devices/list?category=mobile`; device page sub-routes `/ac/devices/details/<id>/{summary,security,information,apps}?uid=<user>&dt=1`
+load directly with every field in text (no Expand click needed); `/ac/devices/rules`; `/ac/devices/settings/thirdparty`;
+`/ac/devices/list/companyowned`; `/ac/apps/unified`; `/ac/ax?ruleType=system_defined` (rows via `[role=row]`);
+Chrome on Android via `/ac/chrome/settings/user?ac_ouid=<root>&f=SEARCH.Chrome%20on%20Android`. The left nav's
+Mobile & endpoints tree (Devices · Company owned inventory · Device approvals · Settings → Android / iOS / Windows /
+Universal / Enrollment / Third-party integrations · Reports · Audits · Manage Reporting Rules · Rules) is the map.
+Not read this pass: the Device log events search and the Device approvals page (the S24 row already reads Approved).
+
+---
+
+## 7 · Sources (public docs read 2026-09-16 via WebFetch through three read-only research agents; the legacy `support.google.com/a/answer/<id>` links mostly redirect to these)
+
+- knowledge.workspace.google.com/admin/devices — *Compare Google endpoint management feature sets* ·
+  *About Android device management with Google endpoint management* · *Set up basic mobile device management* ·
+  *Set up advanced mobile management* · *Device requirements for Google endpoint management* · *Apply universal
+  settings for mobile devices and endpoints* · *Apply settings for Android mobile devices* · *Require passwords
+  for managed mobile devices* · *Turn password manager apps on or off for Android* · *Require admin approval for
+  device access* · *Approve, block, unblock, or delete a managed device* · *Automate mobile management tasks
+  with rules* · *Manage mobile apps for your organization* · *Block installation of unmanaged mobile apps* ·
+  *Manage system apps on company-owned mobile devices* · *Organize managed Android apps into collections* ·
+  *Manage private Android apps in Google Play* · *Add company-owned devices to the inventory* · *Lock a device
+  and reset its password (Android)* · *Set up automatic zero-touch enrollment for Android* · *Turn Endpoint
+  Verification on or off* · *View events on devices*.
+- knowledge.workspace.google.com/admin/security — *Protect your business with Context-Aware Access* ·
+  *Context-Aware Access examples for Basic mode* · *Context-Aware Access examples for Advanced mode* · *View
+  alert details* · *Use rules to turn alerts on or off*; knowledge.workspace.google.com/admin/reports — *Device
+  log events*.
+- Chrome Enterprise Help — *Chrome on Android / signed-in user settings* (6304822). The Chrome Enterprise
+  Premium platform matrix (13773456) returned 404 and the policy list is a client-rendered page, so the
+  Android column of the Premium connectors is recorded from the DLP page's platform list only.
+- Not reachable in this pass: a 2025–2026 "what's new" for Google endpoint management on Android — treat
+  "nothing new" as unconfirmed.
+- One research agent's link-enumeration fetches tripped the LLM Guard prompt-injection scanner; both were
+  Help Center sidebar link lists, reviewed and treated as data.
