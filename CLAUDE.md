@@ -480,7 +480,12 @@ Predecessor of qdrant-tls-proxy: a separate subproject at `Claude/qdrant-tls-pro
   the re-arm, so re-read the page state and continue — never re-click blind. (13) The CAA *Assign* button
   navigates to `/ac/security/context-aware/access-level-assignment?selectedAppIds=<n>&ouId=<ou>`; its
   Monitor/Active boxes have a11y labels "<level> - monitor mode" / "- active mode", and Google's own
-  "What will this policy do?" sentence is a reliable pre-Assign guard.
+  "What will this policy do?" sentence is a reliable pre-Assign guard. 14:4x: **Chrome Remote Desktop service
+  → OFF** (Additional Google services, verified); the work profile's 401 installed apps swept for
+  remote-control/VNC — none (records: Chrome matrix A7, Android matrix E5). GOTCHA (14): the service-status
+  radios carry no aria label — read them through `label[for=<id>]`. (15) A `*:5900` LISTEN owned by root
+  Python is the operator's **OpenCanary** VNC decoy, not a VNC server — identify the PID before calling it
+  a finding.
 - 2026-08-19 · claude-in-chrome · move `My Drive/TRINC` from the personal Gmail Drive to the
   business Workspace Drive (both logged-in Drive UIs; personal = Default profile, business = work
   profile `907df4a2…`) · files went mount→mount and were verified (`diff -rq` clean; 3,963/3,963
