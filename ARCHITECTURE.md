@@ -84,7 +84,7 @@ node scripts/run-workflow.js --template <template_id> --inputs '<json>' \
   physical touch), verified and consumed before anything spawns.
 - The script **re-execs itself once** with `NODE_EXTRA_CA_CERTS` set to the mkcert root CA
   (sentinel `__OPENCLAW_CA_REEXEC` prevents a loop) so the HTTPS loopback proxies validate.
-- Flow: `withSidecar()` (scrape-sidecar lifecycle) → `buildWorkflowRuntime()` →
+- Flow: `buildWorkflowRuntime()` →
   `loadWorkflowTemplate()` → `workflowEngine.executeWorkflow()` → `runtime.shutdown()` (tears down
   the ToolUniverse subprocess). Result JSON on stdout; exit 0 on `result.ok`, else 1.
 
@@ -296,4 +296,4 @@ curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.
 | **`trevor-robey-inc-agents/` + `trevor-robey-inc/`** | Flat-merged 2026-05-19 into `Trevor Robey Intelligence Network Citations/`. These directories do not exist. |
 | **Persistent OpenClaw gateway `:18789`** | Removed 2026-04-27 (unrelated homebrew consumer product). |
 | **`claude-cli-bridge` / `claude mcp serve`** | Retired 2026-05-31, archived at `Claude/.archive/claude-cli-bridge/`. Do **not** reintroduce a custom `claude -p` subprocess bridge *for delegation*. (Distinct from the engine's own `claude -p` provider call in §3.3, which is the supported path.) |
-| **chrome-devtools-mcp / sentinel-cdp-mcp / Playwright MCP** | See root `CLAUDE.md` "Browser MCP Strategy" for the current surface model. |
+| **chrome-devtools-mcp / sentinel-cdp-mcp** | Removed. The only browser surface is the Claude Browser pane — see root `CLAUDE.md`. |

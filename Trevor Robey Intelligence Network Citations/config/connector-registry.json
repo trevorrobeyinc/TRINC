@@ -401,23 +401,6 @@
       "health_check": "owkin_pathology_query reachability ping",
       "lane": "research"
     },
-    "scrape": {
-      "tool_prefix": "openclaw-bridge/mcp/scrape-mcp/",
-      "execution_surface": "subprocess-mcp",
-      "auth": "none",
-      "tools": [
-        "scrape_target"
-      ],
-      "purpose": "RETIRED BY OPERATOR DECISION 2026-08-12 \u2014 do not re-enable by drift, and do NOT try to replace it with Claude in Chrome or the Claude Browser pane. The operator declined Playwright for the engine; the Claude browser surfaces cannot substitute (claude-host-mcp = not subprocess-reachable per this registry's own execution_surfaces definition; Claude in Chrome is the logged-in IDENTITY lane and extension-based with no headless/CDP mode; both are YubiKey-gated interactive surfaces a scheduled headless run cannot arm). The lane is retired instead: OPENCLAW_AUTOSTART_SCRAPE_SIDECAR now defaults 0 in openclaw-bridge/core/scrape-sidecar-lifecycle.js, scrape_target is unbound from tool-prefetch-map.json, and the sidecar code stays on disk restorable by an explicit env opt-in. If re-enabling deliberately: the sidecar venv still carries dead pre-move absolute paths (/Volumes/ExtraCurricular/...) and must be recreated first. Original purpose: Playwright-driven public-page fetch (eLife) for literature_reviewer prefetch \u2014 prose-only context, contributed no grounded citation identifiers; PubMed/EuropePMC/Semantic Scholar cover the literature lane. CLARIFICATION (2026-08-12, operator Q): the Claude Browser pane IS available for CHAT-SUPERVISORY browsing \u2014 Claude itself, in-session, cb-armed, clean room \u2014 and that is the sanctioned way to fetch a public page as research evidence. What it can never be is a component of run-workflow.js.",
-      "bound_roles": [],
-      "bound_workflow_steps": [],
-      "business_value": "superseded",
-      "adapter_status": "wired-but-retired",
-      "adapter_priority": "n/a",
-      "suggested_adapter_path": "openclaw-bridge/mcp/scrape-mcp/",
-      "health_check": "scrape_target({target: 'elife', params: {article_id: '12345'}}) returns parsed structure",
-      "lane": "research"
-    },
     "newsletter-publisher": {
       "tool_prefix": "openclaw-bridge/mcp/newsletter-publisher-mcp/",
       "execution_surface": "subprocess-mcp",
@@ -1345,7 +1328,6 @@
   "excluded_infrastructure": {
     "rationale": "Connectors that are not biomedical-research-relevant by category. Listed here so the audit script ignores them rather than flagging as drift. See operator_surfaces for the full non-research ledger and why each is deliberately outside the engine.",
     "tool_prefixes": [
-      "mcp__plugin_playwright_playwright__",
       "mcp__Claude_in_Chrome__",
       "mcp__Claude_Preview__",
       "mcp__computer-use__",
@@ -1362,7 +1344,6 @@
       "mcp__plugin_data_definite__",
       "mcp__plugin_data_hex__",
       "mcp__claude-code__",
-      "mcp__claude-in-chrome__",
       "mcp__Claude_Browser__",
       "mcp__plugin_pdf-viewer_pdf__",
       "mcp__ccd_session__",
@@ -1452,16 +1433,10 @@
         "purpose": "Private metasearch over the :8891 TLS proxy. Already a first-class research connector too \u2014 see connectors.searxng-search."
       },
       {
-        "id": "claude-in-chrome",
-        "lane": "infra",
-        "auth": "cic-gate session",
-        "purpose": "Identity / logged-in browsing lane. Never mixed with untrusted-content browsing."
-      },
-      {
         "id": "Claude_Browser",
         "lane": "infra",
         "auth": "cb-gate session",
-        "purpose": "Isolated clean-room browsing for untrusted content."
+        "purpose": "The only browser lane: isolated in-app Chromium for untrusted content and the operator's signed-in consoles (Falcon, Google Admin, Aruba Central). cb-armed per session, 600 s idle / 3600 s max, barred during Ralph loops."
       },
       {
         "id": "computer-use",

@@ -130,9 +130,8 @@ root-email change.**
   ⚠️ **Two layers, easily confused:** (1) the **alias exists** = Admin console → Users → Alternate
   email addresses (done days earlier — that's why mail already arrived); (2) **Gmail may send as
   it** = this Accounts screen. Adding a send-as does NOT create an alias and vice-versa.
-  ⚠️ **Automation limit:** "Add another email address" opens a **separate Chrome window** that
-  Claude-in-Chrome cannot reach (only tabs in its own group are visible; a `window.open` override
-  did not intercept it either). **These two entries are operator-only** — budget ~1 min each.
+  ⚠️ **Operator-only:** "Add another email address" opens a **separate window** that no Claude
+  browser lane can reach, so these two entries are done by hand — budget ~1 min each.
 - ✅ **Reply behavior → "Reply from the same address the message was sent to."** This is what makes
   the aliases worth having: mail to `support@` answers *from* `support@`, AWS mail from `aws@`,
   with no dropdown step. `trevor@` stays default (it is the address baked into contracts,

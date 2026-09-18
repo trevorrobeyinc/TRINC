@@ -6,7 +6,6 @@ const path = require("node:path");
 
 const { createTaskDefinition } = require("../openclaw-bridge/core/task-definition-schema.js");
 const { validateMissionEnvelope } = require("../openclaw-bridge/core/mission-envelope-schema.js");
-const { withSidecar } = require("../openclaw-bridge/core/scrape-sidecar-lifecycle.js");
 const { buildPhase14Runtime } = require("./_phase14-agent-utils.js");
 const { enforceOperatorGate } = require("./_operator-gate-cli.js");
 
@@ -296,10 +295,8 @@ async function main() {
     );
   }
 
-  // Operator authorization BEFORE anything executes. This must precede withSidecar: the sidecar
-  // shells out to bash and syncs dependencies, so running it first would mean work happens before
-  // the operator authorizes. A mock run is exempt (it cannot spend anything); every real provider
-  // requires --operator-approve plus a live armed token.
+  // Operator authorization BEFORE anything executes. A mock run is exempt (it cannot spend
+  // anything); every real provider requires --operator-approve plus a live armed token.
   // Only the legacy task lane reaches here (mission/resume were refused above), and it goes
   // straight to agent-engine with the CLI's own provider — no role-provider-map override — so
   // --provider IS authoritative and roleRouted is correctly false.
@@ -320,15 +317,14 @@ async function main() {
     });
   }
 
-  const result = await withSidecar(async () => {
-    if (usingResumeMode) {
-      return resumeMission(runtime, args);
-    }
-    if (usingMissionMode) {
-      return runMission(runtime, args);
-    }
-    return runLegacyTask(runtime, args);
-  }, { logger: lifecycleLogger });
+  let result;
+  if (usingResumeMode) {
+    result = await resumeMission(runtime, args);
+  } else if (usingMissionMode) {
+    result = await runMission(runtime, args);
+  } else {
+    result = await runLegacyTask(runtime, args);
+  }
 
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   if (!result || result.ok !== true) {

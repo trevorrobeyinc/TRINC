@@ -94,10 +94,6 @@
     "tooluniverse": {
       "state": "review_required",
       "reason_code": "PHASE29_TOOLUNIVERSE_SOURCE_REVIEW"
-    },
-    "scrape-sidecar:elife": {
-      "state": "allowed",
-      "reason_code": "SCRAPE_SIDECAR_ELIFE_CC_BY_4_0"
     }
   }
 }

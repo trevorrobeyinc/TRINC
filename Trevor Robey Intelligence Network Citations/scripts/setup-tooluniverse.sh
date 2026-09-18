@@ -43,12 +43,15 @@ fi
 # Step 4: Sync dependencies
 echo "[4/5] Syncing ToolUniverse dependencies..."
 cd "$TU_DIR"
-uv sync --python 3.12
+# No browser automation on this host (operator decision 2026-09-18). The engine never calls the
+# URL tools that need this library, and ToolUniverse loads tools lazily, so nothing else changes.
+uv sync --python 3.12 --no-install-package playwright
 echo "  Dependencies synced."
 
 # Step 5: Verify installation
 echo "[5/5] Verifying installation..."
-if uv run python -c "from tooluniverse import ToolUniverse; print('  ToolUniverse import: OK')" 2>/dev/null; then
+# --no-sync: a bare `uv run` re-syncs the project and would reinstall playwright.
+if uv run --no-sync python -c "from tooluniverse import ToolUniverse; print('  ToolUniverse import: OK')" 2>/dev/null; then
   echo "  Verification passed."
 else
   echo "  ERROR: ToolUniverse import failed."
@@ -58,7 +61,7 @@ fi
 # Optional: Run doctor
 echo ""
 echo "=== Running ToolUniverse Doctor (optional) ==="
-uv run tooluniverse-doctor 2>/dev/null || echo "  Doctor not available or failed (non-critical)."
+uv run --no-sync tooluniverse-doctor 2>/dev/null || echo "  Doctor not available or failed (non-critical)."
 
 echo ""
 echo "=== Setup Complete ==="

@@ -110,7 +110,7 @@ curl -s -X POST -H "Authorization: Bearer $CF_API_TOKEN" -H "Content-Type: appli
 ```
 
 **3.3 Verify:** `dig +short TXT trevorobeyinc.com` shows the token → click **Verify** in the
-wizard (operator, or Claude-in-Chrome with the cic-gate armed). Propagation is usually <5 min.
+wizard (operator, or Claude in the Claude Browser pane with the cb gate armed). Propagation is usually <5 min.
 
 ## 4 · Post-signup hardening + programmatic admin
 
@@ -128,8 +128,9 @@ wizard (operator, or Claude-in-Chrome with the cic-gate armed). Propagation is u
    sharing/visibility defaults, disable unused services (e.g. Blogger/Currents-class extras),
    session length, Marketplace app install policy = admin-only.
 4. **Console-only leftovers** (no API): billing review, data-region, some Gmail/DKIM screens —
-   drive via **Claude-in-Chrome** (🔑 OPERATOR arms `cic-gate`: PIN + YubiKey touch; every click
-   that changes state is proposed first). Note `operator-approved-gate arm cic`.
+   drive via the **Claude Browser pane** (🔑 OPERATOR says go and Claude runs
+   `operator-approved-gate arm cb`: PIN + YubiKey touch; every click that changes state is proposed
+   first; the operator signs in inside the pane).
 
 ## 5 · Wire into the stack (after live)
 
@@ -171,7 +172,7 @@ MX records + SPF (values snapshotted in §0).
 | G3 | Cloudflare API token → Keychain (or click Google's auto-connect instead) | 3 min |
 | G4 | Per-item "go" on each DNS mutation Claude proposes | seconds each |
 | G5 | GAM: 2 OAuth consent screens | 2 min |
-| G6 | YubiKey 2SV enrollment + `cic-gate` arm (PIN + physical touch) for any console driving | 3 min |
+| G6 | YubiKey 2SV enrollment + `cb` arm (PIN + physical touch) for any console driving | 3 min |
 
 Total operator time ≈ **20–25 min**, in two sittings (G1–G3, then G4–G6). A zero-touch setup is
 not possible: Google account creation, payment, ToS, OAuth grants, and YubiKey ceremonies are

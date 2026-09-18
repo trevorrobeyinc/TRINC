@@ -79,7 +79,6 @@ PHASE16_EXEMPTIONS=(
   "openclaw-bridge/core/llm-adapter.js|307db1d2b8b51885c6adfae0aeb95f0a5cb71f2be1cfdd9fb7ebe4f4f906c199|Named in this policy's own message as a permitted network caller: the LLM provider lane."
   "openclaw-bridge/core/https-client.js|1f49dabe8eb7f79614e02833b2c694f24224cf5849615b7c3ac754fc49867964|The engine's canonical HTTPS client; the monorepo HTTPS-only invariant requires this module to exist."
   "openclaw-bridge/core/prompt-guard.js|a3b51ffd8367695e44347a544ecef33644f8df34a25030c2d3b2d69770b9ae41|LLM Guard prompt-firewall: one https.request to the local guard endpoint, fail-open by design."
-  "openclaw-bridge/core/scrape-sidecar-lifecycle.js|a3b51ffd8367695e44347a544ecef33644f8df34a25030c2d3b2d69770b9ae41|Loopback health probe of the local scrape sidecar (rejectUnauthorized:true, mkcert CA). No egress."
 )
 
 phase16_pin_for() {

@@ -14,7 +14,7 @@
 3. **Time-limited carve-out** — add the service to an explicit carve-out registry with (a) name, (b) plaintext endpoint, (c) **concrete resolution deadline as a calendar date** (no carve-out without a deadline), (d) operator who owns the resolution. Mark in-source with `// lint-transport: outbound-carve-out` (or `# lint-transport: outbound-carve-out`) and document the registry entry. The lint script counts marker-suppressed lines separately for auditability.
 
 **Carve-outs (standing).**
-- **Browser automation MCP** — Playwright MCP (`--isolated`) and Claude in Chrome remain the one permanent plaintext-loopback exception. This carve-out is preserved unchanged from v1.x.
+- **Browser automation MCP** — the Claude Browser pane (`mcp__Claude_Browser__*`) is the one permanent plaintext-loopback exception, and the only browser surface (2026-09-18).
 - **Vendor code (flag-only).** Code under `trevor-robey-inc-agents/vendor/tooluniverse/` and `Copilot-Everything/repos/obsidian-copilot-mcp/` is third-party. Modifying it creates upstream-drift; the canonical resolution for vendor-code violations is route-through-proxy or replace, NOT fork-and-patch the vendor file. The lint surfaces these as flagged but does not require in-vendor fixes.
 
 ### II. Citation Traceability as Quality Gate

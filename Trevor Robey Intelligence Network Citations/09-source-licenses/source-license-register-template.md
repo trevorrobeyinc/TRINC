@@ -6,8 +6,7 @@ A copy of this register, completed for the specific deliverable, is attached to 
 
 1. List **every** data source touched during preparation, in the order it was queried.
 2. For each row, reach into `09-source-licenses/<source>.md` for the canonical license posture and copy it verbatim. Do not paraphrase.
-3. For sources reached via `scrape-sidecar/`, also copy the row from `09-source-licenses/scraping-targets.md`.
-4. For sources flagged `🚩 STOP-SHIP` (e.g., DrugBank without an active commercial license): if they appear here, the deliverable cannot ship. Stop and escalate.
+3. For sources flagged `🚩 STOP-SHIP` (e.g., DrugBank without an active commercial license): if they appear here, the deliverable cannot ship. Stop and escalate.
 5. Sign and date at the bottom. Initials become part of the audit trail.
 
 ## Template
@@ -25,7 +24,7 @@ License compliance build gate: <pass/fail>  (see 14-due-diligence-checklist/02-l
 | 1 | PubMed | API / pubmed-mcp | Public — citation metadata + abstracts free; full text per PMC OA only | "Source: PubMed" + PMID per row | No | PMID |
 | 2 | ClinicalTrials.gov | API / clinicaltrials-mcp | Public domain | Attribute NLM | No | NCT |
 | 3 | ChEMBL | API / chembl-mcp | CC BY-SA 3.0 ⚠️ share-alike | Attribute EMBL-EBI | Counsel review pending — confirm before ship | ChEMBL CID |
-| 4 | eLife | scrape-sidecar `elife` connector | CC BY 4.0 | "Source: eLife" + DOI per row | No | DOI |
+| 4 | eLife | API / EuropePMC | CC BY 4.0 | "Source: eLife" + DOI per row | No | DOI |
 | ... | ... | ... | ... | ... | ... | ... |
 
 ## Out-of-scope sources (must not appear above)

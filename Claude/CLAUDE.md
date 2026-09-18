@@ -89,41 +89,32 @@ This workspace's role-within-the-topology, in one sentence: Claude Hub owns the 
 
 This workspace is the primary environment for cloning web apps into localhost servers. The following tools and skills are available:
 
-### Skill
-
-| Skill | Path | Purpose |
-|-------|------|---------|
-| `web-app-clone` | `~/.claude/skills/web-app-clone/` | 7-phase SOP: recon, capture, diff, implement, verify, regress, polish. Includes bundled scripts for design token extraction, API capture, and validation. |
-
 ### Browser Tools (MCP Servers)
 
 | MCP Server | Tools Prefix | Capabilities | Best For |
 |------------|-------------|--------------|----------|
-| chrome-devtools MCP (Lane B) | `mcp__chrome-devtools__*` | **Read-write** Puppeteer+CDP automation: nav / click / type / `evaluate_script`, network, console, DOM, Lighthouse audits, performance traces, heap snapshots | Automation + debugging in a THROWAWAY debug **Chrome Canary** on loopback `127.0.0.1:9222` (isolated profile at `~/.chrome-devtools-mcp/debug-profile`, never the real one). Attach-mode wrapper `~/bin/chrome-devtools-mcp/run-chrome-devtools-mcp.sh`. Falcon-guarded (Custom-IOA group `6f5c23d19a274ee1a9bc16a77db8560f`). **Replaced the retired sentinel-cdp-mcp on 2026-05-21.** |
-| Claude in Chrome (Lane A) | `mcp__Claude_in_Chrome__*` | Browser control of the user's real signed-in Chrome (paired extension) | Tasks needing existing auth, open tabs, persistent profile, live co-piloting. Owns the active tab while its agentic loop runs. |
-| Control Chrome (Lane A) | `mcp__Control_Chrome__*` | Drives the real Chrome via its AppleScript API (scripted nav / JS / tab management) | Fast scripted real-browser ops **only when Claude-in-Chrome is idle**; never both on the same tab at once. |
-| macOS connector | `mcp__Macos__*` | Shell / Snapshot / Click / Type — lane-agnostic OS glue | Native dialogs (Save / file pickers), pasting into other apps, shell, clicking Chrome's own window chrome. Supersedes computer-use for browser-adjacent OS steps. |
-| computer-use | `mcp__computer-use__*` | Desktop screenshots, mouse/keyboard control | Native macOS app interaction (Maps, Notes, Finder, System Settings). Overlaps the macOS connector; prefer `mcp__Macos__*` for new work. |
+| Claude Browser pane | `mcp__Claude_Browser__*` | navigate / read / click / type / JS eval / console / network in an isolated in-app Chromium | ALL browser work: reference captures, localhost verification, live comparison, and signed-in consoles. The only browser lane (cb-armed per session). |
+| macOS connector | `mcp__Macos__*` | Shell / Snapshot / Click / Type — lane-agnostic OS glue | Native dialogs (Save / file pickers), pasting into other apps, shell. |
+| computer-use | `mcp__computer-use__*` | Desktop screenshots, mouse/keyboard control | Disabled 2026-07-25 (Accessibility + Screen Recording revoked for Claude). |
 | Claude Preview | `mcp__Claude_Preview__*` | Dev server management, page snapshots, console logs, screenshots, click/fill/eval | **Status: [NEEDS CLARIFICATION]** — verify still active in the operator's Claude Desktop config. |
 
-> **2-lane / 4-surface browser model (2026-05-21).** Lane A = the real signed-in Chrome (Claude-in-Chrome + Control Chrome, which collide over the active tab — coordinate per the global "Browser MCP Strategy" rule). Lane B = the dedicated debug Chrome Canary on :9222 (chrome-devtools MCP, read-write, isolated profile). The macOS connector is lane-agnostic OS glue. No server-to-server bridge exists in MCP — the active Claude session orchestrates by feeding one tool's output to the next.
-
-> **chrome-devtools MCP was REINSTATED 2026-05-21** — this supersedes the prior "retired 2026-05-12, do NOT reintroduce" guidance. The old retirement was because chrome-devtools-mcp pointed at the user's REAL signed-in Chrome over a TCP debug port (cookie-theft surface). The new design fixes that: it attaches to a dedicated throwaway **Chrome Canary** debug profile (never the real Chrome), and the debug port + egress + profile-writes + Chrome credential-key reads are all covered by live Falcon Detect IOAs (rules 42-45 in groups `6f5c23d…` and `451e653a…`). Propose-only Falcon artifacts live at `~/bin/chrome-devtools-mcp/falcon-defense/`. **Playwright MCP was uninstalled 2026-05-21** (only capability lost: cross-browser Firefox/WebKit). **sentinel-cdp-mcp was fully removed 2026-05-21** (dir, state, ~/.claude.json entry, falcon-mcp fork branches all purged).
+No other browser-automation tool exists on this machine, by operator decision (2026-09-18), and
+none may be installed for a cloning job.
 
 ### Cloning Workflow (Proven Pattern)
 
-1. **Recon**: chrome-devtools MCP (Lane B debug Canary) to capture reference screenshots, DOM snapshots, network requests, inline script extraction. (Was Playwright MCP until 2026-05-21; Playwright now removed.)
+1. **Recon**: the Claude Browser pane to capture reference screenshots, DOM snapshots, network requests, inline script extraction.
 2. **Source**: Check for open-source repo on GitHub first. Extract rendering parameters, algorithms, and configurations from source code.
 3. **Diff**: Compare reference captures against localhost implementation. Generate delta tables.
 4. **Implement**: Fix deltas one by one. Commit after each fix. Run regression tests after each commit.
-5. **Verify**: chrome-devtools MCP (Lane B debug Canary) for both localhost verification AND live SaaS comparison — single debug-browser surface for both legs cuts profile-drift risk. (Claude Preview MCP status [NEEDS CLARIFICATION] — verify before relying on it.)
-6. **Regress**: the cloned project's own test suite (e.g. `npx playwright test` IF that project uses Playwright as its test framework — that's a project dev-dependency, distinct from the now-removed Playwright MCP) — must stay green after every change.
-7. **Polish**: Final click-through test of every interactive element via chrome-devtools MCP.
+5. **Verify**: the Claude Browser pane for both localhost verification AND live SaaS comparison — one browser surface for both legs cuts profile-drift risk.
+6. **Regress**: the cloned project's own unit test suite — must stay green after every change.
+7. **Polish**: Final click-through test of every interactive element via the Claude Browser pane.
 
 ### Key Learnings from Past Cloning Work
 
 - HAR captures of SaaS marketing pages are useless — they contain analytics JS, not app logic. Always check for an open-source repo first.
-- Runtime parameter extraction via chrome-devtools evaluate_script() is the fallback when source code isn't available (React closures, minified bundles).
+- Runtime parameter extraction via the Claude Browser pane's javascript_tool is the fallback when source code isn't available (React closures, minified bundles).
 - FA2 layout parameters have the biggest visual impact — scalingRatio and slowDown being off by 10-100x produces completely different graph layouts.
 - CSP bugs can silently block web workers — always check workerSrc includes 'blob:' for libraries that use Worker threads.
 - Sigma.js v1 (canvas 2D) vs v3 (WebGL) have inherent rendering differences. Parameter matching gets ~95% visual parity; the remaining 5% is renderer-specific.

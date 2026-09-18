@@ -63,7 +63,7 @@ Claude Desktop, Claude Code, and Raycast all need stdio MCP transport to reach t
 
 - mkcert root CA expires (next: 2028-07-07) → regenerate via `mkcert -install && mkcert localhost 127.0.0.1`; restart all launchd proxy units.
 - A monorepo file regresses to `http.createServer` → `lint-transport-monorepo.sh --strict` catches it in CI; pre-commit blocks the commit.
-- An operator tries to introduce a new plaintext-loopback carve-out → REJECTED. Only the listed MCP browser-automation tools (Playwright `--isolated`, Claude in Chrome) are allowed plaintext loopback (per `CLAUDE.md` "Out of scope").
+- An operator tries to introduce a new plaintext-loopback carve-out → REJECTED. Only the listed MCP browser surface (the Claude Browser pane) is allowed plaintext loopback (per `CLAUDE.md` "Out of scope").
 
 ## Requirements
 

@@ -77,17 +77,10 @@ This workspace is the primary environment for cloning web apps into localhost se
 
 ### Browser Tools (Claude-surface MCP servers — reference)
 
-The browser-tool lanes below are registered on the **Claude surfaces**, not in opencode's MCP
-config (as of 2026-08-09 opencode has no browser MCP). They are documented here because the
-cloning workflow depends on them; the full lane table (chrome-devtools MCP Lane B on the
-throwaway Chrome Canary :9222, Claude in Chrome Lane A, Control Chrome, macOS connector,
-computer-use — disabled 2026-07-25, Claude Preview) lives in the CLAUDE.md twin.
-
-> **2-lane / 4-surface browser model (2026-05-21).** Lane A = the real signed-in Chrome
-> (Claude-in-Chrome + Control Chrome, which collide over the active tab — coordinate per the
-> global browser rule). Lane B = the dedicated debug Chrome Canary on :9222 (chrome-devtools MCP,
-> read-write, isolated profile). The macOS connector is lane-agnostic OS glue. No server-to-server
-> bridge exists in MCP — the active session orchestrates by feeding one tool's output to the next.
+The browser lane is registered on the **Claude surfaces**, not in opencode's MCP config (opencode
+has no browser MCP). The only browser lane is the **Claude Browser pane** (`mcp__Claude_Browser__*`,
+cb-armed); the tool table lives in the CLAUDE.md twin. No other browser-automation tool exists on
+this machine, by operator decision (2026-09-18), and none may be installed.
 
 ### Cloning Workflow (Proven Pattern)
 

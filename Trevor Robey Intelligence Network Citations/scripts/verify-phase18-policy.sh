@@ -129,9 +129,8 @@ NETWORK_PATTERN='\bfetch\(|axios|http\.request\(|https\.request\(|node:http|node
 # string-command form, that line changes and the pin fails.
 NETWORK_EXEMPTIONS=(
   "openclaw-bridge/core/llm-adapter.js|2751bdc02d223b8a46799e663606fc961a05c582d20a4fb8c5f73e583a045f9a|Primary LLM lane: 4 fetch() calls to the Anthropic API, plus spawn of the Claude Code CLI (array args). Was a BLANKET skip before 2026-07-27, i.e. wholly unscanned; now pinned."
-  "openclaw-bridge/core/https-client.js|d1f1af1cafd8dc1b75fed2d87d2397401435f0962f3734c70beeb3db1a0ea3b6|The engine's canonical HTTPS client. Banning node:https here would contradict the monorepo HTTPS-only invariant, which requires precisely this module to exist."
+  "openclaw-bridge/core/https-client.js|1f49dabe8eb7f79614e02833b2c694f24224cf5849615b7c3ac754fc49867964|The engine's canonical HTTPS client. Banning node:https here would contradict the monorepo HTTPS-only invariant, which requires precisely this module to exist."
   "openclaw-bridge/core/prompt-guard.js|a3b51ffd8367695e44347a544ecef33644f8df34a25030c2d3b2d69770b9ae41|LLM Guard prompt-firewall: one https.request to the local guard endpoint, fail-open by design."
-  "openclaw-bridge/core/scrape-sidecar-lifecycle.js|a7c0f7f2a02627c496787a078776bd2f9079a570ab0f61c8644848e0d0c9206a|Local scrape sidecar: loopback https.request health probe (rejectUnauthorized:true, mkcert CA) plus spawn(\"bash\", [START_SCRIPT]) where START_SCRIPT is a constant path. No egress; a no-op when the sidecar is absent."
   "openclaw-bridge/core/operator-approve-gate.js|2bbcc1cb6554da1222a3793109157bdba47152f930e1c36d840538e2cbe06de9|YubiKey operator-approval ceremony — itself a SECURITY control. execFileSync (never exec) of the gpg binary with array args, so no shell is involved."
   "openclaw-bridge/core/tls-diagnostic.js|26f3767b7d93a0d950e9e1931ef0900755be5b730f94878b07ebd0c368507760|TLS cert diagnostics: safeRun() wraps spawnSync(cmd, args) with array args and a 2s timeout, over constant mkcert paths. Read-only diagnostics, no network egress."
 )

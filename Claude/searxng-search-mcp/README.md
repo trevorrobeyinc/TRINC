@@ -235,8 +235,8 @@ the live end-to-end (SearXNG must be up).
   Let Claude synthesize from `results[]` instead.
 - **Bot-blocked sites (403).** `extract` uses a plain HTTP fetch (no headless browser), so
   Cloudflare-gated / aggressively bot-blocking sites (e.g. ScienceDirect) return `HTTP 403`
-  and land in `failed_results`. This is expected. A future enhancement could fall back to the
-  repo's Playwright scrape path for those hosts.
+  and land in `failed_results`. This is expected; there is deliberately no headless-browser
+  fallback on this machine.
 - **`time_range`** is `day`/`month`/`year` (SearXNG-native). A legacy `"week"` is still accepted
   and coerced to `"day"`; the search response echoes the value actually applied as
   `applied_time_range` so the coercion is observable.

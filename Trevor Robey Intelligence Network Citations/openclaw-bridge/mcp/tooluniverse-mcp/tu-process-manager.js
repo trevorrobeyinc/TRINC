@@ -266,7 +266,9 @@ function createToolUniverseProcessManager(options = {}) {
     return new Promise((resolve, reject) => {
       // Hardening (audit gdrive-oauth / F-SUB2): don't propagate the high-value
       // Google refresh token / client secret into the tool subprocess.
-      const childEnv = { ...process.env, PYTHONUNBUFFERED: "1" };
+      // No browser automation on this host (operator decision 2026-09-18): ToolUniverse's url_tool
+      // must never download a browser, even if a future sync reinstalls its library.
+      const childEnv = { ...process.env, PYTHONUNBUFFERED: "1", PLAYWRIGHT_SKIP_BROWSER_INSTALL: "1" };
       for (const k of Object.keys(childEnv)) {
         if (/^GOOGLE_DRIVE_|^GOOGLE_CLIENT_SECRET$/i.test(k)) delete childEnv[k];
       }

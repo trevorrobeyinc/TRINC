@@ -26,7 +26,6 @@ const {
   findMissingRequiredInputs,
   formatMissingRequiredInputs
 } = require("../openclaw-bridge/core/workflow-schema.js");
-const { withSidecar } = require("../openclaw-bridge/core/scrape-sidecar-lifecycle.js");
 const { enforceOperatorGate } = require("./_operator-gate-cli.js");
 
 function parseArgs(argv) {
@@ -108,9 +107,9 @@ async function main() {
 
   // Input preflight — ABOVE the gate on purpose (2026-08-20). The operator's armed token is
   // ONE-SHOT with a 300s TTL, so a bad template id or a missing required input must not
-  // consume it: previously the template was not even loaded until after the ceremony, inside
-  // withSidecar. loadWorkflowTemplate is filesystem-only (no runtime build, no sidecar, no
-  // spawn), which is what makes it safe to run before the gate. The engine repeats this check
+  // consume it: previously the template was not even loaded until after the ceremony.
+  // loadWorkflowTemplate is filesystem-only (no runtime build, no spawn), which is what makes it
+  // safe to run before the gate. The engine repeats this check
   // authoritatively for every other caller.
   let preflightTemplate;
   try {
@@ -132,11 +131,10 @@ async function main() {
   // exists (minted by `operator-approve-gate arm` — PIN via pinentry + physical touch).
   // Fail-closed and one-shot — verify+consume here, before spawning anything.
   //
-  // This is now REQUIRED rather than opt-in, and it must stay above withSidecar below: the
-  // sidecar spawns bash and syncs dependencies, so gating only the LLM lane still let real work
-  // happen before the operator authorized it. An unauthorized run previously reached the sidecar
-  // and the tool-prefetch pass before failing at the router with PHASE15_HUMAN_APPROVAL_REQUIRED;
-  // it now fails here instead — same outcome, nothing executed. Mock is exempt (see
+  // This is now REQUIRED rather than opt-in, and it must stay above the runtime build below:
+  // gating only the LLM lane still let real work happen before the operator authorized it. An
+  // unauthorized run previously reached the tool-prefetch pass before failing at the router with
+  // PHASE15_HUMAN_APPROVAL_REQUIRED; it now fails here instead — same outcome, nothing executed. Mock is exempt (see
   // _operator-gate-cli.js) so CI keeps working.
   // roleRouted: this is the MOST role-routed lane in the engine — executeWorkflow →
   // executeMissionStep → spawnMission → spawn-orchestrator → roleRouter.dispatch — and it has no
@@ -160,7 +158,7 @@ async function main() {
     bypassed: gate.bypassed === true
   });
 
-  const result = await withSidecar(async () => {
+  const result = await (async () => {
     const runtime = await buildWorkflowRuntime({ logger });
     const workflowDef = runtime.loadWorkflowTemplate(args.template);
 
@@ -190,7 +188,7 @@ async function main() {
         runtime.shutdown();
       }
     }
-  }, { logger });
+  })();
 
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 
