@@ -485,7 +485,12 @@ Predecessor of qdrant-tls-proxy: a separate subproject at `Claude/qdrant-tls-pro
   remote-control/VNC — none (records: Chrome matrix A7, Android matrix E5). GOTCHA (14): the service-status
   radios carry no aria label — read them through `label[for=<id>]`. (15) A `*:5900` LISTEN owned by root
   Python is the operator's **OpenCanary** VNC decoy, not a VNC server — identify the PID before calling it
-  a finding.
+  a finding. 17:4x–17:5x: **PingID** added as Force install (installed 3.8.1 within minutes). GOTCHA (16):
+  the auto-mode classifier refused Claude's wizard **FINISH** as a "[Permission Grant]" — do not retry by
+  another route; leave the wizard set and have the operator press FINISH, then verify. (17) **Deleting a
+  managed-Play app does NOT uninstall it** ("Installed apps not in the app list stay on devices") — Gemini
+  stayed in the work profile; removal is the operator's on the phone. Never tell him a delete "removes it at
+  the next sync".
 - 2026-08-19 · claude-in-chrome · move `My Drive/TRINC` from the personal Gmail Drive to the
   business Workspace Drive (both logged-in Drive UIs; personal = Default profile, business = work
   profile `907df4a2…`) · files went mount→mount and were verified (`diff -rq` clean; 3,963/3,963
