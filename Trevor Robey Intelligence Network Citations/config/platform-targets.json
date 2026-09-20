@@ -62,6 +62,50 @@
         "enterprise"
       ]
     },
+    "facebook_page": {
+      "checklist_requirements": [
+        "Company voice confirmed (not founder voice) \u2014 see 01-brand-system/personal-brand.md",
+        "Every figure in the copy traced to a file in this release bundle",
+        "No claim about turnaround time that the Speed SLA does not already commit to",
+        "No engagement, reach or follower metric stated \u2014 this business has no analytics binding",
+        "Operator posts manually; nothing in this pack publishes anything",
+        "Page post links to the live offering page, not a dead GitHub Pages URL",
+        "Required entity disclosure present and verbatim"
+      ],
+      "copy_block_requirements": [
+        "title",
+        "caption",
+        "description",
+        "disclosure"
+      ],
+      "manual_only": true,
+      "required_artifact_placeholders": [
+        "post-fields.json",
+        "checklist.md",
+        "copy-blocks.json"
+      ],
+      "supported_product_lines": [
+        "biomedical_dataset_packs",
+        "biomedical_research_packs",
+        "clinical_insights_subscription",
+        "custom_dataset_services",
+        "dataset_packs",
+        "dataset_samples",
+        "dataset_subscriptions",
+        "drug_discovery_intelligence",
+        "enterprise_private_delivery",
+        "research_packs",
+        "research_retainers",
+        "research_subscriptions"
+      ],
+      "supported_tiers": [
+        "sample",
+        "standard",
+        "premium",
+        "enterprise"
+      ],
+      "trinc_voice": "company"
+    },
     "github_sponsors": {
       "checklist_requirements": [
         "Tier copy reviewed by operator",
@@ -144,6 +188,51 @@
         "enterprise"
       ]
     },
+    "instagram": {
+      "checklist_requirements": [
+        "Any figure shown in the image also appears in the caption with its source",
+        "Caption's first line works as the whole message if nobody taps more",
+        "Every figure in the copy traced to a file in this release bundle",
+        "Founder voice confirmed (not company voice) \u2014 see 01-brand-system/personal-brand.md",
+        "No engagement, reach or follower metric stated \u2014 this business has no analytics binding",
+        "Operator posts manually; nothing in this pack publishes anything",
+        "Required entity disclosure present and verbatim"
+      ],
+      "copy_block_requirements": [
+        "hook",
+        "caption",
+        "hashtags",
+        "thumbnail_brief",
+        "disclosure"
+      ],
+      "manual_only": true,
+      "required_artifact_placeholders": [
+        "post-fields.json",
+        "checklist.md",
+        "copy-blocks.json"
+      ],
+      "supported_product_lines": [
+        "biomedical_dataset_packs",
+        "biomedical_research_packs",
+        "clinical_insights_subscription",
+        "custom_dataset_services",
+        "dataset_packs",
+        "dataset_samples",
+        "dataset_subscriptions",
+        "drug_discovery_intelligence",
+        "enterprise_private_delivery",
+        "research_packs",
+        "research_retainers",
+        "research_subscriptions"
+      ],
+      "supported_tiers": [
+        "sample",
+        "standard",
+        "premium",
+        "enterprise"
+      ],
+      "trinc_voice": "founder"
+    },
     "kaggle": {
       "checklist_requirements": [
         "dataset-metadata.json reviewed",
@@ -197,6 +286,97 @@
         "premium",
         "enterprise"
       ]
+    },
+    "tiktok": {
+      "checklist_requirements": [
+        "Every figure in the copy traced to a file in this release bundle",
+        "Founder voice confirmed (not company voice) \u2014 see 01-brand-system/personal-brand.md",
+        "No engagement, reach or follower metric stated \u2014 this business has no analytics binding",
+        "On-screen text repeats any identifier spoken aloud, so it is checkable",
+        "Operator posts manually; nothing in this pack publishes anything",
+        "Required entity disclosure present and verbatim",
+        "Spoken script read aloud once for length before filming"
+      ],
+      "copy_block_requirements": [
+        "hook",
+        "script",
+        "caption",
+        "hashtags",
+        "disclosure"
+      ],
+      "manual_only": true,
+      "required_artifact_placeholders": [
+        "post-fields.json",
+        "checklist.md",
+        "copy-blocks.json"
+      ],
+      "supported_product_lines": [
+        "biomedical_dataset_packs",
+        "biomedical_research_packs",
+        "clinical_insights_subscription",
+        "custom_dataset_services",
+        "dataset_packs",
+        "dataset_samples",
+        "dataset_subscriptions",
+        "drug_discovery_intelligence",
+        "enterprise_private_delivery",
+        "research_packs",
+        "research_retainers",
+        "research_subscriptions"
+      ],
+      "supported_tiers": [
+        "sample",
+        "standard",
+        "premium",
+        "enterprise"
+      ],
+      "trinc_voice": "founder"
+    },
+    "youtube": {
+      "checklist_requirements": [
+        "Company voice confirmed (not founder voice) \u2014 see 01-brand-system/personal-brand.md",
+        "Every figure in the copy traced to a file in this release bundle",
+        "No engagement, reach or follower metric stated \u2014 this business has no analytics binding",
+        "Operator posts manually; nothing in this pack publishes anything",
+        "Required entity disclosure present and verbatim",
+        "Thumbnail rendered from the brand tokens, not stock imagery",
+        "Video description carries the disclosure and a resolvable link per claim"
+      ],
+      "copy_block_requirements": [
+        "title",
+        "hook",
+        "script",
+        "description",
+        "thumbnail_brief",
+        "disclosure"
+      ],
+      "manual_only": true,
+      "required_artifact_placeholders": [
+        "post-fields.json",
+        "checklist.md",
+        "copy-blocks.json"
+      ],
+      "supported_product_lines": [
+        "biomedical_dataset_packs",
+        "biomedical_research_packs",
+        "clinical_insights_subscription",
+        "custom_dataset_services",
+        "dataset_packs",
+        "dataset_samples",
+        "dataset_subscriptions",
+        "drug_discovery_intelligence",
+        "enterprise_private_delivery",
+        "research_packs",
+        "research_retainers",
+        "research_subscriptions"
+      ],
+      "supported_tiers": [
+        "sample",
+        "standard",
+        "premium",
+        "enterprise"
+      ],
+      "trinc_voice": "company"
     }
   },
   "schema_version": "phase19-platform-targets-v1"

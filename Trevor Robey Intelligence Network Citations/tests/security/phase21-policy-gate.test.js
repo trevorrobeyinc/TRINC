@@ -36,6 +36,14 @@ const REQUIRED_FIXTURE_FILES = [
   "openclaw-bridge/monetization/adapters/kaggle-manual-adapter.js",
   "openclaw-bridge/monetization/adapters/datarade-manual-adapter.js",
   "openclaw-bridge/monetization/adapters/snowflake_marketplace-manual-adapter.js",
+  // Social channels (2026-09-19). The policy gate requires one <target>-manual-adapter.js per
+  // key in config/platform-targets.json, and the fixture copies that config verbatim — so a new
+  // platform target MUST be added here too or the gate correctly reports it missing.
+  "openclaw-bridge/monetization/adapters/social-content-adapter.js",
+  "openclaw-bridge/monetization/adapters/facebook_page-manual-adapter.js",
+  "openclaw-bridge/monetization/adapters/instagram-manual-adapter.js",
+  "openclaw-bridge/monetization/adapters/tiktok-manual-adapter.js",
+  "openclaw-bridge/monetization/adapters/youtube-manual-adapter.js",
   "scripts/_monetization-runtime.js",
   "scripts/generate-offer.js",
   "scripts/approve-release.js",
