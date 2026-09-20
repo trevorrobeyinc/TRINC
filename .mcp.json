@@ -25,6 +25,17 @@
         "PATH": "/Users/myhome/.perseus-vault/embed-venv/bin:/usr/bin:/bin:/usr/sbin:/sbin"
       }
     },
+    "trinc-content": {
+      "type": "stdio",
+      "command": "/Users/myhome/.nvm/versions/node/v22.13.1/bin/node",
+      "args": [
+        "/Users/myhome/.claude/mcp-servers/trinc-content/src/server.js"
+      ],
+      "env": {
+        "TRINC_CONTENT_REPO": "/Users/myhome/TrevClaw-Obsidianodus",
+        "TRINC_CONTENT_PUBLISH": ""
+      }
+    },
     "opencode": {
       "type": "stdio",
       "command": "/Users/myhome/.claude/mcp-servers/opencode-mcp/.venv/bin/python",
