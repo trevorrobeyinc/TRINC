@@ -10,6 +10,7 @@ const { CHANNELS, SURFACES, paths } = require("./config.js");
 const { brandContext, voiceRules } = require("./brand.js");
 const { extractClaims, listSources } = require("./sources.js");
 const { CHANNEL_SHAPE, buildDraft } = require("./draft.js");
+const { buildCalendar, writeCalendar } = require("./calendar.js");
 const { checkDraft } = require("./check.js");
 const { confirmPublish, preparePublish, readiness, runbook } = require("./publish.js");
 
@@ -135,6 +136,30 @@ const TOOLS = [
     }
   },
   {
+    name: "content_calendar",
+    description:
+      "Build a posting schedule from the cadence the business's own marketing plan actually "
+      + "documents (MKT500 Part C): two founder posts a week on Tuesday and Thursday, one "
+      + "company archive post on Wednesday, with J.P. Morgan in January and BIO in June flagged "
+      + "as peaks. IMPORTANT: that plan names LinkedIn as primary and YouTube as an archive — it "
+      + "predates the TikTok, Instagram and Facebook Page accounts, so slots for those channels "
+      + "are an EXTRAPOLATION the response labels as such. It is a proposal for the operator, "
+      + "not a decision already made.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        weeks: { type: "integer", minimum: 1, maximum: 26, default: 4 },
+        start: { type: "string", description: "YYYY-MM-DD. Defaults to today." },
+        channels: {
+          type: "array",
+          items: { type: "string", enum: CHANNELS },
+          description: "Subset of channels. Defaults to all four."
+        },
+        write: { type: "boolean", default: false, description: "Also write it to workspace/collateral/social/." }
+      }
+    }
+  },
+  {
     name: "content_aws_listing",
     description:
       "Draft AWS Data Exchange listing copy for a release bundle, in company voice, gated by the "
@@ -200,6 +225,18 @@ const HANDLERS = {
       requireDisclosure: args.require_disclosure !== false
     }
   ),
+
+  content_calendar: async (args) => {
+    const calendar = buildCalendar({
+      weeks: args.weeks,
+      start: args.start,
+      channels: args.channels
+    });
+    if (args.write === true) {
+      calendar.written_to = writeCalendar(calendar);
+    }
+    return calendar;
+  },
 
   content_aws_listing: async (args) => buildDraft({
     channel: "aws_data_exchange",

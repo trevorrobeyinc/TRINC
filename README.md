@@ -46,8 +46,9 @@ slot — a safe failure, and `test/parsers.test.mjs` fails loudly so it is also 
 | `content_source_inventory` | Release bundles and workflow runs available to repurpose |
 | `content_extract_claims` | The only figures a post may assert, each with its source file |
 | `content_channel_profile` | Voice, caption limit, form, and live publish readiness |
-| `content_draft` | Draft for one channel from one bundle; gates its own output |
+| `content_draft` | Draft for one channel from one bundle; gates its own output, and emits a thumbnail spec bound by the same claims |
 | `content_check` | Run any copy through the gate — hand-written included |
+| `content_calendar` | Posting schedule from the cadence the marketing plan documents, with the un-documented channels labelled as extrapolation |
 | `content_aws_listing` | AWS Data Exchange listing copy, company voice |
 | `publish_youtube` · `publish_tiktok` · `publish_instagram` · `publish_facebook_page` | Per-channel publish, two-call handshake |
 
@@ -79,6 +80,7 @@ src/brand.js      reads the brand canon; channel -> voice (never guessed)
 src/sources.js    the anti-fabrication spine: bundle -> claims with evidence
 src/draft.js      channel-shaped drafting; figures or VERIFY slots
 src/check.js      the compliance gate
+src/calendar.js   posting cadence from the marketing plan; extrapolation labelled as such
 src/publish.js    per-channel publish, five-layer pin, inert
 src/tools.js      MCP tool definitions + dispatch
 src/server.js     stdio entry point
@@ -87,7 +89,7 @@ src/server.js     stdio entry point
 ## Run
 
 ```bash
-npm test     # 39 unit + integration tests
+npm test     # 56 unit + integration tests
 npm run smoke  # real MCP handshake against the running server
 ```
 
@@ -101,7 +103,13 @@ lets tests target a fixture.
   (`openclaw-bridge/monetization/adapters/`), producing deterministic submission packs inside a
   release bundle. That is the engine-side lane; this is the authoring lane.
 - **Visuals:** the `trinc-viz-studio` Obsidian plugin on `:8800` already renders on-brand charts,
-  diagrams and stat tiles. Do not build a second renderer here.
+  diagrams and stat tiles. `content_draft` emits a **`viz_stat_tiles` spec**, ready to hand to
+  that tool — it does not render, and it deliberately does **not proxy the bridge**. Proxying
+  would put one renderer behind two doors and make this server depend on Obsidian being open,
+  for no new capability; it is the same reasoning that declined merging the `:8798` and `:8799`
+  bridges. The tiles are built only from claims the draft actually used, so the image is bound
+  by the same evidence as the words — a thumbnail is where an invented number is most tempting
+  and least checkable.
 - **Skills:** `trinc-business:brand-check`, `trinc-marketing:collateral-audit` and
   `trinc-marketing:outbound-draft` remain the human-driven audit lane. `content_check` is the
   machine gate that runs on every draft. Compose, do not reimplement.

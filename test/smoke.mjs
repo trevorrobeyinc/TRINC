@@ -26,11 +26,11 @@ console.log("handshake: ok");
 
 const { tools } = await client.listTools();
 console.log(`tools/list: ${tools.length} tools`);
-assert.ok(tools.length === 11, `expected 11 tools, got ${tools.length}`);
+assert.ok(tools.length === 12, `expected 12 tools, got ${tools.length}`);
 for (const name of [
   "content_brand_context", "content_source_inventory", "content_extract_claims",
   "content_channel_profile", "content_draft", "content_check", "content_aws_listing",
-  "publish_youtube", "publish_tiktok", "publish_instagram", "publish_facebook_page"
+  "content_calendar", "publish_youtube", "publish_tiktok", "publish_instagram", "publish_facebook_page"
 ]) {
   assert.ok(tools.some((tool) => tool.name === name), `missing tool ${name}`);
 }

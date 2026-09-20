@@ -34,6 +34,60 @@ function byId(claims) {
 }
 
 /**
+ * A `viz_stat_tiles` spec for the post's thumbnail, built ONLY from claims the draft actually
+ * used — so the image is bound by the same evidence as the words. A thumbnail is where an
+ * invented number is most tempting and least checkable, which is exactly why it gets the same
+ * gate rather than a looser one.
+ *
+ * This is a spec, not a render. The `trinc-viz-studio` bridge on :8800 already owns rendering
+ * (`viz_stat_tiles`), and proxying it through this server would put one renderer behind two
+ * doors and add an Obsidian dependency for no new capability — the same reason this repo
+ * declined merging the :8798 and :8799 bridges. Hand this object to `viz_stat_tiles` as-is.
+ */
+function buildThumbnailSpec(used, claimMap) {
+  const LABELS = {
+    citations_grounded: "Identifiers checked to source",
+    stopped_programs: "Prior failed programs named",
+    zero_result_searches: "Sources that returned nothing"
+  };
+
+  const tiles = used
+    .filter((entry) => typeof entry.value === "number" && LABELS[entry.id])
+    .map((entry) => ({
+      label: LABELS[entry.id],
+      value: entry.value,
+      source_file: entry.source_file
+    }));
+
+  if (tiles.length === 0) {
+    return {
+      tool: "viz_stat_tiles",
+      spec: null,
+      note: "No numeric claim was available from this bundle, so there is nothing a stat tile "
+        + "could honestly show. Do not put a number on the thumbnail that is not in the post."
+    };
+  }
+
+  const grade = claimMap.get("integrity_grade");
+  return {
+    tool: "viz_stat_tiles",
+    spec: {
+      title: grade ? `Citation integrity: grade ${grade.value}` : "Citation integrity",
+      tiles: tiles.map(({ label, value }) => ({ label, value }))
+    },
+    sources: tiles.map(({ label, source_file }) => ({ label, source_file })),
+    style: {
+      background: "#0a0a0f",
+      accent: "#4a90d9",
+      typography: "IBM Plex",
+      rules: "No gradients. No rounded corners on data elements. No stock photography."
+    },
+    note: "Pass `spec` straight to the viz_stat_tiles tool on the :8800 bridge (Obsidian must be "
+      + "running). Every tile value also appears in the post body with its source."
+  };
+}
+
+/**
  * A stated value when the bundle supports it, a VERIFY slot when it does not.
  *
  * Records the claim in `used` at substitution time rather than inferring it afterwards by
@@ -155,6 +209,7 @@ function buildDraft(options = {}) {
     caption_limit: shape.caption_limit,
     over_limit: text.length > shape.caption_limit,
     claims_used: used,
+    thumbnail: buildThumbnailSpec(used, claimMap),
     verify_slots: slots,
     unfilled_slot_count: slots.length,
     files_read: extracted.files_read,
