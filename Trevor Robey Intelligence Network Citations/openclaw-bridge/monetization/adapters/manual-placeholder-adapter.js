@@ -28,7 +28,10 @@ function createManualPlaceholderAdapter(options = {}) {
       "",
       `This ${productLine} (${tierName} tier) delivers ${pageEstimate}+ pages of original analysis produced through a multi-stage research pipeline: systematic literature review, deep pharmacological analysis, and integrated synthesis with cross-validation.`,
       "",
-      `Every claim is traceable to its primary source — PubMed IDs, ClinicalTrials.gov identifiers, PubChem compound IDs, and DOIs are embedded throughout. No hallucinated references. No fabricated data.`,
+      // Retired 2026-07-13 (OFFERINGS.md, commit 7801443): "No hallucinated references. No
+      // fabricated data." was an absolute overclaim, and "every claim is traceable" overstated a
+      // gate that admits an ungrounded residue below the floor. State the enforced behaviour.
+      `Cited identifiers — PubMed IDs, ClinicalTrials.gov identifiers, PubChem compound IDs, and DOIs — are embedded throughout and cross-checked at generation time against the evidence actually retrieved for the report. Identifiers not found in that evidence are flagged [UNVERIFIED] inline and are never presented as fact; cited DOIs and PMIDs are retraction-screened.`,
       "",
       `Includes: full research report, citation index CSV, executive summary preview, and evidence provenance appendix. All outputs pass automated quality auditing with citation density verification before release.`
     ];

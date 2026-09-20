@@ -212,3 +212,103 @@ test("phase19 deliverable packager fails when a required artifact slot is not pr
   const bundleDir = packager.createBundleWorkspace(fixture.offer.offer_id);
   assert.throws(() => packager.writeDeliverables(bundleDir, fixture.offer, fixture.sourceContext), /required artifact slots/);
 });
+
+// ── Customer-facing claim accuracy ───────────────────────────────────────────────────────────
+// store-copy.md ships inside every paid bundle and had ZERO body-text coverage, which is how the
+// retired "Zero hallucination architecture" claim survived the 2026-07-13 never-overclaim sweep
+// (commit 7801443) for two months and shipped in all four release bundles. These lock the copy in
+// BOTH directions: no absolute overclaim, and no softening of the real re-resolution capability.
+
+const CITED_BODY = "Findings cite PMID: 12345678 and PMID: 22222222 and NCT01234567 plus doi:10.1056/NEJMoa1911303.";
+
+function withResolution(fixture, summary) {
+  const ctx = {
+    ...fixture.sourceContext,
+    artifacts: [{ task_id: "t1", output_rel: "workspace/research-output/t1/output.md", output_full: CITED_BODY }]
+  };
+  if (summary) {
+    ctx.citation_verification = {
+      cited: 4, grounded: 4, ungrounded: 0,
+      reproducibility_manifest: { summary, citations: [] }
+    };
+  }
+  return ctx;
+}
+
+async function renderStoreCopyFor(slug, summary) {
+  const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), `openclaw-phase19-${slug}-`));
+  const packager = createDeliverablePackager({ rootDir: tmp });
+  const fixture = createMissionFixture();
+  const bundleDir = packager.createBundleWorkspace(fixture.offer.offer_id);
+  packager.writeDeliverables(bundleDir, fixture.offer, withResolution(fixture, summary));
+  return fs.readFileSync(path.join(bundleDir, "deliverables", "store-copy.md"), "utf8");
+}
+
+// Mirrors the real shipped bundle offer-2af242bc1548229c102fee55.
+const FLAGGED_SUMMARY = {
+  counts: { total: 34, verified: 29, unresolved: 0, unchecked: 5 },
+  by_type: {
+    DOI: { total: 16, verified: 16, unresolved: 0, unchecked: 0 },
+    NCT: { total: 10, verified: 10, unresolved: 0, unchecked: 0 },
+    PMID: { total: 8, verified: 3, unresolved: 0, unchecked: 5 }
+  },
+  verified_ratio: 0.853,
+  delivery_decision: "DELIVER_WITH_FLAGS"
+};
+
+test("store copy never ships the retired absolute no-hallucination claim (7801443 doctrine)", async () => {
+  for (const summary of [FLAGGED_SUMMARY, null]) {
+    const copy = await renderStoreCopyFor("no-halluc", summary);
+    assert.ok(!/hallucinat/i.test(copy), "store copy must not make any hallucination claim");
+    assert.match(copy, /Zero-Fabrication Guarantee/, "the approved OFFERINGS.md term replaces it");
+    assert.ok(
+      !/flagged and excluded/i.test(copy),
+      "ungrounded ids are annotated [UNVERIFIED] inline and SHIP — they are never excluded"
+    );
+  }
+});
+
+test("store copy never calls a regex extraction tally 'verified'", async () => {
+  for (const summary of [FLAGGED_SUMMARY, null]) {
+    const copy = await renderStoreCopyFor("no-fake-verified", summary);
+    assert.ok(!/\d+\s+verified citations/i.test(copy), "extraction count must not be labelled verified");
+    assert.ok(!/verified references/i.test(copy), "per-type extraction counts must not be labelled verified");
+  }
+});
+
+test("store copy reports the REAL re-resolution split, not an implied all-verified", async () => {
+  const copy = await renderStoreCopyFor("flagged", FLAGGED_SUMMARY);
+  assert.match(copy, /29 of 34 resolved VERIFIED/, "states the true verified count from the manifest");
+  assert.match(copy, /5 returned no definitive answer and are recorded UNCHECKED/, "states the residue");
+  // The exact overclaim found shipped: 8 PMIDs cited, only 3 actually verified.
+  assert.match(copy, /\*\*PMID\*\*: 8 cited · 3 VERIFIED · 5 UNCHECKED/, "per-type split comes from the manifest");
+  assert.ok(!/34 verified/i.test(copy), "must never imply all 34 were verified");
+});
+
+test("store copy reads at full strength only when the manifest is 100% VERIFIED", async () => {
+  const copy = await renderStoreCopyFor("clean", {
+    counts: { total: 12, verified: 12, unresolved: 0, unchecked: 0 },
+    by_type: { PMID: { total: 12, verified: 12, unresolved: 0, unchecked: 0 } },
+    verified_ratio: 1,
+    delivery_decision: "DELIVER"
+  });
+  assert.match(copy, /all 12 resolved VERIFIED/, "DELIVER earns the unqualified statement");
+  assert.ok(!/UNCHECKED/.test(copy), "no residue to report at 100%");
+});
+
+test("store copy fail-softs when no re-resolution manifest exists, without softening the capability", async () => {
+  const copy = await renderStoreCopyFor("failsoft", null);
+  // SYSTEM-REALITY.md §3: the re-resolution pass is fail-soft; a bundle may ship with no manifest.
+  assert.match(copy, /re-resolution manifest is not included with this bundle/, "says so plainly");
+  assert.ok(!/resolved VERIFIED/.test(copy), "must not assert an outcome it has no evidence for");
+  // The grounding gate and retraction screen always run, so those stay assertable.
+  assert.match(copy, /retraction-screened/, "retraction screening is still claimed");
+  assert.match(copy, /retrieved at runtime/, "runtime grounding is still claimed");
+});
+
+test("the citation-integrity ledger never names Retraction Watch, which is screened nowhere", () => {
+  const { buildIntegrityReport } = require(path.join(root, "openclaw-bridge", "monetization", "integrity-rating.js"));
+  const md = buildIntegrityReport({ cited: 4, grounded: 4, ungrounded: 0, retracted_dois: [] }).markdown;
+  assert.ok(!/retraction watch/i.test(md), "Retraction Watch is an unbuilt residual gap — never claim it");
+  assert.match(md, /Crossref for DOIs, PubMed for PMIDs/, "names only the screens actually queried");
+});

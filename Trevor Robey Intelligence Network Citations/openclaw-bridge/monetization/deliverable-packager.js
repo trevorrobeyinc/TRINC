@@ -70,6 +70,71 @@ function createDeliverablePackager(options = {}) {
   const releasesDir = path.resolve(safeString(options.releasesDir) || path.join(rootDir, "workspace", "releases"));
   const directDeliveryTargets = asPlainObject(asPlainObject(options.directDeliveryTargets).delivery_targets);
 
+  // ── Citation-claim truth source ────────────────────────────────────────────────────────────
+  // Customer-facing copy must report the REAL re-resolution outcome, never the raw extraction
+  // tally. extractCitations()/deduplicateCitations() count identifiers FOUND IN PROSE by regex;
+  // calling that number "verified" is an overclaim (a shipped bundle said "34 verified citations"
+  // while its own manifest recorded 29 verified + 5 UNCHECKED). The real verdicts already travel
+  // on sourceContext — workflow-engine.js sets source_context.citation_verification, whose
+  // reproducibility_manifest.summary carries per-identifier VERIFIED / UNRESOLVED / UNCHECKED.
+  //
+  // { present:false } is a LEGITIMATE FAIL-SOFT STATE, not an error: per SYSTEM-REALITY.md §3 the
+  // re-resolution pass is fail-soft and a report may ship with no manifest.
+  function readResolutionSummary(sourceContext) {
+    const summary = asPlainObject(
+      asPlainObject(asPlainObject(sourceContext).citation_verification).reproducibility_manifest
+    ).summary;
+    const s = asPlainObject(summary);
+    const counts = asPlainObject(s.counts);
+    if (!Number.isFinite(counts.total)) return { present: false, byType: {} };
+    const num = (v) => (Number.isFinite(v) ? v : 0);
+    return {
+      present: true,
+      total: counts.total,
+      verified: num(counts.verified),
+      unresolved: num(counts.unresolved),
+      unchecked: num(counts.unchecked),
+      decision: safeString(s.delivery_decision),
+      byType: asPlainObject(s.by_type)
+    };
+  }
+
+  // The re-resolution CAPABILITY claim must never be softened to "grounding only" — the
+  // per-identifier resolver is built, wired and verified (SYSTEM-REALITY.md §3 carries an explicit
+  // copy-sweep warning that doing so is a false understatement). What varies per bundle is the
+  // OUTCOME, which is read from the manifest instead of assumed. Claim strength therefore tracks
+  // the same counts that produce delivery_decision: all-VERIFIED (DELIVER) reads at full strength,
+  // anything else is stated with its real UNCHECKED / UNRESOLVED residue (DELIVER_WITH_FLAGS).
+  function renderResolutionSentence(res) {
+    if (!res.present) {
+      // A per-bundle statement of fact, NOT the general softening SYSTEM-REALITY.md §3 forbids:
+      // THIS bundle carries no manifest, so no re-resolution outcome may be asserted for it.
+      // The grounding gate and retraction screen always run, so those remain assertable.
+      return "Every cited identifier is cross-checked against the source records actually retrieved at runtime, and cited DOIs and PMIDs are retraction-screened. A per-identifier re-resolution manifest is not included with this bundle.";
+    }
+    const residue = [];
+    if (res.unchecked > 0) residue.push(`${res.unchecked} returned no definitive answer and are recorded UNCHECKED`);
+    if (res.unresolved > 0) residue.push(`${res.unresolved} did not resolve and are recorded UNRESOLVED`);
+    const outcome = residue.length === 0
+      ? `For this report all ${res.total} resolved VERIFIED.`
+      : `For this report ${res.verified} of ${res.total} resolved VERIFIED; ${residue.join("; ")}.`;
+    return "Every cited identifier is submitted at delivery for independent re-resolution against its issuing public registry "
+      + `(PMID → NCBI E-utilities, NCT → ClinicalTrials.gov, DOI → Crossref). ${outcome} `
+      + "Per-identifier results are recorded in the accompanying Reproducibility Manifest. Re-resolution confirms an "
+      + "identifier resolves to a source record — it does not assess the scientific correctness of the source.";
+  }
+
+  // Per-type breakdown from the manifest when present; a plain cited count otherwise. Never
+  // labels an extraction tally "verified".
+  function renderTypeBreakdown(type, citedCount, res) {
+    const t = asPlainObject(res.byType[type]);
+    if (!res.present || !Number.isFinite(t.total)) return `- **${type}**: ${citedCount} cited`;
+    const seg = [`${t.total} cited`, `${Number.isFinite(t.verified) ? t.verified : 0} VERIFIED`];
+    if (Number.isFinite(t.unchecked) && t.unchecked > 0) seg.push(`${t.unchecked} UNCHECKED`);
+    if (Number.isFinite(t.unresolved) && t.unresolved > 0) seg.push(`${t.unresolved} UNRESOLVED`);
+    return `- **${type}**: ${seg.join(" · ")}`;
+  }
+
   function renderStoreCopy(offer, sourceContext) {
     const artifacts = Array.isArray(sourceContext.artifacts) ? sourceContext.artifacts : [];
     const allText = artifacts.map((a) => a.output_full || a.output_excerpt || "").join("\n");
@@ -80,6 +145,7 @@ function createDeliverablePackager(options = {}) {
     const productLine = safeString(offer.product_line).replace(/_/g, " ");
     const tierName = safeString(offer.tier);
     const title = safeString(offer.offer_title);
+    const resolution = readResolutionSummary(sourceContext);
 
     const lines = [
       `# ${title}`,
@@ -88,9 +154,11 @@ function createDeliverablePackager(options = {}) {
       "",
       "## Overview",
       "",
-      `This intelligence pack delivers citation-backed research synthesized from peer-reviewed biomedical literature, clinical trial registries, and pharmacological databases. Every cited identifier is programmatically re-resolved against its issuing public registry at delivery; the per-identifier result (VERIFIED / UNRESOLVED / UNCHECKED) is recorded in the accompanying Reproducibility Manifest. Verification confirms each identifier resolves to a source record — it does not assess the scientific correctness of the source.`,
+      `This intelligence pack delivers citation-backed research synthesized from peer-reviewed biomedical literature, clinical trial registries, and pharmacological databases. ${renderResolutionSentence(resolution)}`,
       "",
-      `The report spans **${pageEstimate}+ pages** of original analysis containing **${uniqueCitations.length} verified citations** drawn from PubMed, ClinicalTrials.gov, PubChem, UniProt, ChEMBL, and other authoritative sources.`,
+      resolution.present
+        ? `The report spans **${pageEstimate}+ pages** of original analysis citing **${resolution.total} unique identifiers** (**${resolution.verified}** independently re-resolved VERIFIED) drawn from PubMed, ClinicalTrials.gov, PubChem, UniProt, ChEMBL, and other authoritative sources.`
+        : `The report spans **${pageEstimate}+ pages** of original analysis citing **${uniqueCitations.length} unique identifiers** drawn from PubMed, ClinicalTrials.gov, PubChem, UniProt, ChEMBL, and other authoritative sources.`,
       "",
       "## What's Included",
       "",
@@ -115,7 +183,13 @@ function createDeliverablePackager(options = {}) {
       "",
       "- Every citation includes a verifiable identifier (PMID, NCT, CID, DOI, etc.)",
       "- Append-only evidence ledger with chain-hashed integrity verification",
-      "- Zero hallucination architecture — claims without citations are flagged and excluded",
+      // Retired 2026-07-13 (OFFERINGS.md, commit 7801443): the absolute "Zero hallucination
+      // architecture — claims without citations are flagged and excluded" claim overstated twice
+      // over. Ungrounded identifiers are NOT excluded: citation-gate.js annotateSubtaskOutputs
+      // marks them [UNVERIFIED] inline and they SHIP ("honesty over completeness"). Do not
+      // reintroduce an absolute no-hallucination claim here.
+      "- **The Zero-Fabrication Guarantee** — every cited identifier is cross-checked at generation time against the evidence actually retrieved for this report; identifiers not found in that evidence are flagged `[UNVERIFIED]` inline and are never presented as fact, and a report below the grounded-citation floor does not ship",
+      "- Cited DOIs and PMIDs are retraction-screened (Crossref for DOIs, PubMed for PMIDs, with a DOI→PMID cross-check); any retracted source blocks release",
       ""
     ];
 
@@ -128,7 +202,7 @@ function createDeliverablePackager(options = {}) {
       lines.push("## Citation Breakdown");
       lines.push("");
       for (const [type, ids] of Object.entries(byType).sort(([a], [b]) => a.localeCompare(b))) {
-        lines.push(`- **${type}**: ${ids.length} verified references`);
+        lines.push(renderTypeBreakdown(type, ids.length, resolution));
       }
       lines.push("");
     }
@@ -184,7 +258,16 @@ function createDeliverablePackager(options = {}) {
     lines.push('<a id="citation-summary"></a>');
     lines.push(`## ${artifacts.length + 1}. Citation Summary`);
     lines.push("");
-    lines.push(`Total verified citations: **${uniqueCitations.length}**`);
+    // "cited", not "verified" — this is the regex extraction tally. The verified figure comes
+    // from the re-resolution manifest and is only stated when that manifest exists.
+    lines.push(`Total cited identifiers: **${uniqueCitations.length}**`);
+    const reportResolution = readResolutionSummary(sourceContext);
+    if (reportResolution.present) {
+      lines.push("");
+      lines.push(`Independently re-resolved at delivery: **${reportResolution.verified} VERIFIED** of ${reportResolution.total}`
+        + `${reportResolution.unchecked > 0 ? ` · ${reportResolution.unchecked} UNCHECKED` : ""}`
+        + `${reportResolution.unresolved > 0 ? ` · ${reportResolution.unresolved} UNRESOLVED` : ""}`);
+    }
     lines.push("");
 
     const byType = {};
@@ -245,7 +328,7 @@ function createDeliverablePackager(options = {}) {
       "",
       "Citations are extracted from agent outputs using deterministic regex patterns matching known identifier formats. Each citation is deduplicated by type and identifier, then indexed with its source task and surrounding context.",
       "",
-      `This report contains **${uniqueCitations.length} unique verified citations** distributed across the following types:`,
+      `This report contains **${uniqueCitations.length} unique cited identifiers** distributed across the following types:`,
       "",
       ...Object.entries(byType).sort(([a], [b]) => a.localeCompare(b)).map(([type, count]) => `- **${type}**: ${count}`),
       "",
@@ -509,7 +592,7 @@ function createDeliverablePackager(options = {}) {
         "",
         "---",
         "",
-        `> Full report contains **${uniqueAllCitations.length} verified citations** across **${Math.max(1, Math.round(allCitationText.length / 2000))} pages** of original analysis.`,
+        `> Full report cites **${uniqueAllCitations.length} unique identifiers** across **${Math.max(1, Math.round(allCitationText.length / 2000))} pages** of original analysis.`,
         ""
       ];
       writeText(previewPath, previewLines.join("\n"));
