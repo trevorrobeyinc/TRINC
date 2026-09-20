@@ -41,10 +41,10 @@ function createManualPlaceholderAdapter(options = {}) {
       subtitle: `${productLine} — ${tierName} tier | Citation-backed biomedical intelligence`,
       description: descriptionParts.join("\n"),
       dataset_summary: safeString(sourceContext.metadata && sourceContext.metadata.dataset_type),
-      sample_summary: `${pageEstimate}+ pages of verified research from ${safeString(sourceContext.source_kind)} ${safeString(sourceContext.source_id)}`,
+      sample_summary: `${pageEstimate}+ pages of citation-traced research from ${safeString(sourceContext.source_kind)} ${safeString(sourceContext.source_id)}`,
       delivery_notes: "Digital delivery. Full research pack available immediately after purchase.",
       tier_name: tierName,
-      tier_summary: `${safeString(offer.offer_title)} — Verified Biomedical Intelligence`,
+      tier_summary: `${safeString(offer.offer_title)} — Citation-Traced Biomedical Intelligence`,
       tier_description: `${productLine} (${tierName} tier) with traceable citations from PubMed, ClinicalTrials.gov, PubChem, UniProt, and ChEMBL.`
     });
   }

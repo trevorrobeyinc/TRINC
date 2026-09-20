@@ -55,7 +55,7 @@ function buildIntegrityReport(citationVerification = {}, sectionCoverage = []) {
     // Retraction Watch is NOT screened anywhere in this engine — its bulk dataset is recorded in
     // SYSTEM-REALITY.md as an unbuilt residual gap. The live screen is Crossref for DOIs plus
     // PubMed pubtype for PMIDs, with a DOI→PMID escalation. Never name a source we do not query.
-    "Every identifier cited in this report is checked, at generation time, against the source records actually retrieved for it. A citation is **grounded** only if it appears in evidence this report fetched; identifiers not in that set are flagged **unverified**; any source flagged **retracted** (Crossref for DOIs, PubMed for PMIDs, with a DOI→PMID cross-check) blocks the report. This ledger is the audit trail — the report's defensible spine.",
+    "Every identifier cited in this report is checked, at generation time, against the source records actually retrieved for it. A citation is **grounded** only if it appears in evidence this report fetched; identifiers not in that set are flagged **unverified**; any source flagged **retracted** (Crossref for DOIs, PubMed for PMIDs, with a DOI→PMID cross-check) blocks the report. Coverage bound: the Retraction Watch bulk dataset is not used, so a retraction recorded only there would not be caught. This ledger is the audit trail — the report's defensible spine.",
     "",
     "| Metric | Value |",
     "| --- | --- |",

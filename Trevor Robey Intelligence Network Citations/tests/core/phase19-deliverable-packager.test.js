@@ -221,12 +221,17 @@ test("phase19 deliverable packager fails when a required artifact slot is not pr
 
 const CITED_BODY = "Findings cite PMID: 12345678 and PMID: 22222222 and NCT01234567 plus doi:10.1056/NEJMoa1911303.";
 
+// summary === null      -> no citation_verification at all (dataset / hand-fed bundle)
+// summary === "gated"    -> the gate ran, but the fail-soft resolver produced no manifest
+// summary === {…}        -> full manifest
 function withResolution(fixture, summary) {
   const ctx = {
     ...fixture.sourceContext,
     artifacts: [{ task_id: "t1", output_rel: "workspace/research-output/t1/output.md", output_full: CITED_BODY }]
   };
-  if (summary) {
+  if (summary === "gated") {
+    ctx.citation_verification = { cited: 4, grounded: 4, ungrounded: 0 };
+  } else if (summary) {
     ctx.citation_verification = {
       cited: 4, grounded: 4, ungrounded: 0,
       reproducibility_manifest: { summary, citations: [] }
@@ -257,14 +262,45 @@ const FLAGGED_SUMMARY = {
 };
 
 test("store copy never ships the retired absolute no-hallucination claim (7801443 doctrine)", async () => {
-  for (const summary of [FLAGGED_SUMMARY, null]) {
+  // Every state, including the ungated one, must be free of the retired claim.
+  for (const summary of [FLAGGED_SUMMARY, "gated", null]) {
     const copy = await renderStoreCopyFor("no-halluc", summary);
     assert.ok(!/hallucinat/i.test(copy), "store copy must not make any hallucination claim");
-    assert.match(copy, /Zero-Fabrication Guarantee/, "the approved OFFERINGS.md term replaces it");
     assert.ok(
       !/flagged and excluded/i.test(copy),
       "ungrounded ids are annotated [UNVERIFIED] inline and SHIP — they are never excluded"
     );
+  }
+  // The approved replacement term appears only where the gate actually ran.
+  for (const summary of [FLAGGED_SUMMARY, "gated"]) {
+    const copy = await renderStoreCopyFor("no-halluc-gated", summary);
+    assert.match(copy, /Zero-Fabrication Guarantee/, "the approved OFFERINGS.md term replaces it");
+  }
+});
+
+test("NO deliverable in the bundle reintroduces retired or extraction-as-verified claim language", async () => {
+  // Bundle-wide, not just store-copy: the same overclaim template was duplicated across
+  // report.md, methodology-statement.md and sample-preview.md. A case-sensitive grep missed
+  // report.md's "**Verified Citations**:" header during the first pass — this catches it.
+  const BANNED = [
+    /hallucinat/i,
+    /claims without citations are flagged and excluded/i,
+    /\bverified citations\b/i,      // \b keeps "Unverified citations" (a real heading) passing
+    /\bverified references\b/i,
+    /\bverified research\b/i,
+    // Retraction Watch may ONLY appear as the documented coverage bound ("…is not used"),
+    // never as a screen we claim to run.
+    /Retraction Watch(?! bulk dataset is not used)/i
+  ];
+  const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "openclaw-phase19-banned-"));
+  const packager = createDeliverablePackager({ rootDir: tmp });
+  const fixture = createMissionFixture();
+  const bundleDir = packager.createBundleWorkspace(fixture.offer.offer_id);
+  packager.writeDeliverables(bundleDir, fixture.offer, withResolution(fixture, FLAGGED_SUMMARY));
+  const deliverablesDir = path.join(bundleDir, "deliverables");
+  for (const file of fs.readdirSync(deliverablesDir)) {
+    const body = fs.readFileSync(path.join(deliverablesDir, file), "utf8");
+    for (const re of BANNED) assert.doesNotMatch(body, re, `${file} reintroduced ${re}`);
   }
 });
 
@@ -274,6 +310,38 @@ test("store copy never calls a regex extraction tally 'verified'", async () => {
     assert.ok(!/\d+\s+verified citations/i.test(copy), "extraction count must not be labelled verified");
     assert.ok(!/verified references/i.test(copy), "per-type extraction counts must not be labelled verified");
   }
+});
+
+test("a bundle with NO citation-verification record claims neither gate", async () => {
+  // renderStoreCopy runs for EVERY bundle, including dataset bundles that never went through
+  // the research path. Asserting runtime grounding / retraction screening for those would be a
+  // fresh overclaim, so the two absent-states must stay distinct.
+  const copy = await renderStoreCopyFor("ungated", null);
+  assert.match(copy, /carries no citation-verification record/, "says so plainly");
+  assert.ok(!/retrieved at runtime/.test(copy), "must not claim a grounding gate that never ran");
+  assert.ok(!/retraction-screened/.test(copy), "must not claim a retraction screen that never ran");
+});
+
+test("a BLOCK delivery decision is never rendered as a normal bounded claim", async () => {
+  const copy = await renderStoreCopyFor("blocked", {
+    counts: { total: 10, verified: 7, unresolved: 3, unchecked: 0 },
+    by_type: { PMID: { total: 10, verified: 7, unresolved: 3, unchecked: 0 } },
+    verified_ratio: 0.7,
+    delivery_decision: "BLOCK"
+  });
+  assert.match(copy, /BLOCKING result \(3 of 10 UNRESOLVED\)/, "states the blocking outcome");
+  assert.match(copy, /NOT cleared for delivery/, "never reads as a deliverable bundle");
+});
+
+test("the primary deliverable's header reports the real split, not the extraction tally", async () => {
+  const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "openclaw-phase19-report-hdr-"));
+  const packager = createDeliverablePackager({ rootDir: tmp });
+  const fixture = createMissionFixture();
+  const bundleDir = packager.createBundleWorkspace(fixture.offer.offer_id);
+  packager.writeDeliverables(bundleDir, fixture.offer, withResolution(fixture, FLAGGED_SUMMARY));
+  const report = fs.readFileSync(path.join(bundleDir, "deliverables", "report.md"), "utf8");
+  assert.match(report, /\*\*Citations\*\*: 34 cited · 29 VERIFIED · 0 UNRESOLVED · 5 UNCHECKED at delivery/);
+  assert.ok(!/\*\*Verified Citations\*\*/.test(report), "the old mislabelled header must not return");
 });
 
 test("store copy reports the REAL re-resolution split, not an implied all-verified", async () => {
@@ -296,19 +364,22 @@ test("store copy reads at full strength only when the manifest is 100% VERIFIED"
   assert.ok(!/UNCHECKED/.test(copy), "no residue to report at 100%");
 });
 
-test("store copy fail-softs when no re-resolution manifest exists, without softening the capability", async () => {
-  const copy = await renderStoreCopyFor("failsoft", null);
+test("store copy fail-softs when the gate ran but no manifest exists, without softening the capability", async () => {
+  const copy = await renderStoreCopyFor("failsoft", "gated");
   // SYSTEM-REALITY.md §3: the re-resolution pass is fail-soft; a bundle may ship with no manifest.
   assert.match(copy, /re-resolution manifest is not included with this bundle/, "says so plainly");
   assert.ok(!/resolved VERIFIED/.test(copy), "must not assert an outcome it has no evidence for");
-  // The grounding gate and retraction screen always run, so those stay assertable.
+  // The gate DID run here, so the grounding + retraction claims stay assertable — dropping them
+  // would be the "grounding only" softening SYSTEM-REALITY.md:93 forbids.
   assert.match(copy, /retraction-screened/, "retraction screening is still claimed");
   assert.match(copy, /retrieved at runtime/, "runtime grounding is still claimed");
 });
 
-test("the citation-integrity ledger never names Retraction Watch, which is screened nowhere", () => {
+test("the citation-integrity ledger claims only the retraction screens actually queried", () => {
   const { buildIntegrityReport } = require(path.join(root, "openclaw-bridge", "monetization", "integrity-rating.js"));
   const md = buildIntegrityReport({ cited: 4, grounded: 4, ungrounded: 0, retracted_dois: [] }).markdown;
-  assert.ok(!/retraction watch/i.test(md), "Retraction Watch is an unbuilt residual gap — never claim it");
   assert.match(md, /Crossref for DOIs, PubMed for PMIDs/, "names only the screens actually queried");
+  // Retraction Watch may appear ONLY as the documented coverage bound, never as a screen we run.
+  assert.doesNotMatch(md, /Retraction Watch(?! bulk dataset is not used)/i);
+  assert.match(md, /Retraction Watch bulk dataset is not used/, "states the residual coverage gap");
 });

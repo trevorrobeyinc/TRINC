@@ -81,15 +81,22 @@ function createDeliverablePackager(options = {}) {
   // { present:false } is a LEGITIMATE FAIL-SOFT STATE, not an error: per SYSTEM-REALITY.md §3 the
   // re-resolution pass is fail-soft and a report may ship with no manifest.
   function readResolutionSummary(sourceContext) {
-    const summary = asPlainObject(
-      asPlainObject(asPlainObject(sourceContext).citation_verification).reproducibility_manifest
-    ).summary;
-    const s = asPlainObject(summary);
+    const cv = asPlainObject(asPlainObject(sourceContext).citation_verification);
+    // `gated` separates TWO distinct absent-states that must not make the same claim:
+    //   (a) gated:true  — the citation gate + retraction screen ran, but the fail-soft
+    //                     re-resolution pass produced no manifest. Those gates ARE assertable.
+    //   (b) gated:false — this bundle never went through the research path at all (dataset
+    //                     bundles, hand-fed source contexts). renderStoreCopy is called for
+    //                     EVERY bundle, so asserting (a)'s guarantees here would be a fresh
+    //                     overclaim of exactly the class this module exists to prevent.
+    const gated = Object.keys(cv).length > 0;
+    const s = asPlainObject(asPlainObject(cv.reproducibility_manifest).summary);
     const counts = asPlainObject(s.counts);
-    if (!Number.isFinite(counts.total)) return { present: false, byType: {} };
+    if (!Number.isFinite(counts.total) || counts.total < 1) return { present: false, gated, byType: {} };
     const num = (v) => (Number.isFinite(v) ? v : 0);
     return {
       present: true,
+      gated: true,
       total: counts.total,
       verified: num(counts.verified),
       unresolved: num(counts.unresolved),
@@ -107,19 +114,37 @@ function createDeliverablePackager(options = {}) {
   // anything else is stated with its real UNCHECKED / UNRESOLVED residue (DELIVER_WITH_FLAGS).
   function renderResolutionSentence(res) {
     if (!res.present) {
+      if (!res.gated) {
+        // No citation-verification record at all — claim neither gate. Identifiers are still
+        // public and independently checkable, which is true of any bundle.
+        return "Citations carry public identifiers (PMID, NCT, PubChem CID, DOI) that resolve in their issuing registries and can be checked directly. This bundle carries no citation-verification record, so no grounding, retraction-screen, or re-resolution outcome is asserted for it.";
+      }
       // A per-bundle statement of fact, NOT the general softening SYSTEM-REALITY.md §3 forbids:
-      // THIS bundle carries no manifest, so no re-resolution outcome may be asserted for it.
-      // The grounding gate and retraction screen always run, so those remain assertable.
+      // THIS bundle's gates ran but the fail-soft re-resolution pass produced no manifest.
       return "Every cited identifier is cross-checked against the source records actually retrieved at runtime, and cited DOIs and PMIDs are retraction-screened. A per-identifier re-resolution manifest is not included with this bundle.";
+    }
+    // Registries actually dispatched to, per citation-reresolver.js hostFor(). DrugBank is a
+    // recognised identifier type but has NO resolver host, and the literal string is banned in
+    // shipped content by the license allowlist — finalizeBundle would hard-fail the seal. Never
+    // add it to this list.
+    const registries = "PMID → NCBI E-utilities, DOI → Crossref with a doi.org fallback, "
+      + "NCT → ClinicalTrials.gov, PubChem CID → PubChem, ChEMBL → ChEMBL, UniProt → UniProt, RxNorm → RxNav";
+    if (res.decision === "BLOCK") {
+      return `Every cited identifier is submitted at delivery for independent re-resolution against its issuing public registry (${registries}). `
+        + `For this report the pass returned a BLOCKING result (${res.unresolved} of ${res.total} UNRESOLVED): this bundle is NOT cleared for delivery. `
+        + "See the accompanying Reproducibility Manifest.";
     }
     const residue = [];
     if (res.unchecked > 0) residue.push(`${res.unchecked} returned no definitive answer and are recorded UNCHECKED`);
     if (res.unresolved > 0) residue.push(`${res.unresolved} did not resolve and are recorded UNRESOLVED`);
-    const outcome = residue.length === 0
-      ? `For this report all ${res.total} resolved VERIFIED.`
-      : `For this report ${res.verified} of ${res.total} resolved VERIFIED; ${residue.join("; ")}.`;
-    return "Every cited identifier is submitted at delivery for independent re-resolution against its issuing public registry "
-      + `(PMID → NCBI E-utilities, NCT → ClinicalTrials.gov, DOI → Crossref). ${outcome} `
+    // Full strength is gated on DELIVER, not merely on a clean residue: DELIVER is the only
+    // decision that asserts "every identifier was re-resolved" (Q8 policy, doctrine-REQUIRED).
+    const outcome = residue.length > 0
+      ? `For this report ${res.verified} of ${res.total} resolved VERIFIED; ${residue.join("; ")}.`
+      : res.decision === "DELIVER"
+        ? `For this report all ${res.total} resolved VERIFIED.`
+        : `For this report ${res.verified} of ${res.total} resolved VERIFIED (delivery decision: ${res.decision || "not recorded"}).`;
+    return `Every cited identifier is submitted at delivery for independent re-resolution against its issuing public registry (${registries}). ${outcome} `
       + "Per-identifier results are recorded in the accompanying Reproducibility Manifest. Re-resolution confirms an "
       + "identifier resolves to a source record — it does not assess the scientific correctness of the source.";
   }
@@ -188,8 +213,15 @@ function createDeliverablePackager(options = {}) {
       // over. Ungrounded identifiers are NOT excluded: citation-gate.js annotateSubtaskOutputs
       // marks them [UNVERIFIED] inline and they SHIP ("honesty over completeness"). Do not
       // reintroduce an absolute no-hallucination claim here.
-      "- **The Zero-Fabrication Guarantee** — every cited identifier is cross-checked at generation time against the evidence actually retrieved for this report; identifiers not found in that evidence are flagged `[UNVERIFIED]` inline and are never presented as fact, and a report below the grounded-citation floor does not ship",
-      "- Cited DOIs and PMIDs are retraction-screened (Crossref for DOIs, PubMed for PMIDs, with a DOI→PMID cross-check); any retracted source blocks release",
+      // Gate-dependent: these two bullets describe the citation gate and the retraction screen.
+      // A bundle with no citation-verification record never ran either, so claiming them there
+      // would reintroduce the overclaim at a different line.
+      ...(resolution.gated
+        ? [
+          "- **The Zero-Fabrication Guarantee** — every cited identifier is cross-checked at generation time against the evidence actually retrieved for this report; identifiers not found in that evidence are flagged `[UNVERIFIED]` inline and are never presented as fact, and a report below the grounded-citation floor does not ship",
+          "- Cited DOIs and PMIDs are retraction-screened (Crossref for DOIs, PubMed for PMIDs, with a DOI→PMID cross-check); any retracted source blocks release"
+        ]
+        : ["- This bundle carries no citation-verification record: no grounding, retraction-screen, or re-resolution outcome is claimed for it"]),
       ""
     ];
 
@@ -201,8 +233,15 @@ function createDeliverablePackager(options = {}) {
       }
       lines.push("## Citation Breakdown");
       lines.push("");
-      for (const [type, ids] of Object.entries(byType).sort(([a], [b]) => a.localeCompare(b))) {
-        lines.push(renderTypeBreakdown(type, ids.length, resolution));
+      // When a manifest exists, drive the table off ITS types so the rows reconcile with the
+      // total stated above. The manifest is built from the assembled report; `byType` here is
+      // this module's own extraction over artifact text — different corpora, so a manifest type
+      // missing from the extraction would otherwise be silently dropped from the table.
+      const breakdownTypes = resolution.present
+        ? Object.keys(resolution.byType).sort((a, b) => a.localeCompare(b))
+        : Object.keys(byType).sort((a, b) => a.localeCompare(b));
+      for (const type of breakdownTypes) {
+        lines.push(renderTypeBreakdown(type, (byType[type] || []).length, resolution));
       }
       lines.push("");
     }
@@ -215,6 +254,7 @@ function createDeliverablePackager(options = {}) {
     const allText = artifacts.map((a) => a.output_full || a.output_excerpt || "").join("\n");
     const citations = extractCitations(allText);
     const uniqueCitations = deduplicateCitations(citations);
+    const reportResolution = readResolutionSummary(sourceContext);
 
     const lines = [
       `# ${safeString(offer.offer_title)}`,
@@ -222,7 +262,11 @@ function createDeliverablePackager(options = {}) {
       `**Product Line**: ${safeString(offer.product_line).replace(/_/g, " ")}`,
       `**Tier**: ${safeString(offer.tier)}`,
       `**Source**: ${safeString(sourceContext.source_id)}`,
-      `**Verified Citations**: ${uniqueCitations.length}`,
+      // report.md is the PRIMARY deliverable. This header labelled the regex extraction tally
+      // "Verified Citations" — the shipped bundle read 34 while its manifest said 29 VERIFIED.
+      `**Citations**: ${reportResolution.present
+        ? `${reportResolution.total} cited · ${reportResolution.verified} VERIFIED · ${reportResolution.unresolved} UNRESOLVED · ${reportResolution.unchecked} UNCHECKED at delivery`
+        : `${uniqueCitations.length} cited identifiers`}`,
       `**Generated**: ${safeString(sourceContext.created_at).split("T")[0] || "N/A"}`,
       "",
       "---",
@@ -261,7 +305,6 @@ function createDeliverablePackager(options = {}) {
     // "cited", not "verified" — this is the regex extraction tally. The verified figure comes
     // from the re-resolution manifest and is only stated when that manifest exists.
     lines.push(`Total cited identifiers: **${uniqueCitations.length}**`);
-    const reportResolution = readResolutionSummary(sourceContext);
     if (reportResolution.present) {
       lines.push("");
       lines.push(`Independently re-resolved at delivery: **${reportResolution.verified} VERIFIED** of ${reportResolution.total}`
