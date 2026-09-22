@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "vault-publish-v1",
+  "_comment": "Engine-owned write of a completed, citation-PASS workflow into the Obsidian vault (2026-09-22, Obsidian re-integration plan, decisions D1-A/D2/D3). ONE folder scheme, shared with the Command Center plugin: <vaultOutputFolder>/<template_id>/<YYYY-MM-DD> <input label>/. The engine writes first and records artifacts.vault_notes in workflow.json; the plugin rehydrates from that record instead of writing again. Set enabled=false (or OPENCLAW_VAULT_PUBLISH=0) to turn the headless write off. vaultRoot must be one of allowedVaultRoots; every write is path-guarded to stay inside it and never touches .obsidian/. Mock-provider runs, failed runs and non-PASS runs are skipped, never written.",
+  "enabled": true,
+  "vaultRoot": "/Users/myhome/My Digital Garden",
+  "allowedVaultRoots": ["/Users/myhome/My Digital Garden"],
+  "vaultOutputFolder": "OpenClaw",
+  "requireCitationPass": true,
+  "_comment_deliverables": "Bundle deliverables copied VERBATIM into the run folder as their own notes, in this order. Read from the sealed bundle (workspace/releases/<offer_id>/deliverables/<slug>.md) when one exists, else from the workflow dir. citation-integrity is rendered from the run's own citation_verification when neither has it. Add 'report' here to also mirror the full client report.",
+  "deliverables": [
+    "citation-integrity",
+    "graveyard-memo",
+    "search-coverage",
+    "reproducibility-manifest",
+    "design-benchmark"
+  ],
+  "_comment_graphAnalysis": "Plan D6 (2026-09-22): deterministic, LLM-free text-network analysis of the synthesizer output via the Medical Zettelkasten MCP's in-process adapter, written as `Graph Analysis.md` in the run folder (bounded, no wikilinks). Runs headless with every publish; fail-soft (package absent or too little text = no note). The plugin's LLM Zettelkasten linking is separate and appends to Synthesizer.md while Obsidian is open.",
+  "graphAnalysis": {
+    "enabled": true,
+    "packageRoot": "/Users/myhome/TrevClaw-Obsidianodus/Claude/Medical-Zettelkasten-MCP",
+    "maxItems": 8
+  },
+  "_comment_researchMemory": "Cross-run priors (plan D5, 2026-09-22). ENABLED 2026-09-22 on the operator's instruction after the one-time manual steps: `node dist/cli.js health` in Claude/trevorobeyinc-research-memory-mcp (created the Qdrant collection trevorobeyinc-packs over :6433), then one manual `ingest` run with EMBED_ALLOW_REMOTE=1, which is what fetched Xenova/nomic-embed-text-v1 from huggingface.co into that package's node_modules/@xenova/transformers/.cache/. The pack store's embedder is OFFLINE BY DEFAULT (its embed.ts sets allowRemoteModels only when EMBED_ALLOW_REMOTE=1), so a research run, the Command Center's ingest and the store's MCP server can never download a model as a side effect: if that cache is ever deleted, every embed fails loudly with EMBED_MODEL_NOT_CACHED and the operator repeats the manual ingest. With enabled=true every shippable run ingests its synthesizer pack (idempotent on content hash; the Command Center's own later ingest of the same run returns skipped_duplicate) and the synthesizer role reads priors as CONTEXT ONLY (identifiers withheld, excluded from fetched_citation_ids). Set enabled=false to turn both jobs back into recorded skips. scoreThreshold 0.5 was checked against the first four packs on 2026-09-22: on-topic queries score 0.45-0.60 and an off-topic query tops out at 0.43, so 0.5 favours precision (an indication with no prior returns nothing rather than a neighbouring indication's pack) - re-measure when the store grows.",
+  "researchMemory": {
+    "enabled": true,
+    "cliPath": "/Users/myhome/TrevClaw-Obsidianodus/Claude/trevorobeyinc-research-memory-mcp/dist/cli.js",
+    "client": "trevorobeyinc",
+    "qdrantUrl": "https://127.0.0.1:6433",
+    "timeoutMs": 90000,
+    "scoreThreshold": 0.5
+  }
+}

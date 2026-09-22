@@ -629,7 +629,7 @@ Detection:
 Handling:
 - Only `PASS` ships; every other verdict fails closed and refuses to ship the report.
 - Write `citation-verification.json` and `report-annotated.md` to the workflow dir; surviving ungrounded cites are annotated inline `[UNVERIFIED]`.
-- Grounding means the cite was present in the source records retrieved at runtime (plus DOI retraction screening); it does not mean each citation was independently re-resolved against its live external source database.
+- Grounding means the cite was present in the source records retrieved at runtime (plus DOI retraction screening). Re-resolution is a separate, later check that also ships: since the post-research integrity layer (validated 2026-07-10) every cited PMID / NCT / DOI is re-resolved against its issuing public registry at delivery (`openclaw-bridge/mcp/citation-reresolver/`), stamped VERIFIED / UNRESOLVED / UNCHECKED in the reproducibility manifest, and any UNRESOLVED id blocks delivery.
 
 ## Phase 30 Retracted Citation
 Detection:

@@ -167,9 +167,12 @@
 >   ships; surviving ungrounded cites are annotated inline `[UNVERIFIED]`.
 >   The buildPrompt path also carries an ABSOLUTE-RULE "ZERO FABRICATION" clause (never
 >   invent a PMID/NCT/DOI; say "[no verifiable citation found]" instead).
->   **Honest scope:** citations are **grounded in the source records actually retrieved at
->   runtime + DOI retraction-screened (Crossref)** — they are NOT independently re-resolved
->   against each live source database (that per-citation external re-resolution is not built).
+>   **Honest scope (corrected 2026-09-22):** citations are **grounded in the source records actually
+>   retrieved at runtime + DOI retraction-screened (Crossref)**, and — since the post-research
+>   integrity layer (validated 2026-07-10) — **re-resolved per identifier (PMID, NCT, DOI) against
+>   the issuing public registry at delivery**, each stamped VERIFIED / UNRESOLVED / UNCHECKED in the
+>   reproducibility manifest. Re-resolution proves an identifier resolves to a real source record,
+>   not that the source's conclusions are correct. Ground truth: `SYSTEM-REALITY.md` → "GAP CLOSED".
 > - **Retraction screen.** Each cited DOI is checked against Crossref; a report citing any
 >   retracted paper hard-stops (`PHASE30_CITATION_RETRACTED`). Fail-soft — a Crossref network
 >   error yields no retractions and can never wrongly block a report.

@@ -61,4 +61,82 @@ describe("tu-record-normalizer — payload + identifier preservation", () => {
     assert.deepEqual(extractIdentifiers(null), {});
     assert.deepEqual(extractIdentifiers("x"), {});
   });
+
+  // --- FDA / DailyMed / openFDA row shapes (2026-09-19) ----------------------------
+  // Same failure mode as the 2026-06-11 fix above, for the families wired that day: these
+  // rows carry their payload under source-specific names, so before the mapping every one
+  // normalized to title "unknown_tool" with an EMPTY abstract — a fetch that succeeded, was
+  // counted "returned" in search-coverage.md, and reached the prompt carrying nothing.
+  // Field names below are copied from live responses, not invented.
+
+  it("DailyMed parsed-label section: content becomes the abstract", () => {
+    const raw = { type: "text", content: "The following clinically significant adverse reactions are described elsewhere in the labeling: Myelosuppression" };
+    const [r] = normalizeToolList([raw], {});
+    assert.match(r.abstract, /Myelosuppression/);
+  });
+
+  it("openFDA enforcement row: product_description titles it, reason_for_recall leads the abstract", () => {
+    const raw = {
+      product_description: "FLUCONAZOLE, Tablet, 200 mg, Rx only",
+      reason_for_recall: "Labeling: Label Mixup",
+      classification: "Class II",
+      recalling_firm: "Aidapak Services, LLC",
+      recall_initiation_date: "20130702",
+      status: "Terminated"
+    };
+    const [r] = normalizeToolList([raw], {});
+    assert.equal(r.title, "FLUCONAZOLE, Tablet, 200 mg, Rx only");
+    assert.match(r.abstract, /^Labeling: Label Mixup/);
+    assert.match(r.abstract, /Class II/);
+    assert.match(r.abstract, /Aidapak/);
+    assert.equal(r.status, "Terminated");
+  });
+
+  it("FDA drug-label row: openFDA's LITERAL dotted key titles it, indications become the abstract", () => {
+    // openFDA flattens nested keys, so the brand name arrives as "openfda.brand_name",
+    // not as a nested openfda object. Reading it as raw.openfda.brand_name finds nothing.
+    const raw = {
+      "openfda.brand_name": ["Temozolomide"],
+      "openfda.generic_name": ["TEMOZOLOMIDE"],
+      indications_and_usage: ["1. INDICATIONS AND USAGE TEMOZOLOMIDE Capsules are an alkylating drug"],
+      id: "5d202069-2432-4996-9570-0b3389e5fed5"
+    };
+    const [r] = normalizeToolList([raw], {});
+    assert.equal(r.title, "Temozolomide");
+    assert.match(r.abstract, /alkylating drug/);
+  });
+
+  it("Orange Book row: application number + sponsor title it, products become the abstract", () => {
+    const raw = {
+      application_number: "NDA021029",
+      sponsor_name: "MERCK SHARP DOHME",
+      products: [{ brand_name: "TEMODAR", active_ingredients: [{ name: "TEMOZOLOMIDE", strength: "140MG" }] }]
+    };
+    const [r] = normalizeToolList([raw], {});
+    assert.match(r.title, /NDA021029/);
+    assert.match(r.title, /MERCK SHARP DOHME/);
+    assert.match(r.abstract, /TEMODAR/);
+  });
+
+  it("DailyMed SPL search row: label metadata fills the abstract instead of leaving it empty", () => {
+    const raw = {
+      spl_version: 6,
+      published_date: "Aug 31, 2026",
+      title: "TEMOZOLOMIDE CAPSULE [OPKO PHARMACEUTICALS, LLC]",
+      setid: "9dff10ec-6a55-47b6-a458-b7c39e32dc55"
+    };
+    const [r] = normalizeToolList([raw], {});
+    assert.equal(r.title, "TEMOZOLOMIDE CAPSULE [OPKO PHARMACEUTICALS, LLC]");
+    assert.match(r.abstract, /SPL version: 6/);
+    assert.match(r.abstract, /9dff10ec/);
+  });
+
+  it("known shapes keep precedence over the new source-specific fields", () => {
+    // A row carrying BOTH a real abstract and a source-specific field must still use the
+    // abstract — the new branches are a fallback, not an override.
+    const raw = { title: "Real article", abstract: "Real abstract text", content: "label section text" };
+    const [r] = normalizeToolList([raw], {});
+    assert.equal(r.title, "Real article");
+    assert.equal(r.abstract, "Real abstract text");
+  });
 });

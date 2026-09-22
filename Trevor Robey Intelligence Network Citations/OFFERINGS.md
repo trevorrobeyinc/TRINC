@@ -53,7 +53,7 @@
   construction**, rendered with no LLM straight from the records fetched at runtime, but they are **not
   counted in the ratio that produced that grade**. A hand-assembled deliverable that never ran through the
   engine claims none of this.
-- **Citation-Integrity Gate** — every cited identifier in the assembled report is cross-checked against the source records actually retrieved at runtime; citations are graded "grounded" (present in retrieved evidence) vs "ungrounded" (likely model-introduced). The report refuses to ship when the grounded ratio falls below threshold, and surviving ungrounded cites are annotated inline `[UNVERIFIED]`. Cited DOIs are screened against Crossref for retractions, and any report citing a retracted paper hard-stops. (Citations are grounded in the retrieved source records + DOI retraction-screened — they are not independently re-resolved against each live external database.)
+- **Citation-Integrity Gate** — every cited identifier in the assembled report is cross-checked against the source records actually retrieved at runtime; citations are graded "grounded" (present in retrieved evidence) vs "ungrounded" (likely model-introduced). The report refuses to ship when the grounded ratio falls below threshold, and surviving ungrounded cites are annotated inline `[UNVERIFIED]`. Cited DOIs are screened against Crossref for retractions, and any report citing a retracted paper hard-stops. Every cited PMID, NCT and DOI is then re-resolved against its issuing public registry at delivery, each result recorded in the bundle's reproducibility manifest (VERIFIED / UNRESOLVED / UNCHECKED; any UNRESOLVED identifier blocks delivery). Re-resolution confirms an identifier resolves to a real source record; it does not validate the source's scientific conclusions.
 - **Speed SLA**: 5–10 business days for Investor Pre-Mortem (written guarantee)
 
 ### Bundle deliverables (shipped)
@@ -68,7 +68,7 @@ Every mission bundle now seals two audit-trail artifacts alongside the report:
 - Research artifacts only — not validated for clinical decision support
 - No PHI hosted, transmitted, or processed
 - Manual-only external actions — no autonomous publishing, posting, or login
-- Citation traceability quality gate — every row carries a real PMID, NCT, ChEMBL CID, or DOI; a report-level gate cross-checks every cited identifier against the records actually retrieved at runtime (grounded vs ungrounded) and refuses to ship below the grounded-ratio threshold, and cited DOIs are screened against Crossref for retractions (grounded + retraction-screened, not independently re-resolved against each live source database)
+- Citation traceability quality gate — every row carries a real PMID, NCT, ChEMBL CID, or DOI; a report-level gate cross-checks every cited identifier against the records actually retrieved at runtime (grounded vs ungrounded) and refuses to ship below the grounded-ratio threshold, cited DOIs are screened against Crossref for retractions, and every cited PMID, NCT and DOI is re-resolved against its issuing public registry at delivery with the result recorded in a reproducibility manifest (re-resolution confirms the identifier resolves to a real source record, not that the source's conclusions are correct)
 
 ## Engine credit
 

@@ -64,6 +64,27 @@ engines:
     weight: 2.5
     timeout: 8.0
     disabled: false
+  # NEW engine (not a SearXNG default): eLife via json_engine — restored 2026-09-19 after the
+  # scrape-sidecar removal (2026-09-18). eLife was that component's ONLY working connector; its
+  # public API is plain HTTPS + key-free, so no browser is needed to reach it. The article HTML
+  # returns 406 to a plain client (content negotiation, NOT JS-rendering) — hence the API, not
+  # the page. `impactStatement` is a flat string on research articles; `abstract` is a nested
+  # object json_engine cannot flatten, so it is deliberately not used here.
+  - name: elife
+    engine: json_engine
+    shortcut: elife
+    categories: [science]
+    paging: false
+    search_url: https://api.elifesciences.org/search?for={query}&per-page=10
+    results_query: items
+    url_query: doi
+    url_prefix: https://doi.org/
+    title_query: title
+    content_query: impactStatement
+    content_html_to_text: true
+    weight: 2.0
+    timeout: 8.0
+    disabled: false
   - name: crossref
     disabled: false
     weight: 2.0
@@ -79,7 +100,25 @@ engines:
   - name: arxiv
     weight: 1.0
     timeout: 6.0
+    disabled: true        # upstream "HTTP error" since at least 2026-09-19 — returns nothing and
+                          # costs 6s per science query. Flip back to false when upstream recovers.
   - name: brave
     disabled: true
   - name: google scholar
     disabled: true
+
+# --- General-web lane (repaired 2026-09-19) --------------------------------------
+# The stock general engines both bot-detect this instance and return ZERO, which made
+# topic:"general" searches silently empty while topic:"science" stayed healthy. They
+# fingerprint the client precisely BECAUSE there is no browser here (no JS execution, no
+# canvas, plain httpx) — a headless browser is what would defeat them, and this host has
+# permanently foreclosed that. So the fix is to use engines that tolerate honest HTTP
+# clients, never to look more human. Verified live: bing returns results, these two do not.
+  - name: bing
+    disabled: false       # verified working 2026-09-19 (10 results, no errors)
+    weight: 1.0
+    timeout: 6.0
+  - name: duckduckgo
+    disabled: true        # "CAPTCHA" 2026-09-19 — zero results, poisons the general merge
+  - name: startpage
+    disabled: true        # "Suspended: CAPTCHA" 2026-09-19 — same

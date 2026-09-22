@@ -109,7 +109,7 @@ already used (zero subprocess, zero new listeners, no `operation` field per the 
 precedent). Two more entries (`video_pipeline_run`, `video_pipeline_status`) close a gap: the
 bridge had served them for a while (and the stdio adapter proxies them for Claude/Raycast),
 but without catalog entries the in-plugin agent could not call them. Contract of record:
-`Claude/obsidian-command-center/src/bridge/mcp-bridge-server.ts` (bridge **30 tools**; catalog
+`Claude/obsidian-command-center/src/bridge/mcp-bridge-server.ts` (bridge **32 tools** as of 2026-09-22 — `obsidian_openclaw_publish_vault` + `obsidian_openclaw_research_memory_search`, catalog 41; previously 30; catalog
 27 entries after zk, 29 after the video pair, **39** after the engine suite — see below). zk analyses are synchronous (single ones
 seconds-to-a-minute, `zk_full_pipeline` minutes — size the :8799 server `timeoutMs`
 accordingly) and write NOTHING to the vault (`writeReport` pinned false; the model saves

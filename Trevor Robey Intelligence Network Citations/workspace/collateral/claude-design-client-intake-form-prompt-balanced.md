@@ -476,7 +476,7 @@ Inside the 1080px container, render the following four blocks, each in its own `
 `External publication, marketplace submission, customer delivery, and authentication actions remain manual-only by architectural design; the system does not act autonomously on external systems.`
 
 **Block 4 — Citation grounding scope qualifier (MANDATORY, verbatim from OFFERINGS.md §Brand Commitments):**
-`Citations are grounded in the retrieved source records + DOI retraction-screened via Crossref — they are not independently re-resolved against each live external database.`
+`Citations are grounded in the retrieved source records, DOI retraction-screened via Crossref, and re-resolved per identifier (PMID, NCT, DOI) against the issuing public registry at delivery, with each result recorded in a reproducibility manifest. Re-resolution confirms an identifier resolves to a real source record; it does not validate the source's scientific conclusions.`
 
 Below the four blocks, in the same font but 11px, one line:
 `trevor@trevorobeyinc.com · trevorobeyinc.com`

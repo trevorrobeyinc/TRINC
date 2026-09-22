@@ -200,8 +200,12 @@ SHA `3833b0e`, v1.1.10, Apache-2.0); ~2,116 tools across 500 data files.
 
 **Project MCP adapters** (`openclaw-bridge/mcp/`): ChEMBL · ClinicalTrials.gov · PubMed · NPI ·
 ICD-10 · HuggingFace (metadata-only, no weights downloaded) · Owkin (gated behind `OWKIN_API_KEY`,
-throws if unset) · arXiv · Semantic Scholar · whitelisted-host scraper · ToolUniverse bridge ·
-SearXNG citation gate · citation re-resolver.
+throws if unset) · arXiv · Semantic Scholar · ToolUniverse bridge · SearXNG citation gate ·
+citation re-resolver.
+
+*(The whitelisted-host scraper adapter was removed 2026-09-18 — see the root `CLAUDE.md` deletion
+log. Open-web retrieval is the SearXNG lane; eLife, its only working source, was restored
+2026-09-19 as a key-free `json_engine` against the public eLife API.)*
 
 **Direct fetchers** in the integrity layer: `ctgov-supplemental.js` (ClinicalTrials.gov API v2 plus
 the `int` change-history endpoint, for stop-reason archaeology) · `crossref-retraction.js` ·

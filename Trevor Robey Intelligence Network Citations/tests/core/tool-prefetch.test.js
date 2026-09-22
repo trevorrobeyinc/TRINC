@@ -8,13 +8,18 @@ const { createToolPrefetch } = require("../../openclaw-bridge/core/tool-prefetch
 
 const ROOT_DIR = path.resolve(__dirname, "..", "..");
 
-function createMockToolUniverseMcp(responses = []) {
+// `whenExhausted` is what every call past the end of `responses` gets. Without it the queue
+// silently falls through to a SUCCESS payload, which couples a test to the exact number of
+// prefetch entries the role happens to have: adding a source to tool-prefetch-map.json then
+// turns an "everything fails" test into a partial-success one. Pass an Error to model a
+// ToolUniverse outage regardless of how many calls the role makes.
+function createMockToolUniverseMcp(responses = [], { whenExhausted } = {}) {
   const calls = [];
   return {
     calls,
     execute: async (input) => {
       calls.push(input);
-      const response = responses.shift();
+      const response = responses.length ? responses.shift() : whenExhausted;
       if (response instanceof Error) throw response;
       return response !== undefined ? response : [
         { tool_name: "mock_tool", description: "A mock tool result", category: "test" }
@@ -116,11 +121,9 @@ describe("tool-prefetch", () => {
     });
 
     it("returns empty array on ToolUniverse failure (graceful degradation)", async () => {
-      const mcp = createMockToolUniverseMcp([
-        new Error("SMCP process crashed"),
-        new Error("SMCP process crashed"),
-        new Error("SMCP process crashed")
-      ]);
+      // Every call fails, however many entries the role has — that is what "ToolUniverse is
+      // down" means, and it keeps this test from weakening when a source is added to the role.
+      const mcp = createMockToolUniverseMcp([], { whenExhausted: new Error("SMCP process crashed") });
       const prefetch = createToolPrefetch({ toolUniverseMcp: mcp, logger, rootDir: ROOT_DIR });
       const docs = await prefetch.prefetchForRole("safety_signal_detector", {
         indication: "pain",

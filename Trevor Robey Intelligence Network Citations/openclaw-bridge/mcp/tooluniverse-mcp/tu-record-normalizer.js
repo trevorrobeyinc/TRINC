@@ -42,6 +42,31 @@ function extractTitle(record) {
   if (record && typeof record.official_title === "string" && record.official_title.trim()) {
     return normalizeText(record.official_title, 2000);
   }
+
+  // --- Source-specific row fields (2026-09-19) ------------------------------------
+  // Rows from the FDA / DailyMed / openFDA families carry no `title`; without these the
+  // row fell through to the tool id and rendered as "unknown_tool" in the prompt. Field
+  // names were read off live responses (see the row-shape dump in the 2026-09-19 session),
+  // not guessed -- guessing is how the empty-abstract case survived this long.
+
+  // openFDA enforcement (recall) rows: the product description is the human-readable subject.
+  if (record && typeof record.product_description === "string" && record.product_description.trim()) {
+    return normalizeText(record.product_description, 2000);
+  }
+  // Orange Book / Drugs@FDA rows: identify by application number + sponsor.
+  if (record && typeof record.application_number === "string" && record.application_number.trim()) {
+    const sponsor =
+      typeof record.sponsor_name === "string" && record.sponsor_name.trim()
+        ? ` — ${record.sponsor_name}`
+        : "";
+    return normalizeText(`${record.application_number}${sponsor}`, 2000);
+  }
+  // FDA drug-label rows: openFDA flattens nested keys, so the brand name arrives under the
+  // LITERAL dotted key "openfda.brand_name" (an array), not a nested openfda object.
+  if (record && Array.isArray(record["openfda.brand_name"]) && record["openfda.brand_name"].length) {
+    return normalizeText(record["openfda.brand_name"].join(", "), 2000);
+  }
+
   return normalizeText(extractToolId(record), 2000);
 }
 
@@ -67,6 +92,48 @@ function extractAbstract(record, maxChars) {
 
   if (record && typeof record.description === "string") {
     return stripHtml(record.description).slice(0, limit);
+  }
+
+  // --- Source-specific row fields (2026-09-19) ------------------------------------
+  // Same reason as extractTitle: these families put their payload under their own names,
+  // so every row above returned "" -- a call that succeeded, was counted as "returned" in
+  // search-coverage.md, and reached the prompt carrying nothing. An empty abstract is worse
+  // than a failed fetch because nothing surfaces it.
+
+  // DailyMed parsed-label sections: { type, content }.
+  if (record && typeof record.content === "string" && record.content.trim()) {
+    return stripHtml(record.content).slice(0, limit);
+  }
+  // openFDA enforcement (recall) rows: lead with the reason, then the classification/firm
+  // context a safety reader needs to judge it.
+  if (record && typeof record.reason_for_recall === "string" && record.reason_for_recall.trim()) {
+    const parts = [
+      record.reason_for_recall,
+      record.classification && `Classification: ${record.classification}`,
+      record.recalling_firm && `Recalling firm: ${record.recalling_firm}`,
+      record.recall_initiation_date && `Initiated: ${record.recall_initiation_date}`,
+      record.distribution_pattern
+    ].filter((p) => typeof p === "string" && p.trim());
+    return stripHtml(parts.join(" | ")).slice(0, limit);
+  }
+  // FDA drug-label rows: indications_and_usage is an array of label paragraphs.
+  if (record && Array.isArray(record.indications_and_usage) && record.indications_and_usage.length) {
+    return stripHtml(record.indications_and_usage.join(" ")).slice(0, limit);
+  }
+  // Orange Book / Drugs@FDA rows: the payload is the products array (brand names, strengths,
+  // dosage forms, marketing status) -- serialized because it is structured, not prose.
+  if (record && Array.isArray(record.products) && record.products.length) {
+    return stripHtml(truncateResult(record.products, limit));
+  }
+  // DailyMed SPL search rows: no body text, only label metadata. Carry the version/date so
+  // the record is not an empty shell next to its title.
+  if (record && typeof record.setid === "string" && record.setid.trim()) {
+    const parts = [
+      record.published_date && `Published: ${record.published_date}`,
+      record.spl_version !== undefined && `SPL version: ${record.spl_version}`,
+      `setid: ${record.setid}`
+    ].filter((p) => typeof p === "string" && p.trim());
+    return stripHtml(parts.join(" | ")).slice(0, limit);
   }
 
   return "";

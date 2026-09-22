@@ -27,12 +27,19 @@
  * obsidian-bridge-launcher plugin and dies with Obsidian, but it can also be
  * started standalone via Copilot-Everything/scripts/bridge-start.sh.
  *
- * NOTE ON FOLDER SCHEME: `Research-Output/...` is this tool's scheme and is
- * currently DORMANT. The scheme actually live in the vault is the Command
- * Center plugin's `OpenClaw/<template_id>/<date> <input-label>/`, written by
- * its own note-generator on workflow completion. Do not wire this tool into the
- * pipeline without deciding which of the two schemes wins — otherwise every run
- * double-writes into two parallel trees.
+ * ⚠️ TOMBSTONE (2026-09-22, Obsidian re-integration plan, decision D2): this tool and its
+ * `Research-Output/` scheme are RETIRED. The ONE vault scheme is
+ * `OpenClaw/<template_id>/<date> <input-label>/`, now written by the ENGINE itself after every
+ * gate-PASS run (openclaw-bridge/vault/workflow-vault-publisher.js, called from
+ * scripts/run-workflow.js; backfill/dry-run via scripts/publish-workflow-to-vault.js) and
+ * rehydrated — not rewritten — by the Command Center plugin. This file is kept only so the one
+ * note it ever produced (Research-Output/2026-04-29/…, a manual run) stays explainable. Do not
+ * call it from any pipeline; it reads the old Phase-14 task shape, needs the :8798 bridge process
+ * alive, and would create a second parallel tree.
+ *
+ * (Historical) NOTE ON FOLDER SCHEME: `Research-Output/...` was this tool's scheme and was
+ * already DORMANT before the tombstone; the Command Center plugin's own note-generator wrote
+ * `OpenClaw/...` on workflow completion.
  *
  * Auth: Uses x-mcp-token + replay-protected headers identical to every other
  * caller of the bridge. The token is read from the bridge config file (the

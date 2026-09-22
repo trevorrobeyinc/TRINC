@@ -6,6 +6,29 @@ const path = require("node:path");
 const { safeString } = require("../../workflows/governance-automation/common.js");
 const defaultTimeProvider = require("./time-provider.js");
 
+const { CITATION_PATTERNS } = require("./citation-extractor.js");
+
+// CONTEXT-ONLY SOURCES (2026-09-22). Vault read-back and research-memory priors inform a role but
+// are NEVER citation evidence: their identifiers come from PRIOR runs, not from a source-of-record
+// fetched in THIS run. Before this date a PMID sitting in an old vault note satisfied the 0.75
+// grounded floor without any live fetch. A prefetch entry flagged `context_only: true` (or a local
+// fetcher whose records carry `context_only: true`) is rendered under a NOT-evidence banner with
+// every identifier withheld, is given a `vault://` path instead of `tooluniverse://`, and carries
+// `context_only: true` on the doc so agent-engine leaves it out of fetched_citation_ids.
+const CONTEXT_ONLY_BANNER =
+  "CONTEXT ONLY - NOT EVIDENCE. This section is prior research from the operator's own vault or " +
+  "memory. Identifiers have been withheld; do not cite anything from this section. Cite only " +
+  "identifiers that appear verbatim in the LIVE DATA documents.";
+
+function redactIdentifiers(text) {
+  let out = String(text || "");
+  for (const { type, regex } of CITATION_PATTERNS) {
+    const fresh = new RegExp(regex.source, regex.flags);
+    out = out.replace(fresh, `<prior-run ${type} withheld>`);
+  }
+  return out;
+}
+
 function isPlainObject(value) {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
@@ -110,21 +133,27 @@ function createToolPrefetch(options = {}) {
 
   function renderRecord(record) {
     if (!isPlainObject(record)) return `${String(record)}\n\n`;
-    const title = record.title || record.tool_name || record.name || record.nctId || record.id || "";
+    const title = record.title || record.tool_name || record.name || record.nctId || record.id || record.path || "";
     const meta = [];
     if (record.year) meta.push(String(record.year));
     if (record.journal) meta.push(record.journal);
     if (record.phase) meta.push(`Phase ${record.phase}`);
     if (record.status) meta.push(record.status);
+    if (typeof record.score === "number") meta.push(`score ${record.score.toFixed(2)}`);
     const lines = [];
     if (title) lines.push(`### ${title}`);
     if (meta.length) lines.push(`*${meta.join(" · ")}*`);
+    if (record.path && record.path !== title) lines.push(`Vault path: ${record.path}`);
     if (record.whyStopped || record.why_stopped) lines.push(`**Stopped:** ${record.whyStopped || record.why_stopped}`);
     if (record.changeSummary && record.changeSummary.versions) {
       lines.push(`**Protocol history:** ${record.changeSummary.versions} versions; most-amended: ${(record.changeSummary.amended_modules || []).join(", ")} (${record.changeSummary.first}–${record.changeSummary.last})`);
     }
     if (record.abstract) lines.push(record.abstract);
     if (record.description) lines.push(record.description);
+    // Vault / memory read-back records carry their prose under `text` (or a `snippet`), not an
+    // abstract — before 2026-09-22 they fell through to the raw-JSON fallback below.
+    if (record.text) lines.push(String(record.text));
+    else if (record.snippet) lines.push(String(record.snippet));
     if (record.doi) lines.push(`doi: ${record.doi}`);
     if (record.url) lines.push(record.url);
     if (record.nctId && !title.includes(record.nctId)) lines.push(`NCT: ${record.nctId}`);
@@ -146,29 +175,37 @@ function createToolPrefetch(options = {}) {
     return 1;
   }
 
-  function formatToolResult(toolName, result, query) {
+  function formatToolResult(toolName, result, query, { contextOnly = false } = {}) {
     const now = timeProvider.nowIso();
-    let content = `## Live Data: ${toolName}\n\n`;
+    let content = contextOnly
+      ? `## Prior Context (NOT evidence): ${toolName}\n\n${CONTEXT_ONLY_BANNER}\n\n`
+      : `## Live Data: ${toolName}\n\n`;
 
+    let body = "";
     if (Array.isArray(result) && result.length > 0) {
       for (const record of result) {
-        content += renderRecord(record);
+        body += renderRecord(record);
       }
     } else if (isPlainObject(result)) {
-      content += renderRecord(result);
+      body += renderRecord(result);
     } else {
-      content += "No results returned.\n\n";
+      body += "No results returned.\n\n";
     }
+    content += contextOnly ? redactIdentifiers(body) : body;
 
-    content += `Source: ToolUniverse SMCP / ${toolName}\n`;
+    content += contextOnly
+      ? `Source: prior research (context only, identifiers withheld) / ${toolName}\n`
+      : `Source: ToolUniverse SMCP / ${toolName}\n`;
     content += `Query: ${query}\n`;
     content += `Retrieved: ${now}\n`;
 
-    return {
-      path: `tooluniverse://${toolName}`,
-      rel: `live-data/${toolName}`,
+    const doc = {
+      path: contextOnly ? `vault://${toolName}` : `tooluniverse://${toolName}`,
+      rel: contextOnly ? `prior-context/${toolName}` : `live-data/${toolName}`,
       content
     };
+    if (contextOnly) doc.context_only = true;
+    return doc;
   }
 
   async function prefetchForRole(roleName, workflowInputs = {}) {
@@ -280,7 +317,13 @@ function createToolPrefetch(options = {}) {
         }
         const labelBase = input.tool_name || `${action}-${resolvedQuery.replace(/\s+/g, "-").slice(0, 40)}`;
         const labelQuery = resolvedQuery || JSON.stringify(input.arguments || {}).slice(0, 120);
-        const doc = formatToolResult(labelBase, result, labelQuery);
+        // Context-only by map declaration OR by the fetcher's own records (defence in depth: a
+        // read-back fetcher tags every record, so a prefetch-map edit alone cannot turn prior-run
+        // identifiers back into evidence).
+        const contextOnly =
+          queryDef.context_only === true ||
+          (Array.isArray(result) && result.some((r) => isPlainObject(r) && r.context_only === true));
+        const doc = formatToolResult(labelBase, result, labelQuery, { contextOnly });
         results.push(doc);
         const recordCount = countReturnedRecords(result);
         coverage.push({

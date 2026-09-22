@@ -14,7 +14,10 @@ The registry sorts every connector into one of three "surfaces." This is the sin
 
 So when you see "PubMed" or "ChEMBL" available in your Claude chat, that does **not** mean the report engine is using that same connector. The engine uses its own subprocess copies. Several sources exist at **both** layers (a lean subprocess version for the engine, a richer host version for chat) — that overlap is intentional and documented per-connector in the registry.
 
-## Table A — Connectors the engine actually uses (16 product data sources)
+## Table A — Connectors the engine actually uses (15 product data sources)
+
+> Was 16 until `scrape` was removed on 2026-09-18. The live count is authoritative from
+> `config/connector-registry.json` via `npm run audit:connectors`, not from this heading.
 
 These are the `subprocess-mcp` (12) + `tooluniverse-tool` (4) connectors. They are the only ones that flow into deliverables.
 
@@ -32,7 +35,7 @@ These are the `subprocess-mcp` (12) + `tooluniverse-tool` (4) connectors. They a
 | **icd10** | Indication mapping for Patient Brief deliverables | none |
 | **huggingface-metadata** | Dataset/model-card metadata (metadata only) | optional HF_TOKEN |
 | **owkin** | Digital-pathology biomarker context | vendor-issued |
-| **scrape** | Whitelisted-host scraping when no API exists | none |
+| ~~**scrape**~~ | **REMOVED 2026-09-18** — the whitelisted-host adapter and its sidecar are deleted, not disabled. Its one working source (eLife) was restored 2026-09-19 as a key-free SearXNG `json_engine` against the public eLife API. Do not rebuild; the verify-phase gates fail the build if browser automation returns. | — |
 | **newsletter-publisher** | Marketing-pack distribution — **Phase 24, disabled** | vendor-issued |
 | **notion-sync** | Prospect-tracking handoff — **Phase 24, disabled** | OAuth (done) |
 | **searxng-search** | Private web metasearch (key-free; superseded tavily 2026-07-04) — beyond-cutoff open-web lane | none |
@@ -45,7 +48,7 @@ Available to you in a Claude chat, **not** to the workflow engine. Many are rich
 
 - **Richer biomedical duplicates of Table A:** pubmed-fulltext (PMC full text), clinicaltrials-enriched (endpoint analysis), open-targets-graphql, drug-search-admet (ADMET + mechanism), biorxiv-medrxiv, icd10-host-enriched, npi-host-validate, huggingface-host-rich, tooluniverse-host, semantic-search-host.
 - **Specialty research:** synthesize-bio (generative genomics GEM-1 — authenticated/live; adapter `missing(design-corrected)`, a supervised remote-MCP client, **not** a prefetch source), tavily (**SUPERSEDED 2026-07-04** by searxng-search — registry tombstone, bound to nothing), research-memory (Qdrant pack memory `:6433`).
-- **Pipeline plumbing:** obsidian-bridge (`:8798` vault read/write — how notes get written), scheduled-tasks, mcp-registry.
+- **Pipeline plumbing:** obsidian-bridge (vault READ-BACK, context-only — Miyo `:8743` direct, `:8798` bridge fallback; **notes are written by the engine's own post-run publisher, not through this connector**, since 2026-09-22), research-memory (WIRED 2026-09-22: engine-side ingest + `research_memory_priors`, context-only, switched off until the operator enables it in `config/vault-publish.json`), scheduled-tasks, mcp-registry.
 - **Operator tools (not product data):** github, gmail (manual-confirm outbound drafts), filesystem-sandboxed, sequential-thinking, context7-library-docs.
 - **Procurement-gated KOL (documentation-only, added 2026-07-16):** guidepoint-expert-network, third-bridge-expert-network — `tools:[]`, adapter_status `identified-procurement-gated`; connect on the first signed KOL deal ($19,950 tier), pick one.
 
@@ -64,8 +67,11 @@ identifier cited in the assembled report against the union of identifiers **actu
 runtime**: a cited id is "grounded" if it was present in fetched evidence, else "ungrounded." The
 report hard-fails (`PHASE30_CITATION_UNVERIFIED`) below the `minGroundedCitationRatio` threshold,
 and hard-stops (`PHASE30_CITATION_RETRACTED`) if any cited DOI is retracted. Citations are thus
-**grounded in the source records actually retrieved at runtime + DOI retraction-screened (Crossref)**
-— not independently re-resolved against each external source database.
+**grounded in the source records actually retrieved at runtime + DOI retraction-screened (Crossref)**,
+and — since the post-research integrity layer (validated 2026-07-10) — **re-resolved per identifier
+against the issuing public registry at delivery** (`citation-reresolver.js`: PMID → NCBI, NCT →
+ClinicalTrials.gov v2, DOI → Crossref; VERIFIED / UNRESOLVED / UNCHECKED in the reproducibility
+manifest, any UNRESOLVED id blocks delivery). Ground truth: `SYSTEM-REALITY.md` → "GAP CLOSED".
 
 The layer also adds two mission-bundle deliverables: `deliverables/citation-integrity.md` (a graded
 provenance ledger A/B/C/D from the grounded ratio; F/BLOCKED on retraction) and
@@ -78,11 +84,15 @@ amendment-risk band rendered deterministically from the fetched records).
 | Server | Role |
 |---|---|
 | **falcon** | CrowdStrike Falcon — security recon/hardening (read + propose-only). Not a product data source. |
+| **trinc-content** | Content creation for the business channels (YouTube · TikTok · Instagram · Facebook Page · AWS Data Exchange). Registered in the repo [`.mcp.json`](.mcp.json) 2026-09-19; source at `/Users/myhome/.claude/mcp-servers/trinc-content/`. Reads release-bundle deliverables and the brand canon; drafts and gates copy. **Business lane — must never enter `tool-prefetch-map.json`.** Publishing is per-channel, two-call confirmed, and inert: no channel has a credential and `TRINC_CONTENT_PUBLISH` is empty. |
 | **github** | Repo access (read-only, YubiKey-gated). Dev/ops. |
-| **cdp-pipe** | Headless Chrome browser automation (YubiKey consent gate). Used for guided console navigation, e.g. AWS. |
+| ~~**cdp-pipe**~~ | **GONE 2026-09-18.** No browser automation exists on this machine and none may be installed. The only browser surface is the in-app **Claude Browser pane** (`mcp__Claude_Browser__*`, `cb` gate scope), which the operator drives interactively — it is not a product data source. |
 | **zoho-mail** | **Archive-reader since 2026-07-22** — the business mailbox `trevor@trevorobeyinc.com` moved to Google Workspace Gmail (MX cutover); Zoho retains pre-cutover history + secondary sending during transition. Canonical record: `03-platforms/google-workspace/google-workspace.md`. |
 
-The AWS Management Console itself is driven via the **Claude-for-Chrome extension in a dedicated AWS-only profile**, not through the product pipeline.
+The AWS Management Console is reached through the in-app **Claude Browser pane**, operator-driven and
+YubiKey-gated (`cb` scope) — not through the product pipeline. *(Corrected 2026-09-19: this line
+previously described a Claude-for-Chrome extension profile. That lane was retired 2026-09-18 and no
+Chrome extension lane exists or may be installed.)*
 
 ## Gaps & recommendations
 

@@ -210,6 +210,8 @@ export interface PluginActions {
   runWorkflow(templateId: string, inputs: Record<string, string>): void;
   /** Bounded await of the async-captured workflow id (Decision 1, 2026-08-20). */
   awaitWorkflowId(timeoutMs: number): Promise<string | null>;
+  /** The last run's terminal error message, or null (2026-09-22: lets run_workflow report a gate denial). */
+  getLastRunError(): string | null;
   cancelWorkflow(): { cancelled: boolean; workflow_id: string | null; reason?: string };
   isRunning(): boolean;
   getLastResult(): Record<string, unknown> | null;
@@ -546,6 +548,10 @@ export class McpBridgeServer {
         return this.handleCitationIntegrity(input);
       case "obsidian_openclaw_feed_stats":
         return this.handleFeedStats();
+      case "obsidian_openclaw_publish_vault":
+        return await this.handlePublishVault(input);
+      case "obsidian_openclaw_research_memory_search":
+        return await this.handleResearchMemorySearch(input);
       case "video_pipeline_run":
         return await this.handleVideoPipelineRun(input);
       case "video_pipeline_status":
@@ -598,6 +604,8 @@ export class McpBridgeServer {
         "obsidian_openclaw_delivery_evidence",
         "obsidian_openclaw_citation_integrity",
         "obsidian_openclaw_feed_stats",
+        "obsidian_openclaw_publish_vault",
+        "obsidian_openclaw_research_memory_search",
         "video_pipeline_run",
         "video_pipeline_status",
         "zk_serendipity",
@@ -868,6 +876,37 @@ export class McpBridgeServer {
     // so the agent gets a correlation handle for status/cancel/artifacts.
     const workflowId = await actions.awaitWorkflowId(15_000);
 
+    // 2026-09-22: the engine's YubiKey gate is fail-closed and exits within a second, before any
+    // workflow id exists. Until now that came back as "started (id not yet visible)" and the agent
+    // learned of the denial only from the sidebar. Report it here, with the operator's action, the
+    // way obsidian_openclaw_research_task already does.
+    if (!workflowId) {
+      const lastError = actions.getLastRunError();
+      if (lastError && /^operator_gate_not_armed/.test(lastError)) {
+        return {
+          success: false,
+          started: false,
+          error: "operator_gate_not_armed",
+          action:
+            "The operator runs `operator-approve-gate arm` (YubiKey PIN + touch), then you re-send the same " +
+            "request within 5 minutes. One token = one run; nothing was started or spent.",
+          detail: lastError,
+          template: templateId,
+          inputs,
+        };
+      }
+      if (lastError) {
+        return {
+          success: false,
+          started: false,
+          error: "engine_exited_before_start",
+          detail: lastError,
+          template: templateId,
+          inputs,
+        };
+      }
+    }
+
     return {
       success: true,
       started: true,
@@ -988,6 +1027,101 @@ export class McpBridgeServer {
 
   private handleFeedStats(): Record<string, unknown> {
     return this.requireActions().getFeedStats();
+  }
+
+  /** Parse the JSON an engine CLI prints, tolerating any stray lines a dependency emits first. */
+  private static parseEngineJson(stdout: string): Record<string, unknown> | null {
+    try {
+      return JSON.parse(stdout) as Record<string, unknown>;
+    } catch {
+      const start = stdout.indexOf("{");
+      if (start < 0) return null;
+      try {
+        return JSON.parse(stdout.slice(start)) as Record<string, unknown>;
+      } catch {
+        return null;
+      }
+    }
+  }
+
+  /**
+   * Write (or backfill) a completed, citation-PASS run's notes into the vault through the
+   * engine's own publisher (2026-09-22). No model spend, no operator gate: the engine gates on
+   * completed + PASS + non-mock and skips anything else; already-written runs are skipped unless
+   * `force`. `dry_run` lists what would be written without touching the vault.
+   */
+  private async handlePublishVault(
+    params: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
+    const actions = this.requireActions();
+    const all = params.all === true;
+    const force = params.force === true;
+    const dryRun = params.dry_run === true;
+    const args: string[] = [];
+    if (all) {
+      args.push("--all");
+    } else if (params.workflow_id !== undefined && params.workflow_id !== null && params.workflow_id !== "") {
+      const id = this.validateId(params.workflow_id, "workflow_id");
+      if (!id) throw new Error("workflow_id is empty");
+      args.push("--workflow-id", id);
+    } else {
+      throw new Error(
+        "Provide workflow_id (see obsidian_openclaw_history) or all:true to backfill every completed run."
+      );
+    }
+    if (force) args.push("--force");
+    if (dryRun) args.push("--dry-run");
+    args.push("--json");
+    const res = await actions.runEngineScript({
+      scriptRel: "scripts/publish-workflow-to-vault.js",
+      args,
+      timeoutMs: 240_000,
+    });
+    const parsed = McpBridgeServer.parseEngineJson(res.stdout);
+    if (res.timedOut) throw new Error("vault publish timed out");
+    if (!parsed) {
+      throw new Error(`vault publish returned no result (exit ${res.code}): ${(res.stderr || res.stdout).trim().slice(-400)}`);
+    }
+    return {
+      ...parsed,
+      note:
+        "The engine writes OpenClaw/<template>/<date> <inputs>/ (Overview, role notes, Quality Audit, Dataset Card, " +
+        "the integrity deliverables verbatim, Graph Analysis). Only completed + citation-PASS + non-mock runs are " +
+        "written; a skip is a recorded reason, not a failure. Obsidian will index the new notes on its own.",
+    };
+  }
+
+  /**
+   * Search the research-memory pack store (prior runs' synthesizer packs) through the engine's
+   * gated CLI. CONTEXT ONLY: nothing returned here is citation evidence. While the lane is disabled
+   * in config/vault-publish.json the result says so and carries the operator's action, and the pack
+   * store's CLI is never spawned. When enabled, the engine spawns the store OFFLINE
+   * (EMBED_ALLOW_REMOTE=0), so a chat call can never download the embedding model either.
+   */
+  private async handleResearchMemorySearch(
+    params: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
+    const actions = this.requireActions();
+    const query = this.cleanText(params.query, "query", 500);
+    const limitRaw = Number(params.limit ?? 5);
+    const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(Math.floor(limitRaw), 10)) : 5;
+    const res = await actions.runEngineScript({
+      scriptRel: "scripts/research-memory.js",
+      args: ["search", "--query", query, "--limit", String(limit), "--json"],
+      timeoutMs: 120_000,
+    });
+    const parsed = McpBridgeServer.parseEngineJson(res.stdout);
+    if (res.timedOut) throw new Error("research-memory search timed out");
+    if (!parsed) {
+      throw new Error(`research-memory search returned no result (exit ${res.code}): ${(res.stderr || res.stdout).trim().slice(-400)}`);
+    }
+    return {
+      ...parsed,
+      context_only: true,
+      note:
+        "Prior-run packs are background context, never citation evidence: do not cite an identifier from a pack " +
+        "unless a live source in THIS conversation confirms it.",
+    };
   }
 
   private async handleEngineHealth(): Promise<Record<string, unknown>> {
@@ -1644,9 +1778,36 @@ export class McpBridgeServer {
           },
         },
         {
+          name: "obsidian_openclaw_publish_vault",
+          description:
+            "Write (or backfill) a completed, citation-PASS run's notes into the vault through the engine's own publisher: OpenClaw/<template>/<date> <inputs>/ with Overview, role notes, Quality Audit, Dataset Card, the integrity deliverables verbatim and a Graph Analysis note. No model spend and no operator gate. Runs already in the vault are skipped unless force; failed, UNVERIFIED and mock runs are always skipped (a recorded reason, not an error). Use dry_run to preview.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              workflow_id: { type: "string", description: "Workflow id to publish (see obsidian_openclaw_history)" },
+              all: { type: "boolean", description: "Backfill every completed run on disk instead of one id" },
+              force: { type: "boolean", description: "Rewrite notes that already exist for the run" },
+              dry_run: { type: "boolean", description: "List what would be written; write nothing" },
+            },
+          },
+        },
+        {
+          name: "obsidian_openclaw_research_memory_search",
+          description:
+            "Search the research-memory pack store — what earlier engine runs concluded about a similar indication (synthesizer packs, Qdrant over the :6433 HTTPS proxy). CONTEXT ONLY: never cite an identifier from a pack without a live source. While the lane is disabled in the engine config the result reports enabled:false with the operator's action, and nothing is downloaded or spawned.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              query: { type: "string", description: "Free-text query (indication, compound, question)" },
+              limit: { type: "number", description: "Max packs to return, 1-10 (default 5)" },
+            },
+            required: ["query"],
+          },
+        },
+        {
           name: "obsidian_openclaw_feed_stats",
           description:
-            "Read-only profile of the shipped Trial Graveyard Feed registers: per indication, paid/free row counts, as_of dates, status and amendment-risk distributions. Never rebuilds or modifies feed data.",
+            "Read-only profile of the shipped Trial Graveyard Feed registers: per indication, paid/free row counts, as_of dates, status and amendment-risk distributions.Never rebuilds or modifies feed data.",
           inputSchema: { type: "object", properties: {} },
         },
         {

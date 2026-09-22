@@ -22,6 +22,12 @@ export class OpenClawRunner {
   private openclawPath = "";
   private detectedWorkflowId: string | null = null;
   /**
+   * Message of the last run's terminal error (null while running or after success). Read by the
+   * bridge so obsidian_openclaw_run_workflow can report a fail-closed gate denial synchronously
+   * instead of "started" (2026-09-22, found by the first smoke run through Copilot chat).
+   */
+  private lastError: string | null = null;
+  /**
    * Wall-clock at spawn, used to reject PRE-EXISTING workflow dirs in the
    * newest-dir fallback below. Without it, a run that dies before creating its
    * own state file (e.g. the engine's pre-gate input preflight, added
@@ -40,6 +46,10 @@ export class OpenClawRunner {
   }
 
   /** Expose the detected workflow ID for directory-watcher fallback. */
+  getLastError(): string | null {
+    return this.lastError;
+  }
+
   getDetectedWorkflowId(): string | null {
     return this.detectedWorkflowId;
   }
@@ -99,6 +109,7 @@ export class OpenClawRunner {
     this.detectedWorkflowId = null;
     // 3s of slack absorbs clock/mtime granularity without admitting an older run.
     this.runStartedAtMs = Date.now() - 3000;
+    this.lastError = null;
 
     const args = [
       scriptPath,
@@ -144,8 +155,15 @@ export class OpenClawRunner {
 
     // stderr: structured log lines → progress events
     let stderrBuffer = "";
+    // Raw rolling copy for error reports. The line parser below consumes every complete line out
+    // of stderrBuffer, so on exit that buffer holds only an unterminated fragment — which is why,
+    // until 2026-09-22, an operator-gate denial ("Operator-approve denied: not armed …\n") reached
+    // the sidebar as an EMPTY "stderr tail". Found by the first smoke run through Copilot chat.
+    let stderrTail = "";
     this.proc.stderr?.on("data", (chunk: Buffer) => {
-      stderrBuffer += chunk.toString();
+      const text = chunk.toString();
+      stderrTail = (stderrTail + text).slice(-2000);
+      stderrBuffer += text;
       const lines = stderrBuffer.split("\n");
       stderrBuffer = lines.pop() || "";
       for (const line of lines) {
@@ -172,6 +190,7 @@ export class OpenClawRunner {
     this.proc.on("error", (err: Error) => {
       console.error("[OpenClaw:Runner] Subprocess error:", err.message);
       this.cleanup();
+      this.lastError = err.message;
       this.onError(err);
     });
 
@@ -200,11 +219,21 @@ export class OpenClawRunner {
         return;
       }
 
-      this.onError(
-        new Error(
-          `Process exited with code ${code}. No result found in workflow state file or stdout. stderr tail: ${stderrBuffer.slice(-500)}`
-        )
-      );
+      const tail = stderrTail.trim().slice(-500);
+      // The engine's fail-closed YubiKey gate (scripts/_operator-gate-cli.js) prints exactly this
+      // line and exits 1 before creating a workflow — nothing was spent. Name it, and carry the
+      // operator's action, the same way obsidian_openclaw_research_task reports it.
+      const failure = /Operator-approve denied: not armed/i.test(stderrTail)
+        ? new Error(
+            "operator_gate_not_armed: the engine refused to start because no operator-approve token was " +
+              "armed (fail-closed; no run, no model spend). Action: the operator runs `operator-approve-gate arm` " +
+              "(YubiKey PIN + touch), then re-send the same request within 5 minutes. Engine said: " + tail
+          )
+        : new Error(
+            `Process exited with code ${code}. No result found in workflow state file or stdout. stderr tail: ${tail}`
+          );
+      this.lastError = failure.message;
+      this.onError(failure);
     });
   }
 

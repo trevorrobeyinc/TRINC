@@ -15,6 +15,9 @@ import {
   generateWorkflowNotes,
   readSynthesizerOutput,
   computeNotesFolderPath,
+  rehydrateEngineNotes,
+  waitForEngineVaultNotes,
+  stripNoteScaffolding,
   type GeneratedNotes,
 } from "./notes/note-generator";
 import { runVaultZKLinking, getVaultZKApi } from "./zettelkasten/linker";
@@ -126,6 +129,22 @@ export default class OpenClawPlugin extends Plugin {
         this.bridgeServer.start().catch((err) => {
           console.error("[OpenClaw] Bridge failed to start:", err.message);
         });
+      }
+
+      // Catch-up sweep (2026-09-22): runs that completed while Obsidian was closed
+      // — or before the engine's vault publisher existed — get their notes written
+      // now. The engine CLI is idempotent (skips written / failed / non-PASS / mock).
+      if (this.settings.backfillVaultNotesOnLoad) {
+        setTimeout(() => {
+          void this.backfillVaultNotes();
+        }, 20000);
+      }
+      // Zettelkasten catch-up (2026-09-22): engine-written runs never got the LLM
+      // linking stage; link the synthesizer notes that lack it, a few per load.
+      if (this.settings.autoRunZettelkasten && this.settings.zkCatchUpOnLoad) {
+        setTimeout(() => {
+          void this.zkCatchUp();
+        }, 60000);
       }
     });
 
@@ -357,21 +376,49 @@ export default class OpenClawPlugin extends Plugin {
     // not (ingest falls back to the engine's on-disk synthesizer artifact).
 
     // ── Stage 1: vault notes ──
+    // Since 2026-09-22 the ENGINE writes the note set itself after the citation
+    // gate passes (openclaw-bridge/vault/workflow-vault-publisher.js) and records
+    // `artifacts.vault_notes` in workflow.json. This stage REHYDRATES from that
+    // record — one writer per run, one folder scheme — and generates notes
+    // in-plugin only when the engine wrote nothing (publishing disabled, or a
+    // run from before the publisher existed).
     let notes: GeneratedNotes | null = null;
     let noteCount = 0;
     if (this.settings.autoGenerateNotes) {
       try {
-        this.updateStatusBar("generating notes...");
-        notes = await generateWorkflowNotes(
-          this.app.vault,
-          result,
+        this.updateStatusBar("locating notes...");
+        const state = await waitForEngineVaultNotes(
           this.settings.openclawPath,
-          this.settings.vaultOutputFolder
+          result.workflow_id,
+          this.settings.engineNotesWaitMs
         );
-        noteCount =
-          1 + notes.agentPaths.length + (notes.qualityPath ? 1 : 0) + (notes.datasetPath ? 1 : 0);
-        console.log("[OpenClaw:Main] Stage 1 notes: generated", noteCount);
-        new Notice(`Created ${noteCount} research notes.`);
+        if (state) {
+          notes = await rehydrateEngineNotes(
+            this.app.vault,
+            state,
+            this.settings.openclawPath,
+            this.settings.vaultOutputFolder
+          );
+        }
+        if (notes) {
+          noteCount =
+            state?.artifacts?.vault_notes?.files?.length ??
+            1 + notes.agentPaths.length + (notes.qualityPath ? 1 : 0) + (notes.datasetPath ? 1 : 0);
+          console.log("[OpenClaw:Main] Stage 1 notes: engine-written, rehydrated", noteCount, notes.overviewPath);
+          new Notice(`Engine wrote ${noteCount} research notes.`);
+        } else {
+          this.updateStatusBar("generating notes...");
+          notes = await generateWorkflowNotes(
+            this.app.vault,
+            result,
+            this.settings.openclawPath,
+            this.settings.vaultOutputFolder
+          );
+          noteCount =
+            1 + notes.agentPaths.length + (notes.qualityPath ? 1 : 0) + (notes.datasetPath ? 1 : 0);
+          console.log("[OpenClaw:Main] Stage 1 notes: generated in-plugin (engine wrote nothing)", noteCount);
+          new Notice(`Created ${noteCount} research notes.`);
+        }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error("[OpenClaw:Main] Stage 1 notes FAILED (continuing):", msg);
@@ -480,8 +527,13 @@ export default class OpenClawPlugin extends Plugin {
     }
 
     // ── Stage 6: open the overview note ──
+    // Engine-written files can trail the metadata index by a moment; retry briefly.
     if (notes) {
-      const overviewFile = this.app.vault.getAbstractFileByPath(notes.overviewPath);
+      let overviewFile = this.app.vault.getAbstractFileByPath(notes.overviewPath);
+      for (let attempt = 0; !overviewFile && attempt < 6; attempt += 1) {
+        await new Promise((r) => setTimeout(r, 500));
+        overviewFile = this.app.vault.getAbstractFileByPath(notes.overviewPath);
+      }
       if (overviewFile) {
         const leaf = this.app.workspace.getLeaf(false);
         await leaf.openFile(overviewFile as any);
@@ -490,6 +542,105 @@ export default class OpenClawPlugin extends Plugin {
 
     this.updateStatusBar("complete");
     console.log("[OpenClaw:Main] ========== WORKFLOW PIPELINE COMPLETE ==========");
+  }
+
+  /**
+   * Zettelkasten catch-up: find synthesizer notes under the output folder that
+   * lack the "Zettelkasten Graph Intelligence" section (engine-written runs,
+   * or runs linked while the vault-zettelkasten plugin was off) and link up to
+   * `zkCatchUpMaxPerLoad` of them. Each is a hosted-model call, hence the cap.
+   */
+  private async zkCatchUp(): Promise<void> {
+    const max = Math.max(0, this.settings.zkCatchUpMaxPerLoad);
+    if (max === 0 || this.runner.isRunning) return;
+    const vaultZK = getVaultZKApi(this.app);
+    if (!vaultZK) {
+      console.log("[OpenClaw:Main] zk catch-up: vault-zettelkasten plugin not available — skipped");
+      return;
+    }
+    const prefix = `${this.settings.vaultOutputFolder.replace(/\/+$/, "")}/`;
+    const marker = "## Zettelkasten Graph Intelligence";
+    const candidates = this.app.vault
+      .getMarkdownFiles()
+      .filter((f) => f.path.startsWith(prefix) && f.basename === "Synthesizer")
+      .sort((a, b) => b.stat.mtime - a.stat.mtime);
+    let linked = 0;
+    for (const file of candidates) {
+      if (linked >= max) break;
+      try {
+        const noteText = await this.app.vault.read(file);
+        if (noteText.includes(marker)) continue;
+        const folder = file.parent?.path ?? "";
+        let workflowId: string | null = null;
+        const overview = this.app.vault.getAbstractFileByPath(`${folder}/Overview.md`);
+        if (overview) {
+          const ov = await this.app.vault.read(overview as any);
+          const m = ov.match(/^workflow_id:\s*"?([^"\n]+)"?\s*$/m);
+          workflowId = m ? m[1].trim() : null;
+        }
+        const content =
+          (workflowId ? readSynthesizerOutput(this.settings.openclawPath, workflowId) : null) ??
+          stripNoteScaffolding(noteText);
+        if (!content || content.trim().length < 200) continue;
+        console.log("[OpenClaw:Main] zk catch-up: linking", file.path);
+        await this.runZettelkastenOnNotes({
+          synthesizerContent: content,
+          agentPaths: [{ role: "synthesizer", path: file.path }],
+        });
+        linked += 1;
+      } catch (err: unknown) {
+        console.warn("[OpenClaw:Main] zk catch-up failed for", file.path, err instanceof Error ? err.message : String(err));
+      }
+    }
+    console.log(`[OpenClaw:Main] zk catch-up: ${linked} synthesizer note(s) linked (cap ${max})`);
+  }
+
+  /**
+   * Catch-up sweep: ask the engine's own publisher to write notes for every
+   * completed run that has none yet. Fail-soft; never blocks the UI.
+   */
+  private async backfillVaultNotes(): Promise<void> {
+    if (this.runner.isRunning) {
+      console.log("[OpenClaw:Main] backfill: a workflow is running — skipping this pass");
+      return;
+    }
+    try {
+      const nodeBin = resolveNodeBin(this.settings.nodePath);
+      const res = await runEngineScript({
+        openclawPath: this.settings.openclawPath,
+        nodeBin,
+        scriptRel: "scripts/publish-workflow-to-vault.js",
+        args: ["--all", "--json"],
+        timeoutMs: 180000,
+      });
+      if (res.timedOut) {
+        console.warn("[OpenClaw:Main] backfill: timed out");
+        return;
+      }
+      // Tolerate any stray lines a dependency prints before the JSON (parse from the first "{").
+      let parsed: { summary?: { written?: number; skipped?: number; failed?: number } } | null = null;
+      try {
+        parsed = JSON.parse(res.stdout);
+      } catch {
+        const start = res.stdout.indexOf("{");
+        try {
+          parsed = start >= 0 ? JSON.parse(res.stdout.slice(start)) : null;
+        } catch {
+          parsed = null;
+        }
+      }
+      const s = parsed?.summary;
+      if (!s) {
+        console.warn("[OpenClaw:Main] backfill: no summary (exit", res.code, ")", res.stderr.slice(0, 300));
+        return;
+      }
+      console.log(`[OpenClaw:Main] backfill: ${s.written ?? 0} written, ${s.skipped ?? 0} skipped, ${s.failed ?? 0} failed`);
+      if ((s.written ?? 0) > 0) {
+        new Notice(`Engine backfilled ${s.written} research run${s.written === 1 ? "" : "s"} into the vault.`);
+      }
+    } catch (err: unknown) {
+      console.warn("[OpenClaw:Main] backfill failed (non-fatal):", err instanceof Error ? err.message : String(err));
+    }
   }
 
   private async runZettelkastenOnNotes(notes: {
@@ -642,6 +793,7 @@ export default class OpenClawPlugin extends Plugin {
       runWorkflow: (templateId, inputs) =>
         this.runWorkflow(templateId, inputs),
       awaitWorkflowId: (timeoutMs) => this.runner.awaitWorkflowId(timeoutMs),
+      getLastRunError: () => this.runner.getLastError(),
       cancelWorkflow: () => {
         if (!this.runner.isRunning) {
           return { cancelled: false, workflow_id: this.lastWorkflowId, reason: "no_run" };

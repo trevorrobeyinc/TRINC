@@ -86,12 +86,28 @@ export class OpenClawSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Auto-generate notes")
-      .setDesc("Create vault notes when a workflow completes (the notes stage only).")
+      .setDesc(
+        "Locate the run's vault notes when a workflow completes. Since 2026-09-22 the engine writes them itself after the citation gate passes; this stage rehydrates from that record and only generates notes in-plugin when the engine wrote nothing."
+      )
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.autoGenerateNotes)
           .onChange(async (value) => {
             this.plugin.settings.autoGenerateNotes = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Backfill engine-written notes on load")
+      .setDesc(
+        "On startup, run the engine's vault publisher over every completed run on disk so runs that finished while Obsidian was closed land in the vault (idempotent; skips already-written, failed, non-PASS and mock runs)."
+      )
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.backfillVaultNotesOnLoad)
+          .onChange(async (value) => {
+            this.plugin.settings.backfillVaultNotesOnLoad = value;
             await this.plugin.saveSettings();
           })
       );
@@ -107,6 +123,36 @@ export class OpenClawSettingTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.autoRunZettelkasten = value;
             await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Zettelkasten catch-up on load")
+      .setDesc(
+        "Runs that completed while Obsidian was closed get their notes from the engine but no Zettelkasten linking. On startup, link the synthesizer notes that lack the section (LLM cost: at most the number below per load)."
+      )
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.zkCatchUpOnLoad)
+          .onChange(async (value) => {
+            this.plugin.settings.zkCatchUpOnLoad = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Zettelkasten catch-up: max notes per load")
+      .setDesc("Upper bound on synthesizer notes linked per startup (each is a hosted-model call).")
+      .addText((text) =>
+        text
+          .setPlaceholder("2")
+          .setValue(String(this.plugin.settings.zkCatchUpMaxPerLoad))
+          .onChange(async (value) => {
+            const n = parseInt(value, 10);
+            if (Number.isFinite(n) && n >= 0 && n <= 20) {
+              this.plugin.settings.zkCatchUpMaxPerLoad = n;
+              await this.plugin.saveSettings();
+            }
           })
       );
 

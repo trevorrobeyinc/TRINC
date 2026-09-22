@@ -36,9 +36,23 @@
 // a comment trips it). The replay headers therefore use nowMs() from core/time-provider and
 // randomUuid() from core/entropy-provider, which also makes this adapter deterministic under the
 // engine's test seeding.
+//
+// MIYO-DIRECT SEMANTIC READ-BACK (2026-09-22, Obsidian re-integration plan D4). Miyo indexes the
+// vault folder itself and answers with Obsidian CLOSED (Qdrant is Miyo's child process), so the
+// first semantic hop now goes straight to the in-monorepo HTTPS proxy on :8743 — the endpoint the
+// vault-zettelkasten plugin and Command Center already call directly — and the :8798 bridge is the
+// fallback for when Obsidian is open. This is NOT a vault bridge: no listener, a third-party service
+// already wrapped in mkcert TLS. Never Miyo's plaintext upstream port — the proxy only. Headless
+// runs therefore get prior-vault context for the first time.
+//
+// CONTEXT ONLY, NEVER EVIDENCE. Every record this adapter returns carries `context_only: true`.
+// tool-prefetch renders such records under a NOT-evidence banner with identifiers withheld, and
+// agent-engine excludes them from fetched_citation_ids — an identifier that sits in a prior note
+// can no longer ground a citation without a live source fetch.
 
 const crypto = require("node:crypto");
 const fs = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
 
 const { nowMs } = require("../../core/time-provider.js");
@@ -50,6 +64,40 @@ const DEFAULT_BRIDGE_CONFIG = path.join(
   "Copilot-Everything/bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json"
 );
 const DEFAULT_VAULT = "My Digital Garden";
+const DEFAULT_MIYO = "https://127.0.0.1:8743";
+const DEFAULT_MKCERT_CA = path.join(os.homedir(), "Library/Application Support/mkcert/rootCA.pem");
+// Prior RESEARCH lives in the engine's own vault tree; the rest of the vault (course notes, books,
+// clippings) is not "prior research" and would only add noise to a role's prompt.
+const DEFAULT_MIYO_PREFIXES = Object.freeze(["OpenClaw/", "Research-Output/"]);
+
+/**
+ * One HTTPS POST to Miyo through the same transport every sibling fetcher uses (global fetch — the
+ * MCP egress policy forbids raw socket/https calls in adapters). mkcert trust comes from
+ * NODE_EXTRA_CA_CERTS, which run-workflow.js guarantees at startup. Rejects on a non-https url,
+ * transport error, or timeout.
+ */
+async function defaultMiyoRequest(url, body, { timeoutMs, fetchImpl }) {
+  const parsed = new URL(url);
+  if (parsed.protocol !== "https:") {
+    throw new Error("miyo url must be https (HTTPS-only invariant)");
+  }
+  const doFetch = typeof fetchImpl === "function" ? fetchImpl : (typeof fetch === "function" ? fetch : null);
+  if (!doFetch) throw new Error("no fetch implementation available");
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await doFetch(url, {
+      method: "POST",
+      signal: controller.signal,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => null);
+    return { status: res.status || 0, json };
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 // Tool → operation. The bridge validates `operation` against a 6-value enum, so tools that are
 // not themselves operations (obsidian_health, miyo_search_context) still have to send a VALID
@@ -80,6 +128,12 @@ function createObsidianBridgeMcp(options = {}) {
   const allowWrites = options.allowWrites === true;
   // Injectable so tests don't need a config file on disk.
   const tokenOverride = typeof options.authToken === "string" ? options.authToken : null;
+  // Miyo-direct lane (see header). Injectable request for tests.
+  const miyoUrl = String(options.miyoUrl || DEFAULT_MIYO).replace(/\/+$/, "");
+  const miyoCaPath = options.miyoCaPath || DEFAULT_MKCERT_CA;
+  const miyoTimeoutMs = Number(options.miyoTimeoutMs) || 8_000;
+  const miyoPathPrefixes = Array.isArray(options.miyoPathPrefixes) ? options.miyoPathPrefixes : DEFAULT_MIYO_PREFIXES;
+  const miyoRequest = typeof options.miyoRequest === "function" ? options.miyoRequest : defaultMiyoRequest;
 
   let cachedToken = tokenOverride;
   let tokenLookupFailed = false;
@@ -190,6 +244,7 @@ function createObsidianBridgeMcp(options = {}) {
       path: m && m.path ? String(m.path) : "",
       text: m && m.text ? String(m.text) : "",
       source: "obsidian-vault",
+      context_only: true,
     }));
   }
 
@@ -222,16 +277,71 @@ function createObsidianBridgeMcp(options = {}) {
       text: m && (m.text || m.chunk_text) ? String(m.text || m.chunk_text) : "",
       score: m && typeof m.score === "number" ? m.score : null,
       source: "obsidian-vault-semantic",
+      context_only: true,
     }));
+  }
+
+  /** Strip Miyo's leading vault-name segment ("My Digital Garden/OpenClaw/…" → "OpenClaw/…"). */
+  function vaultRelative(p) {
+    const s = String(p || "");
+    const prefix = `${vault}/`;
+    return s.startsWith(prefix) ? s.slice(prefix.length) : s;
+  }
+
+  /**
+   * Semantic vault search straight against Miyo's HTTPS proxy — works with Obsidian closed.
+   * Filters to markdown under the research prefixes. Same fail-soft array contract as the rest.
+   */
+  async function miyoDirectSearch({ query, limit = 5 } = {}) {
+    if (!query || typeof query !== "string" || !query.trim()) return [];
+    let res;
+    try {
+      res = await miyoRequest(`${miyoUrl}/v0/search`, { query: query.trim(), limit: Math.max(limit * 3, limit) }, {
+        caPath: miyoCaPath,
+        timeoutMs: miyoTimeoutMs,
+        // The bridge's own fetch (injectable in tests) serves Miyo too — one transport, one policy.
+        fetchImpl: options.miyoFetchImpl || fetchImpl,
+      });
+    } catch (err) {
+      logger.warn(`[obsidian-bridge-mcp] miyo-direct unavailable — falling back to the bridge: ${err && err.message ? err.message : err}`);
+      return [];
+    }
+    if (!res || res.status !== 200 || !res.json) return [];
+    const raw = Array.isArray(res.json.results) ? res.json.results : [];
+    const out = [];
+    const seen = new Set();
+    for (const m of raw) {
+      if (!m || typeof m !== "object") continue;
+      const rel = vaultRelative(m.path || m.file_path);
+      if (!rel || !rel.toLowerCase().endsWith(".md")) continue;
+      if (miyoPathPrefixes.length > 0 && !miyoPathPrefixes.some((p) => rel.startsWith(p))) continue;
+      // Miyo returns one row per CHUNK; keep the best-scoring chunk per note so a long note
+      // cannot crowd out the other prior runs in a role's small context budget.
+      if (seen.has(rel)) continue;
+      seen.add(rel);
+      out.push({
+        path: rel,
+        title: m.title ? String(m.title) : "",
+        text: String(m.chunk_text || m.text || m.snippet || ""),
+        score: typeof m.score === "number" ? m.score : null,
+        source: "obsidian-vault-semantic",
+        context_only: true,
+      });
+      if (out.length >= limit) break;
+    }
+    return out;
   }
 
   /**
    * Prefetch entry point. `tool-prefetch.js`'s localFetchers seam calls one function per tool
-   * name; this returns prior-research context for a topic, preferring semantic hits and falling
-   * back to full-text. Always an array — never throws, never blocks a run.
+   * name; this returns prior-research context for a topic: Miyo-direct first (headless-capable),
+   * then the bridge's semantic and full-text tools when Obsidian is open. Always an array — never
+   * throws, never blocks a run — and every record is context-only.
    */
   async function priorResearch({ topic, limit = 5 } = {}) {
     if (!topic || typeof topic !== "string" || !topic.trim()) return [];
+    const direct = await miyoDirectSearch({ query: topic, limit });
+    if (direct.length > 0) return direct;
     if (!(await available())) return [];
     const semantic = await miyoSearchContext({ query: topic, limit });
     if (semantic.length > 0) return semantic;
@@ -263,11 +373,12 @@ function createObsidianBridgeMcp(options = {}) {
     searchNotes,
     readNote,
     miyoSearchContext,
+    miyoDirectSearch,
     priorResearch,
     createNote,
     appendNote,
     // exposed for tests / diagnostics
-    _spec: { bridgeUrl, vault, allowWrites, READ_TOOLS, WRITE_TOOLS },
+    _spec: { bridgeUrl, vault, allowWrites, miyoUrl, miyoPathPrefixes, READ_TOOLS, WRITE_TOOLS },
   };
 }
 

@@ -52,7 +52,8 @@
         "action": "executeTool",
         "tool_name": "obsidian_prior_research",
         "optional": true,
-        "_comment": "Vault read-back via the canonical :8798 bridge. optional+fail-soft: when Obsidian is closed (e.g. run-workflow.js launched standalone) this yields nothing and the run proceeds with no prior-vault context.",
+        "context_only": true,
+        "_comment": "Vault read-back, CONTEXT ONLY (never citation evidence). Semantic search goes straight to Miyo over the HTTPS proxy :8743 (works headless; Qdrant is Miyo's child), then falls back to the canonical :8798 bridge when Obsidian is open. Records render under a NOT-evidence banner with identifiers withheld and are excluded from fetched_citation_ids. optional+fail-soft: with Miyo and Obsidian both down this yields nothing and the run proceeds. READ-ONLY: the engine's own post-run publisher owns vault writes (2026-09-22).",
         "arguments": {
           "topic": "{{therapeutic_area}} {{indication}} {{compound_name}}",
           "limit": 5
@@ -68,6 +69,45 @@
           "disease_name": "{{disease_name}}",
           "disease_context": "{{disease_context}}",
           "therapeutic_area": "{{therapeutic_area}}",
+          "limit": 6
+        }
+      },
+      {
+        "action": "executeTool",
+        "tool_name": "FDA_get_drug_names_by_indication",
+        "optional": true,
+        "_comment": "Approved-drug landscape for the indication, read off the FDA label corpus (ToolUniverse, already installed, wired 2026-09-19). Answers 'what is already approved here' without an LLM guess. Context-bearing rather than citation-bearing — drug names are not identifiers in citation-extractor.js — so it is placed last and marked optional, and it cannot dilute the grounded ratio for a role whose earlier fetches carry PMIDs/NCTs.",
+        "arguments": {
+          "indication": "{{indication}}",
+          "limit": 8
+        }
+      },
+      {
+        "action": "executeTool",
+        "tool_name": "europepmc_preprints",
+        "optional": true,
+        "_comment": "PREPRINT lane (local fetcher, added 2026-09-19) — closes the registry's `biorxiv-medrxiv` gap, flagged there as 'critical for Conference Synthesis Brief'. bioRxiv's own API has NO keyword search (date/category listing only, re-verified live), so a bioRxiv-specific module could never serve a topical prefetch; Europe PMC indexes the same preprints and IS keyword-searchable. This was FIRST WRITTEN AS A CONFIG-ONLY ENTRY calling EuropePMC_search_articles with 'AND SRC:PPR' appended to the query template, and that was wrong: a template with a literal tail resolves to ' AND SRC:PPR' on empty inputs, which is non-empty, so tool-prefetch's empty-args skip guard cannot fire AND its topic fallback (which only substitutes into an exactly-empty argument) is defeated — general-research-pack would have searched the bare filter clause. EuropePMC_search_articles has no source/preprint parameter to move the filter into, so config could not express it. The fetcher composes the query in code: no subject means no call, and `topic` is just another subject alias. DOI-bearing, so unlike sec_edgar_disclosures and nih_reporter_funding this one DOES feed the Phase-30 grounding gate.",
+        "arguments": {
+          "indication": "{{indication}}",
+          "disease_name": "{{disease_name}}",
+          "therapeutic_area": "{{therapeutic_area}}",
+          "compound_name": "{{compound_name}}",
+          "topic": "{{topic}}",
+          "limit": 6
+        }
+      },
+      {
+        "action": "executeTool",
+        "tool_name": "nih_reporter_funding",
+        "optional": true,
+        "_comment": "NIH RePORTER (local fetcher, added 2026-09-19). Zero ToolUniverse coverage and no prior registry entry — a genuine gap. Answers who is funding work in this indication, at which institutions, at what scale, and until when: the 'is anyone else serious about this' question for an Investor Pre-Mortem, and the list of labs a sponsor competes with for investigators. CONTEXT-ONLY: NIH project numbers are not in citation-extractor.js's grammar (every pattern there requires a literal prefix), so this cannot enter the grounded-ratio denominator and never reaches the Stage-3 re-resolver. Placed last with the other context sources so a 120s budget over-run drops these before the citation-bearing fetches above.",
+        "arguments": {
+          "indication": "{{indication}}",
+          "disease_name": "{{disease_name}}",
+          "disease_context": "{{disease_context}}",
+          "therapeutic_area": "{{therapeutic_area}}",
+          "target_gene": "{{target_gene}}",
+          "topic": "{{topic}}",
           "limit": 6
         }
       }
@@ -112,10 +152,55 @@
         "action": "executeTool",
         "tool_name": "obsidian_prior_research",
         "optional": true,
-        "_comment": "Vault read-back via the canonical :8798 bridge. optional+fail-soft: when Obsidian is closed (e.g. run-workflow.js launched standalone) this yields nothing and the run proceeds with no prior-vault context. READ-ONLY \u2014 Command Center's autoGenerateNotes owns vault writes.",
+        "context_only": true,
+        "_comment": "Vault read-back, CONTEXT ONLY (never citation evidence). Semantic search goes straight to Miyo over the HTTPS proxy :8743 (works headless; Qdrant is Miyo's child), then falls back to the canonical :8798 bridge when Obsidian is open. Records render under a NOT-evidence banner with identifiers withheld and are excluded from fetched_citation_ids. optional+fail-soft: with Miyo and Obsidian both down this yields nothing and the run proceeds. READ-ONLY: the engine's own post-run publisher owns vault writes (2026-09-22).",
         "arguments": {
           "topic": "{{compound_name}} {{indication}} mechanism",
           "limit": 5
+        }
+      },
+      {
+        "action": "executeTool",
+        "tool_name": "DailyMed_search_spls",
+        "optional": true,
+        "_comment": "DailyMed on ANALYST, wired 2026-09-19. The pharmacovigilance-report workflow template describes itself to the customer as using 'FAERS, DailyMed, RxNorm, and DrugSafetyAnalyzer', but that workflow spawns scout/analyst/synthesizer only — safety_signal_detector is reachable via run-research-task.js mission mode, NOT via the 7 sellable workflows. So wiring DailyMed on safety_signal_detector alone would leave the shipped SKU unable to reach a source its own description names. RxNorm remains UNWIRED (hollow envelope — see connector-registry.json rxnorm-tooluniverse), so that one line of the description is still unbacked. Ordered ahead of the Orange Book block because the promise is customer-facing.",
+        "arguments": {
+          "drug_name": "{{compound_name}}",
+          "pagesize": 5
+        }
+      },
+      {
+        "action": "executeTool",
+        "tool_name": "FDA_OrangeBook_search_drug",
+        "optional": true,
+        "_comment": "Orange Book lane added 2026-09-19 (ToolUniverse tools already installed, never wired). Approval status + exclusivity + listed patents are the patent-cliff inputs Investor Pre-Mortem needs. Keyed on brand_name because workflow inputs carry compound_name, which may be a brand or a generic; the tool tolerates a miss and the empty-arg guard skips the call entirely when compound_name is blank (topic-only templates). Placed LAST in this role on purpose: the 120s per-role prefetch budget drops trailing entries first, so an over-run costs these and never the literature/trial fetches above.",
+        "arguments": {
+          "brand_name": "{{compound_name}}",
+          "limit": 5
+        }
+      },
+      {
+        "action": "executeTool",
+        "tool_name": "FDA_OrangeBook_get_patent_info",
+        "optional": true,
+        "arguments": {
+          "brand_name": "{{compound_name}}"
+        }
+      },
+      {
+        "action": "executeTool",
+        "tool_name": "sec_edgar_disclosures",
+        "optional": true,
+        "_comment": "SEC EDGAR full-text (local fetcher, added 2026-09-19). `gate.config.js` has allowlisted sec.gov as a primary source since 2026-07-07, but nothing fetched it and ToolUniverse has ZERO SEC coverage — the grading layer was ahead of the gatherers. Supplies a signal no biomedical database carries: a public company's own filed disclosure that a program was discontinued. Bound here (analyst is in 6 of the 7 sellable workflows) as well as on competitive_intel_analyst. TERMS are a parenthesised OR because EDGAR ANDs adjacent quoted phrases and matches long phrases literally — measured: subject-only 2,935 hits, +\"discontinued\" 155, the OR clause 413, and the full sentence 'glioblastoma trial discontinued' ZERO. Without a terms clause this returns filings that merely mention the disease. NOTE the records carry filing METADATA only: EDGAR full-text search returns no snippet, so nothing here quotes a filing. CONTEXT-ONLY — accession numbers are not citation identifiers.",
+        "arguments": {
+          "indication": "{{indication}}",
+          "disease_name": "{{disease_name}}",
+          "disease_context": "{{disease_context}}",
+          "therapeutic_area": "{{therapeutic_area}}",
+          "compound_name": "{{compound_name}}",
+          "terms": "(discontinued OR terminated OR discontinuation)",
+          "forms": "8-K",
+          "limit": 6
         }
       }
     ],
@@ -125,6 +210,17 @@
         "tool_name": "PubMed_search_articles",
         "arguments": {
           "query": "{{therapeutic_area}} review {{indication}}",
+          "limit": 5
+        }
+      },
+      {
+        "action": "executeTool",
+        "tool_name": "research_memory_priors",
+        "optional": true,
+        "context_only": true,
+        "_comment": "Cross-run priors from the research-memory pack store (Qdrant via the :6433 HTTPS proxy; Claude/trevorobeyinc-research-memory-mcp CLI), CONTEXT ONLY: what earlier runs concluded about a similar indication, identifiers withheld, excluded from fetched_citation_ids. optional+fail-soft; switch config/vault-publish.json researchMemory.enabled (on since 2026-09-22, plan D5); the store runs offline for this call (EMBED_ALLOW_REMOTE=0), so a prefetch can never download the embedding model.",
+        "arguments": {
+          "query": "{{therapeutic_area}} {{indication}} {{compound_name}} {{topic}}",
           "limit": 5
         }
       }
@@ -138,6 +234,33 @@
           "drugindication": "{{indication}}",
           "limit": 8
         }
+      },
+      {
+        "action": "executeTool",
+        "tool_name": "DailyMed_search_spls",
+        "optional": true,
+        "_comment": "DailyMed + openFDA-enforcement wired 2026-09-19 to close a prompt-versus-wiring gap: config/role-prompts.json tells THIS role to 'Use FAERS, DailyMed, RxNorm, and OpenFDA for signal detection', but only FAERS was ever wired, so three of the four named sources were never supplied. Two of those three are now wired. RxNorm was attempted and BACKED OUT the same day: it executes, but its SMCP envelope carries no row array, so the record normalizes hollow (empty abstract) and would cost a call while contributing nothing — see connector-registry.json rxnorm-tooluniverse for the full finding. Ordered ahead of the findTool discovery probe, which returns tool cards rather than records and so contributes no grounded citation ids: if the 120s role budget over-runs, the probe is what should drop.",
+        "arguments": {
+          "drug_name": "{{compound_name}}",
+          "pagesize": 5
+        }
+      },
+      {
+        "action": "executeTool",
+        "tool_name": "DailyMed_parse_adverse_reactions",
+        "arguments": {
+          "drug_name": "{{compound_name}}"
+        },
+        "optional": true
+      },
+      {
+        "action": "executeTool",
+        "tool_name": "OpenFDA_search_drug_enforcement",
+        "arguments": {
+          "search": "{{compound_name}}",
+          "limit": 5
+        },
+        "optional": true
       },
       {
         "action": "findTool",
@@ -207,10 +330,44 @@
         "action": "executeTool",
         "tool_name": "obsidian_prior_research",
         "optional": true,
-        "_comment": "Vault read-back via the canonical :8798 bridge. optional+fail-soft: when Obsidian is closed (e.g. run-workflow.js launched standalone) this yields nothing and the run proceeds with no prior-vault context. READ-ONLY \u2014 Command Center's autoGenerateNotes owns vault writes.",
+        "context_only": true,
+        "_comment": "Vault read-back, CONTEXT ONLY (never citation evidence). Semantic search goes straight to Miyo over the HTTPS proxy :8743 (works headless; Qdrant is Miyo's child), then falls back to the canonical :8798 bridge when Obsidian is open. Records render under a NOT-evidence banner with identifiers withheld and are excluded from fetched_citation_ids. optional+fail-soft: with Miyo and Obsidian both down this yields nothing and the run proceeds. READ-ONLY: the engine's own post-run publisher owns vault writes (2026-09-22).",
         "arguments": {
           "topic": "{{indication}} {{drug_class}} {{compound_name}}",
           "limit": 5
+        }
+      },
+      {
+        "action": "executeTool",
+        "tool_name": "openalex_literature_search",
+        "optional": true,
+        "_comment": "OpenAlex + DOAJ wired 2026-09-19 (ToolUniverse tools already installed, never wired). Both return DOI-bearing records, so they feed the Phase-30 grounding gate directly rather than only adding prose — the reason they are worth the prefetch budget in a literature role. OpenAlex covers ~250M works key-free; DOAJ covers open-access journals the subscription-indexed lanes under-represent.",
+        "arguments": {
+          "query": "{{indication}} {{drug_class}} {{compound_name}}",
+          "max_results": 8
+        }
+      },
+      {
+        "action": "executeTool",
+        "tool_name": "DOAJ_search_articles",
+        "optional": true,
+        "arguments": {
+          "query": "{{indication}} {{drug_class}} {{compound_name}}",
+          "max_results": 6
+        }
+      },
+      {
+        "action": "executeTool",
+        "tool_name": "europepmc_preprints",
+        "optional": true,
+        "_comment": "PREPRINT lane for this role's registry-designated home — the `biorxiv-medrxiv` gap named literature_reviewer + competitive_intel_analyst. See the same entry on `scout` for why this is a fetcher rather than a config line, and why bioRxiv's own API cannot serve a topical prefetch. Sits alongside the unfiltered EuropePMC call above rather than replacing it: without the filter, preprints are drowned by published literature.",
+        "arguments": {
+          "indication": "{{indication}}",
+          "disease_name": "{{disease_name}}",
+          "drug_class": "{{drug_class}}",
+          "compound_name": "{{compound_name}}",
+          "topic": "{{topic}}",
+          "limit": 6
         }
       }
     ],
@@ -281,10 +438,27 @@
         "action": "executeTool",
         "tool_name": "obsidian_prior_research",
         "optional": true,
-        "_comment": "Vault read-back via the canonical :8798 bridge. optional+fail-soft: when Obsidian is closed (e.g. run-workflow.js launched standalone) this yields nothing and the run proceeds with no prior-vault context. READ-ONLY \u2014 Command Center's autoGenerateNotes owns vault writes.",
+        "context_only": true,
+        "_comment": "Vault read-back, CONTEXT ONLY (never citation evidence). Semantic search goes straight to Miyo over the HTTPS proxy :8743 (works headless; Qdrant is Miyo's child), then falls back to the canonical :8798 bridge when Obsidian is open. Records render under a NOT-evidence banner with identifiers withheld and are excluded from fetched_citation_ids. optional+fail-soft: with Miyo and Obsidian both down this yields nothing and the run proceeds. READ-ONLY: the engine's own post-run publisher owns vault writes (2026-09-22).",
         "arguments": {
           "topic": "{{indication}} {{drug_class}} competitive landscape",
           "limit": 5
+        }
+      },
+      {
+        "action": "executeTool",
+        "tool_name": "sec_edgar_disclosures",
+        "optional": true,
+        "_comment": "SEC EDGAR full-text — the semantically native home for this role (competitive intelligence on public sponsors). Same fetcher and the same measured query grammar as the analyst entry; see that _comment for the hit-count evidence behind the parenthesised OR and for why these records carry filing METADATA with no quoted snippet. Complements ctgov_stopped_trials above: the registry says a trial stopped, the 8-K says what the sponsor told its investors about it.",
+        "arguments": {
+          "indication": "{{indication}}",
+          "disease_name": "{{disease_name}}",
+          "disease_context": "{{disease_context}}",
+          "therapeutic_area": "{{therapeutic_area}}",
+          "drug_class": "{{drug_class}}",
+          "terms": "(discontinued OR terminated OR discontinuation)",
+          "forms": "8-K",
+          "limit": 6
         }
       }
     ]

@@ -100,8 +100,11 @@ RLHF mode:
 ## Citation Integrity (Post-Research Engine)
 The post-research engine adds a zero-fabrication citation-integrity layer. Citations in a
 shipped report are grounded in the source records actually retrieved at runtime, plus a
-DOI retraction screen against Crossref. (Citations are NOT independently re-resolved against
-their live source databases — grounded is not the same as re-resolved.)
+DOI retraction screen against Crossref, and — since the post-research integrity layer (validated
+2026-07-10) — each cited PMID / NCT / DOI is re-resolved against its issuing public registry at
+delivery (`openclaw-bridge/mcp/citation-reresolver/`; VERIFIED / UNRESOLVED / UNCHECKED in the
+reproducibility manifest, any UNRESOLVED id blocks delivery). Grounding and re-resolution are two
+different checks; both ship. Ground truth: `SYSTEM-REALITY.md` → "GAP CLOSED".
 
 Runtime persistence:
 - `agent-engine.js` persists `fetched_citation_ids` (the identifiers actually retrieved at

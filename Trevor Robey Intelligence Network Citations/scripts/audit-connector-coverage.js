@@ -146,7 +146,36 @@ function crossCheckPrefetch(registry, prefetch) {
 
   const toolsInPrefetchNotRegistry = [...prefetchTools].filter(t => !registryTools.has(t));
 
+  // 2026-09-22: a `lane: "vault"` connector may appear in prefetch ONLY as context (read-back /
+  // priors). Every prefetch entry whose tool belongs to such a connector must carry
+  // `context_only: true`, and the connector must declare `prefetch_mode: "context-only"`;
+  // agent-engine then keeps those docs out of fetched_citation_ids. Anything else lets an
+  // identifier from a PRIOR run ground a citation in THIS run — the drift found in the
+  // Obsidian re-integration review. Before this check the rule was a comment, not a gate.
+  const toolLane = new Map();
+  for (const [id, entry] of Object.entries(registry.connectors)) {
+    for (const t of (entry.tools || [])) toolLane.set(t, { id, lane: entry.lane, mode: entry.prefetch_mode });
+  }
+  const vaultLaneEntries = [];
+  const vaultLaneViolations = new Set();
+  for (const [role, roleEntries] of Object.entries(prefetch.role_mappings || {})) {
+    if (!Array.isArray(roleEntries)) continue;
+    for (const action of roleEntries) {
+      const info = action.tool_name ? toolLane.get(action.tool_name) : null;
+      if (!info || info.lane !== "vault") continue;
+      vaultLaneEntries.push(`${role}:${action.tool_name}`);
+      if (action.context_only !== true) {
+        vaultLaneViolations.add(`${role}:${action.tool_name} (prefetch entry lacks context_only:true)`);
+      }
+      if (info.mode !== "context-only") {
+        vaultLaneViolations.add(`${action.tool_name} (connector ${info.id} lacks prefetch_mode:"context-only")`);
+      }
+    }
+  }
+
   return {
+    vaultLaneEntries,
+    vaultLaneViolations: [...vaultLaneViolations].sort(),
     registryRoles: [...registryRoles].sort(),
     prefetchRoles: [...prefetchRoles].sort(),
     exemptRoles: [...exemptRoles].sort(),
@@ -216,6 +245,14 @@ function renderReport(registry, buckets, crosscheck, extraSections = []) {
     }
   } else {
     lines.push(`Prefetch tool coverage: all ${crosscheck.prefetchTools.length} prefetch tools are referenced in registry ✓`);
+  }
+  if (crosscheck.vaultLaneViolations && crosscheck.vaultLaneViolations.length) {
+    lines.push("  ⚠  Vault-lane tools in prefetch that are NOT context-only (a prior-run identifier could ground a citation):");
+    for (const v of crosscheck.vaultLaneViolations) {
+      lines.push(`        - ${v}`);
+    }
+  } else {
+    lines.push(`Vault-lane read-back in prefetch: ${(crosscheck.vaultLaneEntries || []).length} entries, all context_only (never citation evidence) ✓`);
   }
   for (const l of extraSections) lines.push(l);
   lines.push("");

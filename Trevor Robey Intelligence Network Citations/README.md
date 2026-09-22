@@ -417,7 +417,7 @@ A zero-fabrication citation-integrity layer enforces that every identifier cited
 - **DOI retraction screen.** `openclaw-bridge/mcp/crossref-retraction/crossref-retraction.js` checks each cited DOI against Crossref `/works/{DOI}` (`relation.is-retracted-by` or an `update-to` of type `retraction`). A report citing any retracted paper hard-stops with error code `PHASE30_CITATION_RETRACTED`. Fail-soft: a Crossref error yields no retractions, so a network blip can never wrongly block a report.
 - **DOI extraction.** `openclaw-bridge/core/citation-extractor.js` stops DOI capture at non-DOI terminators and strips trailing sentence punctuation, so markdown/prose punctuation is no longer captured into (or duplicated across) DOIs.
 
-> Honesty note: citations are grounded in the source records actually retrieved at runtime and DOI retraction-screened against Crossref. They are **not** independently re-resolved against each citation's live external source database — that per-citation external resolver is still future work (see Future Roadmap).
+> Honesty note (corrected 2026-09-22): citations are grounded in the source records actually retrieved at runtime, DOI retraction-screened against Crossref, **and** — since the post-research integrity layer (validated 2026-07-10) — re-resolved per identifier against the issuing public registry at delivery (`openclaw-bridge/mcp/citation-reresolver/`: PMID → NCBI E-utilities, NCT → ClinicalTrials.gov v2, DOI → Crossref; VERIFIED / UNRESOLVED / UNCHECKED in the reproducibility manifest; any UNRESOLVED id blocks delivery). Re-resolution confirms an identifier resolves to a source record, not that the source's conclusions are correct. Ground truth: `SYSTEM-REALITY.md` → "GAP CLOSED".
 
 ### Stop-reason archaeology (terminated/withdrawn/suspended trials)
 
@@ -574,7 +574,7 @@ Implemented but **disabled / not deployed** (do not assume these are live featur
 
 Genuinely future:
 - Phase 26 (full): bridge runtime and execution-router consolidation (container governance is scaffold-only today)
-- Per-citation external **resolver**/validator (PMID/NCT/ChEMBL/DOI → live re-resolved links + Reproducibility Manifest). The runtime-grounding gate and Crossref DOI retraction screen ship today (see [Citation Integrity Layer](#citation-integrity-layer)); independent external re-resolution of each citation against its live source database is the remaining gap — grounded is not the same as re-resolved.
+- ~~Per-citation external **resolver**/validator~~ — **SHIPPED (validated 2026-07-10):** `openclaw-bridge/mcp/citation-reresolver/` re-resolves each cited PMID / NCT / DOI against its issuing registry at delivery and writes the Reproducibility Manifest (see [Citation Integrity Layer](#citation-integrity-layer)). Remaining gap in this area: ChEMBL ids are not re-resolved (UNCHECKED), and the Retraction Watch bulk dataset is not integrated (see `SYSTEM-REALITY.md`).
 
 Implemented and active:
 - Phase 23: portfolio intelligence and commercialization decision support

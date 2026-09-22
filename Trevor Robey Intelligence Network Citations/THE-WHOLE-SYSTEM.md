@@ -13,7 +13,7 @@
 | | Verdict |
 |---|---|
 | **Is the technical plumbing up?** | 🟢 **Yes.** Obsidian, all the bridges, and the supporting services are running right now (verified). |
-| **Does the research engine actually work end-to-end?** | 🟢 **Yes — FIXED & PROVEN 2026-06-10.** It was blocked at a human-approval gate; that's now wired through an opt-in `--operator-approve` flag. A real run completed all **5/5 pipeline steps**, produced a **196-row dataset with 219 citations** (NCT trials, ChEMBL, JAMA DOI, UniProt), and exported an **88 KB bundle** containing a 61 KB `report.md`. See "§0a." Citations are now **grounded in the source records actually retrieved at runtime + DOI retraction-screened (Crossref)** via the citation-integrity layer (§3a) — not re-resolved against live external databases (see §9). |
+| **Does the research engine actually work end-to-end?** | 🟢 **Yes — FIXED & PROVEN 2026-06-10.** It was blocked at a human-approval gate; that's now wired through an opt-in `--operator-approve` flag. A real run completed all **5/5 pipeline steps**, produced a **196-row dataset with 219 citations** (NCT trials, ChEMBL, JAMA DOI, UniProt), and exported an **88 KB bundle** containing a 61 KB `report.md`. See "§0a." Citations are now **grounded in the source records actually retrieved at runtime + DOI retraction-screened (Crossref)** via the citation-integrity layer (§3a) — and, since the post-research integrity layer (validated 2026-07-10), re-resolved per identifier against the issuing public registry at delivery (reproducibility manifest; the §9 gap is CLOSED). |
 | **Is the business running smoothly?** | 🔴 **No — it's pre-launch.** $0 revenue, 0 live marketplace listings, 0 discovery calls, 0 signed deals. The tooling exists; the commercial motion hasn't started. |
 
 **So the honest one-liner:** the engine now **demonstrably produces a complete citation-traced report** (first one ever, 2026-06-10) — but you still have **not sold anything**. The single most valuable next step is the business motion (revised 30-day plan, §8); the engine is no longer the blocker.
@@ -74,10 +74,15 @@
                               │ writes
                               ▼
    ┌─────────────────────────────────────────────────────────────┐
-   │  OUTPUT → 6 linked notes per run into the vault                │
-   │   /Users/myhome/My Digital Garden/OpenClaw/...                 │
-   │   ⚠️ this folder does NOT exist yet → no report has landed     │
-   │   then: Medical-Zettelkasten-MCP analyzes the note graph       │
+   │  OUTPUT → the ENGINE writes the run's notes into the vault     │
+   │   /Users/myhome/My Digital Garden/OpenClaw/<template>/<date>/  │
+   │   after the citation gate passes — headless, Obsidian open or  │
+   │   not (2026-09-22): Overview · role notes · Quality Audit ·    │
+   │   Dataset Card · 4 deliverables verbatim · Graph Analysis      │
+   │   (Medical-Zettelkasten-MCP in-process, deterministic, no LLM) │
+   │   ✅ 4 completed runs are in the vault as of 2026-09-22        │
+   │   Obsidian open → Command Center rehydrates (never rewrites)   │
+   │   and adds: chat bubble · Miyo index · LLM ZK linking · ingest │
    └─────────────────────────────────────────────────────────────┘
 
    SUPPORTING SERVICES (all 🟢 running now, loopback + TLS):
@@ -97,8 +102,8 @@
 | TLS proxies (3) | :11435 :8743 :6433 | 🟢 | HTTPS fronts for the local services |
 | `claude` CLI (primary LLM) | — | 🟢 on PATH | the engine's actual brain |
 | LM Studio | — | ⚪ decommissioned 2026-07-16 | removed from the stack — TLS proxy :1235, launchd unit, `llm-providers.json` entry, and the app all deleted; not an engine provider (restorable later, see §5) |
-| Ollama | — | ⚫ REMOVED 2026-07-23 | brew package, both LaunchAgents, the :11435 TLS proxy and 9.2GB of models all deleted. The Obsidian side moved to hosted `copilot-plus-flash`. |
-| **Workflow engine output** | — | 🟡 **0 runs on disk** | `workspace/missions`, `workspace/research-output`, `state/runtime` all empty; vault `OpenClaw/` dir absent |
+| Ollama | :11434 → proxy :11435 | 🟢 back since 2026-08-12, **Obsidian-side only** | Removed 2026-07-23 (brew package, LaunchAgents, proxy, 9.2 GB of models), then Ollama.app was reinstalled 2026-08-12 with **`granite4.1:8b`** only, re-wrapped by the `:11435` HTTPS proxy, as a BYOK lane for the Obsidian Copilot plugin (hosted `copilot-plus-flash` remains the default there). **Never an engine provider** — every research role runs on Claude with no fallback. *(Row corrected 2026-09-22; it said "REMOVED".)* |
+| **Workflow engine output** | — | 🟢 **4 completed runs in the vault (2026-09-22)** | `OpenClaw/clinical-trial-landscape/{2026-06-12,07-07,07-16} heart failure/` + `OpenClaw/trial-design-benchmark/2026-07-31 non-small cell lung cancer/`, written by the engine's own post-run publisher (`openclaw-bridge/vault/workflow-vault-publisher.js`); backfill / dry-run via `scripts/publish-workflow-to-vault.js`. *(Was "0 runs on disk, vault `OpenClaw/` dir absent" — the folder had never existed because the only writer was the plugin, which fired only for runs it dispatched itself while Obsidian was open.)* |
 
 ---
 
@@ -113,7 +118,7 @@ You ask a question in Obsidian → a plugin launches `run-workflow.js` → it ru
 A zero-fabrication citation layer now sits in the pipeline. Plain version:
 
 - **Grounding gate.** `agent-engine.js` records the identifiers actually retrieved at runtime (`fetched_citation_ids`) plus a per-task `citation_verification` block; `buildPrompt` carries an ABSOLUTE-RULE "ZERO FABRICATION" clause (never invent a PMID/NCT/DOI — say `[no verifiable citation found]` instead). At report level, `workflow-engine.executeMissionStep` cross-checks every cited identifier against the union of runtime-fetched IDs (`core/citation-gate.js` → `verifyReportCitations`). A cite is **"grounded"** if it was in the fetched evidence, else **"ungrounded"** (likely model-introduced). Per the never-hallucinate doctrine (operator ruling 2026-07-10), `verifyReportCitations` returns a **multi-state verdict**, not a silent pass: **PASS** (grounded ratio ≥ `minGroundedCitationRatio` — the only shippable state); **UNVERIFIED** (`PHASE30_CITATION_UNVERIFIED`, ratio below the floor); **INSUFFICIENT_EVIDENCE** (`PHASE30_CITATION_INSUFFICIENT_EVIDENCE` — **zero** runtime evidence was fetched, a recorded honest-zero that now **BLOCKS**, closing the doctrine hole where zero-evidence runs silently auto-passed); and **NO_CITATIONS** (`PHASE30_CITATION_NONE` — evidence fetched but the report cited nothing). Retraction remains `PHASE30_CITATION_RETRACTED`. **Only PASS ships.** The floor `minGroundedCitationRatio` is a **required** value in `config/agent-config.json` = **0.75** (the B-grade floor), read fail-closed (missing/invalid → strict 0.75 default + a warning; one exported `DEFAULT_MIN_GROUNDED_RATIO` replacing the old hardcoded 0.34 and a dead 0.5). The gate writes `citation-verification.json` + `report-annotated.md` and annotates surviving ungrounded cites inline `[UNVERIFIED]`.
-  - **Honest scope:** citations are grounded in the source records actually retrieved at runtime — *not* independently re-resolved against a live external database at delivery time. Grounded ≠ re-resolved (still §9).
+  - **Honest scope (corrected 2026-09-22):** citations are grounded in the source records actually retrieved at runtime **and**, since the post-research integrity layer (validated 2026-07-10), re-resolved per identifier against the issuing public registry at delivery time (`citation-reresolver.js`; VERIFIED / UNRESOLVED / UNCHECKED in the reproducibility manifest, any UNRESOLVED id blocks). Grounded ≠ re-resolved — both now ship; ground truth `SYSTEM-REALITY.md` → "GAP CLOSED".
 - **Retraction screen.** `mcp/crossref-retraction/crossref-retraction.js` checks each cited DOI against Crossref `/works/{DOI}`; a report citing any retracted paper hard-stops (`PHASE30_CITATION_RETRACTED`). Fail-soft: a Crossref network blip yields no retractions, so it can never wrongly block a report.
 - **DOI extraction fix.** `core/citation-extractor.js` now stops the DOI regex at non-DOI terminators and strips trailing sentence punctuation, so `]]`/`;`/`.` are no longer captured (this had deflated the grounded ratio and duplicated DOIs).
 - **Stop-reason corpora.** `mcp/ctgov-supplemental/ctgov-supplemental.js` is a local fetcher (tool `ctgov_stopped_trials`, wired through a new `localFetchers` seam in `tool-prefetch.js`) that pulls TERMINATED/WITHDRAWN/SUSPENDED trials for a condition — each trial's `whyStopped` text plus protocol change-history (version count + most-amended modules). Every record is NCT-traced (a grounded cite).
@@ -131,7 +136,7 @@ There are **three layers**, and only two of them feed your reports:
 |---|---|---|
 | **Subprocess MCP (12) + ToolUniverse tools (4)** | ✅ **Yes — these build your reports** | pubmed, clinicaltrials-gov, chembl, faers, scholar-gateway, europepmc, opentargets, arxiv, npi, icd10, owkin… |
 | **claude.ai-level connectors (23)** | ❌ **No — chat only** | the PubMed/ChEMBL/etc. you see in Claude chat, plus Figma, Gmail, Synthesize Bio… richer, but invisible to the automated engine (Tavily is a superseded tombstone) |
-| **Infra / ops (in `~/.claude.json`)** | n/a (not product) | falcon (security), github, cdp-pipe (browser), zoho-mail (**archive-reader since the 2026-07-22 Gmail cutover** — live mailbox is Google Workspace Gmail; see `03-platforms/google-workspace/google-workspace.md`) |
+| **Infra / ops (in `~/.claude.json`)** | n/a (not product) | falcon (security), github, ~~cdp-pipe~~ (**gone 2026-09-18** — no browser automation on this machine; the only browser surface is the in-app Claude Browser pane, `cb` gate scope), zoho-mail (**archive-reader since the 2026-07-22 Gmail cutover** — live mailbox is Google Workspace Gmail; see `03-platforms/google-workspace/google-workspace.md`) |
 
 No rogue or broken connectors were found — the only issue was that nothing documented this split. Five claude.ai connectors are unauthenticated (Owkin host-side, BioRender, Synapse, Wiley, alphaXiv; Synthesize Bio is now authenticated) → authenticate the useful ones or stop listing them. Full detail: `CONNECTOR-ALIGNMENT.md`.
 

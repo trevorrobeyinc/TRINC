@@ -49,6 +49,22 @@ export interface CitationVerification {
   retracted?: unknown[];
 }
 
+/**
+ * Written by the ENGINE's post-run vault publisher (2026-09-22,
+ * openclaw-bridge/vault/workflow-vault-publisher.js) into workflow.json after
+ * it wrote the run's notes. The plugin rehydrates its enrichment stages from
+ * this record instead of generating the notes a second time.
+ */
+export interface VaultNotesRecord {
+  folder: string;
+  overview: string;
+  files: string[];
+  agent_notes?: Array<{ role: string; path: string }>;
+  written_by: string;
+  published_at?: string;
+  vault_root?: string;
+}
+
 export interface WorkflowArtifacts {
   mission_id?: string;
   mission_result?: Record<string, unknown>;
@@ -58,6 +74,7 @@ export interface WorkflowArtifacts {
   export_path?: string;
   quality_report?: QualityReport;
   citation_verification?: CitationVerification;
+  vault_notes?: VaultNotesRecord;
 }
 
 export interface PipelineStep {
@@ -226,7 +243,19 @@ export interface OpenClawSettings {
   nodePath: string;
   vaultOutputFolder: string;
   autoGenerateNotes: boolean;
+  // 2026-09-22: the engine writes the note set itself after a gate-PASS run and
+  // records artifacts.vault_notes; Stage 1 waits this long for that record before
+  // falling back to generating the notes in-plugin.
+  engineNotesWaitMs: number;
+  // On load, spawn `scripts/publish-workflow-to-vault.js --all` so runs that
+  // completed while Obsidian was closed (or before the publisher existed) land
+  // in the vault. Idempotent on the engine side.
+  backfillVaultNotesOnLoad: boolean;
   autoRunZettelkasten: boolean;
+  // 2026-09-22: engine-written runs (headless) never got the LLM Zettelkasten
+  // linking; on load, link up to N synthesizer notes that lack the section.
+  zkCatchUpOnLoad: boolean;
+  zkCatchUpMaxPerLoad: number;
   pollIntervalMs: number;
   workflowTimeoutMs: number;
   miyoEnabled: boolean;

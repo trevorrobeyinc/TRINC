@@ -691,7 +691,7 @@
         "get_content_statistics",
         "get_usage_statistics"
       ],
-      "purpose": "bioRxiv/medRxiv preprint discovery \u2014 critical for Conference Synthesis Brief deliverables where peer-reviewed publication is months away. Load-bearing for early-signal detection in Failed Trial Archaeology.",
+      "purpose": "bioRxiv/medRxiv preprint discovery \u2014 critical for Conference Synthesis Brief deliverables where peer-reviewed publication is months away. Load-bearing for early-signal detection in Failed Trial Archaeology. CAPABILITY COVERED SINCE 2026-09-19 WITHOUT THIS ADAPTER \u2014 do not build one for topical search, it cannot work. bioRxiv's own API has NO keyword/author/full-text search (date-range and category listing only, re-verified live 2026-09-19), so a dedicated bioRxiv fetcher could never serve a role prefetch, which is topical by construction. Europe PMC indexes the same preprints AND is keyword-searchable, so the capability is served by the `europepmc-preprints` local fetcher (bound to scout and literature_reviewer), which returns preprint DOIs (verified: 1,890 bioRxiv-specific hits for glioblastoma vs 4,252 preprints overall). Because those records are DOI-bearing they also feed the Phase-30 grounding gate, which a bioRxiv-only adapter would have done no better. NB this was FIRST attempted as a config-only prefetch entry appending 'AND SRC:PPR' to EuropePMC_search_articles' query template; that is broken and must not be reinstated \u2014 a template with a literal tail is never empty, which defeats tool-prefetch's empty-args skip guard AND its topic fallback, so a topic-only template would search the bare filter clause. What remains genuinely unavailable this way is bioRxiv-specific metadata (per-server posting statistics, funder listings, version history) \u2014 build the adapter only if a deliverable actually needs those, not for search.",
       "bound_roles": [
         "literature_reviewer",
         "competitive_intel_analyst"
@@ -704,16 +704,18 @@
       ],
       "business_value": "high",
       "adapter_status": "missing",
-      "adapter_priority": "medium",
-      "suggested_adapter_path": "openclaw-bridge/mcp/biorxiv-medrxiv-mcp/",
-      "health_check": "search_preprints({query: 'KRAS G12C', limit: 1}) returns DOI",
+      "adapter_priority": "low",
+      "suggested_adapter_path": "n/a for search — covered by the europepmc-preprints local fetcher (built 2026-09-19). Only build openclaw-bridge/mcp/biorxiv-medrxiv-mcp/ if a deliverable needs bioRxiv-specific METADATA (posting statistics, funder listings, version history); its own API cannot do topical search.",
+      "health_check": "europepmc_preprints({indication: 'KRAS G12C', limit: 1}) returns a preprint DOI",
       "lane": "research"
     },
     "research-memory": {
       "tool_prefix": "mcp__trevorobeyinc-research-memory__",
-      "execution_surface": "claude-host-mcp",
-      "auth": "qdrant-tls-proxy at https://127.0.0.1:6433 (mkcert-signed, see HTTPS-only invariant)",
+      "execution_surface": "subprocess-mcp",
+      "auth": "qdrant-tls-proxy at https://127.0.0.1:6433 (mkcert-signed, see HTTPS-only invariant); the engine reaches it through the package's own CLI (dist/cli.js) spawned as an argv array - no listener, no embedding code in the engine. Also a Claude-host stdio MCP server (mcp__trevorobeyinc-research-memory__*).",
+      "prefetch_mode": "context-only",
       "tools": [
+        "research_memory_priors",
         "pack_ingest",
         "pack_search",
         "pack_list",
@@ -721,7 +723,7 @@
         "pack_diff",
         "pack_related"
       ],
-      "purpose": "Persistent Qdrant-backed research-pack memory. Lets the synthesizer/report_generator pull priors from previous workflow runs (similar indications, prior KOL findings) instead of re-discovering them. Cross-workflow continuity.",
+      "purpose": "Persistent Qdrant-backed research-pack memory - cross-workflow continuity. WIRED 2026-09-22 (plan D5): the engine ingests every shippable run's synthesizer pack after the run (openclaw-bridge/mcp/research-memory-mcp/index.js, called from scripts/run-workflow.js; idempotent on content hash, so the Command Center plugin's own later ingest returns skipped_duplicate) and the synthesizer role reads priors through prefetch as `research_memory_priors`, CONTEXT ONLY (identifiers withheld, never in fetched_citation_ids). report_generator is prefetch-exempt and sees priors through the synthesizer's assembled output. SWITCHED OFF until config/vault-publish.json researchMemory.enabled is true: the CLI downloads its nomic embedding model from huggingface.co on first use, which is the operator's decision, not a side effect of a run. Never ingested before 2026-09-22 (Qdrant held only the `miyo` collection).",
       "bound_roles": [
         "synthesizer",
         "report_generator"
@@ -753,16 +755,16 @@
         }
       ],
       "business_value": "high",
-      "adapter_status": "missing",
+      "adapter_status": "wired",
       "adapter_priority": "medium",
-      "suggested_adapter_path": "openclaw-bridge/mcp/research-memory-mcp/ (uses existing qdrant-tls-proxy on :6433 \u2014 see HTTPS-only invariant in root CLAUDE.md)",
-      "health_check": "pack_list returns at least one pack id from prior workflow runs",
+      "suggested_adapter_path": "openclaw-bridge/mcp/research-memory-mcp/index.js (thin client of Claude/trevorobeyinc-research-memory-mcp/dist/cli.js over the qdrant-tls-proxy on :6433 - opens NO listener; see HTTPS-only invariant in root CLAUDE.md)",
+      "health_check": "researchRuntime.researchMemory.health() returns ok with total_packs >= 1 once researchMemory.enabled is true and one shippable run has completed; `node dist/cli.js list` shows the pack",
       "lane": "vault"
     },
     "obsidian-bridge": {
       "tool_prefix": "mcp__obsidian-bridge__",
       "execution_surface": "subprocess-mcp",
-      "auth": "canonical bridge at https://127.0.0.1:8798 (mkcert-signed)",
+      "auth": "Miyo HTTPS proxy at https://127.0.0.1:8743 (mkcert-signed; semantic, works with Obsidian closed) first, then the canonical bridge at https://127.0.0.1:8798 (mkcert-signed; fallback while Obsidian is open)",
       "tools": [
         "obsidian_prior_research",
         "obsidian_search_notes",
@@ -772,7 +774,8 @@
         "obsidian_create_note",
         "obsidian_append_note"
       ],
-      "purpose": "Vault READ-BACK during a run: lets a role consult prior research already in the vault (full-text + Miyo semantic) via the canonical :8798 bridge, exposed to prefetch as `obsidian_prior_research`. Writes are opt-in (allowWrites=false by default) because Command Center's autoGenerateNotes already writes a note per completed workflow.",
+      "purpose": "Vault READ-BACK during a run, CONTEXT ONLY: lets a role consult prior research already in the vault (Miyo semantic straight over :8743, headless-capable; :8798 bridge full-text as fallback), exposed to prefetch as `obsidian_prior_research`. Every record is context_only - rendered under a NOT-evidence banner with identifiers withheld and excluded from fetched_citation_ids - so a prior-run identifier can never ground a citation without a live fetch (fixed 2026-09-22). Writes stay opt-in (allowWrites=false): the ENGINE's own post-run publisher (openclaw-bridge/vault/workflow-vault-publisher.js) owns vault writes, one folder scheme, rehydrated by Command Center.",
+      "prefetch_mode": "context-only",
       "bound_roles": [
         "analyst",
         "competitive_intel_analyst",
@@ -1323,12 +1326,324 @@
       "health_check": "resolves a known-good PMID to its source record",
       "binding_status": "gate-consumed-not-prefetched",
       "binding_rationale": "Citation-gate infrastructure. Correctly absent from tool-prefetch-map.json."
+    },
+    "dailymed-tooluniverse": {
+      "tool_prefix": "vendor/tooluniverse/DailyMed_*",
+      "execution_surface": "tooluniverse-tool",
+      "auth": "none",
+      "tools": [
+        "DailyMed_search_spls",
+        "DailyMed_parse_adverse_reactions"
+      ],
+      "purpose": "FDA Structured Product Labeling (current prescribing information + parsed adverse-reaction tables). Wired 2026-09-19 to close a customer-facing gap: the pharmacovigilance-report workflow describes itself as using 'FAERS, DailyMed, RxNorm...' but only FAERS was wired, and that workflow spawns scout/analyst/synthesizer -- safety_signal_detector is reachable only via run-research-task.js mission mode.",
+      "bound_roles": [
+        "analyst",
+        "safety_signal_detector"
+      ],
+      "bound_workflow_steps": [
+        {
+          "workflow_template_id": "pharmacovigilance-report",
+          "step_id": "research"
+        },
+        {
+          "workflow_template_id": "drug-discovery-full",
+          "step_id": "research"
+        }
+      ],
+      "business_value": "high",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "vendor/tooluniverse (already integrated via tool-prefetch.js)",
+      "health_check": "DailyMed_search_spls({drug_name: 'temozolomide', pagesize: 1}) returns at least one SPL with a setid",
+      "lane": "research"
+    },
+    "rxnorm-tooluniverse": {
+      "tool_prefix": "vendor/tooluniverse/RxNorm_*",
+      "execution_surface": "tooluniverse-tool",
+      "auth": "none",
+      "tools": [
+        "RxNorm_get_drug_info"
+      ],
+      "purpose": "RxNorm drug normalization (RXCUI resolution, brand/generic aliasing). ATTEMPTED AND BACKED OUT 2026-09-19 — do not re-wire without fixing the envelope first. The tool executes fine and returns real data, but its SMCP envelope is {status, data:{...}} where data contains NO array, so tooluniverse-mcp #normalizeResult falls through to the single-hollow-record branch and the row reaches the prompt with an empty abstract. That is worse than a failure: the call is counted 'returned' in search-coverage.md while carrying nothing. Per-source field mappings in tu-record-normalizer.js (the 2026-09-19 fix) operate on ROWS and therefore cannot help an envelope with no rows. Fixing it means teaching #normalizeResult to normalize a scalar/object data payload, which was considered and deferred. Same root cause as FDA_OrangeBook_get_exclusivity (its data has TWO arrays, so the deliberate 'exactly one array' guard declines to guess).",
+      "bound_roles": [],
+      "bound_workflow_steps": [],
+      "business_value": "medium",
+      "adapter_status": "needs-investigation",
+      "adapter_priority": "low",
+      "suggested_adapter_path": "vendor/tooluniverse — reachable, but needs an envelope fix in openclaw-bridge/mcp/tooluniverse-mcp/tooluniverse-mcp.js #normalizeResult before it can carry content",
+      "health_check": "RxNorm_get_drug_info({drug_name: 'temozolomide'}) returns an rxcui in the RAW envelope; the normalized record is currently hollow (abstract empty) — that is the open issue, not the call",
+      "lane": "research"
+    },
+    "openfda-enforcement-tooluniverse": {
+      "tool_prefix": "vendor/tooluniverse/OpenFDA_*",
+      "execution_surface": "tooluniverse-tool",
+      "auth": "optional: FDA_API_KEY (higher rate limit)",
+      "tools": [
+        "OpenFDA_search_drug_enforcement"
+      ],
+      "purpose": "openFDA drug enforcement (recalls, withdrawals, field corrections) -- a real safety signal distinct from FAERS spontaneous reports. Wired 2026-09-19. NOTE: currently bound only to safety_signal_detector, which is reachable via run-research-task.js mission mode and is NOT spawned by any of the 7 sellable workflow templates. Move it onto analyst if recall history should appear in the shipped Pharmacovigilance Pack.",
+      "bound_roles": [
+        "safety_signal_detector"
+      ],
+      "bound_workflow_steps": [],
+      "business_value": "medium",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "vendor/tooluniverse (already integrated via tool-prefetch.js)",
+      "health_check": "OpenFDA_search_drug_enforcement({search: 'valsartan', limit: 1}) returns at least one recall record",
+      "lane": "research"
+    },
+    "fda-drug-labeling-tooluniverse": {
+      "tool_prefix": "vendor/tooluniverse/FDA_*",
+      "execution_surface": "tooluniverse-tool",
+      "auth": "optional: FDA_API_KEY (higher rate limit)",
+      "tools": [
+        "FDA_get_drug_names_by_indication"
+      ],
+      "purpose": "Approved-drug landscape for an indication, read off the FDA label corpus. Wired 2026-09-19 to answer 'what is already approved here' from a primary source instead of model recall. Context-bearing, not citation-bearing: drug names are not identifiers in citation-extractor.js, so this cannot raise the grounded-citation ratio and is placed last in the scout role.",
+      "bound_roles": [
+        "scout"
+      ],
+      "bound_workflow_steps": [
+        {
+          "workflow_template_id": "drug-discovery-full",
+          "step_id": "research"
+        },
+        {
+          "workflow_template_id": "pharmacovigilance-report",
+          "step_id": "research"
+        },
+        {
+          "workflow_template_id": "clinical-trial-landscape",
+          "step_id": "research"
+        },
+        {
+          "workflow_template_id": "rare-disease-brief",
+          "step_id": "research"
+        },
+        {
+          "workflow_template_id": "target-validation-pack",
+          "step_id": "research"
+        },
+        {
+          "workflow_template_id": "general-research-pack",
+          "step_id": "research"
+        }
+      ],
+      "business_value": "high",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "vendor/tooluniverse (already integrated via tool-prefetch.js)",
+      "health_check": "FDA_get_drug_names_by_indication({indication: 'glioblastoma', limit: 1}) returns at least one drug name",
+      "lane": "research"
+    },
+    "fda-orange-book-tooluniverse": {
+      "tool_prefix": "vendor/tooluniverse/FDA_*",
+      "execution_surface": "tooluniverse-tool",
+      "auth": "none",
+      "tools": [
+        "FDA_OrangeBook_search_drug",
+        "FDA_OrangeBook_get_patent_info"
+      ],
+      "purpose": "Drugs@FDA / Orange Book approval status, sponsor and listed products for an Investor Pre-Mortem. Wired 2026-09-19, keyed on brand_name because workflow inputs carry compound_name, which may be either a brand or a generic. SCOPE, verified live 2026-09-19 — do not oversell this as patent-cliff data: FDA_OrangeBook_get_patent_info returns application/sponsor/product structure plus the note 'Full patent information requires Orange Book data files from FDA' and a download URL; it does NOT return patent numbers or expiration dates. Real expiry analysis needs those bulk files, which are not wired. TWO tools deliberately excluded: FDA_OrangeBook_get_approval_history requires an application_number that does not exist until a prior call returns one (the prefetch map substitutes only from static workflow inputs, so a chained call is impossible here); FDA_OrangeBook_get_exclusivity executes but its {status,data} envelope holds TWO arrays, so #normalizeResult's deliberate 'exactly one array' guard declines to guess and the record reaches the prompt hollow — see rxnorm-tooluniverse for the same root cause.",
+      "bound_roles": [
+        "analyst"
+      ],
+      "bound_workflow_steps": [
+        {
+          "workflow_template_id": "drug-discovery-full",
+          "step_id": "research"
+        },
+        {
+          "workflow_template_id": "clinical-trial-landscape",
+          "step_id": "research"
+        }
+      ],
+      "business_value": "high",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "vendor/tooluniverse (already integrated via tool-prefetch.js)",
+      "health_check": "FDA_OrangeBook_search_drug({brand_name: 'TEMODAR', limit: 1}) returns an application number",
+      "lane": "research"
+    },
+    "openalex-tooluniverse": {
+      "tool_prefix": "vendor/tooluniverse/openalex_*",
+      "execution_surface": "tooluniverse-tool",
+      "auth": "none (optional polite-pool mailto)",
+      "tools": [
+        "openalex_literature_search"
+      ],
+      "purpose": "OpenAlex scholarly index (~250M works, key-free). Wired 2026-09-19. Returns DOI-bearing records, so it feeds the Phase-30 grounding gate directly rather than only adding prose.",
+      "bound_roles": [
+        "literature_reviewer"
+      ],
+      "bound_workflow_steps": [
+        {
+          "workflow_template_id": "trial-design-benchmark",
+          "step_id": "research"
+        }
+      ],
+      "business_value": "high",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "vendor/tooluniverse (already integrated via tool-prefetch.js)",
+      "health_check": "openalex_literature_search({query: 'glioblastoma', max_results: 1}) returns a work with a DOI",
+      "lane": "research"
+    },
+    "doaj-tooluniverse": {
+      "tool_prefix": "vendor/tooluniverse/DOAJ_*",
+      "execution_surface": "tooluniverse-tool",
+      "auth": "none",
+      "tools": [
+        "DOAJ_search_articles"
+      ],
+      "purpose": "Directory of Open Access Journals. Wired 2026-09-19. DOI-bearing, and covers open-access venues the subscription-indexed lanes under-represent.",
+      "bound_roles": [
+        "literature_reviewer"
+      ],
+      "bound_workflow_steps": [
+        {
+          "workflow_template_id": "trial-design-benchmark",
+          "step_id": "research"
+        }
+      ],
+      "business_value": "medium",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "vendor/tooluniverse (already integrated via tool-prefetch.js)",
+      "health_check": "DOAJ_search_articles({query: 'glioblastoma', max_results: 1}) returns an article with a DOI",
+      "lane": "research"
+    },
+    "sec-edgar": {
+      "tool_prefix": "openclaw-bridge/mcp/sec-edgar/",
+      "execution_surface": "subprocess-mcp",
+      "auth": "none (public endpoint; SEC fair-access policy requires a declared User-Agent carrying an organization name and contact email -- undeclared clients are throttled or 403'd)",
+      "tools": [
+        "sec_edgar_disclosures"
+      ],
+      "purpose": "SEC EDGAR full-text search over public-company filings. Added 2026-09-19 to close a gap the GRADING layer already anticipated: gate.config.js has listed sec.gov in primary_source_domains since 2026-07-07, but nothing ever fetched it and a name search across all 2,116 ToolUniverse tools returns ZERO SEC coverage. Supplies a signal no biomedical database carries -- a sponsor's own filed disclosure that a program was discontinued, a trial failed, or a partnership ended. SCOPE, verified live: EDGAR full-text returns filing METADATA ONLY (no snippet or highlight field), so a record says WHICH filing matched, never WHAT it said; it does carry the standardized 8-K item codes, which are decoded to their SEC-defined meanings (2.02 = Results of Operations, 1.02 = Termination of a Material Definitive Agreement, ...) and an unmapped code renders bare rather than being given an invented label. CONTEXT-ONLY BY DESIGN: accession numbers are not in citation-extractor.js's grammar -- every pattern there requires a literal prefix (PMID/CID/NCT/UniProt/CHEMBL/DB/doi:), verified by reading them -- so these records cannot enter the grounded-ratio denominator, cannot lower a report's grade, and never reach the Stage-3 re-resolver (where an unknown id type risks UNRESOLVED, a hard BLOCK). Making SEC filings citable would mean extending citation-extractor.js AND citation-reresolver.js in one change; deliberately deferred.",
+      "bound_roles": [
+        "analyst",
+        "competitive_intel_analyst"
+      ],
+      "bound_workflow_steps": [
+        {
+          "workflow_template_id": "drug-discovery-full",
+          "step_id": "research"
+        },
+        {
+          "workflow_template_id": "clinical-trial-landscape",
+          "step_id": "research"
+        },
+        {
+          "workflow_template_id": "trial-design-benchmark",
+          "step_id": "research"
+        }
+      ],
+      "business_value": "high",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "openclaw-bridge/mcp/sec-edgar/sec-edgar.js (built 2026-09-19, routed via the localFetchers seam in scripts/_workflow-runtime.js)",
+      "health_check": "searchDisclosures({indication: 'glioblastoma', terms: '(discontinued OR terminated)', limit: 1}) returns a record whose url resolves on sec.gov (verified 2026-09-19: 413 matches, top hit Celldex Therapeutics)",
+      "lane": "research"
+    },
+    "nih-reporter": {
+      "tool_prefix": "openclaw-bridge/mcp/nih-reporter/",
+      "execution_surface": "subprocess-mcp",
+      "auth": "none (public API; polite User-Agent with contact email sent)",
+      "tools": [
+        "nih_reporter_funding"
+      ],
+      "purpose": "NIH RePORTER v2 -- federally funded research projects by indication, target or topic. Added 2026-09-19; zero ToolUniverse coverage and no prior registry entry, so this was a genuine gap. Answers who is funding work in an indication, at which institutions, at what scale and until when: the 'is anyone else serious about this' question for an Investor Pre-Mortem, and the labs a sponsor will compete with for investigators. MEASURED: the endpoint is POST-only (a GET returns 405, which reads like an outage and is not); meta.total is the true denominator while results is one page; records carry project_detail_url ready-made, so no URL is constructed. Abstracts are truncated because these records are rendered into an agent prompt. CONTEXT-ONLY BY DESIGN, for the same reason as sec-edgar: NIH project numbers are not citation identifiers, so this cannot move the grounded ratio and never reaches the Stage-3 re-resolver.",
+      "bound_roles": [
+        "scout"
+      ],
+      "bound_workflow_steps": [
+        {
+          "workflow_template_id": "drug-discovery-full",
+          "step_id": "research"
+        },
+        {
+          "workflow_template_id": "pharmacovigilance-report",
+          "step_id": "research"
+        },
+        {
+          "workflow_template_id": "clinical-trial-landscape",
+          "step_id": "research"
+        },
+        {
+          "workflow_template_id": "rare-disease-brief",
+          "step_id": "research"
+        },
+        {
+          "workflow_template_id": "target-validation-pack",
+          "step_id": "research"
+        },
+        {
+          "workflow_template_id": "general-research-pack",
+          "step_id": "research"
+        }
+      ],
+      "business_value": "high",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "openclaw-bridge/mcp/nih-reporter/nih-reporter.js (built 2026-09-19, routed via the localFetchers seam in scripts/_workflow-runtime.js)",
+      "health_check": "searchFunding({indication: 'glioblastoma', limit: 1}) returns a project with an award amount and a reporter.nih.gov url (verified 2026-09-19: meta.total 9,347)",
+      "lane": "research"
+    },
+    "europepmc-preprints": {
+      "tool_prefix": "openclaw-bridge/mcp/europepmc-preprints/",
+      "execution_surface": "subprocess-mcp",
+      "auth": "none (public Europe PMC REST; polite User-Agent with contact email sent)",
+      "tools": [
+        "europepmc_preprints"
+      ],
+      "purpose": "Preprint lane via Europe PMC, restricted with SRC:PPR. Built 2026-09-19 to serve the capability the `biorxiv-medrxiv` entry describes as 'critical for Conference Synthesis Brief' and 'load-bearing for early-signal detection in Failed Trial Archaeology'. bioRxiv's own API has NO keyword/author/full-text search (date-range and category listing only, re-verified live 2026-09-19), so a bioRxiv-specific adapter could never serve a role prefetch, which is topical by construction; Europe PMC indexes the same preprints and is keyword-searchable. WHY A FETCHER AND NOT A CONFIG LINE (this was attempted first and is a trap worth recording): appending 'AND SRC:PPR' to a prefetch-map query template produces a string that is never empty, which defeats BOTH tool-prefetch.js's empty-args skip guard -- so an empty input set spends a call on a bare filter clause -- AND its topic fallback, which substitutes `topic` only into an exactly-empty argument, so general-research-pack would have searched ' AND SRC:PPR'. EuropePMC_search_articles exposes no source/preprint parameter to move the filter into, so config could not express it. Composing the query in code fixes both. UNLIKE sec-edgar and nih-reporter these records are DOI-bearing (often PMID too), so they DO feed the Phase-30 grounding gate. Records are labelled 'Preprint (not peer reviewed)' so neither a reader nor the model mistakes one for peer-reviewed work.",
+      "bound_roles": [
+        "scout",
+        "literature_reviewer"
+      ],
+      "bound_workflow_steps": [
+        {
+          "workflow_template_id": "drug-discovery-full",
+          "step_id": "research"
+        },
+        {
+          "workflow_template_id": "pharmacovigilance-report",
+          "step_id": "research"
+        },
+        {
+          "workflow_template_id": "clinical-trial-landscape",
+          "step_id": "research"
+        },
+        {
+          "workflow_template_id": "rare-disease-brief",
+          "step_id": "research"
+        },
+        {
+          "workflow_template_id": "target-validation-pack",
+          "step_id": "research"
+        },
+        {
+          "workflow_template_id": "general-research-pack",
+          "step_id": "research"
+        },
+        {
+          "workflow_template_id": "trial-design-benchmark",
+          "step_id": "research"
+        }
+      ],
+      "business_value": "high",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "openclaw-bridge/mcp/europepmc-preprints/europepmc-preprints.js (built 2026-09-19, routed via the localFetchers seam in scripts/_workflow-runtime.js)",
+      "health_check": "searchPreprints({indication: 'glioblastoma', limit: 1}) returns a record whose doi resolves and whose journal reads 'Preprint (not peer reviewed)' (verified 2026-09-19: 4,252 preprint hits, 1,890 from bioRxiv)",
+      "lane": "research"
     }
   },
   "excluded_infrastructure": {
     "rationale": "Connectors that are not biomedical-research-relevant by category. Listed here so the audit script ignores them rather than flagging as drift. See operator_surfaces for the full non-research ledger and why each is deliberately outside the engine.",
     "tool_prefixes": [
-      "mcp__Claude_in_Chrome__",
       "mcp__Claude_Preview__",
       "mcp__computer-use__",
       "mcp__btt__",
@@ -1384,6 +1699,12 @@
     "rationale": "Complete ledger of every non-research MCP surface connected at the Claude-host level, recorded so 'what is connected' is answerable without guessing, and so none of it silently drifts into the research prefetch. Presence here is an explicit statement that a connector is OUT of the engine by design. The audit script skips these.",
     "recorded": "2026-07-24",
     "surfaces": [
+      {
+        "id": "trinc-content",
+        "lane": "business",
+        "auth": "none (local stdio; publishing credentials are Keychain-only and absent)",
+        "purpose": "Content creation for the business channels (YouTube, TikTok, Instagram, Facebook Page, AWS Data Exchange). Drafts from release-bundle deliverables and gates against the brand voice split, the statutory entity disclosure, retired claims, and any figure not traceable to a deliverable. Registered in the repo .mcp.json 2026-09-19. MUST NEVER be added to tool-prefetch-map.json: it is business lane and returns non-citable payloads that would dilute the grounded-citation ratio."
+      },
       {
         "id": "zoho-mail",
         "lane": "business",

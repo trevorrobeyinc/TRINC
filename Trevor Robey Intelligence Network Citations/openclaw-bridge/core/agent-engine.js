@@ -104,6 +104,18 @@ function loadInputs(inputs) {
   return loaded;
 }
 
+/**
+ * Concatenate ONLY evidence documents for citation-id extraction. Documents flagged
+ * `context_only` (vault read-back, research-memory priors) are excluded — they inform the role
+ * but can never ground a citation. Exported for the regression test that pins this rule.
+ */
+function collectEvidenceContent(docs) {
+  return (Array.isArray(docs) ? docs : [])
+    .filter((d) => d && d.context_only !== true)
+    .map((d) => (d && d.content) || "")
+    .join("\n\n");
+}
+
 function buildPrompt(taskDefinition, inputDocs, context = {}) {
   const systemPrefix = safeString(context.systemPrefix);
   // Persistent agent identity (SOUL.md/AGENTS.md + recent-session digest), loaded from
@@ -141,6 +153,21 @@ function buildPrompt(taskDefinition, inputDocs, context = {}) {
       "PRIORITIZE this live data over your training knowledge. Cite the specific " +
       "database source for every claim derived from live data. Do not fabricate " +
       "data points beyond what the live results provide."
+    );
+    headerParts.push("");
+  }
+
+  // Prior-research context (vault read-back / memory priors) is fenced as NOT evidence.
+  const hasPriorContext = inputDocs.some((doc) =>
+    doc.path && doc.path.startsWith("vault://")
+  );
+  if (hasPriorContext) {
+    headerParts.push(
+      "PRIOR VAULT CONTEXT: The input documents below marked 'vault://' are prior research from the " +
+      "operator's own vault or memory. They are CONTEXT ONLY, never evidence: their identifiers have " +
+      "been withheld, and anything cited from them will fail verification. Use them to avoid repeating " +
+      "work and to keep continuity with earlier runs; cite ONLY identifiers that appear verbatim in the " +
+      "'tooluniverse://' live-data documents."
     );
     headerParts.push("");
   }
@@ -386,8 +413,12 @@ function createAgentEngine(options = {}) {
               roleName, context.workflowInputs || {}
             );
             inputDocs.push(...toolDocs);
+            // Context-only docs (vault read-back, research-memory priors — `context_only: true`)
+            // never enter the runtime-fetched set: their identifiers are from PRIOR runs, not from
+            // a source-of-record fetched now. Until 2026-09-22 they did, so an identifier sitting
+            // in an old vault note could satisfy the grounded floor without any live fetch.
             fetchedCitationIds = deduplicateCitations(
-              extractCitations(toolDocs.map((d) => (d && d.content) || "").join("\n\n"))
+              extractCitations(collectEvidenceContent(toolDocs))
             ).map((c) => String(c.id));
             // Assign coverage only AFTER extraction so that if extraction ever threw, searchCoverage
             // stays empty and the honest-zero block below cannot double-fire with the catch's notice.
@@ -685,5 +716,7 @@ module.exports = {
   createAgentEngine,
   // Exported for unit testing the multi-agent helper pre-pass + prompt assembly.
   buildPrompt,
-  runHelperPrePass
+  runHelperPrePass,
+  // Exported so the context-only rule (prior-run ids never ground a citation) stays pinned.
+  collectEvidenceContent
 };

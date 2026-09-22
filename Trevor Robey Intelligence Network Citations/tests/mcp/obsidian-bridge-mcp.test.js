@@ -138,8 +138,10 @@ test("availability is cached, and force re-probes (cold-start race recovery)", a
 });
 
 test("priorResearch prefers semantic hits and falls back to full-text", async () => {
-  // health ok → miyo empty → falls through to search_notes
-  const { fetchImpl, calls } = makeFetch((_url, init) => {
+  // Since 2026-09-22 the FIRST hop is Miyo-direct (same fetch transport, no `tool` in the body,
+  // works with Obsidian closed); with Miyo empty it goes: health ok → bridge miyo empty → search_notes.
+  const { fetchImpl, calls } = makeFetch((url, init) => {
+    if (String(url).includes("/v0/search")) return { ok: true, status: 200, json: async () => ({ results: [] }) };
     const body = JSON.parse(init.body);
     if (body.tool === "obsidian_health") return okResponse({ status: "healthy" });
     if (body.tool === "miyo_search_context") return okResponse({ results: [] });
@@ -149,8 +151,10 @@ test("priorResearch prefers semantic hits and falls back to full-text", async ()
   const out = await mcp.priorResearch({ topic: "aspirin" });
   assert.equal(out.length, 1);
   assert.equal(out[0].source, "obsidian-vault");
+  assert.equal(out[0].context_only, true, "read-back is context, never evidence");
+  assert.ok(String(calls[0].url).endsWith("/v0/search"), "Miyo-direct is consulted first");
   assert.deepEqual(
-    calls.map((c) => JSON.parse(c.init.body).tool),
+    calls.slice(1).map((c) => JSON.parse(c.init.body).tool),
     ["obsidian_health", "miyo_search_context", "obsidian_search_notes"]
   );
 });
@@ -161,5 +165,8 @@ test("priorResearch returns [] when the vault is unavailable (no cascade of call
   });
   const mcp = createObsidianBridgeMcp({ fetchImpl, authToken: "t" });
   assert.deepEqual(await mcp.priorResearch({ topic: "aspirin" }), []);
-  assert.equal(calls.length, 1, "stops after the health probe fails");
+  // One Miyo-direct attempt, then the bridge health probe — and nothing after it fails.
+  assert.equal(calls.length, 2, "stops after the Miyo-direct attempt and the health probe fail");
+  assert.ok(String(calls[0].url).endsWith("/v0/search"));
+  assert.equal(JSON.parse(calls[1].init.body).tool, "obsidian_health");
 });

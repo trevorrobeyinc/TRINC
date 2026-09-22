@@ -4,9 +4,15 @@
 /**
  * atlas-stub-creator — DEBUG/FALLBACK TOOL ONLY.
  *
- * The CANONICAL path for materializing atlas stub notes is via the bridge's
+ * ⚠️ TOMBSTONE (2026-09-22): the `Research-Output/` + `OpenClaw/atlas/` scheme this tool serves
+ * is RETIRED together with scripts/publish-to-vault.js. The engine now writes the one vault
+ * scheme (`OpenClaw/<template_id>/<date> <label>/`) itself via
+ * openclaw-bridge/vault/workflow-vault-publisher.js. Zero callers; kept for the historical
+ * record only. Do not wire it anywhere.
+ *
+ * (Historical) The CANONICAL path for materializing atlas stub notes was the bridge's
  * `research_publish` MCP tool — see scripts/publish-to-vault.js. That path
- * goes:
+ * went:
  *   publish-to-vault.js → HTTPS :8798 → research_publish tool →
  *   guardVaultRelativePath + allowedVaultRoots → fs.writeFileSync → vault.
  *

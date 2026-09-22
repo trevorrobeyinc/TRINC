@@ -66,7 +66,7 @@ Six pack templates, each delivered as PDF + structured Parquet/CSV appendix with
 - **Standard tier**: secure email delivery of signed/encrypted PDF + structured Parquet/CSV appendix within 72 hours of order confirmation
 - **Custom tier**: native cloud delivery via Snowflake share, AWS S3 pre-signed URL, Google BigQuery shared dataset, or SFTP secure transfer
 - **Enterprise tier**: API access (REST/JSON), private dataset endpoint, SLA-backed
-- All tiers include a Citation-Integrity Ledger — a graded provenance ledger in which every cited PMID, NCT, RxCUI, ChEMBL ID, PubChem CID, UniProt ID, and DOI is grounded against the source records retrieved at runtime, and cited DOIs are retraction-screened against Crossref *(grounding + retraction screening, not per-citation external re-resolution)*
+- All tiers include a Citation-Integrity Ledger — a graded provenance ledger in which every cited PMID, NCT, RxCUI, ChEMBL ID, PubChem CID, UniProt ID, and DOI is grounded against the source records retrieved at runtime, cited DOIs are retraction-screened against Crossref, and every cited PMID, NCT and DOI is re-resolved against its issuing public registry at delivery with the result recorded in a reproducibility manifest *(re-resolution confirms the identifier resolves to a real source record; it does not validate the source's scientific conclusions)*
 
 ## Pricing model (2026-04-30 ladder)
 
@@ -102,7 +102,7 @@ One-off, custom, and subscription billing supported. Off-platform fulfillment �
 | **CCPA** | No California consumer personal information processed or sold. |
 | **HIPAA** | No PHI in deliverables. Pharmacovigilance reports use de-identified, aggregate-only signal data. BAA available for healthcare entity buyers. |
 | **PHI / PII screening** | Microsoft Presidio (HIPAA Safe Harbor 18-PHI-type recognizer set) run on every deliverable pre-publication. Pass condition: zero high-confidence matches outside cited paper authors. |
-| **Citation integrity** | Every cited PMID, NCT, RxCUI, ChEMBL ID, PubChem CID, UniProt ID, and DOI is grounded at build-time against the source records retrieved at runtime; cited DOIs are retraction-screened against Crossref. A graded citation-integrity ledger is attached to every pack. *(Grounding + Crossref retraction screening — not per-citation external re-resolution against each live source database.)* |
+| **Citation integrity** | Every cited PMID, NCT, RxCUI, ChEMBL ID, PubChem CID, UniProt ID, and DOI is grounded at build-time against the source records retrieved at runtime; cited DOIs are retraction-screened against Crossref. Every cited PMID, NCT and DOI is additionally re-resolved against its issuing public registry at delivery and recorded in a reproducibility manifest (VERIFIED / UNRESOLVED / UNCHECKED). A graded citation-integrity ledger is attached to every pack. *(Re-resolution confirms the identifier resolves to a real source record; it does not validate the source's scientific conclusions.)* |
 | **Source licensing** | See Source License Register below. |
 
 ## Source license register

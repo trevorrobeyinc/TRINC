@@ -190,6 +190,43 @@ async function main() {
     }
   })();
 
+  // Post-run vault write (2026-09-22, Obsidian re-integration plan D1-A). Until now a headless run
+  // wrote NOTHING to the Obsidian vault — the only writer was the Command Center plugin, which fires
+  // only for runs it dispatched itself while Obsidian is open. The engine now writes the same
+  // `OpenClaw/<template>/<date> <label>/` note set itself, after the citation gate passed, and
+  // records `artifacts.vault_notes` in workflow.json so the plugin rehydrates instead of writing
+  // twice. Fail-soft and gated inside the publisher (completed + PASS + not mock + vault present);
+  // a mock-provider run never reaches the vault, and no vault problem can fail a research run.
+  // Config: config/vault-publish.json (or OPENCLAW_VAULT_PUBLISH=0 to switch it off).
+  if (result && result.ok && gate.provider !== "mock") {
+    try {
+      const { createWorkflowVaultPublisher } = require("../openclaw-bridge/vault/workflow-vault-publisher.js");
+      const publisher = createWorkflowVaultPublisher({ rootDir: process.cwd(), logger });
+      result.vault_publish = await publisher.publishWorkflow(result.workflow_id);
+    } catch (publishError) {
+      logger.warn({ event: "vault_publish_failed", workflow_id: result.workflow_id, error: String(publishError && publishError.message || publishError) });
+      result.vault_publish = { ok: false, action: "failed", error: String(publishError && publishError.message || publishError) };
+    }
+  } else if (result && result.ok) {
+    result.vault_publish = { ok: true, action: "skipped", reason: "mock provider — mock runs are never published to the vault" };
+  }
+
+  // Post-run research-memory ingest (2026-09-22, plan D5): a shippable run's synthesizer pack
+  // becomes a cross-run prior. Same gates as the vault write, idempotent on the pack's content
+  // hash, fail-soft, and a recorded skip while config/vault-publish.json researchMemory.enabled
+  // is false. The spawn runs the store offline (EMBED_ALLOW_REMOTE=0): a run can never download the
+  // embedding model — that is the operator's one-time `scripts/research-memory.js ingest
+  // --allow-remote-model`.
+  if (result && result.ok && gate.provider !== "mock") {
+    try {
+      const { createResearchMemory } = require("../openclaw-bridge/mcp/research-memory-mcp/index.js");
+      result.research_memory_ingest = await createResearchMemory({ rootDir: process.cwd(), logger }).ingestWorkflow(result.workflow_id);
+    } catch (ingestError) {
+      logger.warn({ event: "research_memory_ingest_failed", workflow_id: result.workflow_id, error: String(ingestError && ingestError.message || ingestError) });
+      result.research_memory_ingest = { ok: false, action: "failed", error: String(ingestError && ingestError.message || ingestError) };
+    }
+  }
+
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 
   return result.ok ? 0 : 1;

@@ -23,6 +23,15 @@ import { ERROR_CODES } from "../errorCodes";
  *      bubble and open the new tab.
  *
  * This is the only tool that emits SSE events today.
+ *
+ * ⚠️ DORMANT SCHEME — TOMBSTONED 2026-09-22 (Obsidian re-integration plan, decision D2).
+ * `Research-Output/` + `OpenClaw/atlas/` is NOT the vault's research scheme. The one scheme is
+ * `OpenClaw/<template_id>/<date> <input label>/`, written by the research engine itself after
+ * every gate-PASS run (Trevor Robey Intelligence Network Citations/openclaw-bridge/vault/
+ * workflow-vault-publisher.js) and rehydrated by the Command Center plugin. The engine-side
+ * caller of this tool (scripts/publish-to-vault.js) is tombstoned too. The tool stays registered
+ * so the bridge's contract does not change under existing clients, but nothing in the pipeline
+ * calls it; the chat bubble is `research_notify`.
  */
 
 const schema = z.object({

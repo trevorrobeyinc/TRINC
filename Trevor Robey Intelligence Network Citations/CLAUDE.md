@@ -143,9 +143,35 @@ Phases 1-33 are implemented. Phase 26 bridge consolidation is complete (executio
 
 **ToolUniverse Live Pre-Fetch**: When workflows run, the tool-prefetch module (`openclaw-bridge/core/tool-prefetch.js`) queries ToolUniverse SMCP for each agent role before prompt construction. Results are injected as synthetic input documents marked `tooluniverse://`. The LLM prompt includes a LIVE DATABASE CONTEXT instruction prioritizing live data over training knowledge. Role-to-tool mappings configured in `config/tool-prefetch-map.json`. Graceful degradation: if ToolUniverse is unavailable, workflows continue with parametric-only output. In addition to ToolUniverse, `createToolPrefetch` accepts a `localFetchers` seam for in-process fetchers that are not ToolUniverse tools (see Citation Integrity Layer below).
 
+### Engine → Obsidian vault (post-run publish, 2026-09-22)
+
+After `executeWorkflow` returns `ok`, `scripts/run-workflow.js` calls
+`openclaw-bridge/vault/workflow-vault-publisher.js`, which writes the run's notes into the Obsidian
+vault **itself** — `OpenClaw/<template_id>/<YYYY-MM-DD> <first two inputs>/` (byte-for-byte the
+Command Center plugin's folder formula): `Overview.md`, one note per agent role, `Quality Audit.md`,
+`Dataset Card.md`, the deliverables listed in `config/vault-publish.json` copied verbatim from the
+sealed bundle (sha256 in frontmatter), and a deterministic `Graph Analysis.md`
+(`openclaw-bridge/vault/graph-analysis.js` → Medical Zettelkasten MCP in-process, no LLM). Only a
+`completed` + citation-`PASS` + non-mock run is written; a path guard keeps every write under the
+allow-listed vault root; the result is recorded as `artifacts.vault_notes` in `workflow.json`, which
+the plugin reads to REHYDRATE its enrichment stages instead of writing a second time. Headless by
+design — Obsidian need not be open. Backfill / dry-run: `node scripts/publish-workflow-to-vault.js
+--all [--dry-run] [--json]`. Switch: `config/vault-publish.json` `enabled`, or `OPENCLAW_VAULT_PUBLISH=0`.
+The same step then runs the research-memory ingest (`openclaw-bridge/mcp/research-memory-mcp/`,
+thin client of the pack store's CLI over `:6433`; switch `researchMemory.enabled`, **on since
+2026-09-22**). Every automated spawn runs the store offline (`EMBED_ALLOW_REMOTE=0`; a cache miss is a
+loud `EMBED_MODEL_NOT_CACHED`, never a download) — only the operator's `scripts/research-memory.js
+ingest --allow-remote-model` may pull the embedding model. Vault read-back (`obsidian_prior_research`,
+Miyo-direct over `:8743`, `:8798` fallback) and memory priors (`research_memory_priors`) are
+**context-only**: rendered with identifiers withheld and excluded from `fetched_citation_ids`
+(`tool-prefetch.js` / `agent-engine.js` `collectEvidenceContent`); `npm run audit:connectors` reports
+any vault-lane prefetch entry that is not. Lifecycle contract per touchpoint: root `CLAUDE.md`
+"Obsidian pipeline lifecycle". Tombstoned: `scripts/publish-to-vault.js`, `scripts/atlas-stub-creator.js`,
+the bridge's `Research-Output/` scheme.
+
 ### Citation Integrity Layer
 
-Citations are **grounded in the source records actually retrieved at runtime + DOI retraction-screened (Crossref)** — they are not independently re-resolved against a live external database. The layer has these components:
+Citations are **grounded in the source records actually retrieved at runtime**, **DOI retraction-screened (Crossref)**, and — since the post-research integrity layer, validated 2026-07-10 — **independently re-resolved per identifier against the issuing public registry at delivery time** (`openclaw-bridge/mcp/citation-reresolver/citation-reresolver.js`: PMID → NCBI E-utilities, NCT → ClinicalTrials.gov v2, DOI → Crossref; each id stamped VERIFIED / UNRESOLVED / UNCHECKED in the reproducibility manifest; any UNRESOLVED id blocks delivery). Re-resolution confirms that an identifier resolves to a source record, not that the source's conclusions are correct. Ground truth for any copy sweep: `SYSTEM-REALITY.md` → "GAP CLOSED" — never soften this to "grounding only" (this sentence said the opposite until 2026-09-22 and was the instruction-file trap recorded on the board 2026-09-20). The layer has these components:
 
 - **Citation gate** (`openclaw-bridge/core/citation-gate.js`, wired into `agent-engine.js` and `workflow-engine.js`): `agent-engine` persists `fetched_citation_ids` (the identifiers actually retrieved at runtime by tool-prefetch) plus a per-task `citation_verification` block into research-output metadata, and `buildPrompt` carries an ABSOLUTE-RULE "ZERO FABRICATION" clause (never invent a PMID/NCT/DOI — say `[no verifiable citation found]` instead). `workflow-engine.executeMissionStep` runs a report-level gate (`verifyReportCitations`) that cross-checks every identifier cited in the assembled report against the union of runtime-fetched ids: a cited id is "grounded" if it was present in fetched evidence, else "ungrounded" (likely model-introduced). Per the never-hallucinate doctrine (operator ruling 2026-07-10) it returns a **three-state verdict**, not a silent pass: **PASS** (grounded ratio ≥ `minGroundedCitationRatio`, a required value in `config/agent-config.json` = **0.75**); **UNVERIFIED** (`PHASE30_CITATION_UNVERIFIED`); **INSUFFICIENT_EVIDENCE** (`PHASE30_CITATION_INSUFFICIENT_EVIDENCE` — zero runtime evidence fetched, an honest-zero that now BLOCKS instead of auto-passing); **NO_CITATIONS** (`PHASE30_CITATION_NONE`). Only PASS ships. The floor is read fail-closed (missing/invalid → strict `0.75` + warning), replacing the old hardcoded `0.34`. It writes `citation-verification.json` + `report-annotated.md` to the workflow dir, annotating surviving ungrounded cites inline `[UNVERIFIED]`.
 - **Retraction screen — Crossref + PubMed cross-checked (widened + escalated + notice-disambiguated 2026-07-10).** Cited **DOIs** → Crossref (`crossref-retraction.js`); cited **PMIDs** → PubMed `esummary` (`pubmed-retraction.js`, pubtype **exactly** `Retracted Publication`); and every cited **DOI is reverse-resolved DOI→PMID** (`esearch <doi>[AID]`) and cross-checked against PubMed. Per-DOI rule: `retracted = pubmedRetracted OR (crossrefFlagged AND NOT pubmedNotice)`. Any retracted paper hard-stops (`PHASE30_CITATION_RETRACTED`). All legs fail-soft; wired via `researchRuntime.{crossrefRetraction,pubmedRetraction}`.

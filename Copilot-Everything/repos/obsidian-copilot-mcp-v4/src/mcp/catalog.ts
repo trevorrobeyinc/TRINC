@@ -350,6 +350,39 @@ export const MCP_TOOL_CATALOG: Record<string, McpCatalogEntry> = {
     }),
     buildInput: (args) => ({ ...args }),
   },
+  obsidian_openclaw_publish_vault: {
+    toolName: "obsidian_openclaw_publish_vault",
+    displayName: "OpenClaw Publish to Vault",
+    description:
+      "Write (or backfill) a completed, citation-PASS run's notes into the vault through the " +
+      "engine's own publisher: OpenClaw/<template>/<date> <inputs>/ with Overview, role notes, " +
+      "Quality Audit, Dataset Card, the integrity deliverables verbatim and a Graph Analysis " +
+      "note. No model spend, no operator gate. Already-written runs are skipped unless force; " +
+      "failed, UNVERIFIED and mock runs are always skipped. dry_run previews without writing.",
+    isMutating: true,
+    schema: z.object({
+      workflow_id: z.string().optional().describe("Workflow id to publish (see history)"),
+      all: z.boolean().optional().describe("Backfill every completed run on disk"),
+      force: z.boolean().optional().describe("Rewrite notes that already exist for the run"),
+      dry_run: z.boolean().optional().describe("List what would be written; write nothing"),
+    }),
+    buildInput: (args) => ({ ...args }),
+  },
+  obsidian_openclaw_research_memory_search: {
+    toolName: "obsidian_openclaw_research_memory_search",
+    displayName: "OpenClaw Research Memory Search",
+    description:
+      "Search the research-memory pack store — what earlier engine runs concluded about a " +
+      "similar indication. CONTEXT ONLY: never cite an identifier from a pack without a live " +
+      "source. While the lane is disabled in the engine config the result reports enabled:false " +
+      "with the operator's action, and nothing is downloaded or spawned.",
+    isMutating: false,
+    schema: z.object({
+      query: z.string().describe("Free-text query (indication, compound, question)"),
+      limit: z.number().int().min(1).max(10).optional().describe("Max packs, default 5"),
+    }),
+    buildInput: (args) => ({ ...args }),
+  },
   obsidian_openclaw_feed_stats: {
     toolName: "obsidian_openclaw_feed_stats",
     displayName: "Trial Graveyard Feed Stats",

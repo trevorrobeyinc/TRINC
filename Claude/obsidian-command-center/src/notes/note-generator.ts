@@ -91,11 +91,106 @@ export function readSynthesizerOutput(
 }
 
 /**
+ * Wait for the ENGINE's post-run vault publisher to record `artifacts.vault_notes`
+ * in workflow.json (2026-09-22). The engine writes that record right after the
+ * run's notes, a few hundred ms after `status: completed` lands — so the tracker's
+ * completion path can fire before the record exists. Returns the freshest state
+ * either way (null only when the state file is unreadable) so the caller can still
+ * check the disk for an engine-written folder.
+ */
+export async function waitForEngineVaultNotes(
+  openclawPath: string,
+  workflowId: string,
+  waitMs: number,
+  pollMs = 500
+): Promise<WorkflowState | null> {
+  const resolver = new PathResolver(openclawPath);
+  const deadline = Date.now() + Math.max(0, waitMs);
+  let state: WorkflowState | null = null;
+  for (;;) {
+    state = readJsonFile<WorkflowState>(resolver.workflowStateFile(workflowId));
+    if (state?.artifacts?.vault_notes?.overview) return state;
+    if (Date.now() >= deadline) return state;
+    await new Promise((r) => setTimeout(r, pollMs));
+  }
+}
+
+/**
+ * Rehydrate a GeneratedNotes view from notes the ENGINE already wrote, so the
+ * enrichment stages (notify, Miyo, Zettelkasten, research-memory) run on them
+ * without a second write. Uses the vault adapter (disk), not the metadata index,
+ * because files written seconds ago may not be indexed yet. Returns null when
+ * no engine-written Overview for THIS workflow_id exists — the caller then falls
+ * back to generateWorkflowNotes().
+ */
+export async function rehydrateEngineNotes(
+  vault: Vault,
+  state: WorkflowState,
+  openclawPath: string,
+  vaultOutputFolder: string
+): Promise<GeneratedNotes | null> {
+  const record = state.artifacts?.vault_notes;
+  const folder = record?.folder || computeNotesFolderPath(state, vaultOutputFolder);
+  const overviewPath = record?.overview || `${folder}/Overview.md`;
+  if (!(await vault.adapter.exists(overviewPath))) return null;
+  const overviewText = await vault.adapter.read(overviewPath);
+  const owner = overviewText.match(/^workflow_id:\s*"?([^"\n]+)"?\s*$/m);
+  if (!owner || owner[1].trim() !== state.workflow_id) return null;
+
+  let agentPaths: Array<{ role: string; path: string }> = (record?.agent_notes || []).map((a) => ({
+    role: a.role,
+    path: a.path,
+  }));
+  if (agentPaths.length === 0) {
+    const resolver = new PathResolver(openclawPath);
+    const agents = await readAgentData(resolver, state.artifacts?.mission_id);
+    for (const a of agents) {
+      const p = `${folder}/${capitalize(a.role)}.md`;
+      if (await vault.adapter.exists(p)) agentPaths.push({ role: a.role, path: p });
+    }
+  }
+  agentPaths = agentPaths.filter((a) => typeof a.path === "string" && a.path.length > 0);
+
+  const qualityCandidate = `${folder}/Quality Audit.md`;
+  const datasetCandidate = `${folder}/Dataset Card.md`;
+  const qualityPath = (await vault.adapter.exists(qualityCandidate)) ? qualityCandidate : null;
+  const datasetPath = (await vault.adapter.exists(datasetCandidate)) ? datasetCandidate : null;
+
+  // The RAW synthesizer output (what Zettelkasten + research-memory consumed before) comes from
+  // the engine's own artifact; the vault note is the sanitized rendering and is the fallback.
+  let synthesizerContent = readSynthesizerOutput(openclawPath, state.workflow_id);
+  if (!synthesizerContent) {
+    const synthNote = agentPaths.find((a) => a.role === "synthesizer")?.path;
+    if (synthNote && (await vault.adapter.exists(synthNote))) {
+      synthesizerContent = stripNoteScaffolding(await vault.adapter.read(synthNote));
+    }
+  }
+
+  return { overviewPath, agentPaths, qualityPath, datasetPath, synthesizerContent };
+}
+
+/** Drop frontmatter + the agent note's header block, leaving the research body. */
+export function stripNoteScaffolding(text: string): string {
+  let body = text;
+  if (body.startsWith("---")) {
+    const end = body.indexOf("\n---", 3);
+    if (end >= 0) body = body.slice(end + 4);
+  }
+  const firstRule = body.indexOf("\n---\n");
+  if (firstRule >= 0) body = body.slice(firstRule + 5);
+  return body.trim();
+}
+
+/**
  * Generate vault notes from a completed OpenClaw workflow.
  *
  * Reads workflow state, mission status, and agent outputs from the
  * OpenClaw workspace, then creates structured Obsidian notes with
  * frontmatter, wikilinks, and verbatim research content.
+ *
+ * Since 2026-09-22 this is the FALLBACK path: the engine writes the same note
+ * set itself (openclaw-bridge/vault/workflow-vault-publisher.js) and the plugin
+ * rehydrates from it. This runs only when the engine wrote nothing.
  */
 export async function generateWorkflowNotes(
   vault: Vault,

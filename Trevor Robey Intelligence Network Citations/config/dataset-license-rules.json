@@ -49,6 +49,28 @@
       "reason_code": "SCRAPE_DOMAIN_ALLOWED_PUBLIC_DOMAIN",
       "state": "allowed"
     },
+    "reporter.nih.gov": {
+      "reason_code": "SCRAPE_DOMAIN_ALLOWED_PUBLIC_DOMAIN",
+      "state": "allowed",
+      "note": "NIH RePORTER (wired 2026-09-19 via openclaw-bridge/mcp/nih-reporter/). NIH publishes RePORTER data as public-domain US Government information. NOTE ON MATCHING: license-review.js normalizeDomain() returns the FULL hostname and looks it up as an EXACT key -- there is no subdomain matching in THIS file (unlike gate.config.js primary_source_domains, where subdomains do match). So the host a record actually carries must appear here verbatim, which is why api.reporter.nih.gov is listed separately."
+    },
+    "api.reporter.nih.gov": {
+      "reason_code": "SCRAPE_DOMAIN_ALLOWED_PUBLIC_DOMAIN",
+      "state": "allowed"
+    },
+    "sec.gov": {
+      "reason_code": "SEC_EDGAR_METADATA_PUBLIC_DISCLOSURE",
+      "state": "allowed",
+      "note": "SEC EDGAR (wired 2026-09-19 via openclaw-bridge/mcp/sec-edgar/). SCOPE MATTERS, and this is deliberately NOT labelled public domain: EDGAR filings are authored by registrants, not by the government, so their expression can carry copyright. What this fetcher returns is METADATA ONLY -- company, ticker, CIK, form type, filing date, accession number, 8-K item codes and a resolvable URL -- i.e. facts about a mandatory public disclosure, which is why it is allowed. If the fetcher is ever extended to pull filing TEXT, this entry must be re-reviewed before that output can ship in a dataset. www.sec.gov is listed separately because matching here is exact-hostname, not subdomain."
+    },
+    "www.sec.gov": {
+      "reason_code": "SEC_EDGAR_METADATA_PUBLIC_DISCLOSURE",
+      "state": "allowed"
+    },
+    "efts.sec.gov": {
+      "reason_code": "SEC_EDGAR_METADATA_PUBLIC_DISCLOSURE",
+      "state": "allowed"
+    },
     "asco.org": {
       "reason_code": "SCRAPE_DOMAIN_REVIEW_TOS_PER_SOCIETY",
       "state": "review_required"

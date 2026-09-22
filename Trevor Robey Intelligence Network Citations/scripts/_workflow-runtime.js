@@ -114,6 +114,16 @@ async function buildWorkflowRuntime(options = {}) {
     const { createObsidianBridgeMcp } = require("../openclaw-bridge/mcp/obsidian-bridge-mcp/index.js");
     const obsidianBridge = createObsidianBridgeMcp({ logger });
     researchRuntime.obsidianBridge = obsidianBridge;
+    // Research memory (2026-09-22, plan D5): cross-run priors from the Qdrant-backed pack store
+    // (Claude/trevorobeyinc-research-memory-mcp, via the :6433 HTTPS proxy). Thin client of that
+    // package's CLI — no listener, no embedding code here. CONTEXT ONLY like the vault read-back.
+    // Both jobs (ingest after a run, priors before the synthesizer) are recorded skips while
+    // config/vault-publish.json researchMemory.enabled is false (on since 2026-09-22). Every spawn
+    // runs the store offline (EMBED_ALLOW_REMOTE=0), so a run can never download the embedding
+    // model — that stays the operator's one-time `--allow-remote-model` ingest.
+    const { createResearchMemory } = require("../openclaw-bridge/mcp/research-memory-mcp/index.js");
+    const researchMemory = createResearchMemory({ rootDir, logger });
+    researchRuntime.researchMemory = researchMemory;
     // Viz Studio (:8800, trinc-viz-studio plugin): local visualization rendering — charts,
     // mermaid, sanitized SVG, Canvas boards, vault link-graph snapshots. DELIBERATELY NOT in
     // localFetchers below: engine LLM roles have no mid-run tool loop, and viz content injected
@@ -132,6 +142,30 @@ async function buildWorkflowRuntime(options = {}) {
     const { createOpenTargetsGraphql } = require("../openclaw-bridge/mcp/open-targets-graphql/open-targets-graphql.js");
     const openTargets = createOpenTargetsGraphql({ logger });
     researchRuntime.openTargets = openTargets;
+    // SEC EDGAR full-text (2026-09-19). Closes a gap the GRADING layer already anticipated:
+    // gate.config.js has listed sec.gov in primary_source_domains since 2026-07-07, but nothing
+    // fetched it and ToolUniverse has zero SEC coverage. Supplies a signal no biomedical database
+    // carries — a public company's own disclosure of a discontinuation or failed program.
+    // CONTEXT-ONLY: accession numbers are not in citation-extractor.js's grammar (every pattern
+    // there needs a literal prefix), so these records cannot enter the grounded-ratio denominator
+    // and cannot reach the Stage-3 re-resolver. Fail-soft: any error returns [].
+    const { createSecEdgar } = require("../openclaw-bridge/mcp/sec-edgar/sec-edgar.js");
+    const secEdgar = createSecEdgar({ logger });
+    researchRuntime.secEdgar = secEdgar;
+    // NIH RePORTER (2026-09-19). Zero ToolUniverse coverage; answers who funds work in an
+    // indication, where, and at what scale. Context-only for the same reason as secEdgar.
+    const { createNihReporter } = require("../openclaw-bridge/mcp/nih-reporter/nih-reporter.js");
+    const nihReporter = createNihReporter({ logger });
+    researchRuntime.nihReporter = nihReporter;
+    // Preprint lane (2026-09-19). Closes the registry's biorxiv-medrxiv gap: bioRxiv's own API
+    // has no keyword search, so a bioRxiv-specific fetcher cannot serve a topical prefetch;
+    // Europe PMC indexes the same preprints and is keyword-searchable. This is a fetcher rather
+    // than a prefetch-map line because a query template with a literal "AND SRC:PPR" tail is
+    // never empty, which defeats BOTH tool-prefetch's empty-args skip guard and its topic
+    // fallback. Unlike secEdgar/nihReporter these records are DOI-bearing and DO feed the gate.
+    const { createEuropePmcPreprints } = require("../openclaw-bridge/mcp/europepmc-preprints/europepmc-preprints.js");
+    const europePmcPreprints = createEuropePmcPreprints({ logger });
+    researchRuntime.europePmcPreprints = europePmcPreprints;
     toolPrefetch = createToolPrefetch({
       toolUniverseMcp, logger, rootDir, timeProvider: options.timeProvider,
       localFetchers: {
@@ -148,8 +182,27 @@ async function buildWorkflowRuntime(options = {}) {
         }),
         ctgov_design_benchmark: (args) => ctgovDesignBenchmark.searchDesignCohort(args),
         obsidian_prior_research: (args) => obsidianBridge.priorResearch(args),
+        research_memory_priors: (args) => researchMemory.searchPriors({
+          ...(args || {}),
+          limit: Math.min(Number((args || {}).limit) || 5, 10)
+        }),
         opentargets_target_intel: (args) => openTargets.targetIntel(args),
-        opentargets_disease_intel: (args) => openTargets.diseaseIntel(args)
+        opentargets_disease_intel: (args) => openTargets.diseaseIntel(args),
+        // Both fetchers already clamp internally; the seam clamps AGAIN on the same
+        // defence-in-depth principle as ctgov_stopped_trials above — a prefetch-map edit alone
+        // must not be able to widen how much a source can push into an agent prompt.
+        sec_edgar_disclosures: (args) => secEdgar.searchDisclosures({
+          ...(args || {}),
+          limit: Math.min(Number((args || {}).limit) || 8, 25)
+        }),
+        nih_reporter_funding: (args) => nihReporter.searchFunding({
+          ...(args || {}),
+          limit: Math.min(Number((args || {}).limit) || 6, 25)
+        }),
+        europepmc_preprints: (args) => europePmcPreprints.searchPreprints({
+          ...(args || {}),
+          limit: Math.min(Number((args || {}).limit) || 6, 25)
+        })
       }
     });
     logger.info({ event: "tool_prefetch_initialized", uv_path: uvPath });
