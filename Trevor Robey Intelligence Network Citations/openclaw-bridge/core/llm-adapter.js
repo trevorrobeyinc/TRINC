@@ -237,6 +237,16 @@ const CLAUDE_CODE_EMPTY_MCP_CONFIG = path.join(__dirname, "..", "..", "config", 
  * mid-run (caught by tests/supply-chain). A role call needs no MCP server at all — tools are off
  * (--allowedTools "") — so it gets an empty, strict MCP config: zero servers, no npx, no network
  * beyond the model call, and a much lighter spawn.
+ *
+ * HERMETIC PROMPT (same day, second finding): print mode also loads the operator's instruction files
+ * — ~/.claude/CLAUDE.md, the monorepo CLAUDE.md and this folder's CLAUDE.md/AGENTS.md — into every
+ * role call (a control probe answered YES to all three, at ~10x the token cost of a clean call).
+ * `--setting-sources ""` skips user/project/local settings (and their hooks), and
+ * CLAUDE_CODE_DISABLE_CLAUDE_MDS=1 in the env (buildClaudeCodeEnv) skips every memory file; together
+ * a probe from this folder answered NO NO NO under the operator's OAuth session. `--bare` was NOT
+ * usable (it reads only an API key). `--no-session-persistence` stops each role call from writing a
+ * transcript under the operator's ~/.claude/projects/. Re-verify after a CLI upgrade with the probe
+ * recorded in CLAUDE.md → "Role-call isolation".
  */
 function buildClaudeCodeArgs(model) {
   return [
@@ -245,8 +255,23 @@ function buildClaudeCodeArgs(model) {
     "--model", model,
     "--allowedTools", "",
     "--strict-mcp-config",
-    "--mcp-config", CLAUDE_CODE_EMPTY_MCP_CONFIG
+    "--mcp-config", CLAUDE_CODE_EMPTY_MCP_CONFIG,
+    "--setting-sources", "",
+    "--no-session-persistence"
   ];
+}
+
+/**
+ * env for `claude -p` (exported for tests): the caller's env minus the Google Drive secrets
+ * (audit gdrive-oauth / F-SUB2), plus the memory-file kill switch described above.
+ */
+function buildClaudeCodeEnv(baseEnv) {
+  const claudeEnv = { ...(baseEnv || {}) };
+  for (const k of Object.keys(claudeEnv)) {
+    if (/^GOOGLE_DRIVE_|^GOOGLE_CLIENT_SECRET$/i.test(k)) delete claudeEnv[k];
+  }
+  claudeEnv.CLAUDE_CODE_DISABLE_CLAUDE_MDS = "1";
+  return claudeEnv;
 }
 
 /**
@@ -268,12 +293,8 @@ async function callClaudeCode(prompt, providerConfig, logger) {
 
   try {
     const stdout = await new Promise((resolve, reject) => {
-      // Hardening (audit gdrive-oauth / F-SUB2): don't propagate the high-value
-      // Google refresh token / client secret into the claude subprocess.
-      const claudeEnv = { ...process.env };
-      for (const k of Object.keys(claudeEnv)) {
-        if (/^GOOGLE_DRIVE_|^GOOGLE_CLIENT_SECRET$/i.test(k)) delete claudeEnv[k];
-      }
+      // Secrets stripped + memory files disabled: see buildClaudeCodeEnv.
+      const claudeEnv = buildClaudeCodeEnv(process.env);
       const child = spawnChild(claudeCommand, args, {
         stdio: ["pipe", "pipe", "pipe"],
         env: claudeEnv,
@@ -562,6 +583,7 @@ function createLLMAdapter(options = {}) {
 
 module.exports = {
   buildClaudeCodeArgs,
+  buildClaudeCodeEnv,
   CLAUDE_CODE_EMPTY_MCP_CONFIG,
   createLLMAdapter,
   estimateTokenCount,

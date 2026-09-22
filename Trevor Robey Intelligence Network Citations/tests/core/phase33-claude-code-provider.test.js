@@ -202,7 +202,23 @@ describe("Phase 33 — Claude Code MCP Provider", () => {
 
   describe("claude -p argv isolation (2026-09-22, first gated smoke run through Copilot chat)", () => {
     const fs = require("node:fs");
-    const { buildClaudeCodeArgs, CLAUDE_CODE_EMPTY_MCP_CONFIG } = require("../../openclaw-bridge/core/llm-adapter.js");
+    const { buildClaudeCodeArgs, buildClaudeCodeEnv, CLAUDE_CODE_EMPTY_MCP_CONFIG } = require("../../openclaw-bridge/core/llm-adapter.js");
+
+    it("loads NO instruction files and writes NO transcript: memory kill switch, empty setting sources, no persistence", () => {
+      // Probed 2026-09-22 from this folder under the operator's OAuth session: the control call
+      // saw ~/.claude/CLAUDE.md, the monorepo CLAUDE.md and this folder's CLAUDE.md (YES YES YES);
+      // with exactly this env + argv it saw none of them (NO NO NO). --bare is not an option (API key only).
+      const args = buildClaudeCodeArgs("claude-sonnet-4-6");
+      const i = args.indexOf("--setting-sources");
+      assert.ok(i > -1 && args[i + 1] === "", "--setting-sources must be present with an EMPTY value");
+      assert.ok(args.includes("--no-session-persistence"));
+      const env = buildClaudeCodeEnv({ PATH: "/usr/bin", GOOGLE_DRIVE_REFRESH_TOKEN: "x", GOOGLE_CLIENT_SECRET: "y", HOME: "/h" });
+      assert.equal(env.CLAUDE_CODE_DISABLE_CLAUDE_MDS, "1");
+      assert.equal(env.PATH, "/usr/bin");
+      assert.equal(env.HOME, "/h");
+      assert.equal(env.GOOGLE_DRIVE_REFRESH_TOKEN, undefined, "Drive secrets never reach the subprocess");
+      assert.equal(env.GOOGLE_CLIENT_SECRET, undefined);
+    });
 
     it("starts NO MCP servers: strict mode with an empty, existing config file", () => {
       const args = buildClaudeCodeArgs("claude-sonnet-4-6");

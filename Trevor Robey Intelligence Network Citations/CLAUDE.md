@@ -148,11 +148,20 @@ by `tests/core/phase33-claude-code-provider.test.js`). Without the two MCP flags
 user/project/plugin MCP server per role call; the pdf-viewer plugin's server is an `npx` package and,
 because the child's cwd is this folder, its `.npmrc` (`cache=.ci/npm-cache`) made npx pull 209 packages
 into the LOCKED supply-chain cache mid-run — caught by `tests/supply-chain`, cache restored, lock
-unchanged. Known residual: print mode still loads the operator's `CLAUDE.md` files into each role
-call (verified with a YES/NO probe); `--bare` would drop them but also drops OAuth (API-key only), and
-`--system-prompt` does NOT drop them (probed: still YES), so no flag removes them under the Max OAuth
-session. Options are an API-key lane with `--bare` or accepting the contamination — the operator's
-decision, recorded, not made.
+unchanged. **Hermetic prompt (same day, later):** print mode also loaded the operator's instruction
+files — `~/.claude/CLAUDE.md`, the monorepo `CLAUDE.md`, this folder's `CLAUDE.md`/`AGENTS.md` — into
+every role call; a control probe from this folder answered YES YES YES at ~10x the token cost of a
+clean call. Fixed without an API key: `buildClaudeCodeEnv` sets `CLAUDE_CODE_DISABLE_CLAUDE_MDS=1`
+(memory files off — an env switch read from the CLI binary, not in `--help`) and the argv adds
+`--setting-sources ""` (user/project/local settings and their hooks off) plus
+`--no-session-persistence` (no transcript per role call under `~/.claude/projects/`). Probed from
+this folder under the operator's OAuth session: NO NO NO. `--bare` is NOT usable (API-key auth only);
+`--system-prompt` alone does not help; `--setting-sources ""` alone still left `AGENTS.md`. **Re-verify
+after any CLI upgrade** (Haiku, ~$0.02, run from the scratchpad so nothing touches the repo cache):
+`claude -p "Answer YES or NO: do your session instructions mention a YubiKey?" --model
+claude-haiku-4-5-20251001 --output-format json --allowedTools "" --strict-mcp-config --mcp-config
+config/claude-code-print-mcp.json --setting-sources "" --no-session-persistence` with
+`CLAUDE_CODE_DISABLE_CLAUDE_MDS=1` in the env must answer NO.
 
 **ToolUniverse Live Pre-Fetch**: When workflows run, the tool-prefetch module (`openclaw-bridge/core/tool-prefetch.js`) queries ToolUniverse SMCP for each agent role before prompt construction. Results are injected as synthetic input documents marked `tooluniverse://`. The LLM prompt includes a LIVE DATABASE CONTEXT instruction prioritizing live data over training knowledge. Role-to-tool mappings configured in `config/tool-prefetch-map.json`. Graceful degradation: if ToolUniverse is unavailable, workflows continue with parametric-only output. In addition to ToolUniverse, `createToolPrefetch` accepts a `localFetchers` seam for in-process fetchers that are not ToolUniverse tools (see Citation Integrity Layer below).
 
