@@ -200,6 +200,28 @@ describe("Phase 33 — Claude Code MCP Provider", () => {
   // Workflow template provider_preference
   // ------------------------------------------------------------------
 
+  describe("claude -p argv isolation (2026-09-22, first gated smoke run through Copilot chat)", () => {
+    const fs = require("node:fs");
+    const { buildClaudeCodeArgs, CLAUDE_CODE_EMPTY_MCP_CONFIG } = require("../../openclaw-bridge/core/llm-adapter.js");
+
+    it("starts NO MCP servers: strict mode with an empty, existing config file", () => {
+      const args = buildClaudeCodeArgs("claude-sonnet-4-6");
+      assert.ok(args.includes("--strict-mcp-config"), "without --strict-mcp-config every user/project/plugin MCP server boots per role call");
+      const i = args.indexOf("--mcp-config");
+      assert.ok(i > -1 && args[i + 1] === CLAUDE_CODE_EMPTY_MCP_CONFIG);
+      assert.ok(fs.existsSync(CLAUDE_CODE_EMPTY_MCP_CONFIG), "config/claude-code-print-mcp.json must ship with the engine");
+      assert.deepEqual(JSON.parse(fs.readFileSync(CLAUDE_CODE_EMPTY_MCP_CONFIG, "utf8")), { mcpServers: {} });
+    });
+
+    it("keeps tools off and print mode on (the shape the rest of the adapter parses)", () => {
+      const args = buildClaudeCodeArgs("claude-opus-4-8");
+      assert.equal(args[0], "-p");
+      assert.deepEqual(args.slice(args.indexOf("--output-format"), args.indexOf("--output-format") + 2), ["--output-format", "json"]);
+      assert.deepEqual(args.slice(args.indexOf("--model"), args.indexOf("--model") + 2), ["--model", "claude-opus-4-8"]);
+      assert.deepEqual(args.slice(args.indexOf("--allowedTools"), args.indexOf("--allowedTools") + 2), ["--allowedTools", ""]);
+    });
+  });
+
   describe("workflow template provider_preference", () => {
     const fs = require("node:fs");
     const path = require("node:path");

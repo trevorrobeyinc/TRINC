@@ -224,6 +224,31 @@ async function callOpenRouter(prompt, providerConfig) {
 
 const { spawn: spawnChild } = require("node:child_process");
 
+// An MCP config with NO servers. Passed with --strict-mcp-config so a role call starts none of the
+// operator's user/project/plugin MCP servers (see buildClaudeCodeArgs).
+const CLAUDE_CODE_EMPTY_MCP_CONFIG = path.join(__dirname, "..", "..", "config", "claude-code-print-mcp.json");
+
+/**
+ * argv for `claude -p` (exported for tests). ISOLATION (2026-09-22, found by the first gated smoke
+ * run through Copilot chat): without --strict-mcp-config the CLI boots EVERY MCP server the operator
+ * has configured — user, project and plugin — for each role call. The pdf-viewer plugin's server is
+ * an `npx` package, and because the child's cwd is the engine folder, its `.npmrc`
+ * (`cache=.ci/npm-cache`) made npx pull 209 packages into the repo's LOCKED supply-chain cache
+ * mid-run (caught by tests/supply-chain). A role call needs no MCP server at all — tools are off
+ * (--allowedTools "") — so it gets an empty, strict MCP config: zero servers, no npx, no network
+ * beyond the model call, and a much lighter spawn.
+ */
+function buildClaudeCodeArgs(model) {
+  return [
+    "-p",
+    "--output-format", "json",
+    "--model", model,
+    "--allowedTools", "",
+    "--strict-mcp-config",
+    "--mcp-config", CLAUDE_CODE_EMPTY_MCP_CONFIG
+  ];
+}
+
 /**
  * Call Claude Code in print mode via stdin piping.
  *
@@ -237,12 +262,7 @@ async function callClaudeCode(prompt, providerConfig, logger) {
   const model = safeString(providerConfig.model) || "claude-sonnet-4-6";
   const timeoutMs = Number(providerConfig.executionTimeoutMs) || 180_000;
 
-  const args = [
-    "-p",
-    "--output-format", "json",
-    "--model", model,
-    "--allowedTools", ""
-  ];
+  const args = buildClaudeCodeArgs(model);
 
   logger.info({ event: "cc_print_spawn", command: claudeCommand, model });
 
@@ -541,6 +561,8 @@ function createLLMAdapter(options = {}) {
 }
 
 module.exports = {
+  buildClaudeCodeArgs,
+  CLAUDE_CODE_EMPTY_MCP_CONFIG,
   createLLMAdapter,
   estimateTokenCount,
   resolveProviderConfig

@@ -87,6 +87,21 @@ describe("citation-extractor", () => {
       assert.ok(!dois.some((d) => d.endsWith(".")), "no extracted DOI ends in a period");
     });
 
+    it("strips markdown emphasis that closes a bold/italic span wrapping a parenthesized DOI (2026-09-22 smoke-run block)", () => {
+      // Verbatim shape from workflow-68b21a99's report: the whole citation was bolded, so the
+      // capture ended in ")**" and the re-resolver sent a literal ")**" to doi.org (404 → BLOCK).
+      const text =
+        "rest on the founding **Lynch et al., 2004 (doi: 10.1056/nejmoa040938)** finding; " +
+        "see also *doi: 10.1038/nature12373* and ~~doi: 10.1016/j.cell.2020.05.001~~ and the plain doi: 10.1056/nejmoa040938 mention.";
+      const dois = extractCitations(text).filter((c) => c.type === "DOI").map((c) => c.id);
+      assert.ok(dois.includes("10.1056/nejmoa040938"), "bold-wrapped parenthesized DOI comes out clean");
+      assert.ok(dois.includes("10.1038/nature12373"), "italic-wrapped DOI comes out clean");
+      assert.ok(dois.includes("10.1016/j.cell.2020.05.001"), "strikethrough-wrapped DOI comes out clean");
+      assert.ok(!dois.some((d) => /[*~)]$/.test(d)), "no extracted DOI ends in an emphasis marker or a stray paren");
+      const dedup = deduplicateCitations(extractCitations(text)).filter((c) => c.id === "10.1056/nejmoa040938");
+      assert.equal(dedup.length, 1, "the bolded and the plain mention collapse to ONE id, so the manifest never carries a dirty twin");
+    });
+
     it("captures Elsevier/Lancet DOIs with BALANCED internal parens (not truncated at the first ')')", () => {
       const dois = extractCitations(
         "Wakefield doi: 10.1016/S0140-6736(97)11096-0 and Surgisphere https://doi.org/10.1016/S0140-6736(20)31180-6"

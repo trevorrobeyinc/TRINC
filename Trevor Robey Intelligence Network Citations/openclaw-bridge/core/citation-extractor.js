@@ -52,6 +52,13 @@ function normalizeDoiId(raw) {
   while (end > 0) {
     const ch = s[end - 1];
     if (ch === "." || ch === "," || ch === ";" || ch === ":") { end--; continue; }
+    // Markdown emphasis closing a bold/italic/strikethrough span that WRAPS the citation, e.g.
+    // "**Lynch et al., 2004 (doi: 10.1056/nejmoa040938)**" — the regex cannot exclude "*" because it
+    // stops only at whitespace and list punctuation, so "…040938)**" was captured whole; the ")"
+    // then sat BEHIND the "**" where the unbalanced-paren cut below never reached it, and the
+    // re-resolver sent the literal ")**" to doi.org → 404 → UNRESOLVED → the whole run BLOCKED
+    // (first gated smoke run through Copilot chat, 2026-09-22). No DOI ends in "*" or "~".
+    if (ch === "*" || ch === "~") { end--; continue; }
     if (ch === ")" && closeW > openW) { end--; closeW--; continue; }
     break;
   }

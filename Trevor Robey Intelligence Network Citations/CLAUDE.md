@@ -141,6 +141,19 @@ node scripts/distribute.js --workflow-id <id> --targets datarade,kaggle,training
 
 Phases 1-33 are implemented. Phase 26 bridge consolidation is complete (execution router, principal context, fail-closed enforcement). Phase 29 (Harvard ToolUniverse biomedical MCP) is active — startup integrity hooked into MCP init chain (warn-on-failure, non-blocking), 58/58 tests passing, 2,116 biomedical tools (vendor/tooluniverse v1.1.10) accessible via MCP. Phase 30 (Workflow Engine) provides single-command end-to-end orchestration with 6 workflow templates, 6 specialized agent roles, and quality auditor. Phase 31 (Enterprise Delivery) adds Research REST API, scheduled workflows, and usage metering. Phase 33 (Claude Code MCP Provider) replaces LM Studio as the primary LLM provider — Claude Code runs via `claude -p` stdin pipe using the user's authenticated session (Claude Max Pro), producing biomedical output with real verifiable citations that pass quality gates.
 
+**Role-call isolation (2026-09-22, found by the first gated run started from Copilot chat):** every
+role call is `claude -p --output-format json --allowedTools "" --strict-mcp-config --mcp-config
+config/claude-code-print-mcp.json` (`openclaw-bridge/core/llm-adapter.js` `buildClaudeCodeArgs`, pinned
+by `tests/core/phase33-claude-code-provider.test.js`). Without the two MCP flags the CLI booted **every**
+user/project/plugin MCP server per role call; the pdf-viewer plugin's server is an `npx` package and,
+because the child's cwd is this folder, its `.npmrc` (`cache=.ci/npm-cache`) made npx pull 209 packages
+into the LOCKED supply-chain cache mid-run — caught by `tests/supply-chain`, cache restored, lock
+unchanged. Known residual: print mode still loads the operator's `CLAUDE.md` files into each role
+call (verified with a YES/NO probe); `--bare` would drop them but also drops OAuth (API-key only), and
+`--system-prompt` does NOT drop them (probed: still YES), so no flag removes them under the Max OAuth
+session. Options are an API-key lane with `--bare` or accepting the contamination — the operator's
+decision, recorded, not made.
+
 **ToolUniverse Live Pre-Fetch**: When workflows run, the tool-prefetch module (`openclaw-bridge/core/tool-prefetch.js`) queries ToolUniverse SMCP for each agent role before prompt construction. Results are injected as synthetic input documents marked `tooluniverse://`. The LLM prompt includes a LIVE DATABASE CONTEXT instruction prioritizing live data over training knowledge. Role-to-tool mappings configured in `config/tool-prefetch-map.json`. Graceful degradation: if ToolUniverse is unavailable, workflows continue with parametric-only output. In addition to ToolUniverse, `createToolPrefetch` accepts a `localFetchers` seam for in-process fetchers that are not ToolUniverse tools (see Citation Integrity Layer below).
 
 ### Engine → Obsidian vault (post-run publish, 2026-09-22)
