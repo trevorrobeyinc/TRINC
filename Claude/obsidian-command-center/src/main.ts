@@ -34,8 +34,14 @@ import type { PluginActions } from "./bridge/mcp-bridge-server";
 import { getWorkflowHistory } from "./workflow/workflow-history";
 import { listTemplateSummaries } from "./util/template-loader";
 import { runEngineScript, resolveNodeBin, buildEngineEnv } from "./util/engine-spawn";
-import { readdirSync, existsSync, readFileSync } from "fs";
+import { readdirSync, existsSync, readFileSync, writeFileSync, unlinkSync } from "fs";
 import { join } from "path";
+// Static on purpose: esbuild rewrites a static builtin import to require(), but leaves a dynamic import() of a Node
+// builtin untouched, and Obsidian's renderer then rejects it with "Failed to resolve module specifier
+// 'child_process'" — which is how the research-memory stage failed in the first PASSING run (2026-10-08). The guard
+// test/no-dynamic-builtin-imports.test.ts keeps it that way.
+import { spawn } from "child_process";
+import { tmpdir } from "os";
 import { readJsonFile } from "./util/json-reader";
 import type { WorkflowState } from "./types";
 
@@ -1084,11 +1090,6 @@ export default class OpenClawPlugin extends Plugin {
     workflowId: string,
     templateId: string
   ): Promise<{ action: string; pack_id: string; content_sha256: string }> {
-    const { spawn } = await import("child_process");
-    const { tmpdir } = await import("os");
-    const { writeFileSync, unlinkSync, existsSync: tmpExists } = await import("fs");
-    const { join } = await import("path");
-
     const tmpFile = join(
       tmpdir(),
       `openclaw-pack-${workflowId.slice(0, 8)}-${Date.now()}.md`
@@ -1098,7 +1099,7 @@ export default class OpenClawPlugin extends Plugin {
     // whenever the SIGTERM'd process failed to reach its close handler.
     const removeTmp = () => {
       try {
-        if (tmpExists(tmpFile)) unlinkSync(tmpFile);
+        if (existsSync(tmpFile)) unlinkSync(tmpFile);
       } catch {
         /* ignore */
       }

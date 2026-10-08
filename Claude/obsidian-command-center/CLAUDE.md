@@ -55,6 +55,19 @@ the plugin's post-run chain runs with nobody operating Obsidian:
   `post_run_done` can lag the rest of the chain.
 - Each run writes to a ledger captured in a local variable, never to the plugin field, so a late stage of run N
   cannot land in run N+1's ledger.
+- **`status` stays small (2026-10-08).** A finished research step carries every rendered deliverable inline in
+  `workflow.json` (run #2's reply was 483 K characters, one field being a 428 KB graveyard memo), so
+  `src/workflow/status-compaction.ts` replaces any step `result` or artifact over 4,000 characters with a size
+  summary (`{trimmed, chars, fields, hint}`) unless the call passes `verbose:true`. The content is served by
+  `obsidian_openclaw_results` / `_artifacts` / `_citation_integrity`. Step ids, statuses, errors, `post_run` and
+  `post_run_done` are never touched. `verbose` exists on the bridge only: the stdio adapter's `openclaw` profile still
+  validates status as no-argument, so Claude Code always receives the compact form.
+- **Node builtins are imported statically, never with `import()` (2026-10-08).** esbuild (cjs, node) rewrites a static
+  `import { spawn } from "child_process"` to `require()` but leaves a dynamic `await import("child_process")` as a real
+  `import()`, which Obsidian's renderer rejects with "Failed to resolve module specifier 'child_process'". That killed
+  the `memory` stage of the first passing run, and Node's own test runner resolves the same call happily, so only
+  `test/no-dynamic-builtin-imports.test.ts` (it reads the source) can see it. The engine ingests the research-memory
+  pack itself, headless and idempotent, so this stage had cost no data, only an honest `failed` in the ledger.
 
 The canonical Obsidian MCP bridge (with auth, replay protection, idempotency) lives at:
 `/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge/`

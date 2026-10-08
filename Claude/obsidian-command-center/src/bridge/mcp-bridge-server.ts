@@ -15,6 +15,7 @@ import {
 } from "../util/engine-spawn";
 import { gateCodeFromMessage, gateDenialAction } from "../subprocess/gate-denial";
 import type { LedgerSummary } from "../workflow/post-run-ledger";
+import { compactWorkflowState } from "../workflow/status-compaction";
 
 const HOST = "127.0.0.1";
 
@@ -532,7 +533,7 @@ export class McpBridgeServer {
       case "obsidian_openclaw_run_workflow":
         return await this.handleRunWorkflow(input);
       case "obsidian_openclaw_status":
-        return this.handleGetStatus();
+        return this.handleGetStatus(input);
       case "obsidian_openclaw_results":
         return this.handleGetResults();
       case "obsidian_openclaw_templates":
@@ -955,7 +956,7 @@ export class McpBridgeServer {
     };
   }
 
-  private handleGetStatus(): Record<string, unknown> {
+  private handleGetStatus(input: Record<string, unknown> = {}): Record<string, unknown> {
     if (!this.pluginActions) {
       throw new Error("OpenClaw plugin actions not available");
     }
@@ -986,7 +987,7 @@ export class McpBridgeServer {
     const workflowId = state && typeof state.workflow_id === "string" ? state.workflow_id : null;
     const ledgerMatches = ledger !== null && (workflowId === null || ledger.workflow_id === workflowId);
 
-    return {
+    const body: Record<string, unknown> = {
       status: running ? "running" : "completed",
       ...(state || {}),
       process_running: running,
@@ -994,6 +995,10 @@ export class McpBridgeServer {
       post_run: ledgerMatches ? ledger : null,
       post_run_done: running ? false : ledgerMatches ? ledger!.done : null,
     };
+    // 2026-10-08: a finished research step carries every rendered deliverable inline (run #2's reply was 518 KB), so
+    // oversized step results and artifacts become size summaries unless the caller asks for `verbose:true`. The
+    // content itself is served by obsidian_openclaw_results / _artifacts / _citation_integrity.
+    return input.verbose === true ? body : compactWorkflowState(body);
   }
 
   private handleGetResults(): Record<string, unknown> {
@@ -1722,8 +1727,17 @@ export class McpBridgeServer {
         {
           name: "obsidian_openclaw_status",
           description:
-            "Get the current status of a running or recently completed OpenClaw workflow, including step progress and pipeline state.",
-          inputSchema: { type: "object", properties: {} },
+            "Get the current status of a running or recently completed OpenClaw workflow, including step progress, pipeline state and the post-run ledger. Large step results and artifacts are replaced by size summaries (a finished research step can be ~0.5 MB); pass verbose:true for the full payload.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              verbose: {
+                type: "boolean",
+                description:
+                  "Include every step's full result and every artifact in full (can exceed 500 KB after a research run). Default false.",
+              },
+            },
+          },
         },
         {
           name: "obsidian_openclaw_results",
