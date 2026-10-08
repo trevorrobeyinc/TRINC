@@ -13,7 +13,20 @@ const CITATION_PATTERNS = [
   { type: "PMID", regex: /PMID[:\s]*(\d{1,10})(?!\d)/gi },
   { type: "PubChem CID", regex: /(?:PubChem\s*)?CID[:\s]*(\d{3,12})/gi },
   { type: "NCT", regex: /(NCT\d{8})/gi },
-  { type: "UniProt", regex: /UniProt[:\s]*([A-Z0-9]{6,10})/gi },
+  // UniProt: the id must be a real ACCESSION (UniProt's published grammar: 6 chars `[OPQ]\d[A-Z0-9]{3}\d`, or
+  // `[A-NR-Z]\d` + one or two `[A-Z][A-Z0-9]{2}\d` groups = 6 or 10 chars). The old pattern,
+  // `UniProt[:\s]*([A-Z0-9]{6,10})` with the `i` flag, captured ANY 6-10 letter word after the label, so a
+  // report's own honest-negative sentence ("ENSG/UniProt accessions ... [no verifiable ENSG/UniProt citation
+  // found in live data]") yielded the "ids" `accessions` and `citation`; UniProt answered 400, the re-resolver
+  // stamped them UNRESOLVED, and the first real run started through the Claude Code dispatch lane
+  // (workflow-12c3ef8ba2021cf5d6a81516, 2026-10-08) was BLOCKED at delivery with nothing fabricated. Checked on
+  // 1,368 stored reports/notes: 4 of the old pattern's 7 distinct "ids" were English words (accessions, citation,
+  // protein, validation); every real accession was kept. The label stays case-insensitive but is spelled out so
+  // an `i` flag cannot widen the id; `KB` is accepted ("UniProtKB:O15111"). The id is uppercase and `\b`-bounded:
+  // a prefix of a longer token is DROPPED, never mis-captured (same rule as PMID above). A malformed
+  // "UniProt <token>" is not an identifier, so it is not extracted; a well-formed accession still goes through
+  // grounding and re-resolution.
+  { type: "UniProt", regex: /[Uu][Nn][Ii][Pp][Rr][Oo][Tt](?:KB)?[:\s]*\b([OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9](?:[A-Z][A-Z0-9]{2}[0-9]){1,2})\b/g },
   { type: "ChEMBL", regex: /(CHEMBL\d{2,10})/gi },
   { type: "DrugBank", regex: /(DB\d{5,7})/gi },
   // Stop the DOI suffix at whitespace and at punctuation that is clearly NOT part of a DOI but

@@ -64,6 +64,45 @@ describe("citation-extractor", () => {
       assert.ok(types.includes("DOI"));
     });
 
+    it("extracts real UniProt accessions in the forms reports use (6- and 10-character, UniProtKB: prefix, any-case label)", () => {
+      const ids = (text) => extractCitations(text).filter(c => c.type === "UniProt").map(c => c.id);
+      assert.deepEqual(ids("UniProt: P00533"), ["P00533"]);
+      assert.deepEqual(ids("UniProt P00533"), ["P00533"]);
+      assert.deepEqual(ids("uniprot Q9Y6K9"), ["Q9Y6K9"]);
+      assert.deepEqual(ids("UniProt:A0A024R161"), ["A0A024R161"], "10-character accession");
+      assert.deepEqual(ids("UniProtKB:O15111"), ["O15111"]);
+      assert.deepEqual(ids("EGFR (UniProt P00533) and KRAS (UniProt P01116)."), ["P00533", "P01116"]);
+    });
+
+    it("does NOT read the words after the label as UniProt ids (2026-10-08: 'accessions' and 'citation' BLOCKED the first real run)", () => {
+      // Verbatim shape from workflow-12c3ef8ba2021cf5d6a81516's report: the sanctioned honest-negative wording.
+      // The old `UniProt[:\s]*([A-Z0-9]{6,10})` + `i` captured any 6-10 letter word, UniProt answered 400, the
+      // re-resolver stamped it UNRESOLVED and the report was BLOCKED though nothing was fabricated.
+      const honest = "Open Targets ENSG/UniProt accessions for EGFR, KRAS: [no verifiable ENSG/UniProt citation found in live data].";
+      assert.deepEqual(extractCitations(honest), [], "an honest-negative sentence carries no identifiers at all");
+      for (const text of ["- UniProt: accessions", "UniProt database entries are listed", "UniProt protein sequences",
+        "UniProt reviewed", "OpenTargets/UniProt validation", "UniProt ENSG00000146648"]) {
+        assert.deepEqual(extractCitations(text).filter(c => c.type === "UniProt"), [], `no UniProt id from: ${text}`);
+      }
+    });
+
+    it("keeps UniProt matching on a token boundary: a prefix, a fragment or a lowercase accession is dropped, never mis-captured", () => {
+      const ids = (text) => extractCitations(text).filter(c => c.type === "UniProt").map(c => c.id);
+      assert.deepEqual(ids("UniProt: P00533X7"), [], "P00533 is only a prefix of P00533X7");
+      assert.deepEqual(ids("UniProt: A0A024R1"), [], "an 8-character fragment is not an accession");
+      assert.deepEqual(ids("UniProt: p00533"), [], "an accession is uppercase");
+    });
+
+    it("an honest-negative sentence cannot lower the grounded ratio (no phantom UniProt ids reach crossCheckCitations)", () => {
+      const r = crossCheckCitations(
+        "Evidence: PMID: 12345678. Open Targets ENSG/UniProt accessions: [no verifiable ENSG/UniProt citation found in live data].",
+        ["12345678"]
+      );
+      assert.equal(r.total, 1, "only the real PMID counts as a citation");
+      assert.equal(r.unverified_count, 0);
+      assert.equal(r.verified_ratio, 1);
+    });
+
     it("stops DOIs at trailing markdown/punctuation (no ]] or ; captured) and dupes collapse", () => {
       const text = "See doi: 10.3389/fphar.2026.1787936]] and doi: 10.54097/5hr7dp28]]; plus [[doi: 10.54097/5hr7dp28]] again and doi: 10.1016/j.ajpc.2023.100579]].";
       const dois = extractCitations(text).filter((c) => c.type === "DOI").map((c) => c.id);
