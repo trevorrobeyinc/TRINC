@@ -33,6 +33,7 @@ const {
   upsertMissionRuntime,
   loadMissionRuntime
 } = require("../openclaw-bridge/state/persistent-store.js");
+const defaultTimeProvider = require("../openclaw-bridge/core/time-provider.js");
 
 function readJson(filePath, fallback) {
   try {
@@ -186,6 +187,13 @@ function registerDefaultRoleHandlers(agentRegistry, engine, rootDir) {
 async function buildResearchRuntime(options = {}) {
   const rootDir = path.resolve(safeString(options.rootDir) || process.cwd());
   const logger = options.logger && typeof options.logger === "object" ? options.logger : createNoopLogger();
+  // A production root must hand every component a REAL clock. Left out, each falls back to its own
+  // frozen-epoch default (the convention that keeps unit tests deterministic): the supervisor's
+  // circuit breaker then runs on `nowMs() = 0` and can never leave OPEN once tripped, and the
+  // interaction log records every role call as 1970 with duration_ms 0. Same idiom as
+  // buildMonetizationRuntime - `options.timeProvider || the shared time-provider module`; a test
+  // injects its own.
+  const timeProvider = options.timeProvider || defaultTimeProvider;
   const config = resolveAgentConfig(rootDir, options.config || {});
   const spawnerConfig = resolveSpawnerConfig(rootDir, options.spawnerConfig || {});
   const missionTemplates = resolveMissionTemplates(rootDir);
@@ -214,7 +222,7 @@ async function buildResearchRuntime(options = {}) {
 
   const interactionLog = createInteractionLog({
     logger,
-    timeProvider: options.timeProvider,
+    timeProvider,
     storePath: path.resolve(rootDir, config.interactionLogPath)
   });
 
@@ -223,12 +231,12 @@ async function buildResearchRuntime(options = {}) {
     config: { model: safeString(config.defaultModel) || "mock-v1" },
     logger,
     interactionLog,
-    timeProvider: options.timeProvider
+    timeProvider
   });
 
   const outputManager = createResearchOutputManager({
     logger,
-    timeProvider: options.timeProvider,
+    timeProvider,
     // resolve, not join: config.outputDir may be absolute (callers and tests pass
     // os.tmpdir() paths). path.join would nest an absolute path UNDER rootDir, silently
     // writing output inside the repo — that is what created the stray ./var/folders/ tree.
@@ -237,7 +245,7 @@ async function buildResearchRuntime(options = {}) {
 
   const laneQueue = createLaneQueue({
     logger,
-    timeProvider: options.timeProvider,
+    timeProvider,
     persistencePath: path.join(rootDir, "workspace", "comms", "events", "lane-queue.json")
   });
   const autonomyLadder = createAutonomyLadder({
@@ -257,7 +265,7 @@ async function buildResearchRuntime(options = {}) {
   });
   const commsBus = createCommsBus({
     logger,
-    timeProvider: options.timeProvider,
+    timeProvider,
     basePath: path.join(rootDir, "workspace", "comms"),
     missionBasePath: spawnerConfig.missionWorkspaceDir
   });
@@ -265,7 +273,7 @@ async function buildResearchRuntime(options = {}) {
   let engine = null;
   const supervisorAuthority = createSupervisorAuthority({
     logger,
-    timeProvider: options.timeProvider,
+    timeProvider,
     supervisorConfig: {
       maxQueueLength: 200,
       failureThreshold: 3,
@@ -287,7 +295,7 @@ async function buildResearchRuntime(options = {}) {
 
   const governanceBridge = createGovernanceBridge({
     logger,
-    timeProvider: options.timeProvider,
+    timeProvider,
     apiGovernance: governance,
     permissionEnforcer: phase13.permissionEnforcer,
     complianceGate: null,
@@ -299,7 +307,7 @@ async function buildResearchRuntime(options = {}) {
 
   engine = createAgentEngine({
     logger,
-    timeProvider: options.timeProvider,
+    timeProvider,
     config,
     governanceBridge,
     llmAdapter,
@@ -343,7 +351,7 @@ async function buildResearchRuntime(options = {}) {
     missionRuntimeConfig: spawnerConfig.missionExecution || {},
     checkpointConfig: spawnerConfig.checkpointing || {},
     laneScalingConfig: spawnerConfig.laneScaling || {},
-    timeProvider: options.timeProvider,
+    timeProvider,
     missionBasePath: spawnerConfig.missionWorkspaceDir,
     runtimeStatePath: spawnerConfig.runtimeStatePath
   });
@@ -368,7 +376,7 @@ async function buildResearchRuntime(options = {}) {
     skillProvider,
     config: spawnerConfig,
     logger,
-    timeProvider: options.timeProvider
+    timeProvider
   });
 
   await supervisorAuthority.initialize();

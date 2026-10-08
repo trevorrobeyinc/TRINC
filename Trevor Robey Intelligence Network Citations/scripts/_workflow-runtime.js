@@ -237,7 +237,9 @@ async function buildWorkflowRuntime(options = {}) {
   }
 
   // An injected clock reaches the monetization components too; with none, buildMonetizationRuntime
-  // supplies the real one (it stamps `approved_at` and the dataset build dates).
+  // supplies the real one (it stamps `approved_at` and the dataset build dates), as
+  // buildResearchRuntime does above for the research components (supervisor breaker, task metadata,
+  // interaction log).
   const monetizationRuntime = buildMonetizationRuntime({
     rootDir,
     timeProvider: options.timeProvider
