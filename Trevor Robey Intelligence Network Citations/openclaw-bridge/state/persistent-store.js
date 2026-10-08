@@ -282,7 +282,7 @@ async function saveRuntimeState(state, options = {}) {
   return canonicalize({ ok: true, path: runtimeStatePath, state: persisted });
 }
 
-async function appendRecentDecision(entry = {}, options = {}) {
+async function appendRecentDecisionUnlocked(entry, options) {
   const loaded = await loadRuntimeState(options);
   const state = normalizeRuntimeState(loaded.state);
   const nextSequence = (state.recentDecisions.length > 0
@@ -303,7 +303,7 @@ async function appendRecentDecision(entry = {}, options = {}) {
   return persistedEntry;
 }
 
-async function registerOpenLoop(loopEntry = {}, options = {}) {
+async function registerOpenLoopUnlocked(loopEntry, options) {
   const loaded = await loadRuntimeState(options);
   const state = normalizeRuntimeState(loaded.state);
   const loopId = String(loopEntry.loopId || loopEntry.loop_id || `loop-${randomHex(8)}`);
@@ -326,7 +326,7 @@ async function registerOpenLoop(loopEntry = {}, options = {}) {
   return normalizedEntry;
 }
 
-async function resolveOpenLoop(loopId, options = {}) {
+async function resolveOpenLoopUnlocked(loopId, options) {
   const normalizedLoopId = String(loopId || "").trim();
   if (!normalizedLoopId) {
     const error = new Error("loopId is required");
@@ -345,7 +345,7 @@ async function resolveOpenLoop(loopId, options = {}) {
   };
 }
 
-async function upsertMissionRuntime(record = {}, options = {}) {
+async function upsertMissionRuntimeUnlocked(record, options) {
   const missionId = String(record.mission_id || record.missionId || "").trim();
   if (!missionId) {
     const error = new Error("missionId is required");
@@ -362,6 +362,46 @@ async function upsertMissionRuntime(record = {}, options = {}) {
   });
   await saveRuntimeState(state, options);
   return canonicalize(state.missions[missionId]);
+}
+
+// ── WRITERS TO ONE STATE FILE ARE SERIALIZED, IN THIS PROCESS (found 2026-10-08) ──────────────
+// Every mutator above is load -> mutate -> save on the same json file. The temp-file + rename in
+// writeRuntimeStateFile keeps the file from tearing, but it cannot stop two cycles from loading the SAME old
+// state: both save, the later rename wins, and the other writer's change is gone — a stale open loop, a
+// dropped mission record, two decisions numbered alike. The engine really does overlap them (the
+// orchestrator resolving a subtask's loop while the spawner upserts the mission's status; parallel lanes
+// finishing together), and it surfaced as a once-in-many full-suite failure (`1 !== 0` open loops) that never
+// reproduced in isolation. A per-path promise chain makes each cycle see the previous cycle's result. It is
+// keyed by the RESOLVED path, so different files never wait on each other, and a cycle that fails does not
+// block the next one. NOT covered: two PROCESSES writing the same file (a terminal run beside a
+// plugin-dispatched one); that would need a file lock.
+const runtimeStateQueues = new Map();
+
+function withRuntimeStateLock(runtimeStatePath, critical) {
+  const previous = runtimeStateQueues.get(runtimeStatePath) || Promise.resolve();
+  const result = previous.then(critical);
+  const settled = result.then(() => undefined, () => undefined);   // what the NEXT writer waits on: never rejects
+  runtimeStateQueues.set(runtimeStatePath, settled);
+  settled.then(() => {
+    if (runtimeStateQueues.get(runtimeStatePath) === settled) runtimeStateQueues.delete(runtimeStatePath);
+  });
+  return result;
+}
+
+function appendRecentDecision(entry = {}, options = {}) {
+  return withRuntimeStateLock(resolveRuntimeStatePath(options.path), () => appendRecentDecisionUnlocked(entry, options));
+}
+
+function registerOpenLoop(loopEntry = {}, options = {}) {
+  return withRuntimeStateLock(resolveRuntimeStatePath(options.path), () => registerOpenLoopUnlocked(loopEntry, options));
+}
+
+function resolveOpenLoop(loopId, options = {}) {
+  return withRuntimeStateLock(resolveRuntimeStatePath(options.path), () => resolveOpenLoopUnlocked(loopId, options));
+}
+
+function upsertMissionRuntime(record = {}, options = {}) {
+  return withRuntimeStateLock(resolveRuntimeStatePath(options.path), () => upsertMissionRuntimeUnlocked(record, options));
 }
 
 async function loadMissionRuntime(missionId, options = {}) {
