@@ -173,7 +173,8 @@ describe("pubmed-retraction — checkPmids", () => {
   });
 
   it("non-200 → fail-soft", async () => {
-    const pr = createPubmedRetraction({ fetchImpl: fetchEsummary(ESUMMARY, { status: 429 }) });
+    // A sustained 429 also fails the one retry; `sleep` is injected so that retry costs no wall-clock time.
+    const pr = createPubmedRetraction({ fetchImpl: fetchEsummary(ESUMMARY, { status: 429 }), sleep: async () => {} });
     const r = await pr.checkPmid("9500320");
     assert.equal(r.checked, false);
     assert.equal(r.retracted, false);
@@ -327,7 +328,8 @@ describe("citation-gate — checkRetractions with the PMID screen", () => {
     });
 
     it("real module under sustained HTTP 429 → checked:false (end-to-end, no hand-written rows)", async () => {
-      const pr = createPubmedRetraction({ fetchImpl: fetchEsummary(ESUMMARY, { status: 429 }) });
+      // Sustained = the one bounded retry also draws a 429; `sleep` is injected so the retry costs no wall-clock time.
+      const pr = createPubmedRetraction({ fetchImpl: fetchEsummary(ESUMMARY, { status: 429 }), sleep: async () => {} });
       const out = await checkRetractions("PMID: 9500320 and PMID: 32450107", null, pr.checkPmids);
       assert.equal(out.checked, false, "the real fail-soft checker resolves, never throws");
       assert.equal(out.pmids_checked, 0);
@@ -374,7 +376,8 @@ describe("pubmed-retraction — resolveDoisToPmids (DOI→PMID reverse lookup)",
   });
 
   it("non-200 → resolved:false", async () => {
-    const pr = createPubmedRetraction({ fetchImpl: fetchEutils(ESUMMARY, DOI_PMID, { searchStatus: 429 }) });
+    // A sustained 429 also fails the one retry; `sleep` is injected so that retry costs no wall-clock time.
+    const pr = createPubmedRetraction({ fetchImpl: fetchEutils(ESUMMARY, DOI_PMID, { searchStatus: 429 }), sleep: async () => {} });
     const [r] = await pr.resolveDoisToPmids(["10.1056/NEJMoa2001017"]);
     assert.equal(r.resolved, false);
   });
@@ -516,6 +519,95 @@ describe("pubmed-retraction — request throttle (no real delays; injected clock
     });
     await pr.resolveDoisToPmids(["10.1056/NEJMoa2001017", "10.1016/S0140-6736(97)11096-0"]);
     assert.deepEqual(waits, [], "throttle is off by default");
+  });
+});
+
+describe("pubmed-retraction — one bounded retry on a 429 (live 2026-10-08: 2 of 21 DOI lookups drew a 429 at the production spacing)", () => {
+  // Wraps the normal E-utilities mock so the first `times` requests matching `path` answer 429.
+  // `retryAfter` undefined = no headers object at all (the realistic worst case for a mock or a proxy).
+  function rateLimited(path, retryAfter, times = 1) {
+    const inner = fetchEutils();
+    let left = times;
+    const seen = { n: 0 };
+    const fetchImpl = async (url, init) => {
+      seen.n += 1;
+      if (String(url).includes(path) && left > 0) {
+        left -= 1;
+        return {
+          ok: false,
+          status: 429,
+          headers: retryAfter === undefined ? undefined : { get: (h) => (String(h).toLowerCase() === "retry-after" ? retryAfter : null) },
+          json: async () => ({})
+        };
+      }
+      return inner(url, init);
+    };
+    return { fetchImpl, seen };
+  }
+  function fakeClock() {
+    const s = { clock: 0, waits: [] };
+    return { s, nowMs: () => s.clock, sleep: async (ms) => { s.waits.push(ms); s.clock += ms; } };
+  }
+  const WAKEFIELD_DOI = "10.1016/S0140-6736(97)11096-0";
+
+  it("a DOI lookup that draws a 429 waits Retry-After, retries once and resolves (the screen stays complete)", async () => {
+    const { fetchImpl, seen } = rateLimited("esearch.fcgi", "2");
+    const c = fakeClock();
+    const pr = createPubmedRetraction({ fetchImpl, nowMs: c.nowMs, sleep: c.sleep });
+    const [row] = await pr.resolveDoisToPmids([WAKEFIELD_DOI]);
+    assert.equal(row.resolved, true);
+    assert.deepEqual(row.pmids, ["9500320"]);
+    assert.equal(seen.n, 2, "exactly one retry");
+    assert.deepEqual(c.s.waits, [2000], "Retry-After: 2 means two seconds");
+  });
+
+  it("an esummary batch that draws a 429 is retried once, so the PMIDs are checked and a retraction is still caught", async () => {
+    const { fetchImpl, seen } = rateLimited("esummary.fcgi");
+    const c = fakeClock();
+    const pr = createPubmedRetraction({ fetchImpl, nowMs: c.nowMs, sleep: c.sleep });
+    const [r] = await pr.checkPmids(["9500320"]);   // Wakefield, retracted
+    assert.equal(r.checked, true);
+    assert.equal(r.retracted, true, "the retry must not cost a retraction its flag");
+    assert.equal(seen.n, 2);
+    assert.deepEqual(c.s.waits, [1000], "no Retry-After header: NCBI limits per second, so 1 s");
+  });
+
+  it("two 429s in a row stay fail-soft: unchecked, never a false 'clean' or 'retracted', and only ONE retry is made", async () => {
+    const { fetchImpl, seen } = rateLimited("esummary.fcgi", "1", 2);
+    const c = fakeClock();
+    const pr = createPubmedRetraction({ fetchImpl, nowMs: c.nowMs, sleep: c.sleep });
+    const [r] = await pr.checkPmids(["9500320"]);
+    assert.equal(r.checked, false);
+    assert.equal(r.retracted, false);
+    assert.equal(seen.n, 2, "one retry, not a loop");
+  });
+
+  it("a Retry-After beyond the cap is not waited out: no retry, the DOI stays unresolved", async () => {
+    const { fetchImpl, seen } = rateLimited("esearch.fcgi", "60");
+    const c = fakeClock();
+    const pr = createPubmedRetraction({ fetchImpl, nowMs: c.nowMs, sleep: c.sleep });
+    const [row] = await pr.resolveDoisToPmids([WAKEFIELD_DOI]);
+    assert.equal(row.resolved, false);
+    assert.equal(seen.n, 1);
+    assert.deepEqual(c.s.waits, [], "a server asking for a minute is not waited out mid-delivery");
+  });
+
+  it("a 5xx is not retried, and a clean first response makes exactly one request", async () => {
+    let calls = 0;
+    const c = fakeClock();
+    const down = createPubmedRetraction({
+      fetchImpl: async () => { calls += 1; return { ok: false, status: 503, json: async () => ({}) }; },
+      nowMs: c.nowMs, sleep: c.sleep
+    });
+    const [row] = await down.resolveDoisToPmids([WAKEFIELD_DOI]);
+    assert.equal(row.resolved, false);
+    assert.equal(calls, 1, "only a 429 earns the retry");
+
+    const { fetchImpl, seen } = rateLimited("never-matches", "1", 0);
+    const ok = createPubmedRetraction({ fetchImpl, nowMs: c.nowMs, sleep: c.sleep });
+    await ok.resolveDoisToPmids([WAKEFIELD_DOI]);
+    assert.equal(seen.n, 1);
+    assert.deepEqual(c.s.waits, []);
   });
 });
 

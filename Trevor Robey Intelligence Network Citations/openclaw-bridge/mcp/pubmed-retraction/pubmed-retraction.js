@@ -93,6 +93,51 @@ function createPubmedRetraction(options = {}) {
     lastRequestAt = nowMs();
   }
 
+  // NCBI answers an occasional 429 even while we stay under 3 req/sec (verified live 2026-10-08: 2 of the 21 DOI lookups
+  // of the first real dispatch-lane run, at the production 350 ms spacing). One 429 used to leave a DOI unresolved or a
+  // whole esummary batch unchecked, so the screen reported `checked:false` — "INCOMPLETE" in the sealed manifest — on a
+  // clean report. Wait for Retry-After (seconds; absent or unparseable = 1 s, NCBI's window) and retry ONCE, never waiting
+  // longer than `maxRetryAfterMs` (default 5 s). A second 429 or a longer Retry-After stays fail-soft exactly as before:
+  // `checked:false`, never a false "retracted" and never a false "clean". Same rule as citation-reresolver.js.
+  const maxRetryAfterMs = Number.isFinite(options.maxRetryAfterMs) ? Math.max(0, options.maxRetryAfterMs) : 5_000;
+  function retryAfterMs(res) {
+    const raw = res && res.headers && typeof res.headers.get === "function" ? res.headers.get("retry-after") : null;
+    const secs = Number.parseInt(String(raw == null ? "" : raw).trim(), 10);
+    const ms = Number.isFinite(secs) && secs >= 0 ? secs * 1000 : 1000;
+    return ms > maxRetryAfterMs ? null : ms;
+  }
+
+  // One full attempt: throttled, bounded by timeoutMs, and the JSON body (present only on an ok response) is parsed
+  // inside the same timer. Throws on transport failure; callers fail soft.
+  async function eutilsRequest(url) {
+    await throttle();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetchImpl(url, {
+        signal: controller.signal,
+        headers: { "User-Agent": `TRINC/1.0 (mailto:${contactEmail})`, Accept: "application/json" }
+      });
+      const body = res && res.ok ? await res.json() : undefined;
+      return { res, body };
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // eutilsRequest plus the single 429 retry above.
+  async function eutilsGet(url) {
+    let out = await eutilsRequest(url);
+    if (out.res && Number(out.res.status) === 429) {
+      const waitMs = retryAfterMs(out.res);
+      if (waitMs !== null) {
+        if (waitMs > 0) await sleep(waitMs);
+        out = await eutilsRequest(url);
+      }
+    }
+    return out;
+  }
+
   function unchecked(pmid) {
     return { pmid: String(pmid), retracted: false, is_notice: false, checked: false };
   }
@@ -102,27 +147,18 @@ function createPubmedRetraction(options = {}) {
     const keyParam = ncbiApiKey ? `&api_key=${encodeURIComponent(ncbiApiKey)}` : "";
     const url = `${EUTILS_ESUMMARY}?db=pubmed&id=${ids.map((i) => encodeURIComponent(i)).join(",")}`
       + `&retmode=json&tool=TRINC-pubmed-retraction&email=${encodeURIComponent(contactEmail)}${keyParam}`;
-    await throttle();
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const res = await fetchImpl(url, {
-        signal: controller.signal,
-        headers: { "User-Agent": `TRINC/1.0 (mailto:${contactEmail})`, Accept: "application/json" }
-      });
+      const { res, body } = await eutilsGet(url);
       if (!res || !res.ok) {
         logger.warn({ event: "pubmed_retraction_check_failed", status: res && res.status, ids: ids.length });
         return null;
       }
-      const body = await res.json();
       const result = body && body.result;
       if (!result || typeof result !== "object") return null;
       return result;
     } catch (err) {
       logger.warn({ event: "pubmed_retraction_check_failed", ids: ids.length, error: String(err && err.message) });
       return null;
-    } finally {
-      clearTimeout(timer);
     }
   }
 
@@ -182,19 +218,12 @@ function createPubmedRetraction(options = {}) {
     const keyParam = ncbiApiKey ? `&api_key=${encodeURIComponent(ncbiApiKey)}` : "";
     const url = `${EUTILS_ESEARCH}?db=pubmed&term=${encodeURIComponent(clean)}%5BAID%5D`
       + `&retmode=json&tool=TRINC-pubmed-retraction&email=${encodeURIComponent(contactEmail)}${keyParam}`;
-    await throttle();
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const res = await fetchImpl(url, {
-        signal: controller.signal,
-        headers: { "User-Agent": `TRINC/1.0 (mailto:${contactEmail})`, Accept: "application/json" }
-      });
+      const { res, body } = await eutilsGet(url);
       if (!res || !res.ok) {
         logger.warn({ event: "pubmed_doi_resolve_failed", status: res && res.status, doi: clean });
         return { doi: clean, pmids: [], resolved: false };
       }
-      const body = await res.json();
       const idlist = body && body.esearchresult && body.esearchresult.idlist;
       if (!Array.isArray(idlist)) return { doi: clean, pmids: [], resolved: false };
       // `resolved:true` = the lookup DEFINITIVELY ran (even if it returned zero PMIDs, i.e. the DOI
@@ -203,8 +232,6 @@ function createPubmedRetraction(options = {}) {
     } catch (err) {
       logger.warn({ event: "pubmed_doi_resolve_failed", doi: clean, error: String(err && err.message) });
       return { doi: clean, pmids: [], resolved: false };
-    } finally {
-      clearTimeout(timer);
     }
   }
 

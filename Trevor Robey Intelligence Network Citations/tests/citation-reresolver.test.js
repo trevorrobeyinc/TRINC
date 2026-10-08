@@ -136,3 +136,126 @@ test("resolveAll: dedups and returns a result per unique citation", async () => 
   assert.equal(out.length, 1);
   assert.equal(out[0].status, "VERIFIED");
 });
+
+// ---- NCBI politeness: request spacing + ONE bounded retry on a 429. First real dispatch-lane run (2026-10-08):
+// NCBI answered 429 for 7 of 12 PMIDs fired ~100 ms apart, and every unchecked id forfeits the full-strength
+// DELIVER claim (max_unchecked_ratio is 0 by doctrine). Fake clock + capturing sleep: no wall-clock delay.
+
+function clockedResolver(makeFetch, extra = {}) {
+  const state = { clock: 0, waits: [] };
+  const resolver = createCitationReresolver({
+    fetchImpl: makeFetch(state),
+    nowIso: NOW,
+    nowMs: () => state.clock,
+    sleep: async (ms) => { state.waits.push(ms); state.clock += ms; },
+    ...extra,
+  });
+  return { resolver, state };
+}
+// esummary that answers for whatever PMID was asked.
+const answersEveryPmid = (state, stamps) => async (url) => {
+  if (stamps) stamps.push(state.clock);
+  const id = new URL(url).searchParams.get("id");
+  return { status: 200, json: async () => ({ result: { [id]: { uid: id } } }) };
+};
+// Scripted responses, the last one repeating; `retryAfter` undefined means no headers object at all.
+function scripted(steps, calls) {
+  let i = 0;
+  return async () => {
+    calls.n += 1;
+    const step = steps[Math.min(i, steps.length - 1)];
+    i += 1;
+    return {
+      status: step.status,
+      headers: step.retryAfter === undefined ? undefined : { get: (h) => (String(h).toLowerCase() === "retry-after" ? step.retryAfter : null) },
+      json: async () => step.body,
+      text: async () => JSON.stringify(step.body),
+    };
+  };
+}
+const PMID1_OK = { status: 200, body: { result: { "1": { uid: "1" } } } };
+
+test("NCBI throttle: PMID requests are spaced by minRequestIntervalMs (injected clock)", async () => {
+  const stamps = [];
+  const { resolver, state } = clockedResolver((s) => answersEveryPmid(s, stamps), { minRequestIntervalMs: 350 });
+  const out = await resolver.resolveAll([{ type: "PMID", id: "1" }, { type: "PMID", id: "2" }, { type: "PMID", id: "3" }]);
+  assert.deepEqual(out.map((o) => o.status), ["VERIFIED", "VERIFIED", "VERIFIED"]);
+  assert.deepEqual(state.waits, [350, 350], "the first request is immediate; the next two each wait the full interval");
+  assert.deepEqual(stamps, [0, 350, 700], "requests land on a 350 ms grid");
+});
+
+test("NCBI throttle: off by default, so offline tests stay instant", async () => {
+  const { resolver, state } = clockedResolver((s) => answersEveryPmid(s));
+  await resolver.resolveAll([{ type: "PMID", id: "1" }, { type: "PMID", id: "2" }]);
+  assert.deepEqual(state.waits, []);
+});
+
+test("NCBI throttle: other hosts are not paced (ClinicalTrials.gov keeps full speed)", async () => {
+  const { resolver, state } = clockedResolver(() => async (url) => ({
+    status: 200,
+    json: async () => ({ protocolSection: { identificationModule: { nctId: url.match(/NCT\d{8}/)[0] } } }),
+  }), { minRequestIntervalMs: 350 });
+  const out = await resolver.resolveAll([{ type: "NCT", id: "NCT00000102" }, { type: "NCT", id: "NCT00000105" }]);
+  assert.deepEqual(out.map((o) => o.status), ["VERIFIED", "VERIFIED"]);
+  assert.deepEqual(state.waits, [], "only eutils is throttled");
+});
+
+test("NCBI 429: waits Retry-After, retries ONCE, and a rate-limited-then-answered id is VERIFIED with attempts 2", async () => {
+  const calls = { n: 0 };
+  const { resolver, state } = clockedResolver(() => scripted([{ status: 429, retryAfter: "2" }, PMID1_OK], calls));
+  const r = await resolver.resolveOne({ type: "PMID", id: "1" });
+  assert.equal(r.status, "VERIFIED");
+  assert.equal(r.attempts, 2, "the manifest records that it took two attempts");
+  assert.equal(calls.n, 2);
+  assert.deepEqual(state.waits, [2000], "Retry-After: 2 means two seconds");
+});
+
+test("NCBI 429 twice: still UNCHECKED rate_limited after exactly one retry (fail-soft, never a false VERIFIED)", async () => {
+  const calls = { n: 0 };
+  const { resolver, state } = clockedResolver(() => scripted([{ status: 429, retryAfter: "1" }], calls));
+  const r = await resolver.resolveOne({ type: "PMID", id: "1" });
+  assert.equal(r.status, "UNCHECKED");
+  assert.equal(r.evidence.reason, "rate_limited");
+  assert.equal(r.attempts, 2);
+  assert.equal(calls.n, 2, "one retry, not a loop");
+  assert.deepEqual(state.waits, [1000]);
+});
+
+test("NCBI 429 with Retry-After beyond the cap: no wait, no retry, UNCHECKED rate_limited, attempts 1", async () => {
+  const calls = { n: 0 };
+  const { resolver, state } = clockedResolver(() => scripted([{ status: 429, retryAfter: "60" }, PMID1_OK], calls));
+  const r = await resolver.resolveOne({ type: "PMID", id: "1" });
+  assert.equal(r.status, "UNCHECKED");
+  assert.equal(r.evidence.reason, "rate_limited");
+  assert.equal(r.attempts, 1);
+  assert.equal(calls.n, 1, "a server asking for a minute is not waited out mid-delivery");
+  assert.deepEqual(state.waits, []);
+});
+
+test("NCBI 429 without a Retry-After header (or without a headers object at all): waits 1 s and retries once", async () => {
+  const calls = { n: 0 };
+  const { resolver, state } = clockedResolver(() => scripted([{ status: 429 }, PMID1_OK], calls));
+  const r = await resolver.resolveOne({ type: "PMID", id: "1" });
+  assert.equal(r.status, "VERIFIED");
+  assert.equal(r.attempts, 2);
+  assert.deepEqual(state.waits, [1000], "NCBI limits per second, so 1 s is the right default");
+});
+
+test("NCBI retry keeps a definitive answer's meaning: 429 then 'cannot get document summary' is UNRESOLVED, attempts 2", async () => {
+  const calls = { n: 0 };
+  const { resolver } = clockedResolver(() => scripted([{ status: 429, retryAfter: "1" }, { status: 200, body: { result: { "1": { uid: "1", error: "cannot get document summary" } } } }], calls));
+  const r = await resolver.resolveOne({ type: "PMID", id: "1" });
+  assert.equal(r.status, "UNRESOLVED");
+  assert.equal(r.attempts, 2);
+});
+
+test("NCBI 5xx is not retried (only a 429 earns the one retry)", async () => {
+  const calls = { n: 0 };
+  const { resolver, state } = clockedResolver(() => scripted([{ status: 503 }, PMID1_OK], calls));
+  const r = await resolver.resolveOne({ type: "PMID", id: "1" });
+  assert.equal(r.status, "UNCHECKED");
+  assert.equal(r.evidence.reason, "http_5xx");
+  assert.equal(r.attempts, 1);
+  assert.equal(calls.n, 1);
+  assert.deepEqual(state.waits, []);
+});

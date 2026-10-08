@@ -401,10 +401,15 @@ function createWorkflowEngine(options = {}) {
           // DI seam (mirrors researchRuntime.crossrefRetraction / pubmedRetraction / ctgovSupplemental
           // above): use an injected re-resolver when the runtime provides one, else construct the real
           // one. Production is IDENTICAL — nothing is injected, so createCitationReresolver still runs.
+          const ncbiApiKey = safeString(researchRuntime.config && researchRuntime.config.ncbiApiKey) || process.env.NCBI_API_KEY || "";
           const reresolver = researchRuntime.citationReresolver || createCitationReresolver({
             logger,
             contactEmail: safeString(researchRuntime.config && researchRuntime.config.contactEmail) || "trevor@trevorobeyinc.com",
-            ncbiApiKey: safeString(researchRuntime.config && researchRuntime.config.ncbiApiKey) || process.env.NCBI_API_KEY || ""
+            ncbiApiKey,
+            // NCBI's polite-use ceiling (3 req/sec anonymous, 10 with a key): the same numbers the PubMed retraction
+            // screen is wired with in scripts/_workflow-runtime.js. Unpaced, the PMID checks left ~100 ms apart and NCBI
+            // answered 429 for 7 of 12 in the first real dispatch-lane run (2026-10-08), forfeiting the full DELIVER claim.
+            minRequestIntervalMs: ncbiApiKey ? 110 : 350
           });
           const reresolved = await reresolver.resolveAll(cites);
           const manifest = buildReproducibilityManifest({

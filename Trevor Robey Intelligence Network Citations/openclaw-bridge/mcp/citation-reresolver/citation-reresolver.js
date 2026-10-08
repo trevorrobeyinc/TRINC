@@ -57,6 +57,34 @@ function createCitationReresolver(options = {}) {
   const nowIso = typeof options.nowIso === "function" ? options.nowIso : () => timeProviderModule.nowIso();
   const cache = new Map(); // per-run only: `${type}:${ID}` -> result
 
+  // NCBI politeness (same idiom as pubmed-retraction.js). NCBI allows 3 req/sec without an api_key and 10 with one.
+  // resolveAll() walks one host's citations back to back, so 12 PMIDs left ~100 ms apart and NCBI answered 429 for 7 of
+  // them in the first real dispatch-lane run (2026-10-08). That is fail-soft (UNCHECKED, never a false VERIFIED), but
+  // every unchecked id forfeits the full-strength DELIVER claim (max_unchecked_ratio is 0 by doctrine, see
+  // reproducibility-manifest.js), so the cure is resilience, not a looser bar: (1) space eutils requests by
+  // `minRequestIntervalMs` (default 0 = OFF so offline tests stay instant; production wiring in workflow-engine.js
+  // passes 350 ms, or 110 ms with a key); (2) on a 429, wait for `Retry-After` (seconds; absent or unparseable = 1 s,
+  // NCBI's window) and retry ONCE, but never wait longer than `maxRetryAfterMs` (default 5 s) — beyond that, or on a
+  // second 429, the id stays UNCHECKED `rate_limited`, honestly. `nowMs`/`sleep` are injectable so a test can prove the
+  // spacing without real delays. Other hosts are untouched.
+  const nowMs = typeof options.nowMs === "function" ? options.nowMs : timeProviderModule.nowMs;
+  const sleep = typeof options.sleep === "function"
+    ? options.sleep
+    : (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const minRequestIntervalMs = Number.isFinite(options.minRequestIntervalMs)
+    ? Math.max(0, options.minRequestIntervalMs)
+    : 0;
+  const maxRetryAfterMs = Number.isFinite(options.maxRetryAfterMs) ? Math.max(0, options.maxRetryAfterMs) : 5_000;
+  let lastNcbiRequestAt = null;   // null = no eutils request yet; the first one never waits
+  async function throttleNcbi() {
+    if (minRequestIntervalMs <= 0) return;
+    if (lastNcbiRequestAt !== null) {
+      const wait = lastNcbiRequestAt + minRequestIntervalMs - nowMs();
+      if (wait > 0) await sleep(wait);
+    }
+    lastNcbiRequestAt = nowMs();
+  }
+
   const UA = `TRINC/1.0 (mailto:${contactEmail})`;
 
   async function doFetch(url, { method = "GET" } = {}) {
@@ -92,22 +120,47 @@ function createCitationReresolver(options = {}) {
     return null;
   }
 
+  // Milliseconds to wait before the single 429 retry, or null when the server asks for longer than we will wait.
+  // Only integer-seconds Retry-After is honored; an absent header, an HTTP-date or garbage means 1 s.
+  function retryAfterMs(res) {
+    const raw = res && res.headers && typeof res.headers.get === "function" ? res.headers.get("retry-after") : null;
+    const secs = Number.parseInt(String(raw == null ? "" : raw).trim(), 10);
+    const ms = Number.isFinite(secs) && secs >= 0 ? secs * 1000 : 1000;
+    return ms > maxRetryAfterMs ? null : ms;
+  }
+
+  // NCBI request: paced, with at most ONE retry on HTTP 429. Returns the final response and how many attempts it took,
+  // which the manifest records per id (`attempts`).
+  async function ncbiFetch(url) {
+    await throttleNcbi();
+    let res = await doFetch(url);
+    if (res && !res.networkError && Number(res.status) === 429) {
+      const waitMs = retryAfterMs(res);
+      if (waitMs !== null) {
+        if (waitMs > 0) await sleep(waitMs);
+        await throttleNcbi();
+        return { res: await doFetch(url), attempts: 2 };
+      }
+    }
+    return { res, attempts: 1 };
+  }
+
   // ---- per-source resolvers ----
 
   async function resolvePMID(id) {
     const keyParam = ncbiApiKey ? `&api_key=${ncbiApiKey}` : "";
     const url = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&id=${encodeURIComponent(id)}&retmode=json&tool=TRINC-citation-reresolver&email=${encodeURIComponent(contactEmail)}${keyParam}`;
     const resolved_url = url.replace(/&api_key=[^&]+/, "&api_key=***");
-    const res = await doFetch(url);
+    const { res, attempts } = await ncbiFetch(url);
     const t = classifyTransport(res);
-    if (t) return { status: STATUS.UNCHECKED, http_status: res.status || null, resolved_url, evidence: t };
-    if (res.status !== 200) return { status: STATUS.UNCHECKED, http_status: res.status, resolved_url, evidence: { reason: "unexpected_status" } };
+    if (t) return { status: STATUS.UNCHECKED, http_status: res.status || null, resolved_url, evidence: t, attempts };
+    if (res.status !== 200) return { status: STATUS.UNCHECKED, http_status: res.status, resolved_url, evidence: { reason: "unexpected_status" }, attempts };
     const body = await safeJson(res);
     const rec = body && body.result && body.result[String(id)];
-    if (!body || !body.result) return { status: STATUS.UNCHECKED, http_status: 200, resolved_url, evidence: { reason: "unparseable" } };
-    if (!rec) return { status: STATUS.UNCHECKED, http_status: 200, resolved_url, evidence: { reason: "unparseable" } };
-    if (rec.error) return { status: STATUS.UNRESOLVED, http_status: 200, resolved_url, evidence: { reason: "cannot_get_document_summary" } };
-    return { status: STATUS.VERIFIED, http_status: 200, resolved_url, evidence: { has_docsum: true } };
+    if (!body || !body.result) return { status: STATUS.UNCHECKED, http_status: 200, resolved_url, evidence: { reason: "unparseable" }, attempts };
+    if (!rec) return { status: STATUS.UNCHECKED, http_status: 200, resolved_url, evidence: { reason: "unparseable" }, attempts };
+    if (rec.error) return { status: STATUS.UNRESOLVED, http_status: 200, resolved_url, evidence: { reason: "cannot_get_document_summary" }, attempts };
+    return { status: STATUS.VERIFIED, http_status: 200, resolved_url, evidence: { has_docsum: true }, attempts };
   }
 
   async function resolveDOI(id) {
@@ -245,7 +298,7 @@ function createCitationReresolver(options = {}) {
     } else {
       try {
         const r = await resolver(id);
-        out = { ...base, resolver_type: r.resolver_type || "primary", status: r.status, http_status: r.http_status == null ? null : r.http_status, resolved_url: r.resolved_url || null, evidence: r.evidence || {}, checked_at: nowIso() };
+        out = { ...base, resolver_type: r.resolver_type || "primary", status: r.status, http_status: r.http_status == null ? null : r.http_status, resolved_url: r.resolved_url || null, evidence: r.evidence || {}, attempts: r.attempts || 1, checked_at: nowIso() };
       } catch (err) {
         logger.warn({ event: "citation_reresolve_crashed", type, id, error: String(err && err.message) });
         out = { ...base, status: STATUS.UNCHECKED, http_status: null, resolved_url: null, evidence: { reason: "network_error", error: String(err && err.message) }, checked_at: nowIso() };
