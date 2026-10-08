@@ -17,7 +17,7 @@
 // unparseable body yields `checked:false` + `retracted:false` (NEVER a false "retracted"), so
 // E-utilities being unreachable can never wrongly block a report.
 
-const timeProvider = require("../../core/time-provider.js");
+const { createNcbiPacing } = require("../../core/ncbi-pacing.js");
 
 const EUTILS_ESUMMARY = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi";
 const EUTILS_ESEARCH = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi";
@@ -69,48 +69,26 @@ function createPubmedRetraction(options = {}) {
   const ncbiApiKey = options.ncbiApiKey || "";
   const batchSize = Math.min(Number(options.batchSize) || MAX_IDS_PER_REQUEST, MAX_IDS_PER_REQUEST);
 
-  // Per-instance throttle across ALL eutils requests (esummary + esearch). NCBI allows 3 req/sec
-  // without an api_key, 10 with one. This module's sequential loops (esearch per DOI, esummary per
-  // batch) would otherwise burst well over that and NCBI would 429 — which is fail-soft here, but a
-  // rate-limited run silently degrades the escalation to `checked:false` ("INCOMPLETE" in the
-  // manifest) instead of actually screening. Default 0 = OFF (so offline unit tests stay instant);
-  // production wiring (_workflow-runtime.js) sets it from NCBI_API_KEY presence. `nowMs`/`sleep` are
-  // injectable so a test can prove the spacing without real delays.
-  const nowMs = typeof options.nowMs === "function" ? options.nowMs : timeProvider.nowMs;
-  const sleep = typeof options.sleep === "function"
-    ? options.sleep
-    : (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-  const minRequestIntervalMs = Number.isFinite(options.minRequestIntervalMs)
-    ? Math.max(0, options.minRequestIntervalMs)
-    : 0;
-  let lastRequestAt = null;   // null = no request yet; the first request never waits
-  async function throttle() {
-    if (minRequestIntervalMs <= 0) return;
-    if (lastRequestAt !== null) {
-      const wait = lastRequestAt + minRequestIntervalMs - nowMs();
-      if (wait > 0) await sleep(wait);
-    }
-    lastRequestAt = nowMs();
-  }
+  // NCBI politeness — pacing across ALL eutils requests (esummary + esearch) plus ONE retry on a 429 — lives in
+  // core/ncbi-pacing.js, shared with citation-reresolver.js (options: `minRequestIntervalMs`, `maxRetryAfterMs`, and
+  // the injectable `nowMs`/`sleep`; production wiring in _workflow-runtime.js sets the interval from NCBI_API_KEY
+  // presence). This module's sequential loops (esearch per DOI, esummary per batch) would otherwise burst well over
+  // 3 req/sec and draw 429s — fail-soft here, but a rate-limited run silently degrades the escalation to
+  // `checked:false` ("INCOMPLETE" in the manifest) instead of actually screening. NCBI also answers an occasional 429
+  // under the limit (verified live 2026-10-08: 2 of the 21 DOI lookups of the first real dispatch-lane run, at the
+  // production 350 ms spacing); one 429 used to leave a DOI unresolved or a whole esummary batch unchecked on a clean
+  // report. A second 429 or a Retry-After beyond the cap stays fail-soft exactly as before: `checked:false`, never a
+  // false "retracted" and never a false "clean".
+  const ncbiPacing = createNcbiPacing({
+    nowMs: options.nowMs,
+    sleep: options.sleep,
+    minRequestIntervalMs: options.minRequestIntervalMs,
+    maxRetryAfterMs: options.maxRetryAfterMs
+  });
 
-  // NCBI answers an occasional 429 even while we stay under 3 req/sec (verified live 2026-10-08: 2 of the 21 DOI lookups
-  // of the first real dispatch-lane run, at the production 350 ms spacing). One 429 used to leave a DOI unresolved or a
-  // whole esummary batch unchecked, so the screen reported `checked:false` — "INCOMPLETE" in the sealed manifest — on a
-  // clean report. Wait for Retry-After (seconds; absent or unparseable = 1 s, NCBI's window) and retry ONCE, never waiting
-  // longer than `maxRetryAfterMs` (default 5 s). A second 429 or a longer Retry-After stays fail-soft exactly as before:
-  // `checked:false`, never a false "retracted" and never a false "clean". Same rule as citation-reresolver.js.
-  const maxRetryAfterMs = Number.isFinite(options.maxRetryAfterMs) ? Math.max(0, options.maxRetryAfterMs) : 5_000;
-  function retryAfterMs(res) {
-    const raw = res && res.headers && typeof res.headers.get === "function" ? res.headers.get("retry-after") : null;
-    const secs = Number.parseInt(String(raw == null ? "" : raw).trim(), 10);
-    const ms = Number.isFinite(secs) && secs >= 0 ? secs * 1000 : 1000;
-    return ms > maxRetryAfterMs ? null : ms;
-  }
-
-  // One full attempt: throttled, bounded by timeoutMs, and the JSON body (present only on an ok response) is parsed
-  // inside the same timer. Throws on transport failure; callers fail soft.
+  // One unpaced attempt: bounded by timeoutMs, and the JSON body (present only on an ok response) is parsed inside the
+  // same timer. Throws on transport failure; callers fail soft.
   async function eutilsRequest(url) {
-    await throttle();
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -125,16 +103,9 @@ function createPubmedRetraction(options = {}) {
     }
   }
 
-  // eutilsRequest plus the single 429 retry above.
+  // eutilsRequest, paced, plus the single 429 retry.
   async function eutilsGet(url) {
-    let out = await eutilsRequest(url);
-    if (out.res && Number(out.res.status) === 429) {
-      const waitMs = retryAfterMs(out.res);
-      if (waitMs !== null) {
-        if (waitMs > 0) await sleep(waitMs);
-        out = await eutilsRequest(url);
-      }
-    }
+    const { out } = await ncbiPacing.request(() => eutilsRequest(url), (result) => result.res);
     return out;
   }
 

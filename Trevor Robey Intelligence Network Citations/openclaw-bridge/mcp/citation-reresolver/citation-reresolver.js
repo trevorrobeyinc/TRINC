@@ -16,6 +16,7 @@
 // live-verified success criterion. ChEMBL is identifier-resolution ONLY (no data values).
 
 const timeProviderModule = require("../../core/time-provider.js");
+const { createNcbiPacing } = require("../../core/ncbi-pacing.js");
 
 const STATUS = Object.freeze({ VERIFIED: "VERIFIED", UNRESOLVED: "UNRESOLVED", UNCHECKED: "UNCHECKED" });
 const RESOLVER_TABLE_VERSION = "2026-06-19";
@@ -57,33 +58,20 @@ function createCitationReresolver(options = {}) {
   const nowIso = typeof options.nowIso === "function" ? options.nowIso : () => timeProviderModule.nowIso();
   const cache = new Map(); // per-run only: `${type}:${ID}` -> result
 
-  // NCBI politeness (same idiom as pubmed-retraction.js). NCBI allows 3 req/sec without an api_key and 10 with one.
-  // resolveAll() walks one host's citations back to back, so 12 PMIDs left ~100 ms apart and NCBI answered 429 for 7 of
-  // them in the first real dispatch-lane run (2026-10-08). That is fail-soft (UNCHECKED, never a false VERIFIED), but
-  // every unchecked id forfeits the full-strength DELIVER claim (max_unchecked_ratio is 0 by doctrine, see
-  // reproducibility-manifest.js), so the cure is resilience, not a looser bar: (1) space eutils requests by
-  // `minRequestIntervalMs` (default 0 = OFF so offline tests stay instant; production wiring in workflow-engine.js
-  // passes 350 ms, or 110 ms with a key); (2) on a 429, wait for `Retry-After` (seconds; absent or unparseable = 1 s,
-  // NCBI's window) and retry ONCE, but never wait longer than `maxRetryAfterMs` (default 5 s) — beyond that, or on a
-  // second 429, the id stays UNCHECKED `rate_limited`, honestly. `nowMs`/`sleep` are injectable so a test can prove the
-  // spacing without real delays. Other hosts are untouched.
-  const nowMs = typeof options.nowMs === "function" ? options.nowMs : timeProviderModule.nowMs;
-  const sleep = typeof options.sleep === "function"
-    ? options.sleep
-    : (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-  const minRequestIntervalMs = Number.isFinite(options.minRequestIntervalMs)
-    ? Math.max(0, options.minRequestIntervalMs)
-    : 0;
-  const maxRetryAfterMs = Number.isFinite(options.maxRetryAfterMs) ? Math.max(0, options.maxRetryAfterMs) : 5_000;
-  let lastNcbiRequestAt = null;   // null = no eutils request yet; the first one never waits
-  async function throttleNcbi() {
-    if (minRequestIntervalMs <= 0) return;
-    if (lastNcbiRequestAt !== null) {
-      const wait = lastNcbiRequestAt + minRequestIntervalMs - nowMs();
-      if (wait > 0) await sleep(wait);
-    }
-    lastNcbiRequestAt = nowMs();
-  }
+  // NCBI politeness: pacing plus ONE retry on a 429 — the policy lives in core/ncbi-pacing.js, shared with
+  // pubmed-retraction.js (options: `minRequestIntervalMs`, `maxRetryAfterMs`, and the injectable `nowMs`/`sleep`;
+  // production wiring in workflow-engine.js passes 350 ms, or 110 ms with a key). resolveAll() walks one host's
+  // citations back to back, so 12 PMIDs left ~100 ms apart and NCBI answered 429 for 7 of them in the first real
+  // dispatch-lane run (2026-10-08). That is fail-soft (UNCHECKED, never a false VERIFIED), but every unchecked id
+  // forfeits the full-strength DELIVER claim (max_unchecked_ratio is 0 by doctrine, see reproducibility-manifest.js),
+  // so the cure is resilience, not a looser bar. Past the retry, or beyond the Retry-After cap, the id stays
+  // UNCHECKED `rate_limited`, honestly. Other hosts are untouched.
+  const ncbiPacing = createNcbiPacing({
+    nowMs: options.nowMs,
+    sleep: options.sleep,
+    minRequestIntervalMs: options.minRequestIntervalMs,
+    maxRetryAfterMs: options.maxRetryAfterMs
+  });
 
   const UA = `TRINC/1.0 (mailto:${contactEmail})`;
 
@@ -120,29 +108,11 @@ function createCitationReresolver(options = {}) {
     return null;
   }
 
-  // Milliseconds to wait before the single 429 retry, or null when the server asks for longer than we will wait.
-  // Only integer-seconds Retry-After is honored; an absent header, an HTTP-date or garbage means 1 s.
-  function retryAfterMs(res) {
-    const raw = res && res.headers && typeof res.headers.get === "function" ? res.headers.get("retry-after") : null;
-    const secs = Number.parseInt(String(raw == null ? "" : raw).trim(), 10);
-    const ms = Number.isFinite(secs) && secs >= 0 ? secs * 1000 : 1000;
-    return ms > maxRetryAfterMs ? null : ms;
-  }
-
   // NCBI request: paced, with at most ONE retry on HTTP 429. Returns the final response and how many attempts it took,
   // which the manifest records per id (`attempts`).
   async function ncbiFetch(url) {
-    await throttleNcbi();
-    let res = await doFetch(url);
-    if (res && !res.networkError && Number(res.status) === 429) {
-      const waitMs = retryAfterMs(res);
-      if (waitMs !== null) {
-        if (waitMs > 0) await sleep(waitMs);
-        await throttleNcbi();
-        return { res: await doFetch(url), attempts: 2 };
-      }
-    }
-    return { res, attempts: 1 };
+    const { out, attempts } = await ncbiPacing.request(() => doFetch(url));
+    return { res: out, attempts };
   }
 
   // ---- per-source resolvers ----
