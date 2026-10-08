@@ -144,7 +144,7 @@ Every mission now runs a zero-fabrication citation-integrity layer on top of the
 | `deliverables/citation-integrity.md` | `integrity-rating.js` | Graded provenance ledger (grade A/B/C/D from grounded ratio; F + "BLOCKED" on any retraction; N/A if nothing cited). The report's audit-trail spine. |
 | `deliverables/graveyard-memo.md` | `graveyard-memo.js` | Prior terminated/withdrawn/suspended programs in the indication, each NCT-traced with the sponsor's stated stop reason (or an explicit "(none stated by sponsor)" — never invented), protocol churn, and a resolvable `clinicaltrials.gov/study/<NCT>` link; plus a protocol amendment-risk band (LOW/MODERATE/HIGH). Rendered deterministically from fetched records (no LLM). |
 
-Both are registered in `manifest.json` and sealed in `checksums.txt`. The graveyard memo / amendment-risk build runs on a gate-PASSING mission and is fully fail-soft + bounded — an absent fetcher, empty indication, or fetch error simply omits it and never blocks a passing report.
+Both are registered in `manifest.json` and sealed in `checksums.txt`. The graveyard memo / amendment-risk build runs on a gate-PASSING mission and is fully fail-soft + bounded — an absent fetcher, empty indication, or fetch error simply omits it and never blocks a passing report. One exception to "simply omits": when protocol version history was requested and the registry returned none (HTTP 403 as of 2026-10-08), the amendment-risk part ships as an explicit "Not available for this run" section instead of vanishing.
 
 **New error codes:** `PHASE30_CITATION_UNVERIFIED`, `PHASE30_CITATION_INSUFFICIENT_EVIDENCE`, `PHASE30_CITATION_NONE`, `PHASE30_CITATION_RETRACTED`.
 
