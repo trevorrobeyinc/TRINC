@@ -106,6 +106,17 @@ Historical note — **local-only as of 2026-05-26.** The private GitHub remote `
 > that hub is the index, not a store. The only in-repo piece is the `opencode` server stanza in
 > [`.mcp.json`](.mcp.json). Security model: a read-only + public-data + no-exfil **allowlist** for
 > the free worker (full detail in `~/Security Everything/opencode-delegation-guard/README.md`).
+>
+> **Two different opencodes — do not conflate them (clarified 2026-10-07).** This bridge reaches only
+> the **free-model delegation worker** (`/opt/homebrew/bin/opencode run`, Zen models, read-only
+> guardrail). The opencode inside Obsidian's Copilot agent is a separate instance
+> (`~/.obsidian-copilot/opencode/<ver>/bin/opencode acp`, a child of the Obsidian renderer, Copilot
+> Plus models); the two share only `~/.local/share/opencode/opencode.db`. **There is no channel for
+> Claude Code to send a prompt into the Copilot agent, on purpose**: `obsidian_execute_command` can only
+> open an empty chat, opencode's `:4096` HTTP API has been password-locked since 2026-10-05 (the
+> operator's control), ACP stdio is owned by the renderer, and the `:8801` security bridge has no
+> text-carrying op. The Copilot agent calls INTO the engine (via `:8799`); the reverse direction is
+> deferred, and if it is ever built the route chosen is a schema-validated vault inbox, never `:4096`.
 
 ## Repo Topology
 
@@ -173,14 +184,19 @@ Three independent operators share this stack. None is subordinate to the others.
 ```
 Claude Desktop (heavy-lift code/file operator)
   # Claude Code now runs via the native Claude Desktop Code tab (no custom subprocess orchestration).
-  # The only MCP stdio servers Desktop needs are the obsidian-bridge adapter and the filesystem server.
+  # CORRECTED 2026-10-07 (verified from the server NAMES in claude_desktop_config.json, ~/.claude.json and .mcp.json): this
+  # diagram described a target that was never registered. Claude Desktop's stdio servers today are FilesystemPlus, miyo, opencode,
+  # perseus-business, perseus-vault and searxng-search — the obsidian-stdio-adapter is registered on NO Claude surface (Raycast has
+  # its own MCP config, which cannot be read from here). Desktop reaches the vault through FilesystemPlus (files) and miyo (search);
+  # the Obsidian bridges :8798/:8799/:8800 are reached by the Copilot plugin and, once registered, Claude Code's `openclaw` profile.
   # (Retired 2026-05-31: INBOUND `claude mcp serve` + OUTBOUND claude-cli-bridge — see deletion log.)
-  ├── [MCP stdio] → obsidian-bridge adapter → [HTTPS :8798] → Canonical MCP Bridge
-  └── [MCP stdio] → filesystem server
+  ├── [MCP stdio] → FilesystemPlus (vault files, allowed roots /Users/myhome + /Volumes/ExtraCurricular)
+  ├── [MCP stdio] → miyo (semantic search over the vault)
+  └── [NOT REGISTERED] obsidian-bridge adapter → [HTTPS :8798] → Canonical MCP Bridge   (built and tested, no consumer on Claude surfaces)
 
 Command Center plugin (workflow dispatch + monitoring, Obsidian plugin at obsidian-command-center/)
   ├── [child_process.spawn()] → Trevor Robey Intelligence Network Citations/scripts/run-workflow.js
-  │                              ├── per-role LLM routing via config/role-provider-map.json (phase34; verified live 2026-07-16, see memory verify-live-files-not-claudemd): scout, analyst, synthesizer + default ALL run on claude-code (Claude Opus 4.8 for the three roles, Sonnet for default). As of 2026-07-16 (Option B) the engine is 100% Claude — the OSS helper pre-passes + local fallbacks were REMOVED; LM Studio was decommissioned 2026-07-16 and Ollama was FULLY REMOVED 2026-07-23 (binaries, LaunchAgents, :11435 proxy, 9.2GB models) — there are no local model runtimes on this machine at all; the Obsidian side now runs on the hosted copilot-plus-flash model. --operator-approve is YubiKey-gated. Per-role identity/memory under config/agents/<role>/{SOUL.md,AGENTS.md,sessions/}
+  │                              ├── per-role LLM routing via config/role-provider-map.json (phase34; verified live 2026-07-16, see memory verify-live-files-not-claudemd): scout, analyst, synthesizer + default ALL run on claude-code (Claude Opus 4.8 for the three roles, Sonnet for default). As of 2026-07-16 (Option B) the engine is 100% Claude — the OSS helper pre-passes + local fallbacks were REMOVED; LM Studio was decommissioned 2026-07-16 and Ollama was removed 2026-07-23 and RETURNED 2026-08-12 as an Obsidian-side BYOK lane only (`granite4.1:8b` behind the `:11435` TLS proxy — see the provider table and port map; this sentence said "no local model runtimes on this machine at all" until 2026-10-07 and was stale) — it is NOT an engine provider, so the engine stays 100% Claude; the Obsidian agent's default model is the hosted copilot-plus-flash. --operator-approve is YubiKey-gated. Per-role identity/memory under config/agents/<role>/{SOUL.md,AGENTS.md,sessions/}
   │                              ├── ToolUniverse subprocess (vendor/tooluniverse, ~2,116 tools)
   │                              └── 7 project MCP servers (chembl, clinicaltrials-gov, pubmed, huggingface metadata-only, npi, icd10, owkin)
   │                              ├── POST-RUN, INSIDE run-workflow.js (2026-09-22): the ENGINE writes the run's vault notes itself after the citation gate passes — openclaw-bridge/vault/workflow-vault-publisher.js → path-guarded write into `My Digital Garden/OpenClaw/<template>/<date> <inputs>/` (config/vault-publish.json; completed + PASS + non-mock only; headless) — then a deterministic Graph Analysis note (Medical Zettelkasten MCP in-process, no LLM) and, when enabled, the research-memory ingest via the pack store's own CLI. Records artifacts.vault_notes in workflow.json.
@@ -203,6 +219,7 @@ Biomedical Workflow Observability Stack (optional, Docker Compose)
 | 8798 | Obsidian MCP Bridge (canonical) | HTTPS | Copilot-Everything | obsidian-bridge-launcher plugin (Obsidian lifecycle) |
 | 8799 | Command Center Bridge (additive) | HTTPS | Claude (Obsidian plugin) | Obsidian plugin lifecycle |
 | 8800 | Viz Studio Bridge (additive — local mermaid/chart/canvas/graph rendering + Guided Learning explainer cards, perceptual maps, card diagrams, stat tiles, UI mockups and interactive HTML explainers into the vault; **12 `viz_*` MCP tools** as of 2026-08-28; added 2026-08-16) | HTTPS | Claude (Obsidian plugin `trinc-viz-studio`) | Obsidian plugin lifecycle |
+| 8801 | Security Bridge (additive — reserved 2026-10-05, **plugin deployed 2026-10-06 and LISTENING whenever Obsidian is open** (verified 2026-10-07 with `lsof`: the Obsidian process holds it; earlier text here said "not yet listening" and was stale): security control plane for the vault, the Copilot plugin and the Copilot agent; no vault access and no research-engine coupling; **no op carries text to the Copilot agent, by design** (2026-10-05: "do not build a prompt relay"); design of record `Security Everything/docs/obsidian-security-bridge.md`) | HTTPS | Security Everything (Obsidian plugin `trinc-security-bridge`, source `Security Everything/obsidian-security-bridge/`) | Obsidian plugin lifecycle |
 | 8743 | Miyo TLS proxy (HTTPS terminator → :8742) | HTTPS | Copilot-Everything | launchd `com.trevorrobey.miyo-tls-proxy` |
 | 8742 | Miyo Semantic Search (plaintext upstream — only the proxy at :8743 should reach it) | HTTP | external | External process (`/Applications/Miyo.app`) |
 | 6433 | Qdrant TLS proxy (HTTPS terminator → :6333) | HTTPS | Copilot-Everything | launchd `com.trevorrobey.qdrant-tls-proxy` |
@@ -229,8 +246,17 @@ Biomedical Workflow Observability Stack (optional, Docker Compose)
 > lifecycle supervisor. Current profiles: `claude` = the 7 canonical vault tools, :8798 only
 > (Claude Desktop surface — frozen); `raycast` = those 7 + `raycast_daily_open` +
 > `video_pipeline_run`/`video_pipeline_status` proxied to :8799 (Bearer token read per-call from
-> `~/.config/openclaw-command-center/bridge-token`). How to extend, and rollback: the adapter's
-> README. Regression guard: `npm run test:profiles` in the adapter package.
+> `~/.config/openclaw-command-center/bridge-token`); **`openclaw` (v0.3.0, 2026-10-07) = Claude
+> Code's dispatch lane**: a closed 13-tool allowlist (`obsidian_health` + 12 `obsidian_openclaw_*`
+> tools) proxied ONLY to :8799, so a Claude Code session starts and watches OpenClaw runs through
+> the same door the Copilot agent uses and the plugin's post-run chain fires; it never loads the
+> :8798 config or token. Built, tested and deployed on the plugin side, but **not registered** in
+> `.mcp.json` until the Security Everything gate hook is taught the `mcp__openclaw-obsidian__`
+> prefix (the hook matcher is an allowlist with no catch-all, so an unlisted server is ungated).
+> Runbook: the `openclaw-dispatch` skill (trinc-engineering plugin 2.1.0). Status and the gate-wiring
+> patch: `~/.claude/plans/pasted-content-id-3795-in-my-polished-peach.md` and
+> `~/.claude/plans/openclaw-dispatch-p3-gate-wiring-proposal.md`. How to extend, and rollback:
+> the adapter's README. Regression guard: `npm run test:profiles` in the adapter package.
 >
 > **Explicitly declined hardening (2026-08-20 — do not re-propose without new evidence):**
 > - **Token TTL cache** for the :8799 Bearer read — the token is ~64 bytes read only on rare,
@@ -259,7 +285,8 @@ Biomedical Workflow Observability Stack (optional, Docker Compose)
 | Miyo indexing of new notes | ✅ Miyo's own watcher (the plugin additionally polls when open) | Miyo | Miyo running |
 | LLM Zettelkasten linking (appends to `Synthesizer.md`) | ❌ Obsidian open — with a catch-up sweep on load (cap per load) | Command Center + `vault-zettelkasten` | hosted `copilot-plus-flash` |
 | Backfill of runs completed while closed | ✅ `scripts/publish-workflow-to-vault.js --all` (also spawned by the plugin on load) | engine CLI | idempotent on `workflow_id` |
-| Viz Studio `:8800` | ❌ Obsidian open, gate-consumed, fail-soft | `trinc-viz-studio` | plugin lifecycle |
+| Claude Code run dispatch (`openclaw` adapter profile → `:8799`, 2026-10-07) | ❌ Obsidian open (the `:8799` bridge dies with it; the tools answer `obsidian_not_running`) — **not live until the gate wiring + `.mcp.json` registration land** | stdio adapter + Command Center | operator's armed one-shot YubiKey token per real run; a plugin-dispatched run gets the whole post-run chain, which a terminal-started run does not; `status.post_run_done` is the only reliable "chain finished" signal (the engine goes `completed` first) |
+| Viz Studio `:8800` | ❌ Obsidian open; **tool-call driven only** (Copilot agent, Raycast). The engine constructs `researchRuntime.vizBridge` (`scripts/_workflow-runtime.js:136`) but nothing ever calls it (verified 2026-10-07), so **no run produces visualizations automatically**; this row used to say "gate-consumed" | `trinc-viz-studio` | plugin lifecycle |
 | Canonical business-context note refresh | ✅ `scripts/render-business-context.js --apply` — **operator-run only**, never on a hook or timer | engine script | `--check` is the drift tripwire |
 | Scheduled workflows (Phase 31) | disabled, not deployed | — | viable only because every "headless" row above is now true |
 

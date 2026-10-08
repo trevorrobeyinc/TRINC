@@ -1,6 +1,6 @@
 {
   "schema_version": "agent-profile-v1",
   "role": "scout",
-  "recommended_route": { "provider": "local", "model": "<ollama-tag>", "fallback": "claude-code" },
-  "_note": "config/role-provider-map.json is authoritative at runtime; this is the intended target backend once Ollama is installed and the model id is confirmed."
+  "recommended_route": { "provider": "claude-code", "model": "claude-opus-4-8", "fallback": "" },
+  "_note": "config/role-provider-map.json is authoritative at runtime. Option B (2026-07-16): the engine is 100% Claude — scout runs on claude-opus-4-8 with no fallback (Ollama is Obsidian-side only). Corrected 2026-10-07: this file still said provider 'local' with an '<ollama-tag>' placeholder; nothing reads recommended_route, so it was misleading metadata, not behaviour."
 }

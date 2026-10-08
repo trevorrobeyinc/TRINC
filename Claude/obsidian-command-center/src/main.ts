@@ -9,6 +9,13 @@ import { DEFAULT_SETTINGS, VIEW_TYPE_WORKFLOW } from "./constants";
 import { OpenClawSettingTab } from "./settings";
 import { OpenClawRunner, notifyResearchArrived } from "./subprocess/openclaw-runner";
 import { WorkflowTracker } from "./workflow/workflow-tracker";
+import {
+  abortPending,
+  createLedger,
+  markStage,
+  summarizeLedger,
+  type PostRunLedger,
+} from "./workflow/post-run-ledger";
 import { WorkflowModal } from "./workflow/workflow-modal";
 import { WorkflowStatusView } from "./views/workflow-sidebar";
 import {
@@ -41,6 +48,12 @@ export default class OpenClawPlugin extends Plugin {
   private statusBarItem: HTMLElement | null = null;
   private lastWorkflowResult: WorkflowResult | null = null;
   private lastWorkflowId: string | null = null;
+  /**
+   * Stage-by-stage outcome of the most recent completed run's post-run chain (2026-10-07). Reset when
+   * a new run starts. Each run's stages write to a ledger captured in a local variable, never to this
+   * field, so a late stage of run N (the memory ingest is fire-and-forget) cannot land in run N+1's.
+   */
+  private postRunLedger: PostRunLedger | null = null;
 
   async onload(): Promise<void> {
     await this.loadSettings();
@@ -230,6 +243,9 @@ export default class OpenClawPlugin extends Plugin {
     console.log("[OpenClaw:Main] ========== WORKFLOW START ==========");
     console.log("[OpenClaw:Main] Template:", templateId, "Inputs:", JSON.stringify(inputs));
 
+    // A new run invalidates the previous run's ledger (see the field comment).
+    this.postRunLedger = null;
+
     // Shared flag to prevent duplicate completion handling
     let completionHandled = false;
 
@@ -251,17 +267,36 @@ export default class OpenClawPlugin extends Plugin {
       this.lastWorkflowResult = result;
       this.lastWorkflowId = result.workflow_id;
 
+      // Post-run ledger (2026-10-07). Captured in a local: the memory ingest settles asynchronously,
+      // possibly after the next run has replaced this.postRunLedger.
+      const ledger = createLedger(result.workflow_id);
+      this.postRunLedger = ledger;
+
       if (result.ok) {
         new Notice(`Workflow complete: ${result.workflow_id}`);
         this.updateStatusBar("complete");
         this.getSidebarView()?.showResult(result);
         console.log("[OpenClaw:Main] Starting post-completion pipeline (notes, ZK)...");
-        await this.onWorkflowComplete(result);
+        try {
+          await this.onWorkflowComplete(result, ledger);
+        } catch (err: unknown) {
+          // Without this the unstarted stages would sit at "pending" forever and a caller polling
+          // obsidian_openclaw_status would wait on a chain that can never finish.
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error("[OpenClaw:Main] post-completion pipeline aborted:", msg);
+          abortPending(ledger, `chain aborted: ${msg}`);
+        }
       } else {
         const msg = result.error?.message || "Unknown error";
         new Notice(`Workflow failed: ${msg}`);
         this.updateStatusBar("failed");
         this.getSidebarView()?.showError(msg);
+        // A failed run produces no notes, so every enrichment stage is skipped; only the chat
+        // notify runs, and the ledger records whether it landed.
+        for (const stage of ["notes", "miyo", "zk", "memory", "open"] as const) {
+          markStage(ledger, stage, "skipped", "run did not complete");
+        }
+        markStage(ledger, "notify", "running");
         // Failure-path notify (added 2026-08-20): a failed run used to emit
         // nothing at all — the chat only ever heard about successes. Fail-soft.
         try {
@@ -272,11 +307,11 @@ export default class OpenClawPlugin extends Plugin {
             error: msg,
             vault: this.app.vault.getName(),
           });
+          markStage(ledger, "notify", "ok", "failure notice emitted");
         } catch (notifyErr: unknown) {
-          console.warn(
-            "[OpenClaw:Main] failure notify failed (non-fatal):",
-            notifyErr instanceof Error ? notifyErr.message : String(notifyErr)
-          );
+          const notifyMsg = notifyErr instanceof Error ? notifyErr.message : String(notifyErr);
+          console.warn("[OpenClaw:Main] failure notify failed (non-fatal):", notifyMsg);
+          markStage(ledger, "notify", "failed", notifyMsg);
         }
       }
     };
@@ -364,7 +399,7 @@ export default class OpenClawPlugin extends Plugin {
    * Called after a workflow completes successfully.
    * Generates vault notes and optionally runs Zettelkasten linking.
    */
-  private async onWorkflowComplete(result: WorkflowResult): Promise<void> {
+  private async onWorkflowComplete(result: WorkflowResult, ledger: PostRunLedger): Promise<void> {
     console.log("[OpenClaw:Main] onWorkflowComplete called for:", result.workflow_id);
 
     // Independently-gated, fail-soft stages (decoupled 2026-08-20). The old
@@ -385,6 +420,7 @@ export default class OpenClawPlugin extends Plugin {
     let notes: GeneratedNotes | null = null;
     let noteCount = 0;
     if (this.settings.autoGenerateNotes) {
+      markStage(ledger, "notes", "running");
       try {
         this.updateStatusBar("locating notes...");
         const state = await waitForEngineVaultNotes(
@@ -406,6 +442,7 @@ export default class OpenClawPlugin extends Plugin {
             1 + notes.agentPaths.length + (notes.qualityPath ? 1 : 0) + (notes.datasetPath ? 1 : 0);
           console.log("[OpenClaw:Main] Stage 1 notes: engine-written, rehydrated", noteCount, notes.overviewPath);
           new Notice(`Engine wrote ${noteCount} research notes.`);
+          markStage(ledger, "notes", "ok", `engine-written, ${noteCount} notes`);
         } else {
           this.updateStatusBar("generating notes...");
           notes = await generateWorkflowNotes(
@@ -418,18 +455,22 @@ export default class OpenClawPlugin extends Plugin {
             1 + notes.agentPaths.length + (notes.qualityPath ? 1 : 0) + (notes.datasetPath ? 1 : 0);
           console.log("[OpenClaw:Main] Stage 1 notes: generated in-plugin (engine wrote nothing)", noteCount);
           new Notice(`Created ${noteCount} research notes.`);
+          markStage(ledger, "notes", "ok", `generated in-plugin, ${noteCount} notes`);
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error("[OpenClaw:Main] Stage 1 notes FAILED (continuing):", msg);
         new Notice(`Note generation failed: ${msg}`);
         this.updateStatusBar("notes failed");
+        markStage(ledger, "notes", "failed", msg);
       }
     } else {
       console.log("[OpenClaw:Main] Stage 1 notes: disabled");
+      markStage(ledger, "notes", "skipped", "autoGenerateNotes disabled");
     }
 
     // ── Stage 2: chat bubble (always — emit-only research_notify → :8798) ──
+    markStage(ledger, "notify", "running");
     try {
       await notifyResearchArrived({
         taskId: result.workflow_id || "workflow",
@@ -439,18 +480,20 @@ export default class OpenClawPlugin extends Plugin {
         vault: this.app.vault.getName(),
       });
       console.log("[OpenClaw:Main] Stage 2 notify: research_notify emitted");
+      markStage(ledger, "notify", "ok", "research_notify emitted");
     } catch (notifyErr: unknown) {
-      console.warn(
-        "[OpenClaw:Main] Stage 2 notify FAILED (non-fatal):",
-        notifyErr instanceof Error ? notifyErr.message : String(notifyErr)
-      );
+      const notifyMsg = notifyErr instanceof Error ? notifyErr.message : String(notifyErr);
+      console.warn("[OpenClaw:Main] Stage 2 notify FAILED (non-fatal):", notifyMsg);
+      markStage(ledger, "notify", "failed", notifyMsg);
     }
 
     // ── Stage 3: Miyo index scan (operates on the new notes) ──
     if (this.settings.miyoEnabled && notes) {
+      markStage(ledger, "miyo", "running");
       try {
         const miyoScan = new MiyoClient(this.settings.miyoPort);
         const vaultBase = this.getVaultBasePath();
+        if (!vaultBase) markStage(ledger, "miyo", "skipped", "vault base path unavailable");
         if (vaultBase) {
           const vaultName = basename(vaultBase);
           await miyoScan.scanFolder(vaultBase, false);
@@ -471,29 +514,39 @@ export default class OpenClawPlugin extends Plugin {
             `[OpenClaw:Main] Stage 3 Miyo: indexed ${indexResult.indexed.length}/${miyoPaths.length}` +
               (indexResult.missing.length > 0 ? ` (${indexResult.missing.length} still pending)` : "")
           );
+          // Notes not yet indexed when the wait expires are not a failure: Miyo's own watcher keeps
+          // going. The detail says how many were confirmed so a caller can tell the difference.
+          markStage(
+            ledger,
+            "miyo",
+            "ok",
+            `indexed ${indexResult.indexed.length}/${miyoPaths.length}` +
+              (indexResult.missing.length > 0 ? `, ${indexResult.missing.length} still pending` : "")
+          );
         }
       } catch (err: unknown) {
-        console.warn(
-          "[OpenClaw:Main] Stage 3 Miyo FAILED (non-fatal):",
-          err instanceof Error ? err.message : String(err)
-        );
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn("[OpenClaw:Main] Stage 3 Miyo FAILED (non-fatal):", msg);
+        markStage(ledger, "miyo", "failed", msg);
       }
     } else {
-      console.log(
-        "[OpenClaw:Main] Stage 3 Miyo: skipped —",
-        !this.settings.miyoEnabled ? "disabled" : "no notes generated"
-      );
+      const why = !this.settings.miyoEnabled ? "disabled" : "no notes generated";
+      console.log("[OpenClaw:Main] Stage 3 Miyo: skipped —", why);
+      markStage(ledger, "miyo", "skipped", why);
     }
 
     // ── Stage 4: Zettelkasten linking (appends to the synthesizer note) ──
     if (this.settings.autoRunZettelkasten && notes?.synthesizerContent) {
       console.log("[OpenClaw:Main] Stage 4 ZK: running graph analysis...");
-      await this.runZettelkastenOnNotes(notes);
+      markStage(ledger, "zk", "running");
+      // runZettelkastenOnNotes swallows its own errors (it must never break the chain), so the
+      // ledger takes its returned outcome rather than assuming success.
+      const zk = await this.runZettelkastenOnNotes(notes);
+      markStage(ledger, "zk", zk.outcome, zk.detail);
     } else {
-      console.log(
-        "[OpenClaw:Main] Stage 4 ZK: skipped —",
-        !this.settings.autoRunZettelkasten ? "disabled" : "no synthesizer note"
-      );
+      const why = !this.settings.autoRunZettelkasten ? "disabled" : "no synthesizer note";
+      console.log("[OpenClaw:Main] Stage 4 ZK: skipped —", why);
+      markStage(ledger, "zk", "skipped", why);
     }
 
     // ── Stage 5: Research Memory ingest (independent of note generation) ──
@@ -503,6 +556,10 @@ export default class OpenClawPlugin extends Plugin {
         readSynthesizerOutput(this.settings.openclawPath, result.workflow_id);
       if (content) {
         console.log("[OpenClaw:Main] Stage 5 RM: starting auto-ingest...");
+        // Deliberately not awaited (it can take a while and must not hold the chain), so this stage
+        // stays "running" in the ledger until the promise settles — which is exactly why
+        // `post_run_done` can lag the rest of the chain.
+        markStage(ledger, "memory", "running");
         this.ingestToResearchMemory(
           content,
           result.workflow_id,
@@ -513,17 +570,21 @@ export default class OpenClawPlugin extends Plugin {
               "[OpenClaw:Main] Stage 5 RM: SUCCESS",
               `(action=${ingest.action}, pack_id=${ingest.pack_id})`
             );
+            markStage(ledger, "memory", "ok", `action=${ingest.action}`);
           })
           .catch((err: Error) => {
             console.warn("[OpenClaw:Main] Stage 5 RM FAILED (non-fatal):", err.message);
+            markStage(ledger, "memory", "failed", err.message);
           });
       } else {
         console.log(
           "[OpenClaw:Main] Stage 5 RM: skipped — no synthesizer output in vault notes or on disk"
         );
+        markStage(ledger, "memory", "skipped", "no synthesizer output in vault notes or on disk");
       }
     } else {
       console.log("[OpenClaw:Main] Stage 5 RM: disabled");
+      markStage(ledger, "memory", "skipped", "autoIngestToResearchMemory disabled");
     }
 
     // ── Stage 6: open the overview note ──
@@ -535,9 +596,21 @@ export default class OpenClawPlugin extends Plugin {
         overviewFile = this.app.vault.getAbstractFileByPath(notes.overviewPath);
       }
       if (overviewFile) {
-        const leaf = this.app.workspace.getLeaf(false);
-        await leaf.openFile(overviewFile as any);
+        markStage(ledger, "open", "running");
+        try {
+          const leaf = this.app.workspace.getLeaf(false);
+          await leaf.openFile(overviewFile as any);
+          markStage(ledger, "open", "ok");
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.warn("[OpenClaw:Main] Stage 6 open FAILED (non-fatal):", msg);
+          markStage(ledger, "open", "failed", msg);
+        }
+      } else {
+        markStage(ledger, "open", "failed", "overview note not visible in the vault after 3 s");
       }
+    } else {
+      markStage(ledger, "open", "skipped", "no notes");
     }
 
     this.updateStatusBar("complete");
@@ -643,11 +716,16 @@ export default class OpenClawPlugin extends Plugin {
     }
   }
 
+  /**
+   * Never throws (it must not break the post-run chain). Since 2026-10-07 it RETURNS what happened so
+   * the post-run ledger can record "ok" / "skipped" / "failed" instead of assuming success; the
+   * catch-up sweep, which only cares that it did not throw, ignores the value.
+   */
   private async runZettelkastenOnNotes(notes: {
     synthesizerContent: string | null;
     agentPaths: Array<{ role: string; path: string }>;
-  }): Promise<void> {
-    if (!notes.synthesizerContent) return;
+  }): Promise<{ outcome: "ok" | "skipped" | "failed"; detail?: string }> {
+    if (!notes.synthesizerContent) return { outcome: "skipped", detail: "no synthesizer content" };
 
     try {
       this.updateStatusBar("running Zettelkasten analysis...");
@@ -655,7 +733,7 @@ export default class OpenClawPlugin extends Plugin {
       const synthPath = notes.agentPaths.find(
         (a) => a.role === "synthesizer"
       )?.path;
-      if (!synthPath) return;
+      if (!synthPath) return { outcome: "skipped", detail: "no synthesizer note path" };
 
       const miyoClient = this.settings.miyoEnabled
         ? new MiyoClient(this.settings.miyoPort)
@@ -674,7 +752,7 @@ export default class OpenClawPlugin extends Plugin {
         new Notice(
           "Zettelkasten analysis skipped: enable the vault-zettelkasten plugin under Community plugins."
         );
-        return;
+        return { outcome: "skipped", detail: "vault-zettelkasten plugin not available" };
       }
       await runVaultZKLinking(
         vaultZK,
@@ -686,10 +764,12 @@ export default class OpenClawPlugin extends Plugin {
       );
 
       new Notice("Zettelkasten analysis complete.");
+      return { outcome: "ok" };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error("[OpenClaw:Main] Zettelkasten analysis failed:", msg);
       new Notice(`Zettelkasten analysis failed: ${msg}`);
+      return { outcome: "failed", detail: msg };
     }
   }
 
@@ -819,6 +899,7 @@ export default class OpenClawPlugin extends Plugin {
         if (live) return live as unknown as Record<string, unknown>;
         return this.readWorkflowStateFromDisk();
       },
+      getPostRunLedger: () => (this.postRunLedger ? summarizeLedger(this.postRunLedger) : null),
       listTemplates: () => listTemplateSummaries(this.settings.openclawPath),
       getHistory: (limit) =>
         getWorkflowHistory(this.settings.openclawPath, limit) as unknown as Array<

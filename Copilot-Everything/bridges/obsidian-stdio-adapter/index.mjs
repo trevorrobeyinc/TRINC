@@ -10,6 +10,10 @@
 //                         obsidian_execute_command id="daily-notes") plus
 //                         video_pipeline_run/_status, proxied to the Command
 //                         Center bridge on :8799 (separate daemon, unmodified)
+//   "openclaw"          — Claude Code's dispatch lane (added 2026-10-07): a closed
+//                         13-tool allowlist proxied ONLY to the Command Center bridge
+//                         on :8799 (start/watch OpenClaw runs). Never loads the :8798
+//                         config or token. See the "openclaw" section below.
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -56,22 +60,27 @@ function loadBridgeConfig() {
   );
 }
 
-const config = loadBridgeConfig();
-if (!config.transport.tls) {
+const PROFILE = process.env.OBSIDIAN_STDIO_PROFILE || "claude";
+if (PROFILE !== "claude" && PROFILE !== "raycast" && PROFILE !== "openclaw") {
+  throw new Error(
+    `obsidian-stdio-adapter: unknown profile ${JSON.stringify(PROFILE)} — allowed: "claude", "raycast", "openclaw"`,
+  );
+}
+
+// The "openclaw" profile talks ONLY to the Command Center bridge (:8799) and never to the canonical
+// vault bridge (:8798), so it must not even load that bridge's config: the file carries the :8798
+// auth token, and a lane that cannot use a secret should not hold it (least privilege, 2026-10-07).
+// "claude" and "raycast" behave exactly as before.
+const USES_VAULT_BRIDGE = PROFILE !== "openclaw";
+const config = USES_VAULT_BRIDGE ? loadBridgeConfig() : null;
+if (config && !config.transport.tls) {
   throw new Error(
     "obsidian-stdio-adapter requires TLS configuration; plain HTTP is not supported. " +
       "Set transport.tls.{certPath,keyPath} in obsidian-cli-mcp.local.json.",
   );
 }
 
-const PROFILE = process.env.OBSIDIAN_STDIO_PROFILE || "claude";
-if (PROFILE !== "claude" && PROFILE !== "raycast") {
-  throw new Error(
-    `obsidian-stdio-adapter: unknown profile ${JSON.stringify(PROFILE)} — allowed: "claude", "raycast"`,
-  );
-}
-
-const BRIDGE_BASE_URL = `https://${config.transport.host}:${config.transport.port}`;
+const BRIDGE_BASE_URL = config ? `https://${config.transport.host}:${config.transport.port}` : null;
 
 const caPath = process.env.NODE_EXTRA_CA_CERTS
   || `${process.env.HOME}/Library/Application Support/mkcert/rootCA.pem`;
@@ -79,11 +88,11 @@ if (!existsSync(caPath)) {
   throw new Error(`obsidian-stdio-adapter could not locate trust anchor at ${caPath}`);
 }
 const BRIDGE_TLS_AGENT = new nodeHttps.Agent({ ca: readFileSync(caPath) });
-const AUTH_TOKEN = config.security.authToken;
+const AUTH_TOKEN = config?.security?.authToken;
 const DEFAULT_VAULT =
-  config.cliStability?.requiredVaultNames?.[0] ?? "My Digital Garden";
+  config?.cliStability?.requiredVaultNames?.[0] ?? "My Digital Garden";
 const DEFAULT_VAULT_ROOT =
-  config.allowedVaultRoots?.[0] ??
+  config?.allowedVaultRoots?.[0] ??
   "/Users/myhome/My Digital Garden";
 const REQUEST_TIMEOUT_MS = 20_000;
 
@@ -231,7 +240,7 @@ function loadCommandCenterToken() {
   return readFileSync(COMMAND_CENTER_TOKEN_PATH, "utf8").trim();
 }
 
-async function callCommandCenter(toolName, args) {
+async function callCommandCenter(toolName, args, timeoutMs = COMMAND_CENTER_TIMEOUT_MS) {
   // Token is read at call time so a rotation never requires an adapter restart.
   const token = loadCommandCenterToken();
   const body = JSON.stringify({
@@ -255,7 +264,7 @@ async function callCommandCenter(toolName, args) {
           "Content-Length": Buffer.byteLength(body),
         },
         agent: BRIDGE_TLS_AGENT,
-        timeout: COMMAND_CENTER_TIMEOUT_MS,
+        timeout: timeoutMs,
       },
       (res) => {
         const chunks = [];
@@ -578,16 +587,422 @@ const VIDEO_TOOLS = [
 ];
 const VIDEO_TOOL_NAMES = new Set(VIDEO_TOOLS.map((t) => t.name));
 
-const TOOLS = [
-  ...BASE_TOOLS,
-  ...(PROFILE === "raycast" ? [RAYCAST_DAILY_OPEN_TOOL, ...VIDEO_TOOLS] : []),
+// ---------------------------------------------------------------------------
+// "openclaw" profile — Claude Code -> Command Center bridge (:8799)  (2026-10-07)
+// ---------------------------------------------------------------------------
+//
+// Lets a Claude Code session start and watch OpenClaw research runs through the SAME door the Copilot
+// agent already uses, so a run is plugin-dispatched and the plugin's post-run chain (chat bubble,
+// Miyo index, Zettelkasten linking, research-memory ingest) fires without anyone operating Obsidian.
+// Client-edge aggregation, not a daemon merge: the :8799 daemon is unmodified apart from the
+// additive status fields and dry_run (see Claude/obsidian-command-center, 2026-10-07).
+//
+// This is a NARROW ALLOWLIST. Deliberately NOT exposed here, and why:
+//   obsidian_openclaw_research_task   the `real` provider spends the one-shot operator token and
+//                                     duplicates run_workflow
+//   obsidian_openclaw_{research_tasks_list,research_output,feed_stats}   not pipeline-related
+//   zk_*                              model analyses that write nothing; they do not close any gap
+//   video_pipeline_*                  needs a human click in Downie
+//   obsidian_{open_vault,create_note,append_note,read_note,search_notes,execute_command} and the
+//   dev-console tools                 write/exec surface; vault reads come from disk, not from here
+//   publish_vault `force` and `all`   rewriting existing notes (including an appended Zettelkasten
+//                                     section) and bulk backfills are operator decisions
+// The operator's YubiKey touch is NOT replaced by anything here: obsidian_openclaw_run_workflow still
+// fails closed with operator_gate_* unless a fresh token was armed (`operator-approved-gate arm openclaw`).
+//
+// Schemas below are mirrored BY HAND from Claude/obsidian-command-center/src/bridge/mcp-bridge-server.ts
+// (handleToolsList), same precedent as VIDEO_TOOLS above. scripts/test-profiles.mjs checks that every
+// mirrored name and property still exists in the live :8799 tools/list whenever it is reachable.
+
+// Mirrors the :8799 daemon's ID_RE, which it applies to template ids, input keys and workflow ids.
+const OPENCLAW_ID_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
+const OPENCLAW_MAX_INPUT_FIELDS = 20;
+// The daemon's cleanText() cap for an input value.
+const OPENCLAW_MAX_INPUT_CHARS = 2000;
+const OPENCLAW_MAX_QUERY_CHARS = 500;
+
+function rejectUnknownKeys(tool, args, allowed) {
+  const extra = Object.keys(args).filter((k) => !allowed.includes(k));
+  if (extra.length === 0) return null;
+  return (
+    `${tool} does not accept: ${extra.join(", ")} ` +
+    `(accepted on this profile: ${allowed.length ? allowed.join(", ") : "no arguments"})`
+  );
+}
+
+function isPlainObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function checkOptionalId(args, key) {
+  if (args[key] === undefined) return null;
+  if (typeof args[key] !== "string" || !OPENCLAW_ID_RE.test(args[key])) {
+    return `${key} must be a string matching [A-Za-z0-9][A-Za-z0-9_-]{0,63}`;
+  }
+  return null;
+}
+
+function checkOptionalBoolean(args, key) {
+  return args[key] === undefined || typeof args[key] === "boolean" ? null : `${key} must be a boolean`;
+}
+
+function checkOptionalIntInRange(args, key, min, max) {
+  if (args[key] === undefined) return null;
+  const v = args[key];
+  return Number.isInteger(v) && v >= min && v <= max ? null : `${key} must be an integer from ${min} to ${max}`;
+}
+
+const noArgs = (tool) => (args) => rejectUnknownKeys(tool, args, []);
+
+/**
+ * obsidian_openclaw_run_workflow — the one tool here that can spend model capacity, so it is the
+ * strictest. The operator-approve token still gates the spend at the engine; this only refuses
+ * malformed or out-of-contract requests before they leave the adapter. The daemon re-validates.
+ * Policy choices worth knowing: unknown keys are REJECTED (not ignored), values must be non-empty
+ * strings (the daemon's cleanText() rejects empties), and there is no pass-through for anything else.
+ */
+function validateRunWorkflow(args) {
+  const tool = "obsidian_openclaw_run_workflow";
+  const unknown = rejectUnknownKeys(tool, args, ["template", "inputs", "dry_run"]);
+  if (unknown) return unknown;
+  if (typeof args.template !== "string" || !OPENCLAW_ID_RE.test(args.template)) {
+    return "template must be a string matching [A-Za-z0-9][A-Za-z0-9_-]{0,63} — list valid ids with obsidian_openclaw_templates.";
+  }
+  if (!isPlainObject(args.inputs)) return "inputs must be an object of string values.";
+  const entries = Object.entries(args.inputs);
+  if (entries.length > OPENCLAW_MAX_INPUT_FIELDS) {
+    return `inputs has ${entries.length} fields (max ${OPENCLAW_MAX_INPUT_FIELDS}).`;
+  }
+  for (const [key, value] of entries) {
+    if (!OPENCLAW_ID_RE.test(key)) {
+      return `inputs key ${JSON.stringify(key.slice(0, 40))} must match [A-Za-z0-9][A-Za-z0-9_-]{0,63}.`;
+    }
+    if (typeof value !== "string" || value.trim() === "") return `inputs.${key} must be a non-empty string.`;
+    if (value.length > OPENCLAW_MAX_INPUT_CHARS) return `inputs.${key} exceeds ${OPENCLAW_MAX_INPUT_CHARS} characters.`;
+  }
+  return checkOptionalBoolean(args, "dry_run");
+}
+
+/** publish_vault is restricted to ONE named run, optionally as a preview. No force, no all. */
+function validatePublishVault(args) {
+  const tool = "obsidian_openclaw_publish_vault";
+  for (const banned of ["force", "all"]) {
+    if (Object.prototype.hasOwnProperty.call(args, banned)) {
+      return `${tool}: '${banned}' is not exposed on this profile — rewriting existing notes and bulk backfills are operator decisions.`;
+    }
+  }
+  const unknown = rejectUnknownKeys(tool, args, ["workflow_id", "dry_run"]);
+  if (unknown) return unknown;
+  if (typeof args.workflow_id !== "string" || !OPENCLAW_ID_RE.test(args.workflow_id)) {
+    return "workflow_id is required: a string matching [A-Za-z0-9][A-Za-z0-9_-]{0,63} (see obsidian_openclaw_history).";
+  }
+  return checkOptionalBoolean(args, "dry_run");
+}
+
+const WORKFLOW_ID_ONLY = (tool) => (args) =>
+  rejectUnknownKeys(tool, args, ["workflow_id"]) || checkOptionalId(args, "workflow_id");
+
+// [tool definition, client-edge validator, upstream timeout in ms]. The default is the shared 30 s;
+// the longer ones match the daemon's own spawn timeouts (engine_health 20+60+120 s, publish 240 s,
+// memory search 120 s, delivery evidence 300 s) plus headroom, so the adapter never cuts off work the
+// daemon is still doing and leaves the caller guessing.
+const OPENCLAW_SPECS = [
+  {
+    tool: {
+      name: "obsidian_health",
+      description:
+        "Command Center bridge (:8799) liveness. A reply means Obsidian is running and the command-center plugin's bridge is up.",
+      inputSchema: { type: "object", properties: {} },
+    },
+    validate: noArgs("obsidian_health"),
+  },
+  {
+    tool: {
+      name: "obsidian_openclaw_templates",
+      description:
+        "List all available OpenClaw workflow templates with their IDs, descriptions, and required input fields.",
+      inputSchema: { type: "object", properties: {} },
+    },
+    validate: noArgs("obsidian_openclaw_templates"),
+  },
+  {
+    tool: {
+      name: "obsidian_openclaw_run_workflow",
+      description:
+        "Start an OpenClaw research workflow through the Command Center plugin, so its post-run chain (notes, chat bubble, Miyo, Zettelkasten, research memory) runs automatically. Returns after at most ~15 s with a workflow_id; track it with obsidian_openclaw_status (runs take 5-10 minutes). A REAL run needs the operator's freshly armed YubiKey token (one-shot, 300 s): without it this fails closed with operator_gate_not_armed / operator_gate_expired and nothing is started or spent. Pass dry_run:true first to prove the door is open and the inputs are complete without touching the token — a reply WITHOUT dry_run:true means the bridge predates the parameter and a run may have started. Never re-send this call after a timeout; call obsidian_openclaw_status instead.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          template: {
+            type: "string",
+            description: "Workflow template ID — list valid ids and required inputs with obsidian_openclaw_templates (do not guess).",
+          },
+          inputs: {
+            type: "object",
+            description: "Template inputs as key-value pairs of non-empty strings.",
+          },
+          dry_run: {
+            type: "boolean",
+            description: "Validate the template and inputs and report what would start; spawn nothing and use no operator token.",
+          },
+        },
+        required: ["template", "inputs"],
+      },
+    },
+    validate: validateRunWorkflow,
+  },
+  {
+    tool: {
+      name: "obsidian_openclaw_status",
+      description:
+        "Status of the running or most recent workflow. Besides the engine's own `status`, it reports process_running, engine_status, and post_run: the per-stage outcome (notes, notify, miyo, zk, memory, open) of the plugin's post-run chain, with post_run_done true only when every stage has finished. The engine goes 'completed' BEFORE that chain runs, so wait for post_run_done:true before reporting success or starting another run. post_run_done:null means no ledger exists for this workflow yet (poll again) or the run was not dispatched by this plugin session. When nothing has run since the plugin loaded the reply is just status:'idle', process_running:false, post_run:null, post_run_done:null (engine_status is absent).",
+      inputSchema: { type: "object", properties: {} },
+    },
+    validate: noArgs("obsidian_openclaw_status"),
+  },
+  {
+    tool: {
+      name: "obsidian_openclaw_results",
+      description:
+        "Get the results of the most recently completed OpenClaw workflow, including artifact paths and quality metrics.",
+      inputSchema: { type: "object", properties: {} },
+    },
+    validate: noArgs("obsidian_openclaw_results"),
+  },
+  {
+    tool: {
+      name: "obsidian_openclaw_cancel",
+      description:
+        "Cancel the currently running OpenClaw workflow (SIGTERM, then SIGKILL after 5 s). The runner's timeout is warn-only, so this is the ONLY way to stop a run. The spent operator token is not refunded.",
+      inputSchema: { type: "object", properties: {} },
+    },
+    validate: noArgs("obsidian_openclaw_cancel"),
+  },
+  {
+    tool: {
+      name: "obsidian_openclaw_history",
+      description:
+        "List past workflow runs from the engine workspace, newest first: workflow_id, template, status, created/completed timestamps, inputs.",
+      inputSchema: {
+        type: "object",
+        properties: { limit: { type: "number", description: "Max entries (1-50, default 20)" } },
+      },
+    },
+    validate: (args) =>
+      rejectUnknownKeys("obsidian_openclaw_history", args, ["limit"]) || checkOptionalIntInRange(args, "limit", 1, 50),
+  },
+  {
+    tool: {
+      name: "obsidian_openclaw_artifacts",
+      description:
+        "Artifacts of a workflow run: engine run-dir file list, artifact ids, the vault notes folder and its notes. Defaults to the most recent run.",
+      inputSchema: {
+        type: "object",
+        properties: { workflow_id: { type: "string", description: "Workflow id (default: latest)" } },
+      },
+    },
+    validate: WORKFLOW_ID_ONLY("obsidian_openclaw_artifacts"),
+  },
+  {
+    tool: {
+      name: "obsidian_openclaw_engine_health",
+      description:
+        "Engine health check, read-only and ungated: Node runtime verification, a mock-provider LLM probe (never real model spend), and the connector-coverage audit. Can take a few minutes.",
+      inputSchema: { type: "object", properties: {} },
+    },
+    validate: noArgs("obsidian_openclaw_engine_health"),
+    timeoutMs: 240_000,
+  },
+  {
+    tool: {
+      name: "obsidian_openclaw_delivery_evidence",
+      description:
+        "Verify delivery evidence for a shipped offer. Modes: full or incremental only. Re-resolves identifiers against public registries, so it can take minutes.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          mode: { type: "string", enum: ["full", "incremental"], description: "Verification mode (default incremental)" },
+          offer_id: { type: "string", description: "Optional offer id to scope to" },
+        },
+      },
+    },
+    validate: (args) => {
+      const unknown = rejectUnknownKeys("obsidian_openclaw_delivery_evidence", args, ["mode", "offer_id"]);
+      if (unknown) return unknown;
+      if (args.mode !== undefined && args.mode !== "full" && args.mode !== "incremental") {
+        return "mode must be 'full' or 'incremental'";
+      }
+      return checkOptionalId(args, "offer_id");
+    },
+    timeoutMs: 330_000,
+  },
+  {
+    tool: {
+      name: "obsidian_openclaw_citation_integrity",
+      description:
+        "Read a run's citation-integrity record: the runtime verification verdict (grounded_ratio vs the min_grounded_ratio gate), ungrounded/retracted lists, and the reproducibility manifest summary. Defaults to the most recent run.",
+      inputSchema: {
+        type: "object",
+        properties: { workflow_id: { type: "string", description: "Workflow id (default: latest)" } },
+      },
+    },
+    validate: WORKFLOW_ID_ONLY("obsidian_openclaw_citation_integrity"),
+  },
+  {
+    tool: {
+      name: "obsidian_openclaw_publish_vault",
+      description:
+        "Repair path: write ONE completed, citation-PASS run's notes into the vault through the engine's own publisher (normally the engine already did this at the end of the run). No model spend, no operator gate. Restricted on this profile to workflow_id (required) and dry_run — 'force' and 'all' are not exposed. Runs already in the vault are skipped; failed, UNVERIFIED and mock runs are always skipped with a recorded reason.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          workflow_id: { type: "string", description: "Workflow id to publish (see obsidian_openclaw_history)" },
+          dry_run: { type: "boolean", description: "List what would be written; write nothing" },
+        },
+        required: ["workflow_id"],
+      },
+    },
+    validate: validatePublishVault,
+    timeoutMs: 270_000,
+  },
+  {
+    tool: {
+      name: "obsidian_openclaw_research_memory_search",
+      description:
+        "Search the research-memory pack store — what earlier engine runs concluded about a similar indication. CONTEXT ONLY: never cite an identifier from a pack without a live source. While the lane is disabled in the engine config the result reports enabled:false.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Free-text query (indication, compound, question)" },
+          limit: { type: "number", description: "Max packs to return, 1-10 (default 5)" },
+        },
+        required: ["query"],
+      },
+    },
+    validate: (args) => {
+      const unknown = rejectUnknownKeys("obsidian_openclaw_research_memory_search", args, ["query", "limit"]);
+      if (unknown) return unknown;
+      if (typeof args.query !== "string" || args.query.trim() === "") return "query is required: a non-empty string.";
+      if (args.query.length > OPENCLAW_MAX_QUERY_CHARS) return `query exceeds ${OPENCLAW_MAX_QUERY_CHARS} characters.`;
+      return checkOptionalIntInRange(args, "limit", 1, 10);
+    },
+    timeoutMs: 150_000,
+  },
 ];
+const OPENCLAW_TOOLS = OPENCLAW_SPECS.map((s) => s.tool);
+const OPENCLAW_SPEC_BY_NAME = new Map(OPENCLAW_SPECS.map((s) => [s.tool.name, s]));
+
+function openclawFailure(code, message, action) {
+  const body = { success: false, error: code, message };
+  if (action) body.action = action;
+  return { content: [{ type: "text", text: JSON.stringify(body, null, 2) }], isError: true };
+}
+
+/**
+ * Turn a transport failure into a structured, actionable result. The point is that an agent can tell
+ * "Obsidian is not running" (safe to retry after it starts) from "the connection dropped mid-call"
+ * (the daemon may still have acted). For run_workflow the second case means the run MAY have started,
+ * so the action says to look, never to re-send.
+ */
+function classifyCommandCenterError(toolName, err) {
+  const msg = String(err?.message ?? err);
+  const code = err?.code;
+  const outcomeUnknownAction =
+    toolName === "obsidian_openclaw_run_workflow"
+      ? "The run may have started. Call obsidian_openclaw_status to find out; do NOT re-send obsidian_openclaw_run_workflow."
+      : "The call may or may not have taken effect; check state with obsidian_openclaw_status before repeating it.";
+
+  if (/Command Center bridge token not found/.test(msg) || code === "ECONNREFUSED" || code === "EHOSTUNREACH") {
+    return openclawFailure(
+      "obsidian_not_running",
+      "The Command Center bridge (:8799) is not reachable: Obsidian is closed, or the command-center plugin is not loaded. Nothing was sent.",
+      "Ask the operator to open Obsidian (the bridge starts with the plugin), then call obsidian_health. No run was started.",
+    );
+  }
+  if (/timed out/.test(msg) || code === "ETIMEDOUT") {
+    return openclawFailure(
+      toolName === "obsidian_openclaw_run_workflow" ? "bridge_timeout_outcome_unknown" : "bridge_timeout",
+      `${toolName} did not answer in time: ${msg}`,
+      outcomeUnknownAction,
+    );
+  }
+  if (code === "ECONNRESET" || code === "EPIPE" || /socket hang up/.test(msg)) {
+    return openclawFailure(
+      "bridge_connection_lost_outcome_unknown",
+      `The connection to the Command Center bridge dropped during ${toolName}: ${msg}`,
+      outcomeUnknownAction,
+    );
+  }
+  if (/certificate|CERT_|UNABLE_TO_VERIFY|SELF_SIGNED/i.test(`${code ?? ""} ${msg}`)) {
+    return openclawFailure(
+      "tls_trust_failed",
+      `TLS verification of the Command Center bridge failed: ${msg}`,
+      "Check that NODE_EXTRA_CA_CERTS points at the mkcert root CA in this MCP server's env. Do not disable verification.",
+    );
+  }
+  return openclawFailure("adapter_error", msg);
+}
+
+async function handleOpenclawCall(name, args) {
+  const spec = OPENCLAW_SPEC_BY_NAME.get(name);
+  if (!spec) {
+    return { content: [{ type: "text", text: `Unknown tool: ${name}` }], isError: true };
+  }
+  const input = args ?? {};
+  if (!isPlainObject(input)) {
+    return { content: [{ type: "text", text: "Rejected by adapter input validation: arguments must be an object." }], isError: true };
+  }
+  const violation = spec.validate(input);
+  if (violation) {
+    return { content: [{ type: "text", text: `Rejected by adapter input validation: ${violation}` }], isError: true };
+  }
+  try {
+    return await callCommandCenter(name, input, spec.timeoutMs ?? COMMAND_CENTER_TIMEOUT_MS);
+  } catch (err) {
+    return classifyCommandCenterError(name, err);
+  }
+}
+
+const TOOLS =
+  PROFILE === "openclaw"
+    ? OPENCLAW_TOOLS
+    : [
+        ...BASE_TOOLS,
+        ...(PROFILE === "raycast" ? [RAYCAST_DAILY_OPEN_TOOL, ...VIDEO_TOOLS] : []),
+      ];
 
 // ---------------------------------------------------------------------------
 // Startup health check (non-blocking, warns on stderr)
 // ---------------------------------------------------------------------------
 
+async function checkCommandCenterHealth() {
+  // The openclaw profile's only upstream. Uses the pinned mkcert agent, not global fetch.
+  await new Promise((done) => {
+    const req = nodeHttps.get(
+      `${COMMAND_CENTER_BASE_URL}/healthz`,
+      { agent: BRIDGE_TLS_AGENT, timeout: 3000 },
+      (res) => {
+        res.resume();
+        process.stderr.write(
+          res.statusCode === 200
+            ? `[obsidian-stdio-adapter:${PROFILE}] Command Center healthy at ${COMMAND_CENTER_BASE_URL}\n`
+            : `[obsidian-stdio-adapter:${PROFILE}] Command Center answered HTTP ${res.statusCode}\n`,
+        );
+        done();
+      },
+    );
+    req.on("error", (err) => {
+      process.stderr.write(
+        `[obsidian-stdio-adapter:${PROFILE}] Warning: Command Center not reachable at ${COMMAND_CENTER_BASE_URL} — ${err.message} (is Obsidian open?)\n`,
+      );
+      done();
+    });
+    req.on("timeout", () => req.destroy(new Error("health check timed out")));
+  });
+}
+
 async function checkBridgeHealth() {
+  if (PROFILE === "openclaw") return checkCommandCenterHealth();
   try {
     const resp = await fetch(`${BRIDGE_BASE_URL}/healthz`, {
       signal: AbortSignal.timeout(3000),
@@ -614,7 +1029,7 @@ async function checkBridgeHealth() {
 // ---------------------------------------------------------------------------
 
 const server = new Server(
-  { name: "obsidian-stdio-adapter", version: "0.2.0" },
+  { name: "obsidian-stdio-adapter", version: "0.3.0" },
   { capabilities: { tools: {} } }
 );
 
@@ -643,7 +1058,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const result = await handleToolCall(name, args);
   // One structured line per call for post-hoc debugging — MCP hosts capture a
   // server's stderr into their own managed logs. Never log argument values.
-  const upstream = PROFILE === "raycast" && VIDEO_TOOL_NAMES.has(name) ? 8799 : 8798;
+  const upstream =
+    PROFILE === "openclaw" || (PROFILE === "raycast" && VIDEO_TOOL_NAMES.has(name)) ? 8799 : 8798;
   process.stderr.write(
     `[obsidian-stdio-adapter:${PROFILE}] call tool=${name} upstream=${upstream} ` +
       `status=${result.isError ? "error" : "ok"} latency_ms=${Date.now() - startedAt}\n`,
@@ -659,6 +1075,10 @@ async function handleToolCall(name, args) {
       isError: true,
     };
   }
+
+  // The openclaw profile has its own closed tool set and never reaches the :8798 paths below —
+  // even the shared name `obsidian_health` is answered by the :8799 daemon there.
+  if (PROFILE === "openclaw") return await handleOpenclawCall(name, args);
 
   const isKnownStandardTool = Object.prototype.hasOwnProperty.call(TOOL_OPERATION_MAP, name);
   const isRaycastTool = PROFILE === "raycast" && name === "raycast_daily_open";

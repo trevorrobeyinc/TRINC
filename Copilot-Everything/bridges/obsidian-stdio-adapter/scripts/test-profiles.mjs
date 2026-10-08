@@ -19,9 +19,10 @@
 
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import * as nodeHttps from "node:https";
-import { dirname, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -54,10 +55,10 @@ function caPath() {
 }
 
 /** Drive one adapter instance over stdio: initialize -> tools/list [-> extra calls]. */
-function runAdapter(profile, extraRequests = []) {
+function runAdapter(profile, extraRequests = [], envExtra = {}) {
   return new Promise((resolvePromise, rejectPromise) => {
     const proc = spawn(process.execPath, [ADAPTER], {
-      env: { ...process.env, OBSIDIAN_STDIO_PROFILE: profile },
+      env: { ...process.env, OBSIDIAN_STDIO_PROFILE: profile, ...envExtra },
       stdio: ["pipe", "pipe", "pipe"],
     });
     const responses = new Map();
@@ -252,5 +253,249 @@ function assertReject(id, label, phrase) {
 assertReject(4, "http:// video URL rejected with scheme error", "URL scheme must be https");
 assertReject(5, "non-allowlisted host rejected with hostname error", "hostname not in allowlist: evil.example.com");
 assertReject(6, "2 MB argument payload rejected with size error", "arguments exceed 1 MB limit");
+
+// --- openclaw profile: Claude Code's dispatch lane (added 2026-10-07) --------
+//
+// Safety rule for this section: it NEVER sends a non-dry-run obsidian_openclaw_run_workflow, and it
+// only sends a dry_run one to a LIVE :8799 after a read-only version probe shows the daemon knows
+// the parameter (a daemon that predates dry_run would ignore it and try to start a real run).
+const EXPECTED_OPENCLAW = [
+  "obsidian_health",
+  "obsidian_openclaw_templates",
+  "obsidian_openclaw_run_workflow",
+  "obsidian_openclaw_status",
+  "obsidian_openclaw_results",
+  "obsidian_openclaw_cancel",
+  "obsidian_openclaw_history",
+  "obsidian_openclaw_artifacts",
+  "obsidian_openclaw_engine_health",
+  "obsidian_openclaw_delivery_evidence",
+  "obsidian_openclaw_citation_integrity",
+  "obsidian_openclaw_publish_vault",
+  "obsidian_openclaw_research_memory_search",
+];
+// Everything the :8799 daemon (or the :8798 vault bridge) offers that this lane must NOT surface.
+const FORBIDDEN_ON_OPENCLAW = [
+  "obsidian_execute_command",
+  "obsidian_create_note",
+  "obsidian_append_note",
+  "obsidian_open_vault",
+  "obsidian_read_note",
+  "obsidian_search_notes",
+  "obsidian_dev_console_eval",
+  "obsidian_dev_console_logs",
+  "obsidian_dev_console_errors",
+  "research_publish",
+  "miyo_search_context",
+  "obsidian_openclaw_research_task",
+  "obsidian_openclaw_research_tasks_list",
+  "obsidian_openclaw_research_output",
+  "obsidian_openclaw_feed_stats",
+  "video_pipeline_run",
+  "video_pipeline_status",
+  "raycast_daily_open",
+  "zk_serendipity",
+  "zk_cross_domain",
+  "zk_echo_chamber",
+  "zk_semantic_linker",
+  "zk_orphan_rescue",
+  "zk_vault_health",
+  "zk_full_pipeline",
+];
+
+const callReq = (id, name, args) => ({
+  jsonrpc: "2.0",
+  id,
+  method: "tools/call",
+  params: { name, arguments: args },
+});
+const resultText = (responses, id) => responses.get(id)?.result?.content?.[0]?.text ?? "";
+const resultJson = (responses, id) => {
+  try {
+    return JSON.parse(resultText(responses, id));
+  } catch {
+    return null;
+  }
+};
+
+// (1) Adapter-local rejects and a forced-dead upstream. Nothing here can reach a live daemon: the
+// rejects fail before any network call and the upstream URL is a closed loopback port.
+const DEAD_UPSTREAM = { OBSIDIAN_STDIO_COMMAND_CENTER_URL: "https://127.0.0.1:9" };
+const VALID_RUN = { template: "general-research-pack", inputs: { topic: "fixture" } };
+const openclawLocal = await runAdapter(
+  "openclaw",
+  [
+    callReq(10, "obsidian_openclaw_run_workflow", { ...VALID_RUN, provider: "mock" }),
+    callReq(11, "obsidian_openclaw_run_workflow", { template: "../../etc/passwd", inputs: { topic: "x" } }),
+    callReq(12, "obsidian_openclaw_run_workflow", { template: "t", inputs: { topic: 42 } }),
+    callReq(13, "obsidian_openclaw_run_workflow", { template: "t", inputs: { topic: "   " } }),
+    callReq(14, "obsidian_openclaw_publish_vault", { workflow_id: "wf-1", force: true }),
+    callReq(15, "obsidian_openclaw_publish_vault", { all: true }),
+    callReq(16, "obsidian_openclaw_publish_vault", {}),
+    callReq(17, "obsidian_execute_command", { id: "app:reload" }),
+    callReq(18, "obsidian_openclaw_history", { limit: 500 }),
+    callReq(19, "obsidian_openclaw_status", { extra: 1 }),
+    callReq(20, "obsidian_openclaw_run_workflow", { ...VALID_RUN, dry_run: "yes" }),
+    callReq(21, "obsidian_openclaw_research_memory_search", { query: "q".repeat(501) }),
+    // Valid, dry-run, dead upstream: must degrade to a structured obsidian_not_running result.
+    callReq(22, "obsidian_health", {}),
+    callReq(23, "obsidian_openclaw_run_workflow", { ...VALID_RUN, dry_run: true }),
+    callReq(24, "obsidian_openclaw_status", {}),
+  ],
+  DEAD_UPSTREAM,
+);
+
+check("openclaw profile lists exactly the 13 allowlisted tools", () => {
+  assert.deepEqual(toolNames(openclawLocal), [...EXPECTED_OPENCLAW].sort());
+});
+check("openclaw profile exposes none of the 25 forbidden vault/exec/zk/video/task tools", () => {
+  const listed = new Set(toolNames(openclawLocal));
+  const leaked = FORBIDDEN_ON_OPENCLAW.filter((n) => listed.has(n));
+  assert.deepEqual(leaked, []);
+});
+check("openclaw publish_vault schema does not even advertise force or all", () => {
+  const tool = (openclawLocal.get(2)?.result?.tools ?? []).find((t) => t.name === "obsidian_openclaw_publish_vault");
+  assert.ok(tool, "publish_vault missing");
+  assert.deepEqual(Object.keys(tool.inputSchema.properties).sort(), ["dry_run", "workflow_id"]);
+  assert.deepEqual(tool.inputSchema.required, ["workflow_id"]);
+});
+check("openclaw run_workflow schema requires template and inputs and offers dry_run", () => {
+  const tool = (openclawLocal.get(2)?.result?.tools ?? []).find((t) => t.name === "obsidian_openclaw_run_workflow");
+  assert.deepEqual(tool.inputSchema.required, ["template", "inputs"]);
+  assert.ok("dry_run" in tool.inputSchema.properties);
+});
+
+function assertOpenclawReject(id, label, phrase) {
+  check(label, () => {
+    const res = openclawLocal.get(id)?.result;
+    assert.ok(res, `no result for tools/call id ${id}`);
+    assert.equal(res.isError, true, `expected isError:true, got: ${JSON.stringify(res).slice(0, 200)}`);
+    const text = res.content?.[0]?.text ?? "";
+    assert.ok(text.includes(phrase), `expected ${JSON.stringify(phrase)} in: ${text.slice(0, 240)}`);
+  });
+}
+assertOpenclawReject(10, "run_workflow rejects an unknown key (provider) instead of ignoring it", "does not accept: provider");
+assertOpenclawReject(11, "run_workflow rejects a path-traversal template id", "template must be a string matching");
+assertOpenclawReject(12, "run_workflow rejects a non-string input value", "inputs.topic must be a non-empty string");
+assertOpenclawReject(13, "run_workflow rejects a blank input value", "inputs.topic must be a non-empty string");
+assertOpenclawReject(14, "publish_vault rejects force", "'force' is not exposed on this profile");
+assertOpenclawReject(15, "publish_vault rejects all", "'all' is not exposed on this profile");
+assertOpenclawReject(16, "publish_vault requires workflow_id", "workflow_id is required");
+assertOpenclawReject(17, "an excluded tool (obsidian_execute_command) is Unknown on this profile", "Unknown tool: obsidian_execute_command");
+assertOpenclawReject(18, "history rejects an out-of-range limit", "limit must be an integer from 1 to 50");
+assertOpenclawReject(19, "a no-argument tool rejects stray arguments", "does not accept: extra");
+assertOpenclawReject(20, "run_workflow rejects a non-boolean dry_run", "dry_run must be a boolean");
+assertOpenclawReject(21, "research_memory_search rejects an over-long query", "query exceeds 500 characters");
+
+for (const [id, label] of [
+  [22, "dead upstream: obsidian_health degrades to obsidian_not_running"],
+  [23, "dead upstream: a dry_run run_workflow degrades to obsidian_not_running (no run started)"],
+  [24, "dead upstream: status degrades to obsidian_not_running"],
+]) {
+  check(label, () => {
+    const res = openclawLocal.get(id)?.result;
+    assert.equal(res?.isError, true);
+    const body = resultJson(openclawLocal, id);
+    assert.equal(body?.error, "obsidian_not_running", `got: ${resultText(openclawLocal, id).slice(0, 240)}`);
+    assert.equal(body?.success, false);
+    assert.ok(/open Obsidian/i.test(body?.action ?? ""), "action should tell the caller what to do");
+  });
+}
+
+// (2) Least privilege: the openclaw lane must start and list tools with the :8798 config UNREADABLE.
+// OBSIDIAN_MCP_CONFIG is the first candidate the vault profiles try and it is read + JSON.parsed, so
+// pointing it at a file that is not JSON crashes "claude" but must not touch "openclaw".
+const POISON_DIR = mkdtempSync(join(tmpdir(), "stdio-adapter-poison-"));
+const POISON_CONFIG = join(POISON_DIR, "not-a-config.json");
+writeFileSync(POISON_CONFIG, "{ this is not json — the openclaw profile must never read it", "utf8");
+try {
+  const poisoned = await runAdapter("openclaw", [], { OBSIDIAN_MCP_CONFIG: POISON_CONFIG, ...DEAD_UPSTREAM });
+  check("openclaw starts and lists its tools even when the :8798 config is unreadable (it never loads the :8798 token)", () => {
+    assert.deepEqual(toolNames(poisoned), [...EXPECTED_OPENCLAW].sort());
+  });
+  const controlExit = await new Promise((resolveExit) => {
+    const proc = spawn(process.execPath, [ADAPTER], {
+      env: { ...process.env, OBSIDIAN_STDIO_PROFILE: "claude", OBSIDIAN_MCP_CONFIG: POISON_CONFIG },
+      stdio: ["ignore", "ignore", "pipe"],
+    });
+    let stderr = "";
+    proc.stderr.on("data", (c) => (stderr += c.toString("utf8")));
+    const timer = setTimeout(() => {
+      proc.kill();
+      resolveExit({ code: "timeout", stderr });
+    }, 8000);
+    proc.on("exit", (code) => {
+      clearTimeout(timer);
+      resolveExit({ code, stderr });
+    });
+  });
+  check("negative control: the SAME poisoned config does crash the claude profile (so the check above is meaningful)", () => {
+    assert.notEqual(controlExit.code, 0, "claude profile unexpectedly survived an unreadable config");
+    assert.notEqual(controlExit.code, "timeout", "claude profile hung instead of failing on the bad config");
+  });
+} finally {
+  rmSync(POISON_DIR, { recursive: true, force: true });
+}
+
+// (3) Static drift guard: every mirrored tool name must still exist in the Command Center source.
+// (Names only — property-level drift is covered by the live checks below when :8799 is up.)
+const CC_SOURCE = resolve(__dirname, "../../../../Claude/obsidian-command-center/src/bridge/mcp-bridge-server.ts");
+check("every openclaw tool name still exists in the Command Center bridge source", () => {
+  const source = readFileSync(CC_SOURCE, "utf8");
+  const missing = EXPECTED_OPENCLAW.filter((n) => !source.includes(`name: "${n}"`));
+  assert.deepEqual(missing, []);
+});
+check("the Command Center source supports dry_run on run_workflow and post_run_done on status", () => {
+  const source = readFileSync(CC_SOURCE, "utf8");
+  assert.ok(source.includes("params.dry_run === true"), "dry_run handling missing from handleRunWorkflow");
+  assert.ok(source.includes("post_run_done"), "post_run_done missing from handleGetStatus");
+});
+
+// (4) Live checks against a reachable :8799. Read-only except the dry_run, which is sent only after
+// the status reply proves the daemon is the upgraded build.
+if (ccUp) {
+  const live = await runAdapter("openclaw", [
+    callReq(30, "obsidian_health", {}),
+    callReq(31, "obsidian_openclaw_templates", {}),
+    callReq(32, "obsidian_openclaw_status", {}),
+  ]);
+  check("live :8799 answers obsidian_health, templates and status through the openclaw lane", () => {
+    for (const id of [30, 31, 32]) {
+      assert.notEqual(live.get(id)?.result?.isError, true, `id ${id}: ${resultText(live, id).slice(0, 200)}`);
+    }
+    const templates = resultText(live, 31);
+    assert.ok(templates.length > 20, "templates reply suspiciously short");
+  });
+  const status = resultJson(live, 32);
+  const upgraded = status !== null && "post_run_done" in status && "process_running" in status;
+  if (upgraded) {
+    check("live status carries the post-run ledger fields (daemon is the upgraded build)", () => {
+      assert.equal(typeof status.process_running, "boolean");
+      assert.ok(status.post_run_done === null || typeof status.post_run_done === "boolean");
+    });
+    const templatesJson = resultJson(live, 31);
+    const first = (templatesJson?.templates ?? templatesJson?.result?.templates ?? [])[0];
+    if (first?.id) {
+      const inputs = Object.fromEntries((first.requiredInputs ?? []).map((k) => [k, "dry-run fixture"]));
+      const dry = await runAdapter("openclaw", [
+        callReq(40, "obsidian_openclaw_run_workflow", { template: first.id, inputs, dry_run: true }),
+      ]);
+      check("live dry_run run_workflow reports dry_run:true, started:false and uses no operator token", () => {
+        const body = resultJson(dry, 40);
+        assert.equal(body?.dry_run, true, `got: ${resultText(dry, 40).slice(0, 240)}`);
+        assert.equal(body?.started, false);
+      });
+    } else {
+      console.log("SKIP  live dry_run — could not read a template id from the templates reply");
+    }
+  } else {
+    console.log(
+      "SKIP  live dry_run + ledger checks — the running :8799 daemon predates post_run_done, so a dry_run " +
+        "could be ignored and start a run. Deploy the upgraded Command Center build, then re-run.",
+    );
+  }
+} else {
+  console.log("SKIP  live openclaw checks — Command Center bridge (:8799) unreachable (is Obsidian open?)");
+}
 
 process.exit(failures === 0 ? 0 : 1);

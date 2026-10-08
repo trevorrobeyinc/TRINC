@@ -5,6 +5,7 @@ import { join } from "path";
 import { existsSync, readdirSync, readFileSync, statSync } from "fs";
 import type { WorkflowResult, WorkflowState, StderrEvent, OpenClawSettings } from "../types";
 import { buildEngineEnv, resolveNodeBin } from "../util/engine-spawn";
+import { classifyGateDenial, gateDenialAction } from "./gate-denial";
 
 export interface RunWorkflowOptions {
   template: string;
@@ -220,15 +221,14 @@ export class OpenClawRunner {
       }
 
       const tail = stderrTail.trim().slice(-500);
-      // The engine's fail-closed YubiKey gate (scripts/_operator-gate-cli.js) prints exactly this
-      // line and exits 1 before creating a workflow — nothing was spent. Name it, and carry the
-      // operator's action, the same way obsidian_openclaw_research_task reports it.
-      const failure = /Operator-approve denied: not armed/i.test(stderrTail)
-        ? new Error(
-            "operator_gate_not_armed: the engine refused to start because no operator-approve token was " +
-              "armed (fail-closed; no run, no model spend). Action: the operator runs `operator-approve-gate arm` " +
-              "(YubiKey PIN + touch), then re-send the same request within 5 minutes. Engine said: " + tail
-          )
+      // The engine's fail-closed YubiKey gate (scripts/run-workflow.js) prints
+      // "Operator-approve denied: <reason>" and exits 1 before creating a workflow — nothing was spent.
+      // Name which refusal it was (not armed / expired / mismatched), and carry the operator's action,
+      // the same way obsidian_openclaw_research_task reports it. Until 2026-10-07 only "not armed" was
+      // recognised, so an expired token surfaced as the generic exit error below.
+      const denial = classifyGateDenial(stderrTail);
+      const failure = denial
+        ? new Error(`${denial}: ${gateDenialAction(denial)} Engine said: ${tail}`)
         : new Error(
             `Process exited with code ${code}. No result found in workflow state file or stdout. stderr tail: ${tail}`
           );

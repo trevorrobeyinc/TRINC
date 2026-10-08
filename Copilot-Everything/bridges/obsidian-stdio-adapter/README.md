@@ -44,9 +44,42 @@ profile here instead.
 | `claude` (default) | the 7 canonical `obsidian_*` tools | `:8798` canonical bridge (HMAC + replay-guard, token from the bridge config file) |
 | `raycast` | the 7 above + `raycast_daily_open` (local map to `obsidian_execute_command id="daily-notes"`) + `video_pipeline_run` / `video_pipeline_status` | vault tools → `:8798`; video tools → `:8799` Command Center bridge (`Authorization: Bearer`, token read per-call from `~/.config/openclaw-command-center/bridge-token`) |
 
-The `claude` profile's surface is **frozen** — Claude Desktop's tool list must never
-change as a side effect of work on other profiles. `npm run test:profiles` asserts
-both surfaces exactly.
+| `openclaw` (0.3.0) | a closed **13-tool** allowlist: `obsidian_health` plus 12 `obsidian_openclaw_*` tools (start/watch/cancel a research run, read results, history, artifacts, citation integrity, memory search, engine health, delivery evidence, and a restricted `publish_vault`) | **only** `:8799` Command Center bridge (`Authorization: Bearer`, token read per-call). Never loads the `:8798` config or its auth token. |
+
+The `claude` and `raycast` profiles' surfaces are **frozen** — Claude Desktop's and
+Raycast's tool lists must never change as a side effect of work on other profiles.
+`npm run test:profiles` asserts all three surfaces exactly.
+
+### The `openclaw` profile — Claude Code's dispatch lane
+
+Purpose: let a Claude Code session start and watch OpenClaw research runs through the
+**same door the Copilot agent uses**, so the run is dispatched by the command-center
+plugin and its post-run chain (notes, chat bubble, Miyo index, Zettelkasten linking,
+research-memory ingest) fires with nobody operating Obsidian. Runbook and the exact
+call sequence: the `openclaw-dispatch` skill (see the monorepo `CLAUDE.md`).
+
+- **It does not replace the operator's YubiKey touch.** `obsidian_openclaw_run_workflow`
+  still fails closed with `operator_gate_not_armed` / `operator_gate_expired` /
+  `operator_gate_token_mismatch` unless a fresh one-shot token was armed
+  (`operator-approved-gate arm openclaw`, valid 300 s, one run).
+- **Strict client-edge validation** (the daemon re-validates): template ids and input
+  keys match `[A-Za-z0-9][A-Za-z0-9_-]{0,63}`; input values are non-empty strings of at
+  most 2000 characters, at most 20 fields; **unknown keys are rejected, not ignored**;
+  `publish_vault` takes only `workflow_id` + `dry_run` (`force` and `all` are refused);
+  no-argument tools reject stray arguments.
+- **Structured failures.** A closed Obsidian returns `obsidian_not_running` (nothing was
+  sent). A timeout or dropped connection during `run_workflow` returns
+  `bridge_timeout_outcome_unknown` / `bridge_connection_lost_outcome_unknown` with the
+  instruction to call `obsidian_openclaw_status` and **never re-send**. The adapter never
+  retries.
+- **Per-tool timeouts** match the daemon's own spawn timeouts (engine health, publish,
+  memory search and delivery evidence run for minutes); everything else keeps the shared 30 s.
+- **Deliberately absent:** `execute_command`, every vault read/write tool, the dev-console
+  tools, `research_task`, `zk_*`, `video_pipeline_*`, and `publish_vault` `force`/`all`.
+  The reasons are in the comment block above `OPENCLAW_SPECS` in `index.mjs`.
+- **Register it last.** The Claude Code gate hook is an allowlist with no catch-all, so a
+  new MCP server name is ungated until the hook's matcher knows it. Do not add the
+  `.mcp.json` entry before the Security Everything gate wiring is in.
 
 Failure isolation: the `:8799` proxy is per-call — if the Command Center bridge is
 down, video tools return a clean MCP `isError` result and every `:8798` vault tool

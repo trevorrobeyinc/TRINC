@@ -10,7 +10,7 @@ Three active layers (backend-emulator retired 2026-04-11, deleted from monorepo 
 |---|---|---|---|
 | Obsidian plugin fork | **`repos/obsidian-copilot-mcp-v4`** (LIVE) | — | MCP-first fork, **ported onto upstream 4.0.0 on 2026-08-12**, manifest `99.4.0`. Exposes 12 MCP tools to Copilot chat over HTTPS. The old `repos/obsidian-copilot-mcp` (3.3.3) is now the HISTORICAL source — do not build or deploy it. |
 | Shared MCP bridge | `bridges/obsidian-copilot-bridge` | 8798 | Canonical multi-operator daemon. **REST-only since 2026-05-09**: RestApiBackend (Local REST API plugin :27124) is the sole backend — the CLI subprocess backend was removed together with InprocPluginBackend + the Advanced URI parity tools (`src/backends/backendSelector.ts` requires restApi; there is no fallback). `/mcp/tool`'s optional `backendHint` accepts only the literal `"restApi"` — a stale `"cli"` hint is rejected HTTP 400 `invalid_literal` (this silently broke the Copilot fork's in-plugin agent vault tools until 2026-07-31, when the fork stopped sending the hint entirely). HTTPS/TLS with HMAC replay-guard. |
-| Consolidated stdio adapter | `bridges/obsidian-stdio-adapter` | — | Single stdio MCP adapter that tunnels Claude/Raycast stdio consumers to :8798. Replaces claude-adapter, obsidian-mcp-stdio, raycast-obsidian-stdio (deletion of those pending). Two profiles via `OBSIDIAN_STDIO_PROFILE`: `claude` (default) and `raycast` (adds `raycast_daily_open`; since 2026-08-20 also proxies `video_pipeline_run`/`video_pipeline_status` to the Command Center bridge on :8799 — client-edge aggregation, see root `CLAUDE.md`). |
+| Consolidated stdio adapter | `bridges/obsidian-stdio-adapter` | — | Single stdio MCP adapter that tunnels Claude/Raycast stdio consumers to :8798. Replaces claude-adapter, obsidian-mcp-stdio, raycast-obsidian-stdio (deletion of those pending). Three profiles via `OBSIDIAN_STDIO_PROFILE`: `claude` (default) and `raycast` (adds `raycast_daily_open`; since 2026-08-20 also proxies `video_pipeline_run`/`video_pipeline_status` to the Command Center bridge on :8799 — client-edge aggregation, see root `CLAUDE.md`), plus **`openclaw`** (v0.3.0, 2026-10-07): Claude Code's dispatch lane, a closed 13-tool allowlist proxied only to :8799 (start/watch OpenClaw runs); it never loads the :8798 config or token. **Built and tested but not registered** until the Security Everything gate wiring is applied (plan: `~/.claude/plans/openclaw-dispatch-p3-gate-wiring-proposal.md`). **Verified 2026-10-07: the adapter is registered on no Claude surface** (server names checked in `claude_desktop_config.json`, `~/.claude.json` and `.mcp.json`); see the corrected "Claude / Raycast Integration" section. |
 | Miyo (via TLS proxy) | `scripts/miyo-tls-proxy.mjs` → external Miyo app | 8743 → 8742 | Semantic search via in-monorepo HTTPS proxy at :8743 forwarding to plaintext :8742. Index endpoints deprecated in v4. |
 | Qdrant (via TLS proxy) | `scripts/qdrant-tls-proxy.mjs` → Miyo-bundled Qdrant | 6433 → 6333 | Local vector DB (collection `miyo`) via in-monorepo HTTPS proxy at :6433 forwarding to plaintext :6333. Fallback chunk retrieval for ZK service. |
 | SearXNG (via TLS proxy) | `scripts/searxng-tls-proxy.mjs` → external SearXNG (launchd) | 8891 → 8890 | Local private metasearch via in-monorepo HTTPS proxy at :8891 forwarding to plaintext :8890 (JSON API for the `searxng-search` MCP connector). |
@@ -225,7 +225,7 @@ obsidian vault info=name                          # Vault info
 obsidian version                                  # CLI version
 ```
 
-Claude accesses the vault through the bridge adapter (see Claude Integration section below).
+Claude Desktop reaches the vault through FilesystemPlus and miyo today; the bridge adapter below is not registered on a Claude surface (see the corrected Claude Integration section).
 
 ## Build & Dev Commands
 
@@ -314,7 +314,16 @@ TLS is configured in `bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.lo
 
 ## Claude / Raycast Integration (bridge adapter)
 
-Claude Desktop, Claude Code, and Raycast (via stdio profile) connect to the workspace
+> **CORRECTED 2026-10-07 — this section described a registration that does not exist.** Verified from the server names in
+> `claude_desktop_config.json`, `~/.claude.json` and the repo `.mcp.json`: the adapter is registered on **no Claude surface**
+> (Claude Desktop runs FilesystemPlus, miyo, opencode, perseus-business, perseus-vault, searxng-search; Claude Code user scope
+> runs alphaxiv, falcon, firewalla, github, gmail, klsense-btt, opencode, perseus-vault, phone-gate, searxng-search, sudo-gate,
+> zoho-trinc). Raycast has its own MCP config, which cannot be read from here, so the Raycast statements below are unverified.
+> The `claude` profile is therefore unused today; the new `openclaw` profile (Claude Code's dispatch lane into :8799) is built
+> but deliberately not registered until the Security Everything gate hook knows its prefix. The rest of this section describes
+> what the adapter DOES when a client is wired to it.
+
+Claude Desktop, Claude Code, and Raycast (via stdio profile) could connect to the workspace
 via the consolidated stdio MCP adapter at `bridges/obsidian-stdio-adapter/`. It speaks
 standard MCP JSON-RPC on stdin/stdout and forwards every tool call to the canonical
 bridge at `https://127.0.0.1:8798` with full auth and replay protection.
@@ -383,7 +392,7 @@ This workspace's MCP bridge at port **8798** is the canonical Obsidian vault acc
 
 | Operator | How it connects | Purpose |
 |----------|----------------|---------|
-| Claude Desktop | obsidian-stdio-adapter stdio → HTTPS :8798 | Vault CRUD, command execution |
+| Claude Desktop | **not via this bridge today** (corrected 2026-10-07: the stdio adapter is not registered on Claude Desktop; it uses FilesystemPlus + miyo) | Vault files and search |
 | OpenClaw Command Center | HTTPS :8798 (or direct Vault API when in-plugin) | Vault operations for workflow notes |
 
 The bridge **must be running** before other operators can access the vault. Start via the `obsidian-bridge-launcher` Obsidian plugin (auto-spawns on Obsidian startup), or for manual / dev work: `bash scripts/bridge-start.sh`. Callers must have `NODE_EXTRA_CA_CERTS` set to the mkcert root CA for TLS verification.

@@ -14,18 +14,47 @@ Obsidian plugin that turns a vault into the single UI for the OpenClaw biomedica
 ## Quick Reference
 
 ```bash
-cd /Users/myhome/TrevClaw-Obsidianodus/Claude/obsidian-openclaw-command-center
+cd /Users/myhome/TrevClaw-Obsidianodus/Claude/obsidian-command-center   # path corrected 2026-10-07 (was the pre-rename ...-openclaw-command-center)
 npm run build
 npm run dev
+npm test              # unit tests for the pure modules (node --test, strip-types); no Obsidian needed
+npm run lint:transport
 ```
 
-Plugin output goes to `main.js` in the project root, which Obsidian loads.
+Plugin output goes to `main.js` in the project root (gitignored). Obsidian loads the copy in
+`/Users/myhome/My Digital Garden/.obsidian/plugins/command-center/`, so a build is not live until
+`main.js` is copied there (see the `deploy-surface` skill) — and **a plugin reload cancels a run in
+progress**, so deploy only when `obsidian_openclaw_status` shows `process_running:false`. `tsc --noEmit`
+reports 4 pre-existing errors in `src/workflow/workflow-modal.ts` (esbuild does not typecheck, so the
+build is unaffected); a change that adds a fifth is yours.
 
 ## Architecture
 
 ### MCP Bridge (port 8799)
 
 The plugin runs an in-process HTTPS bridge providing **32 tools** (7 `obsidian_*` + 16 `obsidian_openclaw_*` + 7 `zk_*` + 2 `video_pipeline_*`; engine suite added 2026-08-20; `obsidian_openclaw_publish_vault` + `obsidian_openclaw_research_memory_search` added 2026-09-22 — both spawn engine CLIs, no gate, no model spend; the memory search honours the engine's `researchMemory.enabled` switch). Default port is **8799** to avoid collision with the canonical copilot-everything bridge at **8798**.
+
+**Run dispatch contract (2026-10-07).** This is the door a Claude Code session uses to start OpenClaw runs
+(through the stdio adapter's `openclaw` profile, `Copilot-Everything/bridges/obsidian-stdio-adapter/`), so
+the plugin's post-run chain runs with nobody operating Obsidian:
+
+- `obsidian_openclaw_run_workflow` accepts `dry_run:true`: every pre-start check runs (template exists, required
+  inputs present, no run active) and it returns before anything is spawned or any operator token is touched. A
+  reply WITHOUT `dry_run:true` means the bridge predates the parameter — callers must treat that as "a run may
+  have started".
+- A fail-closed engine gate refusal comes back with its own code: `operator_gate_not_armed` (spelling unchanged —
+  the Copilot agent already knows it), `operator_gate_expired`, `operator_gate_token_mismatch`, or
+  `operator_gate_denied` for a reason this plugin does not recognise. Parsing lives in
+  `src/subprocess/gate-denial.ts` (pure, unit-tested against the engine's real reason strings).
+- `obsidian_openclaw_status` keeps its existing `status` key (the engine's own workflow.json status, which goes
+  terminal BEFORE the plugin's enrichment stages run) and adds `process_running`, `engine_status`, `post_run`
+  and `post_run_done`. `post_run` is the per-stage ledger for the stages in `main.ts` `onWorkflowComplete`
+  (`notes, notify, miyo, zk, memory, open` → `pending|running|ok|skipped|failed` + a short detail); it lives in
+  `src/workflow/post-run-ledger.ts`. `post_run_done` is `true` only when every stage is terminal, `false` while
+  the engine runs, and `null` when no ledger exists for that workflow. The memory ingest is fire-and-forget, so
+  `post_run_done` can lag the rest of the chain.
+- Each run writes to a ledger captured in a local variable, never to the plugin field, so a late stage of run N
+  cannot land in run N+1's ledger.
 
 The canonical Obsidian MCP bridge (with auth, replay protection, idempotency) lives at:
 `/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge/`

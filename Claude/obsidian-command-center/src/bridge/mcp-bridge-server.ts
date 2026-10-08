@@ -13,6 +13,8 @@ import {
   gateNotArmedError,
   type EngineScriptResult,
 } from "../util/engine-spawn";
+import { gateCodeFromMessage, gateDenialAction } from "../subprocess/gate-denial";
+import type { LedgerSummary } from "../workflow/post-run-ledger";
 
 const HOST = "127.0.0.1";
 
@@ -216,6 +218,13 @@ export interface PluginActions {
   isRunning(): boolean;
   getLastResult(): Record<string, unknown> | null;
   getWorkflowState(): Record<string, unknown> | null;
+  /**
+   * Per-stage outcome of the plugin's post-run chain for the most recent run this plugin session
+   * completed (notes, chat bubble, Miyo, Zettelkasten, memory ingest, open note), or null before any
+   * run has completed. Added 2026-10-07: workflow.json goes terminal before these stages run, so
+   * `status` alone could not say whether the chain had finished.
+   */
+  getPostRunLedger(): LedgerSummary | null;
   listTemplates(): Array<{
     id: string;
     name: string;
@@ -870,6 +879,27 @@ export class McpBridgeServer {
       );
     }
 
+    // dry_run (2026-10-07): run every check above, then stop BEFORE anything is spawned. It lets a
+    // caller prove the door is open, the template exists and the inputs are complete without
+    // touching the YubiKey-armed token — the engine consumes that token only at spawn. It also
+    // doubles as a version probe: a bridge that predates this parameter would ignore it and START a
+    // run, so callers must treat a reply without `dry_run: true` as "not upgraded, do not arm".
+    if (params.dry_run !== undefined && typeof params.dry_run !== "boolean") {
+      throw new Error("dry_run must be a boolean when provided.");
+    }
+    if (params.dry_run === true) {
+      return {
+        success: true,
+        dry_run: true,
+        started: false,
+        template: templateId,
+        inputs,
+        message:
+          `Dry run: '${templateId}' passed every pre-start check. Nothing was spawned and no operator ` +
+          "token was used or required.",
+      };
+    }
+
     actions.runWorkflow(templateId, inputs);
 
     // Decision 1 (2026-08-20): block briefly for the async-captured workflow id
@@ -882,14 +912,16 @@ export class McpBridgeServer {
     // way obsidian_openclaw_research_task already does.
     if (!workflowId) {
       const lastError = actions.getLastRunError();
-      if (lastError && /^operator_gate_not_armed/.test(lastError)) {
+      // 2026-10-07: every gate refusal now carries its own code (not armed / expired / token
+      // mismatch / unrecognised). `operator_gate_not_armed` keeps its exact spelling because the
+      // Copilot agent's prompts and tool results already refer to it.
+      const gateCode = gateCodeFromMessage(lastError);
+      if (lastError && gateCode) {
         return {
           success: false,
           started: false,
-          error: "operator_gate_not_armed",
-          action:
-            "The operator runs `operator-approve-gate arm` (YubiKey PIN + touch), then you re-send the same " +
-            "request within 5 minutes. One token = one run; nothing was started or spent.",
+          error: gateCode,
+          action: gateDenialAction(gateCode),
           detail: lastError,
           template: templateId,
           inputs,
@@ -932,12 +964,35 @@ export class McpBridgeServer {
     const state = this.pluginActions.getWorkflowState();
 
     if (!running && !state) {
-      return { status: "idle", message: "No workflow is running." };
+      return {
+        status: "idle",
+        process_running: false,
+        post_run: null,
+        post_run_done: null,
+        message: "No workflow is running.",
+      };
     }
+
+    // 2026-10-07: additive fields only — the existing `status` key (the engine's own workflow.json
+    // status, spread after ours) is unchanged because the Copilot agent already reads it.
+    //   process_running — the engine subprocess is alive.
+    //   engine_status   — workflow.json's own status string (it goes terminal BEFORE the plugin's
+    //                     post-run stages run, which is why `status` alone cannot show chain completion).
+    //   post_run        — per-stage ledger (notes, notify, miyo, zk, memory, open) for THIS workflow.
+    //   post_run_done   — true when every stage is terminal; false while the engine runs or a stage is
+    //                     open; null when no ledger exists for this workflow (a run this plugin session
+    //                     did not complete, or completion handling has not started yet — poll again).
+    const ledger = this.pluginActions.getPostRunLedger();
+    const workflowId = state && typeof state.workflow_id === "string" ? state.workflow_id : null;
+    const ledgerMatches = ledger !== null && (workflowId === null || ledger.workflow_id === workflowId);
 
     return {
       status: running ? "running" : "completed",
       ...(state || {}),
+      process_running: running,
+      engine_status: state && typeof state.status === "string" ? state.status : null,
+      post_run: ledgerMatches ? ledger : null,
+      post_run_done: running ? false : ledgerMatches ? ledger!.done : null,
     };
   }
 
@@ -1641,7 +1696,7 @@ export class McpBridgeServer {
         {
           name: "obsidian_openclaw_run_workflow",
           description:
-            "Start an OpenClaw research workflow. Returns immediately; use obsidian_openclaw_status to track progress. Workflows take 5-10 minutes. Use obsidian_openclaw_templates to discover available templates and their required inputs.",
+            "Start an OpenClaw research workflow. Returns immediately; use obsidian_openclaw_status to track progress. Workflows take 5-10 minutes. Use obsidian_openclaw_templates to discover available templates and their required inputs. Pass dry_run:true to run every pre-start check without spawning anything or touching the operator token.",
           inputSchema: {
             type: "object",
             properties: {
@@ -1654,6 +1709,11 @@ export class McpBridgeServer {
                 type: "object",
                 description:
                   "Template inputs as key-value pairs. For general-research-pack: { topic: '...' }. For drug-discovery-full: { compound_name: '...', indication: '...' }. For pharmacovigilance-report: { drug_class: '...' }.",
+              },
+              dry_run: {
+                type: "boolean",
+                description:
+                  "Validate the template and inputs and report what would start, without spawning the engine or consuming the operator-approve token. A reply without dry_run:true means this bridge predates the parameter and a real run may have started.",
               },
             },
             required: ["template", "inputs"],

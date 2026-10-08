@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.3.0 — 2026-10-07
+
+Claude Code's dispatch lane. The `claude` (7 tools) and `raycast` (10 tools) surfaces are
+**unchanged** and still asserted exactly by `npm run test:profiles`.
+
+- **Added:** `openclaw` profile — a closed 13-tool allowlist proxied only to the Command Center
+  bridge on `:8799` so a Claude Code session can start and watch OpenClaw runs through the same
+  door the Copilot agent uses (plugin-dispatched runs get the whole post-run chain). It never
+  loads the `:8798` config or token. Strict client-edge validation (unknown keys rejected,
+  `publish_vault` limited to `workflow_id` + `dry_run`), per-tool timeouts matching the daemon's
+  spawn timeouts, and structured `obsidian_not_running` / `*_outcome_unknown` failures.
+- **Changed:** `callCommandCenter` takes an optional per-call timeout (default unchanged: 30 s).
+- **Added:** `start:openclaw` script; regression guard grew from 6 to 32 checks (30 results when
+  Obsidian is closed, because the live ones skip), including a least-privilege proof (the profile starts with the `:8798` config unreadable, with a negative
+  control showing the same config crashes `claude`), forbidden-tool absence, a static drift guard
+  against the Command Center source, and live checks that run only after a read-only version probe.
+- Requires the Command Center plugin built 2026-10-07 or later for `dry_run` and the
+  `post_run`/`post_run_done` status fields; against an older daemon the live dry-run check is
+  skipped on purpose (an old daemon would ignore `dry_run`).
+
 ## 0.2.0 — 2026-08-20
 
 Client-edge aggregation + guardrails. The `claude` profile's tool surface is
