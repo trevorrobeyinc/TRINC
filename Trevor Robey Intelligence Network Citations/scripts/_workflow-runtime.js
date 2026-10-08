@@ -236,8 +236,11 @@ async function buildWorkflowRuntime(options = {}) {
     logger.warn({ event: "pubmed_retraction_init_failed", error: err.message });
   }
 
+  // An injected clock reaches the monetization components too; with none, buildMonetizationRuntime
+  // supplies the real one (it stamps `approved_at` and the dataset build dates).
   const monetizationRuntime = buildMonetizationRuntime({
-    rootDir
+    rootDir,
+    timeProvider: options.timeProvider
   });
 
   const workflowEngine = createWorkflowEngine({

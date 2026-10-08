@@ -198,7 +198,11 @@ function createWorkflowEngine(options = {}) {
       description: safeString(description),
       inputs: inputPaths,
       mission_type: safeString(step.mission_type) || "research_to_dataset",
-      dataset_type: safeString(step.dataset_type) || safeString(workflowDef.pipeline.find((s) => s.type === "dataset")?.dataset_type) || "retrieval_qa"
+      dataset_type: safeString(step.dataset_type) || safeString(workflowDef.pipeline.find((s) => s.type === "dataset")?.dataset_type) || "retrieval_qa",
+      // The engine's own clock. Left out, the schema falls back to its epoch default, and the real
+      // spawner writes this envelope verbatim as mission.json - which a mission-sourced offer reads
+      // as the bundle's "Generated" date (first real run, 2026-10-08: "Generated: 1970-01-01").
+      created_at: timeProvider.nowIso()
     });
 
     const approvals = workflowDef.auto_approve
@@ -598,9 +602,11 @@ function createWorkflowEngine(options = {}) {
       throw new Error(`Dataset step '${step.step_id}' has no upstream mission result`);
     }
 
+    // Both stamp build_started_at / build_completed_at - the "Generated" date of a dataset-sourced
+    // offer. Built without a clock they fall back to a frozen epoch, so hand them the engine's.
     const schemaEngine = createSchemaEngine({ rootDir });
-    const outputManager = createDatasetOutputManager({ rootDir });
-    const builder = createDatasetBuilder({ rootDir, schemaEngine, outputManager });
+    const outputManager = createDatasetOutputManager({ rootDir, timeProvider });
+    const builder = createDatasetBuilder({ rootDir, schemaEngine, outputManager, timeProvider });
 
     const datasetResult = builder.buildDatasetFromSources({
       mission_id: missionStep.mission_id,

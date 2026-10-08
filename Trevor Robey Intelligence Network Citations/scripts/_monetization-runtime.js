@@ -3,6 +3,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
+const defaultTimeProvider = require("../openclaw-bridge/core/time-provider.js");
 const { createDatasetOutputManager } = require("../openclaw-bridge/dataset/dataset-output-manager.js");
 const { createOfferBuilder } = require("../openclaw-bridge/monetization/offer-builder.js");
 const { createDeliverablePackager } = require("../openclaw-bridge/monetization/deliverable-packager.js");
@@ -65,7 +66,15 @@ function buildMonetizationRuntime(options = {}) {
     options.publisherAdapterRegistry || createDefaultPublisherAdapterRegistry({ platformTargets }),
     platformTargets
   );
-  const datasetOutputManager = createDatasetOutputManager({ rootDir });
+  // The release-approval manager and the dataset output manager stamp customer-visible dates
+  // (`approved_at`, `build_completed_at`), and each one's built-in default is a FROZEN EPOCH - that
+  // is what keeps unit tests deterministic. Production must therefore hand them a real clock, or
+  // every approval is stamped 1970-01-01 (first real run, 2026-10-08). This factory is the single
+  // place approve-release, export-release, generate-offer, the evidence scripts and the workflow
+  // runtime all build through, so the default lives here. Same idiom as the workflow engine
+  // (`options.timeProvider || timeProviderModule`); a test or a replay injects its own.
+  const timeProvider = options.timeProvider || defaultTimeProvider;
+  const datasetOutputManager = createDatasetOutputManager({ rootDir, timeProvider });
   const offerBuilder = createOfferBuilder({
     rootDir,
     monetizationMap,
@@ -80,17 +89,20 @@ function buildMonetizationRuntime(options = {}) {
   });
   const releaseApprovalManager = createReleaseApprovalManager({
     platformTargets,
-    releasesDir: path.join(rootDir, "workspace", "releases")
+    releasesDir: path.join(rootDir, "workspace", "releases"),
+    timeProvider
   });
   const submissionEvidenceManager = createSubmissionEvidenceManager({
     rootDir,
     releasesDir: path.join(rootDir, "workspace", "releases"),
-    releaseApprovalManager
+    releaseApprovalManager,
+    timeProvider
   });
   const deliveryEvidenceManager = createDeliveryEvidenceManager({
     rootDir,
     releasesDir: path.join(rootDir, "workspace", "releases"),
-    releaseApprovalManager
+    releaseApprovalManager,
+    timeProvider
   });
 
   return {
