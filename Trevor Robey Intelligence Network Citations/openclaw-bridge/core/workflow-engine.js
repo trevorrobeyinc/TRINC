@@ -506,7 +506,11 @@ function createWorkflowEngine(options = {}) {
           if (memo.count > 0) {
             const risk = buildAmendmentRisk(stopped);
             graveyardMemo = memo;
-            amendmentRisk = risk.sampled > 0 ? risk : null;
+            // Keep the section whenever it has something to print. That includes the disclosure
+            // that the signal was NOT available (history requested, none returned): gating on
+            // `sampled > 0` alone made an unavailable signal vanish from the shipped memo without a
+            // word (first real run, 2026-10-08).
+            amendmentRisk = risk.markdown ? risk : null;
             try {
               const gdir = getWorkflowDir(context.workflowId);
               ensureDir(gdir);
@@ -521,7 +525,8 @@ function createWorkflowEngine(options = {}) {
               event: "graveyard_memo",
               mission_id: missionEnvelope.mission_id,
               stopped_count: memo.count,
-              amendment_band: amendmentRisk ? amendmentRisk.band : null
+              amendment_band: amendmentRisk ? amendmentRisk.band : null,
+              amendment_status: risk.status
             });
           }
         }
@@ -1027,7 +1032,8 @@ function createWorkflowEngine(options = {}) {
             if (result.graveyard_memo) {
               state.artifacts.graveyard = {
                 stopped_count: result.graveyard_memo.count,
-                amendment_band: result.amendment_risk ? result.amendment_risk.band : null
+                amendment_band: result.amendment_risk ? result.amendment_risk.band : null,
+                amendment_status: result.amendment_risk ? result.amendment_risk.status : "not_computed"
               };
             }
             break;

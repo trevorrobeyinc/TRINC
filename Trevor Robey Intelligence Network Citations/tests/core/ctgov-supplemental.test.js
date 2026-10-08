@@ -241,3 +241,90 @@ describe("ctgov-supplemental — census walk and prompt-path ceiling", () => {
     assert.equal((await ct.searchStoppedTrials({ condition: "same", pageSize: 1 })).length, prompt.length);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Change-history ACCOUNTING (2026-10-08). The first real run found that the registry's undocumented
+// /history endpoint now answers HTTP 403. getChangeHistory swallowed that to null, enrichHistory
+// skipped the record, and `historySampled` reported the number ATTEMPTED - so a run in which every
+// history request failed was indistinguishable, in the metadata, from one in which every request
+// succeeded. Downstream, buildAmendmentRisk then omitted the whole section without a word.
+// ---------------------------------------------------------------------------
+describe("ctgov-supplemental - change-history accounting", () => {
+  const quiet = { info() {}, warn() {}, error() {} };
+  const FIRST_NCT = "NCT02123992"; // SAMPLE's first record
+  const history = (changes) => ({ ok: true, status: 200, json: async () => ({ changes }) });
+  const TWO_VERSIONS = history([
+    { version: 0, date: "2014-04-01", moduleLabels: [] },
+    { version: 1, date: "2014-09-01", moduleLabels: ["Eligibility"] }
+  ]);
+  const FORBIDDEN = { ok: false, status: 403, json: async () => ({}) };
+
+  // /history requests go to `onHistory(url)`; the search request returns SAMPLE (two usable records).
+  function historyFetch(onHistory) {
+    const fn = async (url) => (/\/history$/.test(url)
+      ? onHistory(url)
+      : { ok: true, status: 200, json: async () => SAMPLE });
+    return fn;
+  }
+
+  it("counts a refused history endpoint (HTTP 403) as FAILED, not as sampled", async () => {
+    const ct = createCtgovSupplemental({ logger: quiet, maxHistory: 2, fetchImpl: historyFetch(() => FORBIDDEN) });
+    const recs = await ct.searchStoppedTrials({ condition: "cardiovascular" });
+    assert.equal(recs.length, 2);
+    assert.equal(recs.historyAttempted, 2);
+    assert.equal(recs.historySucceeded, 0);
+    assert.equal(recs.historyFailed, 2);
+    assert.equal(recs.historyFirstError, "HTTP 403");
+    assert.ok(recs.every((r) => !r.changeSummary), "no record may carry a summary the registry never sent");
+  });
+
+  it("counts a thrown request the same way, and names the first error", async () => {
+    const ct = createCtgovSupplemental({
+      logger: quiet, maxHistory: 2,
+      fetchImpl: historyFetch(() => { throw new Error("socket hang up"); })
+    });
+    const recs = await ct.searchStoppedTrials({ condition: "cardiovascular" });
+    assert.equal(recs.historyFailed, 2);
+    assert.equal(recs.historyFirstError, "socket hang up");
+  });
+
+  it("treats an answered-but-empty history as neither a success nor a failure", async () => {
+    const ct = createCtgovSupplemental({ logger: quiet, maxHistory: 2, fetchImpl: historyFetch(() => history([])) });
+    const recs = await ct.searchStoppedTrials({ condition: "cardiovascular" });
+    assert.equal(recs.historyAttempted, 2);
+    assert.equal(recs.historySucceeded, 0);
+    assert.equal(recs.historyFailed, 0);
+    assert.equal(recs.historyFirstError, "");
+  });
+
+  it("counts a mixed result exactly and attaches a summary only where the registry sent one", async () => {
+    const ct = createCtgovSupplemental({
+      logger: quiet, maxHistory: 2,
+      fetchImpl: historyFetch((url) => (url.includes(FIRST_NCT) ? TWO_VERSIONS : FORBIDDEN))
+    });
+    const recs = await ct.searchStoppedTrials({ condition: "cardiovascular" });
+    assert.equal(recs.historyAttempted, 2);
+    assert.equal(recs.historySucceeded, 1);
+    assert.equal(recs.historyFailed, 1);
+    assert.equal(recs[0].changeSummary.versions, 2);
+    assert.equal(recs[1].changeSummary, undefined);
+  });
+
+  it("attempts nothing when history is switched off", async () => {
+    const ct = createCtgovSupplemental({ logger: quiet, includeHistory: false, fetchImpl: historyFetch(() => FORBIDDEN) });
+    const recs = await ct.searchStoppedTrials({ condition: "cardiovascular" });
+    assert.equal(recs.historyAttempted, 0);
+    assert.equal(recs.historyFailed, 0);
+  });
+
+  it("keeps the accounting out of the enumerable record data, so nothing reaches a prompt", async () => {
+    const ct = createCtgovSupplemental({ logger: quiet, maxHistory: 2, fetchImpl: historyFetch(() => FORBIDDEN) });
+    const recs = await ct.searchStoppedTrials({ condition: "cardiovascular" });
+    assert.doesNotMatch(JSON.stringify(recs), /historyFailed|historyAttempted|historyFirstError/);
+  });
+
+  it("getChangeHistory keeps its public contract: null on a failure", async () => {
+    const ct = createCtgovSupplemental({ logger: quiet, fetchImpl: historyFetch(() => FORBIDDEN) });
+    assert.equal(await ct.getChangeHistory(FIRST_NCT), null);
+  });
+});

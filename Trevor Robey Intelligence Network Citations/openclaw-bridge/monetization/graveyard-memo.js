@@ -119,11 +119,61 @@ function buildGraveyardMemo(stoppedTrials, opts = {}) {
   return { count: trials.length, markdown: lines.join("\n") };
 }
 
+// ── THE SECTION'S AVAILABILITY IS DISCLOSED, NEVER SILENT (2026-10-08) ────────────────────────
+// The band is only as good as the version history behind it, and that history comes from an
+// undocumented registry endpoint that can refuse: the first real run had every request answered
+// HTTP 403. This function used to filter to trials carrying history, find none, and return an empty
+// string - so the shipped memo had no amendment section and nothing said why, which a reader cannot
+// tell apart from "this indication has low amendment risk". Four states, always distinguishable:
+//   ok            every requested history came back
+//   partial       the band is computed from what came back, and a "Retrieval gap" line says what didn't
+//   unavailable   history was requested and none came back: the section states that, with the cause
+//   not_computed  nothing was requested (history switched off, or no coverage metadata): no section
+// How many were requested comes from the fetcher's accounting; how many came back is COUNTED FROM
+// THE DATA, so the notice can never disagree with the band printed beside it.
+function historyCauses(failed, emptyAnswers, firstError) {
+  const causes = [];
+  if (failed > 0) {
+    causes.push(`**${failed}** request(s) failed${firstError ? ` (first error: ${firstError})` : ""}`);
+  }
+  if (emptyAnswers > 0) {
+    causes.push(`**${emptyAnswers}** returned no recorded protocol versions`);
+  }
+  return causes.join("; ");
+}
+
+function unavailableSection(attempted, failed, emptyAnswers, firstError) {
+  return [
+    "## Protocol Amendment-Risk Signal",
+    "",
+    `**Not available for this run.** Protocol version history was requested from ClinicalTrials.gov for **${attempted}** stopped program(s) and none came back: ${historyCauses(failed, emptyAnswers, firstError)}.`,
+    "",
+    "No amendment-risk band is stated, because none can be derived without version history. " +
+    "**An absent band is a gap in the data, not a LOW result** - do not read this section as evidence " +
+    "that comparable protocols were rarely amended.",
+    ""
+  ].join("\n");
+}
+
 function buildAmendmentRisk(stoppedTrials) {
   const trials = Array.isArray(stoppedTrials)
     ? stoppedTrials.filter((t) => t && t.changeSummary && Number(t.changeSummary.versions) > 0)
     : [];
-  if (trials.length === 0) return { sampled: 0, markdown: "" };
+  const attempted = Math.max(0, Number(meta(stoppedTrials, "historyAttempted", 0)) || 0);
+  const failed = Math.max(0, Number(meta(stoppedTrials, "historyFailed", 0)) || 0);
+  const firstError = String(meta(stoppedTrials, "historyFirstError", "") || "").trim();
+  const missing = Math.max(0, attempted - trials.length);
+  const emptyAnswers = Math.max(0, missing - failed);
+
+  if (trials.length === 0) {
+    if (attempted === 0) return { sampled: 0, band: null, status: "not_computed", markdown: "" };
+    return {
+      sampled: 0,
+      band: null,
+      status: "unavailable",
+      markdown: unavailableSection(attempted, failed, emptyAnswers, firstError)
+    };
+  }
 
   const versions = trials.map((t) => Number(t.changeSummary.versions) || 0).sort((a, b) => a - b);
   const median = versions[Math.floor(versions.length / 2)];
@@ -149,10 +199,22 @@ function buildAmendmentRisk(stoppedTrials) {
     "## Protocol Amendment-Risk Signal",
     "",
     `Across ${populationText} with version history, protocols were amended a **median of ${median}** times (max ${max}). **Amendment-risk: ${band}.**`,
-    "",
-    `Most-amended protocol modules (a draft touching these is likeliest to force a costly amendment): ${topModules.join(", ") || "n/a"}.`,
     ""
   ];
+
+  if (missing > 0) {
+    lines.push(
+      `**Retrieval gap.** Version history was requested for **${attempted}** stopped program(s) and came back for ` +
+      `**${trials.length}**: ${historyCauses(failed, emptyAnswers, firstError)}. ` +
+      "The band is computed only from the programs that returned history.",
+      ""
+    );
+  }
+
+  lines.push(
+    `Most-amended protocol modules (a draft touching these is likeliest to force a costly amendment): ${topModules.join(", ") || "n/a"}.`,
+    ""
+  );
 
   if (selectionRule) {
     lines.push(`**How this sample was chosen.** ${selectionRule}`, "");
@@ -173,7 +235,7 @@ function buildAmendmentRisk(stoppedTrials) {
     "≥ 5 → MODERATE) with no published basis.",
     ""
   );
-  return { sampled: trials.length, median, max, band, markdown: lines.join("\n") };
+  return { sampled: trials.length, median, max, band, status: missing > 0 ? "partial" : "ok", markdown: lines.join("\n") };
 }
 
 module.exports = { buildGraveyardMemo, buildAmendmentRisk };

@@ -49,6 +49,11 @@
 // • 40 history calls at concurrency 3 with 400 ms inter-batch pauses = 6,852 ms, 0 non-200. That
 //   is the LARGEST sweep actually measured; anything beyond it is arithmetic, not evidence, and
 //   sustained behaviour past ~40 consecutive calls against /api/int is NOT established.
+// • CHANGED 2026-10-08: that same history endpoint now answers HTTP 403 to this fetcher (reproduced
+//   read-only with one list request and three history requests: all three history requests 403).
+//   The code does not try to get around a refusal from an undocumented endpoint. It ACCOUNTS for it:
+//   historyAttempted / historySucceeded / historyFailed / historyFirstError ride on the result, so
+//   buildAmendmentRisk() can print "Not available for this run" instead of dropping the section.
 
 const CTGOV_V2 = "https://clinicaltrials.gov/api/v2";
 // Change-history lives on the internal endpoint (the data AACT omits). Not in the published v2
@@ -128,18 +133,24 @@ function createCtgovSupplemental(options = {}) {
   }
 
   // Change-history (the data AACT omits): /api/int/studies/{nct}/history → version deltas.
-  // Defensive + fail-soft (returns null on any error). Summarizes version count, the
-  // most-frequently-amended modules, and the date span — the "protocol-amendment" signal.
-  async function getChangeHistory(nctId) {
+  // Defensive + fail-soft. Summarizes version count, the most-frequently-amended modules, and the
+  // date span — the "protocol-amendment" signal.
+  //
+  // Returns { summary, error } rather than a bare summary-or-null, because null alone cannot say WHY
+  // there is no summary: a request that failed (this endpoint answered HTTP 403 on 2026-10-08) and a
+  // registry that answered with an empty history are different facts, and the memo must never
+  // present the first as the second. `error` is "" unless the request itself failed.
+  async function fetchChangeHistory(nctId) {
     let data;
     try {
       data = await getJson(`${CTGOV_INT}/studies/${encodeURIComponent(nctId)}/history`);
     } catch (err) {
-      logger.warn({ event: "ctgov_change_history_failed", nctId, error: String(err && err.message) });
-      return null;
+      const error = String(err && err.message);
+      logger.warn({ event: "ctgov_change_history_failed", nctId, error });
+      return { summary: null, error };
     }
     const changes = data && Array.isArray(data.changes) ? data.changes : [];
-    if (changes.length === 0) return null;
+    if (changes.length === 0) return { summary: null, error: "" };
     const moduleCounts = {};
     for (const change of changes) {
       for (const label of (Array.isArray(change.moduleLabels) ? change.moduleLabels : [])) {
@@ -149,25 +160,47 @@ function createCtgovSupplemental(options = {}) {
     const amendedModules = Object.entries(moduleCounts)
       .sort((a, b) => b[1] - a[1]).slice(0, 5).map(([m]) => m);
     return {
-      versions: changes.length,
-      amended_modules: amendedModules,
-      first: (changes[0] && changes[0].date) || "",
-      last: (changes[changes.length - 1] && changes[changes.length - 1].date) || ""
+      summary: {
+        versions: changes.length,
+        amended_modules: amendedModules,
+        first: (changes[0] && changes[0].date) || "",
+        last: (changes[changes.length - 1] && changes[changes.length - 1].date) || ""
+      },
+      error: ""
     };
+  }
+
+  // Public contract unchanged: the summary, or null when there is none for any reason.
+  async function getChangeHistory(nctId) {
+    return (await fetchChangeHistory(nctId)).summary;
   }
 
   // Bounded, mildly-concurrent history enrichment. Sequential-per-batch with a pause between
   // batches: the endpoint is undocumented and advertises no rate budget, so the concurrency is
   // deliberately low and the pause deliberately present.
+  //
+  // Returns what actually happened, not what was attempted: the first real run (2026-10-08) had every
+  // request refused, and a bare "sampled N" count made that look identical to N successes.
   async function enrichHistory(records, limit) {
     const target = Math.min(limit, records.length);
+    let succeeded = 0;
+    let failed = 0;
+    let firstError = "";
     for (let i = 0; i < target; i += HISTORY_CONCURRENCY) {
       const batch = records.slice(i, Math.min(i + HISTORY_CONCURRENCY, target));
-      const results = await Promise.all(batch.map((r) => getChangeHistory(r.nctId)));
-      results.forEach((hist, k) => { if (hist) batch[k].changeSummary = hist; });
+      const results = await Promise.all(batch.map((r) => fetchChangeHistory(r.nctId)));
+      results.forEach(({ summary, error }, k) => {
+        if (summary) {
+          batch[k].changeSummary = summary;
+          succeeded += 1;
+        } else if (error) {
+          failed += 1;
+          if (!firstError) firstError = error;
+        }
+      });
       if (i + HISTORY_CONCURRENCY < target) await sleep(HISTORY_BATCH_PAUSE_MS);
     }
-    return target;
+    return { attempted: target, succeeded, failed, firstError };
   }
 
   function toRecord(study) {
@@ -291,9 +324,9 @@ function createCtgovSupplemental(options = {}) {
       await sleep(PAGE_PAUSE_MS);
     }
 
-    let historySampled = 0;
+    let history = { attempted: 0, succeeded: 0, failed: 0, firstError: "" };
     if (includeHistory && historyLimit > 0 && records.length > 0) {
-      historySampled = await enrichHistory(records, historyLimit);
+      history = await enrichHistory(records, historyLimit);
     }
 
     // A census is COMPLETE only when the walk ended cleanly AND the collected count actually
@@ -315,7 +348,12 @@ function createCtgovSupplemental(options = {}) {
       fetchError,
       droppedNoNct,
       droppedDuplicate,
-      historySampled,
+      // What the history requests actually did (see enrichHistory). The memo's amendment-risk section
+      // reads these to say "not available" or "partial" instead of silently vanishing.
+      historyAttempted: history.attempted,
+      historySucceeded: history.succeeded,
+      historyFailed: history.failed,
+      historyFirstError: history.firstError,
       historyLimit,
       historySelectionRule: HISTORY_SELECTION_RULE,
       conditionQuery: condition
@@ -332,7 +370,9 @@ function createCtgovSupplemental(options = {}) {
       eligible_total: meta.eligibleTotal,
       census_complete: censusComplete,
       pages: page,
-      history_sampled: historySampled
+      history_attempted: history.attempted,
+      history_succeeded: history.succeeded,
+      history_failed: history.failed
     });
     cache.set(cacheKey, records);
     return records;

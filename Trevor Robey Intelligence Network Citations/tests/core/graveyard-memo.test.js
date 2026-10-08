@@ -148,3 +148,82 @@ describe("graveyard-memo — derived coverage copy", () => {
     assert.match(risk.markdown, /of the \*\*40\*\* stopped program/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Amendment-risk AVAILABILITY (2026-10-08). The first real run found the registry's change-history
+// endpoint refusing every request (HTTP 403). buildAmendmentRisk filtered to trials carrying history,
+// found none, and returned an empty string - so the shipped memo simply had no amendment section and
+// said nothing about why. For a product whose promise is "a gap is named, never hidden", an absent
+// section that reads like a clean LOW is the same failure as an invented number.
+// ---------------------------------------------------------------------------
+describe("graveyard-memo - amendment-risk availability is disclosed, never silent", () => {
+  const withMeta = (arr, m) => {
+    for (const [k, v] of Object.entries(m)) {
+      Object.defineProperty(arr, k, { value: v, enumerable: false, configurable: true });
+    }
+    return arr;
+  };
+  const rec = (n, versions) => ({
+    nctId: n, title: "T" + n, status: "TERMINATED", phase: "PHASE3", whyStopped: "Slow accrual",
+    changeSummary: versions ? { versions, amended_modules: ["Eligibility"] } : undefined
+  });
+  const meta = (extra) => ({
+    historySelectionRule: "the first N in registry order.", conditionQuery: "glioblastoma", eligibleTotal: 40, ...extra
+  });
+
+  it("says so when version history was requested and none came back", () => {
+    const risk = buildAmendmentRisk(withMeta([rec("NCT1"), rec("NCT2")],
+      meta({ historyAttempted: 2, historySucceeded: 0, historyFailed: 2, historyFirstError: "HTTP 403" })));
+    assert.equal(risk.status, "unavailable");
+    assert.equal(risk.sampled, 0);
+    assert.equal(risk.band, null);
+    assert.match(risk.markdown, /## Protocol Amendment-Risk Signal/);
+    assert.match(risk.markdown, /Not available for this run/);
+    assert.match(risk.markdown, /\*\*2\*\* stopped program/);
+    assert.match(risk.markdown, /\*\*2\*\* request\(s\) failed/);
+    assert.match(risk.markdown, /HTTP 403/);
+  });
+
+  it("never lets an unavailable signal read as a LOW result", () => {
+    const md = buildAmendmentRisk(withMeta([rec("NCT1")],
+      meta({ historyAttempted: 1, historySucceeded: 0, historyFailed: 1, historyFirstError: "HTTP 403" }))).markdown;
+    assert.doesNotMatch(md, /Amendment-risk: (LOW|MODERATE|HIGH)/);
+    assert.match(md, /not a LOW result/i);
+  });
+
+  it("tells a registry that answered with no versions apart from a request that failed", () => {
+    const md = buildAmendmentRisk(withMeta([rec("NCT1"), rec("NCT2")],
+      meta({ historyAttempted: 2, historySucceeded: 0, historyFailed: 0, historyFirstError: "" }))).markdown;
+    assert.match(md, /Not available for this run/);
+    assert.match(md, /no recorded protocol versions/);
+    assert.doesNotMatch(md, /request\(s\) failed/);
+  });
+
+  it("discloses a partial retrieval beside the band it still computes", () => {
+    const risk = buildAmendmentRisk(withMeta([rec("NCT1", 12), rec("NCT2", 11), rec("NCT3")],
+      meta({ historyAttempted: 3, historySucceeded: 2, historyFailed: 1, historyFirstError: "HTTP 429" })));
+    assert.equal(risk.status, "partial");
+    assert.equal(risk.sampled, 2);
+    assert.equal(risk.band, "HIGH", "the band is still computed from the trials that returned history");
+    assert.match(risk.markdown, /Retrieval gap/);
+    assert.match(risk.markdown, /requested for \*\*3\*\*/);
+    assert.match(risk.markdown, /\*\*1\*\* request\(s\) failed/);
+    assert.match(risk.markdown, /HTTP 429/);
+  });
+
+  it("adds no gap notice when every requested history came back", () => {
+    const risk = buildAmendmentRisk(withMeta([rec("NCT1", 12), rec("NCT2", 11)],
+      meta({ historyAttempted: 2, historySucceeded: 2, historyFailed: 0, historyFirstError: "" })));
+    assert.equal(risk.status, "ok");
+    assert.doesNotMatch(risk.markdown, /Retrieval gap/);
+  });
+
+  it("stays silent when nothing was requested (history switched off, or no coverage metadata)", () => {
+    const off = buildAmendmentRisk(withMeta([rec("NCT1")], meta({ historyAttempted: 0 })));
+    assert.equal(off.status, "not_computed");
+    assert.equal(off.markdown, "");
+    const bare = buildAmendmentRisk([rec("NCT1")]);
+    assert.equal(bare.status, "not_computed");
+    assert.equal(bare.markdown, "");
+  });
+});
