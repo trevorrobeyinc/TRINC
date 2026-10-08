@@ -48,6 +48,17 @@
         "OPENCODE_CONFIG": "/Users/myhome/.config/opencode/delegation-guardrail.json",
         "OPENCODE_MCP_ALLOWED_DIRS": "/Users/myhome/TrevClaw-Obsidianodus"
       }
+    },
+    "openclaw-obsidian": {
+      "type": "stdio",
+      "command": "/Users/myhome/.nvm/versions/node/v22.13.1/bin/node",
+      "args": [
+        "/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-stdio-adapter/index.mjs"
+      ],
+      "env": {
+        "OBSIDIAN_STDIO_PROFILE": "openclaw",
+        "NODE_EXTRA_CA_CERTS": "/Users/myhome/Library/Application Support/mkcert/rootCA.pem"
+      }
     }
   }
 }

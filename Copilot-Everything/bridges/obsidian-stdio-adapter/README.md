@@ -79,7 +79,8 @@ call sequence: the `openclaw-dispatch` skill (see the monorepo `CLAUDE.md`).
   The reasons are in the comment block above `OPENCLAW_SPECS` in `index.mjs`.
 - **Register it last.** The Claude Code gate hook is an allowlist with no catch-all, so a
   new MCP server name is ungated until the hook's matcher knows it. Do not add the
-  `.mcp.json` entry before the Security Everything gate wiring is in.
+  `.mcp.json` entry before the Security Everything gate wiring is in. (Done in that order on 2026-10-07; the server key is
+  `openclaw-obsidian`, so its tools are `mcp__openclaw-obsidian__*`.)
 
 Failure isolation: the `:8799` proxy is per-call — if the Command Center bridge is
 down, video tools return a clean MCP `isError` result and every `:8798` vault tool
