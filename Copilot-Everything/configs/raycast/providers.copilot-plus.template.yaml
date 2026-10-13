@@ -1,0 +1,136 @@
+# SANITIZED COPY of ~/.config/raycast/ai/providers.yaml (committed 2026-10-13).
+# The licence key is a placeholder. Install: copy to ~/.config/raycast/ai/providers.yaml,
+# chmod 600, then the operator pastes the key. Full doc:
+# Copilot-Everything/docs/RAYCAST_COPILOT_PLUS_PROVIDER.md
+#
+# Raycast custom providers — Copilot Plus relay (Brevilabs)
+#
+# Same endpoint + credential Obsidian Copilot's opencode agent backend uses for
+# `copilot-plus/copilot-plus-flash` (OpencodeBackend.ts buildOpencodeConfig():
+# @ai-sdk/openai-compatible, baseURL https://models.brevilabs.com/v1, apiKey =
+# Copilot Plus license key). The license key is the ONLY credential Brevilabs
+# issues — if you rotate it in Obsidian, update it here too or Raycast gets 401s.
+#
+# Abilities come from Copilot's configuredModels metadata; context windows from
+# the models.dev cache (smaller value where catalogs disagree). reasoning_effort
+# is off everywhere: the relay is not known to accept that parameter.
+#
+# File holds a plaintext secret — keep it chmod 600.
+providers:
+  - id: copilot-plus
+    name: Copilot Plus (Obsidian)
+    base_url: https://models.brevilabs.com/v1
+    api_keys:
+      copilot-plus: PASTE_COPILOT_PLUS_LICENSE_KEY_HERE
+    models:
+      - id: copilot-plus-flash
+        name: Copilot Plus Flash
+        description: Obsidian Copilot's opencode-agent default — fastest, most quota
+        context: 128000
+        abilities:
+          temperature:
+            supported: true
+          vision:
+            supported: true
+          system_message:
+            supported: true
+          tools:
+            supported: true
+          reasoning_effort:
+            supported: false
+      - id: kimi-k2.6
+        name: Kimi K2.6
+        description: Copilot Plus relay — long-running reasoning
+        context: 262144
+        abilities:
+          temperature:
+            supported: true
+          vision:
+            supported: false
+          system_message:
+            supported: true
+          tools:
+            supported: true
+          reasoning_effort:
+            supported: false
+      - id: glm-5.2
+        name: GLM-5.2
+        description: Copilot Plus relay — long-horizon open model
+        context: 200000
+        abilities:
+          temperature:
+            supported: true
+          vision:
+            supported: false
+          system_message:
+            supported: true
+          tools:
+            supported: true
+          reasoning_effort:
+            supported: false
+      - id: deepseek-v4-pro
+        name: DeepSeek V4 Pro
+        description: Copilot Plus relay — hardest reasoning and agentic tasks
+        context: 1000000
+        abilities:
+          temperature:
+            supported: true
+          vision:
+            supported: false
+          system_message:
+            supported: true
+          tools:
+            supported: true
+          reasoning_effort:
+            supported: false
+      - id: deepseek-v4-flash-0731
+        name: DeepSeek V4 Flash 0731
+        description: Copilot Plus relay — fast, cheap, broadly capable
+        context: 1000000
+        abilities:
+          temperature:
+            supported: true
+          vision:
+            supported: false
+          system_message:
+            supported: true
+          tools:
+            supported: true
+          reasoning_effort:
+            supported: false
+      - id: mimo-v2.5
+        name: MiMo V2.5
+        description: Copilot Plus relay — everyday use
+        context: 1000000
+        abilities:
+          temperature:
+            supported: true
+          vision:
+            supported: false
+          system_message:
+            supported: true
+          tools:
+            supported: true
+          reasoning_effort:
+            supported: false
+      - id: minimax-m2.7
+        name: MiniMax M2.7
+        description: Copilot Plus relay — compact, lightweight tasks
+        context: 196608
+        abilities:
+          temperature:
+            supported: true
+          vision:
+            supported: false
+          system_message:
+            supported: true
+          tools:
+            supported: true
+          reasoning_effort:
+            supported: false
+
+# Raycast-hosted tools (Pro). If they refuse while you're out of Raycast
+# credits, swap to `read_page: jina` (no key needed) and drop web_search.
+tools:
+  web_search: raycast
+  read_page: raycast
