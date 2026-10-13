@@ -73,8 +73,43 @@ How each setting was chosen:
 - **Vision and tools** come from Copilot's own model metadata (`configuredModels[].info`).
 - **Context windows** come from the models.dev cache (`~/.cache/opencode/models.json`). Where two
   catalogs disagree, the smaller value is used.
-- **`reasoning_effort` is off for every model.** Nothing shows the relay accepts that parameter, and
-  Raycast's manual warns that declaring a setting a model doesn't support can make requests fail.
+- **Reasoning is on for every model, defaulting to `high`** (operator preference, 2026-10-13). Two
+  settings do this: each model declares `reasoning_effort: supported: true`, which shows Raycast's
+  effort picker and the model's thinking. The provider also sets
+  `additional_parameters: {reasoning_effort: high}`, which Raycast adds to every request. *(Until
+  the 2026-10-13 follow-up this was off everywhere, because nobody had yet proven the relay accepts
+  the parameter.)*
+
+### Reasoning: what the relay does (probed 2026-10-13)
+
+The same small arithmetic prompt was sent to each model three times: with no `reasoning_effort`,
+with `low`, and with `high`. The table reports reasoning tokens from `usage`.
+
+| Model id | Copilot marks it reasoning | No effort set | `high` accepted |
+|---|---|---|---|
+| `copilot-plus-flash` | yes | **0 reasoning tokens**: it does not think unless asked | ✅ 200, thinks |
+| `deepseek-v4-pro` | yes | **0 reasoning tokens**: it does not think unless asked | ✅ 200, thinks |
+| `glm-5.2` | yes | thinks; this model scaled most clearly with effort (67 → 132 → 229) | ✅ 200 |
+| `deepseek-v4-flash-0731` | yes | thinks | ✅ 200 |
+| `mimo-v2.5` | yes | thinks | ✅ 200 |
+| `minimax-m2.7` | yes | thinks | ✅ 200 |
+| `kimi-k2.6` | **no** | always thinks; `usage` reports no token count | ✅ 200 |
+
+- **The relay checks the value, so it is not silently dropped.** `reasoning_effort: "banana"`
+  returns HTTP **422**, which lists the accepted values: `none`, `minimal`, `low`, `medium`, `high`,
+  `xhigh`, `max`.
+- **Thinking streams as `reasoning_content` deltas**, the field Raycast renders as thinking.
+- **On a trivial prompt, effort does not change the thinking much.** Only GLM-5.2 scaled clearly.
+  The useful result is that `copilot-plus-flash` and `deepseek-v4-pro` reason **only** when the
+  parameter is sent. That is why the provider-level `high` default matters.
+- **Unverified: which setting wins.** Raycast does not document whether a level picked in its
+  picker overrides `additional_parameters` or the other way round. Both are valid values, so either
+  outcome works.
+- Thinking tokens count against `max_tokens`. The smoke test's cap is 1500 so a slow thinker still
+  has room to answer.
+- Copilot's own per-model flag is `configuredModels[].info.reasoning` in the vault's
+  `.obsidian/plugins/copilot/data.json`. `buildOpencodeConfig()` passes it to opencode as
+  `models.<id>.reasoning = true`, which turns on opencode's effort picker.
 - **Copilot's list and the relay can drift apart.** The model list in `constants.ts` (`ChatModels`)
   is not the same thing as what Brevilabs actually serves.
 

@@ -364,6 +364,11 @@ Custom Provider in `~/.config/raycast/ai/providers.yaml` that points at
 - **Smoke test:** `scripts/raycast-relay-smoke.py`.
 - **Verified 2026-10-13:** 7 models work. `kimi-k2.7-code` was removed because the relay answers
   400 `invalid_model`, even though Copilot lists it.
+- **Reasoning (2026-10-13 follow-up):** on for all 7, defaulting to `high`: per-model
+  `reasoning_effort: supported: true` plus a provider-level `additional_parameters:
+  {reasoning_effort: high}`. The relay validates the value (422 on anything outside
+  `none|minimal|low|medium|high|xhigh|max`). `copilot-plus-flash` and `deepseek-v4-pro` reason
+  **only** when the parameter is sent.
 - **Raycast plan:** custom providers need Pro, Pro+ or Max.
 - **Full doc:** rebuild steps, key handling, risks and the OpenCode Zen free-model fallback are in
   [`docs/RAYCAST_COPILOT_PLUS_PROVIDER.md`](docs/RAYCAST_COPILOT_PLUS_PROVIDER.md).

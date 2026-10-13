@@ -12,8 +12,10 @@
 # issues — if you rotate it in Obsidian, update it here too or Raycast gets 401s.
 #
 # Abilities come from Copilot's configuredModels metadata; context windows from
-# the models.dev cache (smaller value where catalogs disagree). reasoning_effort
-# is off everywhere: the relay is not known to accept that parameter.
+# the models.dev cache (smaller value where catalogs disagree). Reasoning is ON
+# for every model, defaulting to high via additional_parameters (operator
+# preference 2026-10-13); the relay accepts none|minimal|low|medium|high|xhigh|max
+# and rejects anything else with HTTP 422.
 #
 # File holds a plaintext secret — keep it chmod 600.
 providers:
@@ -22,6 +24,8 @@ providers:
     base_url: https://models.brevilabs.com/v1
     api_keys:
       copilot-plus: PASTE_COPILOT_PLUS_LICENSE_KEY_HERE
+    additional_parameters:
+      reasoning_effort: high
     models:
       - id: copilot-plus-flash
         name: Copilot Plus Flash
@@ -37,7 +41,7 @@ providers:
           tools:
             supported: true
           reasoning_effort:
-            supported: false
+            supported: true
       - id: kimi-k2.6
         name: Kimi K2.6
         description: Copilot Plus relay — long-running reasoning
@@ -52,7 +56,7 @@ providers:
           tools:
             supported: true
           reasoning_effort:
-            supported: false
+            supported: true
       - id: glm-5.2
         name: GLM-5.2
         description: Copilot Plus relay — long-horizon open model
@@ -67,7 +71,7 @@ providers:
           tools:
             supported: true
           reasoning_effort:
-            supported: false
+            supported: true
       - id: deepseek-v4-pro
         name: DeepSeek V4 Pro
         description: Copilot Plus relay — hardest reasoning and agentic tasks
@@ -82,7 +86,7 @@ providers:
           tools:
             supported: true
           reasoning_effort:
-            supported: false
+            supported: true
       - id: deepseek-v4-flash-0731
         name: DeepSeek V4 Flash 0731
         description: Copilot Plus relay — fast, cheap, broadly capable
@@ -97,7 +101,7 @@ providers:
           tools:
             supported: true
           reasoning_effort:
-            supported: false
+            supported: true
       - id: mimo-v2.5
         name: MiMo V2.5
         description: Copilot Plus relay — everyday use
@@ -112,7 +116,7 @@ providers:
           tools:
             supported: true
           reasoning_effort:
-            supported: false
+            supported: true
       - id: minimax-m2.7
         name: MiniMax M2.7
         description: Copilot Plus relay — compact, lightweight tasks
@@ -127,7 +131,7 @@ providers:
           tools:
             supported: true
           reasoning_effort:
-            supported: false
+            supported: true
 
 # Raycast-hosted tools (Pro). If they refuse while you're out of Raycast
 # credits, swap to `read_page: jina` (no key needed) and drop web_search.

@@ -22,6 +22,11 @@ model_block = text[text.index("models:"):]
 models = re.findall(r"^\s+- id:\s*(\S+)", model_block, re.M)
 vision = [m for m in models if re.search(
     rf"- id:\s*{re.escape(m)}\n(?:(?!- id:).)*?vision:\s*\n\s+supported:\s*true", model_block, re.S)]
+# Raycast merges the provider's `additional_parameters` into every request
+# (since 2026-10-13: reasoning_effort: high), so the probes send them too.
+# Flat `key: value` scalars only, which is all this file uses.
+extra_block = re.search(r"\n    additional_parameters:\n((?:      \S[^\n]*\n)+)", text)
+extra = dict(re.findall(r"^      (\w+):\s*(\S+)\s*$", extra_block.group(1), re.M)) if extra_block else {}
 
 if key == PLACEHOLDER or len(key) < 8:
     sys.exit("providers.yaml still has the placeholder key — paste your license key first.")
@@ -30,6 +35,7 @@ def scrub(s):
     return s.replace(key, "<KEY>")
 
 def post(body, stream=False, timeout=90):
+    body = {**extra, **body}
     req = urllib.request.Request(
         f"{base}/chat/completions",
         data=json.dumps(body).encode(),
@@ -55,7 +61,7 @@ def report(label, fn):
         print(f"  ERR {label:32} {type(e).__name__}: {scrub(str(e))[:120]}")
 
 def chat_stream(model):
-    body = {"model": model, "stream": True, "max_tokens": 400, "temperature": 0.2,
+    body = {"model": model, "stream": True, "max_tokens": 1500, "temperature": 0.2,
             "messages": [{"role": "system", "content": "Answer in one short line."},
                          {"role": "user", "content": "Reply with exactly the word: pong"}]}
     with post(body, stream=True) as r:
@@ -72,7 +78,7 @@ def chat_stream(model):
         return r.status, "".join(out).strip() or "(no content deltas)"
 
 def tool_probe(model):
-    body = {"model": model, "max_tokens": 400,
+    body = {"model": model, "max_tokens": 1500,
             "tools": [{"type": "function", "function": {
                 "name": "get_time", "description": "Returns the current time.",
                 "parameters": {"type": "object", "properties": {}}}}],
@@ -83,14 +89,14 @@ def tool_probe(model):
         return r.status, f"tool_calls={calls}" if calls else f"NO tool call: {msg.get('content')}"
 
 def image_probe(model):
-    body = {"model": model, "max_tokens": 400,
+    body = {"model": model, "max_tokens": 1500,
             "messages": [{"role": "user", "content": [
                 {"type": "text", "text": "What single color fills this image? One word."},
                 {"type": "image_url", "image_url": {"url": red_png()}}]}]}
     with post(body) as r:
         return r.status, json.load(r)["choices"][0]["message"].get("content") or "(empty)"
 
-print(f"relay {base}  models={len(models)}  vision={vision}\n-- streaming chat")
+print(f"relay {base}  models={len(models)}  vision={vision}  extra={extra}\n-- streaming chat")
 for m in models:
     report(m, lambda m=m: chat_stream(m))
 print("-- tool call")

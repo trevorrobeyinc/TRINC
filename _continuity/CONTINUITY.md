@@ -301,6 +301,14 @@ five orphaned `-Volumes-ExtraCurricular-*` keys hold **~57** sessions in total, 
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 
+### 2026-10-13T13:30Z · Desktop Claude Code · **Raycast's Copilot Plus models now reason, defaulting to high.**
+- **SCOPE NOTE:** machine tooling, outside the repo. "Current focus" untouched. This continues the 07:54Z entry; that session hit its usage limit partway through this question.
+- **What:** in `~/.config/raycast/ai/providers.yaml`, all 7 models now declare `reasoning_effort: supported: true`, and the provider sets `additional_parameters: {reasoning_effort: high}` (operator's choice). A 0600 backup of the earlier file sits beside it as `providers.yaml.bak-pre-reasoning-20261013`. The key was never printed.
+- **Verified:** the relay accepts `reasoning_effort` on all 7 models and checks the value: anything outside `none|minimal|low|medium|high|xhigh|max` gets a 422. Thinking streams as `reasoning_content`. `copilot-plus-flash` and `deepseek-v4-pro` produce **zero** reasoning tokens unless the parameter is sent, so the `high` default is what turns their thinking on. The smoke test (now sends the provider's `additional_parameters`, `max_tokens` 1500) passed: 7/7 chat, tool call, image.
+- **Open:** Raycast does not document whether a level picked in its picker overrides `additional_parameters`.
+- **Drive copy:** the 07:54Z session ran with its cwd in the Google Drive offsite copy (`TRINC/Monorepo/…`), but every write went to the real repo or `~/.config`. Only its memory note was misfiled; it is now copied to this repo's project memory.
+- **Touches:** this entry; the template, the doc ("Reasoning: what the relay does"), the smoke test, and `Copilot-Everything/CLAUDE.md`.
+
 ### 2026-10-13T07:54Z · Desktop Claude Code · **Raycast AI now runs on the Copilot Plus relay, the model behind Obsidian's opencode agent.**
 - **SCOPE NOTE:** machine tooling, outside the repo. "Current focus" untouched.
 - **What:** `~/.config/raycast/ai/providers.yaml` (0600, not in git or Drive) adds a custom provider, `copilot-plus`, with base `https://models.brevilabs.com/v1`. That is the same endpoint and credential Copilot injects into `opencode acp` at spawn (`OpencodeBackend.ts` `buildOpencodeConfig()`), so Raycast works while its own credits are at zero. The operator pasted the Copilot Plus **license key** in; Brevilabs issues no per-app key, so this key now lives in two places, and **a rotation must update both**.
