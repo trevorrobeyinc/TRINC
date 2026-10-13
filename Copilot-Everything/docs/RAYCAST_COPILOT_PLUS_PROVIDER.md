@@ -113,6 +113,49 @@ with `low`, and with `high`. The table reports reasoning tokens from `usage`.
 - **Copilot's list and the relay can drift apart.** The model list in `constants.ts` (`ChatModels`)
   is not the same thing as what Brevilabs actually serves.
 
+### Hidden text the relay adds to some models (measured 2026-10-13)
+
+Three of the seven models receive text of the relay's own ahead of the user's message. This was
+measured by sending the bare word "hi" straight to the relay, with no system message and no extra
+parameters, and reading `usage.prompt_tokens`. Ten more words added exactly ten tokens, so the
+counter is reliable.
+
+| Model id | Prompt tokens for "hi" | Hidden text |
+|---|---|---|
+| `copilot-plus-flash` | 79 | about 70 tokens |
+| `deepseek-v4-flash-0731` | 84 | about 75 tokens |
+| `minimax-m2.7` | 177 | about 170 tokens |
+| `deepseek-v4-pro` | 5 | none |
+| `mimo-v2.5` | 8 | none |
+| `kimi-k2.6` | 9 | none |
+| `glm-5.2` | 13 | none |
+
+- **What the text does (confirmed for `copilot-plus-flash` only).** It tells the model to call
+  itself Obsidian Copilot. Flash answers "I am Obsidian Copilot" even under a "You are Raycast AI"
+  system message, while `deepseek-v4-pro`, which has no hidden text, says "Raycast AI". Whether the
+  other two models carry the same instruction was not tested.
+- **It sits in the user turn, not the system prompt.** That is how a model's own reasoning, shown in
+  Raycast, described it. Reasoning models notice that it conflicts with Raycast's own prompt and
+  ignore it, so the answers are unaffected.
+- **Its full contents were deliberately not extracted.** Only the identity instruction has been
+  seen. Anything else those three models are told is unknown.
+- **Is it a security problem? Not as measured.** The only instruction seen concerns identity. The
+  relay is the same vendor that already receives every prompt sent through this provider, which
+  this document records as an accepted risk (see "Risks accepted by the operator"). Hidden text
+  from that same vendor adds little to that.
+- **Practical effect.** The cost is 70 to 170 tokens per request. Don't trust a model's description
+  of itself (Flash will say Obsidian Copilot); Raycast's model picker is the reliable source. Pick
+  `deepseek-v4-pro`, `kimi-k2.6`, `glm-5.2` or `mimo-v2.5` for a request with no hidden text.
+- **The reasoning switch is the same kind of thing.** Sending `reasoning_effort: high` adds exactly
+  26 prompt tokens on `copilot-plus-flash` and `deepseek-v4-pro`, the two models that do not think
+  unless asked, and nothing on the other five. Tool definitions add 30 to 250 tokens depending on
+  the model's chat template.
+- **Pasting a model's thinking into a Claude chat can be blocked.** If the thinking quotes the
+  identity instruction, the app's injection filter flags it, although it is not an attack. Save the
+  text to a file and give the path instead.
+- **Re-measure after a relay change** with the same method: one `hi` request per model, read
+  `usage.prompt_tokens`, and compare with the table.
+
 ## Rebuild from scratch (e.g. after a machine wipe)
 
 1. In Raycast, on a paid plan, go to Settings → AI → **Reveal Providers Config**. That creates

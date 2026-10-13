@@ -301,6 +301,14 @@ five orphaned `-Volumes-ExtraCurricular-*` keys hold **~57** sessions in total, 
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 
+### 2026-10-13T13:55Z · Desktop Claude Code · **The Copilot Plus relay adds hidden text to three models; recorded, not a security finding.**
+- **SCOPE NOTE:** machine tooling, outside the repo. "Current focus" untouched. Follows the 13:30Z entry.
+- **Why it came up:** while the operator was testing reasoning in Raycast, a model's visible thinking mentioned an instruction to call itself Obsidian Copilot, which looked like an injection.
+- **Measured:** a bare "hi" sent straight to the relay costs 79 prompt tokens on `copilot-plus-flash`, 84 on `deepseek-v4-flash-0731` and 177 on `minimax-m2.7`, against 5 to 13 on `deepseek-v4-pro`, `kimi-k2.6`, `glm-5.2` and `mimo-v2.5`. Flash calls itself Obsidian Copilot even under a "You are Raycast AI" system message; `deepseek-v4-pro` says Raycast AI. Sending `reasoning_effort: high` adds exactly 26 tokens on Flash and Pro, which is how those two are switched into thinking.
+- **Verdict:** the only instruction seen concerns identity, and the vendor already receives every prompt, so nothing new is exposed. The full text was deliberately not extracted, and the other two models were not asked who they are.
+- **Operator note:** pasting a thinking model's quote of that instruction into a Claude chat trips the app's injection filter; save it to a file instead.
+- **Touches:** this entry; `Copilot-Everything/docs/RAYCAST_COPILOT_PLUS_PROVIDER.md` ("Hidden text the relay adds to some models") and `Copilot-Everything/CLAUDE.md`. The live `providers.yaml` was not changed.
+
 ### 2026-10-13T13:30Z · Desktop Claude Code · **Raycast's Copilot Plus models now reason, defaulting to high.**
 - **SCOPE NOTE:** machine tooling, outside the repo. "Current focus" untouched. This continues the 07:54Z entry; that session hit its usage limit partway through this question.
 - **What:** in `~/.config/raycast/ai/providers.yaml`, all 7 models now declare `reasoning_effort: supported: true`, and the provider sets `additional_parameters: {reasoning_effort: high}` (operator's choice). A 0600 backup of the earlier file sits beside it as `providers.yaml.bak-pre-reasoning-20261013`. The key was never printed.

@@ -369,6 +369,11 @@ Custom Provider in `~/.config/raycast/ai/providers.yaml` that points at
   {reasoning_effort: high}`. The relay validates the value (422 on anything outside
   `none|minimal|low|medium|high|xhigh|max`). `copilot-plus-flash` and `deepseek-v4-pro` reason
   **only** when the parameter is sent.
+- **Hidden relay text (measured 2026-10-13):** `copilot-plus-flash`, `deepseek-v4-flash-0731` and
+  `minimax-m2.7` get about 70, 75 and 170 prompt tokens of the relay's own text ahead of the user's
+  message; the other four get none. Confirmed for Flash: it names itself Obsidian Copilot even under
+  a Raycast system prompt. Contents were not extracted. Cosmetic, not a security finding, but don't
+  trust a model's self-description.
 - **Raycast plan:** custom providers need Pro, Pro+ or Max.
 - **Full doc:** rebuild steps, key handling, risks and the OpenCode Zen free-model fallback are in
   [`docs/RAYCAST_COPILOT_PLUS_PROVIDER.md`](docs/RAYCAST_COPILOT_PLUS_PROVIDER.md).
