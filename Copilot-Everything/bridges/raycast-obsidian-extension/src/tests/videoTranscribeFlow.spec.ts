@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   claimLateCopilotSummary,
   normalizeSummaryFrontmatter,
+  resolveTranscriptSource,
   sweepOrphanedCopilotContractNotes,
   writeGeneratedNote,
 } from "@/tools/videoTranscribeFlow";
@@ -238,5 +239,24 @@ describe("normalizeSummaryFrontmatter", () => {
     await normalizeSummaryFrontmatter(args);
 
     expect(await fs.readFile(summaryAbsolute, "utf-8")).toBe(body);
+  });
+});
+
+// The operator runs LinkedIn Learning videos whose subtitle sidecar lane has proven unreliable
+// (foreign-language tracks, stale exports). `transcriptSource: whisper` forces the audio lane so
+// the run never consults a sidecar; the default stays whisper-only, `auto` restores the old path.
+describe("resolveTranscriptSource", () => {
+  it("defaults to whisper-only when unset", () => {
+    expect(resolveTranscriptSource({})).toBe("whisper");
+  });
+
+  it("returns whisper for the whisper value and any unknown value", () => {
+    expect(resolveTranscriptSource({ transcriptSource: "whisper" })).toBe("whisper");
+    expect(resolveTranscriptSource({ transcriptSource: "nonsense" })).toBe("whisper");
+  });
+
+  it("returns auto only for the explicit auto value", () => {
+    expect(resolveTranscriptSource({ transcriptSource: "auto" })).toBe("auto");
+    expect(resolveTranscriptSource({ transcriptSource: "  auto  " })).toBe("auto");
   });
 });

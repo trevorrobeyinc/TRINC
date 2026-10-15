@@ -30,6 +30,7 @@ export interface VideoCommandPreferences {
   whisperPath?: string;
   whisperModel?: string;
   whisperTask?: string;
+  transcriptSource?: string;
   raycastObsidianMcpEndpoint?: string;
   raycastObsidianMcpAuthToken?: string;
   raycastObsidianMcpConfigPath?: string;
@@ -251,6 +252,16 @@ const DEFAULT_WHISPER_TASK = "translate";
 
 function resolveWhisperTask(prefs: VideoCommandPreferences): "translate" | "transcribe" {
   return prefs.whisperTask?.trim() === "transcribe" ? "transcribe" : DEFAULT_WHISPER_TASK;
+}
+
+/**
+ * Which transcript lane to use. `whisper` (the command default) always transcribes the audio and
+ * never consults a subtitle sidecar — the operator's choice when the sidecar lane has proven
+ * unreliable (foreign-language tracks, stale exports). `auto` keeps the original behaviour:
+ * prefer a usable sidecar, fall back to Whisper.
+ */
+export function resolveTranscriptSource(prefs: VideoCommandPreferences): "whisper" | "auto" {
+  return prefs.transcriptSource?.trim() === "auto" ? "auto" : "whisper";
 }
 
 async function resolveWhisperPathOrThrow(prefs: VideoCommandPreferences): Promise<string> {
@@ -1695,7 +1706,11 @@ export async function runVideoTranscribeCommand(
 
     const subtitleFiles = await findSubtitleSidecars(primaryVideoFile);
     let transcriptText = "";
-    if (subtitleFiles.length > 0) {
+    if (resolveTranscriptSource(prefs) === "whisper") {
+      // Whisper-only lane: never consult the sidecar (an operator preference for hosts whose
+      // subtitles have proven unreliable). Any sidecar that was claimed is still cleaned up later.
+      await appendRunLog("transcript source=whisper — skipping subtitle sidecar probe");
+    } else if (subtitleFiles.length > 0) {
       const subtitleText = normalizeExtractedText(await extractTranscriptFromSubtitle(subtitleFiles[0]));
       if (subtitleText && !isLatinScriptTranscript(subtitleText)) {
         await appendRunLog(
@@ -1709,7 +1724,11 @@ export async function runVideoTranscribeCommand(
 
     if (!transcriptText) {
       toast.title = "Running Whisper fallback...";
-      await appendRunLog("no usable subtitles — whisper fallback starting");
+      await appendRunLog(
+        resolveTranscriptSource(prefs) === "whisper"
+          ? "whisper transcription starting (transcript source=whisper)"
+          : "no usable subtitles — whisper fallback starting"
+      );
       const whisperTmpDir = path.join(os.tmpdir(), "raycast-obsidian", "whisper", timestamp);
       await fs.mkdir(whisperTmpDir, { recursive: true });
       transcriptText = normalizeExtractedText(

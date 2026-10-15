@@ -1143,6 +1143,24 @@
           "required": false
         },
         {
+          "name": "transcriptSource",
+          "title": "Transcript Source",
+          "description": "Whisper only always transcribes the audio and skips the subtitle sidecar probe. Auto prefers the video's own subtitle sidecar and falls back to Whisper when none is usable.",
+          "type": "dropdown",
+          "default": "whisper",
+          "data": [
+            {
+              "title": "Whisper only (always transcribe audio)",
+              "value": "whisper"
+            },
+            {
+              "title": "Auto (subtitles first, Whisper fallback)",
+              "value": "auto"
+            }
+          ],
+          "required": false
+        },
+        {
           "name": "raycastObsidianMcpEndpoint",
           "title": "Raycast-Obsidian MCP Endpoint",
           "type": "textfield",

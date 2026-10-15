@@ -301,6 +301,14 @@ five orphaned `-Volumes-ExtraCurricular-*` keys hold **~57** sessions in total, 
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 
+### 2026-10-15T10:30Z · opencode (Obsidian Copilot agent) · **Video Pipeline Runner: added a `transcriptSource` preference, defaulting to Whisper-only.**
+- **SCOPE NOTE:** bridge/plugin infra inside the repo; "Current focus" untouched.
+- **Did:** the Raycast "Video Pipeline Runner" (`bridges/raycast-obsidian-extension`) preferred the video's subtitle sidecar and only fell back to Whisper, and every LinkedIn Learning run hit the fallback (missing sidecar, or a non-Latin sidecar rejected by the `isLatinScriptTranscript` guard). Added a `transcriptSource` preference (`whisper` | `auto`) that defaults to `whisper`, so a run now skips the sidecar probe entirely and always transcribes the audio. `auto` restores the original sidecar-first behaviour.
+- **State:** done — `npm run build` (build IS deploy) succeeded; `npx vitest run` 415 passed / 6 skipped.
+- **Next:** none required — the default already applies. If a future host needs sidecar-first, flip the pref to `auto` in the command's Raycast preferences.
+- **Touches:** `src/tools/videoTranscribeFlow.ts` (pref type, `resolveTranscriptSource`, the transcript-lane branch ~line 1707, whisper-only log line), `package.json` (command preference), `src/tests/videoTranscribeFlow.spec.ts` (3 new tests); deployed to `~/.config/raycast/extensions/obsidian-bridge-fork/`.
+- **For whoever's next:** the live extension is NOT a symlink — it is the built output, so a source edit alone changes nothing until `npm run build`. `whisperTask` still defaults to `translate`; that is a separate knob.
+
 ### 2026-10-13T13:55Z · Desktop Claude Code · **The Copilot Plus relay adds hidden text to three models; recorded, not a security finding.**
 - **SCOPE NOTE:** machine tooling, outside the repo. "Current focus" untouched. Follows the 13:30Z entry.
 - **Why it came up:** while the operator was testing reasoning in Raycast, a model's visible thinking mentioned an instruction to call itself Obsidian Copilot, which looked like an injection.

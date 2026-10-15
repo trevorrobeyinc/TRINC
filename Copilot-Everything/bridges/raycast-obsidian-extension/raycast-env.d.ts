@@ -238,6 +238,8 @@ declare namespace Preferences {
   "whisperModel": "tiny" | "base" | "small" | "medium" | "large-v3",
   /** Whisper Task - Translate produces an ENGLISH transcript from any source language (Whisper's built-in X->English task). Transcribe keeps the audio's own language verbatim. */
   "whisperTask": "translate" | "transcribe",
+  /** Transcript Source - Whisper only always transcribes the audio and skips the subtitle sidecar probe. Auto prefers the video's own subtitle sidecar and falls back to Whisper when none is usable. */
+  "transcriptSource": "whisper" | "auto",
   /** Raycast-Obsidian MCP Endpoint - Obsidian MCP bridge URL. Defaults to the canonical multi-operator obsidian-copilot-bridge daemon on :8798. */
   "raycastObsidianMcpEndpoint": string,
   /** Raycast-Obsidian MCP Auth Token - Auth token for the canonical obsidian-copilot-bridge daemon. If empty, read from the bridge's local config file. */
