@@ -301,6 +301,20 @@ five orphaned `-Volumes-ExtraCurricular-*` keys hold **~57** sessions in total, 
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 
+### 2026-10-15T12:03Z · Desktop Claude Code · **Video Pipeline Runner: the run log names the transcriber that actually ran; tests stop writing the live log.**
+- **SCOPE NOTE:** bridge/plugin infra inside the repo; "Current focus" untouched. Follows the 11:30Z and 10:30Z entries; all three were committed together as three commits at the operator's request.
+- **Why:** the Copilot agent reported "Whisper transcribed the audio (task=translate model=medium)". In fact the "Whisper Path" is `~/.local/bin/whisper-parakeet-shim`, which runs parakeet-mlx and discards `--model` and `--task`, since parakeet only transcribes. The log line the agent quoted recorded the REQUEST. Separately, `vitest run` appended fixture lines to the LIVE run log (205 since August), and `video_pipeline_status` showed those as the latest line of a real run.
+- **Did:**
+  - The shim (outside the repo) writes one `TRANSCRIBER engine=… model=… task=… hub=offline ignored=…` line to stderr.
+  - `parseTranscriberReport` reads that line; the run log now carries `transcription requested: …` and `transcription engine: …`, and the wording is engine-neutral ("audio transcription").
+  - `runLogPath` honours `VIDEO_PIPELINE_RUN_LOG`, which `vitest.config.ts` sets to a temp file.
+  - The vault skill `copilot/skills/video-pipeline/SKILL.md` (outside the repo) now tells the agent to name the engine from that line only.
+  - Earlier the same day the shim was made offline (pinned snapshot, `HF_HUB_OFFLINE`), because its Hugging Face revalidation tripped Falcon Custom-IOA rule 244 on every run.
+- **State:** done and deployed (`npm run build`; live bundle verified by grep). `tsc` clean; `vitest run` 427 passed / 6 skipped (4 new); a full test run leaves the live log's line count unchanged.
+- **Next:** a separate session is adding a `transcriber` field to command-center's `video_pipeline_status` and replacing its "subtitles or Whisper" wording.
+- **Touches:** `Copilot-Everything/bridges/raycast-obsidian-extension/` `src/tools/videoTranscribeFlow.ts`, `src/tests/videoTranscribeFlow.spec.ts`, `vitest.config.ts`.
+- **For whoever's next:** the `TRANSCRIBER ` stderr line is a contract between the shim and `parseTranscriberReport`; keep its prefix and key=value shape. Tests no longer need `HOME` pointed at a scratch dir to protect the run log.
+
 ### 2026-10-15T11:30Z · Desktop Claude Code · **Video Pipeline Runner: one run at a time, a cookie-free last resort, run ids in the log.**
 - **SCOPE NOTE:** bridge/plugin infra inside the repo; "Current focus" untouched. Builds on the 10:30Z opencode entry (its uncommitted whisper-only change is in the same file and stays).
 - **Why:** at 10:37Z the operator got a YubiKey PIN + touch they could not account for, then a "Downie failed" toast. Cause: the 10:25Z re-dispatch did NOT kill the 10:19Z run parked in Downie's UGE wait; both watched `~/Downloads`, the OLD run took the file and logged RUN SUCCESS, and the starved NEW run hit its 12-min timeout and fell into the last resort, which unsealed `sealed-cookies.txt.gpg` (a whole-browser Chrome export, July 6) for a yt-dlp attempt that failed ("No video formats found"). yt-dlp never once produced a download in 89 logged runs.

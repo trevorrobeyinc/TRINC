@@ -1,9 +1,15 @@
 import { defineConfig } from "vitest/config";
+import os from "os";
 import path from "path";
 
 export default defineConfig({
   test: {
     environment: "node",
+    // Keep fixture lines out of the real pipeline run log, which command-center and the Copilot
+    // video-pipeline skill read to report runs (see runLogPath in src/tools/videoTranscribeFlow.ts).
+    env: {
+      VIDEO_PIPELINE_RUN_LOG: path.join(os.tmpdir(), "raycast-obsidian-vitest", "video-transcribe.log"),
+    },
     coverage: {
       provider: "v8",
       exclude: [

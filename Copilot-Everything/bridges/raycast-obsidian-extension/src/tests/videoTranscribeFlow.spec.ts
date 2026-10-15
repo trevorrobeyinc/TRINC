@@ -8,6 +8,7 @@ import {
   claimCurrentRun,
   claimLateCopilotSummary,
   normalizeSummaryFrontmatter,
+  parseTranscriberReport,
   resolveTranscriptSource,
   SupersededRunError,
   supersedingRunId,
@@ -340,5 +341,31 @@ describe("assertYtDlpArgsCookieFree", () => {
     [["--cookies-from-browser=safari"]],
   ])("refuses a cookie source: %j", (cookieArgs) => {
     expect(() => assertYtDlpArgsCookieFree(["--no-playlist", ...cookieArgs])).toThrow(/cookie-free by operator/);
+  });
+});
+
+describe("parseTranscriberReport", () => {
+  // The exact line ~/.local/bin/whisper-parakeet-shim writes (its SELF-REPORT contract).
+  const shimLine =
+    "TRANSCRIBER engine=parakeet-mlx model=mlx-community/parakeet-tdt-0.6b-v3@ed2b7e8c task=transcribe " +
+    "hub=offline ignored=--model=medium,--task=translate";
+
+  it("extracts the adapter's report from mixed stderr", () => {
+    const stderr = ["some library warning", shimLine, "Transcribing 1/1 ..."].join("\n");
+    expect(parseTranscriberReport(stderr)).toBe(shimLine.slice("TRANSCRIBER ".length));
+  });
+
+  it("returns null when the binary does not self-report (plain whisper-ctranslate2)", () => {
+    expect(parseTranscriberReport("Detected language: English\n[00:00.000 --> 00:02.000] hi\n")).toBeNull();
+    expect(parseTranscriberReport("")).toBeNull();
+  });
+
+  it("uses the last report when several are present, and tolerates CRLF", () => {
+    const stderr = "TRANSCRIBER engine=old\r\nTRANSCRIBER engine=new task=transcribe\r\n";
+    expect(parseTranscriberReport(stderr)).toBe("engine=new task=transcribe");
+  });
+
+  it("does not match the prefix mid-line", () => {
+    expect(parseTranscriberReport("note: TRANSCRIBER engine=fake\n")).toBeNull();
   });
 });

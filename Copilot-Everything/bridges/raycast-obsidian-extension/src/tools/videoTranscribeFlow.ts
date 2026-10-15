@@ -71,7 +71,13 @@ const defaultWhisperPathCandidates = [
 const defaultObsidianCliPathCandidates = ["/Applications/Obsidian.app/Contents/MacOS/obsidian"] as const;
 // Durable per-run log — failures otherwise vanish with the Raycast toast. Append-only plain text,
 // safe to delete anytime. Logging is fail-soft and must never interfere with a run.
-const runLogPath = path.join(os.homedir(), ".local", "share", "raycast-obsidian", "video-transcribe.log");
+// Only real runs may write here: command-center's video_pipeline_status and the Copilot
+// video-pipeline skill report a run from this file. vitest.config.ts points VIDEO_PIPELINE_RUN_LOG
+// at a temp file; until 2026-10-15 every `vitest run` appended ~20 fixture lines here, which status
+// then showed as the "latest" line of the user's last real run.
+const runLogPath =
+  process.env.VIDEO_PIPELINE_RUN_LOG?.trim() ||
+  path.join(os.homedir(), ".local", "share", "raycast-obsidian", "video-transcribe.log");
 
 // Which run a log line belongs to. Two runs CAN be alive at once (a re-dispatch does not reliably
 // kill the first, observed 2026-10-15), and without an id their lines interleave into what reads
@@ -609,6 +615,25 @@ async function extractTranscriptFromSubtitle(sidecarPath: string): Promise<strin
   return srtToPlainText(srtContent);
 }
 
+const TRANSCRIBER_REPORT_PREFIX = "TRANSCRIBER ";
+
+/**
+ * The transcriber's own account of what it actually ran, from its stderr. The "Whisper Path"
+ * preference may point at an adapter rather than Whisper itself (since 2026-07-31 it is
+ * ~/.local/bin/whisper-parakeet-shim, which runs parakeet-mlx and discards --model and --task), so
+ * the settings this module passes are only a request. An adapter that reports itself writes one
+ * `TRANSCRIBER key=value ...` line; the last one wins. Returns null when the binary is silent
+ * (a real whisper-ctranslate2 is).
+ */
+export function parseTranscriberReport(stderr: string): string | null {
+  const line = stderr
+    .split(/\r?\n/)
+    .reverse()
+    .find((candidate) => candidate.startsWith(TRANSCRIBER_REPORT_PREFIX));
+  const report = line?.slice(TRANSCRIBER_REPORT_PREFIX.length).trim();
+  return report ? report : null;
+}
+
 async function transcribeWithWhisper(
   videoFilePath: string,
   whisperPath: string,
@@ -620,8 +645,12 @@ async function transcribeWithWhisper(
   const outputDir = path.join(tempDir, "whisper-output");
   await fs.mkdir(outputDir, { recursive: true });
 
-  await appendRunLog(`whisper task=${whisperTask} model=${whisperModel}`);
-  await execFileAsync(
+  // "requested", not "ran": see parseTranscriberReport. Anything reading the run log (the Copilot
+  // video-pipeline skill included) must report the engine from the "transcription engine:" line.
+  await appendRunLog(
+    `transcription requested: binary=${path.basename(whisperPath)} task=${whisperTask} model=${whisperModel}`
+  );
+  const { stderr } = await execFileAsync(
     whisperPath,
     [
       videoFilePath,
@@ -638,6 +667,12 @@ async function transcribeWithWhisper(
       env: createExecEnv(),
       maxBuffer: 64 * 1024 * 1024,
     }
+  );
+  const report = parseTranscriberReport(String(stderr ?? ""));
+  await appendRunLog(
+    report
+      ? `transcription engine: ${report}`
+      : `transcription engine: ${path.basename(whisperPath)} (no self-report; ran with the requested settings above)`
   );
 
   const baseName = path.basename(videoFilePath, path.extname(videoFilePath));
@@ -1715,7 +1750,7 @@ async function runVideoTranscribeCommandForRun(
       if (subtitleText && !isLatinScriptTranscript(subtitleText)) {
         await appendRunLog(
           `subtitle sidecar is not Latin-script (${path.basename(subtitleFiles[0])}) — ` +
-            `discarding it so Whisper transcribes the audio instead`
+            `discarding it so the audio is transcribed instead`
         );
       } else {
         transcriptText = subtitleText;
@@ -1723,18 +1758,20 @@ async function runVideoTranscribeCommandForRun(
     }
 
     if (!transcriptText) {
-      toast.title = "Running Whisper fallback...";
+      // Engine-neutral wording on purpose: the engine is whatever "Whisper Path" runs, and the run
+      // log names it on its own "transcription engine:" line.
+      toast.title = "Transcribing audio...";
       await appendRunLog(
         resolveTranscriptSource(prefs) === "whisper"
-          ? "whisper transcription starting (transcript source=whisper)"
-          : "no usable subtitles — whisper fallback starting"
+          ? "audio transcription starting (transcript source=whisper)"
+          : "no usable subtitles — audio transcription fallback starting"
       );
       const whisperTmpDir = path.join(os.tmpdir(), "raycast-obsidian", "whisper", timestamp);
       await fs.mkdir(whisperTmpDir, { recursive: true });
       transcriptText = normalizeExtractedText(
         await transcribeWithWhisper(primaryVideoFile, whisperBinary, prefs, whisperTmpDir)
       );
-      await appendRunLog("whisper transcription OK");
+      await appendRunLog("audio transcription OK");
     } else {
       await appendRunLog(`transcript from subtitles (${subtitleFiles.length} sidecar(s))`);
     }
