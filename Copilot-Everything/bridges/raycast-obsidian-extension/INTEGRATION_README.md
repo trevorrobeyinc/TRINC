@@ -39,7 +39,7 @@ Raycast PDF summarize
 
 Raycast video pipeline
   -> Downie 4 download (direct, or UGE for login-gated hosts)
-    -> yt-dlp + YubiKey-sealed cookies as last resort
+    -> cookie-free yt-dlp as last resort (public URLs only; login-gated hosts stop at Downie)
   -> subtitle sidecars, else Whisper (whisper-ctranslate2) transcription
   -> source note via direct vault filesystem write (fs `writeGeneratedNote` — no bridge `create_note` since `20d9a63`)
   -> headless Copilot summarize (copilot:summarize-to-note)
@@ -76,8 +76,11 @@ Raycast video pipeline
 
 ### `videoTranscribeRunnerCommand.tsx`
 
-- Downloads via Downie 4 first (zero-click direct, or one-click UGE for login-gated hosts like LinkedIn Learning); `yt-dlp` — unsealing the YubiKey-GPG cookies jar when configured — survives only as the last resort. A local file / `file://` input skips download entirely.
-- Transcribes from subtitle sidecars when present, else Whisper (`whisper-ctranslate2`).
+- Downloads via Downie 4 first (zero-click direct, or one-click UGE for login-gated hosts like LinkedIn Learning). A **cookie-free** `yt-dlp` survives only as the last resort, and only for public URLs: login-gated hosts stop at Downie with an actionable error. A local file / `file://` input skips download entirely.
+  - **No cookies, ever (2026-10-15).** The old last resort unsealed a YubiKey-GPG cookie jar (a whole-browser Chrome export) or read browser cookie stores live; in 89 logged runs it never produced a download. The `ytDlpCookies*` preferences and `scripts/seal-yt-cookies.sh` were removed, and `assertYtDlpArgsCookieFree` refuses any cookie flag that is added back.
+  - **One run at a time (2026-10-15).** A re-dispatch does NOT reliably kill a run parked in Downie's UGE wait. Each run claims `~/.local/share/raycast-obsidian/current-run` at RUN START; a run the marker no longer names stands down at its next poll (`RUN SUPERSEDED`) instead of timing out into the last resort, which is what produced an unexplained YubiKey prompt 11 minutes after a successful run.
+  - Every run-log line carries `[run <id>]`, the same stamp as the run's temp folders.
+- Transcribes with Whisper (`whisper-ctranslate2`) by default (`transcriptSource=whisper`); `auto` prefers a usable subtitle sidecar and falls back to Whisper.
 - Writes the source note straight to the vault filesystem (`writeGeneratedNote` — direct `fs.writeFile`; since `20d9a63` the bridge `create_note` lane is no longer used for pipeline notes, which is what makes the ingestion gate below necessary).
 - Summarizes primarily by dispatching the Copilot fork's headless `copilot:summarize-to-note` command over the Local REST API (`/open` + command execute — background, no focus change), then renames the note Copilot writes into the pipeline's summary path.
   - **Ingestion/active-file gate (verified 2026-08-04):** the fork's headless runner (`src/commands/customCommandHeadless.ts`) reads `app.workspace.getActiveFile()` and `app.vault.cachedRead(...)` — it needs the source note to be both *ingested by Obsidian's cache* and the *workspace-active file* at dispatch time. Because the note is fs-written, Obsidian's watcher may not have ingested it yet when the extension's fixed 1500 ms open→dispatch delay elapses; the fork then silently fails with `Nothing to process: no selection and the active note is empty.` (plugin swallows the error; the extension just polls to timeout). Gate the dispatch on `GET /vault/<path>` returning the note content (ingestion) and `GET /active/`'s `Content-Location` header naming the source note (active file). Note: the fork's `GET /active/` returns the active file's **raw content**, not JSON.
@@ -101,7 +104,6 @@ Raycast video pipeline
 - `src/aiSummarizeCommand.tsx`
 - `src/pdfSummarizeCommand.tsx`
 - `src/videoTranscribeRunnerCommand.tsx`
-- `scripts/seal-yt-cookies.sh`
 - `../obsidian-copilot-bridge/src/backends/restApiBackend.ts`
 - `../obsidian-copilot-bridge/src/server/tools/obsidianHealth.ts`
 - `src/api/backend-emulator/backendEmulator.service.ts` (throw-only retirement stub; kept so legacy call sites compile)

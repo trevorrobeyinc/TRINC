@@ -36,13 +36,7 @@ type ExtensionPreferences = {
   "mcpRequestTimeoutMs": string,
   /** yt-dlp Path - Path to yt-dlp executable */
   "ytDlpPath": string,
-  /** yt-dlp Cookies Browser - Optional browser to pull YouTube/TikTok cookies from (helps bypass bot checks). */
-  "ytDlpCookiesFromBrowser": "none" | "chrome" | "arc" | "safari" | "brave" | "firefox" | "edge",
-  /** yt-dlp Cookies File - Optional cookies.txt path for yt-dlp (overrides browser cookies setting). */
-  "ytDlpCookiesFile"?: string,
-  /** yt-dlp Sealed Cookies (YubiKey GPG) - Path to a GPG-sealed cookies.txt encrypted to the YubiKey OpenPGP [E] subkey (create with scripts/seal-yt-cookies.sh). When set — or when the default sealed jar exists at ~/.local/share/raycast-obsidian/sealed-cookies.txt.gpg — each run unseals it with a pinentry PIN + physical YubiKey touch instead of triggering the macOS keychain (Chrome Safe Storage) password prompt. Overrides both cookie prefs above and disables the browser-cookie fallback. */
-  "ytDlpCookiesGpgFile"?: string,
-  /** yt-dlp Browser Impersonation - TLS-fingerprint impersonation for Cloudflare-protected sites (e.g. Wiley). Pair with the Cookies Browser for login-gated media. Requires curl_cffi in yt-dlp; 'None' disables it. */
+  /** yt-dlp Browser Impersonation - TLS-fingerprint impersonation for Cloudflare-protected sites, used by the cookie-free yt-dlp last resort (public URLs only; login-gated sites go through Downie). Requires curl_cffi in yt-dlp; 'None' disables it. */
   "ytDlpImpersonate": "chrome" | "safari" | "none",
   /** Video Download Folder - Folder in vault for video downloads */
   "videoDownloadFolder": string,

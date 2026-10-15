@@ -1,6 +1,7 @@
 import { getPreferenceValues, LaunchProps, showToast, Toast } from "@raycast/api";
 import {
   runVideoTranscribeCommand,
+  SupersededRunError,
   VideoCommandPreferences,
   VideoTranscribeFormValues,
 } from "@/tools/videoTranscribeFlow";
@@ -34,5 +35,13 @@ export default async function Command(
 
   // Whisper settings live on this command's own preferences now — no forwarding needed.
   const prefs = getPreferenceValues<VideoCommandPreferences>();
-  await runVideoTranscribeCommand({ ...values, videoUrl: values.videoUrl ?? "" }, prefs);
+  try {
+    await runVideoTranscribeCommand({ ...values, videoUrl: values.videoUrl ?? "" }, prefs);
+  } catch (error) {
+    // A newer dispatch replaced this run; it already logged RUN SUPERSEDED. Exit quietly.
+    if (error instanceof SupersededRunError) {
+      return;
+    }
+    throw error;
+  }
 }

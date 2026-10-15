@@ -4,10 +4,16 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  assertYtDlpArgsCookieFree,
+  claimCurrentRun,
   claimLateCopilotSummary,
   normalizeSummaryFrontmatter,
   resolveTranscriptSource,
+  SupersededRunError,
+  supersedingRunId,
   sweepOrphanedCopilotContractNotes,
+  waitForNewStableVideo,
+  withRunId,
   writeGeneratedNote,
 } from "@/tools/videoTranscribeFlow";
 
@@ -258,5 +264,81 @@ describe("resolveTranscriptSource", () => {
   it("returns auto only for the explicit auto value", () => {
     expect(resolveTranscriptSource({ transcriptSource: "auto" })).toBe("auto");
     expect(resolveTranscriptSource({ transcriptSource: "  auto  " })).toBe("auto");
+  });
+});
+
+// REGRESSION (2026-10-15): a re-dispatch left the first run alive in Downie's UGE wait. Both runs
+// watched ~/Downloads, the first one took the file and succeeded, and the starved second run timed
+// out 12 min later into the last resort, which unsealed a cookie jar with a YubiKey PIN + touch
+// the operator could not account for. The run marker names the ONE run allowed to keep waiting.
+// Every test here uses its own temp marker: the live one must never be touched by a test.
+describe("one run at a time (run marker)", () => {
+  const tempRoot = path.join(os.tmpdir(), `single-flight-${Date.now()}`);
+  const marker = path.join(tempRoot, "current-run");
+  const watchDir = path.join(tempRoot, "Downloads");
+
+  afterEach(async () => {
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  });
+
+  it("reports nothing newer when no marker exists yet", async () => {
+    expect(await supersedingRunId("run-A", marker)).toBeNull();
+  });
+
+  it("reports nothing newer while the marker still names this run", async () => {
+    await claimCurrentRun("run-A", marker);
+    expect(await supersedingRunId("run-A", marker)).toBeNull();
+  });
+
+  it("names the run that claimed the marker after this one", async () => {
+    await claimCurrentRun("run-A", marker);
+    await claimCurrentRun("run-B", marker);
+    expect(await supersedingRunId("run-A", marker)).toBe("run-B");
+    expect(await supersedingRunId("run-B", marker)).toBeNull();
+  });
+
+  it("leaves no temp file behind after a claim (atomic rename)", async () => {
+    await claimCurrentRun("run-A", marker);
+    expect(await fs.readdir(tempRoot)).toEqual(["current-run"]);
+  });
+
+  it("stands a parked run down once a newer run claims the marker", async () => {
+    await fs.mkdir(watchDir, { recursive: true });
+    await claimCurrentRun("run-A", marker);
+    const parked = withRunId("run-A", () => waitForNewStableVideo(watchDir, Date.now(), 60_000, marker));
+    await claimCurrentRun("run-B", marker);
+
+    const error = await parked.then(
+      () => null,
+      (rejection: unknown) => rejection
+    );
+    expect(error).toBeInstanceOf(SupersededRunError);
+    expect((error as SupersededRunError).currentRunId).toBe("run-B");
+  }, 15_000);
+
+  it("times out with the ordinary error, not a stand-down, when nothing replaced it", async () => {
+    await fs.mkdir(watchDir, { recursive: true });
+    await claimCurrentRun("run-A", marker);
+    const result = withRunId("run-A", () => waitForNewStableVideo(watchDir, Date.now(), 100, marker));
+
+    await expect(result).rejects.toThrow(/No completed video appeared/);
+  }, 15_000);
+});
+
+// The yt-dlp last resort is cookie-free by operator decision (2026-10-15): no sealed jar, no
+// --cookies-from-browser loop. The guard fails LOUDLY on a re-added flag rather than stripping it.
+describe("assertYtDlpArgsCookieFree", () => {
+  it("passes ordinary args through unchanged, including URLs that merely mention cookies", () => {
+    const args = ["--no-playlist", "--no-cookies-from-browser", "https://example.com/cookies-and-cream"];
+    expect(assertYtDlpArgsCookieFree(args)).toEqual(args);
+  });
+
+  it.each([
+    [["--cookies", "/tmp/jar.txt"]],
+    [["--cookies-from-browser", "chrome"]],
+    [["--cookies=/tmp/jar.txt"]],
+    [["--cookies-from-browser=safari"]],
+  ])("refuses a cookie source: %j", (cookieArgs) => {
+    expect(() => assertYtDlpArgsCookieFree(["--no-playlist", ...cookieArgs])).toThrow(/cookie-free by operator/);
   });
 });

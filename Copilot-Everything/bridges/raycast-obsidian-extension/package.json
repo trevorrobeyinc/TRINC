@@ -159,61 +159,9 @@
       "required": false
     },
     {
-      "name": "ytDlpCookiesFromBrowser",
-      "title": "yt-dlp Cookies Browser",
-      "description": "Optional browser to pull YouTube/TikTok cookies from (helps bypass bot checks).",
-      "type": "dropdown",
-      "default": "none",
-      "data": [
-        {
-          "title": "None",
-          "value": "none"
-        },
-        {
-          "title": "Chrome",
-          "value": "chrome"
-        },
-        {
-          "title": "Arc",
-          "value": "arc"
-        },
-        {
-          "title": "Safari",
-          "value": "safari"
-        },
-        {
-          "title": "Brave",
-          "value": "brave"
-        },
-        {
-          "title": "Firefox",
-          "value": "firefox"
-        },
-        {
-          "title": "Edge",
-          "value": "edge"
-        }
-      ],
-      "required": false
-    },
-    {
-      "name": "ytDlpCookiesFile",
-      "title": "yt-dlp Cookies File",
-      "description": "Optional cookies.txt path for yt-dlp (overrides browser cookies setting).",
-      "type": "textfield",
-      "required": false
-    },
-    {
-      "name": "ytDlpCookiesGpgFile",
-      "title": "yt-dlp Sealed Cookies (YubiKey GPG)",
-      "description": "Path to a GPG-sealed cookies.txt encrypted to the YubiKey OpenPGP [E] subkey (create with scripts/seal-yt-cookies.sh). When set — or when the default sealed jar exists at ~/.local/share/raycast-obsidian/sealed-cookies.txt.gpg — each run unseals it with a pinentry PIN + physical YubiKey touch instead of triggering the macOS keychain (Chrome Safe Storage) password prompt. Overrides both cookie prefs above and disables the browser-cookie fallback.",
-      "type": "textfield",
-      "required": false
-    },
-    {
       "name": "ytDlpImpersonate",
       "title": "yt-dlp Browser Impersonation",
-      "description": "TLS-fingerprint impersonation for Cloudflare-protected sites (e.g. Wiley). Pair with the Cookies Browser for login-gated media. Requires curl_cffi in yt-dlp; 'None' disables it.",
+      "description": "TLS-fingerprint impersonation for Cloudflare-protected sites, used by the cookie-free yt-dlp last resort (public URLs only; login-gated sites go through Downie). Requires curl_cffi in yt-dlp; 'None' disables it.",
       "type": "dropdown",
       "default": "chrome",
       "data": [

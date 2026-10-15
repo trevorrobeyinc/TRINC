@@ -1,4 +1,5 @@
 import { open, popToRoot, showToast, Toast } from "@raycast/api";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -21,9 +22,6 @@ export interface VideoCommandPreferences {
   anthropicModel?: string;
   cleanupAfterSummary?: boolean;
   ytDlpPath?: string;
-  ytDlpCookiesFromBrowser?: string;
-  ytDlpCookiesFile?: string;
-  ytDlpCookiesGpgFile?: string;
   ytDlpImpersonate?: string;
   videoDownloadFolder?: string;
   downieDownloadFolder?: string;
@@ -67,30 +65,85 @@ const defaultWhisperPathCandidates = [
   "/opt/homebrew/bin/whisper",
   "/usr/local/bin/whisper",
 ] as const;
-const defaultGpgPathCandidates = ["/opt/homebrew/bin/gpg", "/usr/local/bin/gpg"] as const;
 // Official Obsidian CLI (ships inside the app bundle, Obsidian 1.12.7+). GATE 2's activation
 // fallback shells out to it because the REST API's /open cannot promote a note to ACTIVE from
 // every workspace state, while the CLI can (see runCopilotHeadlessSummary).
 const defaultObsidianCliPathCandidates = ["/Applications/Obsidian.app/Contents/MacOS/obsidian"] as const;
-// Well-known drop location for the sealed jar written by scripts/seal-yt-cookies.sh — internal
-// volume so it survives an external-volume unmount, outside every git worktree.
-const defaultSealedCookiesPath = path.join(
-  os.homedir(),
-  ".local",
-  "share",
-  "raycast-obsidian",
-  "sealed-cookies.txt.gpg"
-);
 // Durable per-run log — failures otherwise vanish with the Raycast toast. Append-only plain text,
 // safe to delete anytime. Logging is fail-soft and must never interfere with a run.
 const runLogPath = path.join(os.homedir(), ".local", "share", "raycast-obsidian", "video-transcribe.log");
 
+// Which run a log line belongs to. Two runs CAN be alive at once (a re-dispatch does not reliably
+// kill the first, observed 2026-10-15), and without an id their lines interleave into what reads
+// as ONE run that succeeded and then failed. AsyncLocalStorage, not a module variable: concurrent
+// runs in the same process would overwrite a shared variable.
+const runIdContext = new AsyncLocalStorage<string>();
+
 async function appendRunLog(line: string): Promise<void> {
   try {
+    const runId = runIdContext.getStore();
+    const prefix = runId ? `[run ${runId}] ` : "";
     await fs.mkdir(path.dirname(runLogPath), { recursive: true });
-    await fs.appendFile(runLogPath, `${new Date().toISOString()} ${line}\n`, "utf-8");
+    await fs.appendFile(runLogPath, `${new Date().toISOString()} ${prefix}${line}\n`, "utf-8");
   } catch {
     // Never let logging break the run.
+  }
+}
+
+// One run at a time. Each run writes its id here at RUN START, and the marker names the ONE run
+// allowed to keep waiting on a download. Any other run stands down instead of timing out into the
+// last-resort lane. 2026-10-15: a re-dispatch left the first run alive in Downie's UGE wait, the
+// first run took the file, and the starved second run fell back to yt-dlp 12 minutes AFTER the
+// video had already been summarized.
+const currentRunMarkerPath = path.join(os.homedir(), ".local", "share", "raycast-obsidian", "current-run");
+
+/** Thrown inside a run that a newer dispatch has replaced. Never routes to a fallback. */
+export class SupersededRunError extends Error {
+  constructor(readonly currentRunId: string) {
+    super(`superseded by run ${currentRunId}`);
+    this.name = "SupersededRunError";
+  }
+}
+
+/** Record `runId` as the one live run (atomic rename, so a reader never sees a half-written id). */
+export async function claimCurrentRun(runId: string, markerPath: string = currentRunMarkerPath): Promise<void> {
+  await fs.mkdir(path.dirname(markerPath), { recursive: true });
+  const tempPath = `${markerPath}.${process.pid}.${Date.now()}.tmp`;
+  await fs.writeFile(tempPath, runId, "utf-8");
+  await fs.rename(tempPath, markerPath);
+}
+
+/**
+ * The id of the run that replaced `runId`, or null while `runId` is still the live run. "Different"
+ * rather than "newer" on purpose: if two near-simultaneous claims land out of order, exactly one
+ * run (whichever the marker names) survives, instead of both carrying on. A missing or unreadable
+ * marker means nothing replaced us.
+ */
+export async function supersedingRunId(
+  runId: string,
+  markerPath: string = currentRunMarkerPath
+): Promise<string | null> {
+  try {
+    const current = (await fs.readFile(markerPath, "utf-8")).trim();
+    return current && current !== runId ? current : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Run `fn` as run `runId`: its log lines carry the id and its waits check the run marker. */
+export function withRunId<T>(runId: string, fn: () => Promise<T>): Promise<T> {
+  return runIdContext.run(runId, fn);
+}
+
+async function throwIfSuperseded(markerPath: string = currentRunMarkerPath): Promise<void> {
+  const runId = runIdContext.getStore();
+  if (!runId) {
+    return;
+  }
+  const current = await supersedingRunId(runId, markerPath);
+  if (current) {
+    throw new SupersededRunError(current);
   }
 }
 
@@ -109,7 +162,9 @@ async function findUnterminatedPreviousRun(): Promise<string | null> {
     const lines = text.trimEnd().split("\n");
     for (let i = lines.length - 1; i >= 0; i--) {
       if (lines[i].includes("RUN START")) {
-        const terminated = lines.slice(i + 1).some((l) => l.includes("RUN SUCCESS") || l.includes("RUN FAIL"));
+        const terminated = lines
+          .slice(i + 1)
+          .some((l) => l.includes("RUN SUCCESS") || l.includes("RUN FAIL") || l.includes("RUN SUPERSEDED"));
         return terminated ? null : lines[i];
       }
     }
@@ -147,7 +202,6 @@ const downieUgeTimeoutMs = 12 * 60 * 1000;
 // Downie's direct scheme download returns "Cannot find download URL" for these, so route them
 // straight to UGE. Matched against the URL hostname (exact or subdomain).
 const loginGatedHosts = ["linkedin.com"] as const;
-const ytDlpCookieBrowserFallbackOrder = ["chrome", "chromium", "safari", "brave", "firefox", "edge"] as const;
 const tiktokDesktopUserAgent =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36";
 
@@ -292,77 +346,12 @@ async function resolveWhisperPathOrThrow(prefs: VideoCommandPreferences): Promis
   );
 }
 
-function resolveGpgPath(): string {
-  for (const candidate of defaultGpgPathCandidates) {
-    if (existsSync(candidate)) {
-      return candidate;
-    }
-  }
-  return "gpg";
-}
-
-function resolveSealedCookiesPath(prefs: VideoCommandPreferences): string {
-  const configured = prefs.ytDlpCookiesGpgFile?.trim();
-  if (configured) {
-    return configured;
-  }
-  return existsSync(defaultSealedCookiesPath) ? defaultSealedCookiesPath : "";
-}
-
-/**
- * Decrypt the GPG-sealed cookies jar via the YubiKey OpenPGP [E] subkey. gpg-agent's pinentry-mac
- * dialog collects the card PIN and the YubiKey demands a physical touch — this ceremony deliberately
- * REPLACES the macOS login-keychain password prompt that --cookies-from-browser otherwise triggers
- * (yt-dlp reading "Chrome Safe Storage"). The plaintext jar lands in a 0700 per-run temp dir and the
- * caller removes it in a finally block, so it never outlives the run. No decrypt timeout: the touch
- * window is human-paced and cancelling pinentry surfaces as a normal command failure.
- */
-async function unsealGpgCookies(sealedPath: string, timestamp: string): Promise<string> {
-  if (!existsSync(sealedPath)) {
-    throw new Error(`Sealed cookies file not found: ${sealedPath}`);
-  }
-
-  const outDir = path.join(os.tmpdir(), "raycast-obsidian", "cookies", timestamp);
-  await fs.mkdir(outDir, { recursive: true, mode: 0o700 });
-  const outFile = path.join(outDir, "cookies.txt");
-
-  try {
-    await execFileAsync(
-      resolveGpgPath(),
-      ["--batch", "--yes", "--quiet", "--output", outFile, "--decrypt", sealedPath],
-      {
-        env: createExecEnv(),
-        maxBuffer: 16 * 1024 * 1024,
-      }
-    );
-  } catch (error) {
-    const detail = extractProcessErrorText(error)
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .slice(-2)
-      .join(" | ");
-    throw new Error(`YubiKey unseal failed or was declined${detail ? `: ${detail}` : "."}`);
-  }
-
-  await fs.chmod(outFile, 0o600);
-  return outFile;
-}
-
-function configuredYtDlpCookieArgs(prefs: VideoCommandPreferences): string[] {
-  const cookieFilePath = prefs.ytDlpCookiesFile?.trim();
-  if (cookieFilePath) {
-    return ["--cookies", cookieFilePath];
-  }
-
-  const cookiesFromBrowser = prefs.ytDlpCookiesFromBrowser?.trim().toLowerCase();
-  if (cookiesFromBrowser && cookiesFromBrowser !== "none") {
-    const normalizedBrowser = cookiesFromBrowser === "arc" ? "chrome" : cookiesFromBrowser;
-    return ["--cookies-from-browser", normalizedBrowser];
-  }
-
-  return [];
-}
+// The yt-dlp lane uses NO cookies of any kind (retired 2026-10-15, operator decision). It used to
+// unseal a YubiKey-GPG jar (a whole-browser Chrome export, not one site) or read browser cookie
+// stores live, but in 89 logged runs yt-dlp never once finished a download: LinkedIn Learning
+// always ends in "No video formats found", and Kaltura/Capella download through Downie. The cost
+// was a YubiKey ceremony nobody could account for and a plaintext jar handed to a third-party
+// binary. Login-gated sites belong to Downie's own signed-in browser; yt-dlp is for public URLs.
 
 // Cloudflare-fronted sites (e.g. Wiley course media) reject yt-dlp's default TLS
 // fingerprint with a 403 even when the logged-in session cookie is present. yt-dlp's
@@ -413,26 +402,6 @@ function extractProcessErrorText(error: unknown): string {
   }
 
   return "";
-}
-
-function isYtDlpAuthChallengeError(error: unknown): boolean {
-  const errorText = extractProcessErrorText(error).toLowerCase();
-  return (
-    errorText.includes("not a bot") ||
-    errorText.includes("cookies-from-browser") ||
-    errorText.includes("sign in to confirm") ||
-    errorText.includes("login required") ||
-    errorText.includes("log in") ||
-    errorText.includes("verify you are human") ||
-    // A bare HTTP 401/403 from a login-gated page is an auth challenge too. yt-dlp's
-    // generic extractor reports it as "Unable to download webpage: HTTP Error 403:
-    // Forbidden" with none of the phrases above, so match the status text directly and
-    // let the browser-cookie fallback (chrome first) retry with the logged-in session.
-    errorText.includes("http error 401") ||
-    errorText.includes("http error 403") ||
-    errorText.includes("403: forbidden") ||
-    errorText.includes("401: unauthorized")
-  );
 }
 
 function getVideoCommandErrorMessage(error: unknown): string {
@@ -740,51 +709,44 @@ async function downloadVideoAndSubtitles(
     videoUrl,
   ];
 
-  const cookieArgs = configuredYtDlpCookieArgs(prefs);
+  // Cookie-free by construction (see the retirement note above configuredYtDlpImpersonateArgs):
+  // no --cookies, no --cookies-from-browser, and no retry loop that would reach for them on a
+  // login wall. A login-gated URL simply fails here, which is the honest outcome.
+  const args = assertYtDlpArgsCookieFree(baseArgs);
   const impersonateArgs = configuredYtDlpImpersonateArgs(prefs);
 
-  // Run yt-dlp with browser TLS-fingerprint impersonation, but degrade gracefully: if
+  // Browser TLS-fingerprint impersonation (no credentials involved), degrading gracefully: if
   // this yt-dlp build lacks curl_cffi, retry the same args without --impersonate so that
   // ordinary (non-Cloudflare) downloads keep working on installs without impersonation.
-  const runYtDlpWithImpersonate = async (args: string[]): Promise<void> => {
-    if (impersonateArgs.length === 0) {
+  if (impersonateArgs.length === 0) {
+    await runYtDlp(ytDlpPath, args);
+    return;
+  }
+  try {
+    await runYtDlp(ytDlpPath, [...args, ...impersonateArgs]);
+  } catch (error) {
+    if (isYtDlpImpersonateUnavailableError(error)) {
       await runYtDlp(ytDlpPath, args);
       return;
     }
-    try {
-      await runYtDlp(ytDlpPath, [...args, ...impersonateArgs]);
-    } catch (error) {
-      if (isYtDlpImpersonateUnavailableError(error)) {
-        await runYtDlp(ytDlpPath, args);
-        return;
-      }
-      throw error;
-    }
-  };
-
-  try {
-    await runYtDlpWithImpersonate([...baseArgs, ...cookieArgs]);
-    return;
-  } catch (error) {
-    if (cookieArgs.length > 0 || !isYtDlpAuthChallengeError(error)) {
-      throw error;
-    }
+    throw error;
   }
+}
 
-  // Cloudflare + login-gated media (e.g. Wiley) needs BOTH the logged-in browser session
-  // cookie AND a real-browser TLS fingerprint, so each fallback attempt pairs
-  // --cookies-from-browser with --impersonate.
-  let lastError: unknown;
-  for (const browser of ytDlpCookieBrowserFallbackOrder) {
-    try {
-      await runYtDlpWithImpersonate([...baseArgs, "--cookies-from-browser", browser]);
-      return;
-    } catch (error) {
-      lastError = error;
-    }
+/**
+ * Refuse a yt-dlp argv that carries any cookie source, and say why. Loud on purpose: silently
+ * stripping a re-added flag would leave the next editor wondering why it "doesn't work", while
+ * this error names the decision. Exported so the invariant is tested directly.
+ */
+export function assertYtDlpArgsCookieFree(args: readonly string[]): string[] {
+  const offending = args.find((arg) => /^--cookies(-from-browser)?(=|$)/.test(arg));
+  if (offending) {
+    throw new Error(
+      `yt-dlp cookie flag ${offending} refused: the last-resort lane is cookie-free by operator ` +
+        `decision (2026-10-15). Login-gated sites download through Downie's signed-in browser.`
+    );
   }
-
-  throw lastError || new Error("Unable to download video with yt-dlp.");
+  return [...args];
 }
 
 function normalizeExtractedText(value: string): string {
@@ -1362,14 +1324,23 @@ function isLoginGatedHost(videoUrl: string): boolean {
  * writes the finished file into the folder in one move (its `.download`/`.part` temps live
  * elsewhere), so a file counts as done once its size holds steady across a couple of polls. Only
  * files with mtime ≥ dispatch are considered, so a pre-existing video in the folder is never
- * claimed. Throws on timeout.
+ * claimed. Throws on timeout, and throws SupersededRunError as soon as a newer run owns the marker.
+ * `markerPath` is injectable so tests never touch the live run marker.
  */
-async function waitForNewStableVideo(watchDir: string, dispatchedAtMs: number, timeoutMs: number): Promise<string> {
+export async function waitForNewStableVideo(
+  watchDir: string,
+  dispatchedAtMs: number,
+  timeoutMs: number,
+  markerPath: string = currentRunMarkerPath
+): Promise<string> {
   const sizeHistory = new Map<string, { size: number; stableCount: number }>();
   const deadlineMs = dispatchedAtMs + timeoutMs;
 
   while (Date.now() < deadlineMs) {
     await new Promise((resolve) => setTimeout(resolve, dowaniePollIntervalMs));
+    // A newer dispatch owns the download now. Stand down BEFORE scanning, so a replaced run can
+    // never claim (or starve on) the file the live run is waiting for.
+    await throwIfSuperseded(markerPath);
 
     let entries: string[];
     try {
@@ -1555,15 +1526,29 @@ export async function moveDownieSubtitleSidecars(
   return claimed;
 }
 
+/**
+ * Entry point. Gives the run its id, the same stamp its temp folders and yt-dlp output carry, so a
+ * log line and a leftover folder can always be matched, and binds it to every log line the run
+ * writes. A run replaced by a newer dispatch rejects with SupersededRunError, which the command
+ * treats as a quiet exit, not a failure.
+ */
 export async function runVideoTranscribeCommand(
   values: VideoTranscribeFormValues,
   prefs: VideoCommandPreferences
+): Promise<VideoTranscribeResult> {
+  const runId = new Date().toISOString().replace(/[:.]/g, "-");
+  return withRunId(runId, () => runVideoTranscribeCommandForRun(values, prefs, runId));
+}
+
+async function runVideoTranscribeCommandForRun(
+  values: VideoTranscribeFormValues,
+  prefs: VideoCommandPreferences,
+  runId: string
 ): Promise<VideoTranscribeResult> {
   const toast = await showToast({ style: Toast.Style.Animated, title: "Preparing video download..." });
   let sourceNoteRelativePath = "";
   let transcriptRelativePath = "";
   let sourceVideoRelativePath = "";
-  let unsealedCookiesFile = "";
   // A Downie-downloaded video lives in the pipeline's own dedicated folder, so (unlike a user's
   // file-picker selection) it IS ours to clean up after the summary lands.
   let downieDownloadedFile = "";
@@ -1589,7 +1574,7 @@ export async function runVideoTranscribeCommand(
     const outputDir = path.join(vaultPath, ...videoFolder.split("/"));
     await fs.mkdir(outputDir, { recursive: true });
 
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const timestamp = runId;
     // %(title).150B byte-truncates the title so hosts with URL-blob titles (e.g. LinkedIn
     // demuxed-hls links, whose "title" is a 400+ char path segment) stay under macOS's
     // 255-byte filename limit once the timestamp + extension are appended.
@@ -1598,12 +1583,23 @@ export async function runVideoTranscribeCommand(
 
     const supersededRun = await findUnterminatedPreviousRun();
     await appendRunLog(`RUN START ${localVideoPath ? `file=${localVideoPath}` : `url=${videoUrl}`}`);
+    // Claim the run marker at once, so an older run still parked in a Downie wait stands down at
+    // its next poll instead of timing out into the last-resort lane. Fail-soft: without the
+    // marker the old run may still time out, but the cookie-free last resort makes that harmless.
+    try {
+      await claimCurrentRun(runId);
+    } catch (claimError) {
+      await appendRunLog(
+        `warning: could not record this run as the current one (${
+          claimError instanceof Error ? claimError.message : String(claimError)
+        }); an older run will not know to stand down`
+      );
+    }
     if (supersededRun) {
       await appendRunLog(
-        "warning: previous run never logged a terminal state — it is either still running or was " +
-          `killed when this dispatch relaunched the command (Raycast replaces the running instance): ${supersededRun.slice(
-            25
-          )}`
+        "warning: previous run never logged a terminal state. It was either killed, or it is still " +
+          "alive (a re-dispatch does NOT reliably kill it, 2026-10-15) and will stand down at its " +
+          `next poll: ${supersededRun.slice(25)}`
       );
     }
     // Fail fast — verify a usable Whisper binary BEFORE the (slow) download, so a misconfigured
@@ -1616,8 +1612,8 @@ export async function runVideoTranscribeCommand(
 
     if (localVideoPath) {
       // Pre-downloaded video (e.g. Downie for enterprise LinkedIn Learning, whose streams yt-dlp
-      // cannot fetch even with valid cookies): no cookies are needed, so no YubiKey ceremony fires;
-      // the pipeline starts at transcription.
+      // cannot fetch even with valid cookies): nothing to download, so the pipeline starts at
+      // transcription.
       toast.title = "Using local video file...";
       if (!existsSync(localVideoPath)) {
         throw new Error(`Local video file not found: ${localVideoPath}`);
@@ -1627,13 +1623,13 @@ export async function runVideoTranscribeCommand(
       }
       artifacts = [localVideoPath];
       primaryVideoFile = localVideoPath;
-      await appendRunLog("local file mode — skipping cookie unseal and download");
+      await appendRunLog("local file mode — skipping download");
     } else {
-      // PRIMARY URL lane: Downie 4. It extracts inside the user's logged-in browser session, so it
-      // fetches sources yt-dlp can't (enterprise LinkedIn Learning) with NO cookies and NO YubiKey
-      // ceremony. Two Downie modes: DIRECT (zero-click, for sites Downie extracts headlessly) and
-      // UGE (one click on the detected stream, for login-gated streams like LinkedIn). yt-dlp + the
-      // sealed-cookies unseal survive ONLY as a last resort below.
+      // PRIMARY URL lane: Downie 4. It extracts inside its own signed-in browser session, so it
+      // fetches sources yt-dlp can't (enterprise LinkedIn Learning) without the pipeline ever
+      // touching a cookie. Two Downie modes: DIRECT (zero-click, for sites Downie extracts
+      // headlessly) and UGE (one click on the detected stream, for login-gated streams like
+      // LinkedIn). A cookie-free yt-dlp survives ONLY as a last resort below, for public URLs.
       const downieFolder = resolveDownieDownloadFolder(prefs);
       const downloadsFolder = path.join(os.homedir(), "Downloads");
       try {
@@ -1659,6 +1655,9 @@ export async function runVideoTranscribeCommand(
             subtitleSweepBase = path.basename(primaryVideoFile, path.extname(primaryVideoFile));
             subtitleSweepSinceMs = dispatchedAtMs;
           } catch (directError) {
+            if (directError instanceof SupersededRunError) {
+              throw directError; // a replaced run must not open a UGE window of its own
+            }
             const dreason = directError instanceof Error ? directError.message : String(directError);
             await appendRunLog(`downie direct failed (${dreason}) — opening UGE`);
             toast.title = "Opening Downie — select the detected stream to download...";
@@ -1674,26 +1673,27 @@ export async function runVideoTranscribeCommand(
         downieDownloadedFile = primaryVideoFile;
         artifacts = [primaryVideoFile];
       } catch (downieError) {
+        if (downieError instanceof SupersededRunError) {
+          throw downieError; // never fall back from a run that a newer dispatch replaced
+        }
         const reason = downieError instanceof Error ? downieError.message : String(downieError);
-        await appendRunLog(`LAST-RESORT: Downie (direct + UGE) failed (${reason}) — falling back to yt-dlp`);
 
-        // YubiKey-sealed cookies replace the macOS keychain prompt entirely. Routing the unsealed jar
-        // through the ytDlpCookiesFile pref ALSO short-circuits the --cookies-from-browser fallback loop
-        // (cookieArgs.length > 0 disables it), so no code path can reopen the Chrome Safe Storage /
-        // login-keychain dialog once a sealed jar is configured.
-        let effectivePrefs = prefs;
-        const sealedCookiesPath = resolveSealedCookiesPath(prefs);
-        if (sealedCookiesPath) {
-          toast.title = "Downie failed — unsealing cookies (YubiKey PIN + touch)...";
-          await appendRunLog(`unseal starting: ${sealedCookiesPath}`);
-          unsealedCookiesFile = await unsealGpgCookies(sealedCookiesPath, timestamp);
-          await appendRunLog("unseal OK");
-          effectivePrefs = { ...prefs, ytDlpCookiesFile: unsealedCookiesFile, ytDlpCookiesFromBrowser: "none" };
+        // Login-gated hosts stop HERE. Cookie-free yt-dlp cannot fetch them (and even with
+        // cookies it never did: "No video formats found"), so trying would only bury the real
+        // reason under a yt-dlp error.
+        if (isLoginGatedHost(videoUrl)) {
+          throw new Error(
+            `Downie did not deliver the video (${reason}). This site needs Downie's signed-in ` +
+              `browser, so there is no fallback: re-run and click the detected stream in Downie's window.`
+          );
         }
 
-        toast.title = "Downie failed — downloading with yt-dlp...";
-        await appendRunLog("yt-dlp download starting");
-        await downloadVideoAndSubtitles(ytDlpPath, outputDir, outputTemplate, videoUrl, effectivePrefs, timestamp);
+        await appendRunLog(`LAST-RESORT: Downie (direct + UGE) failed (${reason}) — trying cookie-free yt-dlp`);
+        // Re-check before a second download starts: a replacement may have arrived while Downie failed.
+        await throwIfSuperseded();
+        toast.title = "Downie failed — trying yt-dlp (public URLs only)...";
+        await appendRunLog("yt-dlp download starting (no cookies)");
+        await downloadVideoAndSubtitles(ytDlpPath, outputDir, outputTemplate, videoUrl, prefs, timestamp);
         await appendRunLog("yt-dlp download OK");
 
         artifacts = await listDownloadedArtifacts(outputDir, timestamp);
@@ -1903,6 +1903,12 @@ export async function runVideoTranscribeCommand(
       usedFallbackModel: usedFallbackSummarizer,
     };
   } catch (error) {
+    if (error instanceof SupersededRunError) {
+      // Not a failure: a newer dispatch owns the download now. No fallback ran, no failure toast.
+      await appendRunLog(`RUN SUPERSEDED: ${error.message}; standing down, that run owns the download`);
+      await toast.hide();
+      throw error;
+    }
     const fullProcessOutput = extractProcessErrorText(error);
     await appendRunLog(
       `RUN FAIL: ${error instanceof Error ? error.message : String(error)}` +
@@ -1922,10 +1928,5 @@ export async function runVideoTranscribeCommand(
     toast.title = "Transcribe & Save failed";
     toast.message = getVideoCommandErrorMessage(error);
     throw error;
-  } finally {
-    // The unsealed plaintext jar must never outlive the run — success or failure.
-    if (unsealedCookiesFile) {
-      await fs.rm(path.dirname(unsealedCookiesFile), { recursive: true, force: true }).catch(() => undefined);
-    }
   }
 }

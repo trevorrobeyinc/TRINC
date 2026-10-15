@@ -161,8 +161,6 @@ describe.skipIf(!runLive)("Raycast Operator Live Smoke", () => {
       videoDownloadFolder: `${runRoot}/video-downloads`,
       ytDlpPath: "/Users/myhome/Library/Python/3.9/bin/yt-dlp",
       whisperPath: "/Users/myhome/Library/Python/3.9/bin/whisper",
-      ytDlpCookiesFromBrowser: "none",
-      ytDlpCookiesFile: "",
       whisperModel: "medium",
       openOnCreate: false,
       fillFormWithDefaults: false,
