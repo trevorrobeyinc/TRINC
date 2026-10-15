@@ -16,6 +16,7 @@ import {
 import { gateCodeFromMessage, gateDenialAction } from "../subprocess/gate-denial";
 import type { LedgerSummary } from "../workflow/post-run-ledger";
 import { compactWorkflowState } from "../workflow/status-compaction";
+import { summarizeVideoPipelineLog } from "./video-pipeline-status";
 
 const HOST = "127.0.0.1";
 
@@ -32,9 +33,11 @@ function isCommandAllowed(commandId: string): boolean {
 
 // Video pipeline tools: expose the Raycast "Obsidian Bridge Fork" Video Pipeline Runner to
 // MCP clients (the Copilot agent chat reaches this bridge per ACP session). The pipeline
-// itself — Downie/UGE download, subtitle claim or Whisper transcription, the headless
-// copilot:summarize-to-note relay, cleanup — stays in the Raycast extension; this bridge
-// only dispatches its deeplink and reads its durable run log.
+// itself — Downie/UGE download, subtitle claim or transcription of the audio by the configured
+// local transcriber (the run log's "transcription engine:" line names it; the "Whisper Path"
+// preference is only a setting name), the headless copilot:summarize-to-note relay, cleanup —
+// stays in the Raycast extension; this bridge only dispatches its deeplink and reads its durable
+// run log.
 //
 // Security posture (same audit-P0 stance as the command allowlist above): this is NOT an
 // exec primitive. The binary is fixed (/usr/bin/open), arguments are an argv array (no
@@ -1420,36 +1423,7 @@ export class McpBridgeServer {
         message: "No pipeline run log exists yet — no run has ever been dispatched on this machine.",
       };
     }
-
-    const lines = text.trimEnd().split("\n");
-    let startIdx = -1;
-    for (let i = lines.length - 1; i >= 0; i--) {
-      if (lines[i].includes("RUN START")) {
-        startIdx = i;
-        break;
-      }
-    }
-    if (startIdx < 0) {
-      return { status: "unknown", message: "Run log exists but contains no RUN START entry." };
-    }
-
-    const run = lines.slice(startIdx);
-    const terminal = run.some((l) => l.includes("RUN SUCCESS"))
-      ? "success"
-      : run.some((l) => l.includes("RUN FAIL"))
-        ? "failed"
-        : "running";
-    const summaryLine = run.find((l) => l.includes("summary written via"));
-    const urlMatch = run[0].match(/url=(.+)$/);
-
-    return {
-      status: terminal,
-      startedAt: run[0].slice(0, 24).trim(),
-      ...(urlMatch ? { videoUrl: urlMatch[1] } : {}),
-      latest: run[run.length - 1],
-      ...(summaryLine ? { summary: summaryLine } : {}),
-      recentLines: run.slice(-8),
-    };
+    return summarizeVideoPipelineLog(text);
   }
 
   private videoPipelineLogSize(): number {
@@ -1887,7 +1861,7 @@ export class McpBridgeServer {
         {
           name: "video_pipeline_run",
           description:
-            "Run the video-to-summary pipeline on a video URL (YouTube, LinkedIn Learning, etc.) or an absolute local video file path. Dispatches the Raycast 'Video Pipeline Runner': the video is downloaded (login-gated hosts like LinkedIn Learning need ONE human click in Downie's UGE window — tell the user to click the detected stream), transcribed from subtitles or Whisper, summarized by Copilot's free local relay, and saved to the vault as Copilot Summaries/'<title> summary.md' with all intermediates cleaned up. Returns immediately; poll video_pipeline_status for progress.",
+            "Run the video-to-summary pipeline on a video URL (YouTube, LinkedIn Learning, etc.) or an absolute local video file path. Dispatches the Raycast 'Video Pipeline Runner': the video is downloaded (login-gated hosts like LinkedIn Learning need ONE human click in Downie's UGE window — tell the user to click the detected stream), transcribed from subtitles or from the audio by the configured local transcriber (the run log's `transcription engine:` line names it; video_pipeline_status returns it as `transcriber`), summarized by Copilot's free local relay, and saved to the vault as Copilot Summaries/'<title> summary.md' with all intermediates cleaned up. Returns immediately; poll video_pipeline_status for progress.",
           inputSchema: {
             type: "object",
             properties: {
@@ -1907,7 +1881,7 @@ export class McpBridgeServer {
         {
           name: "video_pipeline_status",
           description:
-            "Progress of the most recent video pipeline run, read from its durable run log: running/success/failed, the latest stage line, and the summary confirmation when finished.",
+            "Progress of the most recent video pipeline run, read from its durable run log: running/success/failed, the latest stage line, the summary confirmation when finished, and `transcriber`: the transcription engine that actually ran, verbatim from the run's `transcription engine:` line. Report the engine only from `transcriber`. `transcriptionRequested` is what the pipeline asked for (Whisper-style settings), not what ran. Both are absent when the transcript came from subtitles or the run predates 2026-10-15.",
           inputSchema: { type: "object", properties: {} },
         },
         {
