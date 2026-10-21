@@ -54,5 +54,5 @@ These are placeholders in the repo today, not completed records:
 ## Platform obligations (for completeness)
 
 - **AWS Data Exchange** — cleared for paid products since 2026-07-22. Before the first paid listing:
-  accept AWS's StandardDSA (removes the counsel gate on the custom DSA) and move the AWS root email off
-  the `.edu` address (risk R1). Both are operator console steps.
+  accept AWS's StandardDSA (removes the counsel gate on the custom DSA). The other gate, moving the
+  AWS root email off the `.edu` address (risk R1), was **done 2026-10-21** (root = `aws@trevorobeyinc.com`).

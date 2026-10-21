@@ -22,6 +22,8 @@ Three findings from the 2026-07-23 architecture survey drive everything below:
    field to *Professional-services buyer requests, Reseller Opportunity events, and Consulting
    Partner Private Offers* — **none of which fire for a direct data-product seller.** It is a
    no-op for this business. The real fix is the root-email change (operator-only, R1).
+   **⇢ Fixed 2026-10-21:** the root email is now `aws@trevorobeyinc.com` (a Workspace group that
+   delivers to trevor@), so findings 1 and 2 are resolved; see `../aws-data-exchange/account-access.md`.
 3. **Contractual SLAs now exist with zero tracking.** `provider-support-process.md` promises
    1-business-day acknowledgement; `refund-policy.md` promises 1-day ack / 10-business-day review /
    30-day claim window; the qualification package commits to monthly (high-velocity) and quarterly
@@ -61,7 +63,11 @@ Source-controlled here so the routing is reproducible and reviewable.
 
 ### 1b · Strayer → Gmail forwarding (STOPGAP for the AWS root-email risk)
 
-**Why:** the AWS account root email is still `Trevor.Robey@my.strayer.edu`, and AWS sends
+> **Superseded 2026-10-21:** the root email is now `aws@trevorobeyinc.com`, so this stopgap is no
+> longer load-bearing. Retiring the forward, the `Via-Strayer` label and the monthly check is the
+> operator's call; keep them a few weeks in case AWS mails the old address about the change.
+
+**Why (as of 2026-07-23):** the AWS account root email was still `Trevor.Robey@my.strayer.edu`, and AWS sends
 **listing-review outcomes, payout failures and policy changes** to the *root* address — the
 alternate contacts (already `trevor@`) do **not** cover those categories. Option A (forward at
 Strayer) buys time; it does **not** replace the root-email change (risk R1).
@@ -142,10 +148,15 @@ root-email change.**
   > Citation-traced biomedical due diligence · trevorobeyinc.com
   > *Trevor Robey, INC. is the wordmark of Trevor Robey Intelligence Network Citations LLC, a California limited liability company.*
 
-> **Alias caveat (carried from `google-workspace.md`):** `aws@` and `support@` are **aliases on the
-> single `trevor@` user**, not independent mailboxes and **not independently recoverable** — losing
-> `trevor@` loses both. If `aws@` is ever promoted to an AWS root/notification address, convert it
-> to a **Workspace Group** first (recovery-safer, and what AWS itself recommends for role addresses).
+> **Alias caveat (carried from `google-workspace.md`):** `support@` is an **alias on the single
+> `trevor@` user**, not an independent mailbox and **not independently recoverable** — losing
+> `trevor@` loses it. **`aws@` was converted to a Workspace Group on 2026-10-21** (the step this
+> caveat called for before using it as the AWS root address): owner/member trevor@, anyone on the web
+> may post, spam handling posts to the group instead of queueing. Mail to it still arrives `To:
+> aws@trevorobeyinc.com`, so the `AWS/Seller-Ops` filter above keeps matching. **Open check:** the
+> *Send mail as aws@* entry above was created against the alias and is still listed; it was not
+> re-tested. If Gmail ever reports it unverified, re-verify it there (the code now arrives through
+> the group). Details: `google-workspace.md` §8.
 
 ## 2 · Calendar — deadlines & recurring obligations
 
@@ -210,7 +221,7 @@ zero activity.**
 ## 5 · What this does NOT do
 
 - Does **not** wire Google into the research engine (2026-07-01 removal stands).
-- Does **not** change the AWS root email — **operator-only, root + MFA** (risk R1, still open).
+- Does **not** change the AWS root email — **operator-only, root + MFA** (risk R1 — **closed 2026-10-21**, root = `aws@`).
 - Does **not** change the AWS public support contact from `trevor@` to `support@`/`aws@` — that's an
   `AdministratorAccess` portal change plus a repo-doc sync (`listing/product-description.md`,
   `product-creation.md:126`, `listing/data-eligibility-and-compliance.md:80`).
@@ -227,7 +238,7 @@ zero activity.**
 2. ~~**Create the calendar entries**~~ ✅ **DONE 2026-07-23** — 4 hard-date events live (see §2).
 2b. ~~**Send-as + signature + reply behavior**~~ ✅ **DONE 2026-07-23** — verified live (§1).
 3. **File the EIN** (free, instant, IRS online) — unblocks banking + the AWS legal-entity field. *(Operator)*
-4. **Change the AWS root email** off `my.strayer.edu` — the actual fix for lost AWS mail. *(Operator, root+MFA)*
+4. ~~**Change the AWS root email** off `my.strayer.edu` — the actual fix for lost AWS mail. *(Operator, root+MFA)*~~ ✅ **DONE 2026-10-21** — root = `aws@trevorobeyinc.com` (Workspace group).
 5. **Publish the first AWS listing** — the free Pharmacovigilance Sample Pack is closest (blocked on
    MD→PDF conversion + a MANIFEST byte-count/file-count mismatch). *(Operator + engine)*
 6. Build the two Sheets; sweep stale pricing from collateral.

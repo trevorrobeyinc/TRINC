@@ -384,7 +384,7 @@
         "~~procurement",
         "~~project tracker"
       ],
-      "business_binding": "The highest-value plugin here right now. compliance-tracking has REAL subject matter: CA LLC B20260217250, the $800 franchise tax due 2026-08-15, the AWS Data Exchange seller obligations, and the DSA/legal-review gate blocking the first paid listing. risk-assessment maps onto the open R1 risk (AWS root email is still the operator's .edu address).",
+      "business_binding": "The highest-value plugin here right now. compliance-tracking has REAL subject matter: CA LLC B20260217250, the $800 franchise tax due 2026-08-15, the AWS Data Exchange seller obligations, and the DSA/legal-review gate blocking the first paid listing. risk-assessment had R1 (AWS root email on the operator's .edu address) to map onto; R1 was closed 2026-10-21 (root = aws@trevorobeyinc.com, a Workspace group).",
       "guardrails": [
         "capacity-plan: the team is ONE person. Do not model headcount, sprints, or utilization across a team that does not exist.",
         "runbook output belongs in the repo next to the thing it operates, not workspace roots; security runbooks go to ~/Security Everything.",

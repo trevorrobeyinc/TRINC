@@ -83,9 +83,9 @@ refund field, for the operator to accept or edit:
 
 ## Operator steps, in order
 
-1. **AWS root email off the school address.** Create a Google Workspace Group `aws@trevorobeyinc.com`
-   (you as owner) → sign in to AWS as the root user → Account → edit the email → confirm the code
-   sent to `aws@`. Listing-review outcomes go to the root email.
+1. ~~**AWS root email off the school address.**~~ ✅ **DONE 2026-10-21** — root email is now
+   `aws@trevorobeyinc.com` (a Workspace group that delivers to trevor@), so listing-review outcomes
+   reach Gmail. Record: `03-platforms/aws-data-exchange/account-access.md` → "Root email → aws@ runbook".
 2. **Run the refresh** (command in the thread) and let Claude review the staging folder.
 3. **Pick the annual discount** (monthly prices are set: $99 / $249 / $499).
 4. **Upload + publish** per `UPLOAD-RUNBOOK.md`: one data set per area (paid) and one sample data

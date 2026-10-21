@@ -170,7 +170,7 @@ have genuine subject matter waiting for them:
 - AWS Data Exchange seller obligations, now cleared for paid products
 - The open legal gate: the custom DSA says *do not publish until counsel has reviewed* —
   switching to AWS's StandardDSA removes the dependency
-- Open risk **R1**: the AWS root account email is still the operator's `.edu` address
+- Risk **R1** (AWS root email on the operator's `.edu` address) — **closed 2026-10-21**; root = `aws@trevorobeyinc.com`, a Workspace group
 
 **Guardrails**
 - `capacity-plan`: the team is **one person**. Do not model headcount or team utilization.
@@ -1066,7 +1066,7 @@ Built from **verified** filing and pricing records, not from the plugins' generi
 
 | Skill | Real content |
 |---|---|
-| **`compliance-calendar`** | Entity No. **B20260217250**, bizfile ref **B4657-4800**, certified copy **457169837** (2026-05-12); **$800 CA franchise tax due 2026-08-15** (Form 3522); **LLC-12** ($20) within 90 days of the 2026-06-18 approval; the AWS paid-listing gates and open risk R1. |
+| **`compliance-calendar`** | Entity No. **B20260217250**, bizfile ref **B4657-4800**, certified copy **457169837** (2026-05-12); **$800 CA franchise tax due 2026-08-15** (Form 3522); **LLC-12** ($20) within 90 days of the 2026-06-18 approval; the AWS paid-listing gates (risk R1, the root email, closed 2026-10-21). |
 | **`brand-check`** | The statutorily-required disclosure verbatim, with **Cal. Bus. & Prof. Code §17910.5(a)** and **Cal. Corp. Code §17701.08(e)** as the reason it is not optional; fixed tagline/elevator; and a standing instruction not to reproduce the three recorded overclaims. |
 | **`offer-quote`** | Both price families and the documented mistake of crossing them — bespoke SKUs have real figures ($2,500–$24,950); the Trial Graveyard Feed's price is **`[DECIDE]`, not set**. Never invent one. |
 

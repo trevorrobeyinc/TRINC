@@ -12,6 +12,12 @@
 > **Last verified live: 2026-05-26** (via read-only `aws organizations
 > describe-organization`, `aws sso-admin list-instances`,
 > `aws sso-admin describe-permission-set`, `aws sts get-caller-identity`).
+>
+> **Drift found 2026-10-21:** the `aws` CLI (`/opt/homebrew/bin/aws`), `~/.aws/` and the AWS API
+> MCP Server extension are **not present on this Mac** any more (the only Claude extension installed
+> is the filesystem one). "CLI configuration" and "The AI / MCP server" below describe the
+> 2026-05-26 setup, not today's. Until someone decides to reinstall them, AI read-only access to AWS
+> is the Claude Browser pane signed in to the SSO portal with the **ReadOnlyAccess** role.
 
 ## Why this doc exists
 
@@ -27,8 +33,9 @@ works today.
 
 | Element | Value |
 |---|---|
-| AWS account ID | `833390816446` ("Trevor Robey Inc") |
-| Account / management email (root) | `Trevor.Robey@my.strayer.edu` — root has MFA, **no** access keys |
+| AWS account ID | `833390816446` (account name as the console shows it 2026-10-21: "Trevoralexanderrobey"; this row said "Trevor Robey Inc" until then) |
+| Account / management email (root) | **`aws@trevorobeyinc.com`** since 2026-10-21 (a Google Workspace group, owner/member trevor@; was `Trevor.Robey@my.strayer.edu`, risk R1, now closed — see [Root email → `aws@` runbook](#root-email--aws-runbook-risk-r1)). Root has MFA, **no** access keys. |
+| Alternate contacts | Billing + Operations = `aws@trevorobeyinc.com`; Security = `trevor@trevorobeyinc.com` (all: Trevor Robey, Founder & CEO, +1 2792200923). Payment-preferences billing contact email: not set, so invoices go to root + the Billing contact. |
 | AWS Organization | `o-dram9st6t2` (FeatureSet `ALL`); this account is the **management account** |
 | Home region | `us-east-1` |
 | Legal entity | Trevor Robey Intelligence Network Citations LLC (California) — wordmark **"Trevor Robey, INC."** (INC = Intelligence Network Citations) |
@@ -40,6 +47,65 @@ works today.
 > AWS-account access via permission sets, and cannot be converted to an org
 > instance. Only the Organization instance gives the SSO → CLI / console
 > credential flow used here.
+
+## Root email → `aws@` runbook (risk R1)
+
+**Why a group.** The root email is the account's recovery path and the only address that receives
+listing-review outcomes, payout failures and policy notices (the Marketplace *Notifications* tab
+shows the root email and cannot be edited separately). A Workspace **group** keeps that mail from
+depending on one mailbox's sign-in, and a second member can be added later.
+
+**Done 2026-10-21 (Google side, verified):** `aws@trevorobeyinc.com` converted from an alias of
+trevor@ into the Google Group "AWS" (owner and only member trevor@, anyone on the web may post,
+spam posts to the group instead of queueing). Details: `../google-workspace/google-workspace.md` §8.
+
+**✅ DONE 2026-10-21 02:47–03:02 PDT (AWS side), in the Claude Browser pane on the operator's
+choice:** the operator signed in as root inside the pane and typed the password, root MFA and the
+emailed code; Claude filled the new address, the two contact emails and did the clicks, one go per
+item. Results, each read back: root email `aws@trevorobeyinc.com` (Organizations › AWS accounts,
+management account row; Marketplace › Settings › Notifications), Billing + Operations contacts
+`aws@` ("Successfully updated …" on the page after each save), Security unchanged `trevor@`,
+Payment-preferences billing contact blank (left alone, as agreed). The code arrived through the group
+within minutes. Root was signed out of the console and the Marketplace portal afterwards.
+**Gotchas** (also in the browser-session log, 2026-10-21): the Account page's *Update email address
+and password* item is an `<a target=_blank>` to `https://signin.aws.amazon.com/updateaccount?redirect_uri=…`,
+which the pane blocks as a new tab, so open that URL in the same tab; right after the change that
+page demands a fresh sign-in, while the console session keeps working; the Marketplace portal's
+*Sign out* ends only the Marketplace session, so sign out from the console's account menu too.
+Not done: no fresh-load re-read of the contacts after root signed out (verify with the SSO
+ReadOnlyAccess role next time you're in the console).
+
+**The click paths (for reference, or for a future root-email change):**
+
+1. **Root email** (management account: root only, console only, no CLI/API path;
+   [AWS doc](https://docs.aws.amazon.com/accounts/latest/reference/manage-acct-update-root-user-email.html)):
+   console.aws.amazon.com → *Root user* sign-in (current root email + password + root MFA) → account
+   name (top right) → **Account** → *Account details* → **Actions** → **Update email address and
+   password** → *Email address* **Edit** → new address `aws@trevorobeyinc.com` twice + current
+   password → **Save and continue** → the code arrives at the NEW address from
+   `no-reply@verify.signin.aws` (≤ 5 min, through the group into trevor@'s Gmail) → **Confirm
+   updates**. Password and MFA do not change; root sign-in uses the new email afterwards. AWS allows
+   up to 4 hours to propagate.
+2. **Alternate contacts** (same Account page; also editable later by the SSO
+   `AdministratorAccess` role): *Alternate contacts* → **Edit** → **Billing** and **Operations** →
+   `aws@trevorobeyinc.com`; **Security stays `trevor@trevorobeyinc.com`** (operator decision
+   2026-10-21) → **Update**.
+3. **Invoice recipients.** There is no separate invoice-email field: AWS sends invoices to the root
+   email and the Billing alternate contact, and a **billing contact on Billing and Cost Management →
+   Payment preferences**, if one is set, replaces root as a recipient
+   ([AWS doc](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/billing-pref.html)). Check
+   Payment preferences: if a billing contact shows the Strayer address, change it to `aws@`; if none
+   is set, leave it.
+4. **Marketplace notifications:** nothing to edit. Settings → *Notifications* shows the root email
+   and follows step 1; `aws@` has been the custom-notifications recipient since 2026-07-23.
+
+**Read-only verification afterwards** (Claude, pane + SSO): sign in to the access portal with the
+**ReadOnlyAccess** role tile, then read Account → Alternate contacts, Organizations → the management
+account's email, Payment preferences, and Marketplace → Settings → Notifications.
+
+**After it lands:** the Strayer → Gmail forwarding stopgap, its `Via-Strayer` label and the monthly
+calendar check (`../google-workspace/workspace-operations.md` §1b, §2) can be retired, but keep the
+Strayer mailbox alive for a few weeks in case AWS mails the old address about the change.
 
 ## Identity provider — IAM Identity Center (SSO)
 

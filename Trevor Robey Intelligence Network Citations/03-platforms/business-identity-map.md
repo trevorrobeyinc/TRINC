@@ -15,7 +15,7 @@
 
 | # | Risk | Why it matters | Fix |
 |---|---|---|---|
-| **R1** | **AWS root email is `Trevor.Robey@my.strayer.edu`** — a *university student* address — on account `833390816446`, which owns the entire AWS Marketplace revenue channel | Student email addresses are revoked after graduation/withdrawal. Losing it means losing root recovery on the account holding your seller listing and future disbursements. This is the single most fragile binding in the business. | Change AWS root email → `trevor@trevorobeyinc.com` (or `aws@`). AWS Console → Account settings → root user email. **Operator-only** (root + MFA). |
+| **R1** ✅ **CLOSED 2026-10-21** | ~~**AWS root email is `Trevor.Robey@my.strayer.edu`**~~ — a *university student* address — on account `833390816446`, which owns the entire AWS Marketplace revenue channel | Student email addresses are revoked after graduation/withdrawal. Losing it means losing root recovery on the account holding your seller listing and future disbursements. This was the single most fragile binding in the business. | **Done 2026-10-21:** root email → **`aws@trevorobeyinc.com`**, a Google **Group** (owner/member trevor@), not an alias. The operator signed in as root and typed the password and code; verified in Organizations (management account email) and Marketplace → Settings → Notifications. Billing + Operations alternate contacts → `aws@`; Security stays `trevor@`. Runbook + record: [`aws-data-exchange/account-access.md`](./aws-data-exchange/account-access.md). |
 | **R2** | **Cloudflare is logged in as `trevoralexanderrobey@gmail.com`** (personal Gmail), account `f3b10bacc7e94c72e445b078433aa1d4` | That one personal account controls the **domain registration, all DNS (including the MX/SPF/DKIM that make business mail work), and the Worker serving trevorobeyinc.com**. Lose or compromise it and the business's web + mail presence goes with it. | Add `trevor@trevorobeyinc.com` as a Cloudflare account **Member (Super Administrator)**, then optionally transfer ownership. Do NOT simply move the domain — adding a business admin is reversible and non-disruptive. |
 | **R3** | **Customer-facing collateral links to a personal portfolio** — Datarade provider application, Kaggle + HuggingFace setup docs still point at `trevorrobeyinc.github.io` | That URL is the operator's **personal** portfolio ("Trevor Robey — AI Systems & Digital Marketing Portfolio", live HTTP 200) — not the business site. Prospects clicking a business email land on a personal résumé page. Spelling trap: business = `trevorobeyinc.com` (one r), personal = `trevorrobeyinc` (two r's). | **`07-outbound/` FIXED 2026-07-22** (7 links across 4 cold-email + LinkedIn templates → `trevorobeyinc.com`). `REVENUE_PLAYBOOK.md:385` fixed earlier. **Still to fix:** `03-platforms/datarade/provider-setup-guide.md`, `03-platforms/kaggle-seo-breadcrumb/setup-guide.md`, `03-platforms/huggingface/setup-guide.md`. |
 | **R4** | **The entire engine runs on one personal Claude Max 20× subscription** with no fallback (all OSS/local providers removed 2026-07-16) | 100% of scout/analyst/synthesizer compute. If that individual subscription lapses or hits its ceiling, the revenue-producing engine stops. No business/team Anthropic account exists. | Decide: keep personal-plan (accept risk) vs. open a business Anthropic account. Contingency plan already written in the engine `CLAUDE.md` (Token Efficiency §Phase 1 restores a local scout lane). |
@@ -77,6 +77,8 @@ method ACTIVE (USD, Daily schedule)**. Three findings, two changes:
   reminders — none of which a data-product seller receives. Listing-review outcomes, payout failures,
   and policy changes all go to the root address. **Do not let that student mailbox lapse before the
   swap is done** — it is also the account-recovery path.
+  **⇢ Swap DONE 2026-10-21:** the Notifications tab now shows `aws@trevorobeyinc.com` (the root
+  email, changed by the operator as root the same morning).
 - **✅ CHANGED — account Contact information corrected** (Billing → Account → Contact information):
   **Company name** `Trevor Robey Inc.` → **`Trevor Robey Intelligence Network Citations LLC`**;
   **Website URL** *(blank)* → **`https://trevorobeyinc.com`**. Verified saved ("Your contact
@@ -94,7 +96,7 @@ Legend — **B** = business-owned · **P** = personal-owned (entanglement) · **
 | **Google Workspace** | primary mailbox + identity | `trevor@trevorobeyinc.com` (super-admin) — *but recovery = personal Gmail; password in personal Bitwarden* | **B** | HIGH |
 | **Zoho Mail** | archive of pre-cutover history | `trevor@trevorobeyinc.com` (paid Mail Lite, downgrade candidate) | **B** | MED |
 | **Cloudflare** | registrar + DNS + Worker hosting the live site | `trevoralexanderrobey@gmail.com` | **P** | HIGH |
-| **AWS** (acct `833390816446`) | Marketplace seller channel | root = `Trevor.Robey@my.strayer.edu`; SSO user `Trevoralexanderrobey` + 2 YubiKeys; seller *contact* = trevor@ (business) | **P** | HIGH |
+| **AWS** (acct `833390816446`) | Marketplace seller channel | root = **`aws@trevorobeyinc.com`** (Workspace group, since 2026-10-21; was the Strayer `.edu`); SSO user `Trevoralexanderrobey` + 2 YubiKeys; seller *contact* = trevor@ (business); alternate contacts Billing/Operations = aws@, Security = trevor@ | **B** | HIGH |
 | **CA SOS bizfileOnline** | LLC system of record; Statement of Information + future filings | **UNKNOWN** — never recorded | **?** | HIGH |
 | **GitHub `trevoralexanderrobey`** | CODEOWNER of the engine; predecessor repo (deleted) | personal username | **P** | HIGH |
 | **GitHub `trevorrobeyinc`** | hosts `trevorrobeyinc.github.io` — the **personal portfolio** | personal (business-sounding handle — a trap) | **P** | MED |
@@ -123,7 +125,7 @@ so the browsing surface is separated, and track the ownership fix separately (§
 - [x] Zoho Mail — `trevor@trevorobeyinc.com`
 - [x] Claude extension installed (this profile drives all business browser work)
 - [ ] **Cloudflare** — sign in here; then R2 (add trevor@ as Super Administrator)
-- [ ] **AWS** — IAM Identity Center SSO portal `https://d-90660e72bc.awsapps.com/start` + YubiKey; then R1 (root email)
+- [ ] **AWS** — IAM Identity Center SSO portal `https://d-90660e72bc.awsapps.com/start` + YubiKey (R1 root email ✅ done 2026-10-21)
 - [ ] **GitHub** — decide which account is the business one; sign that one in here
 - [ ] **HuggingFace** — sign in; create the `trevorrobeyinc` **org** and transfer/publish under it
 - [ ] **LinkedIn** — personal profile stays personal, but consider a **company page** for the LLC

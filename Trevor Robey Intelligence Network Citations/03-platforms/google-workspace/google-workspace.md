@@ -133,6 +133,19 @@ goes through the scoped token.
       `03-platforms/aws-data-exchange/listing/product-description.md:197`. **Not yet propagated**
       to the AWS seller profile / listing docs — that's a separate content update if the operator
       wants the public support contact changed from trevor@ to support@.
+      **⇢ SUPERSEDED for `aws@` on 2026-10-21: it is now a Google GROUP, not an alias.** On the
+      operator's choice (group, not a licensed user) the `aws` alias was removed from trevor@ and
+      the group **AWS / `aws@trevorobeyinc.com`** created (Admin group id `01mrcu092leksiq`):
+      owner + only member trevor@ (subscription *Each email*), Custom access with **Who can post =
+      Anyone on the web** (so Amazon can reach it), conversations visible to owners/managers/members
+      only, no external members, message moderation off, **spam handling = "Post suspicious messages
+      to the group"** (an AWS verification code can never sit unseen in a pending queue; Gmail's own
+      spam filter still runs at trevor@). Prerequisite flipped the same session: Apps › Google
+      Workspace › Groups for Business › Sharing settings › **"Group owners can allow incoming email
+      from outside the organization" = ON** (was off). The address was reusable immediately after the
+      alias removal. `support@` is still an alias on trevor@. All verified from fresh loads; record in
+      `~/Security Everything/docs/browser-session-history/2026-10.md` (2026-10-21 02:08). Purpose:
+      the AWS root-email target for risk R1 — see `../aws-data-exchange/account-access.md`.
 - [x] Inbound test passed; YubiKey 2SV enrolled; docs reconciled across 6 files
 
 **Added 2026-07-22 (operator questions → tasks):**
