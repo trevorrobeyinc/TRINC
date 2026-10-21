@@ -20,6 +20,7 @@ const { createDatasetOutputManager } = require("../dataset/dataset-output-manage
 const { verifyReportCitations, annotateSubtaskOutputs, checkRetractions, DEFAULT_MIN_GROUNDED_RATIO } = require("./citation-gate.js");
 const { extractCitations, deduplicateCitations } = require("./citation-extractor.js");
 const { createCitationReresolver } = require("../mcp/citation-reresolver/citation-reresolver.js");
+const { getResearchProfile } = require("./research-profiles.js");
 const { buildReproducibilityManifest, renderManifestMarkdown } = require("./reproducibility-manifest.js");
 const { buildGraveyardMemo, buildAmendmentRisk } = require("../monetization/graveyard-memo.js");
 const { buildDesignBenchmark } = require("../monetization/design-benchmark.js");
@@ -126,12 +127,19 @@ function createWorkflowEngine(options = {}) {
 
   function applyInputSchemaDefaults(workflowDef, inputs) {
     const schema = workflowDef.input_schema;
-    if (!schema || !schema.properties) return inputs;
     const merged = { ...inputs };
-    for (const [key, prop] of Object.entries(schema.properties)) {
-      if (merged[key] === undefined && prop.default !== undefined) {
-        merged[key] = prop.default;
+    if (schema && schema.properties) {
+      for (const [key, prop] of Object.entries(schema.properties)) {
+        if (merged[key] === undefined && prop.default !== undefined) {
+          merged[key] = prop.default;
+        }
       }
+    }
+    // Research profile (core/research-profiles.js). Set ONLY when the template declares one, and the
+    // template wins over a caller-supplied input: the lane is a property of the product, not of the
+    // request. Templates without it get no key at all, so biomedical runs are unchanged.
+    if (typeof workflowDef.research_profile === "string" && workflowDef.research_profile.trim()) {
+      merged.research_profile = getResearchProfile(workflowDef.research_profile).id;
     }
     return merged;
   }
@@ -146,7 +154,7 @@ function createWorkflowEngine(options = {}) {
       `## Research Parameters`
     ];
     for (const [key, value] of Object.entries(inputs)) {
-      if (key === "input_path" || key === "input_dir") continue;
+      if (key === "input_path" || key === "input_dir" || key === "research_profile") continue;
       lines.push(`- **${key.replace(/_/g, " ")}**: ${String(value)}`);
     }
     if (workflowDef.description) {
@@ -413,7 +421,9 @@ function createWorkflowEngine(options = {}) {
             // NCBI's polite-use ceiling (3 req/sec anonymous, 10 with a key): the same numbers the PubMed retraction
             // screen is wired with in scripts/_workflow-runtime.js. Unpaced, the PMID checks left ~100 ms apart and NCBI
             // answered 429 for 7 of 12 in the first real dispatch-lane run (2026-10-08), forfeiting the full DELIVER claim.
-            minRequestIntervalMs: ncbiApiKey ? 110 : 350
+            minRequestIntervalMs: ncbiApiKey ? 110 : 350,
+            // Business lane: WEB ids re-resolve against the run's stored page snapshots.
+            webSnapshotStore: researchRuntime.webSnapshotStore || null
           });
           const reresolved = await reresolver.resolveAll(cites);
           const manifest = buildReproducibilityManifest({
@@ -690,6 +700,25 @@ function createWorkflowEngine(options = {}) {
       );
       if (qa) built.source_context.section_coverage = qa.section_coverage;
     }
+    // Business lane (2026-10-21): tell the packager which research profile produced the bundle so
+    // its customer copy names the right registries, and hand it the WEB snapshots the report cites
+    // (only ones that re-hash cleanly) so a buyer can read every web source the report used.
+    const offerProfileId = applyInputSchemaDefaults(workflowDef, inputs).research_profile;
+    if (offerProfileId && built && built.source_context) {
+      built.source_context.research_profile = offerProfileId;
+      const store = researchRuntime.webSnapshotStore;
+      const cv = built.source_context.citation_verification;
+      const rm = cv && cv.reproducibility_manifest;
+      if (store && rm && Array.isArray(rm.citations)) {
+        const snapshots = [];
+        for (const c of rm.citations) {
+          if (c.type !== "WEB") continue;
+          const v = store.verify(c.id);
+          if (v.status === "found") snapshots.push(v.record);
+        }
+        if (snapshots.length > 0) built.source_context.web_snapshots = snapshots;
+      }
+    }
     const tempBundleDir = monetizationRuntime.deliverablePackager.createBundleWorkspace(built.offer.offer_id);
     const artifactRefs = monetizationRuntime.deliverablePackager.writeDeliverables(tempBundleDir, built.offer, built.source_context);
     const generatedSubmission = monetizationRuntime.submissionPackGenerator.generateSubmissionPacks(tempBundleDir, built.offer, built.source_context);
@@ -797,13 +826,20 @@ function createWorkflowEngine(options = {}) {
     let verifiedClaims = 0;
 
     const citationPattern = /\b(PubChem|CID\s*[:\s]?\s*\d+|NCT\d{8}|PMID\s*[:\s]?\s*\d+|doi:\s*10\.\d{4,}|10\.\d{4,}\/\S+|FAERS|ChEMBL\w+|ENSG\d+|DrugBank:\s*DB\d+|UniProt:\s*[A-Z]\w+)\b/i;
+    // Business lane: the same density heuristic must recognise the lane's citation shapes, or every
+    // business report would read as uncited. Literal uppercase prefixes, as in citation-extractor.js.
+    const businessCitationPattern = /\b(?:WEB[:\s]+[0-9a-f]{12}|SEC[:\s]+\d{1,10}\/\d{10}-\d{2}-\d{6}|WB[:\s]+[A-Z]{2,4}\.)/;
+    const auditProfile = getResearchProfile(applyInputSchemaDefaults(workflowDef, inputs).research_profile);
+    const isCitedLine = auditProfile.id === "business"
+      ? (line) => citationPattern.test(line) || businessCitationPattern.test(line)
+      : (line) => citationPattern.test(line);
 
     for (const subtask of subtaskResults) {
       if (subtask.output_path && fs.existsSync(subtask.output_path)) {
         const content = fs.readFileSync(subtask.output_path, "utf8");
         const lines = content.split("\n").filter((line) => line.trim().length > 10);
         totalClaims += lines.length;
-        verifiedClaims += lines.filter((line) => citationPattern.test(line)).length;
+        verifiedClaims += lines.filter(isCitedLine).length;
       }
     }
 
@@ -846,6 +882,8 @@ function createWorkflowEngine(options = {}) {
         enrichedInputs.indication || enrichedInputs.condition || enrichedInputs.disease
         || enrichedInputs.therapeutic_area || enrichedInputs.topic || ""
       ).trim();
+      // Business lane: grade against business primary hosts and search the general web, not science.
+      const sectionGateProfile = getResearchProfile(enrichedInputs.research_profile).sectionGate;
       const coverage = await runSectionGate({
         subtasks: subtaskResults,
         primarySubject,
@@ -853,7 +891,11 @@ function createWorkflowEngine(options = {}) {
         runGate: runCitationGate,
         readFile: fs.readFileSync,
         maxResults: Number(step.max_results) || 8,
-        log: logger
+        log: logger,
+        ...(sectionGateProfile ? {
+          topic: sectionGateProfile.topic,
+          extraPrimaryDomains: sectionGateProfile.extraPrimaryDomains
+        } : {})
       });
       // Throws PHASE30_CITATION_COVERAGE_ZERO (caught by the per-step try/catch) if any section
       // genuinely returned zero distinct primary sources; otherwise records per-section tiers.

@@ -166,6 +166,26 @@ async function buildWorkflowRuntime(options = {}) {
     const { createEuropePmcPreprints } = require("../openclaw-bridge/mcp/europepmc-preprints/europepmc-preprints.js");
     const europePmcPreprints = createEuropePmcPreprints({ logger });
     researchRuntime.europePmcPreprints = europePmcPreprints;
+    // Business research lane (2026-10-21, core/research-profiles.js). Four sources that make a
+    // NON-biomedical question groundable: web pages read and stored as content-addressed snapshots
+    // (WEB ids), SEC filings rendered citable (SEC ids), World Bank indicators (WB ids) and
+    // OpenAlex works (DOIs). They are reached only through config/tool-prefetch-map.business.json,
+    // so no biomedical template ever calls them. The snapshot store is also handed to the
+    // re-resolver (workflow-engine.js), which re-reads and re-hashes every cited WEB snapshot.
+    const { createWebSnapshotStore } = require("../openclaw-bridge/mcp/business-sources/web-snapshot-store.js");
+    const { createWebEvidence } = require("../openclaw-bridge/mcp/business-sources/web-evidence.js");
+    const { createSecFilings } = require("../openclaw-bridge/mcp/business-sources/sec-filings.js");
+    const { createWorldBank } = require("../openclaw-bridge/mcp/business-sources/world-bank.js");
+    const { createOpenAlex } = require("../openclaw-bridge/mcp/business-sources/openalex.js");
+    const timeSource = (options.timeProvider && typeof options.timeProvider.nowIso === "function")
+      ? options.timeProvider
+      : require("../openclaw-bridge/core/time-provider.js");
+    const webSnapshotStore = createWebSnapshotStore({ rootDir, nowIso: () => timeSource.nowIso() });
+    researchRuntime.webSnapshotStore = webSnapshotStore;
+    const webEvidence = createWebEvidence({ logger, snapshotStore: webSnapshotStore });
+    const secFilings = createSecFilings({ logger, secEdgar });
+    const worldBank = createWorldBank({ logger });
+    const openAlex = createOpenAlex({ logger });
     toolPrefetch = createToolPrefetch({
       toolUniverseMcp, logger, rootDir, timeProvider: options.timeProvider,
       localFetchers: {
@@ -202,6 +222,20 @@ async function buildWorkflowRuntime(options = {}) {
         europepmc_preprints: (args) => europePmcPreprints.searchPreprints({
           ...(args || {}),
           limit: Math.min(Number((args || {}).limit) || 6, 25)
+        }),
+        // Business lane — clamped again at the seam, same principle as above.
+        web_evidence: (args) => webEvidence.searchAndRead({
+          ...(args || {}),
+          pages: Math.min(Number((args || {}).pages) || 5, 10)
+        }),
+        sec_filings_citable: (args) => secFilings.searchCitable({
+          ...(args || {}),
+          limit: Math.min(Number((args || {}).limit) || 8, 25)
+        }),
+        worldbank_indicators: (args) => worldBank.latestIndicators(args),
+        openalex_works: (args) => openAlex.searchWorks({
+          ...(args || {}),
+          limit: Math.min(Number((args || {}).limit) || 8, 25)
         })
       }
     });

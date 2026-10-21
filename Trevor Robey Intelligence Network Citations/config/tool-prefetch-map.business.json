@@ -1,0 +1,73 @@
+{
+  "schema_version": "tool-prefetch-map-v2",
+  "_comment": "Business research lane (2026-10-21). Selected by a workflow template's \"research_profile\": \"business\" (core/research-profiles.js); never read by a biomedical template. Every evidence source here emits an identifier the citation gate grounds and the re-resolver checks: WEB (stored page snapshot), SEC (filing), WB (World Bank indicator), doi (OpenAlex). Vault and memory reads stay CONTEXT ONLY, as on the biomedical lane.",
+  "role_mappings": {
+    "scout": [
+      {
+        "action": "executeTool",
+        "tool_name": "web_evidence",
+        "arguments": { "query": "{{topic}}", "focus": "{{focus}}", "pages": 6 }
+      },
+      {
+        "action": "executeTool",
+        "tool_name": "openalex_works",
+        "optional": true,
+        "arguments": { "query": "{{topic}}", "limit": 8 }
+      },
+      {
+        "action": "executeTool",
+        "tool_name": "sec_filings_citable",
+        "optional": true,
+        "_comment": "Company filings when the request names a company; otherwise skipped by the empty-args guard.",
+        "arguments": { "company": "{{company}}", "limit": 8 }
+      },
+      {
+        "action": "executeTool",
+        "tool_name": "worldbank_indicators",
+        "optional": true,
+        "arguments": { "country": "{{country}}", "indicators": "{{indicators}}" }
+      },
+      {
+        "action": "executeTool",
+        "tool_name": "obsidian_prior_research",
+        "optional": true,
+        "context_only": true,
+        "arguments": { "topic": "{{topic}}", "limit": 5 }
+      }
+    ],
+    "analyst": [
+      {
+        "action": "executeTool",
+        "tool_name": "web_evidence",
+        "arguments": { "query": "{{topic}}", "focus": "{{analysis_focus}}", "pages": 5 }
+      },
+      {
+        "action": "executeTool",
+        "tool_name": "web_evidence",
+        "optional": true,
+        "arguments": { "query": "{{topic}}", "focus": "statistics official data", "pages": 4 }
+      },
+      {
+        "action": "executeTool",
+        "tool_name": "sec_filings_citable",
+        "optional": true,
+        "arguments": { "company": "{{competitors}}", "limit": 6 }
+      }
+    ],
+    "synthesizer": [
+      {
+        "action": "executeTool",
+        "tool_name": "openalex_works",
+        "optional": true,
+        "arguments": { "query": "{{topic}}", "focus": "review", "limit": 5 }
+      },
+      {
+        "action": "executeTool",
+        "tool_name": "research_memory_priors",
+        "optional": true,
+        "context_only": true,
+        "arguments": { "query": "{{topic}}", "limit": 5 }
+      }
+    ]
+  }
+}

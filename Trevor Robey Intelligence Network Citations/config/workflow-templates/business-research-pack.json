@@ -1,0 +1,113 @@
+{
+  "schema_version": "phase30-workflow-v1",
+  "workflow_template_id": "business-research-pack",
+  "name": "Business Research Pack",
+  "description": "One agreed business question at fixed depth (Standard Report tier). Business research lane (research_profile: business, 2026-10-21). Same mission, citation-integrity gate, re-resolution manifest and approval chain as every other template; the evidence comes from web pages read and stored as snapshots (WEB ids), SEC filings (SEC ids), World Bank indicators (WB ids) and published research (DOIs). WEB re-resolution proves the bundle quotes exactly what was read from that URL at retrieval time, not that the page is still live or correct.",
+  "auto_approve": true,
+  "provider_preference": {
+    "primary": "claude-code"
+  },
+  "input_schema": {
+    "required": [
+      "topic"
+    ],
+    "properties": {
+      "topic": {
+        "type": "string",
+        "description": "The business question, in one or two sentences"
+      },
+      "company": {
+        "type": "string",
+        "description": "Company name, if the question is about one",
+        "default": ""
+      },
+      "industry": {
+        "type": "string",
+        "description": "Industry or market",
+        "default": ""
+      },
+      "focus": {
+        "type": "string",
+        "description": "Extra search words for the scout",
+        "default": "report data analysis"
+      },
+      "analysis_focus": {
+        "type": "string",
+        "description": "Extra search words for the analyst",
+        "default": "benchmark data"
+      },
+      "country": {
+        "type": "string",
+        "description": "ISO country code for macro indicators",
+        "default": "US"
+      },
+      "input_dir": {
+        "type": "string",
+        "description": "Path to seed documents directory",
+        "default": "workspace/research-input/sample/"
+      }
+    }
+  },
+  "pipeline": [
+    {
+      "step_id": "research",
+      "type": "mission",
+      "mission_template_id": "research_pack",
+      "description_template": "Business Research Pack: {{topic}}",
+      "mission_type": "research_to_dataset",
+      "dataset_type": "retrieval_qa"
+    },
+    {
+      "step_id": "quality_check",
+      "type": "quality_audit",
+      "depends_on": [
+        "research"
+      ],
+      "description_template": "Quality gate: citation-density confidence (>= 0.6) plus >= 5 verified citations and per-section primary-source coverage; halts the run (PHASE30_QUALITY_BELOW_THRESHOLD) if the report is under-evidenced.",
+      "confidence_threshold": 0.6,
+      "verification_tools": [
+        "Web snapshots",
+        "SEC EDGAR",
+        "World Bank",
+        "OpenAlex"
+      ]
+    },
+    {
+      "step_id": "build_dataset",
+      "type": "dataset",
+      "depends_on": [
+        "quality_check"
+      ],
+      "dataset_type": "retrieval_qa",
+      "quality_threshold": 0.3
+    },
+    {
+      "step_id": "package",
+      "type": "offer",
+      "depends_on": [
+        "build_dataset"
+      ],
+      "product_line": "research_packs",
+      "tier": "standard",
+      "targets": [
+        "datarade"
+      ]
+    },
+    {
+      "step_id": "approve",
+      "type": "approve",
+      "depends_on": [
+        "package"
+      ]
+    },
+    {
+      "step_id": "export",
+      "type": "export",
+      "depends_on": [
+        "approve"
+      ],
+      "format": "zip"
+    }
+  ],
+  "research_profile": "business"
+}

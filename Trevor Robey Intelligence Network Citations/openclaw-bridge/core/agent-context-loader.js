@@ -11,6 +11,7 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
+const { getResearchProfile } = require("./research-profiles.js");
 
 const MAX_SOUL_CHARS = 6000;
 const MAX_AGENTS_CHARS = 4000;
@@ -47,7 +48,10 @@ function createAgentContextLoader(options = {}) {
   }
 
   // Returns { agentIdentityPrefix } — empty string when no identity is configured.
-  function loadAgentContext(role) {
+  // `profileId` (core/research-profiles.js) picks the role's identity file: SOUL.md for the default
+  // biomedical lane, SOUL.<profile>.md otherwise. A non-default profile with no file of its own gets
+  // NO soul rather than the biomedical one — a business scout told to "find PMIDs" is worse than none.
+  function loadAgentContext(role, profileId) {
     const r = safeStr(role);
     if (!r) return { agentIdentityPrefix: "" };
     const dir = agentDir(r);
@@ -55,7 +59,7 @@ function createAgentContextLoader(options = {}) {
     try { exists = fs.statSync(dir).isDirectory(); } catch { exists = false; }
     if (!exists) return { agentIdentityPrefix: "" };
 
-    const soul = readFileSoft(path.join(dir, "SOUL.md"), MAX_SOUL_CHARS);
+    const soul = readFileSoft(path.join(dir, getResearchProfile(profileId).soulFile), MAX_SOUL_CHARS);
     const agents = readFileSoft(path.join(dir, "AGENTS.md"), MAX_AGENTS_CHARS);
     const digest = sessionDigest(r);
 

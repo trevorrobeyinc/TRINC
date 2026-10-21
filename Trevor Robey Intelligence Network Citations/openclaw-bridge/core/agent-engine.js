@@ -7,6 +7,7 @@ const { canonicalize, safeString } = require("../../workflows/governance-automat
 const { validateTaskDefinition } = require("./task-definition-schema.js");
 const { enrichWithWikiLinks } = require("./wiki-link-enricher.js");
 const { extractCitations, deduplicateCitations, crossCheckCitations } = require("./citation-extractor.js");
+const { getResearchProfile } = require("./research-profiles.js");
 
 const SYNTHESIZER_TASK_ID_PATTERN = /synth|report_generator|integrator/i;
 
@@ -122,6 +123,9 @@ function buildPrompt(taskDefinition, inputDocs, context = {}) {
   // config/agents/<role>/ by the role router and carried in context. Prepended ahead of
   // the role prompt. Empty when no identity is configured → unchanged behavior.
   const agentIdentityPrefix = safeString(context.agentIdentityPrefix);
+  // Research profile (core/research-profiles.js): swaps the citation-requirement line and the
+  // identifier list for the lane; biomedical (default) is unchanged.
+  const profile = getResearchProfile((context.workflowInputs || {}).research_profile);
   const baseInstruction = systemPrefix || "You are a local-first research agent.";
   const roleInstruction = agentIdentityPrefix
     ? `${agentIdentityPrefix}\n\n${baseInstruction}`
@@ -137,8 +141,8 @@ function buildPrompt(taskDefinition, inputDocs, context = {}) {
     `Output Format: ${taskDefinition.output_format}`,
     `Constraints: ${JSON.stringify(taskDefinition.constraints || {})}`,
     "",
-    "CITATION REQUIREMENTS: For every factual claim, include specific database identifiers inline. Use: PubChem CID (e.g. CID: 2244), PMID (e.g. PMID: 12345678), NCT numbers (e.g. NCT01234567), ChEMBL IDs (e.g. CHEMBL25), ENSG IDs (e.g. ENSG00000157764), UniProt accessions (e.g. UniProt: P04637), DOIs (e.g. doi: 10.1000/example). Aim for at least one verifiable identifier per substantive paragraph. This output will be automatically audited for verifiable citations.",
-    "ABSOLUTE RULE — ZERO FABRICATION (this is the entire value of the business): NEVER invent, guess, or approximate an identifier. Cite ONLY identifiers that appear verbatim in the live database documents provided below. If you cannot find a real, retrievable source for a claim, you MUST write \"[no verifiable citation found]\" and state the claim as UNVERIFIED — it is always correct to say you could not find a source, and never acceptable to fabricate one. A single invented PMID/NCT/DOI/ChEMBL/CID/UniProt identifier is a critical failure that destroys the report. Do not pattern-match plausible-looking numbers; if it is not in the provided evidence, it is not a citation.",
+    profile.citationInstruction,
+    `ABSOLUTE RULE — ZERO FABRICATION (this is the entire value of the business): NEVER invent, guess, or approximate an identifier. Cite ONLY identifiers that appear verbatim in the live database documents provided below. If you cannot find a real, retrievable source for a claim, you MUST write "[no verifiable citation found]" and state the claim as UNVERIFIED — it is always correct to say you could not find a source, and never acceptable to fabricate one. A single invented ${profile.identifierList} identifier is a critical failure that destroys the report. Do not pattern-match plausible-looking numbers; if it is not in the provided evidence, it is not a citation.`,
     ""
   ];
 

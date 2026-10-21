@@ -36,7 +36,19 @@ const CITATION_PATTERNS = [
   // NB: `(` and `)` are NOT excluded — Elsevier/Lancet legacy SICI DOIs contain BALANCED parens
   // (e.g. 10.1016/S0140-6736(97)11096-0). Excluding `)` truncated them to a malformed id that no
   // registry could screen. Unbalanced trailing `)` from prose wrapping is trimmed post-capture.
-  { type: "DOI", regex: /(?:doi[:\s]*|https?:\/\/doi\.org\/)(10\.\d{4,9}\/[^\s,;\]\[}{<>"'|]+)/gi }
+  { type: "DOI", regex: /(?:doi[:\s]*|https?:\/\/doi\.org\/)(10\.\d{4,9}\/[^\s,;\]\[}{<>"'|]+)/gi },
+  // ── Business research lane (2026-10-21, core/research-profiles.js) ─────────────────────────────
+  // Each needs a literal UPPERCASE prefix, so no biomedical text is newly captured: the sec-edgar
+  // context fetcher renders "Accession 0001…" (never "SEC: <cik>/<accession>"), and nothing else in
+  // the engine writes "WEB:" or "WB:". Every type here has a resolver in citation-reresolver.js —
+  // an identifier the resolver cannot check would be UNCHECKED and forfeit the full DELIVER claim.
+  // SEC: "<CIK>/<accession>" — the CIK is carried because the filing index lives under it.
+  { type: "SEC", regex: /\bSEC[:\s]+(\d{1,10}\/\d{10}-\d{2}-\d{6})(?!\d)/g },
+  // WEB: the first 12 hex of the sha256 of a page snapshot this run fetched and stored
+  // (mcp/business-sources/web-evidence.js). Lowercase hex only; a longer hex run is DROPPED.
+  { type: "WEB", regex: /\bWEB[:\s]+([0-9a-f]{12})(?![0-9a-f])/g },
+  // WB: a World Bank indicator code (FP.CPI.TOTL.ZG). Codes are uppercase dotted segments.
+  { type: "WB", regex: /\bWB[:\s]+([A-Z]{2,4}(?:\.[A-Z0-9]{1,8}){1,5})\b/g }
 ];
 
 // Clean a captured DOI suffix. DOIs contain internal dots and MAY contain balanced parens, so the

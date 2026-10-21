@@ -91,7 +91,7 @@ function createRoleRouter(options = {}) {
     // the handler context. resolveRoute precedence: role-provider-map[role] → existing
     // context provider/model (template/global default) → map default → claude-code.
     const route = providerRouter.resolveRoute(role, context);
-    const identity = contextLoader.loadAgentContext(role);
+    const identity = contextLoader.loadAgentContext(role, (context.workflowInputs || {}).research_profile);
     const enrichedContext = {
       ...context,
       provider: safeString(route.provider) || context.provider,

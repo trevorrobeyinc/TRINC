@@ -65,6 +65,66 @@ function copyIfExists(sourcePath, targetPath) {
   return true;
 }
 
+// Customer-facing wording per research profile (2026-10-21 business lane). The biomedical strings
+// are the original copy, byte-for-byte; the business strings name the sources the business lane
+// actually resolves against (citation-reresolver.js hostFor: sec / worldbank / websnapshot / doi).
+// A WEB citation is a content hash of a stored page, so its claim is "exactly what was read, from
+// this URL, at this time", never "the page is still live" or "the page is correct".
+const PROFILE_COPY = Object.freeze({
+  biomedical: Object.freeze({
+    noRecordIdentifiers: "Citations carry public identifiers (PMID, NCT, PubChem CID, DOI) that resolve in their issuing registries and can be checked directly.",
+    retractionScope: "cited DOIs and PMIDs are retraction-screened",
+    registries: "PMID → NCBI E-utilities, DOI → Crossref with a doi.org fallback, "
+      + "NCT → ClinicalTrials.gov, PubChem CID → PubChem, ChEMBL → ChEMBL, UniProt → UniProt, RxNorm → RxNav",
+    correctnessNote: "Re-resolution confirms an "
+      + "identifier resolves to a source record — it does not assess the scientific correctness of the source.",
+    sourcesSentence: "peer-reviewed biomedical literature, clinical trial registries, and pharmacological databases",
+    drawnFrom: "PubMed, ClinicalTrials.gov, PubChem, UniProt, ChEMBL, and other authoritative sources",
+    reviewStep: "1. **Literature Review** — Systematic scan of peer-reviewed sources with citation extraction",
+    analysisStep: "2. **Deep Analysis** — Pharmacological, molecular, or safety signal analysis with quantitative data",
+    identifierBullet: "- Every citation includes a verifiable identifier (PMID, NCT, CID, DOI, etc.)",
+    retractionBullet: "- Cited DOIs and PMIDs are retraction-screened (Crossref for DOIs, PubMed for PMIDs, with a DOI→PMID cross-check); any retracted source blocks release",
+    dataSourcesIntro: "The pipeline queries the following authoritative biomedical databases:",
+    dataSources: Object.freeze([
+      "- **PubMed / MEDLINE** — Peer-reviewed biomedical literature (PMID identifiers)",
+      "- **PubChem** — Chemical compound properties, bioassay data (CID identifiers)",
+      "- **ClinicalTrials.gov** — Clinical trial registries (NCT identifiers)",
+      "- **UniProt** — Protein sequence and function (UniProt accession numbers)",
+      "- **ChEMBL** — Bioactivity and drug-target interactions (CHEMBL identifiers, cited by ID only)",
+      "- **CrossRef / DOI** — Scholarly article resolution (DOI identifiers)"
+    ]),
+    disclaimer: "This intelligence product is intended for informational and research purposes only. It does not constitute medical advice, investment advice, legal counsel, or regulatory guidance. Independent verification of all findings is recommended before making clinical, commercial, or regulatory decisions."
+  }),
+  business: Object.freeze({
+    noRecordIdentifiers: "Citations carry public identifiers (SEC filing accession, World Bank indicator code, DOI) or the content hash of the exact web page read (WEB), and can be checked directly.",
+    retractionScope: "cited DOIs are retraction-screened",
+    registries: "SEC → SEC EDGAR filing index, WB → World Bank Indicators API, DOI → Crossref with a doi.org fallback, "
+      + "WEB → this run's stored page snapshot, re-hashed at delivery",
+    correctnessNote: "Re-resolution confirms an "
+      + "identifier resolves to a source record — it does not assess the correctness of the source. For WEB citations it confirms "
+      + "the stored text is exactly what was read from that URL at retrieval time, not that the page is still live.",
+    sourcesSentence: "public company filings, official economic statistics, scholarly literature, and archived web sources",
+    drawnFrom: "SEC EDGAR, the World Bank, OpenAlex / Crossref, and archived web pages",
+    reviewStep: "1. **Source Review** — Systematic scan of filings, official statistics, scholarly works and web sources with citation extraction",
+    analysisStep: "2. **Deep Analysis** — Cost, market, competitive, or operational analysis with quantitative data",
+    identifierBullet: "- Every citation includes a verifiable identifier (SEC accession, World Bank indicator, DOI) or a WEB snapshot hash; every cited web page ships in `sources/`",
+    retractionBullet: "- Cited DOIs are retraction-screened against Crossref; any retracted source blocks release",
+    dataSourcesIntro: "The pipeline queries the following sources:",
+    dataSources: Object.freeze([
+      "- **SEC EDGAR** — Public company filings: 10-K, 10-Q, 8-K (SEC accession identifiers)",
+      "- **World Bank Indicators** — Official macroeconomic statistics (WB indicator codes)",
+      "- **OpenAlex / Crossref** — Scholarly and industry research (DOI identifiers)",
+      "- **The open web** — Pages read during the run, each stored as a content-addressed snapshot (WEB identifiers) and shipped in `sources/`"
+    ]),
+    disclaimer: "This intelligence product is intended for informational and research purposes only. It does not constitute investment advice, legal counsel, tax or accounting advice, or regulatory guidance. Independent verification of all findings is recommended before making commercial, financial, or operational decisions."
+  })
+});
+
+function profileCopy(sourceContext) {
+  const id = safeString(asPlainObject(sourceContext).research_profile);
+  return PROFILE_COPY[id] || PROFILE_COPY.biomedical;
+}
+
 function createDeliverablePackager(options = {}) {
   const rootDir = path.resolve(safeString(options.rootDir) || process.cwd());
   const releasesDir = path.resolve(safeString(options.releasesDir) || path.join(rootDir, "workspace", "releases"));
@@ -112,23 +172,22 @@ function createDeliverablePackager(options = {}) {
   // OUTCOME, which is read from the manifest instead of assumed. Claim strength therefore tracks
   // the same counts that produce delivery_decision: all-VERIFIED (DELIVER) reads at full strength,
   // anything else is stated with its real UNCHECKED / UNRESOLVED residue (DELIVER_WITH_FLAGS).
-  function renderResolutionSentence(res) {
+  function renderResolutionSentence(res, copy = PROFILE_COPY.biomedical) {
     if (!res.present) {
       if (!res.gated) {
         // No citation-verification record at all — claim neither gate. Identifiers are still
         // public and independently checkable, which is true of any bundle.
-        return "Citations carry public identifiers (PMID, NCT, PubChem CID, DOI) that resolve in their issuing registries and can be checked directly. This bundle carries no citation-verification record, so no grounding, retraction-screen, or re-resolution outcome is asserted for it.";
+        return `${copy.noRecordIdentifiers} This bundle carries no citation-verification record, so no grounding, retraction-screen, or re-resolution outcome is asserted for it.`;
       }
       // A per-bundle statement of fact, NOT the general softening SYSTEM-REALITY.md §3 forbids:
       // THIS bundle's gates ran but the fail-soft re-resolution pass produced no manifest.
-      return "Every cited identifier is cross-checked against the source records actually retrieved at runtime, and cited DOIs and PMIDs are retraction-screened. A per-identifier re-resolution manifest is not included with this bundle.";
+      return `Every cited identifier is cross-checked against the source records actually retrieved at runtime, and ${copy.retractionScope}. A per-identifier re-resolution manifest is not included with this bundle.`;
     }
     // Registries actually dispatched to, per citation-reresolver.js hostFor(). DrugBank is a
     // recognised identifier type but has NO resolver host, and the literal string is banned in
     // shipped content by the license allowlist — finalizeBundle would hard-fail the seal. Never
     // add it to this list.
-    const registries = "PMID → NCBI E-utilities, DOI → Crossref with a doi.org fallback, "
-      + "NCT → ClinicalTrials.gov, PubChem CID → PubChem, ChEMBL → ChEMBL, UniProt → UniProt, RxNorm → RxNav";
+    const registries = copy.registries;
     if (res.decision === "BLOCK") {
       return `Every cited identifier is submitted at delivery for independent re-resolution against its issuing public registry (${registries}). `
         + `For this report the pass returned a BLOCKING result (${res.unresolved} of ${res.total} UNRESOLVED): this bundle is NOT cleared for delivery. `
@@ -145,8 +204,7 @@ function createDeliverablePackager(options = {}) {
         ? `For this report all ${res.total} resolved VERIFIED.`
         : `For this report ${res.verified} of ${res.total} resolved VERIFIED (delivery decision: ${res.decision || "not recorded"}).`;
     return `Every cited identifier is submitted at delivery for independent re-resolution against its issuing public registry (${registries}). ${outcome} `
-      + "Per-identifier results are recorded in the accompanying Reproducibility Manifest. Re-resolution confirms an "
-      + "identifier resolves to a source record — it does not assess the scientific correctness of the source.";
+      + "Per-identifier results are recorded in the accompanying Reproducibility Manifest. " + copy.correctnessNote;
   }
 
   // Per-type breakdown from the manifest when present; a plain cited count otherwise. Never
@@ -171,6 +229,8 @@ function createDeliverablePackager(options = {}) {
     const tierName = safeString(offer.tier);
     const title = safeString(offer.offer_title);
     const resolution = readResolutionSummary(sourceContext);
+    const copy = profileCopy(sourceContext);
+    const webSnapshots = Array.isArray(sourceContext.web_snapshots) ? sourceContext.web_snapshots : [];
 
     const lines = [
       `# ${title}`,
@@ -179,11 +239,11 @@ function createDeliverablePackager(options = {}) {
       "",
       "## Overview",
       "",
-      `This intelligence pack delivers citation-backed research synthesized from peer-reviewed biomedical literature, clinical trial registries, and pharmacological databases. ${renderResolutionSentence(resolution)}`,
+      `This intelligence pack delivers citation-backed research synthesized from ${copy.sourcesSentence}. ${renderResolutionSentence(resolution, copy)}`,
       "",
       resolution.present
-        ? `The report spans **${pageEstimate}+ pages** of original analysis citing **${resolution.total} unique identifiers** (**${resolution.verified}** independently re-resolved VERIFIED) drawn from PubMed, ClinicalTrials.gov, PubChem, UniProt, ChEMBL, and other authoritative sources.`
-        : `The report spans **${pageEstimate}+ pages** of original analysis citing **${uniqueCitations.length} unique identifiers** drawn from PubMed, ClinicalTrials.gov, PubChem, UniProt, ChEMBL, and other authoritative sources.`,
+        ? `The report spans **${pageEstimate}+ pages** of original analysis citing **${resolution.total} unique identifiers** (**${resolution.verified}** independently re-resolved VERIFIED) drawn from ${copy.drawnFrom}.`
+        : `The report spans **${pageEstimate}+ pages** of original analysis citing **${uniqueCitations.length} unique identifiers** drawn from ${copy.drawnFrom}.`,
       "",
       "## What's Included",
       "",
@@ -193,20 +253,21 @@ function createDeliverablePackager(options = {}) {
       "| `tables.csv` | Citation index with identifier type, source task, and context |",
       "| `sample-preview.md` | Executive summary with key findings and citation highlights |",
       "| `evidence-appendix.md` | Source provenance and task-level artifact references |",
+      ...(webSnapshots.length > 0 ? ["| `sources/` | The exact text of every cited web page, as read at retrieval time (one file per WEB identifier) |"] : []),
       "",
       "## Research Methodology",
       "",
       "Each report is produced through a multi-agent research pipeline:",
       "",
-      "1. **Literature Review** — Systematic scan of peer-reviewed sources with citation extraction",
-      "2. **Deep Analysis** — Pharmacological, molecular, or safety signal analysis with quantitative data",
+      copy.reviewStep,
+      copy.analysisStep,
       "3. **Integrated Synthesis** — Cross-validated findings with contradiction resolution and citation-density scoring",
       "",
       "All outputs pass automated quality auditing that enforces citation density thresholds and cross-reference verification before release.",
       "",
       "## Provenance & Trust",
       "",
-      "- Every citation includes a verifiable identifier (PMID, NCT, CID, DOI, etc.)",
+      copy.identifierBullet,
       "- Append-only evidence ledger with chain-hashed integrity verification",
       // Retired 2026-07-13 (OFFERINGS.md, commit 7801443): the absolute "Zero hallucination
       // architecture — claims without citations are flagged and excluded" claim overstated twice
@@ -219,7 +280,7 @@ function createDeliverablePackager(options = {}) {
       ...(resolution.gated
         ? [
           "- **The Zero-Fabrication Guarantee** — every cited identifier is cross-checked at generation time against the evidence actually retrieved for this report; identifiers not found in that evidence are flagged `[UNVERIFIED]` inline and are never presented as fact, and a report below the grounded-citation floor does not ship",
-          "- Cited DOIs and PMIDs are retraction-screened (Crossref for DOIs, PubMed for PMIDs, with a DOI→PMID cross-check); any retracted source blocks release"
+          copy.retractionBullet
         ]
         : ["- This bundle carries no citation-verification record: no grounding, retraction-screen, or re-resolution outcome is claimed for it"]),
       ""
@@ -337,6 +398,7 @@ function createDeliverablePackager(options = {}) {
       byType[c.type]++;
     }
     const agentRoles = artifacts.map((a) => `- **${roleLabel(a.task_id)}** (${safeString(a.task_id)})`);
+    const copy = profileCopy(sourceContext);
 
     return [
       `# Methodology Statement`,
@@ -358,14 +420,9 @@ function createDeliverablePackager(options = {}) {
       "",
       "## Data Sources",
       "",
-      "The pipeline queries the following authoritative biomedical databases:",
+      copy.dataSourcesIntro,
       "",
-      "- **PubMed / MEDLINE** — Peer-reviewed biomedical literature (PMID identifiers)",
-      "- **PubChem** — Chemical compound properties, bioassay data (CID identifiers)",
-      "- **ClinicalTrials.gov** — Clinical trial registries (NCT identifiers)",
-      "- **UniProt** — Protein sequence and function (UniProt accession numbers)",
-      "- **ChEMBL** — Bioactivity and drug-target interactions (CHEMBL identifiers, cited by ID only)",
-      "- **CrossRef / DOI** — Scholarly article resolution (DOI identifiers)",
+      ...copy.dataSources,
       "",
       "## Citation Verification Methodology",
       "",
@@ -397,7 +454,7 @@ function createDeliverablePackager(options = {}) {
       "",
       "## Disclaimer",
       "",
-      "This intelligence product is intended for informational and research purposes only. It does not constitute medical advice, investment advice, legal counsel, or regulatory guidance. Independent verification of all findings is recommended before making clinical, commercial, or regulatory decisions.",
+      copy.disclaimer,
       ""
     ].join("\n");
   }
@@ -692,6 +749,56 @@ function createDeliverablePackager(options = {}) {
           writeText(benchCsvPath, sourceContext.design_benchmark.csv);
           artifactRefs.design_benchmark_csv = relativeFrom(bundleDir, benchCsvPath);
         }
+      }
+      // Business lane: ship the exact text of every cited web page (WEB snapshots that re-hashed
+      // cleanly upstream) so a buyer can read each source. A snapshot whose text trips the license
+      // scan is left out and named in the index instead of failing the whole seal.
+      const webSnapshots = Array.isArray(sourceContext.web_snapshots) ? sourceContext.web_snapshots : [];
+      if (webSnapshots.length > 0) {
+        const sourcesDir = path.join(deliverablesDir, "sources");
+        const indexLines = [
+          "# Web Sources",
+          "",
+          "Each file is the exact text read from the URL at retrieval time. Its WEB identifier is the first 12 hex",
+          "characters of sha256(url + newline + text), so anyone can re-hash the stored text to confirm it is unaltered.",
+          "A snapshot shows what the page said when it was read, not that the page is still live or correct.",
+          "",
+          "| WEB id | Retrieved | URL |",
+          "| ------ | --------- | --- |"
+        ];
+        const withheld = [];
+        for (const snap of webSnapshots) {
+          const id = safeString(snap.id);
+          if (!/^[0-9a-f]{12}$/.test(id)) continue;
+          const body = [
+            `# WEB: ${id}`,
+            "",
+            `- URL: ${safeString(snap.url)}`,
+            ...(safeString(snap.title) ? [`- Title: ${safeString(snap.title)}`] : []),
+            `- Retrieved: ${safeString(snap.retrieved_at) || "not recorded"}`,
+            `- sha256: ${safeString(snap.sha256)}`,
+            "",
+            "---",
+            "",
+            String(snap.text || ""),
+            ""
+          ].join("\n");
+          try {
+            allowlist.assertNoBannedContent(body);
+          } catch {
+            withheld.push(id);
+            continue;
+          }
+          writeText(path.join(sourcesDir, `WEB-${id}.md`), body);
+          indexLines.push(`| ${id} | ${safeString(snap.retrieved_at) || "n/a"} | ${safeString(snap.url)} |`);
+        }
+        if (withheld.length > 0) {
+          indexLines.push("", `Withheld by the license screen (cited, but not redistributable here): ${withheld.join(", ")}`);
+        }
+        indexLines.push("");
+        const indexPath = path.join(sourcesDir, "index.md");
+        writeText(indexPath, indexLines.join("\n"));
+        artifactRefs.web_sources = relativeFrom(bundleDir, indexPath);
       }
       artifactRefs.sample_preview = relativeFrom(bundleDir, previewPath);
 

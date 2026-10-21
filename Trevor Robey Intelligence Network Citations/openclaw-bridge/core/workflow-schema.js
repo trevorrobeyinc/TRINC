@@ -1,6 +1,7 @@
 "use strict";
 
 const { z } = require("zod");
+const { PROFILES } = require("./research-profiles.js");
 
 const WORKFLOW_SCHEMA_VERSION = "phase30-workflow-v1";
 
@@ -58,6 +59,9 @@ const WorkflowTemplateSchema = z.object({
   description: z.string().max(2000).optional(),
   auto_approve: z.boolean().default(false),
   provider_preference: ProviderPreferenceSchema,
+  // Research domain (core/research-profiles.js). Omitted = biomedical, the behaviour of every
+  // template written before 2026-10-21.
+  research_profile: z.enum(Object.keys(PROFILES)).optional(),
   input_schema: z.object({
     required: z.array(z.string()).default([]),
     properties: z.record(InputPropertySchema).default({})

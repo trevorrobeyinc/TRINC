@@ -166,7 +166,18 @@ function sectionIdOf(subtask, index) {
  * @param {object} [args.log]                 optional logger with .warn()
  * @returns {Promise<{section_coverage:object[], failing:object[]}>}
  */
-async function runSectionGate({ subtasks, primarySubject, searchFn, runGate, readFile, maxResults = 8, log } = {}) {
+// `topic` and `extraPrimaryDomains` are optional (2026-10-21, business research lane): a business
+// report is searched on the general web and graded against business primary hosts added to the
+// grade-C allowlist. Omitted → "science" and the stock gate.config.js, exactly as before.
+async function runSectionGate({ subtasks, primarySubject, searchFn, runGate, readFile, maxResults = 8, log, topic = "science", extraPrimaryDomains } = {}) {
+  const gateDeps = { searchFn };
+  if (Array.isArray(extraPrimaryDomains) && extraPrimaryDomains.length > 0) {
+    const base = require("./gate.config.js");
+    gateDeps.config = {
+      ...base,
+      primary_source_domains: [...new Set([...base.primary_source_domains, ...extraPrimaryDomains])]
+    };
+  }
   const section_coverage = [];
   const failing = [];
   const seenQueries = new Set();
@@ -196,8 +207,8 @@ async function runSectionGate({ subtasks, primarySubject, searchFn, runGate, rea
 
     try {
       const out = await runGate(
-        { query, step_type: "breadth", section_id: sectionId, topic: "science", max_results: maxResults },
-        { searchFn }
+        { query, step_type: "breadth", section_id: sectionId, topic, max_results: maxResults },
+        gateDeps
       );
       section_coverage.push({
         section_id: sectionId,

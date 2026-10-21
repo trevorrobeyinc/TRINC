@@ -31,6 +31,10 @@ function normType(type) {
   if (t === "DRUGBANK") return "DrugBank";
   if (t === "PUBCHEM CID" || t === "CID" || t === "PUBCHEM") return "PubChem CID";
   if (t === "RXNORM" || t === "RXCUI") return "RxNorm";
+  // Business research lane (2026-10-21) — see core/research-profiles.js.
+  if (t === "SEC") return "SEC";
+  if (t === "WEB") return "WEB";
+  if (t === "WB") return "WB";
   return t || "UNKNOWN";
 }
 
@@ -43,6 +47,9 @@ function hostFor(normalizedType) {
     case "RxNorm": return "rxnav";
     case "ChEMBL": return "chembl";
     case "UniProt": return "uniprot";
+    case "SEC": return "sec";
+    case "WB": return "worldbank";
+    case "WEB": return "websnapshot";
     default: return "none";
   }
 }
@@ -57,6 +64,13 @@ function createCitationReresolver(options = {}) {
   const ncbiApiKey = options.ncbiApiKey || "";
   const nowIso = typeof options.nowIso === "function" ? options.nowIso : () => timeProviderModule.nowIso();
   const cache = new Map(); // per-run only: `${type}:${ID}` -> result
+  // Business lane: the run's web snapshot store (mcp/business-sources/web-snapshot-store.js). Absent
+  // → every WEB id is UNCHECKED `no_snapshot_store`, never a false VERIFIED.
+  const webSnapshotStore = options.webSnapshotStore && typeof options.webSnapshotStore.verify === "function"
+    ? options.webSnapshotStore
+    : null;
+  // SEC fair-access policy requires a User-Agent naming the organisation and a contact address.
+  const secUserAgent = `${options.organization || "Trevor Robey Intelligence Network Citations LLC"} ${contactEmail}`;
 
   // NCBI politeness: pacing plus ONE retry on a 429 — the policy lives in core/ncbi-pacing.js, shared with
   // pubmed-retraction.js (options: `minRequestIntervalMs`, `maxRetryAfterMs`, and the injectable `nowMs`/`sleep`;
@@ -75,7 +89,7 @@ function createCitationReresolver(options = {}) {
 
   const UA = `TRINC/1.0 (mailto:${contactEmail})`;
 
-  async function doFetch(url, { method = "GET" } = {}) {
+  async function doFetch(url, { method = "GET", userAgent } = {}) {
     if (typeof fetchImpl !== "function") return { networkError: true, error: "no fetch implementation" };
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -84,7 +98,7 @@ function createCitationReresolver(options = {}) {
         method,
         redirect: "follow",
         signal: controller.signal,
-        headers: { "User-Agent": UA, Accept: "application/json" },
+        headers: { "User-Agent": userAgent || UA, Accept: "application/json" },
       });
     } catch (err) {
       const aborted = err && (err.name === "AbortError" || /abort/i.test(String(err.message)));
@@ -240,6 +254,77 @@ function createCitationReresolver(options = {}) {
     return { status: STATUS.UNCHECKED, http_status: res.status, resolved_url: url, evidence: { reason: "unexpected_status" } };
   }
 
+  // ---- business research lane (2026-10-21) ----
+
+  // SEC: "<CIK>/<accession>". The filing's EDGAR directory listing answers 200 with a JSON
+  // `directory.name` that ends in the bare accession number for a real filing, and 404 for one
+  // that does not exist. A 403 is EDGAR's fair-access throttle — UNCHECKED, never UNRESOLVED.
+  async function resolveSEC(id) {
+    const m = /^(\d{1,10})\/(\d{10}-\d{2}-\d{6})$/.exec(String(id));
+    if (!m) return { status: STATUS.UNRESOLVED, http_status: null, resolved_url: null, evidence: { reason: "bad_format" } };
+    const cik = m[1].replace(/^0+/, "") || "0";
+    const bare = m[2].replace(/-/g, "");
+    const url = `https://www.sec.gov/Archives/edgar/data/${cik}/${bare}/index.json`;
+    const res = await doFetch(url, { userAgent: secUserAgent });
+    const t = classifyTransport(res);
+    if (t) return { status: STATUS.UNCHECKED, http_status: res.status || null, resolved_url: url, evidence: t };
+    if (res.status === 200) {
+      const body = await safeJson(res);
+      const name = body && body.directory && String(body.directory.name || "");
+      if (name && name.replace(/\/+$/, "").endsWith(bare)) {
+        return { status: STATUS.VERIFIED, http_status: 200, resolved_url: url, evidence: { directory: name } };
+      }
+      return { status: STATUS.UNCHECKED, http_status: 200, resolved_url: url, evidence: { reason: "unparseable" } };
+    }
+    if (res.status === 404) return { status: STATUS.UNRESOLVED, http_status: 404, resolved_url: url, evidence: { reason: "sec_filing_not_found" } };
+    if (res.status === 403) return { status: STATUS.UNCHECKED, http_status: 403, resolved_url: url, evidence: { reason: "rate_limited" } };
+    return { status: STATUS.UNCHECKED, http_status: res.status, resolved_url: url, evidence: { reason: "unexpected_status" } };
+  }
+
+  // WB: the indicator endpoint answers 200 for every request; a real code returns
+  // [meta, [{ id }]] and an unknown one returns [{ message: [...] }]. Identity only — no value read.
+  async function resolveWB(id) {
+    const url = `https://api.worldbank.org/v2/indicator/${encodeURIComponent(id)}?format=json`;
+    const res = await doFetch(url);
+    const t = classifyTransport(res);
+    if (t) return { status: STATUS.UNCHECKED, http_status: res.status || null, resolved_url: url, evidence: t };
+    if (res.status !== 200) return { status: STATUS.UNCHECKED, http_status: res.status, resolved_url: url, evidence: { reason: "unexpected_status" } };
+    const body = await safeJson(res);
+    const rec = Array.isArray(body) && Array.isArray(body[1]) ? body[1][0] : null;
+    if (rec && String(rec.id).toUpperCase() === String(id).toUpperCase()) {
+      return { status: STATUS.VERIFIED, http_status: 200, resolved_url: url, evidence: { indicator: rec.name || rec.id } };
+    }
+    if (Array.isArray(body) && body[0] && Array.isArray(body[0].message)) {
+      return { status: STATUS.UNRESOLVED, http_status: 200, resolved_url: url, evidence: { reason: "wb_indicator_unknown" } };
+    }
+    return { status: STATUS.UNCHECKED, http_status: 200, resolved_url: url, evidence: { reason: "unparseable" } };
+  }
+
+  // WEB: no network call. The id is content-addressed, so re-resolution re-reads the stored
+  // snapshot and recomputes its hash. Missing = this run never read it; altered = changed since.
+  // VERIFIED means "exactly this text was read from this URL at retrieved_at" — not that the page
+  // is still live or that its content is true.
+  async function resolveWEB(id) {
+    if (!webSnapshotStore) return { status: STATUS.UNCHECKED, http_status: null, resolved_url: null, evidence: { reason: "no_snapshot_store" } };
+    const v = webSnapshotStore.verify(id);
+    if (v.status === "found") {
+      return {
+        status: STATUS.VERIFIED,
+        http_status: null,
+        resolved_url: v.record.url,
+        resolver_type: "snapshot",
+        evidence: { url: v.record.url, retrieved_at: v.record.retrieved_at, sha256: v.record.sha256 }
+      };
+    }
+    return {
+      status: STATUS.UNRESOLVED,
+      http_status: null,
+      resolved_url: v.record ? v.record.url : null,
+      resolver_type: "snapshot",
+      evidence: { reason: v.status === "altered" ? "snapshot_altered" : "snapshot_missing" }
+    };
+  }
+
   function resolverFor(t) {
     switch (t) {
       case "PMID": return resolvePMID;
@@ -249,6 +334,9 @@ function createCitationReresolver(options = {}) {
       case "RxNorm": return resolveRxNorm;
       case "ChEMBL": return resolveChEMBL;
       case "UniProt": return resolveUniProt;
+      case "SEC": return resolveSEC;
+      case "WB": return resolveWB;
+      case "WEB": return resolveWEB;
       default: return null;
     }
   }

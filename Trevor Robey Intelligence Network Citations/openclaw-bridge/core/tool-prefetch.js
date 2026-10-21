@@ -2,6 +2,7 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
+const { getResearchProfile } = require("./research-profiles.js");
 
 const { safeString } = require("../../workflows/governance-automation/common.js");
 const defaultTimeProvider = require("./time-provider.js");
@@ -78,19 +79,24 @@ function createToolPrefetch(options = {}) {
   const PER_CALL_TIMEOUT_MS = 30_000;
   const TOTAL_TIMEOUT_MS = 120_000;
 
-  let prefetchMap = null;
+  // One map per research profile (core/research-profiles.js): biomedical → tool-prefetch-map.json
+  // (unchanged), business → tool-prefetch-map.business.json. Cached per file.
+  const prefetchMaps = new Map();
 
-  function loadPrefetchMap() {
-    if (prefetchMap) return prefetchMap;
-    const mapPath = path.join(rootDir, "config", "tool-prefetch-map.json");
+  function loadPrefetchMap(profileId) {
+    const mapFile = getResearchProfile(profileId).prefetchMapFile;
+    if (prefetchMaps.has(mapFile)) return prefetchMaps.get(mapFile);
+    const mapPath = path.join(rootDir, "config", mapFile);
+    let loaded;
     try {
       const raw = JSON.parse(fs.readFileSync(mapPath, "utf8"));
-      prefetchMap = raw && raw.role_mappings ? raw.role_mappings : {};
+      loaded = raw && raw.role_mappings ? raw.role_mappings : {};
     } catch (err) {
-      logger.warn({ event: "tool_prefetch_map_load_failed", error: safeString(err && err.message) });
-      prefetchMap = {};
+      logger.warn({ event: "tool_prefetch_map_load_failed", map: mapFile, error: safeString(err && err.message) });
+      loaded = {};
     }
-    return prefetchMap;
+    prefetchMaps.set(mapFile, loaded);
+    return loaded;
   }
 
   function getCacheKey(roleName, workflowInputs) {
@@ -217,7 +223,7 @@ function createToolPrefetch(options = {}) {
     const role = safeString(roleName);
     if (!role) return [];
 
-    const mappings = loadPrefetchMap();
+    const mappings = loadPrefetchMap(workflowInputs && workflowInputs.research_profile);
     const queries = mappings[role];
     if (!Array.isArray(queries) || queries.length === 0) {
       logger.info({ event: "tool_prefetch_no_mapping", role, available_roles: Object.keys(mappings) });
