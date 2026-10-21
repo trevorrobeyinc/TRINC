@@ -51,9 +51,12 @@ The wordmark and full legal name are paired in customer-facing materials with th
 1. ~~Wait for SOS approval~~ ✅ **APPROVED 2026-06-18** (Initial Business Filing Approved)
 2. ~~Download stamped Articles PDF~~ ✅ In hand (saved in `~/Documents`)
 3. ~~Record Entity Number~~ ✅ **Entity No. B20260217250** recorded above
-4. Apply for IRS EIN (free, instant): https://www.irs.gov/businesses/small-businesses-self-employed/apply-for-an-employer-identification-number-ein-online
-5. File Statement of Information (Form LLC-12, $20) within 90 days of approval
-6. Pay $800 California Franchise Tax to FTB by August 15, 2026 (15th day of 4th month after formation)
+> **2026-10-21 — operator confirmed items 4, 5 and 6 are NOT done; 5 and 6 are past due.** Tracker:
+> [`../compliance/compliance-calendar.md`](../compliance/compliance-calendar.md).
+
+4. Apply for IRS EIN (free, instant): https://www.irs.gov/businesses/small-businesses-self-employed/apply-for-an-employer-identification-number-ein-online — **not applied for (2026-10-21)**
+5. File Statement of Information (Form LLC-12, $20) within 90 days of approval — **due 2026-09-16; NOT FILED, past due (2026-10-21)**
+6. Pay $800 California Franchise Tax to FTB by August 15, 2026 (15th day of 4th month after formation) — **NOT PAID, past due (2026-10-21)**
 7. Open business bank account in LLC name
 8. Update AWS Marketplace seller record (Support case with stamped Articles + EIN attached)
 9. Draft single-member Operating Agreement (template-based; kept private, not filed with state)

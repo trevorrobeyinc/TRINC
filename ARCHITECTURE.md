@@ -16,7 +16,7 @@ source or a running process on that date. Retired components are listed in
 > **Repo topology.** Single **local-only** monorepo at `/Users/myhome/TrevClaw-Obsidianodus`
 > with **no git remotes** (the private GitHub remote was deleted 2026-05-26; durable backup is a
 > verified `git bundle --all`). Only submodule: `Trevor Robey Intelligence Network Citations/vendor/tooluniverse`.
-> Vendored fork (not a submodule): `Copilot-Everything/repos/obsidian-copilot-mcp/`.
+> Vendored fork (not a submodule): `Copilot-Everything/repos/obsidian-copilot-mcp-v4/` (the 3.3.3 fork was retired 2026-10-21).
 
 Companions: [`CLAUDE.md`](CLAUDE.md) (rules, ports, invariants) ·
 [`SYSTEM-REALITY.md`](Trevor%20Robey%20Intelligence%20Network%20Citations/SYSTEM-REALITY.md)

@@ -110,18 +110,18 @@ Hosting: **local-only as of 2026-05-26.** The private GitHub remote `trevoralexa
 | Path | Role | Deep Dive |
 |------|------|-----------|
 | `Claude/` | Central hub: Medical Zettelkasten MCP, Command Center plugin, Trevor Robey Inc Research Memory MCP, Obsidian-bridge launcher, vault-zettelkasten plugin | `Claude/AGENTS.md` |
-| `Copilot-Everything/` | Obsidian integration: plugin fork (vendored at `repos/obsidian-copilot-mcp/`), MCP bridge (:8798), Miyo TLS proxy (:8743) | `Copilot-Everything/AGENTS.md` |
-| `Trevor Robey Intelligence Network Citations/` | **Single merged business folder.** Contains BOTH (a) the citation-traced biomedical due-diligence **engine** (powered by OpenClaw; six workflow templates → Investor Pre-Mortem $9,950–$19,950, Failed Trial Archaeology $14,950, tactical SKUs; role-routed LLM providers, ToolUniverse subprocess ~2,116 tools v1.1.10 at `vendor/tooluniverse`, seven project MCP servers, `node scripts/run-workflow.js`) AND (b) the **brand canon** (LLC formation paperwork, six-SKU offering ladder, `trevor-robey-inc Commercial Launch Playbook.md`, `OFFERINGS.md`, `REVENUE_PLAYBOOK.md`, `NOTICE.md`, dossier). Engine deep-dive: `Trevor Robey Intelligence Network Citations/AGENTS.md`; brand entry: `README.brand.md`. | `Trevor Robey Intelligence Network Citations/AGENTS.md` |
+| `Copilot-Everything/` | Obsidian integration: plugin fork (vendored at `repos/obsidian-copilot-mcp-v4/`), MCP bridge (:8798), Miyo TLS proxy (:8743) | `Copilot-Everything/AGENTS.md` |
+| `Trevor Robey Intelligence Network Citations/` | **Single merged business folder.** Contains BOTH (a) the citation-traced biomedical due-diligence **engine** (powered by OpenClaw; ten workflow templates — seven biomedical + three business-lane (`research_profile: business`, 2026-10-21) → Investor Pre-Mortem $9,950–$19,950, Failed Trial Archaeology $14,950, tactical SKUs; role-routed LLM providers, ToolUniverse subprocess ~2,116 tools v1.1.10 at `vendor/tooluniverse`, seven project MCP servers, `node scripts/run-workflow.js`) AND (b) the **brand canon** (LLC formation paperwork, six-SKU offering ladder, `trevor-robey-inc Commercial Launch Playbook.md`, `OFFERINGS.md`, `REVENUE_PLAYBOOK.md`, `NOTICE.md`, dossier). Engine deep-dive: `Trevor Robey Intelligence Network Citations/AGENTS.md`; brand entry: `README.brand.md`. | `Trevor Robey Intelligence Network Citations/AGENTS.md` |
 
 (Each deep-dive AGENTS.md has a Claude-side twin CLAUDE.md alongside it with identical substance.)
 
 ### Submodule
 
-- `trevor-robey-inc-agents/vendor/tooluniverse` → [mims-harvard/ToolUniverse](https://github.com/mims-harvard/ToolUniverse) pinned at SHA `3833b0e` (v1.1.10, Apache-2.0)
+- `Trevor Robey Intelligence Network Citations/vendor/tooluniverse` → [mims-harvard/ToolUniverse](https://github.com/mims-harvard/ToolUniverse) pinned at SHA `3833b0e` (v1.1.10, Apache-2.0). The `.gitmodules` section is still *named* `trevor-robey-inc-agents/vendor/tooluniverse` (a label, not a path — the folder was renamed 2026-05-19).
 
 ### Vendored fork (no submodule)
 
-- `Copilot-Everything/repos/obsidian-copilot-mcp/` → SHA `df61538` of [logancyang/obsidian-copilot](https://github.com/logancyang/obsidian-copilot) on branch `codex/post-validated-mcp-baseline` — see `Copilot-Everything/repos/obsidian-copilot-mcp/UPSTREAM.md` for re-sync instructions.
+- `Copilot-Everything/repos/obsidian-copilot-mcp-v4/` → fork of [logancyang/obsidian-copilot](https://github.com/logancyang/obsidian-copilot) at upstream tag `4.0.0` (SHA `a78b69b`) plus the ported MCP module, manifest pinned `99.4.0` — see `Copilot-Everything/repos/obsidian-copilot-mcp-v4/UPSTREAM.md`. The 3.3.3 fork (`repos/obsidian-copilot-mcp/`, SHA `df61538`) was **retired 2026-10-21** and lives only in git history.
 
 ### Predecessor repos
 
@@ -297,7 +297,7 @@ Logs: `~/.pm2/logs/` (PM2-managed mcp-bridge). Per-workflow biomedical-pipeline 
 - The MCP bridge at :8798 is the canonical vault access point. Do not create alternative vault bridges.
 - Session artifacts go to `.archive/` directories, not workspace roots.
 - **Single-repo invariant (2026-05-07; now local-only as of 2026-05-26)**: this monorepo is the single source of truth and now lives **only on this machine** — the private GitHub remote `trevoralexanderrobey/TrevClaw-Obsidianodus` was **deleted 2026-05-26** and there are **no git remotes**. Do NOT re-create separate sub-repos for `Claude/`, `Copilot-Everything/`, or `trevor-robey-inc-agents/` — they live here. Do NOT re-add a remote or push without an explicit decision to reverse the local-only posture; durable backup is the verified `git bundle --all` in `~/Documents/` (+ SHA-verified copy on `/Volumes/ExtraCurricular/Backups/`; see the Hosting note at the top of this file). The predecessor repo `trevor-robey-inc-agents` (separate, archived 2026-05-07) remains the documented historical rollback anchor (tag `pre-monorepo-consolidation-2026-05-07` at SHA `8e782a0`).
-- **Submodule discipline**: only `trevor-robey-inc-agents/vendor/tooluniverse` is a submodule (third-party Apache-2.0). Do not introduce new submodules without an explicit upstream-tracking justification; vendor instead and document with an `UPSTREAM.md`.
+- **Submodule discipline**: only `Trevor Robey Intelligence Network Citations/vendor/tooluniverse` is a submodule (third-party Apache-2.0). Do not introduce new submodules without an explicit upstream-tracking justification; vendor instead and document with an `UPSTREAM.md`.
 
 ## Security Orchestration
 

@@ -180,7 +180,8 @@ Claude/.logs/cc-bridge-monitor.events.jsonl
 # -----------------------------------------------------------------------------
 # Unrelated migrated project — "PVA Mobility Equipment Loan Closet" (AppSheet
 # prototype). Its contents were copied out to trevorrobeyinc/trevorrobeyinc.github.io;
-# this loose local copy does not belong in the biomedical monorepo. Ignored so it
-# stops showing as untracked debt. Safe to delete the local dir once confirmed migrated.
+# this loose local copy does not belong in the biomedical monorepo. MOVED OUT to
+# ~/Code/pva-loan-closet on 2026-10-21 (personal project, kept beside TR-Portfolio).
+# The ignore stays so a stray copy can never be committed here by accident.
 # -----------------------------------------------------------------------------
 /pva-loan-closet/

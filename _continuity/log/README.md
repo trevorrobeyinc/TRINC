@@ -10,4 +10,4 @@ here so the live board stays lean and fast to read.
 
 See `../README.md` → "Keeping the board lean — rollover" for the procedure.
 
-_No archives yet._
+- [`CONTINUITY-2026-10-21.md`](CONTINUITY-2026-10-21.md) — 234 Log entries (2026-10-08 and earlier) + the pre-2026-10-21 Current focus, verbatim.

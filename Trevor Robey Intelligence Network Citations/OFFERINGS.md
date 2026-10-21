@@ -61,7 +61,7 @@
 Every mission bundle now seals two audit-trail artifacts alongside the report:
 
 - **Citation Integrity & Provenance ledger** — a graded provenance ledger (A/B/C/D from the grounded ratio; F/BLOCKED if any cited paper is retracted; N/A if nothing is cited), the report's audit-trail spine.
-- **Graveyard Memo + protocol Amendment-Risk** — for an indication, a memo of prior terminated/withdrawn/suspended trial programs, each NCT-traced with the sponsor's stated stop reason (or an explicit "(none stated by sponsor)" — never invented), protocol churn, and a resolvable clinicaltrials.gov link; plus a protocol amendment-risk band (LOW/MODERATE/HIGH) derived deterministically from change-history version counts. Rendered from the fetched records (no LLM), so every claim is verifiable.
+- **Graveyard Memo + protocol Amendment-Risk** — for an indication, a memo of prior terminated/withdrawn/suspended trial programs, each NCT-traced with the sponsor's stated stop reason (or an explicit "(none stated by sponsor)" — never invented), and a resolvable clinicaltrials.gov link. Rendered from the fetched records (no LLM), so every claim is verifiable. *The protocol amendment-risk band (LOW/MODERATE/HIGH, from change-history version counts) is **paused**: since 2026-10-08 ClinicalTrials.gov refuses the change-history requests it depends on, so the memo states "Not available for this run" rather than show a band. Do not sell the band until a supported source is in place.*
 
 ## Posture (preserved)
 

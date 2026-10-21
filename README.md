@@ -16,28 +16,30 @@ Citation-traced biomedical due diligence for biotech investors and pharma BD. Fi
 
 | Path | Role |
 |------|------|
-| [`Claude/`](Claude/) | Central hub: Medical Zettelkasten MCP, Command Center plugin, Trevor Robey Inc Research Memory MCP, Qdrant TLS proxy, Obsidian-bridge launcher |
-| [`Copilot-Everything/`](Copilot-Everything/) | Obsidian integration: bridge daemons (`:8798` canonical, `:8743` Miyo TLS proxy), Raycast extension, vendored copilot-mcp fork |
-| [`trevor-robey-inc-agents/`](trevor-robey-inc-agents/) | Citation-traced biomedical due diligence engine. Six workflow templates ([Investor Pre-Mortem](trevor-robey-inc-agents/REVENUE_PLAYBOOK.md), [Failed Trial Archaeology](trevor-robey-inc-agents/REVENUE_PLAYBOOK.md), Conference Synthesis Brief, Trial Design Benchmark Pack, Cross-Silo Connector Report, Plain-Language Patient Brief, Pharmacovigilance Pack). ToolUniverse subprocess (~2,116 biomedical tools). Eight project MCP servers. |
-| [`trevor-robey-inc/`](trevor-robey-inc/) | Brand canon, LLC formation paperwork, launch playbook, OFFERINGS, REVENUE_PLAYBOOK, NOTICE, dossier |
+| [`Claude/`](Claude/) | Code we built: Obsidian plugins (Command Center `:8799`, Bridge Launcher, Vault Zettelkasten, Viz Studio `:8800`, Wiki Definitions, Origin Nest, Console Mirror, Terminal Relay) and MCP servers (Medical Zettelkasten, Research Memory, searxng-search, trinc-content) |
+| [`Copilot-Everything/`](Copilot-Everything/) | Obsidian integration: vendored Copilot fork (v4), canonical bridge daemon (`:8798`), stdio adapter, Raycast extension, TLS proxies (Miyo `:8743`, Qdrant `:6433`, SearXNG `:8891`, Ollama `:11435`) |
+| [`Trevor Robey Intelligence Network Citations/`](Trevor%20Robey%20Intelligence%20Network%20Citations/) | The business, in one folder (flat-merged 2026-05-19 from the former `trevor-robey-inc-agents/` + `trevor-robey-inc/`): the OpenClaw citation-traced research **engine** — ten workflow templates (seven biomedical, three business-lane since 2026-10-21), ToolUniverse subprocess (~2,116 tools), project MCP adapters under `openclaw-bridge/mcp/` — and the **brand canon** (LLC paperwork, [`OFFERINGS.md`](Trevor%20Robey%20Intelligence%20Network%20Citations/OFFERINGS.md), [`REVENUE_PLAYBOOK.md`](Trevor%20Robey%20Intelligence%20Network%20Citations/REVENUE_PLAYBOOK.md), `NOTICE.md`, launch playbook). |
+| [`ops/tr-suite/`](ops/tr-suite/) | Component registry (`manifest.json`), `verify.sh` (read-only drift check), `deploy.sh` (the one production deploy path), installers |
+| [`_continuity/`](_continuity/) | Shared cross-surface board (`CONTINUITY.md`), archived board cycles (`log/`), handoffs (`handoffs/`) |
 
 ## Architecture, build, run
 
 - Architecture overview: [`ARCHITECTURE.md`](ARCHITECTURE.md)
 - Operator-facing rules and runbook: [`CLAUDE.md`](CLAUDE.md)
 - Per-workspace deep dives: each subdirectory's own `CLAUDE.md`
-- Brand + offerings + revenue playbook: [`trevor-robey-inc/`](trevor-robey-inc/)
+- Brand + offerings + revenue playbook: [`Trevor Robey Intelligence Network Citations/`](Trevor%20Robey%20Intelligence%20Network%20Citations/)
+- Where the business stands right now: [`STATUS.md`](STATUS.md)
 
 ## Submodules
 
-- `trevor-robey-inc-agents/vendor/tooluniverse` → [mims-harvard/ToolUniverse](https://github.com/mims-harvard/ToolUniverse) (Apache-2.0, ~2,116 biomedical tools)
+- `Trevor Robey Intelligence Network Citations/vendor/tooluniverse` → [mims-harvard/ToolUniverse](https://github.com/mims-harvard/ToolUniverse) (Apache-2.0, ~2,116 biomedical tools)
 
-Vendored fork (no submodule, see [`UPSTREAM.md`](Copilot-Everything/repos/obsidian-copilot-mcp/UPSTREAM.md)):
-- `Copilot-Everything/repos/obsidian-copilot-mcp` → fork of [logancyang/obsidian-copilot](https://github.com/logancyang/obsidian-copilot) at SHA `df61538`
+Vendored fork (no submodule, see [`UPSTREAM.md`](Copilot-Everything/repos/obsidian-copilot-mcp-v4/UPSTREAM.md)):
+- `Copilot-Everything/repos/obsidian-copilot-mcp-v4` → fork of [logancyang/obsidian-copilot](https://github.com/logancyang/obsidian-copilot) at upstream `4.0.0` (SHA `a78b69b`) + the MCP module (the 3.3.3 fork at SHA `df61538` was retired 2026-10-21)
 
 ## Single-repo invariant
 
-This repo is the **single source of truth**. Do not re-create separate sub-repos for `Claude/`, `Copilot-Everything/`, or `trevor-robey-inc-agents/` — they live here. The retired GitHub remote `https://github.com/trevoralexanderrobey/trevor-robey-inc-agents` is archived as the rollback anchor (tag `pre-monorepo-consolidation-2026-05-07`).
+This repo is the **single source of truth**. Do not re-create separate sub-repos for `Claude/`, `Copilot-Everything/`, or `Trevor Robey Intelligence Network Citations/` — they live here. TR suite components that once had their own repos (Origin Nest, Wiki Definitions, trinc-content) were absorbed with history on 2026-10-21; their old repos sit in `~/Code/_retired-absorbed-into-monorepo/`. The retired GitHub remote `https://github.com/trevoralexanderrobey/trevor-robey-inc-agents` is archived as the rollback anchor (tag `pre-monorepo-consolidation-2026-05-07`).
 
 ## Posture
 
@@ -46,7 +48,7 @@ This repo is the **single source of truth**. Do not re-create separate sub-repos
 - **Manual-only external actions** — no autonomous publish/post/login/transact.
 - **Citation traceability enforced** as a quality gate — every row in every citation index carries a real PMID, NCT, ChEMBL CID, or DOI.
 
-Full disclaimers: [`trevor-robey-inc/NOTICE.md`](trevor-robey-inc/NOTICE.md).
+Full disclaimers: [`Trevor Robey Intelligence Network Citations/NOTICE.md`](Trevor%20Robey%20Intelligence%20Network%20Citations/NOTICE.md).
 
 ## Legal entity
 
@@ -59,4 +61,4 @@ Full disclaimers: [`trevor-robey-inc/NOTICE.md`](trevor-robey-inc/NOTICE.md).
 | Domain | trevorobeyinc.com |
 | Contact | trevor@trevorobeyinc.com |
 
-Filing record: [`trevor-robey-inc/00-business-formation/llc/certificate-of-formation.md`](trevor-robey-inc/00-business-formation/llc/certificate-of-formation.md)
+Filing record: [`Trevor Robey Intelligence Network Citations/00-business-formation/llc/certificate-of-formation.md`](Trevor%20Robey%20Intelligence%20Network%20Citations/00-business-formation/llc/certificate-of-formation.md)

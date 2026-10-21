@@ -185,8 +185,10 @@
 >   Amendment-Risk): a memo of prior terminated/withdrawn/suspended programs in the
 >   indication, each NCT-traced with the sponsor's stated stop reason (or an explicit
 >   "(none stated by sponsor)" — never invented) and a resolvable
->   clinicaltrials.gov/study/<NCT> link, plus a LOW/MODERATE/HIGH protocol amendment-risk
->   band from trial change-history. Rendered deterministically from the fetched records
+>   clinicaltrials.gov/study/<NCT> link. (The LOW/MODERATE/HIGH protocol amendment-risk
+>   band from trial change-history is PAUSED since 2026-10-08: ClinicalTrials.gov refuses the
+>   change-history requests; the memo says "Not available for this run" — do not sell the
+>   band until a supported source exists.) Rendered deterministically from the fetched records
 >   (no LLM), so every claim is verifiable. This is the engine substance behind the
 >   **Failed Trial Archaeology** offering ($14,950).
 >

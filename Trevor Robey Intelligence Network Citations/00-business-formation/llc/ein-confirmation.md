@@ -1,6 +1,7 @@
 # EIN Confirmation Letter
 
-> **Status: NOT YET APPLIED FOR (as of 2026-07-22).** This file awaits the IRS confirmation notice.
+> **Status: NOT YET APPLIED FOR (as of 2026-07-22; operator re-confirmed 2026-10-21).** This file awaits
+> the IRS confirmation notice. Order of the open filings: [`../compliance/compliance-calendar.md`](../compliance/compliance-calendar.md).
 >
 > **Where the EIN does — and does not — come from (verified 2026-07-22).** The EIN is a **federal
 > IRS** identifier. It is **NOT** issued by, stored in, or retrievable from **bizfileOnline / the
