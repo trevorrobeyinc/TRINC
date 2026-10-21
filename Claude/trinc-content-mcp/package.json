@@ -1,0 +1,20 @@
+{
+  "name": "trinc-content-mcp",
+  "version": "1.0.0",
+  "description": "Content creation for the Trevor Robey, INC. channels (YouTube, TikTok, Instagram, Facebook Page, AWS Data Exchange). Drafts from the research engine's own output, gated against the brand voice split, the statutory entity disclosure, retired claims, and any figure not traceable to a deliverable. Publishing is per-channel, two-call confirmed, and inert without a credential.",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=22.13.1"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test test/*.test.mjs",
+    "smoke": "node test/smoke.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0"
+  },
+  "author": "Trevor Robey — Trevor Robey Intelligence Network Citations LLC",
+  "license": "UNLICENSED",
+  "private": true
+}
