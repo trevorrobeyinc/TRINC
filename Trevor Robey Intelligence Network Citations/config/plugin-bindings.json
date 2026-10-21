@@ -121,14 +121,12 @@
     },
     "~~email": {
       "bound": true,
-      "resolves_to": "Gmail — trevor@trevorobeyinc.com (Google Workspace, Zoho cutover completed 2026-07-22)",
+      "resolves_to": "Gmail — trevor@trevorobeyinc.com (Google Workspace since the 2026-07-22 cutover; Zoho RETIRED 2026-10-21)",
       "registry_ids": [
-        "gmail",
-        "zoho-mail",
-        "zoho-trinc"
+        "gmail"
       ],
       "lane": "business",
-      "note": "zoho-mail / zoho-trinc are the legacy pre-cutover mailboxes, retained read-only. DRAFT ONLY — never send without explicit per-message operator approval."
+      "note": "Zoho (zoho-mail, zoho-trinc) is RETIRED by operator decision 2026-10-21: never bind it or register it again. DRAFT ONLY — never send without explicit per-message operator approval."
     },
     "~~calendar": {
       "bound": true,

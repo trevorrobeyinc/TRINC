@@ -94,7 +94,7 @@ Legend — **B** = business-owned · **P** = personal-owned (entanglement) · **
 | Service | Purpose | Bound identity | | Crit. |
 |---|---|---|---|---|
 | **Google Workspace** | primary mailbox + identity | `trevor@trevorobeyinc.com` (super-admin) — *but recovery = personal Gmail; password in personal Bitwarden* | **B** | HIGH |
-| **Zoho Mail** | archive of pre-cutover history | `trevor@trevorobeyinc.com` (paid Mail Lite, downgrade candidate) | **B** | MED |
+| ~~**Zoho Mail**~~ | **RETIRED 2026-10-21** (operator decision); its history was imported into Gmail 2026-07-22 (1,251/1,251) | `trevor@trevorobeyinc.com` (Mail Lite; account shutdown in progress) | **B** | MED |
 | **Cloudflare** | registrar + DNS + Worker hosting the live site | `trevoralexanderrobey@gmail.com` | **P** | HIGH |
 | **AWS** (acct `833390816446`) | Marketplace seller channel | root = **`aws@trevorobeyinc.com`** (Workspace group, since 2026-10-21; was the Strayer `.edu`); SSO user `Trevoralexanderrobey` + 2 YubiKeys; seller *contact* = trevor@ (business); alternate contacts Billing/Operations = aws@, Security = trevor@ | **B** | HIGH |
 | **CA SOS bizfileOnline** | LLC system of record; Statement of Information + future filings | **UNKNOWN** — never recorded | **?** | HIGH |
@@ -122,7 +122,7 @@ identity wherever one exists; where the account is personal-owned, still sign in
 so the browsing surface is separated, and track the ownership fix separately (§1).
 
 - [x] Google Workspace / Gmail — `trevor@trevorobeyinc.com`
-- [x] Zoho Mail — `trevor@trevorobeyinc.com`
+- [ ] ~~Zoho Mail~~ — RETIRED 2026-10-21: sign out of it in this profile once the Zoho account is closed
 - [x] Claude extension installed (this profile drives all business browser work)
 - [ ] **Cloudflare** — sign in here; then R2 (add trevor@ as Super Administrator)
 - [ ] **AWS** — IAM Identity Center SSO portal `https://d-90660e72bc.awsapps.com/start` + YubiKey (R1 root email ✅ done 2026-10-21)

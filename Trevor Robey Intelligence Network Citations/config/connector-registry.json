@@ -1708,14 +1708,14 @@
       {
         "id": "zoho-mail",
         "lane": "business",
-        "auth": "connected",
-        "purpose": "Legacy Zoho mailbox for trevorobeyinc.com (pre-Gmail-cutover)."
+        "auth": "RETIRED 2026-08-17 (legacy server deleted at Zoho)",
+        "purpose": "RETIRED EVERYWHERE 2026-10-21 BY OPERATOR DIRECTION \u2014 all business mail is on Google Workspace (Gmail) since the 2026-07-22 cutover. Do not register, bind or re-propose. Kept here only as a record. (Was: legacy Zoho mailbox for trevorobeyinc.com, pre-Gmail-cutover.)"
       },
       {
         "id": "zoho-trinc",
         "lane": "business",
-        "auth": "connected",
-        "purpose": "Zoho mail admin surface \u2014 send-as, signatures, folders, labels."
+        "auth": "RETIRED 2026-10-21 (registration, launchers and gate scope removed by the Security Everything gate release of that date)",
+        "purpose": "RETIRED EVERYWHERE 2026-10-21 BY OPERATOR DIRECTION \u2014 all business mail is on Google Workspace (Gmail). Do not register, bind or re-propose: the session-gate no longer lists it, so a new registration would arrive ungated. (Was: Zoho mail admin surface \u2014 send-as, signatures, folders, labels.)"
       },
       {
         "id": "gmail",

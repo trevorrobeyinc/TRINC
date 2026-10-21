@@ -18,7 +18,7 @@
 ## Operator queue (only you can do these)
 
 1. **File the three compliance items** — EIN (free) → LLC-12 ($20) → FTB 3522 ($800). Two are past due.
-2. **AWS listing gates** — accept AWS's StandardDSA; move the AWS root email off the `.edu` address.
+2. **AWS listing gates** — accept AWS's StandardDSA. (The root email moved off the `.edu` address on 2026-10-21: it is now `aws@trevorobeyinc.com`, a Workspace group; R1 closed in `77bfc27`.)
 3. **Review the refreshed feed** (`…/trial-graveyard-feed/refresh-2026-10-21/`) and decide what to promote.
 4. **Price the feed** — `offers.md` still says `[DECIDE]`. The biomedical tier ladder ($0 / $99 / $249 / $499) is your decision of 2026-10-20; custom any-field prices are on hold by your call (2026-10-21).
 5. **First live business-lane run** (arm `operator-approve` first) — needed before any custom sale.
@@ -28,8 +28,8 @@
 
 - Finalize the listing files from the reviewed refresh (coverage table, per-area copy; breast cancer needs a narrower query or an honest "partial" label).
 - `ops/paths.env` + generate both `.mcp.json` files from it.
-- Gate `trinc-content` behind the PreToolUse hook (patch prepared in Security Everything, applied by you).
-- Retire `zoho-trinc` (mail moved to Google Workspace 2026-07-22).
+- Gate `trinc-content` behind the PreToolUse hook AND strip both Zoho servers from the gate: one release, validated 2026-10-21 and waiting on your touches (signing + one sudo-gate). Patch and landing script in `/Users/myhome/.claude/plans/trinc-zoho-release/`; the 11 steps in the side-session note `HANDOFF-trinc-content-gate-zoho-retire-2026-10-21.md`.
+- Retire Zoho everywhere (operator decision 2026-10-21; plan `PLAN-zoho-to-google-workspace-2026-10-21.md` in the same notes folder). Done: the nightly digest is file-only (SE `33d0ad1`), AWS on `aws@` (R1 closed), business records updated. Still open: the gate release above, the Zoho account shutdown + DNS + phone apps (console session), the opencode config, and Falcon rule 219's exclusion (propose-only).
 - Brand one-pager + sample; monetization write-up; turn on one social channel via `trinc-content`.
 
 ## Not doing right now (by decision)

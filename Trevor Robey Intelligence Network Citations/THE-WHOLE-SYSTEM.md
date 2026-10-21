@@ -39,7 +39,7 @@
 | **Legal entity** | Trevor Robey Intelligence Network Citations LLC (California LLC; filed 2026-05-06; **CA SOS Entity No. B20260217250**) |
 | **CA SOS approval** | ✅ **APPROVED** (2026-06-18) — certified SOS copy, Certificate No. 457169837, issued 2026-05-12. Entity No. **B20260217250** |
 | **Brand wordmark** | **Trevor Robey, INC.** — "INC" = *Intelligence Network Citations* (backronym, not a corporate suffix) |
-| **Domain / email** | trevorobeyinc.com · trevor@trevorobeyinc.com (**Google Workspace/Gmail since the 2026-07-22 MX cutover** — SPF/DKIM/DMARC live; Zoho retained as archive + secondary sender during transition; alias trevorrobeyinc@gmail.com; see `03-platforms/google-workspace/setup-runbook.md`) |
+| **Domain / email** | trevorobeyinc.com · trevor@trevorobeyinc.com (**Google Workspace/Gmail since the 2026-07-22 MX cutover** — SPF/DKIM/DMARC live; Zoho RETIRED 2026-10-21, account and DNS clean-up in progress; alias trevorrobeyinc@gmail.com; see `03-platforms/google-workspace/setup-runbook.md`) |
 | **Tagline** | *Every claim, sourced. Every risk, named. In days, not weeks.* |
 | **What you sell** | Citation-traced biomedical due-diligence reports — every claim resolves to a public identifier (PMID, NCT, ChEMBL, DOI). Niche = medical research; ambition = any vertical. |
 | **Lead product** | Investor Pre-Mortem — $9,950 / $14,950 / $19,950. Flanking: Failed Trial Archaeology $14,950. Tactical SKUs $2,500–$9,950. (Canonical list: `OFFERINGS.md`.) |
@@ -136,7 +136,7 @@ There are **three layers**, and only two of them feed your reports:
 |---|---|---|
 | **Subprocess MCP (12) + ToolUniverse tools (4)** | ✅ **Yes — these build your reports** | pubmed, clinicaltrials-gov, chembl, faers, scholar-gateway, europepmc, opentargets, arxiv, npi, icd10, owkin… |
 | **claude.ai-level connectors (23)** | ❌ **No — chat only** | the PubMed/ChEMBL/etc. you see in Claude chat, plus Figma, Gmail, Synthesize Bio… richer, but invisible to the automated engine (Tavily is a superseded tombstone) |
-| **Infra / ops (in `~/.claude.json`)** | n/a (not product) | falcon (security), github, ~~cdp-pipe~~ (**gone 2026-09-18** — no browser automation on this machine; the only browser surface is the in-app Claude Browser pane, `cb` gate scope), zoho-mail (**archive-reader since the 2026-07-22 Gmail cutover** — live mailbox is Google Workspace Gmail; see `03-platforms/google-workspace/google-workspace.md`) |
+| **Infra / ops (in `~/.claude.json`)** | n/a (not product) | falcon (security), github, ~~cdp-pipe~~ (**gone 2026-09-18** — no browser automation on this machine; the only browser surface is the in-app Claude Browser pane, `cb` gate scope), ~~zoho-mail~~ / ~~zoho-trinc~~ (**retired 2026-10-21** by operator decision — the mailbox is Google Workspace Gmail; never register either again; see `03-platforms/google-workspace/google-workspace.md`) |
 
 No rogue or broken connectors were found — the only issue was that nothing documented this split. Five claude.ai connectors are unauthenticated (Owkin host-side, BioRender, Synapse, Wiley, alphaXiv; Synthesize Bio is now authenticated) → authenticate the useful ones or stop listing them. Full detail: `CONNECTOR-ALIGNMENT.md`.
 

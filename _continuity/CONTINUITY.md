@@ -251,6 +251,18 @@ forward below.
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 
+### 2026-10-21T10:45Z · Desktop Claude Code (side session) · **Zoho retired by operator decision; everything moves to Google Workspace**
+- **Decided (operator, 2026-10-21):** retire Zoho completely, and strip both Zoho MCP servers from every security-gate list (no
+  fail-safe deny). Never register `zoho-trinc` or `zoho-mail` again: a new registration would be ungated.
+- **Done:** the AWS root email is `aws@trevorobeyinc.com`, a Workspace group (R1 closed, `77bfc27`); the nightly security digest is
+  file-only (it had failed on Zoho SMTP every morning since 07-22; SE `33d0ad1`); business records updated (connector registry +
+  plugin bindings mark Zoho retired, CONNECTOR-ALIGNMENT, SYSTEM-REALITY, THE-WHOLE-SYSTEM, business-identity-map, STATUS).
+- **Waiting on the operator:** the Security Everything gate release that gates `trinc-content` and unregisters/strips Zoho
+  (validated; signing touch + one sudo-gate touch). Patch + script `/Users/myhome/.claude/plans/trinc-zoho-release/`.
+- **In progress elsewhere:** Zoho account shutdown, DNS clean-up (SPF `include:zoho.com`, `zoho._domainkey`, verification TXT) and the
+  phone apps in a console session; Falcon rule 219's exclusion narrowing (propose-only).
+- **Plan of record:** side-session notes `PLAN-zoho-to-google-workspace-2026-10-21.md` (folder `side-session-notes/local_b7efebe5-…`).
+
 ### 2026-10-21T07:38Z · Desktop Claude Code · **Handoff continued: monorepo made one production source; compliance recorded; feed refreshed; board rolled over**
 - **Did:** Picked up `handoffs/HANDOFF-2026-10-21.md` (now housed in the repo). (1) **trinc-content absorbed**
   with history → `Claude/trinc-content-mcp/` (signed `e485565`, `git subtree -S`) + `install-connector.sh`.
