@@ -18,13 +18,15 @@ out/
 # Runtime / state / logs
 # ─────────────────────────────────────────────
 state/
-# The broad `state/` rule above (runtime state dirs) was silently swallowing the
-# vendored Copilot fork's UPSTREAM source dir
-# `repos/obsidian-copilot-mcp/src/state/` (ChatUIState.ts, vaultDataAtoms.ts),
-# which broke `npm run build` (TS2307: cannot find module @/state/*).
-# Re-include that source directory explicitly.
-!repos/obsidian-copilot-mcp/src/state/
-!repos/obsidian-copilot-mcp/src/state/**
+# The broad `state/` rule above (runtime state dirs) silently swallows source dirs
+# named `state/` in the vendored Copilot fork, which breaks `npm run build` from a
+# clean clone (TS2307: cannot find module @/state/*). The re-include below named only
+# the retired v3 path, so from the 2026-08-12 v4 port until 2026-10-21 the LIVE fork's
+# `src/state/` and `src/modelManagement/state/` were never tracked. Re-include both.
+!repos/obsidian-copilot-mcp-v4/src/state/
+!repos/obsidian-copilot-mcp-v4/src/state/**
+!repos/obsidian-copilot-mcp-v4/src/modelManagement/state/
+!repos/obsidian-copilot-mcp-v4/src/modelManagement/state/**
 logs/
 *.log
 *.pid
@@ -105,4 +107,11 @@ repos/.upstream-*-vault-snapshot/data.json
 # (2026-07 API-key-storage audit, pending item 3). Untracked 2026-07-31; file stays
 # on disk for the dev vault.
 deploy/obsidian/plugins/*/data.json
-# repos/obsidian-copilot-mcp/   # vendored into monorepo 2026-05-07; see repos/obsidian-copilot-mcp/UPSTREAM.md
+# The whole dev-lane staging dir is build output (dev-build.sh writes it, dev-deploy.sh
+# symlinks the dev vault to it). Untracked 2026-10-21: a committed build is a stale
+# snapshot by definition. Production deploys come from the fork's own build via
+# ops/tr-suite/deploy.sh.
+deploy/obsidian/plugins/
+# The v3 fork (repos/obsidian-copilot-mcp, upstream 3.3.3) was RETIRED 2026-10-21 with
+# scripts/sync-copilot-fork.sh and scripts/copilot-update-watcher.sh. The live fork is
+# repos/obsidian-copilot-mcp-v4 (see its UPSTREAM.md). History: git log -- repos/obsidian-copilot-mcp

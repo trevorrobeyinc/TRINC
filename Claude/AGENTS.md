@@ -17,7 +17,7 @@ Central organizational workspace housing all Claude-assisted projects for the bi
 The split is **ownership-based**, not artifact-type-based:
 
 - **`Claude/`** holds code **we built and maintain** — plugins and MCP servers authored in-house. Three of the entries below are Obsidian plugins, one is a standalone MCP server, one is the (retired) outbound `claude` CLI bridge — all of them ours, all of them iteratively developed here.
-- **`Copilot-Everything/`** holds the **vendored obsidian-copilot fork** at `Copilot-Everything/repos/obsidian-copilot-mcp/` plus the **canonical HTTPS bridge daemon** at `Copilot-Everything/bridges/obsidian-copilot-bridge/` that talks to it. Nothing in there should be code we authored from scratch — that workspace exists so the upstream fork stays cleanly scoped and re-syncable.
+- **`Copilot-Everything/`** holds the **vendored obsidian-copilot fork** at `Copilot-Everything/repos/obsidian-copilot-mcp-v4/` plus the **canonical HTTPS bridge daemon** at `Copilot-Everything/bridges/obsidian-copilot-bridge/` that talks to it. Nothing in there should be code we authored from scratch — that workspace exists so the upstream fork stays cleanly scoped and re-syncable.
 
 If you ever wonder "this Obsidian plugin is ours, why isn't it under `Copilot-Everything/` with the other Obsidian stuff?" — that's the answer. Obsidian plugins WE wrote live here; the obsidian-copilot fork lives there. The taxonomy was set deliberately during the 2026-05-07 monorepo consolidation commit (`792d172`) and is reflected in the root `AGENTS.md` "Repo Topology" table.
 
@@ -108,5 +108,5 @@ it (none today — until then opencode's cloning work is source-code-side: steps
 
 | Workspace | Path (relative to monorepo root) | Role |
 |-----------|----------------------------------|------|
-| Copilot-Everything | [`../Copilot-Everything/`](../Copilot-Everything/) | Obsidian plugin fork (vendored at `repos/obsidian-copilot-mcp/`), canonical MCP bridge (`bridges/obsidian-copilot-bridge/` → `:8798`), consolidated stdio adapter, three HTTPS TLS proxies (Miyo / Qdrant / SearXNG); LM Studio and Ollama proxies were removed 2026-07-16 / 2026-07-23. |
+| Copilot-Everything | [`../Copilot-Everything/`](../Copilot-Everything/) | Obsidian plugin fork (vendored at `repos/obsidian-copilot-mcp-v4/`), canonical MCP bridge (`bridges/obsidian-copilot-bridge/` → `:8798`), consolidated stdio adapter, three HTTPS TLS proxies (Miyo / Qdrant / SearXNG); LM Studio and Ollama proxies were removed 2026-07-16 / 2026-07-23. |
 | Trevor Robey Intelligence Network Citations (engine + brand) | [`../Trevor Robey Intelligence Network Citations/`](../Trevor%20Robey%20Intelligence%20Network%20Citations/) | Single consolidated folder — flat-merged 2026-05-19 from the two former siblings `trevor-robey-inc-agents/` (engine) + `trevor-robey-inc/` (brand); those folder names no longer exist on disk. Holds BOTH the citation-traced biomedical due-diligence **engine** and the **brand/commercial** project. Authoritative customer-facing copy authority is the `trevor-robey-inc-brand-guardian` skill, not this folder. |

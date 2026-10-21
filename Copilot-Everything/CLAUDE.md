@@ -8,7 +8,7 @@ Three active layers (backend-emulator retired 2026-04-11, deleted from monorepo 
 
 | Component | Location | Port | Role |
 |---|---|---|---|
-| Obsidian plugin fork | **`repos/obsidian-copilot-mcp-v4`** (LIVE) | — | MCP-first fork, **ported onto upstream 4.0.0 on 2026-08-12**, manifest `99.4.0`. Exposes 12 MCP tools to Copilot chat over HTTPS. The old `repos/obsidian-copilot-mcp` (3.3.3) is now the HISTORICAL source — do not build or deploy it. |
+| Obsidian plugin fork | **`repos/obsidian-copilot-mcp-v4`** (LIVE) | — | MCP-first fork, **ported onto upstream 4.0.0 on 2026-08-12**, manifest `99.4.0`. Exposes 12 MCP tools to Copilot chat over HTTPS. The old `repos/obsidian-copilot-mcp` (3.3.3) was **retired 2026-10-21** with `scripts/sync-copilot-fork.sh` and `scripts/copilot-update-watcher.sh` (its LaunchAgent was no longer installed); it lives only in git history. |
 | Shared MCP bridge | `bridges/obsidian-copilot-bridge` | 8798 | Canonical multi-operator daemon. **REST-only since 2026-05-09**: RestApiBackend (Local REST API plugin :27124) is the sole backend — the CLI subprocess backend was removed together with InprocPluginBackend + the Advanced URI parity tools (`src/backends/backendSelector.ts` requires restApi; there is no fallback). `/mcp/tool`'s optional `backendHint` accepts only the literal `"restApi"` — a stale `"cli"` hint is rejected HTTP 400 `invalid_literal` (this silently broke the Copilot fork's in-plugin agent vault tools until 2026-07-31, when the fork stopped sending the hint entirely). HTTPS/TLS with HMAC replay-guard. |
 | Consolidated stdio adapter | `bridges/obsidian-stdio-adapter` | — | Single stdio MCP adapter that tunnels Claude/Raycast stdio consumers to :8798. Replaces claude-adapter, obsidian-mcp-stdio, raycast-obsidian-stdio (deletion of those pending). Three profiles via `OBSIDIAN_STDIO_PROFILE`: `claude` (default) and `raycast` (adds `raycast_daily_open`; since 2026-08-20 also proxies `video_pipeline_run`/`video_pipeline_status` to the Command Center bridge on :8799 — client-edge aggregation, see root `CLAUDE.md`), plus **`openclaw`** (v0.3.0, 2026-10-07): Claude Code's dispatch lane, a closed 13-tool allowlist proxied only to :8799 (start/watch OpenClaw runs); it never loads the :8798 config or token. **Registered 2026-10-07 as `openclaw-obsidian` in the repo `.mcp.json`** after the Security Everything gate hook was taught its prefix (sub-agent bar + Ralph-loop bar, no session scope; proposal and evidence: `~/.claude/plans/openclaw-dispatch-p3-gate-wiring-proposal.md`). **Verified 2026-10-07 (server names in `claude_desktop_config.json`, `~/.claude.json` and `.mcp.json`): the `claude` and `raycast` profiles are registered on no Claude surface; only `openclaw` is, and only since the same day**; see the corrected "Claude / Raycast Integration" section. |
 | Miyo (via TLS proxy) | `scripts/miyo-tls-proxy.mjs` → external Miyo app | 8743 → 8742 | Semantic search via in-monorepo HTTPS proxy at :8743 forwarding to plaintext :8742. Index endpoints deprecated in v4. |
@@ -144,10 +144,15 @@ lane only.
 ## `Code/` — personal side-repos (symlink, 2026-08-18)
 
 `Copilot-Everything/Code` is a **symlink** to **`/Users/myhome/Code`** — the real and only home
-of the independent side-repos: `Obsidian Clipper/`, `obsidian-auto-wiki-summarize/` (the vault's
-`contextual-wiki-definitions` plugin is itself a symlink into this repo — its `main.js` IS the
-source), `whisper-transcriber/`, `TR-Portfolio/`, `trevorrobeyinc.github.io/`, `Scripts/`, plus
-two July-2026 `.bundle` DR files.
+of the independent PERSONAL side-repos: `Obsidian Clipper/`, `whisper-transcriber/`,
+`TR-Portfolio/`, `trevorrobeyinc.github.io/`, `Scripts/`, plus two July-2026 `.bundle` DR files.
+
+> **Superseded for TR plugins (2026-10-21).** `obsidian-auto-wiki-summarize` was a TR suite plugin
+> (`contextual-wiki-definitions`), not a personal side-repo. It was absorbed with history into
+> `Claude/obsidian-contextual-wiki-definitions/` (`9bfaa86`), the vault's plugin folder became a real
+> deployed copy instead of a symlink into `~/Code`, and the old repo moved to
+> `~/Code/_retired-absorbed-into-monorepo/`. Rule going forward: TR suite components live in this
+> monorepo (registry: `ops/tr-suite/manifest.json`); personal projects stay in `~/Code`.
 
 A symlink was chosen over a physical move **on purpose** (operator decision 2026-08-18):
 every existing reference to `/Users/myhome/Code/…` (the vault plugin symlink, docs, tool
@@ -231,8 +236,8 @@ Claude Desktop reaches the vault through FilesystemPlus and miyo today; the brid
 
 ```bash
 # Plugin
-cd repos/obsidian-copilot-mcp && npm run dev    # Dev build
-cd repos/obsidian-copilot-mcp && npm run build  # Production build
+cd repos/obsidian-copilot-mcp-v4 && npm run dev    # Dev build
+cd repos/obsidian-copilot-mcp-v4 && npm run build  # Production build
 
 # MCP bridge
 cd bridges/obsidian-copilot-bridge && npm run build

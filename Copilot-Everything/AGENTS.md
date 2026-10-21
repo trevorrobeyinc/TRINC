@@ -13,7 +13,7 @@ Three active layers (backend-emulator retired 2026-04-11, deleted from monorepo 
 
 | Component | Location | Port | Role |
 |---|---|---|---|
-| Obsidian plugin fork | `repos/obsidian-copilot-mcp` | — | Plugin runtime with `direct_plugin_mcp` mode |
+| Obsidian plugin fork | `repos/obsidian-copilot-mcp-v4` | — | Plugin runtime with `direct_plugin_mcp` mode |
 | Shared MCP bridge | `bridges/obsidian-copilot-bridge` | 8798 | Canonical multi-operator daemon. **REST-only since 2026-05-09**: RestApiBackend (Local REST API plugin :27124) is the sole backend — the CLI subprocess backend was removed together with InprocPluginBackend + the Advanced URI parity tools (`src/backends/backendSelector.ts` requires restApi; there is no fallback). `/mcp/tool`'s optional `backendHint` accepts only the literal `"restApi"` — a stale `"cli"` hint is rejected HTTP 400 `invalid_literal`. HTTPS/TLS with HMAC replay-guard. |
 | Consolidated stdio adapter | `bridges/obsidian-stdio-adapter` | — | Single stdio MCP adapter that tunnels Claude/Raycast stdio consumers to :8798. Two profiles via `OBSIDIAN_STDIO_PROFILE`: `claude` (default) and `raycast` (adds `raycast_daily_open`). An opencode session could consume this same adapter if registered in opencode's MCP config. |
 | Miyo (via TLS proxy) | `scripts/miyo-tls-proxy.mjs` → external Miyo app | 8743 → 8742 | Semantic search via in-monorepo HTTPS proxy at :8743 forwarding to plaintext :8742. Index endpoints deprecated in v4. |
@@ -110,8 +110,8 @@ Claude (and opencode, when wired) access the vault through the bridge adapter (s
 
 ```bash
 # Plugin
-cd repos/obsidian-copilot-mcp && npm run dev    # Dev build
-cd repos/obsidian-copilot-mcp && npm run build  # Production build
+cd repos/obsidian-copilot-mcp-v4 && npm run dev    # Dev build
+cd repos/obsidian-copilot-mcp-v4 && npm run build  # Production build
 
 # MCP bridge
 cd bridges/obsidian-copilot-bridge && npm run build

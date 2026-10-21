@@ -3,8 +3,9 @@
 > **⚠️ SUPERSEDED 2026-07-31 — kept verbatim as a historical snapshot.** The vendored fork has
 > **no nested `.git`** (removed 2026-05-07 per the monorepo single-root policy), so the
 > remote/fetch/rebase procedure below is inoperable as written. The canonical re-sync procedure
-> is `repos/obsidian-copilot-mcp/UPSTREAM.md` (versioning rule + v3.3.3 procedure, refreshed in
-> `9c7ce09a`). Known-stale specifics in the body: the "Re-apply the fork identity (`copilot-mcp`)"
+> is `repos/obsidian-copilot-mcp-v4/UPSTREAM.md` (the v3.3.3 tree and its `UPSTREAM.md` were
+> retired 2026-10-21 and live only in git history; the identity rule is now "pin ABOVE upstream",
+> `99.x.y`, not upstream-exact). Known-stale specifics in the body: the "Re-apply the fork identity (`copilot-mcp`)"
 > rule is INVERTED — since `9c7ce09a` (2026-05-23) the identity to preserve is upstream-exact
 > `copilot`, precisely so Obsidian's auto-updater cannot wipe the fork; step 5's
 > `dev-deploy.sh --with-official` was retired 2026-07-31 (one id loads once per vault, so a

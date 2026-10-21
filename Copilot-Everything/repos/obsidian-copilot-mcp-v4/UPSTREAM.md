@@ -3,8 +3,8 @@
 Vendored fork of `logancyang/obsidian-copilot`. Nested `.git` removed per the monorepo
 "single root, no nested .git" policy.
 
-**This supersedes `../obsidian-copilot-mcp` (upstream 3.3.3), which is now HISTORICAL.**
-Do not build or deploy the 3.3.3 tree.
+**This supersedes `../obsidian-copilot-mcp` (upstream 3.3.3), which was RETIRED 2026-10-21** and now lives only in
+git history (`git log -- Copilot-Everything/repos/obsidian-copilot-mcp`).
 
 ## Provenance
 

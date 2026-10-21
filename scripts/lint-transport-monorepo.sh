@@ -164,7 +164,6 @@ done < <(find \
     -not -path '*/build/*' \
     -not -path '*/.git/*' \
     -not -path '*/vendor/*' \
-    -not -path '*/repos/obsidian-copilot-mcp/*' \
     -not -path '*/repos/obsidian-copilot-mcp-v4/*' \
     -not -path '*/.archive/*' \
     -not -path '*/deploy/backups/*' \

@@ -15,7 +15,7 @@
 
 **Carve-outs (standing).**
 - **Browser automation MCP** — the Claude Browser pane (`mcp__Claude_Browser__*`) is the one permanent plaintext-loopback exception, and the only browser surface (2026-09-18).
-- **Vendor code (flag-only).** Code under `trevor-robey-inc-agents/vendor/tooluniverse/` and `Copilot-Everything/repos/obsidian-copilot-mcp/` is third-party. Modifying it creates upstream-drift; the canonical resolution for vendor-code violations is route-through-proxy or replace, NOT fork-and-patch the vendor file. The lint surfaces these as flagged but does not require in-vendor fixes.
+- **Vendor code (flag-only).** Code under `trevor-robey-inc-agents/vendor/tooluniverse/` and `Copilot-Everything/repos/obsidian-copilot-mcp-v4/` is third-party. Modifying it creates upstream-drift; the canonical resolution for vendor-code violations is route-through-proxy or replace, NOT fork-and-patch the vendor file. The lint surfaces these as flagged but does not require in-vendor fixes.
 
 ### II. Citation Traceability as Quality Gate
 Every row in every citation index carries a real PMID, NCT, ChEMBL CID, or DOI. Refund-backed Citation-Audit SLA on every customer deliverable. Public Hallucination Audit v1 (open-source methodology). Zero hallucinations on customer-facing output.
