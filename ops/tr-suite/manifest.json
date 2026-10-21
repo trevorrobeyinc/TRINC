@@ -1,0 +1,38 @@
+{
+  "$comment": "Single registry of every TR-Obsidian Intelligence Network Citations component. ops/tr-suite/verify.sh reads this. Paths under 'source' are repo-relative; 'external' entries live outside this repo on purpose or until absorbed. Plugin ids are FROZEN (see CLAUDE.md) — never rename them here.",
+  "updated": "2026-10-21",
+  "vault_default": "$HOME/My Digital Garden",
+  "obsidian_plugins": [
+    {"id": "command-center", "source": "Claude/obsidian-command-center", "build": "main.js", "deploy_files": ["main.js", "manifest.json", "styles.css"], "port": 8799, "role": "Dispatches the research engine; additive MCP bridge (vault + workflow tools)"},
+    {"id": "obsidian-bridge-launcher", "source": "Claude/obsidian-bridge-launcher", "build": "main.js", "deploy_files": ["main.js", "manifest.json"], "port": 8798, "role": "Spawns the canonical obsidian-copilot-bridge tied to Obsidian's lifecycle"},
+    {"id": "vault-zettelkasten", "source": "Claude/obsidian-vault-zettelkasten", "build": "main.js", "deploy_files": ["main.js", "manifest.json"], "role": "In-process graph analysis; exposes this.api to other plugins"},
+    {"id": "trinc-viz-studio", "source": "Claude/obsidian-viz-studio", "build": "main.js", "deploy_files": ["main.js", "manifest.json", "styles.css"], "port": 8800, "role": "Offline viz tools for Copilot and the engine's viz-bridge adapter"},
+    {"id": "copilot-terminal-relay", "source": "Claude/obsidian-copilot-terminal-relay", "build": "main.js", "deploy_files": ["main.js", "manifest.json"], "deployed": false, "role": "Stages shell commands into the Terminal plugin pane (not installed in the vault as of 2026-10-21)"},
+    {"id": "copilot", "source": "Copilot-Everything/repos/obsidian-copilot-mcp-v4", "build": "main.js", "deploy_files": ["main.js", "manifest.json", "styles.css"], "extra_deploy": [{"from": "Copilot-Everything/bridges/openclaw-stdio-proxy/index.mjs", "to": "openclaw-stdio-proxy.mjs"}], "role": "TR-Obsidian Copilot fork (v99.4.0) — MCP client to :8798/:8799"},
+    {"id": "claude-console-mirror", "source": "Claude/obsidian-claude-console-mirror", "build": "main.js", "deploy_files": ["main.js", "manifest.json"], "role": "Mirrors Obsidian console to ~/.claude/logs for debugging (absorbed from vault 2026-10-21)"},
+    {"id": "origin-nest", "source": "Claude/obsidian-origin-nest", "external_until_absorbed": "$VAULT/.obsidian/plugins/origin-nest (own .git)", "build": "main.js", "deploy_files": ["main.js", "manifest.json", "styles.css"], "role": "Groups notes under their origin note in File Explorer"},
+    {"id": "contextual-wiki-definitions", "source": "Claude/obsidian-contextual-wiki-definitions", "external_until_absorbed": "$HOME/Code/obsidian-auto-wiki-summarize (own repo; vault entry is a symlink)", "build": "main.js", "deploy_files": ["main.js", "manifest.json"], "role": "Generates Feynman-style definition notes"},
+    {"id": "trinc-security-bridge", "external": "$HOME/Security Everything/obsidian-security-bridge", "port": 8801, "role": "Security control plane; kept in the Security Everything repo by design (no research-engine coupling)"}
+  ],
+  "bridges": [
+    {"id": "obsidian-copilot-bridge", "source": "Copilot-Everything/bridges/obsidian-copilot-bridge", "port": 8798, "local_only": ["config/obsidian-cli-mcp.local.json", "config/obsidian-rest-api.cert.pem", ".env.local"]},
+    {"id": "obsidian-stdio-adapter", "source": "Copilot-Everything/bridges/obsidian-stdio-adapter", "entry": "index.mjs"},
+    {"id": "openclaw-stdio-proxy", "source": "Copilot-Everything/bridges/openclaw-stdio-proxy", "entry": "index.mjs"}
+  ],
+  "raycast": {
+    "extension": {"name": "obsidian-bridge-fork", "source": "Copilot-Everything/bridges/raycast-obsidian-extension", "installed_at": "$HOME/.config/raycast/extensions/obsidian-bridge-fork", "install": "npm --prefix <repo>/Copilot-Everything/bridges/raycast-obsidian-extension run build"},
+    "ai_providers": {"template": "Copilot-Everything/configs/raycast/providers.copilot-plus.template.yaml", "live": "$HOME/.config/raycast/ai/providers.yaml", "secret": "Copilot Plus licence key — lives only in the live file, chmod 600"},
+    "never_commit": ["$HOME/.config/raycast/config.json (Raycast account tokens)", "$HOME/.config/raycast/ai/providers.yaml (licence key)"],
+    "store_extensions_in_use": ["shottr", "file-manager", "shell"]
+  },
+  "mcp_servers": [
+    {"id": "zettelkasten-graph", "source": "Claude/Medical-Zettelkasten-MCP", "entry": "src/server.js", "registered_in": "Copilot-Everything/.mcp.json"},
+    {"id": "obsidian-bridge / openclaw-obsidian", "source": "Copilot-Everything/bridges/obsidian-stdio-adapter", "entry": "index.mjs", "registered_in": ".mcp.json + Copilot-Everything/.mcp.json"},
+    {"id": "searxng-search", "source": "Claude/searxng-search-mcp", "staged_copy": "$HOME/.claude/mcp-servers/searxng-search", "install": "Claude/searxng-search-mcp/install-connector.sh", "note": "staged copy, not a symlink — re-run the installer after editing src/"},
+    {"id": "research-memory", "source": "Claude/trevorobeyinc-research-memory-mcp", "entry": "dist/cli.js"},
+    {"id": "perseus-business", "external": "$HOME/.local/bin/perseus-vault", "note": "third-party binary + encrypted DB; keep outside git"},
+    {"id": "trinc-content", "external": "$HOME/.claude/mcp-servers/trinc-content", "note": "own repo; UNGATED by the pretooluse hook per _continuity (open item)"},
+    {"id": "opencode", "external": "$HOME/.claude/mcp-servers/opencode-mcp", "note": "community server, pinned venv"}
+  ],
+  "engine": {"source": "Trevor Robey Intelligence Network Citations", "dispatched_by": "command-center", "lanes": ["biomedical (default)", "business (research_profile: business)"]}
+}

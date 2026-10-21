@@ -1,0 +1,10 @@
+{
+  "id": "claude-console-mirror",
+  "name": "Claude Console Mirror",
+  "version": "0.1.1",
+  "minAppVersion": "1.4.0",
+  "description": "Mirrors the Obsidian renderer console (log/warn/error + uncaught errors + unhandled rejections) to ~/.claude/logs/obsidian-console.jsonl so Claude Code can tail it during debugging.",
+  "author": "Trevor Robey",
+  "authorUrl": "https://trevorrobey.com",
+  "isDesktopOnly": true
+}
