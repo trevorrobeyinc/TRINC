@@ -251,7 +251,7 @@ describe("OpencodeBackendDescriptor.applySelection", () => {
     await OpencodeBackendDescriptor.applySelection(
       session,
       { baseModelId: "openai/gpt-5", effort: "high" },
-      { backendReportedCurrent: { baseModelId: "copilot-plus/minimax-m2.7", effort: null } }
+      { backendReportedCurrent: { baseModelId: "copilot-plus/minimax-m3", effort: null } }
     );
 
     expect(applyModelWireId).toHaveBeenCalledWith("openai/gpt-5");

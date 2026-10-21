@@ -29,6 +29,8 @@ export interface VideoCommandPreferences {
   whisperModel?: string;
   whisperTask?: string;
   transcriptSource?: string;
+  transcriber?: string;
+  parakeetPath?: string;
   raycastObsidianMcpEndpoint?: string;
   raycastObsidianMcpAuthToken?: string;
   raycastObsidianMcpConfigPath?: string;
@@ -65,6 +67,16 @@ const defaultWhisperPathCandidates = [
   "/opt/homebrew/bin/whisper",
   "/usr/local/bin/whisper",
 ] as const;
+
+// Parakeet MLX is the primary lane (4.23x faster than whisper-ctranslate2 on this host, equivalent
+// accuracy; see ~/.local/bin/whisper-parakeet-shim). It is reached through that adapter because it
+// also pins the model to a local snapshot and forces HF_HUB_OFFLINE, keeping the run egress-free.
+const defaultParakeetPathCandidates = [
+  "/Users/myhome/.local/bin/whisper-parakeet-shim",
+] as const;
+// Before 2026-10-18 the Parakeet adapter was smuggled in through the "Whisper Path" preference, so
+// stored values still point here. Those are NOT a Whisper binary and must never be used as one.
+const PARAKEET_SHIM_BASENAME = "whisper-parakeet-shim";
 // Official Obsidian CLI (ships inside the app bundle, Obsidian 1.12.7+). GATE 2's activation
 // fallback shells out to it because the REST API's /open cannot promote a note to ACTIVE from
 // every workspace state, while the CLI can (see runCopilotHeadlessSummary).
@@ -324,9 +336,35 @@ export function resolveTranscriptSource(prefs: VideoCommandPreferences): "whispe
   return prefs.transcriptSource?.trim() === "auto" ? "auto" : "whisper";
 }
 
+/**
+ * True when a path is the Parakeet adapter rather than a real Whisper binary.
+ *
+ * Before 2026-10-18 the adapter was smuggled in through the "Whisper Path" preference, so any
+ * stored value still pointing there is a Parakeet path wearing Whisper's name. It accepts
+ * whisper-ctranslate2's flags and then DISCARDS --model and --task, so using it as the Whisper
+ * lane means the Whisper Model and Whisper Task settings silently do nothing. That is the defect
+ * this guard closes: the two lanes are now named separately and neither can stand in for the other.
+ */
+export function isParakeetShimPath(candidate: string | undefined): boolean {
+  if (!candidate) return false;
+  return path.basename(candidate.trim()) === PARAKEET_SHIM_BASENAME;
+}
+
+/** Which transcription chain to run. Parakeet first is the default; `whisper` disables it. */
+export function resolveTranscriberEngine(prefs: VideoCommandPreferences): "parakeet" | "whisper" {
+  return prefs.transcriber?.trim() === "whisper" ? "whisper" : "parakeet";
+}
+
 async function resolveWhisperPathOrThrow(prefs: VideoCommandPreferences): Promise<string> {
   const configured = prefs.whisperPath?.trim();
-  if (configured) {
+  if (configured && isParakeetShimPath(configured)) {
+    // A pre-2026-10-18 stored value. Say so loudly rather than letting it silently pose as Whisper.
+    await appendRunLog(
+      `WARNING: "Whisper Path" points at the Parakeet adapter (${configured}); that is not a ` +
+        `Whisper binary and is ignored here. Set "Parakeet Path" instead, or point "Whisper Path" ` +
+        `at whisper-ctranslate2.`
+    );
+  } else if (configured) {
     if (configured === "whisper" || existsSync(configured)) {
       return configured;
     }
@@ -336,7 +374,7 @@ async function resolveWhisperPathOrThrow(prefs: VideoCommandPreferences): Promis
   }
 
   for (const candidate of defaultWhisperPathCandidates) {
-    if (existsSync(candidate)) {
+    if (existsSync(candidate) && !isParakeetShimPath(candidate)) {
       if (configured) {
         await appendRunLog(`Whisper Path fell back to a known binary: ${candidate}`);
       }
@@ -349,6 +387,32 @@ async function resolveWhisperPathOrThrow(prefs: VideoCommandPreferences): Promis
       `preferences to your whisper-ctranslate2 binary ` +
       `(e.g. /Users/myhome/.local/venvs/fwhisper/bin/whisper-ctranslate2). ` +
       `Tried: ${[configured, ...defaultWhisperPathCandidates].filter(Boolean).join(", ")}`
+  );
+}
+
+async function resolveParakeetPathOrThrow(prefs: VideoCommandPreferences): Promise<string> {
+  const configured = prefs.parakeetPath?.trim();
+  if (configured) {
+    if (existsSync(configured)) {
+      return configured;
+    }
+    await appendRunLog(`WARNING: configured Parakeet Path does not exist, ignoring it: ${configured}`);
+  }
+
+  for (const candidate of defaultParakeetPathCandidates) {
+    if (existsSync(candidate)) {
+      if (configured) {
+        await appendRunLog(`Parakeet Path fell back to a known binary: ${candidate}`);
+      }
+      return candidate;
+    }
+  }
+
+  throw new Error(
+    `Parakeet adapter not found. Set "Parakeet Path" in the Video Pipeline Runner command ` +
+      `preferences to your whisper-parakeet-shim ` +
+      `(e.g. /Users/myhome/.local/bin/whisper-parakeet-shim). ` +
+      `Tried: ${[configured, ...defaultParakeetPathCandidates].filter(Boolean).join(", ")}`
   );
 }
 
@@ -634,24 +698,31 @@ export function parseTranscriberReport(stderr: string): string | null {
   return report ? report : null;
 }
 
-async function transcribeWithWhisper(
+/**
+ * Runs ONE transcription binary and returns its text. Both lanes accept whisper-ctranslate2's CLI
+ * surface: the Parakeet adapter is a deliberate shim that translates those flags (and discards
+ * --model/--task), so the same argv drives either engine.
+ */
+async function runTranscriber(
   videoFilePath: string,
-  whisperPath: string,
+  binaryPath: string,
   prefs: VideoCommandPreferences,
-  tempDir: string
+  tempDir: string,
+  lane: "parakeet" | "whisper"
 ): Promise<string> {
   const whisperModel = prefs.whisperModel?.trim() || "medium";
   const whisperTask = resolveWhisperTask(prefs);
-  const outputDir = path.join(tempDir, "whisper-output");
+  const outputDir = path.join(tempDir, `${lane}-output`);
   await fs.mkdir(outputDir, { recursive: true });
 
   // "requested", not "ran": see parseTranscriberReport. Anything reading the run log (the Copilot
   // video-pipeline skill included) must report the engine from the "transcription engine:" line.
   await appendRunLog(
-    `transcription requested: binary=${path.basename(whisperPath)} task=${whisperTask} model=${whisperModel}`
+    `transcription requested (${lane}): binary=${path.basename(binaryPath)} ` +
+      `task=${whisperTask} model=${whisperModel}`
   );
   const { stderr } = await execFileAsync(
-    whisperPath,
+    binaryPath,
     [
       videoFilePath,
       "--model",
@@ -672,7 +743,7 @@ async function transcribeWithWhisper(
   await appendRunLog(
     report
       ? `transcription engine: ${report}`
-      : `transcription engine: ${path.basename(whisperPath)} (no self-report; ran with the requested settings above)`
+      : `transcription engine: ${path.basename(binaryPath)} (no self-report; ran with the requested settings above)`
   );
 
   const baseName = path.basename(videoFilePath, path.extname(videoFilePath));
@@ -695,7 +766,45 @@ async function transcribeWithWhisper(
     }
   }
 
-  throw new Error("Whisper completed but no transcript text file was produced.");
+  throw new Error(
+    `${lane === "parakeet" ? "Parakeet" : "Whisper"} completed but no transcript text file was produced.`
+  );
+}
+
+/**
+ * The audio transcription chain: Parakeet MLX first, Whisper as the fallback.
+ *
+ * Parakeet is the default because it is ~4x faster on this host at equivalent accuracy, and it runs
+ * fully offline through its adapter. It is NOT a drop-in for Whisper's knobs, though: the adapter
+ * discards --model and --task (it only transcribes, in the audio's own language). So when the
+ * operator needs a specific Whisper model or the X->English translate task, Whisper must actually
+ * run — which is why the two lanes are now separate preferences rather than one binary wearing two
+ * names. A Parakeet failure (missing snapshot, adapter error, empty output) is logged and hands over
+ * to Whisper instead of failing the run.
+ */
+async function transcribeAudio(
+  videoFilePath: string,
+  prefs: VideoCommandPreferences,
+  tempDir: string
+): Promise<string> {
+  if (resolveTranscriberEngine(prefs) === "parakeet") {
+    try {
+      const parakeetBinary = await resolveParakeetPathOrThrow(prefs);
+      return await runTranscriber(
+        videoFilePath,
+        parakeetBinary,
+        prefs,
+        path.join(tempDir, "parakeet"),
+        "parakeet"
+      );
+    } catch (error) {
+      const reason = getVideoCommandErrorMessage(error);
+      await appendRunLog(`parakeet lane FAILED (${reason}) — falling back to Whisper`);
+    }
+  }
+
+  const whisperBinary = await resolveWhisperPathOrThrow(prefs);
+  return await runTranscriber(videoFilePath, whisperBinary, prefs, path.join(tempDir, "whisper"), "whisper");
 }
 
 async function downloadVideoAndSubtitles(
@@ -1637,10 +1746,15 @@ async function runVideoTranscribeCommandForRun(
           `next poll: ${supersededRun.slice(25)}`
       );
     }
-    // Fail fast — verify a usable Whisper binary BEFORE the (slow) download, so a misconfigured
-    // Whisper Path errors in ~1s with an actionable message instead of failing cryptically after
-    // the video has already downloaded. Whisper is this command's transcription engine.
-    const whisperBinary = await resolveWhisperPathOrThrow(prefs);
+    // Fail fast — verify the transcription binary BEFORE the (slow) download, so a misconfigured
+    // path errors in ~1s with an actionable message instead of failing cryptically after the video
+    // has already downloaded. Only the primary lane is checked here; the Whisper fallback is
+    // resolved lazily inside transcribeAudio so a broken Parakeet does not require Whisper to exist.
+    if (resolveTranscriberEngine(prefs) === "parakeet") {
+      await resolveParakeetPathOrThrow(prefs);
+    } else {
+      await resolveWhisperPathOrThrow(prefs);
+    }
 
     let artifacts: string[];
     let primaryVideoFile: string;
@@ -1758,18 +1872,18 @@ async function runVideoTranscribeCommandForRun(
     }
 
     if (!transcriptText) {
-      // Engine-neutral wording on purpose: the engine is whatever "Whisper Path" runs, and the run
-      // log names it on its own "transcription engine:" line.
+      // Engine-neutral wording on purpose: the chain is Parakeet then Whisper, and the run log names
+      // whichever actually ran on its own "transcription engine:" line.
       toast.title = "Transcribing audio...";
       await appendRunLog(
         resolveTranscriptSource(prefs) === "whisper"
           ? "audio transcription starting (transcript source=whisper)"
           : "no usable subtitles — audio transcription fallback starting"
       );
-      const whisperTmpDir = path.join(os.tmpdir(), "raycast-obsidian", "whisper", timestamp);
-      await fs.mkdir(whisperTmpDir, { recursive: true });
+      const transcribeTmpDir = path.join(os.tmpdir(), "raycast-obsidian", "transcribe", timestamp);
+      await fs.mkdir(transcribeTmpDir, { recursive: true });
       transcriptText = normalizeExtractedText(
-        await transcribeWithWhisper(primaryVideoFile, whisperBinary, prefs, whisperTmpDir)
+        await transcribeAudio(primaryVideoFile, prefs, transcribeTmpDir)
       );
       await appendRunLog("audio transcription OK");
     } else {
@@ -1913,6 +2027,8 @@ async function runVideoTranscribeCommandForRun(
         ],
         tempDirs: [
           path.join(os.tmpdir(), "raycast-obsidian", "yt-dlp", timestamp),
+          path.join(os.tmpdir(), "raycast-obsidian", "transcribe", timestamp),
+          // Pre-2026-10-18 runs wrote here; still swept so a stale dir never accumulates.
           path.join(os.tmpdir(), "raycast-obsidian", "whisper", timestamp),
         ],
       });

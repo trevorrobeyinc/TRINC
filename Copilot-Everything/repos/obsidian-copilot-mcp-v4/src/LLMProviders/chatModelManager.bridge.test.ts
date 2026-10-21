@@ -54,22 +54,22 @@ describe("ChatModelManager bridged models", () => {
   it("findModelByName falls back to the active bridged model so its capabilities resolve", async () => {
     const manager = ChatModelManager.getInstance();
     // A vision-capable Plus model that exists only as a bridged ConfiguredModel
-    // (not in legacy activeModels) — e.g. kimi-k2.7-code.
+    // (not in legacy activeModels) — e.g. glm-5.3-flash.
     const model = bridgedModel({
-      name: "kimi-k2.7-code",
+      name: "glm-5.3-flash",
       provider: ChatModelProviders.COPILOT_PLUS,
       apiKey: "bridge-key",
       capabilities: [ModelCapability.VISION],
     });
 
     // Not findable before it's the active bridged model...
-    expect(manager.findModelByName("kimi-k2.7-code")).toBeUndefined();
+    expect(manager.findModelByName("glm-5.3-flash")).toBeUndefined();
 
     await manager.setChatModelFromBridged(model);
 
     // ...now resolvable by name, carrying its VISION capability so
     // isMultimodalModel/hasCapability route images instead of dropping them.
-    const found = manager.findModelByName("kimi-k2.7-code");
+    const found = manager.findModelByName("glm-5.3-flash");
     expect(found).toBe(model);
     expect(found?.capabilities).toContain(ModelCapability.VISION);
 

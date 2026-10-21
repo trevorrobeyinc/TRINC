@@ -7,8 +7,10 @@ import {
   assertYtDlpArgsCookieFree,
   claimCurrentRun,
   claimLateCopilotSummary,
+  isParakeetShimPath,
   normalizeSummaryFrontmatter,
   parseTranscriberReport,
+  resolveTranscriberEngine,
   resolveTranscriptSource,
   SupersededRunError,
   supersedingRunId,
@@ -367,5 +369,42 @@ describe("parseTranscriberReport", () => {
 
   it("does not match the prefix mid-line", () => {
     expect(parseTranscriberReport("note: TRANSCRIBER engine=fake\n")).toBeNull();
+  });
+});
+
+// 2026-10-18: the Parakeet adapter used to be smuggled in through "Whisper Path", so the Whisper
+// Model and Whisper Task settings were silently discarded (the adapter only transcribes). The two
+// lanes are now separate preferences: Parakeet is the default primary lane, Whisper the fallback,
+// and a shim path can never masquerade as a Whisper binary.
+describe("resolveTranscriberEngine", () => {
+  it("defaults to the Parakeet-first chain", () => {
+    expect(resolveTranscriberEngine({})).toBe("parakeet");
+  });
+
+  it("returns whisper only for the explicit whisper value", () => {
+    expect(resolveTranscriberEngine({ transcriber: "whisper" })).toBe("whisper");
+    expect(resolveTranscriberEngine({ transcriber: "  whisper  " })).toBe("whisper");
+  });
+
+  it("treats an unknown value as the safe default", () => {
+    expect(resolveTranscriberEngine({ transcriber: "parakeet" })).toBe("parakeet");
+    expect(resolveTranscriberEngine({ transcriber: "nonsense" })).toBe("parakeet");
+  });
+});
+
+describe("isParakeetShimPath", () => {
+  it("recognises the adapter so it is never used as the Whisper lane", () => {
+    expect(isParakeetShimPath("/Users/myhome/.local/bin/whisper-parakeet-shim")).toBe(true);
+    expect(isParakeetShimPath("  ~/.local/bin/whisper-parakeet-shim  ")).toBe(true);
+  });
+
+  it("does not flag a real whisper-ctranslate2 binary", () => {
+    expect(isParakeetShimPath("/Users/myhome/.local/venvs/fwhisper/bin/whisper-ctranslate2")).toBe(false);
+    expect(isParakeetShimPath("/opt/homebrew/bin/whisper")).toBe(false);
+  });
+
+  it("treats an unset path as not-a-shim", () => {
+    expect(isParakeetShimPath(undefined)).toBe(false);
+    expect(isParakeetShimPath("")).toBe(false);
   });
 });

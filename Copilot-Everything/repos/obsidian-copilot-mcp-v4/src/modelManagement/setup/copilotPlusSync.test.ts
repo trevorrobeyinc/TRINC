@@ -28,18 +28,21 @@ describe("copilotPlusSync", () => {
   it("defines the curated lineup and default-enabled models", () => {
     expect(COPILOT_PLUS_MODELS.map((model) => model.id)).toEqual([
       "copilot-plus-flash",
-      "kimi-k2.6",
       "glm-5.2",
-      "kimi-k2.7-code",
+      "glm-5.3-flash",
       "deepseek-v4-pro",
       "deepseek-v4-flash-0731",
-      "mimo-v2.5",
-      "minimax-m2.7",
+      "deepseek-v4.1-flash",
+      "mimo-v2.6-flash",
+      "minimax-m3",
     ]);
     expect(COPILOT_PLUS_DEFAULT_ENABLED_MODELS).toEqual([
       "copilot-plus-flash",
-      "deepseek-v4-pro",
       "glm-5.2",
+      "glm-5.3-flash",
+      "deepseek-v4-pro",
+      "deepseek-v4.1-flash",
+      "minimax-m3",
     ]);
   });
 
@@ -65,13 +68,13 @@ describe("copilotPlusSync", () => {
       );
       expect(reasoningById).toEqual({
         "copilot-plus-flash": true,
-        "kimi-k2.6": false,
         "glm-5.2": true,
-        "kimi-k2.7-code": true,
+        "glm-5.3-flash": true,
         "deepseek-v4-pro": true,
         "deepseek-v4-flash-0731": true,
-        "mimo-v2.5": true,
-        "minimax-m2.7": true,
+        "deepseek-v4.1-flash": true,
+        "mimo-v2.6-flash": true,
+        "minimax-m3": true,
       });
     });
 

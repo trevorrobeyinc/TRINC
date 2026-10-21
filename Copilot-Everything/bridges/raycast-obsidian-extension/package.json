@@ -1035,9 +1035,35 @@
       ],
       "preferences": [
         {
+          "name": "transcriber",
+          "title": "Transcriber",
+          "description": "Parakeet + Whisper fallback runs Parakeet MLX first and hands over to Whisper only when Parakeet fails or returns no text. Whisper only disables the Parakeet lane.",
+          "type": "dropdown",
+          "default": "parakeet",
+          "data": [
+            {
+              "title": "Parakeet MLX, then Whisper fallback (recommended)",
+              "value": "parakeet"
+            },
+            {
+              "title": "Whisper only",
+              "value": "whisper"
+            }
+          ],
+          "required": false
+        },
+        {
+          "name": "parakeetPath",
+          "title": "Parakeet Path",
+          "description": "Path to the Parakeet adapter (the offline whisper-parakeet-shim). Defaults to ~/.local/bin/whisper-parakeet-shim.",
+          "type": "textfield",
+          "default": "/Users/myhome/.local/bin/whisper-parakeet-shim",
+          "required": false
+        },
+        {
           "name": "whisperPath",
-          "title": "Whisper Path",
-          "description": "Path to the whisper executable. Defaults to the faster-whisper (whisper-ctranslate2) engine.",
+          "title": "Whisper Path (fallback)",
+          "description": "Path to the real whisper-ctranslate2 executable. This is the fallback lane, and the only lane where Whisper Model and Whisper Task actually apply.",
           "type": "textfield",
           "default": "/Users/myhome/.local/venvs/fwhisper/bin/whisper-ctranslate2",
           "required": false

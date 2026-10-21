@@ -226,7 +226,11 @@ declare namespace Preferences {
   export type AiSummarizeCommand = ExtensionPreferences & {}
   /** Preferences accessible in the `videoTranscribeRunnerCommand` command */
   export type VideoTranscribeRunnerCommand = ExtensionPreferences & {
-  /** Whisper Path - Path to the whisper executable. Defaults to the faster-whisper (whisper-ctranslate2) engine. */
+  /** Transcriber - Parakeet + Whisper fallback runs Parakeet MLX first and hands over to Whisper only when Parakeet fails or returns no text. Whisper only disables the Parakeet lane. */
+  "transcriber": "parakeet" | "whisper",
+  /** Parakeet Path - Path to the Parakeet adapter (the offline whisper-parakeet-shim). Defaults to ~/.local/bin/whisper-parakeet-shim. */
+  "parakeetPath": string,
+  /** Whisper Path (fallback) - Path to the real whisper-ctranslate2 executable. This is the fallback lane, and the only lane where Whisper Model and Whisper Task actually apply. */
   "whisperPath": string,
   /** Whisper Model - Whisper model size (tiny, base, small, medium, large). medium is the recommended accuracy/speed balance. */
   "whisperModel": "tiny" | "base" | "small" | "medium" | "large-v3",

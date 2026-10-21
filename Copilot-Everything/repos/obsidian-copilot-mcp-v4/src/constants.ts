@@ -225,13 +225,16 @@ export const DEFAULT_OLLAMA_NUM_CTX = 131072;
 export enum ChatModels {
   COPILOT_PLUS_FLASH = "copilot-plus-flash",
   // Additional Copilot Plus relay models (served via the brevilabs proxy).
-  COPILOT_PLUS_KIMI_K2_6 = "kimi-k2.6",
+  // Reconciled 2026-10-19 against the live `models.brevilabs.com/v1/models`
+  // catalog: Kimi K2.6 / K2.7 Code, MiMo V2.5 and MiniMax M2.7 were retired;
+  // GLM-5.3-Flash, DeepSeek V4.1 Flash, MiMo V2.6 Flash and MiniMax M3 added.
   COPILOT_PLUS_GLM_5_2 = "glm-5.2",
-  COPILOT_PLUS_KIMI_K2_7_CODE = "kimi-k2.7-code",
+  COPILOT_PLUS_GLM_5_3_FLASH = "glm-5.3-flash",
   COPILOT_PLUS_DEEPSEEK_V4_PRO = "deepseek-v4-pro",
   COPILOT_PLUS_DEEPSEEK_V4_FLASH_0731 = "deepseek-v4-flash-0731",
-  COPILOT_PLUS_MIMO_V2_5 = "mimo-v2.5",
-  COPILOT_PLUS_MINIMAX_M2_7 = "minimax-m2.7",
+  COPILOT_PLUS_DEEPSEEK_V4_1_FLASH = "deepseek-v4.1-flash",
+  COPILOT_PLUS_MIMO_V2_6_FLASH = "mimo-v2.6-flash",
+  COPILOT_PLUS_MINIMAX_M3 = "minimax-m3",
   GPT_5_5 = "gpt-5.5",
   GPT_5_4_mini = "gpt-5.4-mini",
   GPT_41 = "gpt-4.1",

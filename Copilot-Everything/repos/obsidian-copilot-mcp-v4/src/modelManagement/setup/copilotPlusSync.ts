@@ -28,8 +28,9 @@ import type { ModelInfo } from "@/modelManagement/types/catalog";
  * matches the models service's `supports_reasoning`). The chat + agent pickers
  * read this (via `configuredModelToCustomModel` → `ModelCapability.REASONING`)
  * to surface the effort selector. These models do NOT reason unless the user
- * picks an effort, so flash stays fast by default. Kimi K2.6 (Azure) is the one
- * model without effort support, so it's left unflagged.
+ * picks an effort, so flash stays fast by default. Reconciled 2026-10-19 against
+ * the live relay catalog (Kimi retired; MiMo → V2.6 Flash; MiniMax → M3; new
+ * GLM-5.3-Flash and DeepSeek V4.1 Flash added).
  */
 export const COPILOT_PLUS_MODELS: readonly ModelInfo[] = Object.freeze([
   {
@@ -41,13 +42,6 @@ export const COPILOT_PLUS_MODELS: readonly ModelInfo[] = Object.freeze([
     modalities: { input: ["text", "image"], output: ["text"] },
   },
   {
-    id: ChatModels.COPILOT_PLUS_KIMI_K2_6,
-    displayName: "Kimi K2.6",
-    description: "Good for long-running reasoning tasks.",
-    toolCall: true,
-    modalities: { input: ["text"], output: ["text"] },
-  },
-  {
     id: ChatModels.COPILOT_PLUS_GLM_5_2,
     displayName: "GLM-5.2",
     description: "A long-horizon frontier open model that beats some of the best closed models.",
@@ -56,9 +50,9 @@ export const COPILOT_PLUS_MODELS: readonly ModelInfo[] = Object.freeze([
     modalities: { input: ["text"], output: ["text"] },
   },
   {
-    id: ChatModels.COPILOT_PLUS_KIMI_K2_7_CODE,
-    displayName: "Kimi K2.7 Code",
-    description: "Optimized for coding tasks.",
+    id: ChatModels.COPILOT_PLUS_GLM_5_3_FLASH,
+    displayName: "GLM-5.3 Flash",
+    description: "Fast, cost-efficient coding and long-horizon agent tasks.",
     toolCall: true,
     reasoning: true,
     modalities: { input: ["text", "image"], output: ["text"] },
@@ -74,23 +68,31 @@ export const COPILOT_PLUS_MODELS: readonly ModelInfo[] = Object.freeze([
   {
     id: ChatModels.COPILOT_PLUS_DEEPSEEK_V4_FLASH_0731,
     displayName: "DeepSeek V4 Flash 0731",
-    description: "The newest DeepSeek V4 Flash snapshot: fast, cheap, and broadly capable.",
+    description: "The July 2026 DeepSeek V4 Flash snapshot: fast, cheap, and broadly capable.",
     toolCall: true,
     reasoning: true,
     modalities: { input: ["text"], output: ["text"] },
   },
   {
-    id: ChatModels.COPILOT_PLUS_MIMO_V2_5,
-    displayName: "MiMo V2.5",
-    description: "Cost-effective and capable for everyday use.",
+    id: ChatModels.COPILOT_PLUS_DEEPSEEK_V4_1_FLASH,
+    displayName: "DeepSeek V4.1 Flash",
+    description: "Fast multimodal reasoning for coding and agentic tasks.",
     toolCall: true,
     reasoning: true,
-    modalities: { input: ["text"], output: ["text"] },
+    modalities: { input: ["text", "image"], output: ["text"] },
   },
   {
-    id: ChatModels.COPILOT_PLUS_MINIMAX_M2_7,
-    displayName: "MiniMax M2.7",
-    description: "A compact, efficient model for lightweight tasks.",
+    id: ChatModels.COPILOT_PLUS_MIMO_V2_6_FLASH,
+    displayName: "MiMo V2.6 Flash",
+    description: "Cost-effective model for everyday use.",
+    toolCall: true,
+    reasoning: true,
+    modalities: { input: ["text", "image"], output: ["text"] },
+  },
+  {
+    id: ChatModels.COPILOT_PLUS_MINIMAX_M3,
+    displayName: "MiniMax M3",
+    description: "Long-context model for coding and agentic tasks.",
     toolCall: true,
     reasoning: true,
     modalities: { input: ["text"], output: ["text"] },
@@ -103,14 +105,18 @@ export const COPILOT_PLUS_MODELS: readonly ModelInfo[] = Object.freeze([
  * unenrolled, so users opt into the extra models themselves. Passed to
  * `registerPlusProvider` as `autoEnrollModelIds`.
  *
- * Three models are enabled by default to give users immediate access to
- * representative capabilities: fastest responses (Flash), top-tier reasoning
- * (DeepSeek V4 Pro), and long-horizon frontier open model (GLM-5.2).
+ * Six models are enabled by default to mirror the relay's `default_enabled`
+ * flag (Flash, GLM-5.2, GLM-5.3-Flash, DeepSeek V4 Pro, DeepSeek V4.1 Flash,
+ * MiniMax M3): representative coverage across fast, frontier-open, top-tier
+ * reasoning, multimodal, and long-context.
  */
 export const COPILOT_PLUS_DEFAULT_ENABLED_MODELS: readonly string[] = Object.freeze([
   ChatModels.COPILOT_PLUS_FLASH,
-  ChatModels.COPILOT_PLUS_DEEPSEEK_V4_PRO,
   ChatModels.COPILOT_PLUS_GLM_5_2,
+  ChatModels.COPILOT_PLUS_GLM_5_3_FLASH,
+  ChatModels.COPILOT_PLUS_DEEPSEEK_V4_PRO,
+  ChatModels.COPILOT_PLUS_DEEPSEEK_V4_1_FLASH,
+  ChatModels.COPILOT_PLUS_MINIMAX_M3,
 ]);
 
 /**
