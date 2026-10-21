@@ -71,6 +71,12 @@ for p in m["obsidian_plugins"]:
     if not os.path.exists(dep):
         say("WARN", f"{pid}: not installed in vault")
         continue
+    # Production deploy model (manifest.json "deploy_model"): a deploy target is a real copy,
+    # or at most a link back INTO this repo. A link anywhere else is a second source of truth.
+    if os.path.islink(dep) and not os.path.realpath(dep).startswith(os.path.realpath(repo) + os.sep):
+        say("FAIL", f"{pid}: vault entry is a symlink OUTSIDE the repo ({os.path.realpath(dep)}) — redeploy from source")
+    if os.path.isdir(os.path.join(dep, ".git")):
+        say("FAIL", f"{pid}: deploy target holds a dev .git — history belongs in the monorepo")
     build = os.path.join(src, p["build"])
     live = os.path.join(dep, p["build"])
     if not os.path.isfile(build):
@@ -81,6 +87,12 @@ for p in m["obsidian_plugins"]:
         say("PASS", f"{pid}: deployed build matches source build")
     else:
         say("FAIL", f"{pid}: deployed build DRIFTED from source — redeploy")
+    for f in p.get("deploy_files", []):
+        if f == p["build"]:
+            continue
+        a, b = os.path.join(src, f), os.path.join(dep, f)
+        if os.path.isfile(a) and os.path.isfile(b) and sha(a) != sha(b):
+            say("FAIL", f"{pid}: deployed {f} DRIFTED from source — redeploy")
     for x in p.get("extra_deploy", []):
         a, b = os.path.join(repo, x["from"]), os.path.join(dep, x["to"])
         if os.path.isfile(a) and os.path.isfile(b):
@@ -113,6 +125,31 @@ for cfg in [".mcp.json", "Copilot-Everything/.mcp.json"]:
             pth = expand(raw)
             if pth.startswith("/"):
                 say("PASS" if os.path.exists(pth) else "FAIL", f"{cfg}:{name}: {pth}")
+
+print("== MCP server sources and staged copies")
+for s in m["mcp_servers"]:
+    if "external" in s:
+        say("PASS" if os.path.exists(expand(s["external"])) else "WARN", f"{s['id']}: external by design at {expand(s['external'])}")
+        continue
+    src = os.path.join(repo, s["source"])
+    say("PASS" if os.path.isdir(src) else "FAIL", f"{s['id']}: source at {s['source']}")
+    if "staged_copy" not in s or not os.path.isdir(src):
+        continue
+    staged = expand(s["staged_copy"])
+    if not os.path.isdir(staged):
+        say("WARN" if not on_mac else "FAIL", f"{s['id']}: staged copy missing at {staged} (run {s.get('install', 'the installer')})")
+        continue
+    if os.path.isdir(os.path.join(staged, ".git")):
+        say("FAIL", f"{s['id']}: staged copy holds a dev .git — history belongs in the monorepo")
+    drift = []
+    for d, _, files in os.walk(os.path.join(src, "src")):
+        for fn in files:
+            a = os.path.join(d, fn)
+            b = os.path.join(staged, os.path.relpath(a, src))
+            if not os.path.isfile(b) or sha(a) != sha(b):
+                drift.append(os.path.relpath(a, src))
+    say("FAIL" if drift else "PASS",
+        f"{s['id']}: staged src/ " + (f"DRIFTED ({', '.join(drift[:5])}) — re-run {s.get('install')}" if drift else "matches repo source"))
 
 print("== Raycast")
 rc = m["raycast"]

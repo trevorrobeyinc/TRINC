@@ -6,8 +6,9 @@
 #   origin-nest                  <- $VAULT/.obsidian/plugins/origin-nest (own .git)
 #   contextual-wiki-definitions  <- $HOME/Code/obsidian-auto-wiki-summarize (own repo)
 #
-# Uses `git subtree add`, which makes one (signed, if commit.gpgsign is on) merge
-# commit per plugin. Requires a clean working tree: commit pending work first.
+# Uses `git subtree add -S`, which makes one SIGNED merge commit per plugin. (`git subtree`
+# ignores commit.gpgsign, which is why the 2026-10-20 imports a71380d and 9bfaa86 are
+# unsigned; -S fixes it.) All three imports are DONE as of 2026-10-21 — re-running skips them. Requires a clean working tree: commit pending work first.
 # Does not touch, move or delete the original repos or the vault — the vault keeps
 # loading its current copies until you choose to redeploy from the monorepo.
 #
@@ -32,12 +33,14 @@ absorb() {
   fi
   local branch
   branch="$(git -C "$src" rev-parse --abbrev-ref HEAD)"
-  git -C "$REPO" subtree add --prefix="$prefix" "$src" "$branch" \
+  git -C "$REPO" subtree add -S --prefix="$prefix" "$src" "$branch" \
     -m "chore(tr-suite): absorb $(basename "$prefix") into the monorepo with history"
   echo "absorbed $src ($branch) -> $prefix"
 }
 
 absorb "$VAULT/.obsidian/plugins/origin-nest" "Claude/obsidian-origin-nest"
 absorb "$HOME/Code/obsidian-auto-wiki-summarize" "Claude/obsidian-contextual-wiki-definitions"
+# trinc-content was absorbed 2026-10-21 (e485565) from $HOME/.claude/mcp-servers/trinc-content;
+# its old repo now lives in $HOME/Code/_retired-absorbed-into-monorepo/.
 
 echo "next: bash $REPO/ops/tr-suite/verify.sh"

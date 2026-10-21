@@ -1,6 +1,7 @@
 {
   "$comment": "Single registry of every TR-Obsidian Intelligence Network Citations component. ops/tr-suite/verify.sh reads this. Paths under 'source' are repo-relative; 'external' entries live outside this repo on purpose or until absorbed. Plugin ids are FROZEN (see CLAUDE.md) — never rename them here.",
   "updated": "2026-10-21",
+  "deploy_model": "This repo is the ONLY source. Vault plugin folders and ~/.claude/mcp-servers/* are deploy targets: real copies made by ops/tr-suite/deploy.sh or the connector installers — never a symlink out of the repo, never a .git. Dev builds stay local and untracked (Copilot-Everything/dev-vault, Copilot-Everything/deploy/obsidian/plugins). Retired side repos: ~/Code/_retired-absorbed-into-monorepo/.",
   "vault_default": "$HOME/My Digital Garden",
   "obsidian_plugins": [
     {"id": "command-center", "source": "Claude/obsidian-command-center", "build": "main.js", "deploy_files": ["main.js", "manifest.json", "styles.css"], "port": 8799, "role": "Dispatches the research engine; additive MCP bridge (vault + workflow tools)"},
@@ -10,8 +11,8 @@
     {"id": "copilot-terminal-relay", "source": "Claude/obsidian-copilot-terminal-relay", "build": "main.js", "deploy_files": ["main.js", "manifest.json"], "deployed": false, "role": "Stages shell commands into the Terminal plugin pane (not installed in the vault as of 2026-10-21)"},
     {"id": "copilot", "source": "Copilot-Everything/repos/obsidian-copilot-mcp-v4", "build": "main.js", "deploy_files": ["main.js", "manifest.json", "styles.css"], "extra_deploy": [{"from": "Copilot-Everything/bridges/openclaw-stdio-proxy/index.mjs", "to": "openclaw-stdio-proxy.mjs"}], "role": "TR-Obsidian Copilot fork (v99.4.0) — MCP client to :8798/:8799"},
     {"id": "claude-console-mirror", "source": "Claude/obsidian-claude-console-mirror", "build": "main.js", "deploy_files": ["main.js", "manifest.json"], "role": "Mirrors Obsidian console to ~/.claude/logs for debugging (absorbed from vault 2026-10-21)"},
-    {"id": "origin-nest", "source": "Claude/obsidian-origin-nest", "external_until_absorbed": "$VAULT/.obsidian/plugins/origin-nest (own .git)", "build": "main.js", "deploy_files": ["main.js", "manifest.json", "styles.css"], "role": "Groups notes under their origin note in File Explorer"},
-    {"id": "contextual-wiki-definitions", "source": "Claude/obsidian-contextual-wiki-definitions", "external_until_absorbed": "$HOME/Code/obsidian-auto-wiki-summarize (own repo; vault entry is a symlink)", "build": "main.js", "deploy_files": ["main.js", "manifest.json"], "role": "Generates Feynman-style definition notes"},
+    {"id": "origin-nest", "source": "Claude/obsidian-origin-nest", "build": "main.js", "deploy_files": ["main.js", "manifest.json", "styles.css"], "role": "Groups notes under their origin note in File Explorer (absorbed 2026-10-21; the vault copy's dev .git retired the same day)"},
+    {"id": "contextual-wiki-definitions", "source": "Claude/obsidian-contextual-wiki-definitions", "build": "main.js", "deploy_files": ["main.js", "manifest.json"], "role": "Generates Feynman-style definition notes (absorbed 2026-10-21; vault entry was a symlink into ~/Code until the same day, now a deployed copy)"},
     {"id": "trinc-security-bridge", "external": "$HOME/Security Everything/obsidian-security-bridge", "port": 8801, "role": "Security control plane; kept in the Security Everything repo by design (no research-engine coupling)"}
   ],
   "bridges": [
@@ -31,7 +32,7 @@
     {"id": "searxng-search", "source": "Claude/searxng-search-mcp", "staged_copy": "$HOME/.claude/mcp-servers/searxng-search", "install": "Claude/searxng-search-mcp/install-connector.sh", "note": "staged copy, not a symlink — re-run the installer after editing src/"},
     {"id": "research-memory", "source": "Claude/trevorobeyinc-research-memory-mcp", "entry": "dist/cli.js"},
     {"id": "perseus-business", "external": "$HOME/.local/bin/perseus-vault", "note": "third-party binary + encrypted DB; keep outside git"},
-    {"id": "trinc-content", "external": "$HOME/.claude/mcp-servers/trinc-content", "note": "own repo; UNGATED by the pretooluse hook per _continuity (open item)"},
+    {"id": "trinc-content", "source": "Claude/trinc-content-mcp", "entry": "src/server.js", "staged_copy": "$HOME/.claude/mcp-servers/trinc-content", "install": "Claude/trinc-content-mcp/install-connector.sh", "note": "absorbed with history 2026-10-21 (e485565); staged copy, re-run the installer after editing src/. Still UNGATED by the pretooluse hook (open item; the fix lives in Security Everything)"},
     {"id": "opencode", "external": "$HOME/.claude/mcp-servers/opencode-mcp", "note": "community server, pinned venv"}
   ],
   "engine": {"source": "Trevor Robey Intelligence Network Citations", "dispatched_by": "command-center", "lanes": ["biomedical (default)", "business (research_profile: business)"]}
