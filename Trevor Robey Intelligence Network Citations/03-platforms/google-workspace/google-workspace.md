@@ -79,7 +79,7 @@
 | MX `@` | `smtp.google.com` (pri 10, sole record) | Routes all mail to Gmail. Written by Google's Entri auto-connect 2026-07-22. |
 | TXT `@` (SPF) | `v=spf1 include:_spf.google.com ~all` | Google-only. **Tightened 2026-10-21** by the operator in Cloudflare (dropped `include:zoho.com`), verified with `dig` on both authoritative nameservers at 05:09 PDT. *(Was `v=spf1 include:_spf.google.com include:zoho.com ~all`, set via Cloudflare API 2026-07-22.)* |
 | TXT `google._domainkey` | `v=DKIM1;k=rsa;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArJKh0w…` (2048-bit) | Gmail DKIM key, published by Entri; **signing switched ON 2026-07-22**. ⚠️ Never click "Generate new record" on Admin → Gmail → Authenticate email — it would orphan this live key. |
-| TXT `_dmarc` | `v=DMARC1; p=none; rua=mailto:trevor@trevorobeyinc.com; pct=100; adkim=r; aspf=r` | Pre-existing. Aggregate reports land at trevor@. **Next step: `p=quarantine` (operator's choice 2026-10-21) — exact record and pre-flight in §8.** |
+| TXT `_dmarc` | `v=DMARC1; p=quarantine; rua=mailto:trevor@trevorobeyinc.com; pct=100; adkim=r; aspf=r` | **Moved `p=none` → `p=quarantine` 2026-10-21** by the operator in Cloudflare; verified 17:23 PDT with `dig` (one record, TTL 300) on `betty`/`ricardo.ns.cloudflare.com`, 1.1.1.1 and 8.8.8.8. Aggregate reports land at trevor@. Why and how: §8. *(Was `p=none`, pre-existing.)* |
 | TXT `@` | `google-site-verification=MDcTrdSPpIn41SnHOgIkQhTNBqayz9StUBqAOIPILf0` | Domain-ownership proof (keep permanently). |
 | AAAA `@`, `www` | `100::` (Cloudflare-proxied) | Landing-page worker `shy-grass-fccd` routing — untouched by the mail work. |
 | *(absent)* | no MTA-STS (`_mta-sts`), no TLS-RPT (`_smtp._tls`), no BIMI, no CAA | Not proposed (infra freeze until the first AWS product ships). |
@@ -213,6 +213,7 @@ DMARC to `p=quarantine`.
       test mail was sent (sending needs the operator's go); the DMARC pre-flight below covers it.
 - [x] **Zoho downgrade — MOOT: the Zoho account was CLOSED 2026-10-21** (§3).
 - [x] **SPF tighten + remove `zoho._domainkey` — DONE 2026-10-21** (§4).
+- [x] **DMARC → `p=quarantine` — DONE 2026-10-21 17:2x PDT** (operator, Cloudflare; verified with `dig`; §4).
 - [x] **GAM7 — DECLINED 2026-10-21 (operator).** See the GAM7 item below.
 
 **Done 2026-07-22:**
@@ -354,8 +355,11 @@ DMARC to `p=quarantine`.
 **Mail-domain hardening:**
 - [x] ~~SPF tighten (drop `include:zoho.com`) + remove `zoho._domainkey`~~ — **DONE 2026-10-21**
       by the operator in Cloudflare after Zoho was closed; `zoho-verification` TXT removed too (§4).
-- [ ] **DMARC `p=none` → `p=quarantine` — READY; the operator applies it in Cloudflare (decided
-      2026-10-21).** Evidence (read 2026-10-21 from the aggregate reports at trevor@; only two
+- [x] **DMARC `p=none` → `p=quarantine` — DONE 2026-10-21** (operator, Cloudflare; verified
+      17:23 PDT: one `_dmarc` record reading `p=quarantine` on both authoritative nameservers,
+      1.1.1.1 and 8.8.8.8; SPF and MX unchanged). Still open from this item: the optional
+      Show-original pre-flight below (not reported done), and a look at the aggregate reports
+      in ~2 weeks (~2026-11-04) before any talk of `p=reject`. Evidence (read 2026-10-21 from the aggregate reports at trevor@; only two
       reports have arrived since the 07-22 cutover, both from Google):
       - 2026-10-16 — 1 message from `209.85.220.41` (Google), DKIM pass (`d=trevorobeyinc.com`,
         selector `google`), SPF pass, both aligned → legitimate Workspace mail.

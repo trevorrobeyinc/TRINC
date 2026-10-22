@@ -195,8 +195,8 @@ root-email change.**
 > (those only start once a product is actually published). Worth adding as all-day reminders, if
 > the operator wants them (not created — no go given): **Nov 2, 2026** Workspace suspension
 > deadline, **~Nov 13, 2026** Chrome Enterprise Premium trial end, **Dec 4, 2026** AI Expanded Access
-> auto-cancellation. *(The DMARC→quarantine review is no longer a calendar item: it is ready to
-> apply now, `google-workspace.md` §8.)*
+> auto-cancellation. *(DMARC moved to `p=quarantine` on 2026-10-21; the only follow-up is the
+> ~2026-11-04 report read in the table below.)*
 >
 > *Gotcha for whoever automates this next:* the Calendar `render?action=TEMPLATE` URL pre-fills
 > cleanly, but the **first click on Save after page load is swallowed** (it focuses the close X
@@ -210,7 +210,8 @@ Ordered by urgency:
 | **~2026-11-13** | Chrome Enterprise Premium 60-day trial ends — keep or cancel | Premium DLP/connector features stop (`google-workspace.md` §1) |
 | **2026-12-04** | AI Expanded Access add-on auto-cancels (suspended 2026-10-21) | Only matters if the operator wants to keep it |
 | ~~2026-08-05~~ | ~~Workspace Business Starter trial ends~~ — **resolved:** upgraded to Business Plus, then Enterprise Standard (2026-09-12) | — |
-| **Now** | DMARC `p=none` → `p=quarantine` — **ready**, record in `google-workspace.md` §8 (a spoof from a Russian mail server was seen 2026-10-11) | Spoofing exposure stays open |
+| ~~Now~~ | ~~DMARC `p=none` → `p=quarantine`~~ — **DONE 2026-10-21** (operator, Cloudflare; `dig`-verified 17:23 PDT) | — |
+| **~2026-11-04** | Read the DMARC aggregate reports (search `"Report domain: trevorobeyinc.com"`): any legitimate sender failing? `p=reject` is a separate later decision | A missed legitimate sender's mail lands in spam |
 | **2026-08-15** — PAST DUE | **$800 CA Franchise Tax to FTB** — not done as of 2026-10-21 (operator-confirmed); authoritative tracker: `00-business-formation/compliance/compliance-calendar.md` | State penalties + interest; LLC in bad standing |
 | **~2026-09-16** — PAST DUE | **Statement of Information (Form LLC-12, $20)** — within 90 days of 2026-06-18 approval; not done as of 2026-10-21 | $250 penalty; suspension risk |
 | Q4 2026 | India PE tax declaration | Paid India sales suspended |
