@@ -52,7 +52,8 @@ The wordmark and full legal name are paired in customer-facing materials with th
 2. ~~Download stamped Articles PDF~~ ✅ In hand (saved in `~/Documents`)
 3. ~~Record Entity Number~~ ✅ **Entity No. B20260217250** recorded above
 > **2026-10-21 — operator confirmed items 4, 5 and 6 are NOT done; 5 and 6 are past due.** Tracker:
-> [`../compliance/compliance-calendar.md`](../compliance/compliance-calendar.md).
+> [`../compliance/compliance-calendar.md`](../compliance/compliance-calendar.md); one-sitting steps:
+> [`../compliance/filing-walkthrough-2026-10.md`](../compliance/filing-walkthrough-2026-10.md).
 
 4. Apply for IRS EIN (free, instant): https://www.irs.gov/businesses/small-businesses-self-employed/apply-for-an-employer-identification-number-ein-online — **not applied for (2026-10-21)**
 5. File Statement of Information (Form LLC-12, $20) within 90 days of approval — **due 2026-09-16; NOT FILED, past due (2026-10-21)**

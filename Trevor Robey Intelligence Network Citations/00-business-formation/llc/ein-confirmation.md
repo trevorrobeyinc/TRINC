@@ -23,3 +23,19 @@
 > it is ever needed (currently ruled out — see `03-platforms/business-identity-map.md`).
 > It does **NOT** gate AWS disbursement — that was completed 2026-07-22 on the existing US ACH
 > account, without an EIN.
+>
+> **Application rules (irs.gov page, updated 2026-10-16, read 2026-10-21):** one sitting, no saving;
+> the session expires after 15 minutes idle; one EIN per responsible party per day; hours Mon–Fri
+> 6:00 a.m.–1:00 a.m. ET, Sat 6:00 a.m.–9:00 p.m. ET, Sun 6:00 p.m.–midnight ET; an approved EIN is
+> issued immediately online with a confirmation letter to print. Every answer, pre-filled:
+> [`../compliance/filing-walkthrough-2026-10.md`](../compliance/filing-walkthrough-2026-10.md) § 1.
+
+## Record (fill in from the confirmation letter; never paste the responsible party's SSN here)
+
+| Field | Value |
+|---|---|
+| EIN | _pending_ |
+| Date issued | _pending_ |
+| Legal name as the IRS recorded it | _pending_ |
+| Confirmation letter (CP 575) saved at | _pending_ (outside the repo, e.g. `~/Documents/`) |
+| Then | business bank account → AWS Support case for the seller "Legal business name" |

@@ -7,11 +7,17 @@
 > 2-agent repo-wide sweep + live checks. Companion: [`google-workspace/google-workspace.md`](./google-workspace/google-workspace.md).
 >
 > **Headline: the business runs on personal identities.** Mail is now properly business-owned, but
-> the domain, the website, the AWS revenue channel, the code, and the LLM compute are all bound to
-> personal (or worse, *university*) accounts. Signing into the work profile is the easy half;
-> the ownership fixes below are the half that actually reduces risk.
+> the domain, the website, the code, and the LLM compute are all bound to personal accounts. (The AWS
+> revenue channel was the worst case, a *university* address; it moved to a business group on
+> 2026-10-21, R1 below.) Signing into the work profile is the easy half; the ownership fixes below
+> are the half that actually reduces risk.
+>
+> **Reconciled 2026-10-21** against the 2026-10-21 operator confirmations (R1 closed, Zoho closed,
+> EIN / LLC-12 / FTB 3522 not done). The obligations in §4 mirror
+> [`../00-business-formation/compliance/compliance-calendar.md`](../00-business-formation/compliance/compliance-calendar.md);
+> if the two disagree, the calendar wins.
 
-## 1 · The four structural risks (ranked — fix in this order)
+## 1 · The structural risks (ranked — R1 closed 2026-10-21, three open)
 
 | # | Risk | Why it matters | Fix |
 |---|---|---|---|
@@ -79,6 +85,11 @@ method ACTIVE (USD, Daily schedule)**. Three findings, two changes:
   swap is done** — it is also the account-recovery path.
   **⇢ Swap DONE 2026-10-21:** the Notifications tab now shows `aws@trevorobeyinc.com` (the root
   email, changed by the operator as root the same morning).
+  **The stranded 07-23 11:02 email** ("Your seller profile has been approved", still only in the
+  Strayer inbox) **is no longer needed (decided 2026-10-21):** every step it lists (tax, bank,
+  disbursement) was completed and read back live on 07-22, and Strayer is no longer the recovery
+  path. Optional archive step, one minute, best done when the Strayer stopgap is retired: in
+  Strayer Outlook search `seller profile has been approved`, forward it to `aws@trevorobeyinc.com`.
 - **✅ CHANGED — account Contact information corrected** (Billing → Account → Contact information):
   **Company name** `Trevor Robey Inc.` → **`Trevor Robey Intelligence Network Citations LLC`**;
   **Website URL** *(blank)* → **`https://trevorobeyinc.com`**. Verified saved ("Your contact
@@ -94,10 +105,11 @@ Legend — **B** = business-owned · **P** = personal-owned (entanglement) · **
 | Service | Purpose | Bound identity | | Crit. |
 |---|---|---|---|---|
 | **Google Workspace** | primary mailbox + identity | `trevor@trevorobeyinc.com` (super-admin) — *but recovery = personal Gmail; password in personal Bitwarden* | **B** | HIGH |
-| ~~**Zoho Mail**~~ | **RETIRED 2026-10-21** (operator decision); its history was imported into Gmail 2026-07-22 (1,251/1,251) | `trevor@trevorobeyinc.com` (Mail Lite; account shutdown in progress) | **B** | MED |
+| ~~**Zoho Mail**~~ | **CLOSED 2026-10-21** (operator decision): Mail Lite cancelled, domain and org deleted, Zoho mailed "Your Zoho account is closed" at 04:55; DNS cleaned (SPF Google-only, no Zoho DKIM or verification TXT). **Gmail does NOT hold the full Zoho history:** the 07-22 import reported 1,251/1,251, but a 10-21 check found only 17 pre-cutover conversations in Gmail, and the Sent-only threads were let go by the operator. Record: `~/Security Everything/docs/browser-session-history/2026-10.md`, entry 2026-10-21 04:14. | — (was `trevor@trevorobeyinc.com` on Mail Lite) | **B** | — |
 | **Cloudflare** | registrar + DNS + Worker hosting the live site | `trevoralexanderrobey@gmail.com` | **P** | HIGH |
 | **AWS** (acct `833390816446`) | Marketplace seller channel | root = **`aws@trevorobeyinc.com`** (Workspace group, since 2026-10-21; was the Strayer `.edu`); SSO user `Trevoralexanderrobey` + 2 YubiKeys; seller *contact* = trevor@ (business); alternate contacts Billing/Operations = aws@, Security = trevor@ | **B** | HIGH |
-| **CA SOS bizfileOnline** | LLC system of record; Statement of Information + future filings | **UNKNOWN** — never recorded | **?** | HIGH |
+| **CA SOS bizfileOnline** | LLC system of record; Statement of Information + future filings | **An account exists; its login email is not recorded.** The Articles were filed online 2026-05-06, and the Welcome Letter, Filing Acknowledgment and certified-copy zip in `~/Documents` were all downloaded from the signed-in portal on 2026-06-18 ~22:56–23:01 PDT (file download metadata, read 2026-10-21). Per the SOS *Account Setup and User Access Guide* (v8.22.24), the submitter of an online initial filing gets Full Access to the entity record — which the LLC-12 now needs (User Access required since 2026-08-01). Find the login: search Bitwarden for `sos.ca.gov`, then record the email here. | **?** | HIGH |
+| **CA FTB** | $800 annual LLC tax (Form 3522), Form 568 | No MyFTB account recorded. Web Pay for Businesses needs no account: entity ID = the 11 digits of the SOS number (`20260217250`), not the EIN (FTB Tax News, June 2025). | **?** | HIGH |
 | **GitHub `trevoralexanderrobey`** | CODEOWNER of the engine; predecessor repo (deleted) | personal username | **P** | HIGH |
 | **GitHub `trevorrobeyinc`** | hosts `trevorrobeyinc.github.io` — the **personal portfolio** | personal (business-sounding handle — a trap) | **P** | MED |
 | **HuggingFace** | dataset credibility play | personal handle `Trevorrobey`; org `trevorrobeyinc` **not yet created** | **P** | MED |
@@ -107,7 +119,7 @@ Legend — **B** = business-owned · **P** = personal-owned (entanglement) · **
 | **Gumroad** | parked payment page | order mail → trevor@; login identity undocumented | **?** | LOW |
 | **Google Business Profile** | free listing (cover photo only asset) | **UNKNOWN** — never claimed/documented | **?** | LOW |
 | **Kaggle** | free visibility play | **UNKNOWN** — account creation unconfirmed | **?** | LOW |
-| **IRS EIN** | **not applied for** — a **federal IRS** number, **NOT** in bizfileOnline/CA SOS (verified 2026-07-22: neither the filing receipt nor the certified copy contains one; no CA form collects it). Apply free at irs.gov → confirmation = **IRS Notice CP 575**. Blocks business bank account + the AWS Marketplace legal-name update. Does **not** gate AWS disbursement (done 2026-07-22 on the existing ACH account). See [`../00-business-formation/llc/ein-confirmation.md`](../00-business-formation/llc/ein-confirmation.md) | n/a | **?** | HIGH |
+| **IRS EIN** | **not applied for** (operator re-confirmed 2026-10-21) — a **federal IRS** number, **NOT** in bizfileOnline/CA SOS (verified 2026-07-22: neither the filing receipt nor the certified copy contains one; no CA form collects it). Apply free at irs.gov → confirmation = **IRS Notice CP 575**. Blocks business bank account + the AWS Marketplace legal-name update. Does **not** gate AWS disbursement (done 2026-07-22 on the existing ACH account). See [`../00-business-formation/llc/ein-confirmation.md`](../00-business-formation/llc/ein-confirmation.md) | n/a | **?** | HIGH |
 | **Business bank (Mercury/Relay)** | **not opened** — blocked on EIN | n/a | **?** | MED |
 | **npm / Obsidian stack** | consume-only / local-only — no accounts exist | n/a | — | LOW |
 
@@ -122,7 +134,7 @@ identity wherever one exists; where the account is personal-owned, still sign in
 so the browsing surface is separated, and track the ownership fix separately (§1).
 
 - [x] Google Workspace / Gmail — `trevor@trevorobeyinc.com`
-- [ ] ~~Zoho Mail~~ — RETIRED 2026-10-21: sign out of it in this profile once the Zoho account is closed
+- [x] ~~Zoho Mail~~ — account CLOSED 2026-10-21; nothing left to sign in to (clear any saved Zoho login in this profile when convenient)
 - [x] Claude extension installed (this profile drives all business browser work)
 - [ ] **Cloudflare** — sign in here; then R2 (add trevor@ as Super Administrator)
 - [ ] **AWS** — IAM Identity Center SSO portal `https://d-90660e72bc.awsapps.com/start` + YubiKey (R1 root email ✅ done 2026-10-21)
@@ -130,18 +142,47 @@ so the browsing surface is separated, and track the ownership fix separately (§
 - [ ] **HuggingFace** — sign in; create the `trevorrobeyinc` **org** and transfer/publish under it
 - [ ] **LinkedIn** — personal profile stays personal, but consider a **company page** for the LLC
 - [ ] **Datarade**, **Gumroad**, **Kaggle** — sign in here when next touched; record the identity in this file
-- [ ] **CA SOS bizfileOnline** — find the login, record it here (needed for the Statement of Information)
+- [ ] **CA SOS bizfileOnline** — the account exists (used 2026-06-18); find its login email in Bitwarden (`sos.ca.gov`), record it in §2, sign in here (needed for the Statement of Information)
 - [ ] **Bitwarden** — install in this profile; consider a separate business vault/collection
 - [ ] Chrome: set this profile's sync to the Workspace account; bookmark the business consoles
 
-## 4 · Time-bound obligations surfaced by this sweep (not identity, but urgent)
+## 4 · Time-bound obligations (mirror of the compliance calendar, 2026-10-21)
 
-| Deadline | Item | Source |
-|---|---|---|
-| **2026-08-15** | **$800 CA Franchise Tax** to FTB — *⚠️ due date has PASSED (checked 2026-08-20: no payment record anywhere in-repo — that means unverified, not unpaid; operator confirm at FTB, late penalty + interest accrue if unpaid)* | `00-business-formation/llc/certificate-of-formation.md:56` |
-| **~2026-09-16** | Statement of Information (Form LLC-12, $20) — within 90 days of the 2026-06-18 approval | same, :55 |
-| open | IRS EIN (free, instant online) — gates bank account + AWS legal-entity field | same, :54 |
-| ~~resolved~~ | ~~AWS Seller-Operations escalation letter~~ — **moot 2026-07-22** (disbursement cleared without it; do not send) | `03-platforms/aws-data-exchange/correspondence-2026-05.md` §6 |
+**Operator-confirmed 2026-10-21: none of the three is done; two are past due.** Order, steps and
+the one-sitting walk-through:
+[`compliance-calendar.md`](../00-business-formation/compliance/compliance-calendar.md) →
+[`filing-walkthrough-2026-10.md`](../00-business-formation/compliance/filing-walkthrough-2026-10.md).
+(The 2026-08-20 annotation here, "unverified, not necessarily unpaid", is superseded by that
+confirmation.)
+
+| # | Obligation | Due | Status 2026-10-21 | Cost |
+|---|---|---|---|---|
+| 1 | IRS EIN | no statutory deadline; blocks the bank account and the AWS "Legal business name" | not applied for | free |
+| 2 | Statement of Information, Form LLC-12 (CA SOS) | 2026-09-16 | **not filed, 35 days past due** | $20 |
+| 3 | $800 annual LLC tax, Form FTB 3522 | 2026-08-15 (a Saturday, so 2026-08-17 without penalty) | **not paid, 67 days past due** | $800 + penalty and interest as billed |
+| — | ~~AWS Seller-Operations escalation letter~~ | — | **moot 2026-07-22** (disbursement cleared without it; do not send) | — |
+
+**Mail check for agency notices (2026-10-21, ~16:55 PDT, operator's go, Claude Browser pane signed in
+as `trevor@trevorobeyinc.com` by the operator): ZERO agency mail.**
+- `{from:sos.ca.gov from:ftb.ca.gov B20260217250 bizfile "Franchise Tax Board"} after:2026/05/01` → no messages.
+- Broadened to all time, spam and trash included (`in:anywhere`; adds `from:irs.gov`, `from:ca.gov`,
+  "Statement of Information", "Secretary of State", "Franchise Tax", "Employer Identification",
+  "LLC-12", "3522") → no messages. Positive control in the same tab (`in:anywhere "AWS Marketplace"`)
+  returned 3 conversations, so the search itself worked. Cross-check not needed: `trevor@`'s "Legal"
+  filter (since 07-23, per the workspace-setup session) stars and labels exactly
+  `from:(sos.ca.gov OR ftb.ca.gov OR irs.gov OR bizfileonline.sos.ca.gov)`, the senders already searched.
+  Since 2026-10-16 `trevor@` also forwards a copy of all mail to `trevorrobeyinc@gmail.com`.
+- **What this does and does not prove.** No SOS, FTB or IRS email has reached `trevor@` since the
+  2026-07-22 Gmail cutover, and none of the pre-cutover mail imported from Zoho matches. It does
+  **not** cover mail sent to `trevor@` while it lived on Zoho (May–July): Zoho is closed and that
+  history was only partly imported. It also says nothing about the bizfile account's own email or
+  `trevorrobeyinc@gmail.com` (not searched). FTB and SOS notices come by **post**, so the paper mail at
+  8161 Oahu Dr remains the place a penalty notice would be.
+- The bizfile login email is therefore still unknown: Bitwarden (`sos.ca.gov`) is the next place to look.
+- Earlier the same afternoon the `gmail` connector route (it reaches `trevorrobeyinc@gmail.com` only)
+  was armed once and stopped at `client_malformed` (an email address sealed where the Google client
+  ID belongs); no token, no mail read. Fixing it is the operator's re-seal (Security Everything
+  `gmail-mcp/gmail_setup.py --seal-client --replace`), not needed for this check.
 
 ## 5 · Notes
 

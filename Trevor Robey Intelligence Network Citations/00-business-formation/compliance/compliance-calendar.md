@@ -15,8 +15,15 @@ Entity: **Trevor Robey Intelligence Network Citations LLC** · CA Entity No. **B
 | # | Obligation | Due | Status 2026-10-21 | Cost (from the filing record) | Where |
 |---|---|---|---|---|---|
 | 1 | **IRS EIN** (federal; no California filing ever produces one) | No statutory deadline — but it blocks the bank account and the AWS "Legal business name" update | **Not applied for** | Free | IRS online EIN application: <https://www.irs.gov/businesses/small-businesses-self-employed/apply-for-an-employer-identification-number-ein-online> |
-| 2 | **Statement of Information, Form LLC-12** (CA Secretary of State) | Within 90 days of approval → **2026-09-16**. Then every two years. | **NOT FILED — past due (35 days on 2026-10-21)** | $20 filing fee | bizfileOnline.sos.ca.gov |
-| 3 | **$800 annual LLC tax, Form FTB 3522** (CA Franchise Tax Board) | 15th day of the 4th month after formation → **2026-08-15** | **NOT PAID — past due (67 days on 2026-10-21)** | $800 | FTB (ftb.ca.gov) — Form 3522 / FTB online payment |
+| 2 | **Statement of Information, Form LLC-12** (CA Secretary of State) | Within 90 days of approval → **2026-09-16**. Then every two years. | **NOT FILED — past due (35 days on 2026-10-21)** | $20 filing fee | bizfileOnline.sos.ca.gov — since **2026-08-01** the online LLC-12 needs **User Access** to the entity record. The login that filed the Articles online (2026-05-06) has it; its email is not recorded (find it in Bitwarden). Without it, a PIN letter is mailed to 8161 Oahu Dr. |
+| 3 | **$800 annual LLC tax, Form FTB 3522** (CA Franchise Tax Board) | 15th day of the 4th month after formation → **2026-08-15** (a Saturday; FTB moves a weekend due date to the next business day, 2026-08-17) | **NOT PAID — past due (67 days on 2026-10-21)** | $800 | FTB **Web Pay for Businesses** (ftb.ca.gov/pay), entity ID **`20260217250`** (the 11 digits of the SOS number; Web Pay does not take the EIN). Paying by Web Pay = do not also mail a 3522. |
+
+**One-sitting walk-through with every answer pre-filled:** [`filing-walkthrough-2026-10.md`](./filing-walkthrough-2026-10.md).
+
+**Agency mail check, 2026-10-21:** zero SOS / FTB / IRS email in `trevor@trevorobeyinc.com`, all time,
+spam and trash included (positive control passed). That covers mail since the 2026-07-22 Gmail cutover,
+not the Zoho period, and agency notices come by post: check the paper mail before filing. Record:
+`../../03-platforms/business-identity-map.md` § 4.
 
 **Why this order:** the EIN is free and immediate and unblocks other work; the LLC-12 is $20 and
 online; the $800 is the largest and is accruing the longest. Penalty and interest amounts are **not
@@ -39,6 +46,14 @@ sell — which would block the first AWS listing.
 - **FTB 3522** → date paid, amount including any penalty/interest, confirmation number. Next year's
   $800 is due on the 15th day of the 4th month of the next taxable year — confirm the date with FTB
   rather than assuming.
+
+## Coming next (recurring; confirm each date with the agency when it nears)
+
+| Due | Obligation | Basis (read 2026-10-21) |
+|---|---|---|
+| **2027-04-15** | $800 annual LLC tax for taxable year 2027 (FTB 3522 or Web Pay) | 15th day of the 4th month of the taxable year; a single-member LLC follows its owner's calendar year. No first-year exemption applies to 2026: it covered taxable years beginning 2021–2023 only (FTB 568 booklets). |
+| **2027-04-15** | Form 568 (LLC Return of Income) for taxable year 2026 | Single-member LLC owned by an individual: 15th day of the 4th month after the close of the owner's taxable year (FTB 568 booklet). |
+| **2027-12-01 → 2028-05-31** | Biennial Statement of Information (LLC-12), $20 | Formation month May → filing window December–May (SOS "Statements of Information Filing Tips" table), every two years. bizfile shows the next due date after this filing; record it then. |
 
 ## Other formation items still open (from the 2026-10-21 handoff)
 
