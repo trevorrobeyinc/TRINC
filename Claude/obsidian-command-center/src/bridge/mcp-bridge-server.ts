@@ -1687,7 +1687,7 @@ export class McpBridgeServer {
               inputs: {
                 type: "object",
                 description:
-                  "Template inputs as key-value pairs. For general-research-pack: { topic: '...' }. For drug-discovery-full: { compound_name: '...', indication: '...' }. For pharmacovigilance-report: { drug_class: '...' }.",
+                  "Template inputs as key-value pairs of strings. obsidian_openclaw_templates lists each template's requiredInputs and optionalInputs. Biomedical lane: general-research-pack { topic }; drug-discovery-full { compound_name, indication }; pharmacovigilance-report { drug_class }. Business lane (researchProfile 'business': business-research-pack, cost-reduction-analysis, market-landscape): { topic: the business question in one or two sentences } plus, when the operator gives them, industry, country (ISO code, default US), company (business-research-pack, cost-reduction-analysis) or competitors (market-landscape) — SEC filings are fetched only when a company or competitor is named. Take every value from the operator's own words; never invent a company, competitor or country.",
               },
               dry_run: {
                 type: "boolean",

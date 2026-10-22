@@ -2,13 +2,9 @@ import { readdirSync } from "fs";
 import { join } from "path";
 import type { WorkflowTemplate } from "../types";
 import { readJsonFile } from "./json-reader";
+import { summarizeTemplate, type TemplateSummary } from "./template-summary";
 
-export interface TemplateSummary {
-  id: string;
-  name: string;
-  description: string;
-  requiredInputs: string[];
-}
+export type { OptionalInput, TemplateSummary } from "./template-summary";
 
 /**
  * Single template loader for the modal and the bridge (previously duplicated
@@ -34,10 +30,5 @@ export function loadTemplates(openclawPath: string): WorkflowTemplate[] {
 }
 
 export function listTemplateSummaries(openclawPath: string): TemplateSummary[] {
-  return loadTemplates(openclawPath).map((t) => ({
-    id: t.workflow_template_id,
-    name: t.name ?? t.workflow_template_id,
-    description: t.description ?? "",
-    requiredInputs: t.input_schema?.required || [],
-  }));
+  return loadTemplates(openclawPath).map(summarizeTemplate);
 }

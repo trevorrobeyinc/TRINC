@@ -9,6 +9,8 @@
 // grounded and re-resolved exactly like a biomedical DOI. Works without a DOI are dropped: they
 // would be uncitable context.
 
+const { toSearchQuery } = require("./search-terms.js");
+
 const API = "https://api.openalex.org/works";
 const DEFAULT_LIMIT = 8;
 const MAX_LIMIT = 25;
@@ -47,8 +49,8 @@ function createOpenAlex(options = {}) {
   async function searchWorks(args = {}) {
     const subject = firstNonEmpty(args, SUBJECT_KEYS);
     if (!subject || typeof fetchImpl !== "function") return [];
-    const focus = typeof args.focus === "string" ? args.focus.trim() : "";
-    const query = [subject, focus].filter(Boolean).join(" ");
+    // Keywords, not the question: OpenAlex returned zero works for the verbatim question.
+    const query = toSearchQuery(subject, args.focus);
     const limit = Math.max(1, Math.min(Number(args.limit) || DEFAULT_LIMIT, MAX_LIMIT));
     const cacheKey = `${query}|${limit}`;
     if (cache.has(cacheKey)) return cache.get(cacheKey);

@@ -174,6 +174,8 @@ export interface WorkflowTemplate {
     properties: Record<string, InputProperty>;
   };
   pipeline: TemplatePipelineStep[];
+  /** "business" opts a template into the engine's business-research lane; absent = biomedical. */
+  research_profile?: string;
 }
 
 // ── Mission Types ────────────────────────────────────────────────

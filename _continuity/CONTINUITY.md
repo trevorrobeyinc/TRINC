@@ -251,6 +251,26 @@ forward below.
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 
+### 2026-10-22T00:36Z · Desktop Claude Code (side session "business lane live") · **Business lane: first live run parked; pre-flight fixes in; "Evidence Desk" proposed**
+- **Did:** pre-flight for the first live business-lane run (operator decision 2026-10-21: one engine, two lanes,
+  same gate). SEC EDGAR (declared org + contact User-Agent), World Bank, OpenAlex, Crossref, SearXNG `:8891` and
+  Miyo all answer. But **general web search is broken**: only Bing answers in SearXNG's `general` category, and it
+  answers each multi-word query for one word (dictionary pages for "can", Culver City rentals for "warehouse").
+  Also found: the templates sent the operator's question verbatim as the search query (OpenAlex: 0 works). Fixed
+  with tests: keyword shaping (`business-sources/search-terms.js`) and a relevance guard (`web-evidence.js`
+  `isOnTopic`, drops pages that mention under half the subject's words; all six junk pages seen live dropped).
+  Command Center template list now carries `researchProfile` + `optionalInputs` and the run hint covers the
+  business templates (built, **not deployed**). Lane documented in the engine `CLAUDE.md`, `SYSTEM-REALITY.md`,
+  `THE-WHOLE-SYSTEM.md`, `README.md` and `docs/business-research-lane.md` (no prices: tiers on hold).
+- **State:** **run PARKED by the operator** until a specialized evidence back end exists; inputs to be chosen after.
+  Proposal: `~/Library/Application Support/Claude/side-session-notes/local_b7efebe5-050c-45cb-8e9d-41902f7f5132/PROPOSAL-evidence-desk-business-lane-2026-10-21.md`
+  (official-statistics series ids BLS/Eurostat keyless + Census/EIA free keys; SearXNG `braveapi` = card-on-file
+  service; extractive passage condenser; scout offload — run #6 measured 174K tokens, ~95% input).
+- **Next:** operator answers the proposal's four decisions; a separate session builds P1; then the first run.
+- **Touches:** this entry, `STATUS.md`; engine `openclaw-bridge/mcp/business-sources/{search-terms,web-evidence,openalex}.js`,
+  `tests/core/business-research-lane.test.js` (30/30), the five docs above; `Claude/obsidian-command-center/src/{types.ts,
+  util/template-loader.ts,util/template-summary.ts,bridge/mcp-bridge-server.ts}` + `test/template-summaries.test.ts` (32/32).
+
 ### 2026-10-21T23:53Z · Desktop Claude Code (hub) · **Four stale August sessions replaced by siblings; the business picture is one page again**
 - **Did:** The operator asked to bring "Google Workspace setup check", "Google Workspace AWS setup handoff",
   "Business plugin configuration" and "TR-INC launch" (Aug 12–20, outside the session nest) in as siblings and

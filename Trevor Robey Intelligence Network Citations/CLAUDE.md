@@ -126,7 +126,7 @@ node scripts/distribute.js --workflow-id <id> --targets datarade,kaggle,training
 | `audit/evidence/` | Phase-specific audit evidence bundles (phases 24-29) |
 | `vendor/tooluniverse/` | Harvard ToolUniverse submodule v1.1.10 (Phase 29 — active) |
 | `workspace/research-input/biomedical/` | Biomedical seed documents (drug repurposing, PPI, pharmacovigilance, genomics) |
-| `config/workflow-templates/` | Phase 30 workflow templates (6 templates: drug-discovery, pharmacovigilance, clinical-trial, target-validation, rare-disease, general) |
+| `config/workflow-templates/` | Phase 30 workflow templates (10: seven biomedical — drug-discovery, pharmacovigilance, clinical-trial, target-validation, rare-disease, general, trial-design-benchmark — and three business-lane: business-research-pack, cost-reduction-analysis, market-landscape; see "Business research lane" below) |
 | `workspace/workflows/` | Workflow execution state (Phase 30 — created at runtime) |
 | `docs/` | Phase-specific documentation (phases 1-28; Phase 29 docs retained for re-integration reference) |
 | `security/` | Policy files, RBAC definitions |
@@ -241,6 +241,39 @@ Key phases for daily work:
 - **30**: Workflow engine — single-command orchestration (`run-workflow.js`), 6 workflow templates, 6 specialized agent roles (literature_reviewer, safety_signal_detector, molecular_profiler, competitive_intel_analyst, quality_auditor, report_generator), quality auditor self-verification
 - **31**: Enterprise delivery layer — Research REST API (`/api/v1/research`), scheduled workflows, usage metering, `api_client` bridge principal
 - **33**: Claude Code as primary LLM provider — `claude -p` stdin pipe with JSON output, no local fallback (each role's `fallback` = "" — a claude-code failure surfaces the real error rather than chasing a local backend), per-template provider routing via `provider_preference`, citation density quality formula
+
+### Business research lane (2026-10-21) — one engine, two lanes
+
+Operator decision (2026-10-21): ONE engine with two lanes sharing the same citation gate, never a
+second engine. A template opts in with `"research_profile": "business"` (`business-research-pack`,
+`cost-reduction-analysis`, `market-landscape`); with no profile every biomedical path is unchanged.
+The lane adds citable identifiers the existing gate grounds and the re-resolver checks: `WEB: <12 hex>`
+(a stored snapshot of the exact page text the model saw — re-resolution re-hashes the snapshot, which
+proves "what was read, from this URL, at this time", **not** that the page is live or correct),
+`SEC: <cik>/<accession>`, `WB: <indicator>` and OpenAlex DOIs. Profile table
+`openclaw-bridge/core/research-profiles.js`; sources `openclaw-bridge/mcp/business-sources/`; map
+`config/tool-prefetch-map.business.json`; `config/agents/*/SOUL.business.md`; tests
+`tests/core/business-research-lane.test.js`. Design and run command: `docs/business-research-lane.md`.
+
+**State: built, unit-tested, ZERO live runs.** The first live run was **PARKED by the operator on
+2026-10-21** until a working, specialized evidence back end exists (proposal "Evidence Desk": official
+statistics with re-resolvable series ids — BLS, Eurostat, Census, EIA — a legitimate general-web API,
+and an extractive passage condenser that shrinks role-call input). Run inputs are chosen after that.
+What its pre-flight found and fixed:
+- **SearXNG general web is unusable for this lane.** Only Bing answers in the `general` category
+  (DuckDuckGo/Startpage CAPTCHA, Brave rate-limited, Google/Mojeek empty) and Bing answers a
+  multi-word query for one word ("can", "mid", "warehouse"). Never evade it.
+- **Keyword query shaping** (`business-sources/search-terms.js`): the templates pass the operator's
+  question as `{{topic}}`; OpenAlex returned ZERO works for the verbatim question and relevant ones for
+  its content words. `web-evidence.js` and `openalex.js` now search with `toSearchQuery(subject, focus)`;
+  the question stays the mission text.
+- **Relevance guard** (`web-evidence.js` `isOnTopic`): a page must mention at least half the subject's
+  content words (4-character stem at a word start, so labour~labor) or it is neither stored nor shown.
+  The gate proves a WEB id was fetched, not that the page is about the question — this check does.
+- Command Center's template list now carries `researchProfile` and `optionalInputs` (the business
+  inputs `company`/`competitors` decide whether SEC filings fire), and the run tool's input hint covers
+  the business templates — live only once the plugin is redeployed.
+**No prices**: the custom any-field tiers are ON HOLD by the operator.
 
 ### Design Principles
 

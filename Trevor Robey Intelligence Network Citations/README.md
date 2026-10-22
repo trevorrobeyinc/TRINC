@@ -432,6 +432,19 @@ On a gate-passing mission, two additional deliverables are sealed into the relea
 
 Both memos are fully fail-soft and bounded: an absent fetcher, empty indication, or fetch error simply omits them and never blocks a passing report. `deliverable-packager` ships `graveyard-memo.md` and registers `artifactRefs.graveyard_memo`.
 
+## Business Research Lane (2026-10-21)
+
+The same engine also runs **business** questions, through the same roles, citation gate, reproducibility manifest, operator approval and sealed bundle. A template opts in with `"research_profile": "business"`: `business-research-pack`, `cost-reduction-analysis`, `market-landscape` (required input `topic`; optional `company` / `competitors`, `industry`, `country`). With no profile, every biomedical path is unchanged.
+
+| Cite as | Source | Re-resolution at delivery |
+|---|---|---|
+| `WEB: <12 hex>` | a page read through SearXNG + extract, stored as a snapshot of the exact text the model saw | re-hash the stored snapshot — proves what was read from that URL at that time, **not** that the page is live or correct |
+| `SEC: <cik>/<accession>` | SEC EDGAR 10-K / 10-Q / 8-K (declared org + contact User-Agent, per SEC fair access) | EDGAR filing index |
+| `WB: <indicator>` | World Bank Indicators API | `/v2/indicator/<id>` |
+| `doi: 10.x/...` | OpenAlex (DOI-bearing works only) | Crossref + retraction screen, as for biomedical DOIs |
+
+Searches use the question's content words, not the question (`openclaw-bridge/mcp/business-sources/search-terms.js`), and a fetched page must mention at least half of them to become evidence (`web-evidence.js` `isOnTopic`). **Status: built and unit-tested, not yet run live** — the first live run is parked until a working general-web search back end and specialized statistics sources are in place (the local SearXNG currently returns one-word results). Not investment, legal, tax or accounting advice. Design: [`docs/business-research-lane.md`](docs/business-research-lane.md).
+
 ## Architecture
 
 Core research runtime:

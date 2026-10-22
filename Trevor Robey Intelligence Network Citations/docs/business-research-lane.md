@@ -21,12 +21,48 @@ business lane adds new **identifier types** the existing gate already knows how 
 
 ## Where it lives
 - `openclaw-bridge/core/research-profiles.js` — the profile table (prefetch map, SOUL file, citation instruction, section-gate topic and primary domains).
-- `openclaw-bridge/mcp/business-sources/` — `web-snapshot-store.js`, `web-evidence.js`, `sec-filings.js`, `world-bank.js`, `openalex.js`.
+- `openclaw-bridge/mcp/business-sources/` — `web-snapshot-store.js`, `web-evidence.js`, `sec-filings.js`, `world-bank.js`, `openalex.js`, `search-terms.js`.
 - `config/tool-prefetch-map.business.json`, `config/agents/{scout,analyst,synthesizer}/SOUL.business.md`.
 - Templates: `business-research-pack`, `cost-reduction-analysis`, `market-landscape`.
 - Seams: `citation-extractor.js` (3 patterns), `citation-reresolver.js` (3 resolvers), `tool-prefetch.js`, `agent-context-loader.js`, `role-router.js`, `agent-engine.js`, `workflow-engine.js` (defaults, quality audit, section gate, packager hand-off), `workflow-schema.js`, `section-gate.js`, `scripts/_workflow-runtime.js`.
 - Packaging: `deliverable-packager.js` picks business wording (sources, registries, disclaimer) and ships every cited web page under `deliverables/sources/` (a page that trips the license screen is withheld and named, not shipped).
 - Tests: `tests/core/business-research-lane.test.js` (offline, injected fakes).
+
+## Searching with keywords, keeping only on-topic pages (2026-10-21)
+The templates pass the operator's question as `{{topic}}`. Sent verbatim, it fails as a search:
+OpenAlex returned **zero** works for "Where can a mid-size US 3PL warehouse cut labour and energy
+cost?" and relevant ones for its content words. `search-terms.js` reduces the subject (plus any focus
+words) to its content words; `web-evidence.js` and `openalex.js` search with that. The question itself
+stays the mission text the agents read.
+
+The gate proves a `WEB:` id was fetched at runtime; it cannot tell whether the page is about the
+question. So `web-evidence.js` `isOnTopic` drops a page unless it mentions at least half of the
+subject's content words (matched by a 4-character stem at a word start, so labour~labor and
+warehouse~warehousing). A dropped page is neither stored nor shown. Checked live against the junk
+the degraded search returned (a utility's homepage, dictionary entries for "can", local warehouse
+rental listings): all dropped; on-topic pages kept.
+
+## Live-run status (2026-10-21)
+**Zero live runs. The first one is parked by the operator** until a working, specialized evidence back
+end exists. Pre-flight found the local SearXNG unusable for general web search: in the `general`
+category only Bing answers (DuckDuckGo and Startpage hit CAPTCHAs, the Brave scraper is rate-limited,
+Google and Mojeek return nothing), and Bing answers a multi-word query for one of its words. SearXNG
+builds the right request, so this is the search engine's response to a scraper; it is not to be worked
+around. With the relevance guard the lane degrades honestly (no junk evidence), but a report would rest
+on OpenAlex, World Bank and SEC alone. The proposed back end ("Evidence Desk") adds official statistics
+with re-resolvable series ids (BLS and Eurostat keyless; Census and EIA with free keys), a legitimate
+general-web API, and an extractive passage condenser that cuts role-call input. The run inputs will be
+chosen once that exists.
+
+All the other dependencies answered on 2026-10-21: SEC EDGAR full-text search and filing index (with a
+declared organisation + contact User-Agent, per SEC fair access), World Bank, OpenAlex, Crossref,
+SearXNG `:8891` (reachable), and Miyo.
+
+## Starting one from Copilot chat
+Command Center discovers templates from the folder, so the business templates are listed automatically.
+Its template list carries `researchProfile` and `optionalInputs` (`company` / `competitors` decide
+whether SEC filings fire), and the run tool's input hint names the business inputs. Values must come
+from the operator's own words. Live once the rebuilt plugin is deployed (`ops/tr-suite/deploy.sh`).
 
 ## Running one (on the Mac; needs the network)
 ```

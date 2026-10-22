@@ -15,10 +15,11 @@ const ROOT_DIR = path.resolve(__dirname, "../..");
 const { getResearchProfile, PROFILES } = require("../../openclaw-bridge/core/research-profiles.js");
 const { extractCitations, crossCheckCitations } = require("../../openclaw-bridge/core/citation-extractor.js");
 const { createWebSnapshotStore, snapshotHash } = require("../../openclaw-bridge/mcp/business-sources/web-snapshot-store.js");
-const { createWebEvidence } = require("../../openclaw-bridge/mcp/business-sources/web-evidence.js");
+const { createWebEvidence, isOnTopic } = require("../../openclaw-bridge/mcp/business-sources/web-evidence.js");
 const { createSecFilings } = require("../../openclaw-bridge/mcp/business-sources/sec-filings.js");
 const { createWorldBank } = require("../../openclaw-bridge/mcp/business-sources/world-bank.js");
 const { createOpenAlex, abstractFromInvertedIndex } = require("../../openclaw-bridge/mcp/business-sources/openalex.js");
+const { toSearchTerms, toSearchQuery } = require("../../openclaw-bridge/mcp/business-sources/search-terms.js");
 const { createCitationReresolver } = require("../../openclaw-bridge/mcp/citation-reresolver/citation-reresolver.js");
 const { createToolPrefetch } = require("../../openclaw-bridge/core/tool-prefetch.js");
 const { createAgentContextLoader } = require("../../openclaw-bridge/core/agent-context-loader.js");
@@ -105,6 +106,50 @@ describe("web snapshot store", () => {
   });
 });
 
+// The question the first live-run pre-flight used (2026-10-21). Sent verbatim, OpenAlex returned
+// zero works and the web back end returned dictionary pages for "can".
+const LIVE_QUESTION = "Where can a mid-size US 3PL warehouse cut labour and energy cost?";
+
+describe("search query shaping", () => {
+  it("reduces a question to its content words, in order, without duplicates", () => {
+    assert.deepEqual(toSearchTerms(LIVE_QUESTION), ["mid-size", "3pl", "warehouse", "cut", "labour", "energy", "cost"]);
+    assert.deepEqual(toSearchTerms("How much does it cost? Cost per order, 2025."), ["cost", "per", "order", "2025"]);
+    assert.deepEqual(toSearchTerms(undefined), []);
+  });
+
+  it("appends new focus words after the subject and caps the length", () => {
+    assert.equal(
+      toSearchQuery(LIVE_QUESTION, "cost benchmark average cost per"),
+      "mid-size 3pl warehouse cut labour energy cost benchmark average per"
+    );
+    assert.equal(toSearchQuery(LIVE_QUESTION, "", 3), "mid-size 3pl warehouse");
+  });
+
+  it("never empties a query whose subject has no content words", () => {
+    assert.equal(toSearchQuery("What is it?", "review"), "What is it? review");
+  });
+
+  it("both search fetchers send keywords, never the verbatim question", async () => {
+    const sent = [];
+    const web = createWebEvidence({
+      logger,
+      snapshotStore: tmpStore(),
+      searchFn: async (params) => { sent.push(params.query); return { results: [] }; },
+      extractOne: async () => ({ raw_content: LONG_TEXT })
+    });
+    await web.searchAndRead({ query: LIVE_QUESTION, focus: "statistics official data" });
+    const oa = createOpenAlex({
+      logger,
+      fetchImpl: async (url) => { sent.push(new URL(url).searchParams.get("search")); return jsonResponse(200, { results: [] }); }
+    });
+    await oa.searchWorks({ query: LIVE_QUESTION, focus: "review" });
+    assert.deepEqual(sent, [
+      "mid-size 3pl warehouse cut labour energy cost statistics official data",
+      "mid-size 3pl warehouse cut labour energy cost review"
+    ]);
+  });
+});
+
 describe("web evidence fetcher", () => {
   it("reads https pages only, skips thin pages, and stores what it shows", async () => {
     const store = tmpStore();
@@ -125,6 +170,35 @@ describe("web evidence fetcher", () => {
     assert.equal(recs[0].url, "https://good.example.com/x");
     assert.match(recs[0].text, /^WEB: [0-9a-f]{12}\n/);
     assert.equal(store.verify(recs[0].webSnapshotId).status, "found");
+  });
+
+  it("drops pages that are about one word of the question, not the question", () => {
+    const terms = toSearchTerms(LIVE_QUESTION);
+    // Shapes of the pages the degraded web back end returned on 2026-10-21.
+    const utility = "Modesto Irrigation District. Pay my bill. Energy assistance programs. Outage map. Contact us.";
+    const dictionary = "can verb. To be able to. Can you cut the paper? Cost of a can of soup. Synonyms: may, might.";
+    const listing = "Warehouses for rent in Culver City, CA. 12,000 sq ft warehouse, loading dock, call for price.";
+    for (const page of [utility, dictionary, listing]) assert.equal(isOnTopic(page, terms), false, page.slice(0, 30));
+  });
+
+  it("keeps an on-topic page, across labour/labor and warehouse/warehousing", () => {
+    const page = "Third-party logistics (3PL) warehousing: labor is the largest cost line, and LED retrofits cut energy use.";
+    assert.equal(isOnTopic(page, toSearchTerms(LIVE_QUESTION)), true);
+    assert.equal(isOnTopic("anything at all", []), true);
+  });
+
+  it("an off-topic page is neither stored nor shown", async () => {
+    const store = tmpStore();
+    const web = createWebEvidence({
+      logger,
+      snapshotStore: store,
+      searchFn: async () => ({ results: [{ url: "https://dictionary.example.com/can" }, { url: "https://good.example.com/x" }] }),
+      extractOne: async (url) => ({
+        raw_content: url.includes("dictionary") ? "can verb. To be able to. ".repeat(20) : `${LONG_TEXT} 3PL energy cost cut. `
+      })
+    });
+    const recs = await web.searchAndRead({ query: LIVE_QUESTION });
+    assert.deepEqual(recs.map((r) => r.url), ["https://good.example.com/x"]);
   });
 
   it("fails soft when search throws or no subject is given", async () => {

@@ -15,6 +15,7 @@
 // Fail-soft like every sibling fetcher: any error returns [] and the run continues.
 
 const path = require("node:path");
+const { toSearchTerms, toSearchQuery } = require("./search-terms.js");
 
 const DEFAULT_PAGES = 5;
 const MAX_PAGES = 10;
@@ -31,6 +32,31 @@ function firstNonEmpty(args, keys) {
     if (typeof value === "string" && value.trim()) return value.trim();
   }
   return "";
+}
+
+/**
+ * Is a page about the subject, judged from its own text? A page the search back end returned for
+ * the wrong words (a dictionary entry for "can", a local rental listing for "warehouse") must not
+ * become citable evidence: the gate would ground a WEB id to it and the report would quote it.
+ * Seen live 2026-10-21, when the only working general-web engine answered every multi-word query
+ * with results for a single word.
+ *
+ * @param {string} pageText       the extracted page text (lower-case it before comparing)
+ * @param {string[]} subjectTerms content words of the subject, from toSearchTerms (lower-case)
+ * @returns {boolean} true to keep the page as evidence, false to drop it
+ */
+function isOnTopic(pageText, subjectTerms) {
+  const terms = Array.isArray(subjectTerms) ? subjectTerms.filter(Boolean) : [];
+  if (terms.length === 0) return true; // nothing to judge by; the subject itself was empty of content
+  const text = String(pageText || "").toLowerCase();
+  // Match each term by a short stem at a word start, so labour~labor and warehouse~warehousing.
+  const mentioned = terms.filter((term) => {
+    const stem = term.length > 4 ? term.slice(0, 4) : term;
+    const escaped = stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`(?<![\\p{L}\\p{N}])${escaped}`, "u").test(text);
+  });
+  // At least half the subject, rounded up: a page about one word of the question is not about it.
+  return mentioned.length >= Math.ceil(terms.length / 2);
 }
 
 function connectorModule(file) {
@@ -65,8 +91,9 @@ function createWebEvidence(options = {}) {
       logger.info({ event: "web_evidence_no_subject", note: "no query or subject key supplied — skipped" });
       return [];
     }
-    const focus = typeof args.focus === "string" ? args.focus.trim() : "";
-    const query = [subject, focus].filter(Boolean).join(" ");
+    // Keywords, not the question: the search back end keys on question words ("can", "much").
+    const query = toSearchQuery(subject, args.focus);
+    const subjectTerms = toSearchTerms(subject);
     const pages = Math.max(1, Math.min(Number(args.pages) || DEFAULT_PAGES, MAX_PAGES));
     const topic = args.topic === "news" ? "news" : "general";
 
@@ -98,6 +125,10 @@ function createWebEvidence(options = {}) {
       }
       const text = page && typeof page.raw_content === "string" ? page.raw_content.trim() : "";
       if (text.length < 200) continue; // too thin to support a claim
+      if (!isOnTopic(text, subjectTerms)) {
+        logger.info({ event: "web_evidence_off_topic", url, subject_terms: subjectTerms });
+        continue;
+      }
       let snap;
       try {
         snap = store.put({ url, title: (page && page.title) || hit.title || "", text });
@@ -123,4 +154,4 @@ function createWebEvidence(options = {}) {
   return Object.freeze({ searchAndRead });
 }
 
-module.exports = { createWebEvidence, DEFAULT_PAGES, MAX_PAGES, SUBJECT_KEYS };
+module.exports = { createWebEvidence, isOnTopic, DEFAULT_PAGES, MAX_PAGES, SUBJECT_KEYS };
