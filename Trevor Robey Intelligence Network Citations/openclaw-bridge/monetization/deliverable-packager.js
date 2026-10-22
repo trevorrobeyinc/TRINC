@@ -96,23 +96,26 @@ const PROFILE_COPY = Object.freeze({
     disclaimer: "This intelligence product is intended for informational and research purposes only. It does not constitute medical advice, investment advice, legal counsel, or regulatory guidance. Independent verification of all findings is recommended before making clinical, commercial, or regulatory decisions."
   }),
   business: Object.freeze({
-    noRecordIdentifiers: "Citations carry public identifiers (SEC filing accession, World Bank indicator code, DOI) or the content hash of the exact web page read (WEB), and can be checked directly.",
+    noRecordIdentifiers: "Citations carry public identifiers (SEC filing accession, World Bank indicator code, official statistics series id, DOI) or the content hash of the exact web page read (WEB), and can be checked directly.",
     retractionScope: "cited DOIs are retraction-screened",
-    registries: "SEC → SEC EDGAR filing index, WB → World Bank Indicators API, DOI → Crossref with a doi.org fallback, "
+    registries: "SEC → SEC EDGAR filing index, WB → World Bank Indicators API, BLS → BLS Public Data API, "
+      + "EUROSTAT → Eurostat SDMX dataflow, CENSUS → U.S. Census Bureau API, EIA → EIA API v2, DOI → Crossref with a doi.org fallback, "
       + "WEB → this run's stored page snapshot, re-hashed at delivery",
     correctnessNote: "Re-resolution confirms an "
       + "identifier resolves to a source record — it does not assess the correctness of the source. For WEB citations it confirms "
       + "the stored text is exactly what was read from that URL at retrieval time, not that the page is still live.",
     sourcesSentence: "public company filings, official economic statistics, scholarly literature, and archived web sources",
-    drawnFrom: "SEC EDGAR, the World Bank, OpenAlex / Crossref, and archived web pages",
+    drawnFrom: "SEC EDGAR, official statistics agencies (U.S. Bureau of Labor Statistics, Eurostat, the World Bank), OpenAlex / Crossref, and archived web pages",
     reviewStep: "1. **Source Review** — Systematic scan of filings, official statistics, scholarly works and web sources with citation extraction",
     analysisStep: "2. **Deep Analysis** — Cost, market, competitive, or operational analysis with quantitative data",
-    identifierBullet: "- Every citation includes a verifiable identifier (SEC accession, World Bank indicator, DOI) or a WEB snapshot hash; every cited web page ships in `sources/`",
+    identifierBullet: "- Every citation includes a verifiable identifier (SEC accession, official statistics series id, World Bank indicator, DOI) or a WEB snapshot hash; every cited web page ships in `sources/`",
     retractionBullet: "- Cited DOIs are retraction-screened against Crossref; any retracted source blocks release",
     dataSourcesIntro: "The pipeline queries the following sources:",
     dataSources: Object.freeze([
       "- **SEC EDGAR** — Public company filings: 10-K, 10-Q, 8-K (SEC accession identifiers)",
       "- **World Bank Indicators** — Official macroeconomic statistics (WB indicator codes)",
+      "- **U.S. Bureau of Labor Statistics** — Wages, employment and prices by industry, for U.S. requests (BLS series ids)",
+      "- **Eurostat** — Energy prices and labour costs, for European requests (Eurostat dataset codes)",
       "- **OpenAlex / Crossref** — Scholarly and industry research (DOI identifiers)",
       "- **The open web** — Pages read during the run, each stored as a content-addressed snapshot (WEB identifiers) and shipped in `sources/`"
     ]),

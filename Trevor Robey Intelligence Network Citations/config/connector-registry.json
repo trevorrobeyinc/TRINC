@@ -1779,6 +1779,106 @@
       "adapter_priority": "n/a",
       "suggested_adapter_path": "openclaw-bridge/mcp/business-sources/openalex.js (built 2026-10-21, routed via the localFetchers seam in scripts/_workflow-runtime.js, which clamps limit to at most 25)",
       "health_check": "OFFLINE only so far: tests/core/business-research-lane.test.js (injected fakes). No business-profile run exists on disk as of 2026-10-21 (no workspace/workflows/*/workflow.json names a business template), so there is no live health result yet; the first real run needs network, SearXNG up and the operator-approve touch."
+    },
+    "bls-series": {
+      "tool_prefix": "openclaw-bridge/mcp/business-sources/bls.js",
+      "execution_surface": "subprocess-mcp",
+      "lane": "research",
+      "research_profile": "business",
+      "prefetch_map": "config/tool-prefetch-map.business.json",
+      "auth": "none required (BLS Public Data API v1, keyless: 25 queries/day, 25 series/query); optional free key BLS_API_KEY switches to v2 (500/day, 50 series)",
+      "tools": [
+        "bls_series"
+      ],
+      "purpose": "BUSINESS RESEARCH PROFILE ONLY — Evidence Desk P1 (2026-10-21; docs/business-research-lane.md). Wages, employment and prices by industry from the U.S. Bureau of Labor Statistics, for U.S. runs only (map entry `requires: [us_scope]`). Series chosen by config/business-series-map.json, never by the model. One batched POST per run. Records carry `BLS: <series id>`; the re-resolver re-requests the series at delivery (live-verified 2026-10-21: an unknown id answers 'Series does not exist' = UNRESOLVED; a refusal = UNCHECKED). The value is shown exactly as BLS returned it, with its period and footnotes.",
+      "bound_roles": [
+        "scout"
+      ],
+      "bound_workflow_steps": [
+        { "workflow_template_id": "business-research-pack", "step_id": "research" },
+        { "workflow_template_id": "cost-reduction-analysis", "step_id": "research" },
+        { "workflow_template_id": "market-landscape", "step_id": "research" }
+      ],
+      "business_value": "high",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "openclaw-bridge/mcp/business-sources/bls.js (built 2026-10-21, routed via the localFetchers seam in scripts/_workflow-runtime.js)",
+      "health_check": "Every series in config/business-series-map.json returned data from the live API on 2026-10-21 (one batched POST). Fetcher and re-resolver are covered offline by tests/core/evidence-desk.test.js (injected fakes). No business-profile run exists yet."
+    },
+    "eurostat-series": {
+      "tool_prefix": "openclaw-bridge/mcp/business-sources/eurostat.js",
+      "execution_surface": "subprocess-mcp",
+      "lane": "research",
+      "research_profile": "business",
+      "prefetch_map": "config/tool-prefetch-map.business.json",
+      "auth": "none (public, keyless Eurostat dissemination API, JSON-stat 2.0)",
+      "tools": [
+        "eurostat_series"
+      ],
+      "purpose": "BUSINESS RESEARCH PROFILE ONLY — Evidence Desk P1 (2026-10-21). Electricity and gas prices for non-household consumers and hourly labour cost by NACE activity, for European runs only (map entry `requires: [eurostat_geo]`, derived from the run's country by core/research-profiles.js). Datasets and filters from config/business-series-map.json; each query must resolve to exactly one value. Records carry `EUROSTAT: <dataset>`; the re-resolver confirms the dataflow at delivery (live-verified 2026-10-21: an unknown dataset answers 404 ERR_NOT_FOUND = UNRESOLVED).",
+      "bound_roles": [
+        "scout"
+      ],
+      "bound_workflow_steps": [
+        { "workflow_template_id": "business-research-pack", "step_id": "research" },
+        { "workflow_template_id": "cost-reduction-analysis", "step_id": "research" },
+        { "workflow_template_id": "market-landscape", "step_id": "research" }
+      ],
+      "business_value": "medium",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "openclaw-bridge/mcp/business-sources/eurostat.js (built 2026-10-21, routed via the localFetchers seam in scripts/_workflow-runtime.js)",
+      "health_check": "Every dataset and filter in config/business-series-map.json returned exactly one value for DE and EU27_2020 from the live API on 2026-10-21. Covered offline by tests/core/evidence-desk.test.js. No business-profile run exists yet."
+    },
+    "census-business-patterns": {
+      "tool_prefix": "openclaw-bridge/mcp/business-sources/census.js",
+      "execution_surface": "subprocess-mcp",
+      "lane": "research",
+      "research_profile": "business",
+      "prefetch_map": "config/tool-prefetch-map.business.json",
+      "auth": "free key required: CENSUS_API_KEY (operator registers; Keychain, never in git). Keyless requests answer HTTP 200 with an HTML 'Missing Key' page.",
+      "tools": [
+        "census_business_patterns"
+      ],
+      "purpose": "BUSINESS RESEARCH PROFILE ONLY — Evidence Desk P2, DORMANT until the key exists (2026-10-21). County Business Patterns establishments, employees and annual payroll for the run's NAICS industry, U.S. runs only. Not wired in scripts/_workflow-runtime.js without CENSUS_API_KEY, so its `local_only` map entry is recorded as skipped. Records carry `CENSUS: cbp/<year>/<naics>`; the re-resolver re-queries with the key (no key = UNCHECKED no_api_key). The data response shape is to be confirmed on activation.",
+      "bound_roles": [
+        "scout"
+      ],
+      "bound_workflow_steps": [
+        { "workflow_template_id": "business-research-pack", "step_id": "research" },
+        { "workflow_template_id": "cost-reduction-analysis", "step_id": "research" },
+        { "workflow_template_id": "market-landscape", "step_id": "research" }
+      ],
+      "business_value": "medium",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "openclaw-bridge/mcp/business-sources/census.js (built 2026-10-21; wired only when CENSUS_API_KEY is set)",
+      "health_check": "DORMANT: no key yet. CBP 2023 and its variables were confirmed from the keyless metadata on 2026-10-21; no data value has been read. Covered offline by tests/core/evidence-desk.test.js."
+    },
+    "eia-energy-prices": {
+      "tool_prefix": "openclaw-bridge/mcp/business-sources/eia.js",
+      "execution_surface": "subprocess-mcp",
+      "lane": "research",
+      "research_profile": "business",
+      "prefetch_map": "config/tool-prefetch-map.business.json",
+      "auth": "free key required: EIA_API_KEY (operator registers; Keychain, never in git). Keyless requests answer API_KEY_MISSING.",
+      "tools": [
+        "eia_energy_prices"
+      ],
+      "purpose": "BUSINESS RESEARCH PROFILE ONLY — Evidence Desk P2, DORMANT until the key exists (2026-10-21). U.S. retail electricity and natural-gas prices by sector (EIA legacy series ids served by /v2/seriesid/), U.S. runs only. Not wired without EIA_API_KEY, so its `local_only` map entry is recorded as skipped. Records carry `EIA: <series id>`. NOT live-verified: the series ids and the response shape must be confirmed once the key exists.",
+      "bound_roles": [
+        "scout"
+      ],
+      "bound_workflow_steps": [
+        { "workflow_template_id": "business-research-pack", "step_id": "research" },
+        { "workflow_template_id": "cost-reduction-analysis", "step_id": "research" },
+        { "workflow_template_id": "market-landscape", "step_id": "research" }
+      ],
+      "business_value": "medium",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "openclaw-bridge/mcp/business-sources/eia.js (built 2026-10-21; wired only when EIA_API_KEY is set)",
+      "health_check": "DORMANT and NOT live-verified: every EIA request needs a key. Covered offline by tests/core/evidence-desk.test.js."
     }
   },
   "excluded_infrastructure": {

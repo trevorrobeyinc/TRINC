@@ -165,7 +165,12 @@ function createResearchOutputManager(options = {}) {
       // the gap made the engine reference an artifact it could not produce.
       search_coverage: Array.isArray(metadata.search_coverage)
         ? metadata.search_coverage.map((entry) => (isPlainObject(entry) ? canonicalize(entry) : entry))
-        : []
+        : [],
+      // Evidence Desk (2026-10-21): "evidence-desk" marks a section written without a model; the
+      // citation gate and the density audit read it to judge model-written text only. Allowlisted
+      // here for the same reason as search_coverage above — an unlisted key is silently dropped.
+      // Present only when set, so every other task's metadata is unchanged.
+      ...(safeString(metadata.authored_by) ? { authored_by: safeString(metadata.authored_by) } : {})
     });
     writeJson(metadataPath, normalizedMetadata);
 

@@ -17,7 +17,8 @@ const { INTERACTION_LOG_SCHEMA_VERSION, CHAIN_ZERO_HASH } = require("./interacti
 const timeProviderModule = require("./time-provider.js");
 const { createDatasetBuilder } = require("../dataset/dataset-builder.js");
 const { createDatasetOutputManager } = require("../dataset/dataset-output-manager.js");
-const { verifyReportCitations, annotateSubtaskOutputs, checkRetractions, DEFAULT_MIN_GROUNDED_RATIO } = require("./citation-gate.js");
+const { verifyReportCitations, annotateSubtaskOutputs, checkRetractions, isDeskAuthoredSubtask, DEFAULT_MIN_GROUNDED_RATIO } = require("./citation-gate.js");
+const { toSearchQuery } = require("../mcp/business-sources/search-terms.js");
 const { extractCitations, deduplicateCitations } = require("./citation-extractor.js");
 const { createCitationReresolver } = require("../mcp/citation-reresolver/citation-reresolver.js");
 const { getResearchProfile } = require("./research-profiles.js");
@@ -139,7 +140,16 @@ function createWorkflowEngine(options = {}) {
     // template wins over a caller-supplied input: the lane is a property of the product, not of the
     // request. Templates without it get no key at all, so biomedical runs are unchanged.
     if (typeof workflowDef.research_profile === "string" && workflowDef.research_profile.trim()) {
-      merged.research_profile = getResearchProfile(workflowDef.research_profile).id;
+      const profile = getResearchProfile(workflowDef.research_profile);
+      merged.research_profile = profile.id;
+      // Evidence Desk (2026-10-21): inputs a profile derives from the run's own inputs (the business
+      // lane's us_scope / eurostat_geo, which decide whether BLS/Census/EIA or Eurostat apply). A
+      // value the caller supplied wins.
+      if (typeof profile.deriveInputs === "function") {
+        for (const [key, value] of Object.entries(profile.deriveInputs(merged))) {
+          if (merged[key] === undefined) merged[key] = value;
+        }
+      }
     }
     return merged;
   }
@@ -155,6 +165,8 @@ function createWorkflowEngine(options = {}) {
     ];
     for (const [key, value] of Object.entries(inputs)) {
       if (key === "input_path" || key === "input_dir" || key === "research_profile") continue;
+      // Profile-derived routing inputs (business lane) steer the prefetch, not the research.
+      if (key === "us_scope" || key === "eurostat_geo") continue;
       lines.push(`- **${key.replace(/_/g, " ")}**: ${String(value)}`);
     }
     if (workflowDef.description) {
@@ -256,6 +268,8 @@ function createWorkflowEngine(options = {}) {
       ...approvals,
       correlationId: `phase30-workflow-${context.workflowId}`,
       toolPrefetch: researchRuntime.toolPrefetch || null,
+      // Evidence Desk (business lane): writes the scout section deterministically (agent-engine.js).
+      evidenceDesk: researchRuntime.evidenceDesk || null,
       workflowInputs: enrichedInputs
     });
 
@@ -328,6 +342,8 @@ function createWorkflowEngine(options = {}) {
             pass: gatePass, verdict: gate.verdict, cited: gate.cited, grounded: gate.grounded, ungrounded: gate.ungrounded,
             grounded_ratio: gate.grounded_ratio, min_grounded_ratio: gate.min_grounded_ratio,
             fetched_id_count: gate.fetched_id_count, ungrounded_list: gate.ungrounded_list,
+            // Sections the grounded ratio did NOT judge (Evidence Desk, written without a model).
+            desk_authored_sections: gate.desk_authored_sections || [],
             retracted: retraction.retracted,
             retracted_dois: retraction.retracted_dois || [],
             retracted_pmids: retraction.retracted_pmids || [],
@@ -423,7 +439,12 @@ function createWorkflowEngine(options = {}) {
             // answered 429 for 7 of 12 in the first real dispatch-lane run (2026-10-08), forfeiting the full DELIVER claim.
             minRequestIntervalMs: ncbiApiKey ? 110 : 350,
             // Business lane: WEB ids re-resolve against the run's stored page snapshots.
-            webSnapshotStore: researchRuntime.webSnapshotStore || null
+            webSnapshotStore: researchRuntime.webSnapshotStore || null,
+            // Evidence Desk keys (free, operator-registered; never in git). BLS works keyless (v1);
+            // without the other two, CENSUS / EIA ids re-resolve UNCHECKED `no_api_key`.
+            blsApiKey: process.env.BLS_API_KEY || "",
+            censusApiKey: process.env.CENSUS_API_KEY || "",
+            eiaApiKey: process.env.EIA_API_KEY || ""
           });
           const reresolved = await reresolver.resolveAll(cites);
           const manifest = buildReproducibilityManifest({
@@ -828,13 +849,16 @@ function createWorkflowEngine(options = {}) {
     const citationPattern = /\b(PubChem|CID\s*[:\s]?\s*\d+|NCT\d{8}|PMID\s*[:\s]?\s*\d+|doi:\s*10\.\d{4,}|10\.\d{4,}\/\S+|FAERS|ChEMBL\w+|ENSG\d+|DrugBank:\s*DB\d+|UniProt:\s*[A-Z]\w+)\b/i;
     // Business lane: the same density heuristic must recognise the lane's citation shapes, or every
     // business report would read as uncited. Literal uppercase prefixes, as in citation-extractor.js.
-    const businessCitationPattern = /\b(?:WEB[:\s]+[0-9a-f]{12}|SEC[:\s]+\d{1,10}\/\d{10}-\d{2}-\d{6}|WB[:\s]+[A-Z]{2,4}\.)/;
+    const businessCitationPattern = /\b(?:WEB[:\s]+[0-9a-f]{12}|SEC[:\s]+\d{1,10}\/\d{10}-\d{2}-\d{6}|WB[:\s]+[A-Z]{2,4}\.|BLS:\s*[A-Z0-9]*\d|EUROSTAT:\s*[A-Za-z]+_|CENSUS:\s*[a-z]+\/\d{4}\/|EIA:\s*[A-Z]{2,6}\.)/;
     const auditProfile = getResearchProfile(applyInputSchemaDefaults(workflowDef, inputs).research_profile);
     const isCitedLine = auditProfile.id === "business"
       ? (line) => citationPattern.test(line) || businessCitationPattern.test(line)
       : (line) => citationPattern.test(line);
 
     for (const subtask of subtaskResults) {
+      // Operator decision 2026-10-21: the density audit judges MODEL-written text only. The Evidence
+      // Desk's brief cites every source it shows, so counting it would let it carry weaker sections.
+      if (isDeskAuthoredSubtask(subtask)) continue;
       if (subtask.output_path && fs.existsSync(subtask.output_path)) {
         const content = fs.readFileSync(subtask.output_path, "utf8");
         const lines = content.split("\n").filter((line) => line.trim().length > 10);
@@ -882,11 +906,13 @@ function createWorkflowEngine(options = {}) {
         enrichedInputs.indication || enrichedInputs.condition || enrichedInputs.disease
         || enrichedInputs.therapeutic_area || enrichedInputs.topic || ""
       ).trim();
-      // Business lane: grade against business primary hosts and search the general web, not science.
+      // Business lane: grade against business primary hosts, on the category the profile names
+      // (science since 2026-10-21 — see research-profiles.js), and search with the question's
+      // content words: OpenAlex answered the verbatim 3PL question with zero works.
       const sectionGateProfile = getResearchProfile(enrichedInputs.research_profile).sectionGate;
       const coverage = await runSectionGate({
         subtasks: subtaskResults,
-        primarySubject,
+        primarySubject: sectionGateProfile ? toSearchQuery(primarySubject) : primarySubject,
         searchFn,
         runGate: runCitationGate,
         readFile: fs.readFileSync,

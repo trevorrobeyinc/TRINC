@@ -9,6 +9,8 @@
 //
 // Fail-soft: any error for one indicator skips that indicator; the rest still return.
 
+const { DEFAULT_ORG, DEFAULT_CONTACT } = require("./polite-http.js");
+
 const API = "https://api.worldbank.org/v2";
 
 // Default set when a template names none: the macro series most business reports need.
@@ -30,6 +32,8 @@ function createWorldBank(options = {}) {
       : { info() {}, warn() {}, error() {} };
   const fetchImpl = options.fetchImpl || (typeof fetch === "function" ? fetch : null);
   const timeoutMs = Number(options.timeoutMs) || 15_000;
+  // Declared requester, like every Evidence Desk source (2026-10-21; this fetcher sent none before).
+  const userAgent = `${options.org || DEFAULT_ORG} ${options.contactEmail || DEFAULT_CONTACT}`;
   const cache = new Map();
 
   async function getJson(url) {
@@ -37,7 +41,10 @@ function createWorldBank(options = {}) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const res = await fetchImpl(url, { signal: controller.signal, headers: { Accept: "application/json" } });
+      const res = await fetchImpl(url, {
+        signal: controller.signal,
+        headers: { "User-Agent": userAgent, Accept: "application/json" }
+      });
       if (!res || !res.ok) throw new Error(`HTTP ${res ? res.status : "no-response"}`);
       return await res.json();
     } finally {
@@ -77,7 +84,17 @@ function createWorldBank(options = {}) {
         title: `${name} — ${place} (${row.date})`,
         year: String(row.date || ""),
         text: `WB: ${code}\nValue: ${row.value} (${place}, ${row.date}; World Bank World Development Indicators)`,
-        url: `https://data.worldbank.org/indicator/${code}?locations=${country}`
+        url: `https://data.worldbank.org/indicator/${code}?locations=${country}`,
+        // Structured copy for the Evidence Desk brief (never rendered into a prompt by itself).
+        stat: {
+          source: "World Bank",
+          cite: `WB: ${code}`,
+          series: name,
+          value: String(row.value),
+          unit: "",
+          period: String(row.date || ""),
+          geo: place
+        }
       });
     }
     logger.info({ event: "world_bank_completed", country, requested: requested.length, returned: records.length });

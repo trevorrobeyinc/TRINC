@@ -211,6 +211,12 @@ function createToolPrefetch(options = {}) {
       content
     };
     if (contextOnly) doc.context_only = true;
+    // Evidence Desk (2026-10-21): the structured records behind the rendered text, for the business
+    // lane's deterministic evidence brief. Non-enumerable, so they never spread, serialize or reach
+    // a prompt; the rendered `content` stays the only thing a model reads.
+    const records = Array.isArray(result) ? result : isPlainObject(result) ? [result] : [];
+    Object.defineProperty(doc, "records", { value: records, enumerable: false, configurable: true });
+    Object.defineProperty(doc, "tool_name", { value: toolName, enumerable: false, configurable: true });
     return doc;
   }
 
@@ -252,6 +258,24 @@ function createToolPrefetch(options = {}) {
       const rawQuery = safeString(queryDef.query) || "";
       const resolvedQuery = resolveTemplate(rawQuery, workflowInputs);
       const covSource = safeString(queryDef.tool_name) || action || "unknown source";
+
+      // Evidence Desk (2026-10-21). `requires`: workflow inputs the entry needs (the BLS series only
+      // for a U.S. run, Eurostat only for a European one). `local_only`: a source served only by a
+      // local fetcher, which the runtime wires only when its key exists (Census, EIA). Either unmet →
+      // recorded as SKIPPED (a configuration no-op, not a search) and never sent to ToolUniverse.
+      const requires = Array.isArray(queryDef.requires) ? queryDef.requires : [];
+      const missingInput = requires.find((key) => !safeString(workflowInputs && workflowInputs[key]));
+      const unwiredLocal = queryDef.local_only === true && typeof localFetchers[safeString(queryDef.tool_name)] !== "function";
+      if (missingInput || unwiredLocal) {
+        logger.info({
+          event: "tool_prefetch_skipped_not_applicable",
+          role,
+          tool_name: covSource,
+          reason: missingInput ? `requires ${missingInput}` : "local fetcher not wired"
+        });
+        coverage.push({ role, source: covSource, action, query: resolvedQuery, status: "skipped", records: 0 });
+        continue;
+      }
 
       try {
         const input = { action };

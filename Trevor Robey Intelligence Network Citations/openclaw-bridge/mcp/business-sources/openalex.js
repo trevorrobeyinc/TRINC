@@ -10,6 +10,7 @@
 // would be uncitable context.
 
 const { toSearchQuery } = require("./search-terms.js");
+const { DEFAULT_ORG } = require("./polite-http.js");
 
 const API = "https://api.openalex.org/works";
 const DEFAULT_LIMIT = 8;
@@ -67,7 +68,8 @@ function createOpenAlex(options = {}) {
     try {
       const res = await fetchImpl(`${API}?${params.toString()}`, {
         signal: controller.signal,
-        headers: { Accept: "application/json" }
+        // Declared requester, like every Evidence Desk source (2026-10-21; none was sent before).
+        headers: { "User-Agent": `${options.org || DEFAULT_ORG} ${contactEmail}`, Accept: "application/json" }
       });
       if (!res || !res.ok) throw new Error(`HTTP ${res ? res.status : "no-response"}`);
       body = await res.json();

@@ -186,6 +186,23 @@ async function buildWorkflowRuntime(options = {}) {
     const secFilings = createSecFilings({ logger, secEdgar });
     const worldBank = createWorldBank({ logger });
     const openAlex = createOpenAlex({ logger });
+    // Evidence Desk (2026-10-21): official statistics with re-resolvable series ids, chosen by
+    // config/business-series-map.json, and the deterministic brief that writes the business scout's
+    // section (agent-engine.js). BLS and Eurostat are keyless. Census and EIA need free keys the
+    // operator registers (env CENSUS_API_KEY / EIA_API_KEY, from Keychain — never in git): until a
+    // key exists its fetcher is NOT wired, and the map's `local_only` entry is recorded as skipped.
+    const { createBls } = require("../openclaw-bridge/mcp/business-sources/bls.js");
+    const { createEurostat } = require("../openclaw-bridge/mcp/business-sources/eurostat.js");
+    const { createCensus } = require("../openclaw-bridge/mcp/business-sources/census.js");
+    const { createEia } = require("../openclaw-bridge/mcp/business-sources/eia.js");
+    const { createEvidenceDesk } = require("../openclaw-bridge/mcp/business-sources/evidence-desk.js");
+    const bls = createBls({ logger, rootDir, apiKey: process.env.BLS_API_KEY || "" });
+    const eurostat = createEurostat({ logger, rootDir });
+    const censusKey = process.env.CENSUS_API_KEY || "";
+    const eiaKey = process.env.EIA_API_KEY || "";
+    const census = censusKey ? createCensus({ logger, rootDir, apiKey: censusKey }) : null;
+    const eia = eiaKey ? createEia({ logger, rootDir, apiKey: eiaKey }) : null;
+    researchRuntime.evidenceDesk = createEvidenceDesk({ logger });
     toolPrefetch = createToolPrefetch({
       toolUniverseMcp, logger, rootDir, timeProvider: options.timeProvider,
       localFetchers: {
@@ -236,7 +253,11 @@ async function buildWorkflowRuntime(options = {}) {
         openalex_works: (args) => openAlex.searchWorks({
           ...(args || {}),
           limit: Math.min(Number((args || {}).limit) || 8, 25)
-        })
+        }),
+        bls_series: (args) => bls.latestSeries(args),
+        eurostat_series: (args) => eurostat.latestValues(args),
+        ...(census ? { census_business_patterns: (args) => census.businessPatterns(args) } : {}),
+        ...(eia ? { eia_energy_prices: (args) => eia.latestPrices(args) } : {})
       }
     });
     logger.info({ event: "tool_prefetch_initialized", uv_path: uvPath });

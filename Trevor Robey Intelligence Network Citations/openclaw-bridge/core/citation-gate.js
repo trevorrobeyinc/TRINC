@@ -48,6 +48,24 @@ function collectFetchedIds(subtaskResults, readFile = fs.readFileSync) {
   return [...ids];
 }
 
+// Evidence Desk (operator decision 2026-10-21). On the business lane the scout section is written
+// deterministically by the Evidence Desk (metadata `authored_by: "evidence-desk"`). It cites only
+// sources the run fetched, so it is grounded by construction — counting it would pad the grounded
+// ratio and could carry weaker model-written sections over the floor. So the ratio judges MODEL text
+// only. The desk section is still in `reportText`: it is retraction-screened, re-resolved, annotated
+// and license-scanned like every other shipped section. Unreadable metadata counts as model text
+// (the strict side).
+const DESK_AUTHOR = "evidence-desk";
+
+function isDeskAuthoredSubtask(subtask, readFile = fs.readFileSync) {
+  if (!subtask || !subtask.metadata_path) return false;
+  try {
+    return JSON.parse(readFile(subtask.metadata_path, "utf8")).authored_by === DESK_AUTHOR;
+  } catch {
+    return false;
+  }
+}
+
 // Concatenate all subtask outputs into the assembled report text.
 function collectReportText(subtaskResults, readFile = fs.readFileSync) {
   const parts = [];
@@ -105,7 +123,13 @@ function verifyReportCitations(opts = {}) {
   const evidenceRequired = opts.evidenceRequired !== false; // Q1: default true — every shipping template needs evidence
   const fetchedIds = collectFetchedIds(subtaskResults, readFile);
   const reportText = collectReportText(subtaskResults, readFile);
-  const x = crossCheckCitations(reportText, fetchedIds);
+  const list = Array.isArray(subtaskResults) ? subtaskResults : [];
+  const deskSections = list.filter((st) => isDeskAuthoredSubtask(st, readFile));
+  // The ratio is computed over model-written text; with no desk section this IS the full report.
+  const gatedText = deskSections.length > 0
+    ? collectReportText(list.filter((st) => !deskSections.includes(st)), readFile)
+    : reportText;
+  const x = crossCheckCitations(gatedText, fetchedIds);
   const hasEvidence = fetchedIds.length > 0;
   const hasCitations = x.total > 0;
   // Q1 three-state verdict — zero-evidence / zero-citation are RECORDED as non-shippable, not auto-passed.
@@ -131,6 +155,7 @@ function verifyReportCitations(opts = {}) {
     min_grounded_ratio: threshold,
     fetched_id_count: fetchedIds.length,
     ungrounded_list: x.unverified,
+    desk_authored_sections: deskSections.map((st) => String(st.task_id || st.subtask_id || "")),
     fetchedIds,
     reportText,
     annotatedReport: annotateUngrounded(reportText, x.unverified)
@@ -322,6 +347,7 @@ module.exports = {
   DEFAULT_MIN_GROUNDED_RATIO,
   collectFetchedIds,
   collectReportText,
+  isDeskAuthoredSubtask,
   annotateUngrounded,
   annotateSubtaskOutputs,
   verifyReportCitations,

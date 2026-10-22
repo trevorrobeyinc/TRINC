@@ -1,6 +1,6 @@
 {
   "schema_version": "tool-prefetch-map-v2",
-  "_comment": "Business research lane (2026-10-21). Selected by a workflow template's \"research_profile\": \"business\" (core/research-profiles.js); never read by a biomedical template. Every evidence source here emits an identifier the citation gate grounds and the re-resolver checks: WEB (stored page snapshot), SEC (filing), WB (World Bank indicator), doi (OpenAlex). Vault and memory reads stay CONTEXT ONLY, as on the biomedical lane.",
+  "_comment": "Business research lane (2026-10-21). Selected by a workflow template's \"research_profile\": \"business\" (core/research-profiles.js); never read by a biomedical template. Every evidence source here emits an identifier the citation gate grounds and the re-resolver checks: WEB (stored page snapshot), SEC (filing), WB (World Bank indicator), BLS / EUROSTAT / CENSUS / EIA (official statistics series, Evidence Desk), doi (OpenAlex). Vault and memory reads stay CONTEXT ONLY, as on the biomedical lane. Evidence Desk (2026-10-21): the scout's section is written by the Desk from the scout's records, without a model call, so the vault read-back moved to the analyst (a deterministic brief must never carry vault text). `requires` names derived inputs an entry needs (us_scope / eurostat_geo); `local_only` entries are skipped unless their fetcher is wired (Census / EIA need keys).",
   "role_mappings": {
     "scout": [
       {
@@ -29,13 +29,50 @@
       },
       {
         "action": "executeTool",
-        "tool_name": "obsidian_prior_research",
+        "tool_name": "bls_series",
         "optional": true,
-        "context_only": true,
-        "arguments": { "topic": "{{topic}}", "limit": 5 }
+        "local_only": true,
+        "requires": ["us_scope"],
+        "_comment": "U.S. runs only. Series from config/business-series-map.json by industry.",
+        "arguments": { "industry": "{{industry}}", "topic": "{{topic}}" }
+      },
+      {
+        "action": "executeTool",
+        "tool_name": "eurostat_series",
+        "optional": true,
+        "local_only": true,
+        "requires": ["eurostat_geo"],
+        "_comment": "European runs only (eurostat_geo is derived from country).",
+        "arguments": { "geo": "{{eurostat_geo}}", "industry": "{{industry}}", "topic": "{{topic}}" }
+      },
+      {
+        "action": "executeTool",
+        "tool_name": "census_business_patterns",
+        "optional": true,
+        "local_only": true,
+        "requires": ["us_scope"],
+        "_comment": "P2: skipped until CENSUS_API_KEY exists (the fetcher is not wired without it).",
+        "arguments": { "industry": "{{industry}}", "topic": "{{topic}}" }
+      },
+      {
+        "action": "executeTool",
+        "tool_name": "eia_energy_prices",
+        "optional": true,
+        "local_only": true,
+        "requires": ["us_scope"],
+        "_comment": "P2: skipped until EIA_API_KEY exists (the fetcher is not wired without it).",
+        "arguments": { "scope": "{{us_scope}}" }
       }
     ],
     "analyst": [
+      {
+        "action": "executeTool",
+        "tool_name": "obsidian_prior_research",
+        "optional": true,
+        "context_only": true,
+        "_comment": "Moved from the scout 2026-10-21: the scout is now the Evidence Desk's deterministic brief.",
+        "arguments": { "topic": "{{topic}}", "limit": 5 }
+      },
       {
         "action": "executeTool",
         "tool_name": "web_evidence",

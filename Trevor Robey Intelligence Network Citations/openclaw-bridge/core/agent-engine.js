@@ -407,6 +407,7 @@ function createAgentEngine(options = {}) {
       // can verify the assembled report against what was actually fetched at runtime.
       let fetchedCitationIds = [];
       let searchCoverage = []; // Q5: per-search outcome log for the deterministic Search-Coverage Ledger
+      let prefetchedDocs = []; // this role's own prefetch docs (the Evidence Desk builds from these)
 
       // WS1: Inject live ToolUniverse data before prompt construction
       if (context.toolPrefetch && typeof context.toolPrefetch.prefetchForRole === "function") {
@@ -417,6 +418,7 @@ function createAgentEngine(options = {}) {
               roleName, context.workflowInputs || {}
             );
             inputDocs.push(...toolDocs);
+            prefetchedDocs = toolDocs;
             // Context-only docs (vault read-back, research-memory priors — `context_only: true`)
             // never enter the runtime-fetched set: their identifiers are from PRIOR runs, not from
             // a source-of-record fetched now. Until 2026-09-22 they did, so an identifier sitting
@@ -490,8 +492,36 @@ function createAgentEngine(options = {}) {
       // evidence for the primary backend. Advisory only — groundedCitationIds above is computed
       // from inputDocs BEFORE this runs and is NOT expanded by the digest, so the helper can
       // never launder a fabricated citation past the gate. Fail-soft (returns "" on any error).
+      // Evidence Desk (business lane, operator decision 2026-10-21). A role the research profile marks
+      // desk-authored (the business scout) is written DETERMINISTICALLY from this role's fetched records
+      // instead of by a model call. Everything around it is unchanged: the approvals above, the same
+      // prefetch and fetched_citation_ids, the grounded-citation check below and the saved metadata.
+      // `authored_by: "evidence-desk"` tells the citation gate and the density audit to judge model-
+      // written text only. No desk, or an empty brief → the role makes its model call as before.
+      const roleProfile = getResearchProfile((context.workflowInputs || {}).research_profile);
+      let deskBrief = null;
+      if (roleProfile.deskAuthoredRoles.includes(safeString(context.agentRole))
+        && context.evidenceDesk && typeof context.evidenceDesk.buildBrief === "function") {
+        try {
+          deskBrief = context.evidenceDesk.buildBrief({
+            role: safeString(context.agentRole),
+            docs: prefetchedDocs,
+            coverage: searchCoverage,
+            workflowInputs: context.workflowInputs || {}
+          });
+        } catch (deskError) {
+          logger.warn({ event: "evidence_desk_failed", task_id: taskId, error: safeString(deskError && deskError.message) });
+          deskBrief = null;
+        }
+        if (!deskBrief || !safeString(deskBrief.text)) {
+          if (deskBrief !== null) logger.warn({ event: "evidence_desk_empty_brief", task_id: taskId });
+          deskBrief = null;
+          logger.warn({ event: "evidence_desk_fallback_to_model", task_id: taskId, role: safeString(context.agentRole) });
+        }
+      }
+
       let helperDigest = "";
-      if (context.helper) {
+      if (context.helper && !deskBrief) {
         helperDigest = await runHelperPrePass({
           taskDefinition: normalizedTask,
           inputDocs,
@@ -505,13 +535,22 @@ function createAgentEngine(options = {}) {
 
       const prompt = buildPrompt(normalizedTask, inputDocs, { ...context, helperDigest });
 
-      const completion = await llmAdapter.complete(prompt, {
-        taskId,
-        provider: safeString(context.provider),
-        fallbackProvider: safeString(context.fallbackProvider),
-        model: safeString(context.model),
-        maxTokens: Number(config.maxTokensPerRequest || 0)
-      });
+      const completion = deskBrief
+        ? {
+          text: deskBrief.text,
+          provider: "evidence-desk",
+          model: safeString(deskBrief.version) || "evidence-desk-v1",
+          tokenCount: 0,
+          durationMs: 0
+        }
+        : await llmAdapter.complete(prompt, {
+          taskId,
+          provider: safeString(context.provider),
+          fallbackProvider: safeString(context.fallbackProvider),
+          model: safeString(context.model),
+          maxTokens: Number(config.maxTokensPerRequest || 0)
+        });
+      const authorship = deskBrief ? { authored_by: "evidence-desk" } : {};
 
       let outputText = completion.text;
       let wikiLinks = null;
@@ -581,7 +620,8 @@ function createAgentEngine(options = {}) {
         provider_info: llmAdapter.getProviderInfo(),
         citation_verification: citationVerification,
         fetched_citation_ids: fetchedCitationIds,
-        search_coverage: searchCoverage
+        search_coverage: searchCoverage,
+        ...authorship
       });
 
       const rlhfResult = await governanceBridge.generateRLHFEntry(taskId, {
@@ -611,6 +651,7 @@ function createAgentEngine(options = {}) {
         citation_verification: citationVerification,
         fetched_citation_ids: fetchedCitationIds,
         search_coverage: searchCoverage,
+        ...authorship,
         rlhf_local_mirror_path: safeString(rlhfResult.local_mirror_path)
       });
 

@@ -256,10 +256,17 @@ proves "what was read, from this URL, at this time", **not** that the page is li
 `tests/core/business-research-lane.test.js`. Design and run command: `docs/business-research-lane.md`.
 
 **State: built, unit-tested, ZERO live runs.** The first live run was **PARKED by the operator on
-2026-10-21** until a working, specialized evidence back end exists (proposal "Evidence Desk": official
-statistics with re-resolvable series ids — BLS, Eurostat, Census, EIA — a legitimate general-web API,
-and an extractive passage condenser that shrinks role-call input). Run inputs are chosen after that.
-What its pre-flight found and fixed:
+2026-10-21** until a specialized evidence back end existed. **That back end, the Evidence Desk, was built
+the same day (P1 + dormant P2; `docs/business-research-lane.md` "Evidence Desk")**: official statistics
+with re-resolvable ids `BLS:` / `EUROSTAT:` (keyless) and `CENSUS:` / `EIA:` (free keys, dormant until
+`CENSUS_API_KEY` / `EIA_API_KEY` exist), chosen by the reviewed `config/business-series-map.json`; an
+extractive BM25 passage condenser that shows the top web passages verbatim as `WEB: <id> ¶<n>`; and the
+business **scout replaced by a deterministic Evidence Brief** (`mcp/business-sources/evidence-desk.js`,
+no model call). Operator decisions: the citation gate and the density audit **judge model-written text
+only** (metadata `authored_by: "evidence-desk"`); the business section gate searches SearXNG `science`
+until the Brave Search API (P3, deferred) exists. Tests: `tests/core/evidence-desk.test.js`. The live run
+still needs the operator's explicit go and a freshly armed `operator-approve` token; the recommended
+inputs are in the lane doc. What the pre-flight found and fixed:
 - **SearXNG general web is unusable for this lane.** Only Bing answers in the `general` category
   (DuckDuckGo/Startpage CAPTCHA, Brave rate-limited, Google/Mojeek empty) and Bing answers a
   multi-word query for one word ("can", "mid", "warehouse"). Never evade it.

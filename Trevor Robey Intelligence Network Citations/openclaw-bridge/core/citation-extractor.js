@@ -48,7 +48,19 @@ const CITATION_PATTERNS = [
   // (mcp/business-sources/web-evidence.js). Lowercase hex only; a longer hex run is DROPPED.
   { type: "WEB", regex: /\bWEB[:\s]+([0-9a-f]{12})(?![0-9a-f])/g },
   // WB: a World Bank indicator code (FP.CPI.TOTL.ZG). Codes are uppercase dotted segments.
-  { type: "WB", regex: /\bWB[:\s]+([A-Z]{2,4}(?:\.[A-Z0-9]{1,8}){1,5})\b/g }
+  { type: "WB", regex: /\bWB[:\s]+([A-Z]{2,4}(?:\.[A-Z0-9]{1,8}){1,5})\b/g },
+  // ── Evidence Desk (2026-10-21) — official statistics (mcp/business-sources/). These four need the
+  // uppercase label AND a colon: "BLS" (basic life support) and "EIA" (enzyme immunoassay) occur in
+  // biomedical prose, and "census" in any prose; none of them is followed by ":" and an id of these
+  // shapes there. Each has a resolver in citation-reresolver.js.
+  // BLS: a series id — uppercase alphanumerics with at least one digit (CES4349300003, CUUR0000SA0).
+  { type: "BLS", regex: /\bBLS:\s*((?=[A-Z0-9]*\d)[A-Z0-9]{8,30})(?![A-Za-z0-9])/g },
+  // EUROSTAT: a dataset code (nrg_pc_205, lc_lci_lev). Lower-cased after capture, as Eurostat writes them.
+  { type: "EUROSTAT", regex: /\bEUROSTAT:\s*([A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+){1,5})(?![A-Za-z0-9_])/g },
+  // CENSUS: "<dataset>/<year>/<NAICS>" (cbp/2023/493, cbp/2023/31-33).
+  { type: "CENSUS", regex: /\bCENSUS:\s*([a-z]{2,12}\/\d{4}\/\d{2}(?:-\d{2}|\d{1,4})?)(?![\d/-])/g },
+  // EIA: a legacy series id (ELEC.PRICE.US-IND.M, NG.N3035US3.M); sentence punctuation is not captured.
+  { type: "EIA", regex: /\bEIA:\s*([A-Z]{2,6}\.[A-Z0-9_.-]{1,40}[A-Z0-9])(?![A-Za-z0-9_-])/g }
 ];
 
 // Clean a captured DOI suffix. DOIs contain internal dots and MAY contain balanced parens, so the
@@ -97,6 +109,7 @@ function extractCitations(text) {
     while ((match = regex.exec(text)) !== null) {
       let id = match[1] || match[0];
       if (type === "DOI") id = normalizeDoiId(id);
+      if (type === "EUROSTAT") id = id.toLowerCase();
       citations.push({ type, id });
     }
   }

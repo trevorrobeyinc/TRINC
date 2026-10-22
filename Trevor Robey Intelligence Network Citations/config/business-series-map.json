@@ -1,0 +1,157 @@
+{
+  "schema_version": "business-series-map-v1",
+  "_comment": "Evidence Desk (2026-10-21): which official-statistics series a business-lane run pulls for an industry. Read by openclaw-bridge/mcp/business-sources/series-map.js. Industry matching is by word-start prefix against the run's `industry` input first, then its `topic`; the first industry that matches wins, and the default series are always added. Extend deliberately: every id added here must be requested from its API once and return data before it is committed (record that in `reviewed`). An id that stops returning data is dropped by its fetcher at run time and named in the log; it is never replaced by a guess.",
+  "reviewed": {
+    "date": "2026-10-21",
+    "bls": "Every BLS series id below was requested from the BLS Public Data API v1 on 2026-10-21 in one batched POST and returned data; a deliberately invalid control id (CES9999999999) came back 'Series does not exist for Series CES9999999999'. The employment levels returned confirm each industry's scope (e.g. CES6562000001 = 23,958.6 thousand, which is health care AND social assistance, NAICS 62).",
+    "bls_titles": "BLS v1 returns values only, never series titles. Titles and units here are written from the BLS series-id structure: CES = Current Employment Statistics, seasonally adjusted; data type 01 = all employees (thousands), 03 = average hourly earnings of all employees (dollars), 08 = average hourly earnings of production and nonsupervisory employees (dollars). CUUR = CPI for All Urban Consumers, U.S. city average, not seasonally adjusted, index 1982-84=100. LNS14000000 = unemployment rate, 16 years and over, seasonally adjusted. PCU = Producer Price Index by industry (index).",
+    "eurostat": "Every Eurostat dataset and filter below was requested from the Eurostat dissemination API (statistics/1.0) on 2026-10-21 and returned exactly one value for DE and for EU27_2020. Dimension codes were read from the API's own response, not assumed.",
+    "census": "County Business Patterns 2023 and its variables NAICS2017, ESTAB ('Number of establishments'), EMP ('Number of employees') and PAYANN ('Annual payroll ($1,000)') were confirmed from the keyless Census variables metadata on 2026-10-21. A data request needs a key (keyless answers HTTP 200 with an HTML 'Missing Key' page), so no data value has been read yet.",
+    "eia": "NOT live-verified: every EIA request needs a key. These ids follow EIA's documented legacy series-id form and must be requested once when the EIA key is registered (docs/business-research-lane.md, P2 activation)."
+  },
+  "bls": {
+    "default_series": ["CUUR0000SA0", "CUUR0000SEHF01", "LNS14000000"],
+    "series": {
+      "CUUR0000SA0": { "title": "Consumer Price Index for All Urban Consumers, all items, U.S. city average", "unit": "index 1982-84=100, not seasonally adjusted" },
+      "CUUR0000SEHF01": { "title": "Consumer Price Index for All Urban Consumers, electricity, U.S. city average", "unit": "index 1982-84=100, not seasonally adjusted" },
+      "LNS14000000": { "title": "Unemployment rate, 16 years and over", "unit": "percent, seasonally adjusted" },
+      "CES4349300001": { "title": "All employees, warehousing and storage", "unit": "thousands, seasonally adjusted" },
+      "CES4349300003": { "title": "Average hourly earnings of all employees, warehousing and storage", "unit": "dollars, seasonally adjusted" },
+      "CES4349300008": { "title": "Average hourly earnings of production and nonsupervisory employees, warehousing and storage", "unit": "dollars, seasonally adjusted" },
+      "PCU493110493110": { "title": "Producer Price Index by industry: general warehousing and storage", "unit": "index" },
+      "CES4348400001": { "title": "All employees, truck transportation", "unit": "thousands, seasonally adjusted" },
+      "CES4348400003": { "title": "Average hourly earnings of all employees, truck transportation", "unit": "dollars, seasonally adjusted" },
+      "CES3000000001": { "title": "All employees, manufacturing", "unit": "thousands, seasonally adjusted" },
+      "CES3000000003": { "title": "Average hourly earnings of all employees, manufacturing", "unit": "dollars, seasonally adjusted" },
+      "CES4200000001": { "title": "All employees, retail trade", "unit": "thousands, seasonally adjusted" },
+      "CES4200000003": { "title": "Average hourly earnings of all employees, retail trade", "unit": "dollars, seasonally adjusted" },
+      "CES6562000001": { "title": "All employees, health care and social assistance", "unit": "thousands, seasonally adjusted" },
+      "CES6562000003": { "title": "Average hourly earnings of all employees, health care and social assistance", "unit": "dollars, seasonally adjusted" },
+      "CES7072200001": { "title": "All employees, food services and drinking places", "unit": "thousands, seasonally adjusted" },
+      "CES7072200003": { "title": "Average hourly earnings of all employees, food services and drinking places", "unit": "dollars, seasonally adjusted" },
+      "CES2000000001": { "title": "All employees, construction", "unit": "thousands, seasonally adjusted" },
+      "CES2000000003": { "title": "Average hourly earnings of all employees, construction", "unit": "dollars, seasonally adjusted" },
+      "CES6000000001": { "title": "All employees, professional and business services", "unit": "thousands, seasonally adjusted" },
+      "CES6000000003": { "title": "Average hourly earnings of all employees, professional and business services", "unit": "dollars, seasonally adjusted" },
+      "CES5000000001": { "title": "All employees, information", "unit": "thousands, seasonally adjusted" },
+      "CES5000000003": { "title": "Average hourly earnings of all employees, information", "unit": "dollars, seasonally adjusted" }
+    }
+  },
+  "eurostat": {
+    "default_datasets": ["nrg_pc_205", "nrg_pc_203"],
+    "datasets": {
+      "nrg_pc_205": {
+        "title": "Electricity prices for non-household consumers (bi-annual)",
+        "filter": { "siec": "E7000", "nrg_cons": "MWH500-1999", "unit": "KWH", "tax": "X_VAT", "currency": "EUR" },
+        "measure": "EUR per kWh, excluding VAT and other recoverable taxes and levies, consumption band IC (500 to 1,999 MWh a year)"
+      },
+      "nrg_pc_203": {
+        "title": "Gas prices for non-household consumers (bi-annual)",
+        "filter": { "siec": "G3000", "nrg_cons": "GJ10000-99999", "unit": "KWH", "tax": "X_VAT", "currency": "EUR" },
+        "measure": "EUR per kWh, excluding VAT and other recoverable taxes and levies, consumption band I3 (10,000 to 99,999 GJ a year)"
+      },
+      "lc_lci_lev": {
+        "title": "Labour cost levels by NACE Rev. 2 activity (annual)",
+        "filter": { "unit": "EUR", "lcstruct": "D1_D4_MD5" },
+        "industry_dimension": "nace_r2",
+        "measure": "EUR per hour; labour cost = compensation of employees plus taxes minus subsidies"
+      }
+    }
+  },
+  "census": {
+    "cbp_year": "2023",
+    "variables": ["NAICS2017_LABEL", "ESTAB", "EMP", "PAYANN"]
+  },
+  "eia": {
+    "default_series": ["ELEC.PRICE.US-COM.M", "ELEC.PRICE.US-IND.M", "NG.N3020US3.M", "NG.N3035US3.M"],
+    "series": {
+      "ELEC.PRICE.US-COM.M": { "title": "Average retail price of electricity, United States, commercial sector, monthly", "verified": false },
+      "ELEC.PRICE.US-IND.M": { "title": "Average retail price of electricity, United States, industrial sector, monthly", "verified": false },
+      "NG.N3020US3.M": { "title": "U.S. price of natural gas sold to commercial consumers, monthly", "verified": false },
+      "NG.N3035US3.M": { "title": "U.S. price of natural gas sold to industrial consumers, monthly", "verified": false }
+    }
+  },
+  "industries": [
+    {
+      "key": "warehousing",
+      "label": "Warehousing and storage",
+      "naics": "493",
+      "census_naics": "493",
+      "nace_r2": "H",
+      "match": ["3pl", "warehous", "fulfil", "logistic", "distribution center", "distribution centre"],
+      "bls": ["CES4349300001", "CES4349300003", "CES4349300008", "PCU493110493110"]
+    },
+    {
+      "key": "trucking",
+      "label": "Truck transportation",
+      "naics": "484",
+      "census_naics": "484",
+      "nace_r2": "H",
+      "match": ["truck", "freight", "haulage", "hauling"],
+      "bls": ["CES4348400001", "CES4348400003"]
+    },
+    {
+      "key": "manufacturing",
+      "label": "Manufacturing",
+      "naics": "31-33",
+      "census_naics": "31-33",
+      "nace_r2": "C",
+      "match": ["manufactur", "factory", "factories"],
+      "bls": ["CES3000000001", "CES3000000003"]
+    },
+    {
+      "key": "retail",
+      "label": "Retail trade",
+      "naics": "44-45",
+      "census_naics": "44-45",
+      "nace_r2": "G",
+      "match": ["retail", "e-commerce", "ecommerce"],
+      "bls": ["CES4200000001", "CES4200000003"]
+    },
+    {
+      "key": "healthcare",
+      "label": "Health care and social assistance",
+      "naics": "62",
+      "census_naics": "62",
+      "nace_r2": "Q",
+      "match": ["health care", "healthcare", "hospital", "clinic", "nursing", "social assistance"],
+      "bls": ["CES6562000001", "CES6562000003"]
+    },
+    {
+      "key": "restaurants",
+      "label": "Food services and drinking places",
+      "naics": "722",
+      "census_naics": "722",
+      "nace_r2": "I",
+      "match": ["restaurant", "food service", "foodservice", "catering", "cafe"],
+      "bls": ["CES7072200001", "CES7072200003"]
+    },
+    {
+      "key": "construction",
+      "label": "Construction",
+      "naics": "23",
+      "census_naics": "23",
+      "nace_r2": "F",
+      "match": ["construction", "contractor", "homebuild"],
+      "bls": ["CES2000000001", "CES2000000003"]
+    },
+    {
+      "key": "professional-services",
+      "label": "Professional and business services",
+      "naics": "54-56",
+      "census_naics": "54",
+      "nace_r2": "M",
+      "match": ["consulting", "consultanc", "professional service", "business service", "law firm", "accounting firm"],
+      "bls": ["CES6000000001", "CES6000000003"]
+    },
+    {
+      "key": "information",
+      "label": "Information",
+      "naics": "51",
+      "census_naics": "51",
+      "nace_r2": "J",
+      "match": ["software", "saas", "telecom", "publishing", "information technology"],
+      "bls": ["CES5000000001", "CES5000000003"]
+    }
+  ]
+}

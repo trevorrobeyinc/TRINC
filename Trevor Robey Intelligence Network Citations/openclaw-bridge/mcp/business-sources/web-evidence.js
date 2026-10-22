@@ -16,12 +16,15 @@
 
 const path = require("node:path");
 const { toSearchTerms, toSearchQuery } = require("./search-terms.js");
+const { condensePage } = require("./passage-condenser.js");
 
 const DEFAULT_PAGES = 5;
 const MAX_PAGES = 10;
-// Characters of page text rendered into the prompt per source. The full text is kept in the
-// snapshot; the prompt gets the opening of the page, which is what the model can quote from.
-const DEFAULT_EXCERPT_CHARS = 2500;
+// What the prompt sees per page (Evidence Desk, 2026-10-21): the top-ranked passages, verbatim,
+// with their offsets in the stored snapshot — not the page's opening characters (until 2026-10-21
+// the first 2,500, mostly navigation). The full text is still stored, so the WEB id is unchanged.
+const PASSAGES_PER_PAGE = 3;
+const MAX_PASSAGE_CHARS = 600;
 const MAX_STORED_CHARS = 60_000;
 
 const SUBJECT_KEYS = ["query", "question", "topic", "company", "industry", "market"];
@@ -94,6 +97,9 @@ function createWebEvidence(options = {}) {
     // Keywords, not the question: the search back end keys on question words ("can", "much").
     const query = toSearchQuery(subject, args.focus);
     const subjectTerms = toSearchTerms(subject);
+    // Passages are ranked for the subject plus the focus words (e.g. "benchmark", "average");
+    // the relevance guard below still judges the page by the subject alone.
+    const rankTerms = [...new Set([...subjectTerms, ...toSearchTerms(args.focus)])];
     const pages = Math.max(1, Math.min(Number(args.pages) || DEFAULT_PAGES, MAX_PAGES));
     const topic = args.topic === "news" ? "news" : "general";
 
@@ -136,13 +142,24 @@ function createWebEvidence(options = {}) {
         logger.warn({ event: "web_evidence_store_failed", url, error: String(err && err.message) });
         continue;
       }
-      const excerpt = text.length > DEFAULT_EXCERPT_CHARS ? `${text.slice(0, DEFAULT_EXCERPT_CHARS)} …` : text;
+      // Rank against the STORED text, so every offset is an offset into the snapshot that ships.
+      const { passages, total } = condensePage(snap.text, rankTerms, {
+        topK: PASSAGES_PER_PAGE,
+        maxChars: MAX_PASSAGE_CHARS
+      });
+      const shown = passages.map((p) => `¶${p.n} [chars ${p.start}–${p.end}]\n${p.text}`).join("\n\n");
       records.push({
         title: snap.title || url,
         year: hit.published_date ? String(hit.published_date).slice(0, 4) : "",
-        text: `WEB: ${snap.id}\n${excerpt}`,
+        text: [
+          `WEB: ${snap.id}`,
+          `Passages ${passages.map((p) => `¶${p.n}`).join(", ")} of ${total}, verbatim; offsets are characters in the stored snapshot. Cite as WEB: ${snap.id} ¶<n>.`,
+          shown
+        ].join("\n"),
         url,
-        webSnapshotId: snap.id
+        webSnapshotId: snap.id,
+        passages,
+        passageTotal: total
       });
     }
 

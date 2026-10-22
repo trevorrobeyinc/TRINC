@@ -35,6 +35,11 @@ function normType(type) {
   if (t === "SEC") return "SEC";
   if (t === "WEB") return "WEB";
   if (t === "WB") return "WB";
+  // Evidence Desk official statistics (2026-10-21) — see mcp/business-sources/.
+  if (t === "BLS") return "BLS";
+  if (t === "EUROSTAT") return "EUROSTAT";
+  if (t === "CENSUS") return "CENSUS";
+  if (t === "EIA") return "EIA";
   return t || "UNKNOWN";
 }
 
@@ -50,8 +55,18 @@ function hostFor(normalizedType) {
     case "SEC": return "sec";
     case "WB": return "worldbank";
     case "WEB": return "websnapshot";
+    case "BLS": return "bls";
+    case "EUROSTAT": return "eurostat";
+    case "CENSUS": return "census";
+    case "EIA": return "eia";
     default: return "none";
   }
+}
+
+// Keys travel in query strings for BLS v2, Census and EIA; a resolved_url is recorded in the
+// customer-facing manifest, so the key is masked there exactly as the NCBI key is.
+function maskKeys(url) {
+  return String(url).replace(/([?&](?:registrationkey|key|api_key)=)[^&]+/gi, "$1***");
 }
 
 function createCitationReresolver(options = {}) {
@@ -70,7 +85,13 @@ function createCitationReresolver(options = {}) {
     ? options.webSnapshotStore
     : null;
   // SEC fair-access policy requires a User-Agent naming the organisation and a contact address.
+  // The Evidence Desk statistics agencies (BLS, Eurostat, Census, EIA) get the same declaration.
   const secUserAgent = `${options.organization || "Trevor Robey Intelligence Network Citations LLC"} ${contactEmail}`;
+  // Evidence Desk keys (P2). Absent → BLS falls back to the keyless v1 API; Census and EIA ids are
+  // UNCHECKED `no_api_key` (never a false VERIFIED).
+  const blsApiKey = typeof options.blsApiKey === "string" ? options.blsApiKey.trim() : "";
+  const censusApiKey = typeof options.censusApiKey === "string" ? options.censusApiKey.trim() : "";
+  const eiaApiKey = typeof options.eiaApiKey === "string" ? options.eiaApiKey.trim() : "";
 
   // NCBI politeness: pacing plus ONE retry on a 429 — the policy lives in core/ncbi-pacing.js, shared with
   // pubmed-retraction.js (options: `minRequestIntervalMs`, `maxRetryAfterMs`, and the injectable `nowMs`/`sleep`;
@@ -89,7 +110,7 @@ function createCitationReresolver(options = {}) {
 
   const UA = `TRINC/1.0 (mailto:${contactEmail})`;
 
-  async function doFetch(url, { method = "GET", userAgent } = {}) {
+  async function doFetch(url, { method = "GET", userAgent, accept = "application/json" } = {}) {
     if (typeof fetchImpl !== "function") return { networkError: true, error: "no fetch implementation" };
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -98,7 +119,7 @@ function createCitationReresolver(options = {}) {
         method,
         redirect: "follow",
         signal: controller.signal,
-        headers: { "User-Agent": userAgent || UA, Accept: "application/json" },
+        headers: { "User-Agent": userAgent || UA, Accept: accept },
       });
     } catch (err) {
       const aborted = err && (err.name === "AbortError" || /abort/i.test(String(err.message)));
@@ -110,6 +131,10 @@ function createCitationReresolver(options = {}) {
 
   async function safeJson(res) {
     try { return await res.json(); } catch { return undefined; }
+  }
+
+  async function safeText(res) {
+    try { return typeof res.text === "function" ? await res.text() : undefined; } catch { return undefined; }
   }
 
   function classifyTransport(res) {
@@ -300,6 +325,109 @@ function createCitationReresolver(options = {}) {
     return { status: STATUS.UNCHECKED, http_status: 200, resolved_url: url, evidence: { reason: "unparseable" } };
   }
 
+  // ---- Evidence Desk official statistics (2026-10-21) ----
+
+  // BLS: the timeseries endpoint answers HTTP 200 for every request. Live-verified 2026-10-21:
+  // a real series returns status REQUEST_SUCCEEDED with its seriesID echoed and data rows; an
+  // unknown one returns REQUEST_SUCCEEDED, an EMPTY data array and the message "Series does not
+  // exist for Series <ID>". A refusal (REQUEST_NOT_PROCESSED, e.g. the keyless 25-a-day limit) is
+  // UNCHECKED, never UNRESOLVED. Identity only — no value is read.
+  async function resolveBLS(id) {
+    const sid = String(id).toUpperCase();
+    const url = blsApiKey
+      ? `https://api.bls.gov/publicAPI/v2/timeseries/data/${encodeURIComponent(sid)}?registrationkey=${encodeURIComponent(blsApiKey)}`
+      : `https://api.bls.gov/publicAPI/v1/timeseries/data/${encodeURIComponent(sid)}`;
+    const resolved_url = maskKeys(url);
+    const res = await doFetch(url, { userAgent: secUserAgent });
+    const t = classifyTransport(res);
+    if (t) return { status: STATUS.UNCHECKED, http_status: res.status || null, resolved_url, evidence: t };
+    if (res.status !== 200) return { status: STATUS.UNCHECKED, http_status: res.status, resolved_url, evidence: { reason: "unexpected_status" } };
+    const body = await safeJson(res);
+    if (!body) return { status: STATUS.UNCHECKED, http_status: 200, resolved_url, evidence: { reason: "unparseable" } };
+    const messages = Array.isArray(body.message) ? body.message.join(" ") : "";
+    if (body.status !== "REQUEST_SUCCEEDED") {
+      return { status: STATUS.UNCHECKED, http_status: 200, resolved_url, evidence: { reason: /threshold|limit/i.test(messages) ? "rate_limited" : "request_not_processed" } };
+    }
+    if (messages.toUpperCase().includes(`SERIES DOES NOT EXIST FOR SERIES ${sid}`)) {
+      return { status: STATUS.UNRESOLVED, http_status: 200, resolved_url, evidence: { reason: "bls_series_not_found" } };
+    }
+    const series = body.Results && Array.isArray(body.Results.series)
+      ? body.Results.series.find((s) => s && String(s.seriesID).toUpperCase() === sid)
+      : null;
+    if (series && Array.isArray(series.data) && series.data.length > 0) {
+      return { status: STATUS.VERIFIED, http_status: 200, resolved_url, evidence: { seriesID: series.seriesID, rows: series.data.length } };
+    }
+    return { status: STATUS.UNCHECKED, http_status: 200, resolved_url, evidence: { reason: "unparseable" } };
+  }
+
+  // EUROSTAT: the SDMX dataflow endpoint. Live-verified 2026-10-21: a real dataset answers 200
+  // with an SDMX structure document containing `<s:Dataflow id="<CODE>"`; an unknown one answers
+  // 404 with "ERR_NOT_FOUND_4: <CODE> ... is not available for dissemination". Identity only.
+  async function resolveEUROSTAT(id) {
+    const code = String(id).toUpperCase();
+    const url = `https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/dataflow/ESTAT/${encodeURIComponent(String(id).toLowerCase())}`;
+    const res = await doFetch(url, { userAgent: secUserAgent, accept: "application/xml" });
+    const t = classifyTransport(res);
+    if (t) return { status: STATUS.UNCHECKED, http_status: res.status || null, resolved_url: url, evidence: t };
+    if (res.status === 200) {
+      const text = await safeText(res);
+      if (text && text.includes(`<s:Dataflow id="${code}"`)) {
+        return { status: STATUS.VERIFIED, http_status: 200, resolved_url: url, evidence: { dataflow: code } };
+      }
+      return { status: STATUS.UNCHECKED, http_status: 200, resolved_url: url, evidence: { reason: "unparseable" } };
+    }
+    if (res.status === 404) return { status: STATUS.UNRESOLVED, http_status: 404, resolved_url: url, evidence: { reason: "eurostat_dataset_not_found" } };
+    return { status: STATUS.UNCHECKED, http_status: res.status, resolved_url: url, evidence: { reason: "unexpected_status" } };
+  }
+
+  // CENSUS: "<dataset>/<year>/<NAICS>", re-queried with the key. Verified 2026-10-21: a keyless
+  // request answers HTTP 200 with an HTML "Missing Key" page — so a 200 is VERIFIED only with a
+  // JSON table that echoes the NAICS code. The not-found shape cannot be read without a key: 204
+  // (documented "no data") and 404 are UNRESOLVED, everything else UNCHECKED. Confirm on activation.
+  async function resolveCENSUS(id) {
+    const m = /^([a-z]{2,12})\/(\d{4})\/(\d{2}(?:-\d{2}|\d{1,4})?)$/.exec(String(id));
+    if (!m) return { status: STATUS.UNRESOLVED, http_status: null, resolved_url: null, evidence: { reason: "bad_format" } };
+    const [, dataset, year, naics] = m;
+    if (dataset !== "cbp") return { status: STATUS.UNCHECKED, http_status: null, resolved_url: null, evidence: { reason: "unsupported_dataset" } };
+    const base = `https://api.census.gov/data/${year}/cbp?get=NAICS2017_LABEL&for=us:*&NAICS2017=${encodeURIComponent(naics)}`;
+    if (!censusApiKey) return { status: STATUS.UNCHECKED, http_status: null, resolved_url: base, evidence: { reason: "no_api_key" } };
+    const url = `${base}&key=${encodeURIComponent(censusApiKey)}`;
+    const resolved_url = maskKeys(url);
+    const res = await doFetch(url, { userAgent: secUserAgent });
+    const t = classifyTransport(res);
+    if (t) return { status: STATUS.UNCHECKED, http_status: res.status || null, resolved_url, evidence: t };
+    if (res.status === 204) return { status: STATUS.UNRESOLVED, http_status: 204, resolved_url, evidence: { reason: "census_no_data" } };
+    if (res.status === 404) return { status: STATUS.UNRESOLVED, http_status: 404, resolved_url, evidence: { reason: "census_not_found" } };
+    if (res.status !== 200) return { status: STATUS.UNCHECKED, http_status: res.status, resolved_url, evidence: { reason: "unexpected_status" } };
+    const rows = await safeJson(res);
+    if (!Array.isArray(rows)) return { status: STATUS.UNCHECKED, http_status: 200, resolved_url, evidence: { reason: "not_json_key_missing_or_rejected" } };
+    const header = Array.isArray(rows[0]) ? rows[0] : [];
+    const col = header.indexOf("NAICS2017");
+    const echoed = col >= 0 && Array.isArray(rows[1]) ? String(rows[1][col]) : "";
+    if (echoed === naics) return { status: STATUS.VERIFIED, http_status: 200, resolved_url, evidence: { naics: echoed, label: rows[1][header.indexOf("NAICS2017_LABEL")] || "" } };
+    return { status: STATUS.UNCHECKED, http_status: 200, resolved_url, evidence: { reason: "unparseable" } };
+  }
+
+  // EIA: /v2/seriesid/<legacy id>, with the key. NOT live-verified (every EIA request needs a key):
+  // VERIFIED only when the response carries data rows; 404 is UNRESOLVED; anything else, including
+  // an empty answer, is UNCHECKED rather than a guess either way. Confirm on activation.
+  async function resolveEIA(id) {
+    const sid = String(id).toUpperCase();
+    const base = `https://api.eia.gov/v2/seriesid/${encodeURIComponent(sid)}`;
+    if (!eiaApiKey) return { status: STATUS.UNCHECKED, http_status: null, resolved_url: base, evidence: { reason: "no_api_key" } };
+    const url = `${base}?api_key=${encodeURIComponent(eiaApiKey)}`;
+    const resolved_url = maskKeys(url);
+    const res = await doFetch(url, { userAgent: secUserAgent });
+    const t = classifyTransport(res);
+    if (t) return { status: STATUS.UNCHECKED, http_status: res.status || null, resolved_url, evidence: t };
+    if (res.status === 404) return { status: STATUS.UNRESOLVED, http_status: 404, resolved_url, evidence: { reason: "eia_series_not_found" } };
+    if (res.status !== 200) return { status: STATUS.UNCHECKED, http_status: res.status, resolved_url, evidence: { reason: "unexpected_status" } };
+    const body = await safeJson(res);
+    const rows = body && body.response && Array.isArray(body.response.data) ? body.response.data : null;
+    if (rows && rows.length > 0) return { status: STATUS.VERIFIED, http_status: 200, resolved_url, evidence: { rows: rows.length } };
+    return { status: STATUS.UNCHECKED, http_status: 200, resolved_url, evidence: { reason: rows ? "empty_response" : "unparseable" } };
+  }
+
   // WEB: no network call. The id is content-addressed, so re-resolution re-reads the stored
   // snapshot and recomputes its hash. Missing = this run never read it; altered = changed since.
   // VERIFIED means "exactly this text was read from this URL at retrieved_at" — not that the page
@@ -337,6 +465,10 @@ function createCitationReresolver(options = {}) {
       case "SEC": return resolveSEC;
       case "WB": return resolveWB;
       case "WEB": return resolveWEB;
+      case "BLS": return resolveBLS;
+      case "EUROSTAT": return resolveEUROSTAT;
+      case "CENSUS": return resolveCENSUS;
+      case "EIA": return resolveEIA;
       default: return null;
     }
   }
