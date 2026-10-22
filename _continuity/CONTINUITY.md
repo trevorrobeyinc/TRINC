@@ -251,6 +251,24 @@ forward below.
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 
+### 2026-10-22T03:35Z · Desktop Claude Code (side sessions "business lane live" + "evidence-desk") · **Evidence Desk built; the business lane is ready for its first live run**
+- **Did:** the Evidence Desk the first business run was parked for is committed as `a110f07` (signed, on `8a0f5c5`).
+  New citable ids `BLS:` and `EUROSTAT:` (keyless), plus `CENSUS:` and `EIA:` (built, dormant until the operator registers
+  free keys), each re-resolved at delivery. Also: an industry → NAICS → series map
+  (`config/business-series-map.json`), an extractive passage condenser, and a deterministic scout brief replacing
+  the scout's model call on the business lane. Operator decisions (2026-10-21): Brave Search API **later**; brief
+  **replaces** the scout; the gate judges **model-written text only** (stricter); the business section gate uses
+  SearXNG `science` until Brave is in. The build caught a blocker: the section gate searched the Bing-only `general`
+  category and would have thrown `PHASE30_CITATION_COVERAGE_ZERO` after every role call was paid for.
+- **State:** engine suite 1343/1343 (as the build session reported); **no live run yet**; `8a0f5c5` + `a110f07` not pushed.
+  Recommended first run: `cost-reduction-analysis`, the 3PL warehouse question, `industry` "warehousing and logistics",
+  `country` US (engine `docs/business-research-lane.md` § "Recommended first run").
+- **Next:** operator pushes; blesses obsidianwatch (6 CRITICAL, command-center from this lane's deploy); opens Obsidian,
+  arms `operator-approve`, dispatches the first run through Command Center. Small copy follow-ups: the brief is labelled
+  "Literature Review" in the packager, and the search-coverage ledger says "biomedical database" on business runs.
+- **Touches:** this entry, `STATUS.md` (Engine row, item 9). Build record:
+  `~/Library/Application Support/Claude/side-session-notes/local_4b6dec9b-8f52-4386-8d5b-edb98b7d8fc4/RESULT-evidence-desk-p1-2026-10-21.md`.
+
 ### 2026-10-22T00:36Z · Desktop Claude Code (side session "business lane live") · **Business lane: first live run parked; pre-flight fixes in; "Evidence Desk" proposed**
 - **Did:** pre-flight for the first live business-lane run (operator decision 2026-10-21: one engine, two lanes,
   same gate). SEC EDGAR (declared org + contact User-Agent), World Bank, OpenAlex, Crossref, SearXNG `:8891` and
