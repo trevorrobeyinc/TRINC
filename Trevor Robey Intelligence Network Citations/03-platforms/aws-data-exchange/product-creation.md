@@ -1,5 +1,15 @@
 # AWS Data Exchange — Product Packaging & Build Plan
 
+> **Superseded for the first listing (2026-10-21).** This plan was written for the free
+> Pharmacovigilance Sample Pack. The first product is now the **Trial Graveyard Feed** (operator
+> decision 2026-10-20): its package, copy, offers and console walkthrough live in
+> [`../../workspace/aws-marketplace-listing/trial-graveyard-feed/`](../../workspace/aws-marketplace-listing/trial-graveyard-feed/)
+> (`UPLOAD-RUNBOOK.md`). Two facts here are out of date for any product. **Products and offers are
+> now created in the AWS Marketplace Management Portal** (Products → Data Products), not the ADX
+> console. **§4.1's Custom-DSA choice is replaced by AWS's standard DSA**, chosen per offer, while
+> the custom DSA waits for counsel. The ADX object model (§1.1), the versioning rules (§2) and the
+> state notes (§5) still hold.
+
 > **File:** `03-platforms/aws-data-exchange/product-creation.md`
 > **Scope:** How the single AWS Data Exchange (ADX) **Files** data set is structured, versioned, and published — covering the free Pharmacovigilance Sample Pack as the public free offer, plus the paid dossiers that attach to the same listing.
 > **Status:** Build/packaging plan. The free sample pack is a standards-compliant DRAFT (prepared 2026-05-06); **nothing is uploaded to AWS yet.** The account-side blockers are now **CLEARED (2026-07-22)** — seller approved, disbursement method added, account status "Publish paid and free products" (was blocked on ADX qualification + seller-profile verification + the disbursement-method review). The remaining gate is **AWS's own product review** when a listing is actually submitted.

@@ -29,6 +29,17 @@ annual discount is `[DECIDE]`.
 
 ## Section B — Custom research reports (any field)
 
+> **Status, checked 2026-10-21 (live files, not notes): ON HOLD by the operator's call.**
+> The "second research engine" is a **module inside the same engine**, by design, not a separate
+> engine (`docs/business-research-lane.md` §"Why a module, not a second engine"): commit `6ca9d78`
+> (2026-10-21) added the `research_profile: "business"` lane, three templates
+> (`business-research-pack`, `cost-reduction-analysis`, `market-landscape`) and new citable
+> identifiers (`WEB:` page snapshots, `SEC:` EDGAR filings, `WB:` World Bank indicators, OpenAlex
+> DOIs). Its offline tests pass (`tests/core/business-research-lane.test.js`, 23/23 on
+> 2026-10-21). **It has never run live**: none of the 14 runs under `workspace/workflows/` uses a
+> business template. So prerequisite 4 below is still open, and nothing in this section can be
+> sold until one real run passes.
+
 Sold direct (Stripe invoice) and as AWS **private offers** for buyers who want to pay through their
 AWS bill. ADX public listings carry data, not services, so these do not go on the public feed
 products.

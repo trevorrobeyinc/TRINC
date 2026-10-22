@@ -1,5 +1,11 @@
 # Trial Graveyard Feed — first-listing draft (2026-10-20)
 
+> **Superseded 2026-10-21.** The refresh was reviewed and the copy finalized in
+> [`product-description.md`](product-description.md) (coverage table filled; "lists every … /
+> complete for the condition term" reworded, because breast cancer is a partial census). Offer terms
+> are in [`offers.md`](offers.md) (prices still on hold), and the console steps are in
+> [`UPLOAD-RUNBOOK.md`](UPLOAD-RUNBOOK.md). This file is kept as the record of the draft.
+
 Working draft for the first AWS Data Exchange listing. It supersedes nothing yet: once the
 refresh below is reviewed, this copy replaces `product-description.md` and `offers.md`.
 Prices are left as `[DECIDE]` — the operator sets them.

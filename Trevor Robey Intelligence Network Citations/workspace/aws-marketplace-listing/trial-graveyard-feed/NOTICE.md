@@ -1,6 +1,6 @@
 # Trial Graveyard Feed — Sources & Compliance NOTICE
 
-- **Source:** ClinicalTrials.gov (U.S. NIH / NLM) — public domain. Records retrieved via the public API v2 (`/studies`) plus the change-history endpoint. Every row carries its NCT identifier and a resolvable `clinicaltrials.gov/study/<NCT>` URL.
+- **Source:** ClinicalTrials.gov (U.S. NIH / NLM) — public domain. Records retrieved via the public API v2 (`/studies`). The change-history endpoint has refused this feed (HTTP 403) since 2026-10-08, so the protocol-history columns are empty; the feed does not work around the refusal. Every row carries its NCT identifier and a resolvable `clinicaltrials.gov/study/<NCT>` URL.
 - **Rendering:** **deterministic** — no LLM / model-generated content; the fetched public record IS the artifact, so every value is verifiable against the source.
 - **No PHI:** trial-level facts only (NCT, status, phase, sponsor-stated stop reason, protocol version counts/modules). No individually identifiable patient data is included or processed.
 - **No DrugBank; ChEMBL not used** in this feed. The engine's shipped-artifact license-allowlist guard enforces DrugBank exclusion and ChEMBL-identifier-only usage across all products.

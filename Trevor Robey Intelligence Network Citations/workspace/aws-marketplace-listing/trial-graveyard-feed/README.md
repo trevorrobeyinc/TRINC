@@ -1,75 +1,93 @@
-# Trial Graveyard Feed — AWS Data Exchange Product Package
+# Trial Graveyard Feed — AWS Data Exchange product package
 
-Upload-ready package for the **Trial Graveyard Feed**: a citation-traced register of terminated /
-withdrawn / suspended clinical trials by therapeutic area, with each trial's sponsor-stated stop
-reason and a per-trial protocol-amendment-risk band. **Launch TA: glioblastoma** (`data/glioblastoma/`).
+The business's first AWS Data Exchange product: a citation-traced register of terminated,
+withdrawn and suspended ClinicalTrials.gov trials by therapeutic area, each with the sponsor's
+stated stop reason. Deterministic render of public-domain registry data (no LLM, no PHI, no
+DrugBank, ChEMBL not used). Every row carries `https://clinicaltrials.gov/study/<NCT>`.
 
-## What this is
-- **Deterministic** (no LLM) render of **public-domain ClinicalTrials.gov** stopped-trial records.
-- Every row resolves to `https://clinicaltrials.gov/study/<NCT>`. **No PHI. No DrugBank. ChEMBL not used.**
-- An AWS Data Exchange **Files** data set — ONE product, two offers (free sample + paid full feed).
+**State, 2026-10-21:** nothing is uploaded to AWS. The account is cleared to publish paid and free
+products. A 12-area refresh is staged and reviewed in `refresh-2026-10-21/`. The shipped `data/`
+folder is still the 2026-07-30 build (6 areas) until the operator approves promotion.
 
-## Free / paid split (carved)
-| | Free offer (evaluation) | Paid offer (subscription) |
+## Coverage of the staged refresh (as of 2026-10-21)
+
+| Area | Paid rows | Census | Sponsor-stated reason |
+|---|---|---|---|
+| Alzheimer disease | 435 | complete | 373 |
+| amyotrophic lateral sclerosis | 116 | complete | 105 |
+| breast cancer | 2,000 of 2,034 | **partial** (2,000-record cap) | 1,780 |
+| glioblastoma | 389 | complete | 351 |
+| idiopathic pulmonary fibrosis | 78 | complete | 71 |
+| multiple sclerosis | 393 | complete | 336 |
+| non-small cell lung cancer | 1,417 | complete | 1,267 |
+| nonalcoholic steatohepatitis | 154 | complete | 141 |
+| pancreatic cancer | 745 | complete | 691 |
+| Parkinson disease | 415 | complete | 373 |
+| prostate cancer | 1,051 | complete | 962 |
+| sickle cell disease | 180 | complete | 173 |
+| **Total** | **7,373 rows, 6,937 distinct trials** | 11 of 12 complete | **6,623 (89.8%)** |
+
+- **Breast cancer is not a complete census.** `ctgov-supplemental.js` stops a census at
+  `CENSUS_MAX_RECORDS_DEFAULT = 2000` (a runaway guard; the hard ceiling is 5,000), and
+  `build-graveyard-feed.js` does not pass `maxRecords`. Its notice says PARTIAL. Never call it
+  "all" or "complete".
+- **Protocol-churn columns are empty on every row.** ClinicalTrials.gov has refused the
+  change-history endpoint with HTTP 403 since 2026-10-08, so `amendment_risk_band` is UNKNOWN
+  throughout. The feed does not spoof headers to get around this. Selling the band is paused.
+- **326 trials appear in two or more areas** (for example `NCT04541875` is in idiopathic pulmonary
+  fibrosis, pancreatic cancer and sickle cell disease, and `NCT02711137` is in five). `nct_id` is
+  unique within an area, not across areas. Any multi-area tier states its distinct count, and the
+  data dictionary tells buyers to deduplicate on `nct_id`.
+- **Rows change between pulls.** From July to October, glioblastoma gained 5 trials and lost 6.
+  The registry's response order also changes, so each free sample (the first 5 rows) differs from
+  July's. Never promise reproducible month-over-month diffs.
+
+The generated copy in all 12 areas was corrected on 2026-10-21 (marker
+`<!-- copy corrected 2026-10-21 -->`). The free data dictionaries named `register.csv` and
+`citation-index.csv`, files the free tier does not have. Both dictionaries now explain the empty
+churn columns and the cross-area duplicates. The sample notices now give the 403 refusal as the
+cause instead of "sampled deliberately". **The generator still writes the old text**, so re-apply
+the fix after any rebuild until `scripts/build-graveyard-feed.js` is corrected.
+
+## Free / paid split
+
+| | Free Sample | Paid tiers |
 |---|---|---|
-| Rows | first 5 (sample) | the **complete register for the condition query** — every stopped trial the registry counts, stated as N of M |
+| Rows | first 5 per area | every stopped trial the registry returns for each area's condition query (stated as N of M) |
 | Schema | identical | identical |
-| Refresh | one-time sample | **monthly** revisions |
-| Files | `free/register-sample.csv` (+ citation-index, data-dictionary, SAMPLE-NOTICE) | `paid/register.csv` (+ citation-index, data-dictionary) |
+| Refresh | one-time sample | monthly revisions |
+| Files per area | `free/register-sample.csv`, `citation-index-sample.csv`, `data-dictionary.md`, `SAMPLE-NOTICE.md` | `paid/register.csv`, `citation-index.csv`, `data-dictionary.md` |
 
-**Rationale:** the raw public facts are re-scrapable from CT.gov, so value capture = **completeness + monthly currency** (and Parquet on paid). The free sample proves schema/quality and seeds the funnel; the paid feed sells the complete, current register for the query. The high-ticket bespoke dossiers stay as **private offers**, not here.
+The raw facts can be re-scraped from ClinicalTrials.gov, so the value is breadth plus monthly
+currency, ready to load. Tiers and prices: `../../../product-strategy/tier-ladder-DRAFT-2026-10-20.md`
+(the prices are the operator's of 2026-10-20; writing them into `offers.md` is on hold by the
+operator's call of 2026-10-21).
 
-> ### ✅ RESOLVED 2026-07-30 — the clamp is gone and every TA has been regenerated
-> Until 2026-07-30 `scripts/build-graveyard-feed.js` applied a `--pageSize` default of 20 with a hard cap
-> of 50, on top of the fetcher's own 50-row cap. The **double clamp's fingerprint was visible in the
-> committed data: six different diseases all landed on exactly 50 rows.** Meanwhile this file said "ALL
-> stopped trials for the TA", `offers.md` said "(complete TA)" as an offer term, and the generated
-> `SAMPLE-NOTICE.md` said "the complete feed (all N …)" where **N was the clamped number**. The claim and
-> the artifact disagreed. Nothing had been published (price is still `[DECIDE]`), so this was caught
-> before any sale.
->
-> The generator now walks the full result set. **All six TAs regenerated 2026-07-30, every one
-> `censusComplete=true`:**
->
-> | Therapeutic area | Was (clamped) | Now (census) |
-> |---|---|---|
-> | pancreatic cancer | 50 | **734** |
-> | Alzheimer disease | 50 | **428** |
-> | glioblastoma | 50 | **390** |
-> | sickle cell disease | 50 | **179** |
-> | amyotrophic lateral sclerosis | 50 | **114** |
-> | idiopathic pulmonary fibrosis | 50 | **76** |
-> | **total paid rows** | **300** | **1,921** |
->
-> `citation-index.csv` scales 1:1 with the register (verified: 390/390 and 734/734).
->
-> **Protocol-churn coverage is deliberately a subset, and this is NOT a defect to fix by raising the
-> number.** Change-history is one HTTP call per trial against an undocumented ClinicalTrials.gov
-> endpoint, so it is sampled at 40 — the largest sweep measured end-to-end (concurrency 3, 400 ms
-> inter-batch pauses, 6.85 s, 0 non-200). Rows outside the sample carry the trial and its stop reason
-> with churn columns empty, which is why glioblastoma reports 350 `UNKNOWN` bands out of 390.
-> `SAMPLE-NOTICE.md` states the exact split per TA, and the amendment band carries its own sample-size,
-> survivorship and threshold disclosures.
+## Refresh / extend
 
-## Launch TA snapshot (glioblastoma, regenerated 2026-07-30 under the census fetch)
-**390 of 390** stopped trials retrieved (`censusComplete=true`) · amendment-risk **21 HIGH / 11 MODERATE / 8 LOW / 350 UNKNOWN** (UNKNOWN = outside the 40-row churn sample) · every row NCT-resolvable.
-*(The previous line here read "12 stopped trials · 5 HIGH / 3 MODERATE / 4 LOW", which matched neither the 50-row file on disk nor the 390-record population.)*
+Rebuild every area into a dated staging folder. This never overwrites `data/`:
 
-## Reproduce / extend
-Regenerate or refresh a TA:
 ```
-node scripts/build-graveyard-feed.js --condition "<TA>" \
-  --out workspace/aws-marketplace-listing/trial-graveyard-feed/data/<slug> \
-  --asOf <YYYY-MM-DD> --pageSize 25 --teaserRows 5
+bash "/Users/myhome/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations/scripts/refresh-graveyard-feeds.sh"
 ```
-- **#1 More TAs:** run the generator per TA (NSCLC, pancreatic cancer, ALS, NASH — high-churn = biggest monthly deltas).
-- **#2 Monthly refresh:** re-run with a new `--asOf` → upload as a new ADX revision.
-- **#3 Parquet (paid):** TODO — add a CSV→Parquet step for the paid assets (documented in UPLOAD-RUNBOOK).
+
+- The generator runs a full census since 2026-07-30. `--pageSize` is accepted and ignored. The
+  old "pageSize defaults to 20" warning (and the `trinc-engineering:feed-refresh` skill text that
+  repeats it) is obsolete.
+- Omitting `--out` on a single-area build writes to `workspace/distribution/graveyard-feed/`, a
+  different tree that holds a stale June build. That tree is not the product.
+- To add an area, add its condition term to `CONDITIONS` in `scripts/refresh-graveyard-feeds.sh`.
+- Parquet for paid tiers is not built (Enterprise depends on it).
 
 ## Files in this package
-- `product-description.md` — ADX listing copy
-- `offers.md` — free + paid offer terms (price **[DECIDE]**)
-- `UPLOAD-RUNBOOK.md` — ADX upload steps + monthly refresh + add-a-TA + Parquet
-- `NOTICE.md` — sources / license / no-PHI
-- `data/<TA>/{free,paid}/` — the generated assets
-- DSA: [`../../../03-platforms/aws-data-exchange/data-subscription-agreement.md`](../../../03-platforms/aws-data-exchange/data-subscription-agreement.md) (DRAFT — counsel)
+
+- `product-description.md`: paste-ready listing copy, including the coverage table
+- `offers.md`: offer terms (price **[DECIDE]**, on hold)
+- `UPLOAD-RUNBOOK.md`: console walkthrough (data sets, product, offer, review, monthly revision)
+- `LISTING-DRAFT-2026-10-20.md`: the draft these were built from (superseded)
+- `NOTICE.md`: sources, licence, no-PHI
+- `data/<area>/{free,paid}/`: shipped assets (2026-07-30 build, 6 areas)
+- `refresh-2026-10-21/<area>/{free,paid}/`: reviewed refresh (12 areas), awaiting promotion
+- Subscription agreement: AWS's standard DSA, selected in the offer. The custom
+  `../../../03-platforms/aws-data-exchange/data-subscription-agreement.md` stays parked until
+  counsel reviews it.

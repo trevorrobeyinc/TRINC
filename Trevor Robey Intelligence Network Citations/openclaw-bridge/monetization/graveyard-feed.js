@@ -16,6 +16,26 @@ const REGISTER_COLUMNS = [
 ];
 const CITATION_COLUMNS = ["identifier_type", "identifier", "source_database", "nct_id", "context"];
 
+// The file names each tier ships under. scripts/build-graveyard-feed.js writes these and the data
+// dictionary documents these, from this one constant: until 2026-10-21 the script wrote the free
+// tier as *-sample.csv while the dictionary still documented register.csv / citation-index.csv.
+const FEED_FILES = Object.freeze({
+  paid: Object.freeze({ register: "register.csv", citations: "citation-index.csv" }),
+  free: Object.freeze({ register: "register-sample.csv", citations: "citation-index-sample.csv" }),
+});
+
+// What the change-history requests did, from the fetcher's accounting (ctgov-supplemental.js
+// historyAttempted / historySucceeded / historyFirstError). A cause is named only when observed:
+// "refused" needs a 403 in the first error, so another failure is never reported as the refusal.
+function historyOutcome(history) {
+  const h = history || {};
+  const attempted = Math.max(0, Number(h.attempted) || 0);
+  const succeeded = Math.max(0, Number(h.succeeded) || 0);
+  if (attempted === 0) return "not_attempted";
+  if (succeeded > 0) return "retrieved";
+  return /\b403\b/.test(String(h.firstError || "")) ? "refused" : "failed";
+}
+
 // Replace common typographic non-ASCII, then strip anything still outside printable ASCII, so the
 // CSV is strict ASCII (sponsor whyStopped text often carries smart quotes / em dashes).
 function asciiSanitize(value) {
@@ -50,9 +70,13 @@ function perTrialBand(changeSummary) {
   return "LOW";
 }
 
+// opts.tier: "paid" (default) or "free" - picks the file names the dictionary documents.
+// opts.history: { attempted, succeeded, firstError } from the fetcher; pass it explicitly, because
+// the fetcher carries it as non-enumerable properties that records.slice() does not copy.
 function buildGraveyardFeed(stoppedTrials, opts = {}) {
   const indication = String(opts.indication || "").trim();
   const asOf = String(opts.asOf || "").trim();
+  const tier = opts.tier === "free" ? "free" : "paid";
   const trials = (Array.isArray(stoppedTrials) ? stoppedTrials : []).filter((t) => t && t.nctId);
 
   const registerRows = [csvRow(REGISTER_COLUMNS)];
@@ -109,12 +133,38 @@ function buildGraveyardFeed(stoppedTrials, opts = {}) {
   return {
     feedCsv: registerRows.join("\n") + "\n",
     citationIndexCsv: citationRows.join("\n") + "\n",
-    dataDictionaryMd: renderDataDictionary(indication, asOf),
+    dataDictionaryMd: renderDataDictionary(indication, asOf, { tier, rows: seen.size, history: opts.history }),
     summary,
   };
 }
 
-function renderDataDictionary(indication, asOf) {
+// Lines for the dictionary's protocol-history note, or none when history came back (the column
+// descriptions already say what a blank means) or was never requested.
+function protocolHistoryNote(history) {
+  const outcome = historyOutcome(history);
+  if (outcome !== "refused" && outcome !== "failed") return [];
+  const firstError = String((history && history.firstError) || "").trim();
+  return [
+    "**Protocol-history columns.** `protocol_versions`, `most_amended_modules`, `history_first` and",
+    "`history_last` are empty, and `amendment_risk_band` is UNKNOWN, on every row of this revision.",
+    ...(outcome === "refused"
+      ? [
+        "Since 2026-10-08 ClinicalTrials.gov refuses the change-history endpoint (HTTP 403), and this",
+        "feed does not work around the refusal. The columns stay in the schema so that a later revision",
+        "can fill them without a schema change.",
+      ]
+      : [
+        `No change history came back from ClinicalTrials.gov for any trial requested${firstError ? ` (first error: ${firstError})` : ""}.`,
+        "The columns stay in the schema so that a later revision can fill them without a schema change.",
+      ]),
+    "",
+  ];
+}
+
+function renderDataDictionary(indication, asOf, opts = {}) {
+  const free = opts.tier === "free";
+  const files = free ? FEED_FILES.free : FEED_FILES.paid;
+  const rows = Number(opts.rows) || 0;
   return [
     `# Trial Graveyard Feed - Data Dictionary`,
     "",
@@ -124,7 +174,14 @@ function renderDataDictionary(indication, asOf) {
     "Rendered deterministically from public CT.gov records (no LLM). Every row resolves to",
     "https://clinicaltrials.gov/study/<nct_id>. Public-domain source; no PHI.",
     "",
-    "## register.csv",
+    ...(free
+      ? [
+        `This is the free sample: the first ${rows} row${rows === 1 ? "" : "s"} of the paid feed for this area, in the identical`,
+        `schema. The paid files are named \`${FEED_FILES.paid.register}\` and \`${FEED_FILES.paid.citations}\`.`,
+        "",
+      ]
+      : []),
+    `## ${files.register}`,
     "| Column | Description |",
     "|---|---|",
     "| nct_id | ClinicalTrials.gov identifier (the provenance key). |",
@@ -140,17 +197,70 @@ function renderDataDictionary(indication, asOf) {
     "| indication | The therapeutic area this feed covers. |",
     "| as_of | The feed revision date. |",
     "",
-    "## citation-index.csv",
+    ...protocolHistoryNote(opts.history),
+    "**Trials in more than one area.** A trial whose conditions match more than one area's query",
+    "appears in each of those areas' files. `nct_id` is unique within one area's file, not across",
+    "areas: deduplicate on `nct_id` when you combine areas.",
+    "",
+    `## ${files.citations}`,
     "| Column | Description |",
     "|---|---|",
     "| identifier_type | Always NCT for this feed. |",
     "| identifier | The NCT id. |",
     "| source_database | ClinicalTrials.gov. |",
-    "| nct_id | Foreign key back to register.csv. |",
+    `| nct_id | Foreign key back to ${files.register}. |`,
     "| context | Status + stop reason snippet. |",
     "",
-    "Cross-file integrity: every nct_id in register.csv appears exactly once in citation-index.csv.",
+    `Cross-file integrity: every nct_id in ${files.register} appears exactly once in ${files.citations}.`,
+    "",
   ].join("\n");
 }
 
-module.exports = { buildGraveyardFeed, asciiSanitize, csvField, perTrialBand, REGISTER_COLUMNS, CITATION_COLUMNS };
+// The free tier's SAMPLE-NOTICE.md. scripts/refresh-graveyard-feeds.sh greps it for "complete**"
+// to fill its summary table, so that wording stays exactly as it is.
+function renderSampleNotice(opts = {}) {
+  const condition = String(opts.condition || "");
+  const asOf = String(opts.asOf || "");
+  const sampleTotal = Number(opts.sampleTotal) || 0;
+  const fullTotal = Number(opts.fullTotal) || 0;
+  const churnRows = Number(opts.churnRows) || 0;
+  const eligibleTotal = opts.eligibleTotal;
+  const outcome = historyOutcome(opts.history);
+  const firstError = String((opts.history && opts.history.firstError) || "").trim();
+
+  let churnCause = "";
+  if (outcome === "refused") {
+    churnCause = " Since 2026-10-08 ClinicalTrials.gov refuses the change-history endpoint (HTTP 403), so this " +
+      "revision carries every trial and its stop reason with the churn columns empty; the feed does not " +
+      "work around the refusal.";
+  } else if (outcome === "failed") {
+    churnCause = " No change history came back from ClinicalTrials.gov for any trial requested" +
+      `${firstError ? ` (first error: ${firstError})` : ""}, so this revision carries every trial and its ` +
+      "stop reason with the churn columns empty.";
+  } else if (outcome === "retrieved" && churnRows < fullTotal) {
+    churnCause = " Protocol history must be fetched one trial at a time from ClinicalTrials.gov, so it is sampled " +
+      "deliberately rather than run across the whole register; rows outside the sample carry the trial and its " +
+      "stop reason, with the churn columns empty.";
+  }
+
+  return `# Free Sample — Trial Graveyard Feed (${condition})\n\n` +
+    `This free sample contains the first ${sampleTotal} of ${fullTotal} stopped trials in the ` +
+    `${condition} feed (as of ${asOf}), in the identical schema, so you can evaluate data quality and format before subscribing.\n\n` +
+    (opts.censusComplete === true
+      ? `The paid subscription delivers the **complete** register for the ClinicalTrials.gov condition query "${condition}" — ` +
+        `all ${fullTotal} of the ${eligibleTotal} terminated/withdrawn/suspended trials the registry counted — refreshed **monthly**.\n\n`
+      : `The paid subscription delivers ${fullTotal} of the ${eligibleTotal} terminated/withdrawn/suspended trials the ` +
+        `registry counted for the condition query "${condition}", refreshed **monthly**. This revision is a **PARTIAL** retrieval, ` +
+        `not a census.\n\n`) +
+    `**Protocol-churn coverage.** Amendment-risk and protocol-churn columns are populated for ${churnRows} of ${fullTotal} ` +
+    `rows.${churnCause}\n\n` +
+    `**Condition search is term-based.** A different name for the same indication returns a different set (measured 2026-07-30: ` +
+    `"NSCLC" returns 1,401 records where "non-small cell lung cancer" returns 1,391). Completeness above is for the term queried, ` +
+    `not for every way the indication can be named.\n\n` +
+    `Every row resolves to a public ClinicalTrials.gov record; no PHI.\n`;
+}
+
+module.exports = {
+  buildGraveyardFeed, renderSampleNotice, historyOutcome, asciiSanitize, csvField, perTrialBand,
+  REGISTER_COLUMNS, CITATION_COLUMNS, FEED_FILES,
+};

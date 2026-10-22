@@ -2,7 +2,9 @@
 
 const test = require("node:test");
 const assert = require("node:assert");
-const { buildGraveyardFeed } = require("../openclaw-bridge/monetization/graveyard-feed.js");
+const {
+  buildGraveyardFeed, renderSampleNotice, historyOutcome, FEED_FILES,
+} = require("../openclaw-bridge/monetization/graveyard-feed.js");
 
 const SAMPLE = [
   { nctId: "NCT00000001", title: "Trial A", status: "TERMINATED", phase: "PHASE2",
@@ -74,4 +76,112 @@ test("empty input -> header only, total 0", () => {
   const f = buildGraveyardFeed([], { indication: "x", asOf: "y" });
   assert.equal(parseRows(f.feedCsv).length, 1);
   assert.equal(f.summary.total, 0);
+});
+
+// Generated copy. These strings were hand-corrected in the 2026-10-21 refresh staging folder
+// (marker "copy corrected 2026-10-21") and are pinned here so a monthly refresh writes them itself.
+const REFUSED = { attempted: 40, succeeded: 0, firstError: "HTTP 403" };
+
+const HISTORY_NOTE_REFUSED =
+  "**Protocol-history columns.** `protocol_versions`, `most_amended_modules`, `history_first` and\n" +
+  "`history_last` are empty, and `amendment_risk_band` is UNKNOWN, on every row of this revision.\n" +
+  "Since 2026-10-08 ClinicalTrials.gov refuses the change-history endpoint (HTTP 403), and this\n" +
+  "feed does not work around the refusal. The columns stay in the schema so that a later revision\n" +
+  "can fill them without a schema change.\n";
+const MULTI_AREA_NOTE =
+  "**Trials in more than one area.** A trial whose conditions match more than one area's query\n" +
+  "appears in each of those areas' files. `nct_id` is unique within one area's file, not across\n" +
+  "areas: deduplicate on `nct_id` when you combine areas.\n";
+const NOTICE_REFUSED =
+  "Since 2026-10-08 ClinicalTrials.gov refuses the change-history endpoint (HTTP 403), so this " +
+  "revision carries every trial and its stop reason with the churn columns empty; the feed does not " +
+  "work around the refusal.";
+const NOTICE_SAMPLED =
+  "Protocol history must be fetched one trial at a time from ClinicalTrials.gov, so it is sampled " +
+  "deliberately rather than run across the whole register";
+
+function notice(overrides) {
+  return renderSampleNotice({
+    condition: "idiopathic pulmonary fibrosis", asOf: "2026-10-21", sampleTotal: 5, fullTotal: 78,
+    eligibleTotal: 78, censusComplete: true, churnRows: 0, history: REFUSED, ...overrides,
+  });
+}
+
+test("copy 1: the free dictionary documents the free files and says it is the sample", () => {
+  const free = buildGraveyardFeed(SAMPLE, { tier: "free", history: REFUSED }).dataDictionaryMd;
+  assert.match(free, /^## register-sample\.csv$/m);
+  assert.match(free, /^## citation-index-sample\.csv$/m);
+  assert.ok(free.includes("| nct_id | Foreign key back to register-sample.csv. |"));
+  assert.ok(free.includes(
+    "Cross-file integrity: every nct_id in register-sample.csv appears exactly once in citation-index-sample.csv.\n"));
+  assert.ok(free.includes(
+    "Public-domain source; no PHI.\n\n" +
+    "This is the free sample: the first 4 rows of the paid feed for this area, in the identical\n" +
+    "schema. The paid files are named `register.csv` and `citation-index.csv`.\n\n## register-sample.csv\n"));
+  assert.doesNotMatch(free, /^## (register|citation-index)\.csv$/m);
+
+  const paid = buildGraveyardFeed(SAMPLE, { history: REFUSED }).dataDictionaryMd;
+  assert.match(paid, /^## register\.csv$/m);
+  assert.match(paid, /^## citation-index\.csv$/m);
+  assert.ok(!paid.includes("This is the free sample"));
+  assert.deepEqual(FEED_FILES.free, { register: "register-sample.csv", citations: "citation-index-sample.csv" });
+});
+
+test("copy 2: both dictionaries carry the protocol-history and multi-area notes", () => {
+  for (const tier of ["free", "paid"]) {
+    const md = buildGraveyardFeed(SAMPLE, { tier, history: REFUSED }).dataDictionaryMd;
+    assert.ok(md.includes("| as_of | The feed revision date. |\n\n" + HISTORY_NOTE_REFUSED + "\n" + MULTI_AREA_NOTE + "\n## "),
+      `${tier} dictionary`);
+  }
+  // History came back: the 403 note would be false, so it is absent; the multi-area note stays.
+  const ok = buildGraveyardFeed(SAMPLE, { history: { attempted: 4, succeeded: 3, firstError: "" } }).dataDictionaryMd;
+  assert.ok(!ok.includes("Protocol-history columns"));
+  assert.ok(ok.includes(MULTI_AREA_NOTE));
+  // Every request failed, but not with a 403: no refusal is claimed.
+  const failed = buildGraveyardFeed(SAMPLE, { history: { attempted: 4, succeeded: 0, firstError: "HTTP 500" } }).dataDictionaryMd;
+  assert.ok(failed.includes("Protocol-history columns"));
+  assert.ok(failed.includes("(first error: HTTP 500)"));
+  assert.ok(!failed.includes("403"));
+});
+
+test("copy 3: the sample notice names the 403 refusal, and the sampling cause only when it is true", () => {
+  const refused = notice();
+  assert.ok(refused.includes(
+    "**Protocol-churn coverage.** Amendment-risk and protocol-churn columns are populated for 0 of 78 rows. " +
+    NOTICE_REFUSED + "\n\n"));
+  assert.ok(!refused.includes("sampled deliberately"));
+
+  // History came back for a subset: the sampling sentence is the true cause.
+  const sampled = notice({ churnRows: 40, history: { attempted: 40, succeeded: 40, firstError: "" } });
+  assert.ok(sampled.includes("populated for 40 of 78 rows. " + NOTICE_SAMPLED));
+  assert.ok(!sampled.includes("403"));
+
+  // History came back for every row: neither cause applies.
+  const whole = notice({ fullTotal: 40, eligibleTotal: 40, churnRows: 40, history: { attempted: 40, succeeded: 40 } });
+  assert.ok(whole.includes("populated for 40 of 40 rows.\n\n"));
+  assert.ok(!whole.includes("sampled deliberately"));
+
+  // Every request failed for another reason: no 403 claimed.
+  const failed = notice({ history: { attempted: 40, succeeded: 0, firstError: "HTTP 500" } });
+  assert.ok(failed.includes("(first error: HTTP 500)"));
+  assert.ok(!failed.includes("403"));
+});
+
+test("copy 4: the notice keeps the complete** wording refresh-graveyard-feeds.sh greps for", () => {
+  assert.match(notice(), /complete\*\*/);
+  assert.ok(notice().includes(
+    'The paid subscription delivers the **complete** register for the ClinicalTrials.gov condition query ' +
+    '"idiopathic pulmonary fibrosis" — all 78 of the 78 terminated/withdrawn/suspended trials the registry counted'));
+  const partial = notice({ fullTotal: 2000, eligibleTotal: 2034, censusComplete: false });
+  assert.doesNotMatch(partial, /complete\*\*/);
+  assert.ok(partial.includes("This revision is a **PARTIAL** retrieval, not a census."));
+});
+
+test("historyOutcome: a cause is named only when observed", () => {
+  assert.equal(historyOutcome(undefined), "not_attempted");
+  assert.equal(historyOutcome({ attempted: 0 }), "not_attempted");
+  assert.equal(historyOutcome({ attempted: 3, succeeded: 1, firstError: "HTTP 403" }), "retrieved");
+  assert.equal(historyOutcome({ attempted: 3, succeeded: 0, firstError: "HTTP 403" }), "refused");
+  assert.equal(historyOutcome({ attempted: 3, succeeded: 0, firstError: "timeout" }), "failed");
+  assert.equal(historyOutcome({ attempted: 3, succeeded: 0, firstError: "" }), "failed");
 });

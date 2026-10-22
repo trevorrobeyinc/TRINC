@@ -15,7 +15,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { createCtgovSupplemental } = require("../openclaw-bridge/mcp/ctgov-supplemental/ctgov-supplemental.js");
-const { buildGraveyardFeed } = require("../openclaw-bridge/monetization/graveyard-feed.js");
+const { buildGraveyardFeed, renderSampleNotice, FEED_FILES } = require("../openclaw-bridge/monetization/graveyard-feed.js");
 
 function arg(name, fallback) {
   const i = process.argv.indexOf(`--${name}`);
@@ -62,8 +62,19 @@ async function main() {
     console.log("[graveyard-feed] WARNING: retrieval is NOT complete — do not publish this as a complete feed.");
   }
 
-  const full = buildGraveyardFeed(records, { indication: condition, asOf });
-  const teaser = buildGraveyardFeed(records.slice(0, teaserRows), { indication: condition, asOf });
+  // The history accounting rides on `records` as non-enumerable properties, which slice() drops,
+  // so it is read here once and handed to both tiers and the notice.
+  const history = {
+    attempted: records.historyAttempted,
+    succeeded: records.historySucceeded,
+    firstError: records.historyFirstError,
+  };
+  if (history.attempted > 0 && history.succeeded === 0) {
+    console.log(`[graveyard-feed] protocol history: 0 of ${history.attempted} request(s) came back (first error: ${history.firstError || "none"}).`);
+  }
+
+  const full = buildGraveyardFeed(records, { indication: condition, asOf, tier: "paid", history });
+  const teaser = buildGraveyardFeed(records.slice(0, teaserRows), { indication: condition, asOf, tier: "free", history });
 
   const paidDir = path.join(outDir, "paid");
   const freeDir = path.join(outDir, "free");
@@ -71,31 +82,24 @@ async function main() {
   fs.mkdirSync(freeDir, { recursive: true });
 
   // PAID offer = the complete feed (all rows, all columns).
-  fs.writeFileSync(path.join(paidDir, "register.csv"), full.feedCsv, "utf8");
-  fs.writeFileSync(path.join(paidDir, "citation-index.csv"), full.citationIndexCsv, "utf8");
+  fs.writeFileSync(path.join(paidDir, FEED_FILES.paid.register), full.feedCsv, "utf8");
+  fs.writeFileSync(path.join(paidDir, FEED_FILES.paid.citations), full.citationIndexCsv, "utf8");
   fs.writeFileSync(path.join(paidDir, "data-dictionary.md"), full.dataDictionaryMd, "utf8");
 
   // FREE offer = a capped evaluation sample (first N rows; identical schema).
-  fs.writeFileSync(path.join(freeDir, "register-sample.csv"), teaser.feedCsv, "utf8");
-  fs.writeFileSync(path.join(freeDir, "citation-index-sample.csv"), teaser.citationIndexCsv, "utf8");
+  fs.writeFileSync(path.join(freeDir, FEED_FILES.free.register), teaser.feedCsv, "utf8");
+  fs.writeFileSync(path.join(freeDir, FEED_FILES.free.citations), teaser.citationIndexCsv, "utf8");
   fs.writeFileSync(path.join(freeDir, "data-dictionary.md"), teaser.dataDictionaryMd, "utf8");
-  fs.writeFileSync(path.join(freeDir, "SAMPLE-NOTICE.md"),
-    `# Free Sample — Trial Graveyard Feed (${condition})\n\n` +
-    `This free sample contains the first ${teaser.summary.total} of ${full.summary.total} stopped trials in the ` +
-    `${condition} feed (as of ${asOf}), in the identical schema, so you can evaluate data quality and format before subscribing.\n\n` +
-    (censusComplete
-      ? `The paid subscription delivers the **complete** register for the ClinicalTrials.gov condition query "${condition}" — ` +
-        `all ${full.summary.total} of the ${eligibleTotal} terminated/withdrawn/suspended trials the registry counted — refreshed **monthly**.\n\n`
-      : `The paid subscription delivers ${full.summary.total} of the ${eligibleTotal} terminated/withdrawn/suspended trials the ` +
-        `registry counted for the condition query "${condition}", refreshed **monthly**. This revision is a **PARTIAL** retrieval, ` +
-        `not a census.\n\n`) +
-    `**Protocol-churn coverage.** Amendment-risk and protocol-churn columns are populated for ${churnRows} of ${full.summary.total} ` +
-    `rows. Protocol history must be fetched one trial at a time from ClinicalTrials.gov, so it is sampled deliberately rather than ` +
-    `run across the whole register; rows outside the sample carry the trial and its stop reason, with the churn columns empty.\n\n` +
-    `**Condition search is term-based.** A different name for the same indication returns a different set (measured 2026-07-30: ` +
-    `"NSCLC" returns 1,401 records where "non-small cell lung cancer" returns 1,391). Completeness above is for the term queried, ` +
-    `not for every way the indication can be named.\n\n` +
-    `Every row resolves to a public ClinicalTrials.gov record; no PHI.\n`);
+  fs.writeFileSync(path.join(freeDir, "SAMPLE-NOTICE.md"), renderSampleNotice({
+    condition,
+    asOf,
+    sampleTotal: teaser.summary.total,
+    fullTotal: full.summary.total,
+    eligibleTotal,
+    censusComplete,
+    churnRows,
+    history,
+  }), "utf8");
 
   fs.writeFileSync(path.join(outDir, "summary.json"),
     JSON.stringify({ condition, asOf, teaserRows, paid: full.summary, free: teaser.summary }, null, 2), "utf8");
