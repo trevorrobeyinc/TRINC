@@ -6,6 +6,10 @@
 > console, and the migration as it actually happened. Companion doc:
 > [`setup-runbook.md`](./setup-runbook.md) — the *how it was built* narrative + cutover
 > tracker. Update THIS file when platform facts change; leave the runbook as the dated record.
+>
+> **Last reconciled 2026-10-21** against the live Admin console, Gmail and Calendar (Claude Browser
+> pane, signed in as trevor@) and `dig`. Headline: 🔴 **the Workspace payment failed — fix the card
+> before 2026-11-02 or the business mailbox and the AWS root email (`aws@`) stop** (§8, first item).
 
 ## 1 · Account & identity
 
@@ -14,32 +18,52 @@
 | Organization | Trevor Robey Intelligence Network Citations LLC (CA LLC, entity B20260217250; principal office 8161 Oahu Dr, Fair Oaks, CA 95628-3745) |
 | Super-admin | **trevor@trevorobeyinc.com** (sole user, 1 seat) |
 | Created | 2026-07-22 (signup by operator) |
-| Edition | **Google Workspace Enterprise Standard** — Active, annual plan (monthly payment), 1 license assigned / 0 available. Verified live 2026-09-13 in Admin console → Billing → Subscriptions. Path: Business Starter trial (07-22 → ~08-05) → Business Plus → **Enterprise Standard (operator upgrade 2026-09-12)**; no Business Plus row remains, so there is no double subscription. *(Superseded 2026-09-13: "Business Starter, 14-day trial — trial ends ~2026-08-05; ~$7/user/mo annual after.")* |
-| Other subscriptions | **Chrome Enterprise Core** (Active, free) · **Android Enterprise** (Active, free) · **AI Expanded Access** add-on (Active, flexible plan, 1 assigned — keep/cancel decision open). Device and browser *security posture* from these (which browser is enrolled, which policies reach which Chrome profile, the phone's work profile) is recorded in the Security Everything repo, not here. **Android Enterprise feature-by-feature gap matrix (2026-09-16):** `~/Security Everything/mobile/google-workspace/android-enterprise-gap-matrix.md` (relocated 2026-09-19 — different repo, so this is a path, not a link) — every Google endpoint management capability vs this tenant's S24 work profile (tenant values read live 2026-09-16 18:52–19:00 PDT), twelve numbered proposals M1–M12 awaiting per-item confirms (M1 = turn on "Chrome on Android" so the P1–P8 Chrome policies reach the phone), and the list of what is already in place or out of reach by Google's design. |
+| Edition | **Google Workspace Enterprise Standard** — Active, annual plan (monthly payment), 1 license assigned / 0 available. Verified live 2026-09-13 in Admin console → Billing → Subscriptions, and **re-read 2026-10-21: still Active, but its last payment FAILED. The card on the one payment account (`2016-3940-6176-9809`), Visa •••• 0832, was declined; Admin shows an overdue balance and "To avoid suspension of your service on Nov 2, 2026, please update your payment information." Gmail shows the same banner (first seen 2026-10-16). Suspension would stop trevor@ mail AND the `aws@` group, which is the AWS root email. Fix: §8, first item.** Path: Business Starter trial (07-22 → ~08-05) → Business Plus → **Enterprise Standard (operator upgrade 2026-09-12)**; no Business Plus row remains, so there is no double subscription. *(Superseded 2026-09-13: "Business Starter, 14-day trial — trial ends ~2026-08-05; ~$7/user/mo annual after.")* |
+| Other subscriptions | **Chrome Enterprise Core** (Active, free) · **Android Enterprise** (Active, free) · **AI Expanded Access** add-on (flexible plan, 1 assigned — **SUSPENDED as of 2026-10-21** "due to a billing error" (the same declined card) and "scheduled for cancellation on Dec 4, 2026"; keep/cancel decision open, §8). Device and browser *security posture* from these (which browser is enrolled, which policies reach which Chrome profile, the phone's work profile) is recorded in the Security Everything repo, not here. **Android Enterprise feature-by-feature gap matrix (2026-09-16):** `~/Security Everything/mobile/google-workspace/android-enterprise-gap-matrix.md` (relocated 2026-09-19 — different repo, so this is a path, not a link) — every Google endpoint management capability vs this tenant's S24 work profile (tenant values read live 2026-09-16 18:52–19:00 PDT), twelve numbered proposals M1–M12 awaiting per-item confirms (M1 = turn on "Chrome on Android" so the P1–P8 Chrome policies reach the phone), and the list of what is already in place or out of reach by Google's design. |
 | Chrome Enterprise Premium | **60-day trial started 2026-09-14** (Billing → Subscriptions: 5,000 trial licenses, **1 assigned** to trevor@, auto-assign OFF). It licenses the DLP rules and the Chrome content-analysis connectors (upload / download / paste / print scanning). By the operator's 2026-09-14 decision that coverage now reaches **every Chrome profile on the Mac mini, personal profiles included**, through machine-scope inheritance from the work OU (this supersedes the 09-13 scope-down); proven 2026-09-14 by a paste in a personal profile producing a rule event. Trial ends **~2026-11-13** — keep-or-cancel decision open (§8); what the connectors do when a Premium trial lapses has not been verified, so decide before then. **Re-checked live 2026-09-15 evening (Billing → Subscriptions → the Premium row's detail page):** it reads *Active · Since Sep 14, 2026 · Payment plan: Contracted pricing · 5,000 purchased · 4,999 available, 1 assigned · Auto-assign OFF · Estimated monthly bill: Contracted pricing* and **shows no trial end date anywhere** (the subscriptions list also carries no "trial" wording), so ~11-13 remains a derived figure (start + 60 days), not a console fact — confirm it from the signup email or Google's billing support before relying on it. **Superseded 2026-09-16: the end date IS a console fact — Chrome browser → Reports → Security insights carries the banner "Your trial ends in 58 days on Nov 13, 2026" (read 2026-09-16; the Billing page still shows nothing). Still unstated anywhere: whether Nov 13 is a lapse or a conversion to paid — Google's Help says features stop, the Billing row says Contracted pricing; ask billing support.** The browser OU's Upload-content-analysis panel reads **Chrome Enterprise Premium**, inherited from the root OU; its red "You need a Chrome Enterprise Premium license" line is still displayed and is static boilerplate (its own text says "If you already have one, please disregard"), not a license check. Security detail (OU inheritance, the two DLP rules, the mgmtwatch/OSSEC watch) lives in `~/Security Everything`. **Feature-by-feature gap matrix (2026-09-16):** `~/Security Everything/mobile/google-workspace/chrome-enterprise-premium-gap-matrix.md` (relocated 2026-09-19 — different repo, so this is a path, not a link) — every Premium-licensed capability vs this tenant (tenant values read live 2026-09-16), eleven numbered proposals awaiting per-item confirms, and the keep/cancel recommendation (§5 there). Licensing fact from Google's Help (read 2026-09-16): at trial end Premium features "stop working immediately", no grace period, settings persist unenforced; buying does not auto-assign licenses. |
 | Primary domain | trevorobeyinc.com — **Verified · Gmail activated** (Admin console → Account → Domains → Manage domains) |
 | Admin console | admin.google.com — sign in as trevor@trevorobeyinc.com ONLY (personal Gmails have no console) |
 | Password | operator's Bitwarden (recovered 2026-07-22 via Bitwarden *generator history* after an unsaved-password lockout scare — generator history retains every generated password) |
 | 2SV | **Enforced via YubiKeys — both keys enrolled 2026-07-22** (Security → 2-Step Verification) |
-| Recovery email | trevoralexanderrobey@gmail.com |
+| Recovery email | trevoralexanderrobey@gmail.com (as recorded 2026-07-22; not re-read since). ⚠️ The operator began retiring that account on 2026-10-16 in favour of `trevorrobeyinc@gmail.com`, so the super-admin's recovery address points at an account being phased out — operator check in §8. |
 | EIN / phone | Not provided at signup (LLC EIN still an open business TODO — unrelated to Workspace) |
 
 ## 2 · The three Google-adjacent identities (do not confuse)
 
 | Address | What it is |
 |---|---|
-| **trevor@trevorobeyinc.com** | Workspace super-admin + THE business mailbox (Gmail, primary since 2026-07-22). The same string also still exists as the Zoho mailbox (now archive — §3). One address, two systems, on purpose. |
-| **trevoralexanderrobey@gmail.com** | Operator's personal Gmail. OAuth identity of the **cloud gmail MCP connector** (`config/connector-registry.json:488`, prefix `ef0bc6fb…`) AND the **Cloudflare account login** (acct `f3b10bacc7e94c72e445b078433aa1d4`). Workspace recovery email. NOT a business surface. |
-| **trevorrobeyinc@gmail.com** | Alias on the Zoho account; may have its own separate consumer inbox (unverified — flagged in `03-platforms/aws-data-exchange/correspondence-2026-05.md:15`). Not part of Workspace. |
+| **trevor@trevorobeyinc.com** | Workspace super-admin + THE business mailbox (Gmail, primary since 2026-07-22, and since 2026-10-21 the ONLY mail host: the Zoho mailbox that carried the same string was deleted with the Zoho account — §3). |
+| **trevoralexanderrobey@gmail.com** | Operator's personal Gmail. **Cloudflare account login** (acct `f3b10bacc7e94c72e445b078433aa1d4`) and Workspace recovery email. It was the OAuth identity of the claude.ai Gmail connector, which was disconnected on 2026-07-09 (`~/Security Everything/gmail-mcp/GMAIL_MCP.md`). NOT a business surface. |
+| **trevorrobeyinc@gmail.com** | A separate consumer Google account (not part of Workspace). Since 2026-10-16 it is the one account the local YubiKey-gated `gmail` MCP lane is pinned to (`GMAIL_MCP.md`). It was also a login alias on the Zoho account, which no longer exists. Disposition item in §8. |
 
-## 3 · Email architecture (live as of 2026-07-22)
+## 3 · Email architecture (re-checked 2026-10-21)
 
-- **Gmail (Workspace) = primary host**, inbound + outbound, for trevor@trevorobeyinc.com.
+- **Gmail (Workspace) = the only mail host**, inbound + outbound, for trevor@trevorobeyinc.com.
   Inbound test **PASSED** 2026-07-22 (personal Gmail → trevor@, delivered to the new inbox).
   Outbound fully authenticated (SPF + DKIM + DMARC aligned).
-- **Zoho = archive + secondary sender during transition.** Paid **Mail Lite (~$1/mo)** —
-  bought 2026-07-22 solely to unlock IMAP for the migration; **downgrade candidate** once the
-  import is verified complete. Pre-cutover history remains readable in Zoho webmail regardless.
+- **Addresses on the domain:** `trevor@` (the one licensed user), `support@` (an alias on
+  trevor@), `aws@` (a Google **Group** since 2026-10-21, owner + only member trevor@, the AWS
+  root email; §8). Admin console re-read 2026-10-21: Directory → Users lists only trevor@,
+  Directory → Groups lists only aws@ (the alias list was `support@` only at 02:08 the same day).
+- **trevor@ forwards a copy of ALL incoming mail to `trevorrobeyinc@gmail.com`** (Gmail →
+  Settings → Forwarding: *Forward a copy … keep Gmail's copy in the Inbox*; POP off). This is
+  **intended state**: the operator set it up on 2026-10-16 while moving personal mail to that
+  account, and it was proven end to end that night (Security Everything memory
+  `email-consolidation-2026-10-16`). Read it before you assume a takeover. **Consequence to
+  keep in mind:** because `aws@` delivers to trevor@, AWS root-email mail (sign-in and password
+  reset codes) is also copied to that consumer account, so the AWS root's recovery now rests on
+  BOTH mailboxes' security. Whether that is acceptable is the operator's call (§8).
+- **Zoho: RETIRED and the account CLOSED 2026-10-21** (operator decision). Mail Lite cancelled
+  and downgraded immediately, the domain removed, the org "Trevor Robey Inc." (922155859)
+  deleted; Zoho mailed "Your Zoho account is closed" at 04:55 PDT. Its DNS records were removed
+  the same morning (§4). **The pre-cutover history is gone with it, and Gmail does NOT hold all
+  of it:** a read-only check before the delete found only 17 Gmail conversations dated before
+  07-22 and no Datarade mail, while Zoho's Sent folder held threads Gmail lacked (AWS Data
+  Exchange onboarding request 00881277, CrowdStrike cases 02473127 / 02470898, "Talk to Sales").
+  The operator chose to let those go. *(Superseded 2026-10-21: "Zoho = archive + secondary
+  sender during transition … Pre-cutover history remains readable in Zoho webmail
+  regardless.")* Record: `~/Security Everything/docs/browser-session-history/2026-10.md`,
+  entry 2026-10-21 (04:14–.
 - **The address string never changed.** trevor@trevorobeyinc.com stays the AWS seller/legal
   contact, Datarade contact, Gumroad order inbox, outbound-template signature, and the
   API-politeness contact hardcoded in **13 engine-code locations** — zero code changes needed:
@@ -48,18 +72,21 @@
   · 4 citation/retraction MCP modules (`crossref-retraction:20`, `ctgov-supplemental:34`,
   `citation-reresolver:55`, `pubmed-retraction:68`) · `workspace/scripts/citation_validator.py:37,39`.
 
-## 4 · DNS (authoritative snapshot 2026-07-22 — Cloudflare zone `8aa049f562ccd2b88119aedcf471134d`)
+## 4 · DNS (snapshot 2026-10-21 16:2x PDT, `dig` via 1.1.1.1 — Cloudflare zone `8aa049f562ccd2b88119aedcf471134d`, NS `betty`/`ricardo.ns.cloudflare.com`)
 
 | Record | Value | Purpose / provenance |
 |---|---|---|
 | MX `@` | `smtp.google.com` (pri 10, sole record) | Routes all mail to Gmail. Written by Google's Entri auto-connect 2026-07-22. |
-| TXT `@` (SPF) | `v=spf1 include:_spf.google.com include:zoho.com ~all` | Dual-sender SPF for the transition. Set via Cloudflare API 2026-07-22. **Tighten to Google-only when Zoho sending retires.** |
-| TXT `google._domainkey` | `v=DKIM1;k=rsa;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQE…` (2048-bit) | Gmail DKIM key, published by Entri; **signing switched ON 2026-07-22**. ⚠️ Never click "Generate new record" on Admin → Gmail → Authenticate email — it would orphan this live key. |
-| TXT `zoho._domainkey` | `v=DKIM1; k=rsa; p=MIIBIjANBgkqhkiG9w0BA…` | Legacy Zoho DKIM — keep while Zoho still sends; remove with the SPF tighten. |
-| TXT `_dmarc` | `v=DMARC1; p=none; rua=mailto:trevor@trevorobeyinc.com; pct=100; adkim=r; aspf=r` | Pre-existing. Reports now land in Gmail. **Move `p=none`→`quarantine` after ~2 weeks of clean reports.** |
+| TXT `@` (SPF) | `v=spf1 include:_spf.google.com ~all` | Google-only. **Tightened 2026-10-21** by the operator in Cloudflare (dropped `include:zoho.com`), verified with `dig` on both authoritative nameservers at 05:09 PDT. *(Was `v=spf1 include:_spf.google.com include:zoho.com ~all`, set via Cloudflare API 2026-07-22.)* |
+| TXT `google._domainkey` | `v=DKIM1;k=rsa;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArJKh0w…` (2048-bit) | Gmail DKIM key, published by Entri; **signing switched ON 2026-07-22**. ⚠️ Never click "Generate new record" on Admin → Gmail → Authenticate email — it would orphan this live key. |
+| TXT `_dmarc` | `v=DMARC1; p=none; rua=mailto:trevor@trevorobeyinc.com; pct=100; adkim=r; aspf=r` | Pre-existing. Aggregate reports land at trevor@. **Next step: `p=quarantine` (operator's choice 2026-10-21) — exact record and pre-flight in §8.** |
 | TXT `@` | `google-site-verification=MDcTrdSPpIn41SnHOgIkQhTNBqayz9StUBqAOIPILf0` | Domain-ownership proof (keep permanently). |
-| TXT `@` | `zoho-verification=zb95731918.zmverify.zoho.com` | Zoho domain proof — keep while the Zoho account exists. |
 | AAAA `@`, `www` | `100::` (Cloudflare-proxied) | Landing-page worker `shy-grass-fccd` routing — untouched by the mail work. |
+| *(absent)* | no MTA-STS (`_mta-sts`), no TLS-RPT (`_smtp._tls`), no BIMI, no CAA | Not proposed (infra freeze until the first AWS product ships). |
+
+**Removed 2026-10-21 with the Zoho retirement** (operator, Cloudflare dashboard; gone on both
+authoritative nameservers at 05:06 PDT and still absent at 16:2x): TXT `zoho._domainkey`
+(legacy Zoho DKIM) and the apex TXT `zoho-verification=zb95731918.zmverify.zoho.com`.
 
 **DNS control:** Cloudflare API token `gws-dns-trevorobeyinc` (Zone.DNS:Edit, scoped to this
 zone only), created 2026-07-22 via the Cloudflare dashboard (Claude-in-Chrome-driven; secret
@@ -68,8 +95,19 @@ never entered Claude context). Stored ONLY in macOS Keychain, service **`cf-dns-
 Optional hygiene: the one-time Entri↔Cloudflare OAuth grant (used by Google's wizard to write
 MX/DKIM/verification) can now be revoked in the Cloudflare dashboard — all further DNS work
 goes through the scoped token.
+**How DNS changes are made now (2026-10-21):** by the operator, in the Cloudflare dashboard in
+their own browser (Cloudflare's Google sign-in does not complete in the Claude Browser pane), then
+verified with `dig` against `betty`/`ricardo.ns.cloudflare.com`. Cloudflare's inline record editor
+needs its own Save per row; on 2026-10-21 the first SPF edit did not save until re-saved.
 
-## 5 · Migration record (Zoho → Gmail history import)
+## 5 · Migration record (Zoho → Gmail history import, 2026-07-22 — historical; the source no longer exists)
+
+> **Read this first (2026-10-21).** The Zoho account was closed on 2026-10-21, so nothing below
+> can be re-run. The status line "1,251/1,251 … 0 failed" describes the import job, **not what
+> Gmail holds**: on 2026-10-21 Gmail held only 17 conversations dated before the cutover (§3). Never
+> cite it as proof the old mail is in Gmail. The app password "Google Console" was revoked at Zoho
+> the same day, so the Keychain item `zoho-app-pw-migration` below is dead; the operator deletes it
+> in **Keychain Access.app** (never the `security` CLI, which Falcon rule 219 watches).
 
 | Fact | Value |
 |---|---|
@@ -84,17 +122,22 @@ goes through the scoped token.
 
 ## 6 · Workspace ↔ TrevClaw-stack integration
 
-- **Cloud `gmail` MCP connector** (`config/connector-registry.json:488-501`, prefix
-  `ef0bc6fb…`): bound to the operator's **personal** Gmail, draft-only + manual-confirm,
-  chat-supervisory, no subprocess adapter by design. **Unchanged by this migration.**
-  Re-binding (or adding a second connector) to the Workspace identity = separate future decision.
-- **Local YubiKey-gated `gmail_mcp.py`** — the second, independent Gmail auth surface
-  (`docs/mcp-connector-gap-analysis-2026-07-10.md:311`). Also personal-account; also unchanged.
-- **zoho-mail / zoho-trinc MCP connectors → archive-readers** as of 2026-07-22. Live docs
-  reconciled today: `CONNECTOR-ALIGNMENT.md:83`, `THE-WHOLE-SYSTEM.md:134`,
-  `docs/mcp-connector-gap-analysis-2026-07-10.md:67` (+ `SYSTEM-REALITY.md:14`,
-  `THE-WHOLE-SYSTEM.md:42` earlier the same day). Dated audit reports/changelogs/correspondence
-  intentionally NOT rewritten — they are accurate history.
+- **No agent connector reads the business mailbox (re-checked 2026-10-21).** The business
+  Gmail is reached only through the Gmail web UI: the operator's own browser, or the Claude
+  Browser pane (`cb` arm, the operator signs in as trevor@ inside it).
+  - The **claude.ai cloud Gmail connector** (bound to the personal Gmail) was disconnected on
+    2026-07-09 (`~/Security Everything/gmail-mcp/GMAIL_MCP.md`). *(Superseded: the 07-22 line
+    here said it was "unchanged by this migration".)*
+  - The **local YubiKey-gated `gmail` MCP** (`~/Security Everything/gmail-mcp/`, scope
+    `mcp-gmail`, `gmail.modify`, no send) is pinned to **`trevorrobeyinc@gmail.com`** since
+    2026-10-16 (before that the personal Gmail), and its own README records it as out of service
+    since 2026-09-05 by operator decision. It cannot see trevor@trevorobeyinc.com.
+  - Re-binding any connector to the Workspace identity remains a separate, unmade decision.
+- **zoho-mail / zoho-trinc MCP connectors: RETIRED 2026-10-21**, stripped from every Security
+  Everything gate list (SE `07726a0`) and marked RETIRED in `config/connector-registry.json`
+  (`9d96234`). A Zoho server registered again would arrive ungated: never re-register one.
+  *(Superseded: "archive-readers as of 2026-07-22".)* Dated audit reports, changelogs and
+  correspondence are intentionally NOT rewritten — they are accurate history.
 - **Engine-side Google Drive stays REMOVED** (operator decision 2026-07-01; the
   `GOOGLE_DRIVE_*`/`GOOGLE_CLIENT_SECRET` env-scrub in the three subprocess spawners remains
   as defense-in-depth). This Workspace signup does NOT reopen that door.
@@ -110,12 +153,67 @@ goes through the scoped token.
 |---|---|---|
 | Workspace **Enterprise Standard** (1 seat) | annual plan, monthly payment — the live amount is not captured in-repo; read it in Admin console → Billing → Subscriptions | Active, verified 2026-09-13. *(Superseded 2026-09-15: "Business Starter — $0 during trial → ~$7/user/mo annual (~$8.40 flexible); trial ends ~2026-08-05." The path was Business Starter → Business Plus → Enterprise Standard, operator upgrade 2026-09-12.)* |
 | Chrome Enterprise Premium | $0 during the 60-day trial (started 2026-09-14); list price not captured in-repo | trial ends ~2026-11-13 — keep/cancel decision open (§1, §8) |
-| AI Expanded Access add-on | flexible plan, 1 assigned — amount not captured in-repo | keep/cancel decision open (§1) |
+| AI Expanded Access add-on | flexible plan, 1 assigned — amount not captured in-repo | **Suspended 2026-10-21 (declined card); auto-cancels Dec 4, 2026** — keep/cancel decision open (§1, §8) |
 | Chrome Enterprise Core · Android Enterprise | $0 (free) | Active |
-| Zoho Mail Lite | ~$1/user/mo | temporary — bought for IMAP; downgrade after migration verifies |
+| **Payment status (2026-10-21)** | Visa •••• 0832 declined; overdue balance (amount shown only in Google Payments) | **Workspace suspends Nov 2, 2026 unless the payment method is fixed** — §8 first item |
+| Zoho Mail Lite | was $15/yr (renewed 2026-07-22) | **Cancelled and downgraded immediately 2026-10-21; account closed.** *(Superseded: "temporary — bought for IMAP; downgrade after migration verifies".)* |
 | Cloudflare (domain + DNS + worker) | unchanged | no new cost from the mail work |
 
 ## 8 · Open items
+
+**Reconciled 2026-10-21** (live reads in the Claude Browser pane, signed in as trevor@, plus `dig`;
+record in the shared side-session notes `RESULT-google-workspace-2026-10-21.md`). Operator
+decisions taken the same day: retire the Strayer forward now, decline and remove GAM7, move
+DMARC to `p=quarantine`.
+
+- [ ] 🔴 **Fix the Workspace payment method before 2026-11-02 (operator; payments are never an
+      agent action).** Visa •••• 0832 was declined; Enterprise Standard's last payment failed and
+      the service suspends on **Nov 2, 2026**. Suspension stops trevor@ mail and the `aws@` group,
+      i.e. the AWS root email. Steps: admin.google.com (as trevor@) → **Billing → Payment
+      accounts** → account `2016-3940-6176-9809` → update the card (or call the bank if the card
+      itself is fine) → pay the overdue balance → **Add a backup payment method** (Admin's own
+      suggestion, so one failed card cannot suspend the business again) → reload **Billing →
+      Subscriptions** and confirm "issues need your attention" is gone and the Gmail banner
+      ("We are unable to renew …") no longer shows. **Decide the AI Expanded Access add-on FIRST**
+      (next item): Admin says updating payment info is what restores it.
+- [ ] **AI Expanded Access add-on — keep or let it go (operator).** Suspended 2026-10-21 for the
+      declined card; scheduled for cancellation **Dec 4, 2026**. To drop it, cancel it in Billing →
+      Subscriptions (or let Dec 4 do it) so the card fix does not revive it; to keep it, the card
+      fix restores it.
+- [ ] **Strayer → Gmail forward: retire at the source (operator, Outlook).** Decided 2026-10-21
+      ("retire now"; the AWS root email is `aws@` since 2026-10-21, so the forward carries
+      nothing AWS needs). Done by Claude and verified from fresh loads: the Gmail filter
+      `to:(Trevor.Robey@my.strayer.edu)` → `Via-Strayer` deleted (12 filters remain) and the monthly
+      calendar series "Check: is Strayer → Gmail forwarding still alive?" deleted (all events;
+      Calendar search for "Strayer" now returns nothing). Left for the operator: sign in at
+      <https://outlook.office.com/mail/options/mail/forwarding> as the Strayer account → *Enable
+      forwarding* OFF → Save. The `Via-Strayer` label is empty and still exists (harmless; delete it
+      in Gmail → Settings → Labels if wanted). Gmail held NO message addressed to the Strayer
+      address on 2026-10-21, so nothing is lost by retiring it.
+- [ ] **Recovery email of the super admin (operator check).** Recorded as
+      `trevoralexanderrobey@gmail.com`, an account the operator is retiring (2026-10-16). Check
+      myaccount.google.com (as trevor@) → Security → *Recovery email* and point it at an account
+      the operator keeps (e.g. `trevorrobeyinc@gmail.com`), then update §1.
+- [ ] **trevor@ → `trevorrobeyinc@gmail.com` forward — accept the AWS consequence or narrow it
+      (operator decision).** Intended state since 2026-10-16 (§3), but it also copies `aws@` mail,
+      including AWS root sign-in and reset codes, into a consumer account. Options: keep it (then
+      that account needs the same YubiKey-grade 2SV as trevor@), or replace the blanket forward
+      with a filter that forwards everything except `to:aws@trevorobeyinc.com`.
+- [ ] **Workspace `still-on-OLD` filter (leftover, harmless).** `deliveredto:trevoralexanderrobey@gmail.com`
+      → label `still-on-OLD`, created 2026-10-16 for the personal-mail phase-out; that plan has the
+      operator deleting this Workspace copy once old → new forwarding works (it was proven
+      2026-10-16), and it is still present on 2026-10-21. Not in `gmail-filters.xml` on purpose:
+      it is personal-mail routing, not business routing.
+- [x] **`Prospects` mislabel sweep — CLOSED 2026-10-21, nothing to sweep.** `in:anywhere
+      label:prospects` and the label view both return no conversations; the security alerts the
+      07-23 over-broad clause mislabelled are no longer under that label. The live filter is the
+      corrected subject-only one (matches `gmail-filters.xml`).
+- [x] **Send mail as `aws@` after the alias → group change — row intact 2026-10-21.** Gmail →
+      Settings → Accounts lists trevor@ (default), aws@ and support@ with no "unverified" flag. No
+      test mail was sent (sending needs the operator's go); the DMARC pre-flight below covers it.
+- [x] **Zoho downgrade — MOOT: the Zoho account was CLOSED 2026-10-21** (§3).
+- [x] **SPF tighten + remove `zoho._domainkey` — DONE 2026-10-21** (§4).
+- [x] **GAM7 — DECLINED 2026-10-21 (operator).** See the GAM7 item below.
 
 **Done 2026-07-22:**
 - [x] Migration verified complete (1,251/1,251, 0 failed) — §5
@@ -235,33 +333,63 @@ goes through the scoped token.
       "You have no alerts at this time"; three random detail pages re-read Closed / Not Useful / comment.
       Nothing was deleted. The loop itself has been dead since 09-14 22:57 (K1 removed the rule's email
       recipient; D2 removed the detector) — this item was only the leftover rows.
-- [ ] **Zoho downgrade off Mail Lite (~$1/mo)** — now SAFE: import verified, MX moved, so the Zoho
-      archive is frozen and no delta import is needed. Downgrading kills IMAP; the webmail archive
-      remains readable. Operator billing decision.
-- [ ] **GAM7 bootstrap** — binary installed (`~/bin/gam7/gam` v7.46.11) but NOT wired to the org.
-      Requires an **interactive terminal** (GAM reads stdin; it cannot be driven from a
-      non-interactive shell) AND a prerequisite app-trust step discovered 2026-07-22:
-      Admin console → Security → Access and data control → **API controls → App access control →
-      Configure new app** → search Client ID
-      `297408095146-fug707qsjv4ikron0hugpevbrjhkmsk7.apps.googleusercontent.com`
-      ("GAM Project Creation") → mark **Trusted**. Then in Terminal.app:
-      `~/bin/gam7/gam create project` → `~/bin/gam7/gam oauth create` (2 browser consents as
-      trevor@). Unlocks scripted admin/reporting. Low urgency for a 1-user org.
+- [x] ~~**Zoho downgrade off Mail Lite (~$1/mo)**~~ — **MOOT 2026-10-21:** the Zoho account was
+      closed outright (Mail Lite cancelled and downgraded immediately, domain and org deleted; §3).
+- [x] ~~**GAM7 bootstrap**~~ — **DECLINED 2026-10-21 (operator decision, when asked). Do not
+      re-propose without a concrete job that the Admin console cannot do.** Reason: a bootstrapped
+      GAM leaves a super-admin OAuth token (`oauth2.txt`) and a service-account key on disk — a
+      new long-lived credential to guard — for a one-user org whose admin work is occasional and
+      console-sized; and the stack is in an infra freeze until the first AWS product ships. State
+      at the decision: binary at `~/bin/gam7/` (v7.46.11, 57 MB, never connected to the org),
+      `~/.gam/` holding only `gam.cfg` + an empty cache (no token, no key), an `alias gam=` line
+      at `~/.zshrc:71`; and on the Google side **nothing to undo** — Admin → Security → API
+      controls → App access control → *Configured apps* is empty and *Accessed apps* lists no GAM
+      client (read 2026-10-21). **Removal is the operator's** (exact steps in the 2026-10-21
+      hand-over: move both folders to the Trash, delete the alias line). The old bootstrap steps
+      (trust Client ID `297408095146-fug707qsjv4ikron0hugpevbrjhkmsk7.apps.googleusercontent.com`
+      "GAM Project Creation", then `gam create project` / `gam oauth create` in an interactive
+      Terminal) are kept here only as history. The installer line in `setup-runbook.md` §4 step 2
+      must not be re-run: it feeds a download straight into a shell.
 
-**Open — deliberately deferred (do NOT do early):**
-- [ ] SPF tighten (drop `include:zoho.com`) + remove `zoho._domainkey` — only once Zoho sending
-      is fully retired; premature removal breaks any mail still sent from Zoho.
-- [ ] DMARC `p=none` → `p=quarantine` — needs ~2 weeks of clean `rua` reports first (earliest
-      ~2026-08-05). Tightening before the data is in risks quarantining legitimate mail.
+**Mail-domain hardening:**
+- [x] ~~SPF tighten (drop `include:zoho.com`) + remove `zoho._domainkey`~~ — **DONE 2026-10-21**
+      by the operator in Cloudflare after Zoho was closed; `zoho-verification` TXT removed too (§4).
+- [ ] **DMARC `p=none` → `p=quarantine` — READY; the operator applies it in Cloudflare (decided
+      2026-10-21).** Evidence (read 2026-10-21 from the aggregate reports at trevor@; only two
+      reports have arrived since the 07-22 cutover, both from Google):
+      - 2026-10-16 — 1 message from `209.85.220.41` (Google), DKIM pass (`d=trevorobeyinc.com`,
+        selector `google`), SPF pass, both aligned → legitimate Workspace mail.
+      - 2026-10-11 — 1 message from **`213.251.242.61` (`mail.mianstroy.ru`, AS25189 AO
+        Countrycom, Russia)**, header From `trevorobeyinc.com`, no DKIM, SPF softfail → DMARC
+        **fail**, delivered only because the policy is `none`. That is a spoof of the business's
+        domain (it is not in trevor@'s own mailbox, spam or trash included), exactly what
+        `p=quarantine` sends to the recipient's spam folder.
+      - No legitimate non-Google sender exists any more: Zoho is closed, the nightly security
+        digest is file-only (SE `33d0ad1`), and nothing else sends as the domain. **Rule from now
+        on: any new service that sends as `@trevorobeyinc.com` (a CRM, Stripe or Gumroad custom
+        sender, a form tool) gets SPF/DKIM set up BEFORE its first send, or its mail goes to spam.**
+      **Record to set** (Cloudflare → `trevorobeyinc.com` → DNS → Records → the TXT named
+      `_dmarc` → Edit → replace Content → the row's own **Save**):
+      `v=DMARC1; p=quarantine; rua=mailto:trevor@trevorobeyinc.com; pct=100; adkim=r; aspf=r`
+      **Verify** on both authoritative nameservers (they must both print the new value):
+      `dig +short TXT _dmarc.trevorobeyinc.com @betty.ns.cloudflare.com` and the same
+      `@ricardo.ns.cloudflare.com`. **Optional pre-flight** (two minutes, before or right after):
+      from trevor@'s Gmail send one ordinary message *from each* of trevor@, aws@ and support@
+      (the From dropdown) to `trevorrobeyinc@gmail.com`; in that inbox open each → ⋮ → *Show
+      original* → SPF, DKIM and DMARC must all read PASS. **Rollback:** put `p=none` back in the
+      same record. **Later:** watch the reports for ~2 weeks; moving on to `p=reject` is a
+      separate decision, not part of this one.
 
 **Optional / low value:**
 - [ ] Revoke the Entri↔Cloudflare OAuth grant (superseded by the scoped API token)
 - [ ] claude.ai Drive/Calendar connectors re-bind to the Workspace identity (chat-level only)
-- [ ] `trevorrobeyinc@gmail.com` disposition — signed out of all devices 2026-07-22, **not
-      deleted** (deliberate). Before any deletion: record its third-party/linked-apps list, search
-      it for the missing AWS Data Exchange seller thread (`03-platforms/aws-data-exchange/
-      correspondence-2026-05.md:15` names it as one of two possible locations), and set forwarding
-      to trevor@. Note Google auto-deletes accounts inactive 2+ years.
+- [x] ~~`trevorrobeyinc@gmail.com` disposition~~ — **SUPERSEDED 2026-10-16:** that account is
+      now the operator's personal primary (it replaces `trevoralexanderrobey@gmail.com`, receives
+      both the old account's mail and a copy of trevor@'s, and is the `gmail` MCP lane's pinned
+      account), so it is not a deletion candidate. The one part still worth doing: search it for
+      the missing AWS Data Exchange seller thread (`03-platforms/aws-data-exchange/
+      correspondence-2026-05.md:15` names it as one of two possible locations; Zoho, the other
+      candidate store, is gone).
 
 ## 9 · Cross-reference index
 
@@ -269,6 +397,9 @@ goes through the scoped token.
 |---|---|
 | [`setup-runbook.md`](./setup-runbook.md) | How the platform was built + dated cutover tracker (historical record — do not "fix" its dated sections) |
 | `~/Security Everything/mobile/google-workspace/` | **The device and endpoint half of this tenant, relocated out of this repo 2026-09-19** — S24 work profile / Android Enterprise matrix, Chrome Enterprise Premium matrix, and the personal→work app migration record. It left because `03-platforms/` is a distribution-channel directory and endpoint administration is not business material. Personal app names are redacted there under standing decision 4; the unredacted list stays here. |
+| [`workspace-operations.md`](./workspace-operations.md) · [`gmail-filters.xml`](./gmail-filters.xml) | How the mailbox is tailored (filters, send-as, calendar) · the source-controlled filter set |
+| `~/Security Everything/docs/browser-session-history/2026-10.md` | Console records for 2026-10-21: the `aws@` group (02:08), the Zoho shutdown + DNS (04:14) |
+| `~/Security Everything/gmail-mcp/GMAIL_MCP.md` · memory `email-consolidation-2026-10-16` (Security Everything project) | The `gmail` MCP lane and its pinned account · the 2026-10-16 personal-mail move that set up the trevor@ forward |
 | `SYSTEM-REALITY.md:14` · `THE-WHOLE-SYSTEM.md:42,134` | Ground-truth one-liners → point here |
 | `CONNECTOR-ALIGNMENT.md:83` · `docs/mcp-connector-gap-analysis-2026-07-10.md` | Connector-layer view of the mail move |
 | `_continuity/CONTINUITY.md` (Log 2026-07-22) | Session-by-session cutover narrative |

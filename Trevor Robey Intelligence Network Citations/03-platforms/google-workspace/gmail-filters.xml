@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <feed xmlns='http://www.w3.org/2005/Atom' xmlns:apps='http://schemas.google.com/apps/2006'>
-  <title>Trevor Robey, INC. — business + AWS seller-ops mail filters (2026-07-23)</title>
+  <title>Trevor Robey, INC. — business + AWS seller-ops mail filters (2026-07-23; matches the live set as re-read 2026-10-21)</title>
 
   <!-- ============ AWS SELLER OPS ============
        Rationale: AWS correspondence has previously been LOST/unfindable in the mailbox
@@ -135,21 +135,16 @@
     <apps:property name='shouldNeverSpam' value='true'/>
   </entry>
 
-  <!-- ============ STRAYER FORWARD (stopgap liveness probe) ============
-       The AWS account ROOT email is still Trevor.Robey@my.strayer.edu, and AWS sends
-       listing-review outcomes / payout failures / policy changes to the ROOT address
-       (alternate contacts do NOT cover those). Option A = forward at Strayer (Microsoft 365,
-       outlook.office.com -> Settings -> Mail -> Forwarding). Forwarded mail preserves the
-       original To: header, so this filter catches everything that comes through the pipe AND
-       acts as the liveness probe: if nothing carries this label for ~30 days the forward is
-       probably dead (it dies SILENTLY at deprovisioning). Monthly calendar check on the 24th. -->
+  <!-- ============ STRAYER FORWARD: RETIRED 2026-10-21 ============
+       The Via-Strayer filter (to:Trevor.Robey@my.strayer.edu, label Via-Strayer) was the
+       liveness probe for the Strayer forward, a stopgap while the AWS ROOT email was the
+       school address. The root email moved to the aws@ Workspace group on 2026-10-21 and the
+       operator retired the stopgap the same day: the live filter and the monthly calendar
+       check were deleted (verified from fresh loads), so the entry is removed here too.
+       History: workspace-operations.md section 1b.
 
-  <entry>
-    <category term='filter'></category>
-    <title>Via-Strayer — anything forwarded from the school account</title>
-    <apps:property name='to' value='Trevor.Robey@my.strayer.edu'/>
-    <apps:property name='label' value='Via-Strayer'/>
-    <apps:property name='shouldNeverSpam' value='true'/>
-  </entry>
+       NOT in this file on purpose: the live personal-mail filter
+       deliveredto:trevoralexanderrobey@gmail.com (label still-on-OLD), added 2026-10-16 for the
+       personal Gmail phase-out and slated for deletion. It is not business routing. -->
 
 </feed>

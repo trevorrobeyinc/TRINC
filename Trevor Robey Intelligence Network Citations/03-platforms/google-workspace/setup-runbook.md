@@ -1,5 +1,9 @@
 # Google Workspace — Setup Runbook
 
+> **Dated build record (2026-07-21/22) — current state lives in [`google-workspace.md`](./google-workspace.md).**
+> Since then (re-checked 2026-10-21): Zoho is closed and its DNS removed, SPF is Google-only,
+> GAM7 was declined, and the Workspace subscription has a failed payment due by 2026-11-02.
+
 > **Status: LIVE — SIGNUP DONE, DOMAIN VERIFIED, MX CUTOVER COMMITTED & IN PROGRESS**
 > (2026-07-22). Signup completed by operator; domain verified via `google-site-verification`
 > TXT (Entri flow, after one stuck-spinner retry → manual TXT). The wizard's Gmail-activation
@@ -117,7 +121,10 @@ wizard (operator, or Claude in the Claude Browser pane with the cb gate armed). 
 1. **🔑 OPERATOR first:** admin.google.com → Security → 2-Step Verification → enroll **both
    YubiKeys** as security keys on trevor@trevorobeyinc.com; add recovery phone/email; then
    enforce 2SV org-wide (Security → 2SV → Enforcement).
-2. **Install GAM7** (the Workspace admin CLI — makes everything after this scriptable):
+2. ⛔ **DECLINED 2026-10-21 (operator) — do not run this step.** GAM7 is not used and is being
+   removed; the installer below feeds a download straight into a shell, which this stack never
+   does (fetch to a file, checksum, ask). Reason and state: `google-workspace.md` §8.
+   *Original step, kept as history:* **Install GAM7** (the Workspace admin CLI — makes everything after this scriptable):
    ```bash
    bash <(curl -s -S -L https://raw.githubusercontent.com/GAM-team/GAM/main/src/gam-install.sh) -l
    ```

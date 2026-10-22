@@ -35,6 +35,13 @@ Three findings from the 2026-07-23 architecture survey drive everything below:
 > **✅ ALL 11 FILTERS LIVE 2026-07-23** — verified by reading the Filters tab back. 10 imported
 > from the XML; the 11th (Finance-Ops) was created by hand after diagnosing the failure below.
 >
+> **Re-read 2026-10-21 (fresh reload): 12 live filters** = the 11 business filters of
+> `gmail-filters.xml`, unchanged, plus one personal-mail filter that is deliberately NOT in the XML
+> (`deliveredto:trevoralexanderrobey@gmail.com` → `still-on-OLD`, added 2026-10-16 for the
+> personal-Gmail phase-out and slated for deletion by the operator; `google-workspace.md` §8). The
+> 12th XML filter, `Via-Strayer`, was **deleted 2026-10-21** on the operator's decision to retire
+> the Strayer forward (§1b).
+>
 > **⚠️ Gotcha — "Could not import all the filters. Please fix the XML and try again."**
 > That error is **misleading**: the XML was valid. Gmail **refuses to create a label named
 > `Finance`** because it is a **reserved system label** (one of Gmail's built-in categories), so
@@ -54,18 +61,24 @@ Source-controlled here so the routing is reproducible and reviewable.
 | **AWS/Payouts** | disbursement, payout, remittance, billed-revenue, seller reports | Disbursement runs **daily in USD**; payout failures must surface. |
 | **AWS/Tax** | 1099-K, DAC7, tax interview, W-9, permanent establishment | Annual/periodic docs — exactly the class that gets buried. India PE notice pending. |
 | **Support-SLA** | `to:support@` | Starred + important; backs the **1-business-day** contractual ack. |
-| **Prospects** | **subject-only** match on SKU names / "discovery call" / "pre-mortem" | Founder-led outbound is the revenue motion; replies must not be missed. ⚠️ **Fixed 2026-07-23** — originally also matched `"trevorobeyinc.com" AND -from:trevorobeyinc.com`, which matched **nearly all inbound mail** (every message TO you carries your domain in its `To:` header). Observed live: CrowdStrike Falcon security alerts and Google security notices were labelled `Prospects` and marked important. **Never match on your own domain as a bare string.** |
+| **Prospects** | **subject-only** match on SKU names / "discovery call" / "pre-mortem" | Founder-led outbound is the revenue motion; replies must not be missed. ⚠️ **Fixed 2026-07-23** — originally also matched `"trevorobeyinc.com" AND -from:trevorobeyinc.com`, which matched **nearly all inbound mail** (every message TO you carries your domain in its `To:` header). Observed live: CrowdStrike Falcon security alerts and Google security notices were labelled `Prospects` and marked important. **Never match on your own domain as a bare string.** **Sweep closed 2026-10-21:** the label holds no conversations at all (`in:anywhere label:prospects`), so no mislabel is left to clean. |
 | **Platforms** | Datarade, HuggingFace, Kaggle, Data & Sons | Secondary distribution channels. |
 | **Legal** | CA SOS, FTB, IRS, bizfileOnline; NDA/SOW/MSA/Common Paper | Statutory mail — never-spam + starred. |
 | **Finance-Ops** | Stripe, Mercury, Relay, Gumroad, Intuit | Ready for when a payment rail goes live. ⚠️ *Not* named "Finance" — see gotcha below. |
-| **Vendors** | Cloudflare, Zoho, Anthropic, Workspace | Infrastructure billing/notices. |
-| **Via-Strayer** | `to:Trevor.Robey@my.strayer.edu` | Added 2026-07-23. Catches anything arriving via the **Strayer→Gmail forward** (see §1b) and doubles as the liveness probe: if nothing carries this label for ~30 days, the forward is probably dead. |
+| **Vendors** | Cloudflare, Zoho, Anthropic, Workspace | Infrastructure billing/notices. The `zoho.com`/`zohomail.com` terms are dead weight since the Zoho account closed (2026-10-21) but harmless; keep them until Zoho's closure mails stop, then drop them here and in the live filter together. |
+| ~~**Via-Strayer**~~ | ~~`to:Trevor.Robey@my.strayer.edu`~~ | **RETIRED 2026-10-21:** filter deleted (operator decision, verified from a fresh reload); the empty label still exists. Was added 2026-07-23 to catch the **Strayer→Gmail forward** (§1b) and act as its liveness probe. |
 
-### 1b · Strayer → Gmail forwarding (STOPGAP for the AWS root-email risk)
+### 1b · Strayer → Gmail forwarding (STOPGAP for the AWS root-email risk) — RETIRED 2026-10-21
 
-> **Superseded 2026-10-21:** the root email is now `aws@trevorobeyinc.com`, so this stopgap is no
-> longer load-bearing. Retiring the forward, the `Via-Strayer` label and the monthly check is the
-> operator's call; keep them a few weeks in case AWS mails the old address about the change.
+> **RETIRED 2026-10-21 (operator decision: "retire now").** The root email is `aws@trevorobeyinc.com`
+> since 2026-10-21, so the stopgap carries nothing AWS needs. Done and verified from fresh loads: the
+> `Via-Strayer` Gmail filter deleted, the monthly "Check: is Strayer → Gmail forwarding still alive?"
+> calendar series deleted (all events). Gmail held no message addressed to the Strayer address at all
+> on 2026-10-21 (the label was empty), so nothing depended on it. **Left for the operator:** switch
+> forwarding OFF at the source — <https://outlook.office.com/mail/options/mail/forwarding>, signed in
+> as the Strayer account → *Enable forwarding* off → Save. Everything below is the dated record.
+> *(Superseded: "Retiring the forward, the `Via-Strayer` label and the monthly check is the
+> operator's call; keep them a few weeks in case AWS mails the old address about the change.")*
 
 **Why (as of 2026-07-23):** the AWS account root email was still `Trevor.Robey@my.strayer.edu`, and AWS sends
 **listing-review outcomes, payout failures and policy changes** to the *root* address — the
@@ -153,10 +166,16 @@ root-email change.**
 > `trevor@` loses it. **`aws@` was converted to a Workspace Group on 2026-10-21** (the step this
 > caveat called for before using it as the AWS root address): owner/member trevor@, anyone on the web
 > may post, spam handling posts to the group instead of queueing. Mail to it still arrives `To:
-> aws@trevorobeyinc.com`, so the `AWS/Seller-Ops` filter above keeps matching. **Open check:** the
-> *Send mail as aws@* entry above was created against the alias and is still listed; it was not
-> re-tested. If Gmail ever reports it unverified, re-verify it there (the code now arrives through
-> the group). Details: `google-workspace.md` §8.
+> aws@trevorobeyinc.com`, so the `AWS/Seller-Ops` filter above keeps matching. **Checked
+> 2026-10-21:** the *Send mail as aws@* row, created against the alias, is still listed with no
+> "unverified" flag. No test mail was sent; the DMARC pre-flight in `google-workspace.md` §8 sends
+> one from each identity. If Gmail ever reports it unverified, re-verify it there (the code now
+> arrives through the group).
+>
+> **Also live since 2026-10-16 (Gmail → Settings → Forwarding):** trevor@ forwards a copy of all
+> incoming mail to `trevorrobeyinc@gmail.com`, keeping the copy in the inbox. Intended, from the
+> operator's personal-mail move; it means AWS root-email mail arriving via `aws@` is copied there
+> too. Details and the open decision: `google-workspace.md` §3 and §8.
 
 ## 2 · Calendar — deadlines & recurring obligations
 
@@ -169,9 +188,15 @@ root-email change.**
 > — *"Check: is Strayer → Gmail forwarding still alive?"* with the 10-second test in the
 > description (`label:Via-Strayer` quiet for ~30 days ⇒ the pipe is probably dead). Cheap insurance
 > against a silently-broken stopgap; retire it once the AWS root email is changed.
+> **Deleted 2026-10-21 (all events)** with the Strayer forward's retirement (§1b); a Calendar search
+> for "Strayer" returns nothing.
 >
-> Still to add: India PE declaration (Q4), DMARC→quarantine review, and the recurring
-> monthly/quarterly data-refresh cadences (those only start once a product is actually published).
+> Still to add: India PE declaration (Q4) and the recurring monthly/quarterly data-refresh cadences
+> (those only start once a product is actually published). Worth adding as all-day reminders, if
+> the operator wants them (not created — no go given): **Nov 2, 2026** Workspace suspension
+> deadline, **~Nov 13, 2026** Chrome Enterprise Premium trial end, **Dec 4, 2026** AI Expanded Access
+> auto-cancellation. *(The DMARC→quarantine review is no longer a calendar item: it is ready to
+> apply now, `google-workspace.md` §8.)*
 >
 > *Gotcha for whoever automates this next:* the Calendar `render?action=TEMPLATE` URL pre-fills
 > cleanly, but the **first click on Save after page load is swallowed** (it focuses the close X
@@ -181,10 +206,13 @@ Ordered by urgency:
 
 | When | Item | Consequence if missed |
 |---|---|---|
-| **2026-08-05** (~) | **Workspace Business Starter trial ends** | Billing starts / service lapses — decide seat + edition |
-| **2026-08-05** (~) | DMARC review → move `p=none` → `p=quarantine` after ~2 clean weeks | Spoofing exposure stays open |
-| **2026-08-15** | **$800 CA Franchise Tax to FTB** — *~3 weeks out* | State penalties + interest; LLC in bad standing |
-| **~2026-09-16** | **Statement of Information (Form LLC-12, $20)** — within 90 days of 2026-06-18 approval | $250 penalty; suspension risk |
+| **2026-11-02** | 🔴 **Workspace suspension unless the declined card (Visa •••• 0832) is replaced** — added 2026-10-21 | Business mail AND the `aws@` group (AWS root email) stop |
+| **~2026-11-13** | Chrome Enterprise Premium 60-day trial ends — keep or cancel | Premium DLP/connector features stop (`google-workspace.md` §1) |
+| **2026-12-04** | AI Expanded Access add-on auto-cancels (suspended 2026-10-21) | Only matters if the operator wants to keep it |
+| ~~2026-08-05~~ | ~~Workspace Business Starter trial ends~~ — **resolved:** upgraded to Business Plus, then Enterprise Standard (2026-09-12) | — |
+| **Now** | DMARC `p=none` → `p=quarantine` — **ready**, record in `google-workspace.md` §8 (a spoof from a Russian mail server was seen 2026-10-11) | Spoofing exposure stays open |
+| **2026-08-15** — PAST DUE | **$800 CA Franchise Tax to FTB** — not done as of 2026-10-21 (operator-confirmed); authoritative tracker: `00-business-formation/compliance/compliance-calendar.md` | State penalties + interest; LLC in bad standing |
+| **~2026-09-16** — PAST DUE | **Statement of Information (Form LLC-12, $20)** — within 90 days of 2026-06-18 approval; not done as of 2026-10-21 | $250 penalty; suspension risk |
 | Q4 2026 | India PE tax declaration | Paid India sales suspended |
 | Open | **EIN** (free, instant) | Blocks business banking + AWS legal-entity update |
 | Recurring | **Monthly** data refresh (high-velocity: pharmacovigilance, CT.gov feeds) | Breaks a published cadence commitment |
@@ -225,8 +253,10 @@ zero activity.**
 - Does **not** change the AWS public support contact from `trevor@` to `support@`/`aws@` — that's an
   `AdministratorAccess` portal change plus a repo-doc sync (`listing/product-description.md`,
   `product-creation.md:126`, `listing/data-eligibility-and-compliance.md:80`).
-- Does **not** bind the Gmail MCP connector to the business mailbox — that connector is still on the
-  **personal** Gmail (`config/connector-registry.json:488`); rebinding is a separate decision.
+- Does **not** bind any Gmail MCP connector to the business mailbox. As of 2026-10-21 none reads it:
+  the claude.ai Gmail connector was disconnected 2026-07-09, and the local YubiKey-gated `gmail` MCP
+  is pinned to `trevorrobeyinc@gmail.com` (`google-workspace.md` §6). Agent access to this mailbox is
+  the Claude Browser pane with the operator signed in; rebinding is a separate decision.
 
 ## 6 · Sequenced next actions
 
