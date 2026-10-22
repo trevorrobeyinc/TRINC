@@ -916,7 +916,8 @@
       "adapter_priority": "low",
       "suggested_adapter_path": "n/a \u2014 manual-only external action; no subprocess adapter ever",
       "health_check": "n/a",
-      "lane": "business"
+      "lane": "business",
+      "status_2026-10-21": "The claude.ai Gmail connector this entry describes (prefix mcp__ef0bc6fb-...) did not load in the 2026-10-21 Desktop Code session, and the local gated `gmail` server is out of service since 2026-09-05 (operator_surfaces.gmail). No MCP path to the mailbox is live."
     },
     "filesystem-sandboxed": {
       "tool_prefix": "mcp__filesystem__",
@@ -1316,7 +1317,7 @@
       "tools": [
         "citation_reresolve"
       ],
-      "purpose": "Re-resolves cited identifiers against source records for the citation-integrity layer. Gate-side, not prefetch-side.",
+      "purpose": "Re-resolves every cited identifier against its issuing source at delivery for the citation-integrity layer: PMID -> NCBI E-utilities, NCT -> ClinicalTrials.gov v2, DOI -> Crossref. Since 2026-10-21, for the business research profile: WEB -> re-read and re-hash the run's stored snapshot (no network call; no store = UNCHECKED), SEC -> the filing's EDGAR index.json (403 = UNCHECKED), WB -> /v2/indicator/<id>. Gate-side, not prefetch-side.",
       "bound_roles": [],
       "bound_workflow_steps": [],
       "business_value": "high",
@@ -1521,7 +1522,7 @@
       "tools": [
         "sec_edgar_disclosures"
       ],
-      "purpose": "SEC EDGAR full-text search over public-company filings. Added 2026-09-19 to close a gap the GRADING layer already anticipated: gate.config.js has listed sec.gov in primary_source_domains since 2026-07-07, but nothing ever fetched it and a name search across all 2,116 ToolUniverse tools returns ZERO SEC coverage. Supplies a signal no biomedical database carries -- a sponsor's own filed disclosure that a program was discontinued, a trial failed, or a partnership ended. SCOPE, verified live: EDGAR full-text returns filing METADATA ONLY (no snippet or highlight field), so a record says WHICH filing matched, never WHAT it said; it does carry the standardized 8-K item codes, which are decoded to their SEC-defined meanings (2.02 = Results of Operations, 1.02 = Termination of a Material Definitive Agreement, ...) and an unmapped code renders bare rather than being given an invented label. CONTEXT-ONLY BY DESIGN: accession numbers are not in citation-extractor.js's grammar -- every pattern there requires a literal prefix (PMID/CID/NCT/UniProt/CHEMBL/DB/doi:), verified by reading them -- so these records cannot enter the grounded-ratio denominator, cannot lower a report's grade, and never reach the Stage-3 re-resolver (where an unknown id type risks UNRESOLVED, a hard BLOCK). Making SEC filings citable would mean extending citation-extractor.js AND citation-reresolver.js in one change; deliberately deferred.",
+      "purpose": "SEC EDGAR full-text search over public-company filings. Added 2026-09-19 to close a gap the GRADING layer already anticipated: gate.config.js has listed sec.gov in primary_source_domains since 2026-07-07, but nothing ever fetched it and a name search across all 2,116 ToolUniverse tools returns ZERO SEC coverage. Supplies a signal no biomedical database carries -- a sponsor's own filed disclosure that a program was discontinued, a trial failed, or a partnership ended. SCOPE, verified live: EDGAR full-text returns filing METADATA ONLY (no snippet or highlight field), so a record says WHICH filing matched, never WHAT it said; it does carry the standardized 8-K item codes, which are decoded to their SEC-defined meanings (2.02 = Results of Operations, 1.02 = Termination of a Material Definitive Agreement, ...) and an unmapped code renders bare rather than being given an invented label. CONTEXT-ONLY BY DESIGN: accession numbers are not in citation-extractor.js's grammar -- every pattern there requires a literal prefix (PMID/CID/NCT/UniProt/CHEMBL/DB/doi:), verified by reading them -- so these records cannot enter the grounded-ratio denominator, cannot lower a report's grade, and never reach the Stage-3 re-resolver (where an unknown id type risks UNRESOLVED, a hard BLOCK). Making SEC filings citable would mean extending citation-extractor.js AND citation-reresolver.js in one change; deliberately deferred. UPDATE 2026-10-21: on the BUSINESS research profile only, openclaw-bridge/mcp/business-sources/sec-filings.js (entry sec-filings-citable) wraps this fetcher and renders filings citable as `SEC: <CIK>/<accession>`, with matching patterns in citation-extractor.js and a resolver in citation-reresolver.js: the deferred change, made for that profile. On the biomedical profile this entry is unchanged and stays context-only.",
       "bound_roles": [
         "analyst",
         "competitive_intel_analyst"
@@ -1639,6 +1640,145 @@
       "suggested_adapter_path": "openclaw-bridge/mcp/europepmc-preprints/europepmc-preprints.js (built 2026-09-19, routed via the localFetchers seam in scripts/_workflow-runtime.js)",
       "health_check": "searchPreprints({indication: 'glioblastoma', limit: 1}) returns a record whose doi resolves and whose journal reads 'Preprint (not peer reviewed)' (verified 2026-09-19: 4,252 preprint hits, 1,890 from bioRxiv)",
       "lane": "research"
+    },
+    "web-evidence": {
+      "tool_prefix": "openclaw-bridge/mcp/business-sources/web-evidence.js",
+      "execution_surface": "subprocess-mcp",
+      "lane": "research",
+      "research_profile": "business",
+      "prefetch_map": "config/tool-prefetch-map.business.json",
+      "auth": "none (local: searches through the in-house searxng-search connector over the :8891 TLS proxy and reads pages through its SSRF-guarded extract)",
+      "tools": [
+        "web_evidence"
+      ],
+      "purpose": "BUSINESS RESEARCH PROFILE ONLY (built 2026-10-21, commit 6ca9d78; docs/business-research-lane.md). Wired only in config/tool-prefetch-map.business.json, which core/research-profiles.js selects for a template carrying research_profile: business, so no biomedical template ever calls it. Lane is `research` (citable, gate-subject), NOT this registry's `business` lane. Searches the web, READS the top pages, and stores every page the model is shown in the content-addressed web snapshot store (business-sources/web-snapshot-store.js), so the model can cite `WEB: <12 hex>` = the first 12 hex of sha256(url + newline + text) of the exact text it saw. GROUNDING: a WEB id is in the evidence only if this run fetched and stored that page, so an invented one is ungrounded like an invented PMID. RE-RESOLUTION: citation-reresolver.js re-reads the stored snapshot and re-hashes it at delivery (missing or altered snapshot = UNRESOLVED; no store wired = UNCHECKED, never a false VERIFIED). This proves 'exactly what was read, from this URL, at this time', NOT that the page is still live or correct; guarantee wording must say so. Search snippets are never shown as evidence; paywalled or JavaScript-only pages (under 200 characters extracted) are skipped.",
+      "bound_roles": [
+        "scout",
+        "analyst"
+      ],
+      "bound_workflow_steps": [
+        {
+          "workflow_template_id": "business-research-pack",
+          "step_id": "research"
+        },
+        {
+          "workflow_template_id": "cost-reduction-analysis",
+          "step_id": "research"
+        },
+        {
+          "workflow_template_id": "market-landscape",
+          "step_id": "research"
+        }
+      ],
+      "business_value": "load-bearing",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "openclaw-bridge/mcp/business-sources/web-evidence.js (built 2026-10-21, routed via the localFetchers seam in scripts/_workflow-runtime.js, which clamps pages to at most 10)",
+      "health_check": "OFFLINE only so far: tests/core/business-research-lane.test.js (injected fakes). No business-profile run exists on disk as of 2026-10-21 (no workspace/workflows/*/workflow.json names a business template), so there is no live health result yet; the first real run needs network, SearXNG up and the operator-approve touch."
+    },
+    "sec-filings-citable": {
+      "tool_prefix": "openclaw-bridge/mcp/business-sources/sec-filings.js",
+      "execution_surface": "subprocess-mcp",
+      "lane": "research",
+      "research_profile": "business",
+      "prefetch_map": "config/tool-prefetch-map.business.json",
+      "auth": "none (public SEC EDGAR; reuses the sec-edgar fetcher and its declared User-Agent)",
+      "tools": [
+        "sec_filings_citable"
+      ],
+      "purpose": "BUSINESS RESEARCH PROFILE ONLY (built 2026-10-21, commit 6ca9d78; docs/business-research-lane.md). Wired only in config/tool-prefetch-map.business.json, which core/research-profiles.js selects for a template carrying research_profile: business, so no biomedical template ever calls it. Lane is `research` (citable, gate-subject), NOT this registry's `business` lane. Wraps the biomedical lane's context-only sec-edgar fetcher and re-renders each filing with an `SEC: <CIK>/<accession>` line that citation-extractor.js grounds and citation-reresolver.js checks against the filing's EDGAR index.json (does not exist = UNRESOLVED; HTTP 403, EDGAR's fair-access throttle = UNCHECKED). This is the 'deliberate, separate change' the sec-edgar entry deferred, scoped to the business profile; the biomedical sec-edgar fetcher is untouched and stays context-only. Skipped by the empty-args guard when the request names no company.",
+      "bound_roles": [
+        "scout",
+        "analyst"
+      ],
+      "bound_workflow_steps": [
+        {
+          "workflow_template_id": "business-research-pack",
+          "step_id": "research"
+        },
+        {
+          "workflow_template_id": "cost-reduction-analysis",
+          "step_id": "research"
+        },
+        {
+          "workflow_template_id": "market-landscape",
+          "step_id": "research"
+        }
+      ],
+      "business_value": "high",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "openclaw-bridge/mcp/business-sources/sec-filings.js (built 2026-10-21, routed via the localFetchers seam in scripts/_workflow-runtime.js, which clamps limit to at most 25)",
+      "health_check": "OFFLINE only so far: tests/core/business-research-lane.test.js (injected fakes). No business-profile run exists on disk as of 2026-10-21 (no workspace/workflows/*/workflow.json names a business template), so there is no live health result yet; the first real run needs network, SearXNG up and the operator-approve touch."
+    },
+    "world-bank-indicators": {
+      "tool_prefix": "openclaw-bridge/mcp/business-sources/world-bank.js",
+      "execution_surface": "subprocess-mcp",
+      "lane": "research",
+      "research_profile": "business",
+      "prefetch_map": "config/tool-prefetch-map.business.json",
+      "auth": "none (public, keyless World Bank Indicators API v2 over HTTPS)",
+      "tools": [
+        "worldbank_indicators"
+      ],
+      "purpose": "BUSINESS RESEARCH PROFILE ONLY (built 2026-10-21, commit 6ca9d78; docs/business-research-lane.md). Wired only in config/tool-prefetch-map.business.json, which core/research-profiles.js selects for a template carrying research_profile: business, so no biomedical template ever calls it. Lane is `research` (citable, gate-subject), NOT this registry's `business` lane. Macro context a cost or market report leans on (inflation, growth, lending rates, labour) from api.worldbank.org/v2. Each record carries `WB: <indicator>`; the re-resolver confirms the indicator code exists at /v2/indicator/<id> (unknown code = UNRESOLVED). That proves the series exists, not the value: the value is shown exactly as the API returned it, with its year, never rounded or extrapolated.",
+      "bound_roles": [
+        "scout"
+      ],
+      "bound_workflow_steps": [
+        {
+          "workflow_template_id": "business-research-pack",
+          "step_id": "research"
+        },
+        {
+          "workflow_template_id": "cost-reduction-analysis",
+          "step_id": "research"
+        },
+        {
+          "workflow_template_id": "market-landscape",
+          "step_id": "research"
+        }
+      ],
+      "business_value": "medium",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "openclaw-bridge/mcp/business-sources/world-bank.js (built 2026-10-21, routed via the localFetchers seam in scripts/_workflow-runtime.js)",
+      "health_check": "OFFLINE only so far: tests/core/business-research-lane.test.js (injected fakes). No business-profile run exists on disk as of 2026-10-21 (no workspace/workflows/*/workflow.json names a business template), so there is no live health result yet; the first real run needs network, SearXNG up and the operator-approve touch."
+    },
+    "openalex-works": {
+      "tool_prefix": "openclaw-bridge/mcp/business-sources/openalex.js",
+      "execution_surface": "subprocess-mcp",
+      "lane": "research",
+      "research_profile": "business",
+      "prefetch_map": "config/tool-prefetch-map.business.json",
+      "auth": "none (public, keyless OpenAlex API)",
+      "tools": [
+        "openalex_works"
+      ],
+      "purpose": "BUSINESS RESEARCH PROFILE ONLY (built 2026-10-21, commit 6ca9d78; docs/business-research-lane.md). Wired only in config/tool-prefetch-map.business.json, which core/research-profiles.js selects for a template carrying research_profile: business, so no biomedical template ever calls it. Lane is `research` (citable, gate-subject), NOT this registry's `business` lane. Management, economics, operations and engineering literature that PubMed does not index. Works without a DOI are dropped (they would be uncitable context); records render `doi: <doi>`, so a cited paper is grounded, re-resolved through Crossref and retraction-screened exactly like a biomedical DOI. Distinct from openalex-tooluniverse (the ToolUniverse openalex_literature_search tool on the biomedical profile).",
+      "bound_roles": [
+        "scout",
+        "synthesizer"
+      ],
+      "bound_workflow_steps": [
+        {
+          "workflow_template_id": "business-research-pack",
+          "step_id": "research"
+        },
+        {
+          "workflow_template_id": "cost-reduction-analysis",
+          "step_id": "research"
+        },
+        {
+          "workflow_template_id": "market-landscape",
+          "step_id": "research"
+        }
+      ],
+      "business_value": "medium",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "openclaw-bridge/mcp/business-sources/openalex.js (built 2026-10-21, routed via the localFetchers seam in scripts/_workflow-runtime.js, which clamps limit to at most 25)",
+      "health_check": "OFFLINE only so far: tests/core/business-research-lane.test.js (injected fakes). No business-profile run exists on disk as of 2026-10-21 (no workspace/workflows/*/workflow.json names a business template), so there is no live health result yet; the first real run needs network, SearXNG up and the operator-approve touch."
     }
   },
   "excluded_infrastructure": {
@@ -1682,10 +1822,10 @@
     ]
   },
   "lanes": {
-    "research": "Biomedical / citation connectors. The ONLY lane permitted into config/tool-prefetch-map.json. Everything here is subject to the Phase-30 citation-grounding gate.",
-    "vault": "Obsidian + memory surfaces reached through the canonical :8798 bridge and the Qdrant TLS proxy :6433. Read-only from the engine; Command Center owns vault writes.",
-    "business": "Mail, publishing, notes, repo. Chat-supervisory and Command Center only. NEVER injected into research prefetch \u2014 these return non-citable payloads that would dilute the grounded-citation ratio and inflate a token budget already at ~300K/template.",
-    "security": "Falcon / Firewalla / sudo-gate / term-bridge. Governed by the security-orchestration skill under strict propose-only. Never reachable from the engine.",
+    "research": "Biomedical / citation connectors. The ONLY lane permitted into config/tool-prefetch-map.json. Everything here is subject to the Phase-30 citation-grounding gate. Since 2026-10-21 there are TWO prefetch maps: config/tool-prefetch-map.json (biomedical profile) and config/tool-prefetch-map.business.json (the business RESEARCH profile, chosen by a template's research_profile: business); entries serving the second carry research_profile: business. NAMING TRAP: the engine's 'business research lane' is a RESEARCH-lane profile, not this registry's `business` lane; never move its sources to lane business, and never put a lane-business surface in either map.",
+    "vault": "Obsidian + memory surfaces reached through the canonical :8798 bridge and the Qdrant TLS proxy :6433. Read-only from the engine; Command Center owns vault writes. (Corrected 2026-10-21: since 2026-09-22 the ENGINE writes each gate-PASS run's notes itself, openclaw-bridge/vault/workflow-vault-publisher.js; Command Center only rehydrates its enrichment stages. Read-back into a run stays context-only.)",
+    "business": "Mail, publishing, notes, repo. Chat-supervisory and Command Center only. NEVER injected into research prefetch \u2014 these return non-citable payloads that would dilute the grounded-citation ratio and inflate a token budget already at ~300K/template. Not the engine's business RESEARCH profile (2026-10-21), whose citable WEB/SEC/WB/DOI sources are lane research; this lane stays out of BOTH prefetch maps.",
+    "security": "Falcon / Firewalla / sudo-gate / term-bridge. Governed by the security-orchestration skill under strict propose-only. Never reachable from the engine. (term-bridge RETIRED 2026-07-28; the local falcon MCP RETIRED 2026-10-09: Falcon is reached only from the Security Everything repo, through its Falcon-Strike lane.)",
     "infra": "Session, scheduling, filesystem, and docs plumbing. Not a product data source."
   },
   "prefetch_exempt_roles": {
@@ -1702,32 +1842,32 @@
       {
         "id": "trinc-content",
         "lane": "business",
-        "auth": "none (local stdio; publishing credentials are Keychain-only and absent)",
-        "purpose": "Content creation for the business channels (YouTube, TikTok, Instagram, Facebook Page, AWS Data Exchange). Drafts from release-bundle deliverables and gates against the brand voice split, the statutory entity disclosure, retired claims, and any figure not traceable to a deliverable. Registered in the repo .mcp.json 2026-09-19. MUST NEVER be added to tool-prefetch-map.json: it is business lane and returns non-citable payloads that would dilute the grounded-citation ratio."
+        "auth": "YubiKey session gate since 2026-10-21 04:17 PDT (Security Everything 07726a0, scope mcp-trinc-content): `operator-approved-gate arm trinc-content`, one PIN + touch, 600 s idle; sub-agents barred from the whole server, Ralph loops barred from publish_*. Verified 2026-10-21: an unarmed content_brand_context call is refused by the hook. Publishing credentials are Keychain-only and absent; there is no network send path in the code.",
+        "purpose": "Content creation for the business channels (YouTube, TikTok, Instagram, Facebook Page, AWS Data Exchange). Drafts from release-bundle deliverables and gates against the brand voice split, the statutory entity disclosure, retired claims, and any figure not traceable to a deliverable. Registered in the repo .mcp.json 2026-09-19. Source in the monorepo at Claude/trinc-content-mcp/ since 2026-10-21 (absorbed with history, e485565); .mcp.json launches the STAGED copy ~/.claude/mcp-servers/trinc-content/src/server.js, so re-run Claude/trinc-content-mcp/install-connector.sh after editing src/. MUST NEVER be added to tool-prefetch-map.json: it is business lane and returns non-citable payloads that would dilute the grounded-citation ratio."
       },
       {
         "id": "zoho-mail",
         "lane": "business",
         "auth": "RETIRED 2026-08-17 (legacy server deleted at Zoho)",
-        "purpose": "RETIRED EVERYWHERE 2026-10-21 BY OPERATOR DIRECTION \u2014 all business mail is on Google Workspace (Gmail) since the 2026-07-22 cutover. Do not register, bind or re-propose. Kept here only as a record. (Was: legacy Zoho mailbox for trevorobeyinc.com, pre-Gmail-cutover.)"
+        "purpose": "RETIRED EVERYWHERE 2026-10-21 BY OPERATOR DIRECTION \u2014 all business mail is on Google Workspace (Gmail) since the 2026-07-22 cutover. Do not register, bind or re-propose. Kept here only as a record. (Was: legacy Zoho mailbox for trevorobeyinc.com, pre-Gmail-cutover.) Zoho account CLOSED 2026-10-21 (Zoho's closure mail 04:55 PDT). DNS re-checked with dig 2026-10-21: SPF `v=spf1 include:_spf.google.com ~all`, no zoho._domainkey TXT, no zoho-verification TXT, MX smtp.google.com only."
       },
       {
         "id": "zoho-trinc",
         "lane": "business",
         "auth": "RETIRED 2026-10-21 (registration, launchers and gate scope removed by the Security Everything gate release of that date)",
-        "purpose": "RETIRED EVERYWHERE 2026-10-21 BY OPERATOR DIRECTION \u2014 all business mail is on Google Workspace (Gmail). Do not register, bind or re-propose: the session-gate no longer lists it, so a new registration would arrive ungated. (Was: Zoho mail admin surface \u2014 send-as, signatures, folders, labels.)"
+        "purpose": "RETIRED EVERYWHERE 2026-10-21 BY OPERATOR DIRECTION \u2014 all business mail is on Google Workspace (Gmail). Do not register, bind or re-propose: the session-gate no longer lists it, so a new registration would arrive ungated. (Was: Zoho mail admin surface \u2014 send-as, signatures, folders, labels.) Zoho account CLOSED 2026-10-21 (Zoho's closure mail 04:55 PDT). DNS re-checked with dig 2026-10-21: SPF `v=spf1 include:_spf.google.com ~all`, no zoho._domainkey TXT, no zoho-verification TXT, MX smtp.google.com only."
       },
       {
         "id": "gmail",
         "lane": "business",
-        "auth": "connected",
-        "purpose": "Primary business mailbox post 2026-07-22 Workspace cutover."
+        "auth": "local `gmail` server (~/.claude.json user scope, mcp-gates shim gmail-gated-launch.sh) is OUT OF SERVICE since 2026-09-05 by operator decision (security): disabled, NOT retired, and its failed-to-connect state is the intended state (Security Everything CLAUDE.md). Since 2026-10-16 it is the mcp-gmail scope (arm + the sealed OAuth client's own unseal to open, one touch to close).",
+        "purpose": "Primary business mailbox, trevor@trevorobeyinc.com on Google Workspace since the 2026-07-22 cutover. With the local MCP out of service, no Claude surface reaches the mailbox over MCP; drafts are handed to the operator as text and the operator sends."
       },
       {
         "id": "falcon",
         "lane": "security",
-        "auth": "connected",
-        "purpose": "CrowdStrike Falcon. Read-only recon first, strict propose-only on any console mutation. Never weaken Custom-IOA rule 1."
+        "auth": "RETIRED 2026-10-09 (the local falcon-mcp server; registered in no host config, verified 2026-10-21)",
+        "purpose": "CrowdStrike Falcon is reached only from the Security Everything repo, through its Falcon-Strike lane (falconstrike in that repo's .mcp.json: CrowdStrike's hosted Falcon MCP behind a read identity and a YubiKey-armed write identity; a typed confirm fs-<token> for every write). Read-only recon first, strict propose-only; never weaken Custom-IOA rule 1. Not reachable from this repo or the engine."
       },
       {
         "id": "firewalla",
@@ -1744,8 +1884,8 @@
       {
         "id": "term-bridge",
         "lane": "security",
-        "auth": "tb-gate session",
-        "purpose": "Shared-tmux shell exec. NON-privileged only \u2014 all root goes through sudo-gate on the GUI login lane."
+        "auth": "RETIRED 2026-07-28 (the whole surface: MCP server, registration, tb gate scope)",
+        "purpose": "Was: shared-tmux shell exec. Do not reintroduce (global ~/.claude/CLAUDE.md)."
       },
       {
         "id": "searxng-search",
@@ -1762,8 +1902,8 @@
       {
         "id": "computer-use",
         "lane": "infra",
-        "auth": "ccu-gate session",
-        "purpose": "Native desktop control. Browsers restricted to read tier."
+        "auth": "DISABLED 2026-07-26 by the operator (Accessibility + Screen Recording revoked for Claude 2026-07-25); the ccu-gate scope still exists, a gate is not an enabled surface",
+        "purpose": "Was: native desktop control. If re-enabled, re-add it to the HTTPS-only carve-out in the same change."
       },
       {
         "id": "pdf-viewer",
@@ -1787,11 +1927,65 @@
         "id": "ccd_session / ccd_session_mgmt / ccd_directory",
         "lane": "infra",
         "auth": "none",
-        "purpose": "Claude Code session plumbing."
+        "purpose": "Claude Code / Claude Desktop app plumbing: ccd_session, ccd_session_mgmt, ccd_directory, and also ccd_turn, ccd_view, ccd_pr, ccd_settings, ccd_host, ccd_sidebar, ccd_window, ccd_connectors and terminal (the Terminal panel; its run_in_terminal / open_terminal_tab / stop_terminal_tab are in the session-gate MATCHER). Not a data source."
+      },
+      {
+        "id": "openclaw-obsidian",
+        "lane": "infra",
+        "auth": "none of its own; the session-gate hook bars sub-agents and Ralph loops (prefix mcp__openclaw-obsidian__, no session scope); every REAL run still needs the operator's armed one-shot operator-approve token",
+        "purpose": "Claude Code's dispatch lane into the Command Center bridge :8799, registered in the repo .mcp.json 2026-10-07 (stdio adapter Copilot-Everything/bridges/obsidian-stdio-adapter, profile `openclaw`: a closed 13-tool allowlist proxied only to :8799). Starts and watches OpenClaw runs so the plugin's post-run chain fires; status.post_run_done is the reliable 'chain finished' signal. It DISPATCHES the engine and is never an evidence source: it must never enter a prefetch map. Dies with Obsidian (the tools answer obsidian_not_running)."
+      },
+      {
+        "id": "opencode",
+        "lane": "infra",
+        "auth": "none (local stdio); read-only + public-data + no-exfil allowlist guardrail (~/Security Everything/opencode-delegation-guard/); in the session-gate MATCHER",
+        "purpose": "$0 delegation of small mechanical or research tasks to opencode's free models (_opencode-bridge/README.md). Registered in the repo .mcp.json, ~/.claude.json user scope and claude_desktop_config.json. Not the Obsidian Copilot agent's opencode instance, and no channel into it. Never an engine source."
+      },
+      {
+        "id": "perseus-vault",
+        "lane": "infra",
+        "auth": "YubiKey-gated scope since 2026-09-15; encrypted local SQLite, no network",
+        "purpose": "Machine-global, queryable agent memory (~/.perseus-vault/data/perseus-vault.db), registered in ~/.claude.json user scope and claude_desktop_config.json. Holds no business facts (those go to perseus-business) and never feeds the engine."
+      },
+      {
+        "id": "perseus-business",
+        "lane": "business",
+        "auth": "YubiKey-gated scope since 2026-09-15; encrypted local SQLite with its own key, no network",
+        "purpose": "Repo-scoped business memory for Trevor Robey, INC. (~/.perseus-vault/data/business-vault.db), declared in the repo .mcp.json (also in claude_desktop_config.json). Agent memory, not citable evidence; never a prefetch source."
+      },
+      {
+        "id": "miyo",
+        "lane": "vault",
+        "auth": "none; deliberately EXEMPT from the session-gate hook by the operator's call (recorded in pretooluse-gate.py)",
+        "purpose": "Miyo semantic search plus file read/write over the Obsidian vault for Claude Desktop (claude_desktop_config.json; its tools also load in Desktop Code sessions). Separate from the engine's own context-only Miyo read-back (connector obsidian-bridge, miyo_search_context over the :8743 TLS proxy)."
+      },
+      {
+        "id": "FilesystemPlus",
+        "lane": "infra",
+        "auth": "none (local stdio); allowed roots /Users/myhome and /Volumes/ExtraCurricular; in the session-gate MATCHER",
+        "purpose": "Claude Desktop's filesystem server (claude_desktop_config.json); replaced desktop-commander 2026-07-28. Not a data source."
+      },
+      {
+        "id": "klsense-btt",
+        "lane": "security",
+        "auth": "none (local, read-only broker); in the session-gate MATCHER; its results are transcript-scanned by pagescanwatch (BROKER_PREFIXES)",
+        "purpose": "Read-only view of BetterTouchTool for klsense (Security Everything); nothing it does changes BTT. Registered in ~/.claude.json user scope. Never an engine source."
+      },
+      {
+        "id": "phone-gate",
+        "lane": "security",
+        "auth": "YubiKey: phone_gate_propose, the operator decrypts on the phone with the YubiKey, then phone_gate_arm; the PIN + touch stay on the operator's side",
+        "purpose": "Arm lane for the YubiKey consent gates when the agent is opencode (Security Everything AGENTS.md). Registered in ~/.claude.json user scope."
+      },
+      {
+        "id": "claude.ai account connectors (documents; visualize)",
+        "lane": "infra",
+        "auth": "claude.ai connectors, host-managed; matched by the session-gate hook's uuid-prefix pattern",
+        "purpose": "Loaded in the 2026-10-21 Desktop Code session alongside the research connectors listed under connectors: mcp__1a59c906-04da-521d-bda7-7f71b9f9e01c__ (documents: create, read, update, batch, query, export, delete, guide) and mcp__6f616b42-0ed8-571e-823f-ee4aca6b7ce9__ (read_me, show_widget: the cloud copy of visualize). Not data sources."
       }
     ],
     "needs_host_auth": {
-      "note": "Connected but UNAUTHENTICATED as of 2026-07-24. Tools unavailable until the operator completes OAuth in claude.ai connector settings (or /mcp in an interactive session). Claude cannot run these flows in a non-interactive session. NOTE: most of what these plugin bundles provide are SKILLS, which need no connection and already work \u2014 only the MCP servers listed here need auth.",
+      "note": "As reported by the Claude Code host in the 2026-10-21 Desktop Code session (first recorded 2026-07-24; reconciled 2026-10-21). OAuth is the operator's (claude.ai connector settings, or /mcp in an interactive terminal); Claude cannot run it. Only MCP servers need auth; plugin SKILLS work regardless. What to authorize is decided in config/plugin-bindings.json oauth_posture: BioRender (through claude.ai connector settings, not the plugin) is the one recommended authorization, Synapse is conditional, Wiley and Owkin are do-not-authorize (duplicates). Everything else here maps to a category that resolves to NONE: unauthenticated is the correct end state.",
       "research_lane": [
         "alphaxiv",
         "plugin:bio-research:biorender",
@@ -1799,14 +1993,19 @@
         "plugin:bio-research:synapse",
         "plugin:bio-research:wiley"
       ],
+      "alphaxiv_note": "Installed 2026-07-10; behind its mcp-gates shim since 2026-09-15 (alphaxiv-mcp-launch.sh: only alphaxiv_connect is listed until the scope is armed). OAuth has not been completed as far as can be seen without arming (no mcp-remote token cache is identifiable as alphaxiv's), so the registry's 7-day rule has not started; once it is authenticated it must be registered under connectors. Its terms were never read (alphaxiv.org/terms answers 403 to fetchers): read them in a browser before the first OAuth grant and before any output reaches a paid deliverable.",
       "business_lane": [
-        "plugin:data:*",
-        "plugin:engineering:*",
-        "plugin:marketing:*",
-        "plugin:product-management:*",
-        "plugin:productivity:*"
-      ]
-    }
+        "plugin:data:amplitude",
+        "plugin:data:amplitude-eu",
+        "plugin:data:atlassian",
+        "plugin:data:bigquery",
+        "plugin:data:definite",
+        "plugin:data:hex"
+      ],
+      "inert_placeholders": "plugin:bio-research:benchling, plugin:data:snowflake and plugin:data:databricks ship with an empty url in the package: there is nothing to authorize.",
+      "dropped_2026-10-21": "plugin:engineering:*, plugin:marketing:*, plugin:product-management:*, plugin:productivity:* left this list because those plugins were uninstalled 2026-08-12 (plugin_surfaces.removed)."
+    },
+    "reconciled": "2026-10-21 (every server in ~/.claude.json user scope, the repo .mcp.json and claude_desktop_config.json is listed here or under connectors)"
   },
   "plugin_surfaces": {
     "rationale": "Ledger of every Claude PLUGIN bound to this business. A plugin is not a connector \u2014 it is a bundle of skills plus (usually) a set of MCP servers. The skills work with no authentication at all; only the MCP servers need OAuth. Recorded here so 'which plugins are configured' is answerable alongside 'what is connected', and so no plugin MCP server drifts into research prefetch. Per-plugin category bindings, posture, and guardrails live in config/plugin-bindings.json (schema plugin-bindings-v1) with the human-readable companion at PLUGIN-BINDINGS.md.",
@@ -1819,76 +2018,15 @@
     },
     "plugins": [
       {
-        "id": "productivity",
-        "lane": "business",
-        "surface": "desktop-rpm",
-        "version": "1.3.0",
-        "skills": 4,
-        "mcp_connected": 2,
-        "mcp_needs_auth": 7
-      },
-      {
-        "id": "operations",
-        "lane": "business",
-        "surface": "desktop-rpm",
-        "version": "1.3.0",
-        "skills": 9,
-        "mcp_connected": 2,
-        "mcp_needs_auth": 4
-      },
-      {
-        "id": "engineering",
-        "lane": "business",
-        "surface": "desktop-rpm",
-        "version": "1.2.0",
-        "skills": 10,
-        "mcp_connected": 2,
-        "mcp_needs_auth": 8
-      },
-      {
         "id": "data",
         "lane": "business",
         "surface": "desktop-rpm",
         "version": "1.1.0",
         "skills": 10,
         "mcp_connected": 0,
-        "mcp_needs_auth": 8
-      },
-      {
-        "id": "product-management",
-        "lane": "business",
-        "surface": "desktop-rpm",
-        "version": "1.2.0",
-        "skills": 8,
-        "mcp_connected": 2,
-        "mcp_needs_auth": 14
-      },
-      {
-        "id": "sales",
-        "lane": "business",
-        "surface": "desktop-rpm",
-        "version": "1.3.0",
-        "skills": 9,
-        "mcp_connected": 2,
-        "mcp_needs_auth": 12
-      },
-      {
-        "id": "marketing",
-        "lane": "business",
-        "surface": "desktop-rpm",
-        "version": "1.2.0",
-        "skills": 8,
-        "mcp_connected": 2,
-        "mcp_needs_auth": 11
-      },
-      {
-        "id": "design",
-        "lane": "business",
-        "surface": "desktop-rpm",
-        "version": "1.2.0",
-        "skills": 7,
-        "mcp_connected": 2,
-        "mcp_needs_auth": 7
+        "mcp_needs_auth": 6,
+        "mcp_inert_placeholders": 2,
+        "mcp_note_2026-10-21": "needs auth: amplitude, amplitude-eu, atlassian, bigquery, definite, hex; snowflake and databricks ship an empty url (inert)."
       },
       {
         "id": "bio-research",
@@ -1897,7 +2035,7 @@
         "version": "1.2.0",
         "skills": 6,
         "mcp_connected": 6,
-        "mcp_needs_auth": 5,
+        "mcp_needs_auth": 4,
         "duplicate_of_registry": [
           "pubmed",
           "chembl",
@@ -1906,7 +2044,9 @@
           "consensus",
           "open-targets-graphql"
         ],
-        "duplicate_note": "Claude-host duplicates of already-registered engine connectors. Interactive/chat-side only \u2014 the engine keeps its own subprocess adapters under openclaw-bridge/mcp/. Do NOT double-register and do NOT add to tool-prefetch-map.json: doing so would dilute the grounded-citation ratio the Phase-30 gate computes."
+        "duplicate_note": "Claude-host duplicates of already-registered engine connectors. Interactive/chat-side only \u2014 the engine keeps its own subprocess adapters under openclaw-bridge/mcp/. Do NOT double-register and do NOT add to tool-prefetch-map.json: doing so would dilute the grounded-citation ratio the Phase-30 gate computes.",
+        "mcp_inert_placeholders": 1,
+        "mcp_note_2026-10-21": "needs auth: biorender, owkin, synapse, wiley; benchling ships an empty url (inert). Connected: pubmed, biorxiv, consensus, c-trials, chembl, ot."
       },
       {
         "id": "pdf-viewer",
@@ -1932,7 +2072,7 @@
         "id": "frontend-design",
         "lane": "infra",
         "surface": "cli-marketplace",
-        "version": "unknown",
+        "version": "d1adba47161a (marketplace git sha, updated 2026-10-21)",
         "skills": 1,
         "mcp_connected": 0,
         "mcp_needs_auth": 0,
@@ -1954,6 +2094,24 @@
         "id": "cowork-plugin-management",
         "version": "0.2.2",
         "reason": "Plugin-authoring tooling. Its cowork-plugin-customizer skill requires Cowork's mnt/.local-plugins mounts, absent in CLI Claude Code \u2014 the reason these bindings are repo-owned rather than stamped into the plugin packages."
+      },
+      {
+        "id": "math-olympiad",
+        "version": "d1adba47161a (marketplace git sha)",
+        "surface": "cli-marketplace",
+        "note": "Installed 2026-08-04 by the operator; first flagged 'not assessed, not bound' on 2026-08-12. Assessed 2026-10-21: one competition-math skill with no ~~category placeholders and no MCP server (no .mcp.json, nothing inline), so there is nothing to bind and nothing that can drift into prefetch. Not business tooling."
+      },
+      {
+        "id": "explanatory-output-style",
+        "version": "1.0.0",
+        "surface": "cli-marketplace",
+        "note": "Output-style plugin (a SessionStart hook that adds explanatory insights). No skills to bind, no MCP server. Installed 2026-07-24."
+      },
+      {
+        "id": "learning-output-style",
+        "version": "1.0.0",
+        "surface": "cli-marketplace",
+        "note": "Output-style plugin (a SessionStart hook for learning mode). No skills to bind, no MCP server. Installed 2026-07-24."
       }
     ],
     "removed": [
@@ -1968,9 +2126,115 @@
         "verification": "2026-07-28 post-removal, six checks all green: package dir gone; no package named desktop-commander (12 remain); absent from rpm manifest.json (13 -> 12); inline-MCP detector reports 0 across 12 packages; both host configs still clean; no process running.",
         "do_not_reinstall": "FilesystemPlus (roots /Users/myhome + /Volumes/ExtraCurricular) covers the filesystem role. If this is ever reinstalled, `node scripts/audit-connector-coverage.js` will flag the inline declaration again \u2014 that warning is the tripwire, do not suppress it.",
         "record_correction": "The 2026-07-24 enumeration read only .mcp.json and therefore recorded this plugin as having ZERO MCP servers. That was the blind spot; the audit now scans both declaration sites."
+      },
+      {
+        "id": "productivity",
+        "version": "1.3.0",
+        "surface": "desktop-rpm",
+        "removed": "2026-08-12",
+        "removed_by": "operator, in the Claude Desktop plugin UI (recorded in PLUGIN-BINDINGS.md)",
+        "verified_absent": "2026-10-21: in no rpm package root; the rpm manifest.json lists only pdf-viewer, cowork-plugin-management, data, vibe-prospecting (vpai) and bio-research",
+        "superseded_by": "trinc-productivity@trinc-local",
+        "was": {
+          "lane": "business",
+          "mcp_connected": 2,
+          "mcp_needs_auth": 7,
+          "skills": 4
+        }
+      },
+      {
+        "id": "operations",
+        "version": "1.3.0",
+        "surface": "desktop-rpm",
+        "removed": "2026-08-12",
+        "removed_by": "operator, in the Claude Desktop plugin UI (recorded in PLUGIN-BINDINGS.md)",
+        "verified_absent": "2026-10-21: in no rpm package root; the rpm manifest.json lists only pdf-viewer, cowork-plugin-management, data, vibe-prospecting (vpai) and bio-research",
+        "superseded_by": "trinc-operations@trinc-local (compliance-tracking -> trinc-business:compliance-calendar)",
+        "was": {
+          "lane": "business",
+          "mcp_connected": 2,
+          "mcp_needs_auth": 4,
+          "skills": 9
+        }
+      },
+      {
+        "id": "engineering",
+        "version": "1.2.0",
+        "surface": "desktop-rpm",
+        "removed": "2026-08-12",
+        "removed_by": "operator, in the Claude Desktop plugin UI (recorded in PLUGIN-BINDINGS.md)",
+        "verified_absent": "2026-10-21: in no rpm package root; the rpm manifest.json lists only pdf-viewer, cowork-plugin-management, data, vibe-prospecting (vpai) and bio-research",
+        "superseded_by": "trinc-engineering@trinc-local",
+        "was": {
+          "lane": "business",
+          "mcp_connected": 2,
+          "mcp_needs_auth": 8,
+          "skills": 10
+        }
+      },
+      {
+        "id": "product-management",
+        "version": "1.2.0",
+        "surface": "desktop-rpm",
+        "removed": "2026-08-12",
+        "removed_by": "operator, in the Claude Desktop plugin UI (recorded in PLUGIN-BINDINGS.md)",
+        "verified_absent": "2026-10-21: in no rpm package root; the rpm manifest.json lists only pdf-viewer, cowork-plugin-management, data, vibe-prospecting (vpai) and bio-research",
+        "superseded_by": "none: DROP verdict 2026-07-31 (all 8 skills dead or covered by trinc-productivity orient/triage and native skills)",
+        "was": {
+          "lane": "business",
+          "mcp_connected": 2,
+          "mcp_needs_auth": 14,
+          "skills": 8
+        }
+      },
+      {
+        "id": "sales",
+        "version": "1.3.0",
+        "surface": "desktop-rpm",
+        "removed": "2026-08-12",
+        "removed_by": "operator, in the Claude Desktop plugin UI (recorded in PLUGIN-BINDINGS.md)",
+        "verified_absent": "2026-10-21: in no rpm package root; the rpm manifest.json lists only pdf-viewer, cowork-plugin-management, data, vibe-prospecting (vpai) and bio-research",
+        "superseded_by": "none as a plugin: DROP verdict 2026-07-29; the ~~CRM binding was corrected instead",
+        "was": {
+          "lane": "business",
+          "mcp_connected": 2,
+          "mcp_needs_auth": 12,
+          "skills": 9
+        }
+      },
+      {
+        "id": "marketing",
+        "version": "1.2.0",
+        "surface": "desktop-rpm",
+        "removed": "2026-08-12",
+        "removed_by": "operator, in the Claude Desktop plugin UI (recorded in PLUGIN-BINDINGS.md)",
+        "verified_absent": "2026-10-21: in no rpm package root; the rpm manifest.json lists only pdf-viewer, cowork-plugin-management, data, vibe-prospecting (vpai) and bio-research",
+        "superseded_by": "trinc-marketing@trinc-local (brand voice -> trinc-business:brand-check)",
+        "was": {
+          "lane": "business",
+          "mcp_connected": 2,
+          "mcp_needs_auth": 11,
+          "skills": 8
+        }
+      },
+      {
+        "id": "design",
+        "version": "1.2.0",
+        "surface": "desktop-rpm",
+        "removed": "2026-08-12",
+        "removed_by": "operator, in the Claude Desktop plugin UI (recorded in PLUGIN-BINDINGS.md)",
+        "verified_absent": "2026-10-21: in no rpm package root; the rpm manifest.json lists only pdf-viewer, cowork-plugin-management, data, vibe-prospecting (vpai) and bio-research",
+        "superseded_by": "trinc-design@trinc-local",
+        "was": {
+          "lane": "business",
+          "mcp_connected": 2,
+          "mcp_needs_auth": 7,
+          "skills": 7
+        }
       }
-    ]
+    ],
+    "reconciled": "2026-10-21"
   },
-  "last_reconciled": "2026-07-24",
-  "reconciliation_note": "2026-07-24 pass: added lane taxonomy to every entry; declared ctgov-supplemental (was used in prefetch, declared nowhere); registered scholar-sidekick (host-auth 2026-07-10, missed the 7-day rule) and consensus; registered the three citation-gate modules as gate-consumed-not-prefetched; tombstoned AdisInsight as declined-no-public-api; added operator_surfaces as the complete non-research ledger; declared report_generator/quality_auditor prefetch-exempt. 2026-07-24 second pass (plugin weave): added plugin_surfaces \u2014 the 13 operator-selected plugins bound to the business via config/plugin-bindings.json, 2 installed-not-bound recorded as decisions, and bio-research flagged as a Claude-host duplicate of six already-registered research connectors so it never double-registers or enters prefetch. 2026-08-27 targeted pass (not a full reconciliation): tombstoned scholar-sidekick as RETIRED EVERYWHERE per operator direction (leaked API key; rotation failed twice service-side) — business_value 'superseded', adapter_status 'retired-never-built', history kept in place per registry convention; citation-verification guidance in config/plugin-bindings.json + PLUGIN-BINDINGS.md repointed to the surviving lanes (PubMed metadata title-vs-record checks, searxng-search topic:'science' for Crossref/OpenAlex, in-engine crossref-retraction.js/pubmed-retraction.js); FEAT-20260724-001 annotated MOOT. Canonical record: ~/Security Everything/docs/scholar-sidekick-removal-2026-08-27.md."
+  "last_reconciled": "2026-10-21",
+  "reconciliation_note": "2026-07-24 pass: added lane taxonomy to every entry; declared ctgov-supplemental (was used in prefetch, declared nowhere); registered scholar-sidekick (host-auth 2026-07-10, missed the 7-day rule) and consensus; registered the three citation-gate modules as gate-consumed-not-prefetched; tombstoned AdisInsight as declined-no-public-api; added operator_surfaces as the complete non-research ledger; declared report_generator/quality_auditor prefetch-exempt. 2026-07-24 second pass (plugin weave): added plugin_surfaces \u2014 the 13 operator-selected plugins bound to the business via config/plugin-bindings.json, 2 installed-not-bound recorded as decisions, and bio-research flagged as a Claude-host duplicate of six already-registered research connectors so it never double-registers or enters prefetch. 2026-08-27 targeted pass (not a full reconciliation): tombstoned scholar-sidekick as RETIRED EVERYWHERE per operator direction (leaked API key; rotation failed twice service-side) \u2014 business_value 'superseded', adapter_status 'retired-never-built', history kept in place per registry convention; citation-verification guidance in config/plugin-bindings.json + PLUGIN-BINDINGS.md repointed to the surviving lanes (PubMed metadata title-vs-record checks, searxng-search topic:'science' for Crossref/OpenAlex, in-engine crossref-retraction.js/pubmed-retraction.js); FEAT-20260724-001 annotated MOOT. Canonical record: ~/Security Everything/docs/scholar-sidekick-removal-2026-08-27.md. 2026-10-21 pass (connector registry + plugin bindings reconciliation): registered the business research profile's four local fetchers (web-evidence, sec-filings-citable, world-bank-indicators, openalex-works; lane research, research_profile business, prefetch_map tool-prefetch-map.business.json, commit 6ca9d78) and recorded their resolvers on citation-reresolver and sec-edgar; lanes text names the second prefetch map and the business-research-vs-business-lane naming trap; operator_surfaces made complete against all three host configs (added openclaw-obsidian, opencode, perseus-vault, perseus-business, miyo, FilesystemPlus, klsense-btt, phone-gate, the claude.ai documents/visualize connectors; trinc-content source + gate, gmail out of service since 09-05, falcon MCP retired 10-09, term-bridge retired 07-28, computer-use disabled 07-26, Zoho account closed + DNS clean); needs_host_auth replaced with the 2026-10-21 host list; plugin_surfaces: the seven plugins uninstalled 2026-08-12 moved to removed (tombstones, verified absent), math-olympiad and both output-style plugins recorded as installed-not-bound, needs-auth counts corrected for empty-url placeholders."
 }

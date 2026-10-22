@@ -1,6 +1,7 @@
 {
   "schema_version": "plugin-bindings-v1",
   "generated": "2026-07-24",
+  "last_reconciled": "2026-10-21 — seven uninstalled plugins tombstoned, needs-auth lists corrected for empty-url placeholders, three installed-not-bound plugins recorded, email/monitoring bindings brought up to date (gmail MCP out of service since 2026-09-05; local falcon MCP retired 2026-10-09). Companion: PLUGIN-BINDINGS.md § Current state.",
   "purpose": "Resolve every `~~category` placeholder shipped by the installed Claude plugins to the tool THIS business actually uses — or to an explicit NONE. Plugin packages ship as templates; without this file each plugin silently assumes a generic SaaS stack (Jira, Slack, HubSpot, Snowflake, Figma) that Trevor Robey, INC. does not have, and a skill asked to 'check the CRM' will invent one. This file is the never-hallucinate doctrine applied to tooling.",
   "source_of_truth": "this file for plugin-to-business bindings; config/connector-registry.json remains source of truth for connector lanes, prefetch binding, and the Phase-30 citation gate. When a plugin category resolves to a research connector, this file POINTS AT the registry entry and never restates its binding.",
   "companion_doc": "PLUGIN-BINDINGS.md (human/agent-readable, one section per plugin)",
@@ -126,7 +127,7 @@
         "gmail"
       ],
       "lane": "business",
-      "note": "Zoho (zoho-mail, zoho-trinc) is RETIRED by operator decision 2026-10-21: never bind it or register it again. DRAFT ONLY — never send without explicit per-message operator approval."
+      "note": "Zoho (zoho-mail, zoho-trinc) is RETIRED by operator decision 2026-10-21: never bind it or register it again. DRAFT ONLY — never send without explicit per-message operator approval. UPDATE 2026-10-21: the local YubiKey-gated `gmail` MCP is OUT OF SERVICE since 2026-09-05 by operator decision (security) — disabled, not retired, and its failed-to-connect state is intended; the claude.ai Gmail connector did not load in the 2026-10-21 session either. So no MCP path to the mailbox is live: hand the operator the draft text; never try to repair or re-register a mail server to get one."
     },
     "~~calendar": {
       "bound": true,
@@ -166,7 +167,7 @@
     },
     "~~monitoring": {
       "bound": true,
-      "resolves_to": "CrowdStrike Falcon (security lane, propose-only); optional Prometheus :9090 + Grafana :3001",
+      "resolves_to": "CrowdStrike Falcon (security lane, propose-only — reached only from the Security Everything repo's Falcon-Strike lane since the local falcon MCP was retired 2026-10-09); optional Prometheus :9090 + Grafana :3001",
       "registry_ids": [
         "falcon",
         "firewalla"
@@ -306,141 +307,6 @@
     }
   },
   "plugins": {
-    "productivity": {
-      "surface": "desktop-rpm",
-      "version": "1.3.0",
-      "lane": "business",
-      "skills": [
-        "start",
-        "task-management",
-        "update",
-        "memory-management"
-      ],
-      "mcp_servers": {
-        "needs_auth": [
-          "asana",
-          "atlassian",
-          "clickup",
-          "linear",
-          "monday",
-          "notion",
-          "slack"
-        ],
-        "connected": [
-          "gmail",
-          "google calendar"
-        ]
-      },
-      "categories": [
-        "~~calendar",
-        "~~chat",
-        "~~email",
-        "~~knowledge base",
-        "~~office suite",
-        "~~project tracker"
-      ],
-      "business_binding": "Runs on Gmail + Google Calendar + the Obsidian vault. There is NO project tracker and NO chat — task state lives in _continuity/CONTINUITY.md, and TASKS.md if the operator opts into one.",
-      "guardrails": [
-        "Do not bootstrap TASKS.md from a project tracker — there isn't one; seed it from the continuity board instead.",
-        "memory-management writes belong in ~/.claude/projects/.../memory/, NOT the monorepo."
-      ]
-    },
-    "operations": {
-      "surface": "desktop-rpm",
-      "version": "1.3.0",
-      "lane": "business",
-      "skills": [
-        "capacity-plan",
-        "change-request",
-        "compliance-tracking",
-        "process-doc",
-        "process-optimization",
-        "risk-assessment",
-        "runbook",
-        "status-report",
-        "vendor-review"
-      ],
-      "mcp_servers": {
-        "needs_auth": [
-          "asana",
-          "atlassian",
-          "notion",
-          "slack"
-        ],
-        "connected": [
-          "gmail",
-          "google calendar"
-        ]
-      },
-      "categories": [
-        "~~ITSM",
-        "~~calendar",
-        "~~chat",
-        "~~email",
-        "~~knowledge base",
-        "~~office suite",
-        "~~procurement",
-        "~~project tracker"
-      ],
-      "business_binding": "The highest-value plugin here right now. compliance-tracking has REAL subject matter: CA LLC B20260217250, the $800 franchise tax due 2026-08-15, the AWS Data Exchange seller obligations, and the DSA/legal-review gate blocking the first paid listing. risk-assessment had R1 (AWS root email on the operator's .edu address) to map onto; R1 was closed 2026-10-21 (root = aws@trevorobeyinc.com, a Workspace group).",
-      "guardrails": [
-        "capacity-plan: the team is ONE person. Do not model headcount, sprints, or utilization across a team that does not exist.",
-        "runbook output belongs in the repo next to the thing it operates, not workspace roots; security runbooks go to ~/Security Everything.",
-        "change-request: there is no CAB. The approver is the operator, and console-mutating security changes stay propose-only."
-      ]
-    },
-    "engineering": {
-      "surface": "desktop-rpm",
-      "version": "1.2.0",
-      "lane": "business",
-      "skills": [
-        "architecture",
-        "code-review",
-        "debug",
-        "deploy-checklist",
-        "documentation",
-        "incident-response",
-        "standup",
-        "system-design",
-        "tech-debt",
-        "testing-strategy"
-      ],
-      "mcp_servers": {
-        "REPLACED_2026-07-28": "Superseded by `trinc-engineering@trinc-local` v1.0.0 (~/.claude/local-plugins/trinc-engineering/) — 3 purpose-built skills, 0 MCP servers, ~630 always-on tokens vs upstream's 10 generic skills / 10 servers / ~871 tokens. Skills: invariant-check (runs this repo's real gates — lint-transport-monorepo.sh --strict, npm test @ 1013 baseline, globals:lint, audit:connectors, secrets:verify, phase verifies, both bridge lint:transport — then checks what no gate sees: HTTPS-only no-plaintext-fallback, restricted globals in openclaw-bridge/, the 0.75 citation floor, the four frozen Obsidian plugin IDs, the port map, never --no-gpg-sign); deploy-surface (the real deploy targets and the three silent-failure modes: TLS proxies run from a STAGED copy so editing the repo file does nothing until install-tls-proxies.sh re-runs, the live worker is shy-grass-fccd not the folder name openclaw-landing-deploy, and both bridges die with Obsidian); stack-decision (record decisions — especially DECLINED ones — where the machinery collides with them, using this repo's tombstone convention). Security is deliberately OUT of scope in all three: they hand off to security-orchestration, and upstream's incident-response was cut for that reason. Every emitted command was executed and verified before shipping. Cut as duplicates/inapplicable: debug (local skill is 187 lines + playbooks and would name-collide), incident-response, standup, documentation; merged into invariant-check: system-design, tech-debt, testing-strategy, code-review.",
-        "DROPPED_2026-07-28": "The upstream engineering plugin was UNINSTALLED, not merely sanitized. Once inspected, its ten skills proved to be a pure generic template with ZERO references to this business (grep for trevor/robey/biomedical/citation/obsidian/zettelkasten/openclaw returns nothing) — the operator had assumed it was tailored. Worse, engineering:debug (95 lines) duplicates and name-collides with the local ~/.claude/skills/debug (187 lines + a references/ playbook set) that is purpose-built for this stack; likewise refactor. Its genuinely distinct skills (standup, deploy-checklist, incident-response) assume Jira/Slack/PagerDuty/CI, none of which exist here, and the whole thing cost ~871 always-on tokens per session. The sanitized build was uninstalled; the package + trinc-local marketplace remain on disk at ~/.claude/local-plugins/ so reinstating is one command. The deny rules and gate-shadow audit are RETAINED — they now guard the next plugin, not this one.",
-        "RESOLVED_2026-07-28": "[superseded by DROPPED_2026-07-28 above; retained because the SANITIZE-DON'T-GUARD technique it records is reusable] This plugin ran briefly as a SANITIZED LOCAL BUILD with ZERO MCP servers: `engineering@trinc-local` v1.2.0-trinc.1 at ~/.claude/local-plugins/engineering/, served by the local marketplace `trinc-local`. Skills are byte-identical to upstream (verified `diff -r` clean); the ONLY change is the deleted .mcp.json. Verify with `claude plugin details engineering` -> must report 'Skills (10)  ...  MCP servers (0)'. Rationale: no engineering skill references any MCP tool (they use only ~~placeholder categories this file already binds), and 8 of the 10 upstream servers map to categories that resolve to NONE here — so the surface was pure liability, chiefly the ungated `github` server duplicating the YubiKey-gated host MCP. The lists below describe the UPSTREAM package, retained for reference and because the marketplace copy is still installed pending operator uninstall via the Claude Desktop plugin UI.",
-        "needs_auth": [
-          "asana",
-          "atlassian",
-          "datadog",
-          "github",
-          "linear",
-          "notion",
-          "pagerduty",
-          "slack"
-        ],
-        "connected": [
-          "gmail",
-          "google calendar"
-        ]
-      },
-      "categories": [
-        "~~CI/CD",
-        "~~chat",
-        "~~incident management",
-        "~~knowledge base",
-        "~~monitoring",
-        "~~project tracker",
-        "~~source control"
-      ],
-      "business_binding": "Targets this monorepo. Source control is LOCAL git with no remote; there is no CI, no PR flow, and no on-call rotation. The real quality gates are the transport lint, the per-bridge lint:transport, the engine unit suite (985/985 green as of 2026-07-22), and verify-phase29-policy.sh.",
-      "guardrails": [
-        "deploy-checklist must not assume a remote, a PR, or a pipeline — the deploy surfaces are the Obsidian plugin lifecycle, launchd units, and the Cloudflare worker.",
-        "Every design that opens a TCP listener is HTTPS-only with no plaintext fallback (repo CLAUDE.md invariant).",
-        "standup with a one-person team is a continuity-board entry, not a ceremony.",
-        "github MCP stays exactly as-is behind its own YubiKey arm — never fold it into an automated flow."
-      ]
-    },
     "data": {
       "surface": "desktop-rpm",
       "version": "1.1.0",
@@ -463,12 +329,15 @@
           "amplitude-eu",
           "atlassian",
           "bigquery",
-          "databricks",
           "definite",
-          "hex",
+          "hex"
+        ],
+        "connected": [],
+        "inert_placeholders": [
+          "databricks",
           "snowflake"
         ],
-        "connected": []
+        "checked_2026-10-21": "Read from the installed package's .mcp.json: databricks and snowflake ship `\"url\": \"\"`. Every server here maps to a category that resolves to NONE — leave all of them unauthenticated."
       },
       "categories": [
         "~~data warehouse",
@@ -483,209 +352,6 @@
         "Charts follow the dataviz skill; no fabricated series."
       ],
       "VERDICT_CORRECTED_2026-08-12": "KEEP — reverses the 2026-07-31 'zero engine functionality' verdict, which was true but was the wrong question. Correctly unbound: no warehouse, no BI, no analytics platform, so sql-queries/write-query/build-dashboard have NO referent and must say so. WRONGLY concluded: that the whole plugin was valueless. This business ships a real tabular data product — the Trial Graveyard Feed, 1,921 paid rows across 6 indications (pancreatic 734, alzheimer 428, glioblastoma 390, sickle-cell 179, ALS 114, IPF 76), 13 columns including a derived amendment_risk_band — plus citation-index.csv in every bundle and the HuggingFace teaser. analyze/explore-data/validate-data/create-viz/statistical-analysis all take a FILE or DataFrame, not only a warehouse table. Local constraint verified: numpy + matplotlib present; pandas, duckdb, scipy, plotly ABSENT — so use stdlib csv + numpy, and never pip-install into system python to satisfy a template. Companion: trinc-data (feed-analytics, deliverable-data)."
-    },
-    "product-management": {
-      "surface": "desktop-rpm",
-      "version": "1.2.0",
-      "lane": "business",
-      "skills": [
-        "competitive-brief",
-        "metrics-review",
-        "product-brainstorming",
-        "roadmap-update",
-        "sprint-planning",
-        "stakeholder-update",
-        "synthesize-research",
-        "write-spec"
-      ],
-      "mcp_servers": {
-        "needs_auth": [
-          "amplitude",
-          "amplitude-eu",
-          "asana",
-          "atlassian",
-          "clickup",
-          "figma",
-          "fireflies",
-          "intercom",
-          "linear",
-          "monday",
-          "notion",
-          "pendo",
-          "similarweb",
-          "slack"
-        ],
-        "connected": [
-          "gmail",
-          "google calendar"
-        ]
-      },
-      "categories": [
-        "~~calendar",
-        "~~chat",
-        "~~competitive intelligence",
-        "~~design",
-        "~~email",
-        "~~knowledge base",
-        "~~meeting transcription",
-        "~~product analytics",
-        "~~project tracker",
-        "~~user feedback"
-      ],
-      "business_binding": "The 'product' is the six-SKU offering ladder in OFFERINGS.md / REVENUE_PLAYBOOK.md plus the AWS Data Exchange feeds. The roadmap of record is _continuity/CONTINUITY.md 'Current focus'. There are no product analytics and no users to survey yet — the business is pre-revenue.",
-      "guardrails": [
-        "metrics-review has NO analytics source. Refuse to produce engagement metrics; the only real numbers are AWS seller reports and they are not yet flowing.",
-        "sprint-planning against a one-person team should degrade to a prioritized next-actions list.",
-        "stakeholder-update drafts only — the operator sends."
-      ]
-    },
-    "sales": {
-      "surface": "desktop-rpm",
-      "version": "1.3.0",
-      "lane": "business",
-      "skills": [
-        "account-research",
-        "call-prep",
-        "call-summary",
-        "competitive-intelligence",
-        "create-an-asset",
-        "daily-briefing",
-        "draft-outreach",
-        "forecast",
-        "pipeline-review"
-      ],
-      "mcp_servers": {
-        "needs_auth": [
-          "apollo",
-          "atlassian",
-          "clay",
-          "close",
-          "fireflies",
-          "hubspot",
-          "monday",
-          "notion",
-          "outreach",
-          "similarweb",
-          "slack",
-          "zoominfo"
-        ],
-        "connected": [
-          "gmail",
-          "google calendar"
-        ]
-      },
-      "categories": [
-        "~~CRM",
-        "~~calendar",
-        "~~chat",
-        "~~competitive intelligence",
-        "~~conversation intelligence",
-        "~~data enrichment",
-        "~~email",
-        "~~knowledge base",
-        "~~project tracker",
-        "~~sales engagement"
-      ],
-      "business_binding": "NO CRM exists and the business is pre-revenue as of 2026-07-24. Enrichment runs through vpai (vibe-prospecting), the one enrichment surface that is actually available. The ICP is biotech investors and pharma BD; the pitch is OFFERINGS.md; pricing is REVENUE_PLAYBOOK.md §2 and is never invented.",
-      "guardrails": [
-        "forecast and pipeline-review MUST report 'no CRM, no closed deals' rather than modelling a pipeline. A fabricated forecast is the exact failure this business sells against.",
-        "draft-outreach drafts into Gmail and stops. No sequences, no automated sends.",
-        "Any biomedical claim in an outbound asset carries a real PMID/NCT/DOI or is cut."
-      ]
-    },
-    "marketing": {
-      "surface": "desktop-rpm",
-      "version": "1.2.0",
-      "lane": "business",
-      "skills": [
-        "brand-review",
-        "campaign-plan",
-        "competitive-brief",
-        "content-creation",
-        "draft-content",
-        "email-sequence",
-        "performance-report",
-        "seo-audit"
-      ],
-      "mcp_servers": {
-        "needs_auth": [
-          "ahrefs",
-          "amplitude",
-          "amplitude-eu",
-          "canva",
-          "figma",
-          "hubspot",
-          "klaviyo",
-          "notion",
-          "similarweb",
-          "slack",
-          "supermetrics"
-        ],
-        "connected": [
-          "gmail",
-          "google calendar"
-        ]
-      },
-      "categories": [
-        "~~SEO",
-        "~~chat",
-        "~~design",
-        "~~email marketing",
-        "~~knowledge base",
-        "~~marketing analytics",
-        "~~marketing automation",
-        "~~product analytics"
-      ],
-      "business_binding": "brand-review is the load-bearing skill and it has a real, strict brand canon: the wordmark is 'Trevor Robey, INC.' where INC = Intelligence Network Citations, and every customer-facing use pairs it with the LLC disclosure. Tagline and elevator are fixed. Everything else in this plugin is unbound — no SEO tool, no analytics, no automation.",
-      "guardrails": [
-        "LEGAL: never render the wordmark without the disclosure 'Trevor Robey, INC. is the wordmark of Trevor Robey Intelligence Network Citations LLC, a California limited liability company.' Cal. Bus. & Prof. Code §17910.5(a) is why.",
-        "performance-report and seo-audit have no data source — say so; do not estimate traffic, rankings, or keyword volume.",
-        "email-sequence produces copy only. Manual-only posture forbids scheduled sends.",
-        "Do not soften the re-resolution claims in landing copy (SYSTEM-REALITY.md copy-sweep warning)."
-      ]
-    },
-    "design": {
-      "surface": "desktop-rpm",
-      "version": "1.2.0",
-      "lane": "business",
-      "skills": [
-        "accessibility-review",
-        "design-critique",
-        "design-handoff",
-        "design-system",
-        "research-synthesis",
-        "user-research",
-        "ux-copy"
-      ],
-      "mcp_servers": {
-        "needs_auth": [
-          "asana",
-          "atlassian",
-          "figma",
-          "intercom",
-          "linear",
-          "notion",
-          "slack"
-        ],
-        "connected": [
-          "gmail",
-          "google calendar"
-        ]
-      },
-      "categories": [
-        "~~category",
-        "~~chat",
-        "~~design tool",
-        "~~knowledge base",
-        "~~product analytics",
-        "~~project tracker",
-        "~~user feedback"
-      ],
-      "business_binding": "No Figma. The only real design surfaces are the landing page in workspace/collateral/landing-page/ (Cloudflare worker shy-grass-fccd), the Obsidian plugin UIs (Command Center, Zettelkasten, Bridge Launcher, Wiki Definitions), and the rendered report deliverables. accessibility-review and ux-copy apply to those directly; design-handoff has no recipient.",
-      "guardrails": [
-        "user-research has no users and no feedback tool — do not synthesize interviews that did not happen.",
-        "Plugin display names are branded but plugin IDs are FROZEN — never rename command-center, vault-zettelkasten, obsidian-bridge-launcher, contextual-wiki-definitions."
-      ]
     },
     "bio-research": {
       "surface": "desktop-rpm",
@@ -709,12 +375,15 @@
           "pubmed"
         ],
         "needs_auth": [
-          "benchling",
           "biorender",
           "owkin",
           "synapse",
           "wiley"
-        ]
+        ],
+        "inert_placeholders": [
+          "benchling"
+        ],
+        "checked_2026-10-21": "Read from the installed package's .mcp.json: benchling ships `\"url\": \"\"`, so there is nothing to authorize. The host's needs-auth list for the 2026-10-21 session names exactly biorender, owkin, synapse and wiley."
       },
       "categories": [
         "~~AI research",
@@ -834,17 +503,32 @@
     }
   },
   "installed_not_bound": {
-    "rationale": "Present in the session but NOT in the operator's requested set on 2026-07-24. Recorded so their absence from the bindings above reads as a decision, not an oversight.",
+    "rationale": "Present in the session but NOT in the operator's requested set on 2026-07-24. Recorded so their absence from the bindings above reads as a decision, not an oversight. 2026-10-21: math-olympiad and the two output-style plugins added — installed after (or alongside) the 2026-07-24 request and never recorded until now.",
     "plugins": {
       "cowork-plugin-management": {
         "version": "0.2.2",
         "note": "Tooling for authoring/customizing plugins. Its cowork-plugin-customizer skill cannot run on this surface: it requires Cowork's mnt/.local-plugins mounts, which do not exist in CLI Claude Code. That limitation is why these bindings are repo-owned rather than stamped into the plugin packages."
+      },
+      "math-olympiad": {
+        "version": "d1adba47161a (marketplace git sha)",
+        "surface": "cli-marketplace",
+        "note": "Installed 2026-08-04 by the operator; flagged 'not assessed, not bound' on 2026-08-12. Assessed 2026-10-21: one competition-math skill, no ~~category placeholders, no MCP server (no .mcp.json, nothing inline) — nothing to bind and nothing that can reach prefetch. Not business tooling."
+      },
+      "explanatory-output-style": {
+        "version": "1.0.0",
+        "surface": "cli-marketplace",
+        "note": "Output-style plugin: one SessionStart hook, no skills, no MCP server, no placeholders. Nothing to bind."
+      },
+      "learning-output-style": {
+        "version": "1.0.0",
+        "surface": "cli-marketplace",
+        "note": "Output-style plugin: one SessionStart hook, no skills, no MCP server, no placeholders. Nothing to bind."
       }
     }
   },
   "oauth_posture": {
     "recorded": "2026-07-28",
-    "counting_note": "The 13 plugins reference 97 MCP server SLOTS but only 46 UNIQUE servers — `slack`, `notion`, `atlassian`, `gmail` and `google calendar` each appear in 7 plugins. Any per-plugin figure (e.g. the mcp_connected/mcp_needs_auth pairs in connector-registry.json plugin_surfaces) is a SLOT count and must not be summed into a server total.",
+    "counting_note": "[superseded 2026-10-21 — see reconciled_2026-10-21; kept for the method] The 13 plugins reference 97 MCP server SLOTS but only 46 UNIQUE servers — `slack`, `notion`, `atlassian`, `gmail` and `google calendar` each appear in 7 plugins. Any per-plugin figure (e.g. the mcp_connected/mcp_needs_auth pairs in connector-registry.json plugin_surfaces) is a SLOT count and must not be summed into a server total.",
     "rule": "Authorize a plugin MCP server ONLY when its category is bound to a real tool in this file. A server whose category resolves to NONE corresponds to a tool this business does not use — leaving it unauthenticated is the CORRECT end state, not a gap to close. Authorizing it would create a live surface for a tool with no role here.",
     "authorize": [
       {
@@ -861,7 +545,7 @@
       }
     ],
     "do_not_authorize": {
-      "plugin:engineering:github": "SECURITY — the engineering plugin ships its own github server at https://api.githubcopilot.com/mcp/ (HTTP OAuth, ungated). The host-level GitHub MCP in ~/.claude.json is /Users/myhome/.local/bin/github-mcp-keychain-wrapper.sh, which carries its own arm plus a per-unseal PIN+touch. Authorizing the plugin copy would create a SECOND GitHub path bypassing the YubiKey gate — the global ~/.claude/CLAUDE.md marks this NON-NEGOTIABLE: 'github MCP stays EXACTLY as-is ... never fold it into the Claude-triggered flow.' Same shape as the desktop-commander inline-MCP finding: a plugin quietly re-providing a surface that was deliberately gated elsewhere. Currently unauthenticated — the bypass does not exist unless someone authorizes it. CONTAINED 2026-07-28 by `permissions.deny: [\"mcp__plugin_engineering_github__*\"]` at BOTH the user scope (~/.claude/settings.json) and the repo scope (.claude/settings.json — version-controlled, so a global settings reset cannot silently drop it). The audit verifies both scopes on every run and nags if only the user-global copy survives. Rejected as disproportionate: a network block on api.githubcopilot.com (it resolves via glb-<hash>.github.com to GitHub's shared load balancer, so it would risk collateral damage to other GitHub services and VS Code Copilot). Available but PROPOSE-ONLY: adding mcp__plugin_engineering_github__ to the PreToolUse session-gate hook's MATCHER + sub-agent policy path, exactly as zoho-mail/zoho-trinc are handled — a fourth layer in a different mechanism, deliberately not applied because it touches security-critical infra that stays propose-only and requires MATCHER/scope_for() lockstep plus a re-install.",
+      "plugin:engineering:github": "MOOT SINCE 2026-08-12 — the engineering plugin is uninstalled, so this server no longer exists on disk. The deny rules stay as a guard for the next plugin that ships a same-named server. Record: SECURITY — the engineering plugin ships its own github server at https://api.githubcopilot.com/mcp/ (HTTP OAuth, ungated). The host-level GitHub MCP in ~/.claude.json is /Users/myhome/.local/bin/github-mcp-keychain-wrapper.sh, which carries its own arm plus a per-unseal PIN+touch. Authorizing the plugin copy would create a SECOND GitHub path bypassing the YubiKey gate — the global ~/.claude/CLAUDE.md marks this NON-NEGOTIABLE: 'github MCP stays EXACTLY as-is ... never fold it into the Claude-triggered flow.' Same shape as the desktop-commander inline-MCP finding: a plugin quietly re-providing a surface that was deliberately gated elsewhere. Currently unauthenticated — the bypass does not exist unless someone authorizes it. CONTAINED 2026-07-28 by `permissions.deny: [\"mcp__plugin_engineering_github__*\"]` at BOTH the user scope (~/.claude/settings.json) and the repo scope (.claude/settings.json — version-controlled, so a global settings reset cannot silently drop it). The audit verifies both scopes on every run and nags if only the user-global copy survives. Rejected as disproportionate: a network block on api.githubcopilot.com (it resolves via glb-<hash>.github.com to GitHub's shared load balancer, so it would risk collateral damage to other GitHub services and VS Code Copilot). Available but PROPOSE-ONLY: adding mcp__plugin_engineering_github__ to the PreToolUse session-gate hook's MATCHER + sub-agent policy path, exactly as zoho-mail/zoho-trinc are handled — a fourth layer in a different mechanism, deliberately not applied because it touches security-critical infra that stays propose-only and requires MATCHER/scope_for() lockstep plus a re-install.",
       "everything_else": "~26 further servers (slack, notion, atlassian, asana, linear, monday, clickup, hubspot, close, apollo, outreach, clay, zoominfo, amplitude, amplitude-eu, pendo, intercom, figma, canva, ahrefs, similarweb, klaviyo, supermetrics, snowflake, databricks, bigquery, hex, definite, datadog, pagerduty, benchling, fireflies) all map to categories that resolve to an explicit NONE. Leave them unauthenticated.",
       "plugin:bio-research:wiley": "CORRECTED 2026-08-11 (discovery verified live 2026-07-30) — do not authorize; you ALREADY HAVE THIS. The plugin's wiley server is byte-identical to the claude.ai 'Scholar Gateway' connector, which is connected and verified working (live call returned full text of a paywalled Wiley article). Authorizing the plugin's copy would add a redundant second registration of the same endpoint.",
       "plugin:bio-research:owkin": "DEMOTED to do-not-authorize 2026-08-11 — duplicates the engine's own owkin-mcp subprocess adapter AND the claude.ai Owkin connector (same endpoint). Authorizing adds only a redundant chat-side surface."
@@ -873,13 +557,13 @@
       "biorxiv",
       "consensus",
       "ot",
-      "pdf",
-      "gmail",
-      "google calendar"
+      "pdf"
     ],
     "sanitize_dont_guard": "THE ACTUAL RESOLUTION (2026-07-28). Rounds of work went into containing the engineering plugin's ungated github server — deny rules, an audit check, a rejected network block — when the right move was to remove the server instead of guarding it. No engineering skill references any MCP tool, and 8 of its 10 servers map to categories that resolve to NONE here, so the whole surface was liability with no upside. Fix: a sanitized local build at ~/.claude/local-plugins/engineering/ (marketplace `trinc-local`, v1.2.0-trinc.1) with .mcp.json deleted — skills byte-identical, `claude plugin details engineering` reports 'Skills (10) ... MCP servers (0)'. GENERALIZE THIS: when a plugin's value is its skills and its bundled MCP servers bind to tools this business does not have, sanitize the package rather than accumulate mitigations around it. The deny rules and gate-shadow audit stay regardless — they catch the NEXT plugin, one nobody has sanitized yet.",
     "why_no_redirect": "The operator asked whether the engineering plugin could be pointed at the YubiKey-gated host GitHub MCP instead of the one it ships. It cannot, and the reason is structural: plugin MCP servers are namespaced `mcp__plugin_<plugin>_<server>__*` while host servers are `mcp__<server>__*`, so a host server NEVER shadows a same-named plugin server — they coexist as separate surfaces. There is no alias, redirect, or override mechanism. Editing the plugin's .mcp.json is not an option either: the package is session-scoped and cloud-synced (see why_repo_owned). So the enforceable posture is: leave the plugin's github server unauthenticated, DENY its tools in ~/.claude/settings.json, and keep the host wrapper as the only GitHub path. No capability is lost — this monorepo is local-only with no git remote (~~source control), and the engineering plugin's value is its SKILLS, which need no MCP server at all.",
-    "cache_caveat": "~/.claude/mcp-needs-auth-cache.json is a CACHE and goes stale — it still lists AdisInsight (tombstoned as declined-no-public-api) and Tavily (superseded by searxng-search). Treat the live session's needs-auth reminder as authoritative, not this file."
+    "cache_caveat": "~/.claude/mcp-needs-auth-cache.json is a CACHE and goes stale — it still lists AdisInsight (tombstoned as declined-no-public-api) and Tavily (superseded by searxng-search). Treat the live session's needs-auth reminder as authoritative, not this file.",
+    "reconciled_2026-10-21": "Counts and lists re-read from disk and from the host's needs-auth list. Bound plugins are now 6 (data, bio-research, pdf-viewer, vpai, frontend-design, ralph-loop); their packages ship 20 unique MCP servers (pdf 1, bio-research 11, data 8). Needs auth today: biorender, owkin, synapse, wiley (bio-research) and amplitude, amplitude-eu, atlassian, bigquery, definite, hex (data); benchling, databricks and snowflake are empty-url placeholders. The verdicts below are unchanged: BioRender (through claude.ai connector settings) is still the ONE authorization worth doing, and it had not been done as of 2026-10-21 (no BioRender connector loaded in the session).",
+    "already_working_note_2026-10-21": "`gmail` and `google calendar` left this list: they were servers of the plugins uninstalled 2026-08-12. The seven left are bio-research's six plus pdf-viewer's pdf, all loaded in the 2026-10-21 session."
   },
   "removed": {
     "rationale": "Plugins deliberately uninstalled. Kept as tombstones so a removal cannot silently reverse and so the reason survives the decision.",
@@ -890,16 +574,416 @@
         "superseded_by": "FilesystemPlus MCP server (roots /Users/myhome + /Volumes/ExtraCurricular)",
         "note": "The operator had already swapped this for FilesystemPlus in BOTH host configs — correctly — but the removal did not take, because the plugin declared `desktop-commander` (`npx -y @wonderwhy-er/desktop-commander@latest`) INLINE under mcpServers in .claude-plugin/plugin.json rather than in a sibling .mcp.json, and re-registered it from inside its own package. That makes a plugin package a THIRD MCP registration surface. It carried terminal execution, process management and filesystem access outside the sudo-gate / YubiKey model, from an unpinned @latest third-party package. Confirmed live before removal (26 tools loaded; 0.2.46 tgz cached), then verified gone on 2026-07-28 by six checks including the new inline-MCP detector.",
         "if_it_returns": "`node scripts/audit-connector-coverage.js` flags inline declarations — that warning is the tripwire. Do not suppress it; uninstall via the Claude Desktop plugin UI (the CLI cannot see rpm plugins, and the cloud-synced rpm manifest.json must not be hand-edited)."
+      },
+      "productivity": {
+        "version": "1.3.0",
+        "removed": "2026-08-12",
+        "removed_by": "operator, in the Claude Desktop plugin UI (recorded in PLUGIN-BINDINGS.md on 2026-08-12; the JSON tombstone was added 2026-10-21)",
+        "verified_absent": "2026-10-21 — in no rpm package root; the rpm manifest.json lists only pdf-viewer, cowork-plugin-management, data, vibe-prospecting (vpai) and bio-research",
+        "superseded_by": "trinc-productivity@trinc-local",
+        "if_it_returns": "`node scripts/audit-connector-coverage.js` checks every rpm package root for a removed plugin's name and prints `REMOVED plugin is back on disk`. Do not suppress it: uninstall again in the Claude Desktop plugin UI (the CLI cannot see rpm plugins, and the cloud-synced rpm manifest.json must not be hand-edited).",
+        "record_while_installed": {
+          "surface": "desktop-rpm",
+          "version": "1.3.0",
+          "lane": "business",
+          "skills": [
+            "start",
+            "task-management",
+            "update",
+            "memory-management"
+          ],
+          "mcp_servers": {
+            "needs_auth": [
+              "asana",
+              "atlassian",
+              "clickup",
+              "linear",
+              "monday",
+              "notion",
+              "slack"
+            ],
+            "connected": [
+              "gmail",
+              "google calendar"
+            ]
+          },
+          "categories": [
+            "~~calendar",
+            "~~chat",
+            "~~email",
+            "~~knowledge base",
+            "~~office suite",
+            "~~project tracker"
+          ],
+          "business_binding": "Runs on Gmail + Google Calendar + the Obsidian vault. There is NO project tracker and NO chat — task state lives in _continuity/CONTINUITY.md, and TASKS.md if the operator opts into one.",
+          "guardrails": [
+            "Do not bootstrap TASKS.md from a project tracker — there isn't one; seed it from the continuity board instead.",
+            "memory-management writes belong in ~/.claude/projects/.../memory/, NOT the monorepo."
+          ]
+        }
+      },
+      "operations": {
+        "version": "1.3.0",
+        "removed": "2026-08-12",
+        "removed_by": "operator, in the Claude Desktop plugin UI (recorded in PLUGIN-BINDINGS.md on 2026-08-12; the JSON tombstone was added 2026-10-21)",
+        "verified_absent": "2026-10-21 — in no rpm package root; the rpm manifest.json lists only pdf-viewer, cowork-plugin-management, data, vibe-prospecting (vpai) and bio-research",
+        "superseded_by": "trinc-operations@trinc-local (compliance-tracking → trinc-business:compliance-calendar)",
+        "if_it_returns": "`node scripts/audit-connector-coverage.js` checks every rpm package root for a removed plugin's name and prints `REMOVED plugin is back on disk`. Do not suppress it: uninstall again in the Claude Desktop plugin UI (the CLI cannot see rpm plugins, and the cloud-synced rpm manifest.json must not be hand-edited).",
+        "record_while_installed": {
+          "surface": "desktop-rpm",
+          "version": "1.3.0",
+          "lane": "business",
+          "skills": [
+            "capacity-plan",
+            "change-request",
+            "compliance-tracking",
+            "process-doc",
+            "process-optimization",
+            "risk-assessment",
+            "runbook",
+            "status-report",
+            "vendor-review"
+          ],
+          "mcp_servers": {
+            "needs_auth": [
+              "asana",
+              "atlassian",
+              "notion",
+              "slack"
+            ],
+            "connected": [
+              "gmail",
+              "google calendar"
+            ]
+          },
+          "categories": [
+            "~~ITSM",
+            "~~calendar",
+            "~~chat",
+            "~~email",
+            "~~knowledge base",
+            "~~office suite",
+            "~~procurement",
+            "~~project tracker"
+          ],
+          "business_binding": "The highest-value plugin here right now. compliance-tracking has REAL subject matter: CA LLC B20260217250, the $800 franchise tax due 2026-08-15, the AWS Data Exchange seller obligations, and the DSA/legal-review gate blocking the first paid listing. risk-assessment had R1 (AWS root email on the operator's .edu address) to map onto; R1 was closed 2026-10-21 (root = aws@trevorobeyinc.com, a Workspace group).",
+          "guardrails": [
+            "capacity-plan: the team is ONE person. Do not model headcount, sprints, or utilization across a team that does not exist.",
+            "runbook output belongs in the repo next to the thing it operates, not workspace roots; security runbooks go to ~/Security Everything.",
+            "change-request: there is no CAB. The approver is the operator, and console-mutating security changes stay propose-only."
+          ]
+        }
+      },
+      "engineering": {
+        "version": "1.2.0",
+        "removed": "2026-08-12",
+        "removed_by": "operator, in the Claude Desktop plugin UI (recorded in PLUGIN-BINDINGS.md on 2026-08-12; the JSON tombstone was added 2026-10-21)",
+        "verified_absent": "2026-10-21 — in no rpm package root; the rpm manifest.json lists only pdf-viewer, cowork-plugin-management, data, vibe-prospecting (vpai) and bio-research",
+        "superseded_by": "trinc-engineering@trinc-local",
+        "if_it_returns": "`node scripts/audit-connector-coverage.js` checks every rpm package root for a removed plugin's name and prints `REMOVED plugin is back on disk`. Do not suppress it: uninstall again in the Claude Desktop plugin UI (the CLI cannot see rpm plugins, and the cloud-synced rpm manifest.json must not be hand-edited).",
+        "record_while_installed": {
+          "surface": "desktop-rpm",
+          "version": "1.2.0",
+          "lane": "business",
+          "skills": [
+            "architecture",
+            "code-review",
+            "debug",
+            "deploy-checklist",
+            "documentation",
+            "incident-response",
+            "standup",
+            "system-design",
+            "tech-debt",
+            "testing-strategy"
+          ],
+          "mcp_servers": {
+            "REPLACED_2026-07-28": "Superseded by `trinc-engineering@trinc-local` v1.0.0 (~/.claude/local-plugins/trinc-engineering/) — 3 purpose-built skills, 0 MCP servers, ~630 always-on tokens vs upstream's 10 generic skills / 10 servers / ~871 tokens. Skills: invariant-check (runs this repo's real gates — lint-transport-monorepo.sh --strict, npm test @ 1013 baseline, globals:lint, audit:connectors, secrets:verify, phase verifies, both bridge lint:transport — then checks what no gate sees: HTTPS-only no-plaintext-fallback, restricted globals in openclaw-bridge/, the 0.75 citation floor, the four frozen Obsidian plugin IDs, the port map, never --no-gpg-sign); deploy-surface (the real deploy targets and the three silent-failure modes: TLS proxies run from a STAGED copy so editing the repo file does nothing until install-tls-proxies.sh re-runs, the live worker is shy-grass-fccd not the folder name openclaw-landing-deploy, and both bridges die with Obsidian); stack-decision (record decisions — especially DECLINED ones — where the machinery collides with them, using this repo's tombstone convention). Security is deliberately OUT of scope in all three: they hand off to security-orchestration, and upstream's incident-response was cut for that reason. Every emitted command was executed and verified before shipping. Cut as duplicates/inapplicable: debug (local skill is 187 lines + playbooks and would name-collide), incident-response, standup, documentation; merged into invariant-check: system-design, tech-debt, testing-strategy, code-review.",
+            "DROPPED_2026-07-28": "The upstream engineering plugin was UNINSTALLED, not merely sanitized. Once inspected, its ten skills proved to be a pure generic template with ZERO references to this business (grep for trevor/robey/biomedical/citation/obsidian/zettelkasten/openclaw returns nothing) — the operator had assumed it was tailored. Worse, engineering:debug (95 lines) duplicates and name-collides with the local ~/.claude/skills/debug (187 lines + a references/ playbook set) that is purpose-built for this stack; likewise refactor. Its genuinely distinct skills (standup, deploy-checklist, incident-response) assume Jira/Slack/PagerDuty/CI, none of which exist here, and the whole thing cost ~871 always-on tokens per session. The sanitized build was uninstalled; the package + trinc-local marketplace remain on disk at ~/.claude/local-plugins/ so reinstating is one command. The deny rules and gate-shadow audit are RETAINED — they now guard the next plugin, not this one.",
+            "RESOLVED_2026-07-28": "[superseded by DROPPED_2026-07-28 above; retained because the SANITIZE-DON'T-GUARD technique it records is reusable] This plugin ran briefly as a SANITIZED LOCAL BUILD with ZERO MCP servers: `engineering@trinc-local` v1.2.0-trinc.1 at ~/.claude/local-plugins/engineering/, served by the local marketplace `trinc-local`. Skills are byte-identical to upstream (verified `diff -r` clean); the ONLY change is the deleted .mcp.json. Verify with `claude plugin details engineering` -> must report 'Skills (10)  ...  MCP servers (0)'. Rationale: no engineering skill references any MCP tool (they use only ~~placeholder categories this file already binds), and 8 of the 10 upstream servers map to categories that resolve to NONE here — so the surface was pure liability, chiefly the ungated `github` server duplicating the YubiKey-gated host MCP. The lists below describe the UPSTREAM package, retained for reference and because the marketplace copy is still installed pending operator uninstall via the Claude Desktop plugin UI.",
+            "needs_auth": [
+              "asana",
+              "atlassian",
+              "datadog",
+              "github",
+              "linear",
+              "notion",
+              "pagerduty",
+              "slack"
+            ],
+            "connected": [
+              "gmail",
+              "google calendar"
+            ]
+          },
+          "categories": [
+            "~~CI/CD",
+            "~~chat",
+            "~~incident management",
+            "~~knowledge base",
+            "~~monitoring",
+            "~~project tracker",
+            "~~source control"
+          ],
+          "business_binding": "Targets this monorepo. Source control is LOCAL git with no remote; there is no CI, no PR flow, and no on-call rotation. The real quality gates are the transport lint, the per-bridge lint:transport, the engine unit suite (985/985 green as of 2026-07-22), and verify-phase29-policy.sh.",
+          "guardrails": [
+            "deploy-checklist must not assume a remote, a PR, or a pipeline — the deploy surfaces are the Obsidian plugin lifecycle, launchd units, and the Cloudflare worker.",
+            "Every design that opens a TCP listener is HTTPS-only with no plaintext fallback (repo CLAUDE.md invariant).",
+            "standup with a one-person team is a continuity-board entry, not a ceremony.",
+            "github MCP stays exactly as-is behind its own YubiKey arm — never fold it into an automated flow."
+          ]
+        }
+      },
+      "product-management": {
+        "version": "1.2.0",
+        "removed": "2026-08-12",
+        "removed_by": "operator, in the Claude Desktop plugin UI (recorded in PLUGIN-BINDINGS.md on 2026-08-12; the JSON tombstone was added 2026-10-21)",
+        "verified_absent": "2026-10-21 — in no rpm package root; the rpm manifest.json lists only pdf-viewer, cowork-plugin-management, data, vibe-prospecting (vpai) and bio-research",
+        "superseded_by": "none — DROP verdict 2026-07-31 (all 8 skills dead or covered by trinc-productivity orient/triage and native skills)",
+        "if_it_returns": "`node scripts/audit-connector-coverage.js` checks every rpm package root for a removed plugin's name and prints `REMOVED plugin is back on disk`. Do not suppress it: uninstall again in the Claude Desktop plugin UI (the CLI cannot see rpm plugins, and the cloud-synced rpm manifest.json must not be hand-edited).",
+        "record_while_installed": {
+          "surface": "desktop-rpm",
+          "version": "1.2.0",
+          "lane": "business",
+          "skills": [
+            "competitive-brief",
+            "metrics-review",
+            "product-brainstorming",
+            "roadmap-update",
+            "sprint-planning",
+            "stakeholder-update",
+            "synthesize-research",
+            "write-spec"
+          ],
+          "mcp_servers": {
+            "needs_auth": [
+              "amplitude",
+              "amplitude-eu",
+              "asana",
+              "atlassian",
+              "clickup",
+              "figma",
+              "fireflies",
+              "intercom",
+              "linear",
+              "monday",
+              "notion",
+              "pendo",
+              "similarweb",
+              "slack"
+            ],
+            "connected": [
+              "gmail",
+              "google calendar"
+            ]
+          },
+          "categories": [
+            "~~calendar",
+            "~~chat",
+            "~~competitive intelligence",
+            "~~design",
+            "~~email",
+            "~~knowledge base",
+            "~~meeting transcription",
+            "~~product analytics",
+            "~~project tracker",
+            "~~user feedback"
+          ],
+          "business_binding": "The 'product' is the six-SKU offering ladder in OFFERINGS.md / REVENUE_PLAYBOOK.md plus the AWS Data Exchange feeds. The roadmap of record is _continuity/CONTINUITY.md 'Current focus'. There are no product analytics and no users to survey yet — the business is pre-revenue.",
+          "guardrails": [
+            "metrics-review has NO analytics source. Refuse to produce engagement metrics; the only real numbers are AWS seller reports and they are not yet flowing.",
+            "sprint-planning against a one-person team should degrade to a prioritized next-actions list.",
+            "stakeholder-update drafts only — the operator sends."
+          ]
+        }
+      },
+      "sales": {
+        "version": "1.3.0",
+        "removed": "2026-08-12",
+        "removed_by": "operator, in the Claude Desktop plugin UI (recorded in PLUGIN-BINDINGS.md on 2026-08-12; the JSON tombstone was added 2026-10-21)",
+        "verified_absent": "2026-10-21 — in no rpm package root; the rpm manifest.json lists only pdf-viewer, cowork-plugin-management, data, vibe-prospecting (vpai) and bio-research",
+        "superseded_by": "none as a plugin — DROP verdict 2026-07-29; the ~~CRM binding was corrected instead",
+        "if_it_returns": "`node scripts/audit-connector-coverage.js` checks every rpm package root for a removed plugin's name and prints `REMOVED plugin is back on disk`. Do not suppress it: uninstall again in the Claude Desktop plugin UI (the CLI cannot see rpm plugins, and the cloud-synced rpm manifest.json must not be hand-edited).",
+        "record_while_installed": {
+          "surface": "desktop-rpm",
+          "version": "1.3.0",
+          "lane": "business",
+          "skills": [
+            "account-research",
+            "call-prep",
+            "call-summary",
+            "competitive-intelligence",
+            "create-an-asset",
+            "daily-briefing",
+            "draft-outreach",
+            "forecast",
+            "pipeline-review"
+          ],
+          "mcp_servers": {
+            "needs_auth": [
+              "apollo",
+              "atlassian",
+              "clay",
+              "close",
+              "fireflies",
+              "hubspot",
+              "monday",
+              "notion",
+              "outreach",
+              "similarweb",
+              "slack",
+              "zoominfo"
+            ],
+            "connected": [
+              "gmail",
+              "google calendar"
+            ]
+          },
+          "categories": [
+            "~~CRM",
+            "~~calendar",
+            "~~chat",
+            "~~competitive intelligence",
+            "~~conversation intelligence",
+            "~~data enrichment",
+            "~~email",
+            "~~knowledge base",
+            "~~project tracker",
+            "~~sales engagement"
+          ],
+          "business_binding": "NO CRM exists and the business is pre-revenue as of 2026-07-24. Enrichment runs through vpai (vibe-prospecting), the one enrichment surface that is actually available. The ICP is biotech investors and pharma BD; the pitch is OFFERINGS.md; pricing is REVENUE_PLAYBOOK.md §2 and is never invented.",
+          "guardrails": [
+            "forecast and pipeline-review MUST report 'no CRM, no closed deals' rather than modelling a pipeline. A fabricated forecast is the exact failure this business sells against.",
+            "draft-outreach drafts into Gmail and stops. No sequences, no automated sends.",
+            "Any biomedical claim in an outbound asset carries a real PMID/NCT/DOI or is cut."
+          ]
+        }
+      },
+      "marketing": {
+        "version": "1.2.0",
+        "removed": "2026-08-12",
+        "removed_by": "operator, in the Claude Desktop plugin UI (recorded in PLUGIN-BINDINGS.md on 2026-08-12; the JSON tombstone was added 2026-10-21)",
+        "verified_absent": "2026-10-21 — in no rpm package root; the rpm manifest.json lists only pdf-viewer, cowork-plugin-management, data, vibe-prospecting (vpai) and bio-research",
+        "superseded_by": "trinc-marketing@trinc-local (brand voice → trinc-business:brand-check)",
+        "if_it_returns": "`node scripts/audit-connector-coverage.js` checks every rpm package root for a removed plugin's name and prints `REMOVED plugin is back on disk`. Do not suppress it: uninstall again in the Claude Desktop plugin UI (the CLI cannot see rpm plugins, and the cloud-synced rpm manifest.json must not be hand-edited).",
+        "record_while_installed": {
+          "surface": "desktop-rpm",
+          "version": "1.2.0",
+          "lane": "business",
+          "skills": [
+            "brand-review",
+            "campaign-plan",
+            "competitive-brief",
+            "content-creation",
+            "draft-content",
+            "email-sequence",
+            "performance-report",
+            "seo-audit"
+          ],
+          "mcp_servers": {
+            "needs_auth": [
+              "ahrefs",
+              "amplitude",
+              "amplitude-eu",
+              "canva",
+              "figma",
+              "hubspot",
+              "klaviyo",
+              "notion",
+              "similarweb",
+              "slack",
+              "supermetrics"
+            ],
+            "connected": [
+              "gmail",
+              "google calendar"
+            ]
+          },
+          "categories": [
+            "~~SEO",
+            "~~chat",
+            "~~design",
+            "~~email marketing",
+            "~~knowledge base",
+            "~~marketing analytics",
+            "~~marketing automation",
+            "~~product analytics"
+          ],
+          "business_binding": "brand-review is the load-bearing skill and it has a real, strict brand canon: the wordmark is 'Trevor Robey, INC.' where INC = Intelligence Network Citations, and every customer-facing use pairs it with the LLC disclosure. Tagline and elevator are fixed. Everything else in this plugin is unbound — no SEO tool, no analytics, no automation.",
+          "guardrails": [
+            "LEGAL: never render the wordmark without the disclosure 'Trevor Robey, INC. is the wordmark of Trevor Robey Intelligence Network Citations LLC, a California limited liability company.' Cal. Bus. & Prof. Code §17910.5(a) is why.",
+            "performance-report and seo-audit have no data source — say so; do not estimate traffic, rankings, or keyword volume.",
+            "email-sequence produces copy only. Manual-only posture forbids scheduled sends.",
+            "Do not soften the re-resolution claims in landing copy (SYSTEM-REALITY.md copy-sweep warning)."
+          ]
+        }
+      },
+      "design": {
+        "version": "1.2.0",
+        "removed": "2026-08-12",
+        "removed_by": "operator, in the Claude Desktop plugin UI (recorded in PLUGIN-BINDINGS.md on 2026-08-12; the JSON tombstone was added 2026-10-21)",
+        "verified_absent": "2026-10-21 — in no rpm package root; the rpm manifest.json lists only pdf-viewer, cowork-plugin-management, data, vibe-prospecting (vpai) and bio-research",
+        "superseded_by": "trinc-design@trinc-local",
+        "if_it_returns": "`node scripts/audit-connector-coverage.js` checks every rpm package root for a removed plugin's name and prints `REMOVED plugin is back on disk`. Do not suppress it: uninstall again in the Claude Desktop plugin UI (the CLI cannot see rpm plugins, and the cloud-synced rpm manifest.json must not be hand-edited).",
+        "record_while_installed": {
+          "surface": "desktop-rpm",
+          "version": "1.2.0",
+          "lane": "business",
+          "skills": [
+            "accessibility-review",
+            "design-critique",
+            "design-handoff",
+            "design-system",
+            "research-synthesis",
+            "user-research",
+            "ux-copy"
+          ],
+          "mcp_servers": {
+            "needs_auth": [
+              "asana",
+              "atlassian",
+              "figma",
+              "intercom",
+              "linear",
+              "notion",
+              "slack"
+            ],
+            "connected": [
+              "gmail",
+              "google calendar"
+            ]
+          },
+          "categories": [
+            "~~category",
+            "~~chat",
+            "~~design tool",
+            "~~knowledge base",
+            "~~product analytics",
+            "~~project tracker",
+            "~~user feedback"
+          ],
+          "business_binding": "No Figma. The only real design surfaces are the landing page in workspace/collateral/landing-page/ (Cloudflare worker shy-grass-fccd), the Obsidian plugin UIs (Command Center, Zettelkasten, Bridge Launcher, Wiki Definitions), and the rendered report deliverables. accessibility-review and ux-copy apply to those directly; design-handoff has no recipient.",
+          "guardrails": [
+            "user-research has no users and no feedback tool — do not synthesize interviews that did not happen.",
+            "Plugin display names are branded but plugin IDs are FROZEN — never rename command-center, vault-zettelkasten, obsidian-bridge-launcher, contextual-wiki-definitions."
+          ]
+        }
       }
     }
   },
   "verification": {
     "audit_command": "node scripts/audit-connector-coverage.js",
     "checks": [
-      "every plugin declares a lane",
+      "registry plugin_surfaces and this file agree on bound plugins, installed_not_bound and removed",
       "every category referenced by a plugin exists in category_bindings",
-      "no plugin MCP server leaked into config/tool-prefetch-map.json",
-      "bound=false categories carry a fallback or an explicit NONE rationale"
-    ]
+      "bound=false categories carry a fallback or an explicit NONE rationale",
+      "every registry_ids / duplicate_of_registry pointer resolves to a registry connector or operator surface",
+      "no plugin MCP server appears in config/tool-prefetch-map.json",
+      "no rpm plugin declares an MCP server inline in plugin.json",
+      "no plugin ships a REACHABLE server whose name collides with a host server (or it is denied in permissions)",
+      "no removed (tombstoned) plugin is back on disk"
+    ],
+    "checks_note_2026-10-21": "The script does NOT yet read config/tool-prefetch-map.business.json (business research profile, 2026-10-21) and scans only rpm packages, not the CLI marketplace cache. Both were checked by hand on 2026-10-21 (all six business-map tools are declared in the registry; no CLI plugin ships an MCP server); a patch for the script is proposed to the hub session.",
+    "last_run": "2026-10-21 — see PLUGIN-BINDINGS.md § Current state for the output"
   }
 }

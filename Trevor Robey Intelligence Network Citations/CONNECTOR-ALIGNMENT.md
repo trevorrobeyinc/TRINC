@@ -2,6 +2,13 @@
 
 > **Snapshot (2026-07-16).** A human-readable map of every connector to its business function, and — the part that trips people up — **which connectors the research engine can actually use vs. which only work in chat.** The machine-readable source of truth is [`config/connector-registry.json`](config/connector-registry.json) (39 connectors, schema-versioned, with `bound_roles` and `bound_workflow_steps` per connector); this doc summarizes and explains it. When the two diverge, the registry wins. Recommendations are tagged *(recommendation)*.
 
+> **Update (2026-10-21).** The registry now holds **62** connectors (27 subprocess-mcp · 11
+> tooluniverse-tool · 24 claude-host-mcp) and a second prefetch map: the engine's business research
+> profile (Table A.2). Its `operator_surfaces` ledger was checked against all three host configs
+> (`~/.claude.json`, the repo `.mcp.json`, `claude_desktop_config.json`) and is complete (Table C).
+> Counts in the tables below are their 2026-07-16 snapshot unless marked; `npm run audit:connectors`
+> gives the live ones.
+
 ## The one thing to understand: three execution surfaces
 
 The registry sorts every connector into one of three "surfaces." This is the single most important distinction and the source of most confusion:
@@ -41,6 +48,13 @@ These are the `subprocess-mcp` (12) + `tooluniverse-tool` (4) connectors. They a
 | **searxng-search** | Private web metasearch (key-free; superseded tavily 2026-07-04) — beyond-cutoff open-web lane | none |
 
 > *Note:* `newsletter-publisher` and `notion-sync` are wired as subprocess connectors but belong to Phase 24, which is **disabled** — they are not active in the research flow. See [`SYSTEM-REALITY.md`](SYSTEM-REALITY.md) §4.
+>
+> *Added after this table was written (all engine-reachable, see the registry for each):*
+> `open-targets-graphql` (07-24), `ctgov-design-benchmark` (NCT-traced, the Trial Design Benchmark
+> Pack's cohort), `sec-edgar` and `nih-reporter` (09-19, context-only — they cannot ground a
+> citation), `europepmc-preprints` (09-19, DOI-bearing), the
+> ToolUniverse tools `dailymed`, `openfda-enforcement`, `fda-drug-labeling`, `fda-orange-book`,
+> `openalex`, `doaj` (and `rxnorm`, needs investigation), plus the business-profile sources in Table A.2.
 
 ## Table B — Chat-only connectors (23, `claude-host-mcp`)
 
@@ -48,8 +62,8 @@ Available to you in a Claude chat, **not** to the workflow engine. Many are rich
 
 - **Richer biomedical duplicates of Table A:** pubmed-fulltext (PMC full text), clinicaltrials-enriched (endpoint analysis), open-targets-graphql, drug-search-admet (ADMET + mechanism), biorxiv-medrxiv, icd10-host-enriched, npi-host-validate, huggingface-host-rich, tooluniverse-host, semantic-search-host.
 - **Specialty research:** synthesize-bio (generative genomics GEM-1 — authenticated/live; adapter `missing(design-corrected)`, a supervised remote-MCP client, **not** a prefetch source), tavily (**SUPERSEDED 2026-07-04** by searxng-search — registry tombstone, bound to nothing), research-memory (Qdrant pack memory `:6433`).
-- **Pipeline plumbing:** obsidian-bridge (vault READ-BACK, context-only — Miyo `:8743` direct, `:8798` bridge fallback; **notes are written by the engine's own post-run publisher, not through this connector**, since 2026-09-22), research-memory (WIRED 2026-09-22: engine-side ingest + `research_memory_priors`, context-only, switched off until the operator enables it in `config/vault-publish.json`), scheduled-tasks, mcp-registry.
-- **Operator tools (not product data):** github, gmail (manual-confirm outbound drafts), filesystem-sandboxed, sequential-thinking, context7-library-docs.
+- **Pipeline plumbing:** obsidian-bridge (vault READ-BACK, context-only — Miyo `:8743` direct, `:8798` bridge fallback; **notes are written by the engine's own post-run publisher, not through this connector**, since 2026-09-22), research-memory (WIRED 2026-09-22: engine-side ingest + `research_memory_priors`, context-only; switched ON 2026-09-22 in `config/vault-publish.json`, offline embedder), scheduled-tasks, mcp-registry.
+- **Operator tools (not product data):** github, gmail (no MCP path is live as of 2026-10-21: the claude.ai Gmail connector did not load and the local gated `gmail` server is out of service by operator decision since 2026-09-05), filesystem-sandboxed, sequential-thinking, context7-library-docs.
 - **Procurement-gated KOL (documentation-only, added 2026-07-16):** guidepoint-expert-network, third-bridge-expert-network — `tools:[]`, adapter_status `identified-procurement-gated`; connect on the first signed KOL deal ($19,950 tier), pick one.
 
 ## Table A.1 — Citation-integrity engine fetchers (2026-06-12, not in the surface table)
@@ -79,15 +93,43 @@ provenance ledger A/B/C/D from the grounded ratio; F/BLOCKED on retraction) and
 each NCT-traced with the sponsor's stated stop reason — never invented — and a protocol
 amendment-risk band rendered deterministically from the fetched records).
 
-## Table C — Infra / ops connectors (registered in `~/.claude.json`, not product)
+## Table A.2 — Business research profile sources (2026-10-21)
+
+A workflow template with `"research_profile": "business"` (`business-research-pack`,
+`cost-reduction-analysis`, `market-landscape`) reads `config/tool-prefetch-map.business.json` instead
+of the biomedical map. Same roles, same citation gate, same re-resolution manifest; these four sources
+supply identifiers the gate can ground and the re-resolver can check. Registry lane **`research`**
+(with `research_profile: business`) — not the `business` lane of Table C. Detail:
+[`docs/business-research-lane.md`](docs/business-research-lane.md).
+
+| Connector | Cite as | Re-resolved at delivery by | Auth |
+|---|---|---|---|
+| **web-evidence** | `WEB: <12 hex>` (hash of the exact page text the model saw) | re-reading and re-hashing the run's stored snapshot — proves *what was read, from where, when*, not that the page is live or correct | none (through `searxng-search`) |
+| **sec-filings-citable** | `SEC: <CIK>/<accession>` | the filing's EDGAR `index.json` (403 = UNCHECKED) | none |
+| **world-bank-indicators** | `WB: <indicator>` | `/v2/indicator/<id>` — the series exists; the value is quoted as returned | none |
+| **openalex-works** | `doi: …` (works without a DOI are dropped) | Crossref, plus the retraction screen | none |
+
+No business-profile run exists on disk yet (2026-10-21); the lane is proven by its offline test suite
+only. No plugin server and no Table C surface is in either prefetch map.
+
+## Table C — Infra / ops / operator surfaces (not product)
+
+Every server registered in `~/.claude.json` (user scope), the repo [`.mcp.json`](.mcp.json) and
+`claude_desktop_config.json`, checked 2026-10-21. Full records: the registry's `operator_surfaces`.
 
 | Server | Role |
 |---|---|
-| **falcon** | CrowdStrike Falcon — security recon/hardening (read + propose-only). Not a product data source. |
-| **trinc-content** | Content creation for the business channels (YouTube · TikTok · Instagram · Facebook Page · AWS Data Exchange). Registered in the repo [`.mcp.json`](.mcp.json) 2026-09-19; source at `/Users/myhome/.claude/mcp-servers/trinc-content/`. Reads release-bundle deliverables and the brand canon; drafts and gates copy. **Business lane — must never enter `tool-prefetch-map.json`.** Publishing is per-channel, two-call confirmed, and inert: no channel has a credential and `TRINC_CONTENT_PUBLISH` is empty. |
+| ~~**falcon**~~ | **Local falcon MCP RETIRED 2026-10-09.** Falcon is reached only from the Security Everything repo, through its Falcon-Strike lane (hosted Falcon MCP; read identity, YubiKey-armed write identity). Read + propose-only. Not a product data source. |
+| **firewalla** · **sudo-gate** · **phone-gate** · **klsense-btt** | Security lane, each behind its own gate (firewalla's fw session, per-command sudo-gate touch, phone-gate's YubiKey decrypt; klsense-btt is a read-only BetterTouchTool broker). Never reachable from the engine. |
+| **trinc-content** | Content creation for the business channels (YouTube · TikTok · Instagram · Facebook Page · AWS Data Exchange). Registered in the repo [`.mcp.json`](.mcp.json) 2026-09-19. **Source in the monorepo at [`Claude/trinc-content-mcp/`](../Claude/trinc-content-mcp/) since 2026-10-21**; `.mcp.json` launches the staged copy `~/.claude/mcp-servers/trinc-content/` (re-run its `install-connector.sh` after editing). **Gated since 2026-10-21:** every call needs `operator-approved-gate arm trinc-content` (verified: an unarmed call is refused). Drafts and gates copy from release-bundle deliverables and the brand canon. **Business lane — must never enter either prefetch map.** Publishing is inert: no channel has a credential and there is no send path in the code. |
+| **openclaw-obsidian** | Claude Code's dispatch lane into the Command Center bridge `:8799` (repo `.mcp.json`, 2026-10-07; a closed 13-tool allowlist). It starts and watches engine runs; it is never an evidence source. Dies with Obsidian. |
+| **opencode** | $0 delegation of small tasks to opencode's free models, read-only allowlist guardrail ([`_opencode-bridge/README.md`](../_opencode-bridge/README.md)). |
+| **perseus-vault** · **perseus-business** | Agent memory (machine-global, and this business's repo-scoped vault). YubiKey-gated since 2026-09-15. Memory, not evidence. |
+| **miyo** · **FilesystemPlus** | Claude Desktop's vault search/edit and filesystem servers. Miyo is exempt from the session gate by the operator's call. The engine's own Miyo read-back is separate and context-only. |
 | **github** | Repo access (read-only, YubiKey-gated). Dev/ops. |
+| **gmail** | The business mailbox is Gmail, but the local gated `gmail` server is **out of service since 2026-09-05** by operator decision (disabled, not retired — do not repair it). No MCP path to the mailbox is live. |
 | ~~**cdp-pipe**~~ | **GONE 2026-09-18.** No browser automation exists on this machine and none may be installed. The only browser surface is the in-app **Claude Browser pane** (`mcp__Claude_Browser__*`, `cb` gate scope), which the operator drives interactively — it is not a product data source. |
-| **zoho-mail** | **RETIRED 2026-10-21** (operator decision), together with `zoho-trinc`: everything moves to Google Workspace. Never register or bind either again; the session gate no longer lists them, so a new registration would be ungated. History: archive-reader since the 2026-07-22 MX cutover, pre-cutover mail imported into Gmail (1,251/1,251). Canonical record: `03-platforms/google-workspace/google-workspace.md`. |
+| ~~**zoho-mail**~~ · ~~**zoho-trinc**~~ | **RETIRED 2026-10-21** (operator decision): everything is on Google Workspace. **Zoho account closed 2026-10-21; DNS checked clean the same day** (SPF Google-only, no Zoho DKIM or verification record). Never register or bind either again; the session gate no longer lists them, so a new registration would be ungated. Gmail does not hold the Zoho-era history (only 17 pre-cutover conversations were found before the delete), so the 2026-07-22 "1,251/1,251 imported" count is not evidence that it does. Canonical record: `03-platforms/google-workspace/google-workspace.md`. |
 
 The AWS Management Console is reached through the in-app **Claude Browser pane**, operator-driven and
 YubiKey-gated (`cb` scope) — not through the product pipeline. *(Corrected 2026-09-19: this line
@@ -96,7 +138,15 @@ Chrome extension lane exists or may be installed.)*
 
 ## Gaps & recommendations
 
-1. **Five unauthenticated claude.ai connectors** (BioRender, Synapse, Wiley, alphaXiv, Owkin host-side) appear in the Claude.ai connector list but are not authenticated. Synthesize Bio is now **authenticated** (host OAuth handshake complete; its tools are live this session), so it is no longer in this set. *(Recommendation)* authenticate the ones with a real research use (Owkin host-side is the strongest biomedical fit) or stop listing them so the surface stays honest.
+1. **Unauthenticated connectors — corrected 2026-10-21** (this item used to recommend Owkin first; the
+   2026-07-29/31 verification in `PLUGIN-BINDINGS.md` reversed that). Still unauthenticated: BioRender,
+   Synapse, Wiley and Owkin (bio-research plugin copies) and alphaXiv (host). *(Recommendation, as
+   recorded in `config/plugin-bindings.json` → `oauth_posture`)* authorize **BioRender only**, through
+   claude.ai connector settings; Synapse only if its datasets are wanted; **do not** authorize Wiley
+   (already reachable through the connected Scholar Gateway connector) or Owkin (duplicates the engine's
+   `owkin-mcp`); read alphaXiv's terms before its first OAuth, then register it within 7 days. The
+   `data` plugin's six needs-auth servers all map to NONE — leave them. Synthesize Bio is recorded as
+   `blocked-operator-decision` in the registry and did not load in the 2026-10-21 session.
 2. **Overlap is intentional but undocumented for buyers.** A deliverable should state which lane produced a citation if you ever expose the pipeline to a buyer; the engine uses the lean subprocess lane. *(Update 2026-06-12: partially addressed — every mission bundle now ships `deliverables/citation-integrity.md`, a graded provenance ledger attesting that cited identifiers are grounded in the source records actually retrieved at runtime and DOI retraction-screened against Crossref. It does not yet name which connector lane produced each citation.)*
 3. **Phase 24 connectors (notion-sync, newsletter-publisher) are wired but disabled.** Leave disabled until there's a reason to publish; revisit alongside the Phase 31 deployment decision.
-4. No rogue, duplicate, or dead-path registrations were found — the alignment work here is **documentation**, not reconfiguration.
+4. No rogue, duplicate, or dead-path registrations were found — the alignment work here is **documentation**, not reconfiguration. *(Re-checked 2026-10-21 against all three host configs: still true. Two audit blind spots were found instead — the script reads only the biomedical prefetch map and scans only rpm plugin packages; both were checked by hand, and a tested patch is proposed to the hub session.)*

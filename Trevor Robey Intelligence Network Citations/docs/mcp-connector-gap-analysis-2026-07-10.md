@@ -11,6 +11,16 @@ subagents fanned out; every flagship claim below was re-checked from the main lo
 
 **Posture:** recommend-only. Nothing was installed and no connector state was mutated.
 
+> **Status note, 2026-10-21 (read before acting on anything below).** This is a dated analysis; the
+> live record is `config/connector-registry.json` and `CONNECTOR-ALIGNMENT.md`. Since it was written:
+> Scholar Sidekick was retired everywhere (2026-08-27); alphaXiv is behind its mcp-gates shim (since
+> 2026-09-15) with OAuth still not done and its terms still unread — once authenticated it must be
+> registered within 7 days; the engine is no longer biomedical-only — business questions, which used
+> to block for lack of anything the gate could ground, now run on the business research profile
+> (2026-10-21: WEB / SEC / WB / DOI sources, `docs/business-research-lane.md`); and the OAuth advice for the bio-research
+> connectors was superseded (authorize BioRender only; see `config/plugin-bindings.json` →
+> `oauth_posture`).
+
 ---
 
 ## 0. The three install surfaces are not interchangeable

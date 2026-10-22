@@ -29,6 +29,25 @@ function loadJson(p) {
   return JSON.parse(fs.readFileSync(p, "utf8"));
 }
 
+// One prefetch map per research profile (core/research-profiles.js, 2026-10-21): biomedical ->
+// tool-prefetch-map.json, business -> tool-prefetch-map.business.json. Read the profile table
+// rather than hard-coding file names, so a new profile's map is audited the day it lands. The
+// default profile comes first; its report section is the one this script always printed.
+function prefetchMaps() {
+  let profiles;
+  try {
+    const mod = require(path.join(ROOT, "openclaw-bridge", "core", "research-profiles.js"));
+    profiles = Object.values(mod.PROFILES)
+      .sort((a, b) => (a.id === mod.DEFAULT_PROFILE_ID ? -1 : b.id === mod.DEFAULT_PROFILE_ID ? 1 : 0));
+  } catch (e) {
+    profiles = [{ id: "biomedical", prefetchMapFile: path.basename(PREFETCH_PATH) }];
+  }
+  return profiles.map((p) => {
+    const file = path.join(ROOT, "config", p.prefetchMapFile);
+    return { profile: p.id, file: path.relative(ROOT, file), json: loadJson(file) };
+  });
+}
+
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -184,6 +203,50 @@ function crossCheckPrefetch(registry, prefetch) {
     prefetchTools: [...prefetchTools].sort(),
     toolsInPrefetchNotRegistry: toolsInPrefetchNotRegistry.sort()
   };
+}
+
+// The non-default profile maps get the same tool-coverage and vault-lane checks as the main map,
+// plus one rule every map needs: a connector tagged `research_profile: X` may appear only in X's
+// map. The business sources (WEB/SEC/WB snapshots) must never reach a biomedical template, and a
+// map edit is all it would take — before this check that rule lived only in comments.
+function auditProfileMaps(registry, maps) {
+  const lines = [];
+  const owner = new Map();
+  for (const [id, e] of Object.entries(registry.connectors)) {
+    for (const t of (e.tools || [])) owner.set(t, { id, profile: e.research_profile || null });
+  }
+  for (const m of maps.slice(1)) {
+    const cc = crossCheckPrefetch(registry, m.json);
+    lines.push("");
+    lines.push(`--- Registry ↔ ${m.file} cross-check (research_profile: ${m.profile}) ---`);
+    lines.push(`Roles in prefetch: ${cc.prefetchRoles.join(", ") || "(none)"}`);
+    if (cc.rolesInPrefetchNotRegistry.length) {
+      lines.push(`  ⚠  Roles in prefetch but never referenced in registry: ${cc.rolesInPrefetchNotRegistry.join(", ")}`);
+    }
+    if (cc.toolsInPrefetchNotRegistry.length) {
+      lines.push(`  ⚠  Tools in prefetch but not declared in any registry entry's tools[]: ${cc.toolsInPrefetchNotRegistry.join(", ")}`);
+    } else {
+      lines.push(`Prefetch tool coverage: all ${cc.prefetchTools.length} prefetch tools are referenced in registry ✓`);
+    }
+    if (cc.vaultLaneViolations.length) {
+      lines.push(`  ⚠  Vault-lane tools that are NOT context-only: ${cc.vaultLaneViolations.join("; ")}`);
+    } else {
+      lines.push(`Vault-lane read-back in prefetch: ${cc.vaultLaneEntries.length} entries, all context_only ✓`);
+    }
+  }
+  const misplaced = [];
+  for (const m of maps) {
+    for (const roleEntries of Object.values(m.json.role_mappings || {})) {
+      for (const action of (Array.isArray(roleEntries) ? roleEntries : [])) {
+        const o = action.tool_name && owner.get(action.tool_name);
+        if (o && o.profile && o.profile !== m.profile) misplaced.push(`${action.tool_name} (${o.id}, research_profile ${o.profile}) in ${m.file}`);
+      }
+    }
+  }
+  lines.push(misplaced.length
+    ? `  ⚠  Profile-scoped connector in another profile's map: ${[...new Set(misplaced)].join("; ")}`
+    : `  ✓  Every research_profile-scoped connector appears only in its own profile's map (${maps.length} maps)`);
+  return lines;
 }
 
 function renderReport(registry, buckets, crosscheck, extraSections = []) {
@@ -359,7 +422,7 @@ function maybeWriteDriftTickets(registry, buckets) {
 // breaks a plugin here is an UNRESOLVED `~~category` placeholder — a skill handed a
 // missing tool invents a plausible substitute. So this section audits binding
 // coverage, not connectivity.
-function auditPluginSurfaces(registry, prefetch) {
+function auditPluginSurfaces(registry, maps) {
   const lines = [];
   lines.push("");
   lines.push("--- Plugin surfaces (config/plugin-bindings.json) ---");
@@ -464,11 +527,10 @@ function auditPluginSurfaces(registry, prefetch) {
 
   // 4. No plugin MCP server may reach research prefetch — business-lane payloads
   //    are non-citable and would dilute the grounded-citation ratio.
-  const prefetchRaw = JSON.stringify(prefetch);
-  const leaked = /plugin[:_][a-z-]+[:_]/i.test(prefetchRaw);
-  lines.push(leaked
-    ? "  ⚠  A plugin-namespaced tool appears in tool-prefetch-map.json — business lane leaked into research prefetch"
-    : "  ✓  No plugin MCP server present in tool-prefetch-map.json");
+  const leakedIn = maps.filter((m) => /plugin[:_][a-z-]+[:_]/i.test(JSON.stringify(m.json))).map((m) => m.file);
+  lines.push(leakedIn.length
+    ? `  ⚠  A plugin-namespaced tool appears in ${leakedIn.join(", ")} — business lane leaked into research prefetch`
+    : `  ✓  No plugin MCP server present in any prefetch map (${maps.map((m) => path.basename(m.file)).join(", ")})`);
 
   // 4b. INLINE-DECLARED MCP SERVERS — the smuggling vector.
   //     Most plugins declare MCP servers in a sibling `.mcp.json`, but a plugin may also
@@ -496,44 +558,61 @@ function auditPluginSurfaces(registry, prefetch) {
     if (fs.existsSync(base)) walk(base, 0);
   } catch (e) { /* best-effort discovery only */ }
 
-  // Unique-server tally, so the slot count above can never be mistaken for a surface size.
-  if (pkgRoots.length) {
-    const uniq = new Set();
-    for (const root of pkgRoots) {
-      for (const d of fs.readdirSync(root)) {
-        const mj = path.join(root, d, ".mcp.json");
-        if (!fs.existsSync(mj)) continue;
-        try {
-          for (const s of Object.keys(JSON.parse(fs.readFileSync(mj, "utf8")).mcpServers || {})) uniq.add(s);
-        } catch (e) { /* unreadable */ }
+  // Package directories: the children of each rpm root, plus every CLI marketplace install path
+  // listed in ~/.claude/plugins/installed_plugins.json. Until 2026-10-21 only the rpm side was
+  // scanned, so a CLI plugin (frontend-design, ralph-loop, the trinc-local set...) could have
+  // declared an MCP server, or a tombstoned plugin come back through the CLI, unseen.
+  const pkgDirs = [];
+  for (const root of pkgRoots) {
+    for (const d of fs.readdirSync(root)) pkgDirs.push(path.join(root, d));
+  }
+  const cliDirs = new Set();
+  try {
+    const idx = loadJson(path.join(os.homedir(), ".claude", "plugins", "installed_plugins.json"));
+    for (const installs of Object.values(idx.plugins || {})) {
+      for (const inst of (Array.isArray(installs) ? installs : [installs])) {
+        if (inst && inst.installPath && fs.existsSync(inst.installPath)) cliDirs.add(inst.installPath);
       }
+    }
+  } catch (e) { /* best-effort: no CLI plugin index on this machine */ }
+  pkgDirs.push(...cliDirs);
+
+  // Unique-server tally, so the slot count above can never be mistaken for a surface size.
+  if (pkgDirs.length) {
+    const uniq = new Set();
+    for (const dir of pkgDirs) {
+      const mj = path.join(dir, ".mcp.json");
+      if (!fs.existsSync(mj)) continue;
+      try {
+        for (const s of Object.keys(JSON.parse(fs.readFileSync(mj, "utf8")).mcpServers || {})) uniq.add(s);
+      } catch (e) { /* unreadable */ }
     }
     if (uniq.size) lines.push(`Plugin MCP servers, UNIQUE across all plugins: ${uniq.size} (this is the real surface size)`);
   }
 
-  if (!pkgRoots.length) {
+  if (!pkgDirs.length) {
     lines.push("  ·  Plugin packages not found on this machine — inline-MCP check skipped (not a failure)");
   } else {
     const inline = [];
     let scanned = 0;
-    for (const root of pkgRoots) {
-      for (const d of fs.readdirSync(root)) {
-        const pj = path.join(root, d, ".claude-plugin", "plugin.json");
-        if (!fs.existsSync(pj)) continue;
-        scanned++;
-        let meta;
-        try { meta = JSON.parse(fs.readFileSync(pj, "utf8")); } catch (e) { continue; }
-        for (const name of Object.keys(meta.mcpServers || {})) {
-          const spec = meta.mcpServers[name] || {};
-          const cmd = [spec.command, ...(spec.args || [])].filter(Boolean).join(" ");
-          inline.push(`${meta.name} declares "${name}" inline (${cmd})`);
-        }
+    let cliScanned = 0;
+    for (const dir of pkgDirs) {
+      const pj = path.join(dir, ".claude-plugin", "plugin.json");
+      if (!fs.existsSync(pj)) continue;
+      scanned++;
+      if (cliDirs.has(dir)) cliScanned++;
+      let meta;
+      try { meta = JSON.parse(fs.readFileSync(pj, "utf8")); } catch (e) { continue; }
+      for (const name of Object.keys(meta.mcpServers || {})) {
+        const spec = meta.mcpServers[name] || {};
+        const cmd = [spec.command, ...(spec.args || [])].filter(Boolean).join(" ");
+        inline.push(`${meta.name} declares "${name}" inline (${cmd})`);
       }
     }
     if (inline.length) {
       lines.push(`  ⚠  Plugin-INLINE MCP servers (a plugin re-registers these even after you remove them from the host configs): ${inline.join("; ")}`);
     } else {
-      lines.push(`  ✓  No plugin declares an MCP server inline in plugin.json (${scanned} packages scanned)`);
+      lines.push(`  ✓  No plugin declares an MCP server inline in plugin.json (${scanned} packages scanned: ${scanned - cliScanned} rpm + ${cliScanned} CLI)`);
     }
   }
 
@@ -548,33 +627,31 @@ function auditPluginSurfaces(registry, prefetch) {
   //     desktop-commander inline-MCP finding: a plugin re-providing a deliberately gated surface.
   try {
     const hostCfg = path.join(os.homedir(), ".claude.json");
-    if (fs.existsSync(hostCfg) && pkgRoots.length) {
+    if (fs.existsSync(hostCfg) && pkgDirs.length) {
       const hostServers = Object.keys(JSON.parse(fs.readFileSync(hostCfg, "utf8")).mcpServers || {});
       const shadows = [];
       let inertShadows = 0;
-      for (const root of pkgRoots) {
-        for (const d of fs.readdirSync(root)) {
-          const mj = path.join(root, d, ".mcp.json");
-          const pj = path.join(root, d, ".claude-plugin", "plugin.json");
-          if (!fs.existsSync(mj) || !fs.existsSync(pj)) continue;
-          let pname, servers;
-          try {
-            pname = JSON.parse(fs.readFileSync(pj, "utf8")).name;
-            servers = Object.keys(JSON.parse(fs.readFileSync(mj, "utf8")).mcpServers || {});
-          } catch (e) { continue; }
-          // Only a REACHABLE shadow is a finding. Most plugins ship `gmail` and
-          // `google calendar` as `{"type":"http","url":""}` — unfilled placeholders
-          // the template expects a deployment to populate. Flagging those would fire
-          // 7 false alarms here and train the reader to ignore the check, so they are
-          // counted quietly instead. Verified 2026-07-28: of 15 name-collisions, 14
-          // are empty-url placeholders and exactly one (engineering/github) is live.
-          for (const s of servers) {
-            if (!hostServers.includes(s)) continue;
-            const spec = (JSON.parse(fs.readFileSync(mj, "utf8")).mcpServers || {})[s] || {};
-            const reachable = Boolean(spec.command) || Boolean(spec.url);
-            if (reachable) shadows.push({ plugin: pname, server: s });
-            else inertShadows++;
-          }
+      for (const dir of pkgDirs) {
+        const mj = path.join(dir, ".mcp.json");
+        const pj = path.join(dir, ".claude-plugin", "plugin.json");
+        if (!fs.existsSync(mj) || !fs.existsSync(pj)) continue;
+        let pname, servers;
+        try {
+          pname = JSON.parse(fs.readFileSync(pj, "utf8")).name;
+          servers = Object.keys(JSON.parse(fs.readFileSync(mj, "utf8")).mcpServers || {});
+        } catch (e) { continue; }
+        // Only a REACHABLE shadow is a finding. Most plugins ship `gmail` and
+        // `google calendar` as `{"type":"http","url":""}` — unfilled placeholders
+        // the template expects a deployment to populate. Flagging those would fire
+        // 7 false alarms here and train the reader to ignore the check, so they are
+        // counted quietly instead. Verified 2026-07-28: of 15 name-collisions, 14
+        // are empty-url placeholders and exactly one (engineering/github) is live.
+        for (const s of servers) {
+          if (!hostServers.includes(s)) continue;
+          const spec = (JSON.parse(fs.readFileSync(mj, "utf8")).mcpServers || {})[s] || {};
+          const reachable = Boolean(spec.command) || Boolean(spec.url);
+          if (reachable) shadows.push({ plugin: pname, server: s });
+          else inertShadows++;
         }
       }
       if (shadows.length) {
@@ -630,18 +707,16 @@ function auditPluginSurfaces(registry, prefetch) {
     lines.push(`  ⚠  removed-plugin tombstones disagree — registry: [${removedIds.join(", ")}] vs bindings: [${bindRemoved.join(", ")}]`);
   } else if (removedIds.length) {
     const resurrected = [];
-    for (const root of pkgRoots) {
-      for (const d of fs.readdirSync(root)) {
-        const pj = path.join(root, d, ".claude-plugin", "plugin.json");
-        if (!fs.existsSync(pj)) continue;
-        try {
-          const n = JSON.parse(fs.readFileSync(pj, "utf8")).name;
-          if (removedIds.includes(n)) resurrected.push(n);
-        } catch (e) { /* unreadable package */ }
-      }
+    for (const dir of pkgDirs) {
+      const pj = path.join(dir, ".claude-plugin", "plugin.json");
+      if (!fs.existsSync(pj)) continue;
+      try {
+        const n = JSON.parse(fs.readFileSync(pj, "utf8")).name;
+        if (removedIds.includes(n)) resurrected.push(`${n} (${dir})`);
+      } catch (e) { /* unreadable package */ }
     }
     lines.push(resurrected.length
-      ? `  ⚠  REMOVED plugin is back on disk: ${resurrected.join(", ")} — uninstall again via the Claude Desktop plugin UI`
+      ? `  ⚠  REMOVED plugin is back on disk: ${resurrected.join(", ")} — uninstall again (Claude Desktop plugin UI for an rpm package, \`claude plugin uninstall\` for a CLI one)`
       : `Removed plugins (tombstoned, verified still absent): ${removedIds.join(", ")} ✓`);
   }
 
@@ -650,10 +725,12 @@ function auditPluginSurfaces(registry, prefetch) {
 
 function main() {
   const registry = loadJson(REGISTRY_PATH);
-  const prefetch = loadJson(PREFETCH_PATH);
+  const maps = prefetchMaps();
+  const prefetch = maps[0].json;
   const buckets = classify(registry);
   const crosscheck = crossCheckPrefetch(registry, prefetch);
-  console.log(renderReport(registry, buckets, crosscheck, auditPluginSurfaces(registry, prefetch)));
+  const extra = [...auditProfileMaps(registry, maps), ...auditPluginSurfaces(registry, maps)];
+  console.log(renderReport(registry, buckets, crosscheck, extra));
   if (writeDriftTickets) {
     maybeWriteDriftTickets(registry, buckets);
   }

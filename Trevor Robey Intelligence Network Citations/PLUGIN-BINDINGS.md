@@ -5,7 +5,7 @@
 > someone to say which real tool fills each slot. **203 such placeholders** exist across the
 > installed set. This file is that answer, for this business.
 >
-> **Why it lives in the repo.** The eleven business-domain plugins are materialized per-session
+> **Why it lives in the repo.** The Desktop (rpm) plugins are materialized per-session
 > under `~/Library/Application Support/Claude/local-agent-mode-sessions/<uuid>/<uuid>/rpm/plugin_*/`
 > — session-scoped, cloud-synced, outside git. Editing those packages is neither durable nor
 > reviewable, and the sanctioned `cowork-plugin-customizer` skill only runs in Cowork (it needs
@@ -17,6 +17,82 @@
 >   lanes, prefetch binding, and the Phase-30 citation gate stay defined there. This file points at
 >   it and never restates it.
 > - **Audit:** `node scripts/audit-connector-coverage.js`
+
+---
+
+## Current state — reconciled 2026-10-21
+
+Everything below this section is the dated history of how each verdict was reached. This section is
+what is true today; every line was re-read from disk or from the live session on 2026-10-21.
+
+**Installed and bound (6)** — the audit's "Plugins bound: 6":
+
+| Plugin | Surface · version | Lane | Verdict | Companion |
+|---|---|---|---|---|
+| `bio-research` | rpm · 1.2.0 | research | KEEP — servers for analyst-lane work; the four wet-lab skills stay DO-NOT-USE | `trinc-bioresearch` |
+| `data` | rpm · 1.1.0 | business | KEEP — file-based analysis of the Trial Graveyard Feed; no warehouse exists | `trinc-data` |
+| `pdf-viewer` | rpm · 0.2.0 | infra | KEEP AS-IS | — |
+| `vpai` (vibe-prospecting) | rpm · 0.1.107 | business | KEEP AS-IS, dormant | — |
+| `frontend-design` | CLI · `d1adba47161a` | infra | KEEP AS-IS | `trinc-design` (composed) |
+| `ralph-loop` | CLI · 1.0.0 | infra | KEEP AS-IS | — |
+
+**Uninstalled 2026-08-12, tombstoned 2026-10-21 (7).** The operator removed them in the Desktop
+plugin UI on 08-12; the two JSON files were never updated, so the audit still counted 13 bound plugins
+and its resurrection check was not watching them. They are now `removed` entries in both files (the
+full record of each kept under `record_while_installed`), verified absent from every rpm root:
+
+| Plugin | Successor |
+|---|---|
+| `productivity` | `trinc-productivity` |
+| `operations` | `trinc-operations` (compliance → `trinc-business:compliance-calendar`) |
+| `engineering` | `trinc-engineering` |
+| `marketing` | `trinc-marketing` (brand voice → `trinc-business:brand-check`) |
+| `design` | `trinc-design` |
+| `product-management` | none — DROP (covered by `trinc-productivity` orient/triage and native skills) |
+| `sales` | none — DROP as a plugin; the `~~CRM` binding was corrected instead |
+
+**Installed, deliberately not bound (4):** `cowork-plugin-management` (its customizer cannot run here),
+`math-olympiad` (installed 2026-08-04, flagged unassessed 08-12, assessed now: one competition-math
+skill, no placeholders, no MCP server), and the two output-style plugins `explanatory-output-style` and
+`learning-output-style` (a SessionStart hook each, nothing to bind). `hookify`, flagged on 08-12, is no
+longer installed.
+
+**Local replacements (`trinc-local`, `~/.claude/local-plugins/`, 9, all zero MCP servers):**
+`trinc-engineering` 2.1.1 · `trinc-founder` 1.1.0 · `trinc-bioresearch`, `trinc-business`, `trinc-data`,
+`trinc-design`, `trinc-marketing`, `trinc-operations`, `trinc-productivity` 1.0.0.
+
+**Needs OAuth — the operator's to do (Claude cannot run it).** Plugin skills work regardless.
+
+| Server | What to do |
+|---|---|
+| BioRender | **Authorize — the one worthwhile authorization**, through claude.ai → Settings → Connectors, not the plugin copy. Not done as of 2026-10-21. |
+| `plugin:bio-research:synapse` | Only if Synapse datasets are wanted. |
+| `plugin:bio-research:wiley`, `plugin:bio-research:owkin` | Do not authorize: Wiley is already reachable through the connected Scholar Gateway connector, and Owkin duplicates the engine's own `owkin-mcp`. |
+| `alphaxiv` (host, gated by its mcp-gates shim) | Read alphaXiv's terms in a browser first (they answer 403 to fetchers). After OAuth it must be registered in `config/connector-registry.json` within 7 days. |
+| `plugin:data:` amplitude, amplitude-eu, atlassian, bigquery, definite, hex | Leave unauthenticated: every one maps to a category that resolves to NONE. |
+
+`benchling`, `snowflake` and `databricks` ship with an empty url, so there is nothing to authorize. The
+`gmail` and `google calendar` "already working" servers belonged to the uninstalled plugins and are gone.
+
+**Mail and monitoring bindings.** `~~email` still names Gmail, but no MCP path to the mailbox is live:
+the local gated `gmail` server is out of service by operator decision since 2026-09-05, and Zoho is
+retired (account closed 2026-10-21; DNS checked clean the same day). Hand the operator draft text.
+`~~monitoring` is Falcon, reached only from the Security Everything repo's Falcon-Strike lane since the
+local falcon MCP was retired 2026-10-09.
+
+**Not to be confused: the engine's business *research* profile (2026-10-21).** The engine can now run
+non-biomedical templates (`business-research-pack`, `cost-reduction-analysis`, `market-landscape`) with
+`research_profile: business`. Its four sources (`web-evidence`, `sec-filings-citable`,
+`world-bank-indicators`, `openalex-works`) are registry lane **`research`** — citable and gate-checked —
+and are reached only through `config/tool-prefetch-map.business.json`. They are NOT this file's
+`business` lane (mail, marketing, notes), which stays out of both prefetch maps. No plugin server is in
+either map.
+
+**Audit, 2026-10-21:** `node scripts/audit-connector-coverage.js` — plugin section zero ⚠; 62
+connectors; all 8 tombstones verified absent. The two remaining ⚠ lines are research-coverage notes
+recorded before this pass (5 MEDIUM adapter gaps; 2 needs-investigation vendors). The script does not
+yet read the business prefetch map or scan CLI plugin packages; both were checked by hand (clean), and
+a tested patch is with the hub session.
 
 ---
 
@@ -140,7 +216,7 @@ From the repo `CLAUDE.md`, the continuity board, and `SYSTEM-REALITY.md`:
 
 # The plugins, one by one
 
-## 1. productivity — `business` lane · v1.3.0
+## 1. productivity — `business` lane · v1.3.0 — UNINSTALLED 2026-08-12 (tombstoned 2026-10-21)
 
 **Skills:** `start` · `task-management` · `update` · `memory-management`
 **Connected:** Gmail, Google Calendar. **Needs auth:** Slack, Notion, Asana, Linear, Atlassian, Monday, ClickUp.
@@ -156,7 +232,7 @@ from the board, not from a tracker.
 
 ---
 
-## 2. operations — `business` lane · v1.3.0
+## 2. operations — `business` lane · v1.3.0 — UNINSTALLED 2026-08-12 (tombstoned 2026-10-21)
 
 **Skills:** `capacity-plan` · `change-request` · `compliance-tracking` · `process-doc` ·
 `process-optimization` · `risk-assessment` · `runbook` · `status-report` · `vendor-review`
@@ -180,7 +256,7 @@ have genuine subject matter waiting for them:
 
 ---
 
-## 3. engineering — `business` lane · v1.2.0
+## 3. engineering — `business` lane · v1.2.0 — UNINSTALLED 2026-08-12 (tombstoned 2026-10-21)
 
 **Skills:** `architecture` · `code-review` · `debug` · `deploy-checklist` · `documentation` ·
 `incident-response` · `standup` · `system-design` · `tech-debt` · `testing-strategy`
@@ -231,7 +307,7 @@ worth running before the first paid AWS listing ships.
 
 ---
 
-## 5. product-management — `business` lane · v1.2.0
+## 5. product-management — `business` lane · v1.2.0 — UNINSTALLED 2026-08-12 (tombstoned 2026-10-21)
 
 **Skills:** `competitive-brief` · `metrics-review` · `product-brainstorming` · `roadmap-update` ·
 `sprint-planning` · `stakeholder-update` · `synthesize-research` · `write-spec`
@@ -249,7 +325,7 @@ record is the **Current focus** block on the continuity board.
 
 ---
 
-## 6. sales — `business` lane · v1.3.0
+## 6. sales — `business` lane · v1.3.0 — UNINSTALLED 2026-08-12 (tombstoned 2026-10-21)
 
 **Skills:** `account-research` · `call-prep` · `call-summary` · `competitive-intelligence` ·
 `create-an-asset` · `daily-briefing` · `draft-outreach` · `forecast` · `pipeline-review`
@@ -268,7 +344,7 @@ Pricing comes from `REVENUE_PLAYBOOK.md` §2 and is never invented.
 
 ---
 
-## 7. marketing — `business` lane · v1.2.0
+## 7. marketing — `business` lane · v1.2.0 — UNINSTALLED 2026-08-12 (tombstoned 2026-10-21)
 
 **Skills:** `brand-review` · `campaign-plan` · `competitive-brief` · `content-creation` ·
 `draft-content` · `email-sequence` · `performance-report` · `seo-audit`
@@ -292,7 +368,7 @@ Pricing comes from `REVENUE_PLAYBOOK.md` §2 and is never invented.
 
 ---
 
-## 8. design — `business` lane · v1.2.0
+## 8. design — `business` lane · v1.2.0 — UNINSTALLED 2026-08-12 (tombstoned 2026-10-21)
 
 **Skills:** `accessibility-review` · `design-critique` · `design-handoff` · `design-system` ·
 `research-synthesis` · `user-research` · `ux-copy`
@@ -421,6 +497,8 @@ grinding a dataset-validation pass over the Trial Graveyard Feed.
 |---|---|
 | ~~`desktop-commander` v0.2.0~~ | **UNINSTALLED 2026-07-28** — superseded by FilesystemPlus. See the section below; the "ungoverned path to the vault" concern turned out to be live, not hypothetical. |
 | `cowork-plugin-management` v0.2.2 | Plugin-authoring tooling. Its `cowork-plugin-customizer` skill **cannot run on this surface** — it requires Cowork's `mnt/.local-plugins` mounts, absent in CLI Claude Code. That limitation is exactly why these bindings are repo-owned rather than stamped into the plugin packages. |
+| `math-olympiad` (CLI, `d1adba47161a`) | **Recorded 2026-10-21.** Installed by the operator 2026-08-04, flagged "not assessed, not bound" on 08-12. One competition-math skill, no `~~category` placeholders, no MCP server (no `.mcp.json`, nothing inline). Nothing to bind; not business tooling. |
+| `explanatory-output-style`, `learning-output-style` (CLI, 1.0.0) | **Recorded 2026-10-21.** Output styles: one SessionStart hook each, no skills, no MCP server, no placeholders. Nothing to bind. |
 
 ---
 
@@ -529,7 +607,7 @@ carry no PMID/NCT/ChEMBL/DOI, so nothing it returns can pass the citation gate.
 
 ---
 
-## 🗑️ PENDING OPERATOR UNINSTALL — nine rpm plugins (2026-08-11)
+## ✅ DONE — seven rpm plugins uninstalled 2026-08-12, tombstoned 2026-10-21 (was: PENDING OPERATOR UNINSTALL — nine rpm plugins, 2026-08-11)
 
 All verdicts are final and every replacement is installed. The nine dropped Desktop/Cowork plugins
 **cannot be uninstalled from the CLI** — re-verified 2026-08-11 (`claude plugin uninstall
@@ -574,6 +652,11 @@ resurrection check starts verifying they stay gone (the desktop-commander patter
 deliberately NOT added before the uninstall, because the audit would fire nine standing warnings
 for a known pending action — the alarm-fatigue failure this stack avoids on principle.
 
+**Tombstoned 2026-10-21.** The uninstall was recorded here on 08-12 but the two JSON files kept all
+thirteen as bound until today. The seven are now `removed` entries in both
+`config/plugin-bindings.json` and `config/connector-registry.json`, and the audit reports
+`Removed plugins (tombstoned, verified still absent)` for all eight tombstones.
+
 ---
 
 ## Operator remainder
@@ -582,7 +665,8 @@ The plugins' *skills* work today with no authentication at all — only the MCP 
 which the operator must complete in claude.ai connector settings or via `/mcp` in an interactive
 session. Claude cannot run those flows non-interactively.
 
-> **Counting caveat.** The 13 plugins reference **97 server slots but only 46 unique servers** —
+> **Counting caveat** *(figures from 2026-07-28; on 2026-10-21 the six bound plugins hold 17 slots and
+> their packages ship 20 unique servers)*. The 13 plugins reference **97 server slots but only 46 unique servers** —
 > `slack`, `notion`, `atlassian`, `gmail`, and `google calendar` each appear in 7 plugins. The
 > per-plugin `mcp_connected` / `mcp_needs_auth` numbers in the registry are *slot* counts; never sum
 > them into a server total.
@@ -609,7 +693,8 @@ Datadog, PagerDuty, Benchling, Fireflies — every one maps to a category that r
 explicit **NONE**. That is the correct end state, not a gap.
 
 Already working, no auth needed: `pubmed`, `chembl`, `c-trials`, `biorxiv`, `consensus`, `ot`,
-`pdf`, `gmail`, `google calendar`.
+`pdf`. *(2026-10-21: `gmail` and `google calendar` struck — they were servers of the plugins
+uninstalled 2026-08-12. The current needs-auth list is in "Current state" at the top.)*
 
 ---
 
