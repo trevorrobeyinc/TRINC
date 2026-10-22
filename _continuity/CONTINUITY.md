@@ -251,6 +251,31 @@ forward below.
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 
+### 2026-10-21T23:53Z · Desktop Claude Code (hub) · **Four stale August sessions replaced by siblings; the business picture is one page again**
+- **Did:** The operator asked to bring "Google Workspace setup check", "Google Workspace AWS setup handoff",
+  "Business plugin configuration" and "TR-INC launch" (Aug 12–20, outside the session nest) in as siblings and
+  finish their work. Four sibling sessions took them over with disjoint file ownership (no commits, no shared-file
+  edits) and reported back; the hub folded their deltas into `../STATUS.md`. Findings that matter: **Google
+  Workspace payment FAILED — suspension 2026-11-02 would take business mail and the AWS root email (`aws@`) down**;
+  agency-mail search of `trevor@` = zero hits (notices come by post; the Zoho-era mailbox was not searched); LLC-12
+  now needs bizfile "User Access"; FTB Web Pay entity ID is `20260217250`; Graveyard Feed refresh reviewed with 0
+  problems and listing files finalized (not uploaded; price back on hold); plugin bindings + connector registry
+  reconciled (6 bound, 8 tombstoned, 62 connectors, plugin audit clean); Zoho DNS confirmed clean; GAM7 declined.
+- **State:** done and committed (signed batch, operator's go). The two tested sibling patches — the
+  feed-generator copy fix (from `claude/festive-bun-087452`) and the connector-audit fix — were applied on the
+  operator's go (feed tests 13/13, audit clean). The remaining listing/generator follow-ups are DEFERRED by the
+  operator until the business-engine work is set up (list in `../STATUS.md`).
+- **Next:** operator queue in `../STATUS.md`, Workspace payment first.
+- **Touches:** `STATUS.md`, root `CLAUDE.md` (plugin count), `Claude/CLAUDE.md` + `ops/tr-suite/manifest.json`
+  (trinc-content now gated); siblings: `03-platforms/{google-workspace,aws-data-exchange,business-identity-map.md}`,
+  `00-business-formation/**` (+ new `filing-walkthrough-2026-10.md`), `PLUGIN-BINDINGS.md`,
+  `config/{plugin-bindings,connector-registry}.json`, `CONNECTOR-ALIGNMENT.md`, `product-strategy/`,
+  `workspace/aws-marketplace-listing/trial-graveyard-feed/*`; outside the repo: two entries in
+  `~/Security Everything/docs/browser-session-history/2026-10.md` + `INDEX.md` (uncommitted there).
+- **For whoever's next:** the four August originals may be deleted — their work lives in the siblings
+  ("workspace-setup", "aws-obligations", "plugin-config", "first-listing"). The Claude Browser pane is per
+  conversation: a sibling's sign-in does not carry over.
+
 ### 2026-10-21T10:45Z · Desktop Claude Code (side session) · **Zoho retired by operator decision; everything moves to Google Workspace**
 - **Decided (operator, 2026-10-21):** retire Zoho completely, and strip both Zoho MCP servers from every security-gate list (no
   fail-safe deny). Never register `zoho-trinc` or `zoho-mail` again: a new registration would be ungated.

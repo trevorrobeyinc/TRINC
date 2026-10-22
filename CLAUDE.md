@@ -90,8 +90,11 @@ Historical note — **local-only as of 2026-05-26.** The private GitHub remote `
 > `marketing:performance-report` / `seo-audit` (no analytics, no SEO tool), and
 > `product-management:metrics-review` (no product analytics).
 >
-> 13 plugins are bound; `desktop-commander` and `cowork-plugin-management` are installed and
-> deliberately **not** bound. `bio-research`'s MCP servers are Claude-host **duplicates** of
+> **6 plugins are bound** (`bio-research`, `data`, `frontend-design`, `pdf-viewer`, `ralph-loop`, `vpai` —
+> reconciled 2026-10-21); 8 removed plugins (`design`, `desktop-commander`, `engineering`, `marketing`,
+> `operations`, `product-management`, `productivity`, `sales`) are tombstoned and watched for resurrection in
+> `PLUGIN-BINDINGS.md`; `cowork-plugin-management`, `explanatory-output-style`,
+> `learning-output-style` and `math-olympiad` are installed and deliberately **not** bound. `bio-research`'s MCP servers are Claude-host **duplicates** of
 > already-registered engine connectors — never double-register them or add them to
 > `config/tool-prefetch-map.json`. Verify with `node scripts/audit-connector-coverage.js` from the
 > business folder; the plugin section must show zero ⚠.
