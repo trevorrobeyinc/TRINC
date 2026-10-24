@@ -252,6 +252,22 @@ forward below.
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 
+### 2026-10-24T10:00Z · Desktop Claude Code (side session) · **Dependabot alerts triaged; nine lockfiles refreshed in range**
+- **Did:** rebuilt GitHub's 497 alerts locally (`npm audit` over the 11 lockfiles: 489) and fixed what needed no
+  major: nine lockfiles refreshed in range (MCP SDK → 1.32.2 everywhere, express/hono/fast-uri/qs chain,
+  transitive majors held on patched lines). 489 → 207 locally; outside the untouched Copilot fork, 331 → 49. No
+  `package.json`, source, `main.js` or `dist/` changed; the engine's lockfile and locked cache untouched. Report:
+  `ops/security/dependency-audit-2026-10.md`.
+- **State:** done, committed, not pushed.
+- **Next:** operator: `git -C /Users/myhome/TRINC push origin main`; then decide the 11 items in the report's
+  "Decisions for the operator" (zod 4, vitest 5, the transformers port, the fork, the submodule, the staged-copy
+  installers); run `npm run test:profiles` in the adapter once with Obsidian open.
+- **Touches:** nine `package-lock.json` files under `Claude/` and `Copilot-Everything/bridges/`, `ops/security/`.
+- **For whoever's next:** `obsidian-stdio-adapter/node_modules` is a tracked symlink to the bridge's
+  `node_modules`, so the bridge's lockfile is the live door's lockfile. `searxng-search` and `trinc-content`
+  keep their old dependencies until their `install-connector.sh` re-runs.
+- **SCOPE NOTE:** repo infra (dependency hygiene); "Current focus" untouched.
+
 ### 2026-10-24T09:40Z · Desktop Claude Code · **Datarade deferred; "verified citations" overclaim cleared from collateral**
 - **Decided (operator, 2026-10-24):** Datarade is deferred "until the business is actually up and running".
   Datarade declined the application on 2026-05-20 ("business not yet established"). The files are parked,
