@@ -106,3 +106,49 @@ Moved to `~/.Trash/trinc-reorg-2026-10-23/<original path>`; the operator empties
 - **Personal plugins (D3)** → `~/Code/obsidian-origin-nest` (`a837b46`), `~/Code/obsidian-contextual-wiki-definitions` (`6797252`), `~/Code/obsidian-claude-console-mirror` (`52c2eb8`, given a `.gitignore`). `manifest.json` lists them as `external`, so `deploy.sh` no longer manages them; the vault copies stay deployed.
 - **speckit specs (D11)** → `docs/history/speckit-specs-2026-05/`. **Changed from the plan:** the `003…/audits/outbound-https-2026-05-13.md` audit stays with them instead of going to Security Everything — it audits this repo's code against this repo's HTTPS-only lint, not host hardening. speckit itself writes new specs to a top-level `specs/`; start at 005 with `--number 5`.
 - **Branches (D10)**: branches `claude/{festive-bun-087452,beautiful-sanderson-339997,priceless-tesla-c90ab5}` deleted (all 0 commits ahead of `main`). The `festive-bun-087452` worktree held 3 uncommitted files, each byte-identical to `main` (the 10-21 graveyard-feed generator fix); the folder went to the Trash, not `rm`, and `git worktree prune` dropped the record.
+
+## Phase 4 — renamed to TRINC (done 2026-10-23)
+
+- **Folder:** `/Users/myhome/TrevClaw-Obsidianodus` → `/Users/myhome/TRINC` (operator ran
+  `~/.claude/backups/trinc-rename-2026-10/rename_to_trinc.py --apply`, 20:31 PDT). The old path is a compatibility
+  symlink until 14 days of clean use; its removal checklist is Phase 8 in the plan.
+- **GitHub:** the operator renamed the repo to `trevorrobeyinc/TRINC`; `origin` repointed; pushed `3812925` + `a0d25d7`.
+- **In-repo:** every functional path (`3812925`); `scripts/TrevClaw-Obsidianodus-backup.sh` → `scripts/trinc-backup.sh`
+  (bundle prefix `TRINC-FULL-backup-`). Dated history keeps the old name on purpose.
+
+## Phase 5 — one door for Claude (done 2026-10-23)
+
+**Operator decisions (2026-10-23, ~21:15 PDT), asked before any change:**
+
+| # | Question | Answer |
+|---|---|---|
+| P5-a | Keep Command Center's `video_pipeline_run`/`video_pipeline_status` (Copilot and Raycast start the course-video pipeline through them)? | **Keep them.** They were never in Claude's door. |
+| P5-b | What does Raycast chat use once Claude has its door? | **Raycast keeps its own door** (the adapter's `raycast` profile). Re-register it in Raycast with the TRINC path before the old-path symlink goes. |
+| P5-c | Bar the Viz renders during Ralph loops too? | **Leave them open.** They spend nothing, need no YubiKey, and write only into `Visualizations/`; sub-agents stay barred from the whole door by the hook's prefix match. |
+
+**Adopted:** Claude's one Obsidian door is the stdio adapter's `openclaw` profile (v0.4.0, server
+`openclaw-obsidian`): run dispatch/status/results plus read-only `obsidian_search_notes`/`obsidian_read_note` on
+`:8799`, and the 12 `viz_*` renders on `:8800`. Viz schemas are taken live from `:8800` and six write-target
+properties (`folder`, `targetNote`, `targetCanvas`, `useActiveTab`, `useActiveNote`, `overwrite`) are stripped and
+refused, so Claude's renders land only in `Visualizations/` (D5). Checked by `npm run test:profiles` (52 checks,
+including a source scan that fails if Viz Studio adds an unblocked write-target property).
+
+**Declined again, do not re-propose without new evidence:**
+- **One plugin owns one port for everything** (the plan's Option 2): it would rename or merge plugins whose ids are
+  frozen, and break Copilot's `mcp_command-center_*` / `mcp_viz-studio_*` tool ids and token paths.
+- **Merging the `:8798`/`:8799`/`:8800` daemons** (Option 3): declined 2026-08-20 and again now. Aggregation stays at
+  the client edge, in the adapter.
+
+**Removed from the tree** (restore any of them with `git show a0d25d7:<path>`):
+- `Trevor Robey Intelligence Network Citations/openclaw-bridge/mcp/viz-bridge-mcp/index.js` and
+  `tests/mcp/viz-bridge-mcp.test.js` (12 tests): built 2026-08-16, never called by any deliverable. The
+  `researchRuntime.vizBridge` line in `scripts/_workflow-runtime.js` went with them; `connector-registry.json`
+  `viz-bridge` is now a superseded tombstone. Engine suite 1343 → **1331**, all pass.
+- `Copilot-Everything/bridges/obsidian-copilot-bridge/src/server/tools/researchPublish.ts` and
+  `src/tests/researchPublish.spec.ts`, plus `scripts/publish-to-vault.js` and `scripts/atlas-stub-creator.js` in the
+  engine folder: the `research_publish` lane, tombstoned since 2026-09-22 (the engine writes run notes itself).
+  `research_notify` stays. The stale compiled files went to `~/.Trash/trinc-reorg-2026-10-23/bridge-dist-research-publish/`.
+  The running `:8798` bridge drops the tool when Obsidian next restarts it.
+- The adapter's `claude` profile (default removed; the env var is now required) and its last registration, the
+  `obsidian-bridge` entry in `Copilot-Everything/.mcp.json`: unused since 2026-10-07, and an ungated write lane
+  (that server name was in no gate matcher).

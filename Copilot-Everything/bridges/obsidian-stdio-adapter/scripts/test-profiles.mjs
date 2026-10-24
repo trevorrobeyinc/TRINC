@@ -4,10 +4,12 @@
 //   npm run test:profiles
 //
 // Asserts:
-//   - "claude" profile lists EXACTLY its 7 canonical vault tools (no drift —
-//     Claude Desktop's surface must never change as a side effect of raycast work).
 //   - "raycast" profile lists EXACTLY 10 tools (7 vault + raycast_daily_open +
 //     2 video tools proxied to the Command Center bridge on :8799).
+//   - "openclaw" profile (Claude's one door since 2026-10-23) lists EXACTLY its 15 :8799 tools plus
+//     the 12 allowlisted Viz Studio tools, never offers a Viz property that writes outside
+//     Visualizations/, and refuses one on a call.
+//   - The retired "claude" profile, and a missing profile, refuse to start.
 //   - When the Command Center bridge is reachable, a dry_run video_pipeline_run
 //     through the adapter returns a deeplink of the expected shape (no dispatch).
 //     When it is not reachable (Obsidian closed), that check is SKIPPED loudly
@@ -28,7 +30,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ADAPTER = resolve(__dirname, "../index.mjs");
 
-const EXPECTED_CLAUDE = [
+const EXPECTED_VAULT = [
   "obsidian_open_vault",
   "obsidian_create_note",
   "obsidian_append_note",
@@ -38,7 +40,7 @@ const EXPECTED_CLAUDE = [
   "obsidian_health",
 ];
 const EXPECTED_RAYCAST = [
-  ...EXPECTED_CLAUDE,
+  ...EXPECTED_VAULT,
   "raycast_daily_open",
   "video_pipeline_run",
   "video_pipeline_status",
@@ -46,6 +48,7 @@ const EXPECTED_RAYCAST = [
 const DEEPLINK_SHAPE =
   /^raycast:\/\/extensions\/marcjulian\/obsidian-bridge-fork\/videoTranscribeRunnerCommand\?arguments=/;
 const COMMAND_CENTER_HEALTHZ = "https://127.0.0.1:8799/healthz";
+const VIZ_HEALTHZ = "https://127.0.0.1:8800/healthz";
 
 function caPath() {
   return (
@@ -124,7 +127,7 @@ function toolNames(responses) {
   return (responses.get(2)?.result?.tools ?? []).map((t) => t.name).sort();
 }
 
-function commandCenterUp() {
+function bridgeUp(healthz) {
   return new Promise((resolveUp) => {
     let ca;
     try {
@@ -133,7 +136,7 @@ function commandCenterUp() {
       return resolveUp(false);
     }
     const req = nodeHttps.get(
-      COMMAND_CENTER_HEALTHZ,
+      healthz,
       { agent: new nodeHttps.Agent({ ca }), timeout: 3000 },
       (res) => {
         res.resume();
@@ -159,14 +162,39 @@ function check(label, fn) {
   }
 }
 
-// --- claude profile: exact 7-tool surface, no drift -------------------------
-const claude = await runAdapter("claude");
-check("claude profile lists exactly the 7 canonical vault tools", () => {
-  assert.deepEqual(toolNames(claude), [...EXPECTED_CLAUDE].sort());
-});
+// --- profile selection: "claude" is retired and there is no default --------
+/** Start the adapter with an env, wait for it to exit (or time out), and return code + stderr. */
+function runToExit(env, waitMs = 8000) {
+  return new Promise((resolveExit) => {
+    const proc = spawn(process.execPath, [ADAPTER], { env, stdio: ["ignore", "ignore", "pipe"] });
+    let stderr = "";
+    proc.stderr.on("data", (c) => (stderr += c.toString("utf8")));
+    const timer = setTimeout(() => {
+      proc.kill();
+      resolveExit({ code: "timeout", stderr });
+    }, waitMs);
+    proc.on("exit", (code) => {
+      clearTimeout(timer);
+      resolveExit({ code, stderr });
+    });
+  });
+}
+const { OBSIDIAN_STDIO_PROFILE: _unused, ...envWithoutProfile } = process.env;
+for (const [label, env] of [
+  ["the retired claude profile refuses to start", { ...process.env, OBSIDIAN_STDIO_PROFILE: "claude" }],
+  ["a missing profile refuses to start (there is no default)", envWithoutProfile],
+]) {
+  const exit = await runToExit(env);
+  check(label, () => {
+    assert.notEqual(exit.code, 0, "adapter started anyway");
+    assert.notEqual(exit.code, "timeout", "adapter hung instead of refusing");
+    assert.match(exit.stderr, /must be "raycast" or "openclaw"/);
+  });
+}
 
 // --- raycast profile: exact 10-tool surface ----------------------------------
-const ccUp = await commandCenterUp();
+const ccUp = await bridgeUp(COMMAND_CENTER_HEALTHZ);
+const vizUp = await bridgeUp(VIZ_HEALTHZ);
 // Inert placeholder id on an allowlisted host — the deeplink-shape check does
 // not care about URL contents, and nothing is dispatched (dry_run).
 const FIXTURE_URL = "https://www.youtube.com/watch?v=test-fixture-0000";
@@ -259,8 +287,11 @@ assertReject(6, "2 MB argument payload rejected with size error", "arguments exc
 // Safety rule for this section: it NEVER sends a non-dry-run obsidian_openclaw_run_workflow, and it
 // only sends a dry_run one to a LIVE :8799 after a read-only version probe shows the daemon knows
 // the parameter (a daemon that predates dry_run would ignore it and try to start a real run).
-const EXPECTED_OPENCLAW = [
+// The :8799 tools, mirrored by hand in the adapter (two read-only vault tools added 2026-10-23, D5).
+const EXPECTED_OPENCLAW_CC = [
   "obsidian_health",
+  "obsidian_search_notes",
+  "obsidian_read_note",
   "obsidian_openclaw_templates",
   "obsidian_openclaw_run_workflow",
   "obsidian_openclaw_status",
@@ -274,14 +305,30 @@ const EXPECTED_OPENCLAW = [
   "obsidian_openclaw_publish_vault",
   "obsidian_openclaw_research_memory_search",
 ];
+// The Viz Studio (:8800) allowlist (2026-10-23, D4 + D5); schemas come live from the daemon.
+const EXPECTED_VIZ = [
+  "viz_health",
+  "viz_mermaid",
+  "viz_chart",
+  "viz_canvas",
+  "viz_graph_snapshot",
+  "viz_guided",
+  "viz_perceptual_map",
+  "viz_diagram",
+  "viz_stat_tiles",
+  "viz_mockup",
+  "viz_interactive",
+  "viz_render_svg",
+];
+const EXPECTED_OPENCLAW = [...EXPECTED_OPENCLAW_CC, ...EXPECTED_VIZ];
+// Viz properties that write outside Visualizations/: never advertised and always refused on this door.
+const VIZ_BLOCKED = ["folder", "targetNote", "targetCanvas", "useActiveTab", "useActiveNote", "overwrite"];
 // Everything the :8799 daemon (or the :8798 vault bridge) offers that this lane must NOT surface.
 const FORBIDDEN_ON_OPENCLAW = [
   "obsidian_execute_command",
   "obsidian_create_note",
   "obsidian_append_note",
   "obsidian_open_vault",
-  "obsidian_read_note",
-  "obsidian_search_notes",
   "obsidian_dev_console_eval",
   "obsidian_dev_console_logs",
   "obsidian_dev_console_errors",
@@ -320,7 +367,10 @@ const resultJson = (responses, id) => {
 
 // (1) Adapter-local rejects and a forced-dead upstream. Nothing here can reach a live daemon: the
 // rejects fail before any network call and the upstream URL is a closed loopback port.
-const DEAD_UPSTREAM = { OBSIDIAN_STDIO_COMMAND_CENTER_URL: "https://127.0.0.1:9" };
+const DEAD_UPSTREAM = {
+  OBSIDIAN_STDIO_COMMAND_CENTER_URL: "https://127.0.0.1:9",
+  OBSIDIAN_STDIO_VIZ_URL: "https://127.0.0.1:9",
+};
 const VALID_RUN = { template: "general-research-pack", inputs: { topic: "fixture" } };
 const openclawLocal = await runAdapter(
   "openclaw",
@@ -341,14 +391,35 @@ const openclawLocal = await runAdapter(
     callReq(22, "obsidian_health", {}),
     callReq(23, "obsidian_openclaw_run_workflow", { ...VALID_RUN, dry_run: true }),
     callReq(24, "obsidian_openclaw_status", {}),
+    // Read-only vault tools: path escapes and stray keys are refused before any call.
+    callReq(25, "obsidian_read_note", { path: "../outside.md" }),
+    callReq(26, "obsidian_read_note", { path: "/etc/hosts" }),
+    callReq(27, "obsidian_read_note", { path: "Note.md", vaultRoot: "/" }),
+    callReq(28, "obsidian_search_notes", { query: "x", limit: 500 }),
+    callReq(29, "obsidian_create_note", { path: "x.md", content: "x" }),
+    // Viz: every property that writes outside Visualizations/ is refused, and so is a path-like fileName.
+    callReq(30, "viz_mermaid", { source: "flowchart TD\n A-->B", folder: "Daily" }),
+    callReq(31, "viz_chart", { title: "t", targetNote: "Some Note" }),
+    callReq(32, "viz_guided", { title: "t", useActiveTab: true }),
+    callReq(33, "viz_canvas", { title: "t", targetCanvas: "Board.canvas", overwrite: true }),
+    callReq(34, "viz_mermaid", { source: "flowchart TD\n A-->B", fileName: "../escape" }),
+    callReq(35, "viz_health", {}),
   ],
   DEAD_UPSTREAM,
 );
 
-check("openclaw profile lists exactly the 13 allowlisted tools", () => {
+check("openclaw profile lists exactly its 15 :8799 tools and the 12 Viz tools", () => {
   assert.deepEqual(toolNames(openclawLocal), [...EXPECTED_OPENCLAW].sort());
 });
-check("openclaw profile exposes none of the 25 forbidden vault/exec/zk/video/task tools", () => {
+check("with :8800 down, every Viz tool is listed as a stub that names the Visualizations/ rule", () => {
+  const viz = (openclawLocal.get(2)?.result?.tools ?? []).filter((t) => EXPECTED_VIZ.includes(t.name));
+  assert.equal(viz.length, EXPECTED_VIZ.length);
+  for (const t of viz) {
+    assert.deepEqual(Object.keys(t.inputSchema.properties ?? {}), [], `${t.name} stub should have no properties`);
+    assert.ok(t.description.includes("Visualizations/"), `${t.name} stub description lacks the rule`);
+  }
+});
+check("openclaw profile exposes none of the 23 forbidden vault-write/exec/zk/video/task tools", () => {
   const listed = new Set(toolNames(openclawLocal));
   const leaked = FORBIDDEN_ON_OPENCLAW.filter((n) => listed.has(n));
   assert.deepEqual(leaked, []);
@@ -386,6 +457,22 @@ assertOpenclawReject(18, "history rejects an out-of-range limit", "limit must be
 assertOpenclawReject(19, "a no-argument tool rejects stray arguments", "does not accept: extra");
 assertOpenclawReject(20, "run_workflow rejects a non-boolean dry_run", "dry_run must be a boolean");
 assertOpenclawReject(21, "research_memory_search rejects an over-long query", "query exceeds 500 characters");
+assertOpenclawReject(25, "read_note rejects a '..' path", "must be vault-relative");
+assertOpenclawReject(26, "read_note rejects an absolute path", "must be vault-relative");
+assertOpenclawReject(27, "read_note rejects a stray vaultRoot key", "does not accept: vaultRoot");
+assertOpenclawReject(28, "search_notes rejects an out-of-range limit", "limit must be an integer from 1 to 100");
+assertOpenclawReject(29, "obsidian_create_note stays Unknown on Claude's door (read-only vault)", "Unknown tool: obsidian_create_note");
+assertOpenclawReject(30, "viz refuses folder (no writing outside Visualizations/)", "folder not available on this door");
+assertOpenclawReject(31, "viz refuses targetNote (no appending to an existing note)", "targetNote not available on this door");
+assertOpenclawReject(32, "viz refuses useActiveTab (no writing into the open note or canvas)", "useActiveTab not available on this door");
+assertOpenclawReject(33, "viz refuses targetCanvas and overwrite together", "targetCanvas, overwrite not available on this door");
+assertOpenclawReject(34, "viz refuses a path-like fileName", "fileName must be a plain base name");
+check("dead upstream: viz_health degrades to obsidian_not_running and names the Viz Studio bridge", () => {
+  const body = resultJson(openclawLocal, 35);
+  assert.equal(body?.error, "obsidian_not_running", `got: ${resultText(openclawLocal, 35).slice(0, 240)}`);
+  assert.ok(body?.message?.includes("Viz Studio bridge"), "message should name the Viz Studio bridge");
+  assert.ok(/open Obsidian.*viz_health/i.test(body?.action ?? ""), "action should send the caller to viz_health");
+});
 
 for (const [id, label] of [
   [22, "dead upstream: obsidian_health degrades to obsidian_not_running"],
@@ -404,7 +491,7 @@ for (const [id, label] of [
 
 // (2) Least privilege: the openclaw lane must start and list tools with the :8798 config UNREADABLE.
 // OBSIDIAN_MCP_CONFIG is the first candidate the vault profiles try and it is read + JSON.parsed, so
-// pointing it at a file that is not JSON crashes "claude" but must not touch "openclaw".
+// pointing it at a file that is not JSON crashes "raycast" but must not touch "openclaw".
 const POISON_DIR = mkdtempSync(join(tmpdir(), "stdio-adapter-poison-"));
 const POISON_CONFIG = join(POISON_DIR, "not-a-config.json");
 writeFileSync(POISON_CONFIG, "{ this is not json — the openclaw profile must never read it", "utf8");
@@ -413,25 +500,10 @@ try {
   check("openclaw starts and lists its tools even when the :8798 config is unreadable (it never loads the :8798 token)", () => {
     assert.deepEqual(toolNames(poisoned), [...EXPECTED_OPENCLAW].sort());
   });
-  const controlExit = await new Promise((resolveExit) => {
-    const proc = spawn(process.execPath, [ADAPTER], {
-      env: { ...process.env, OBSIDIAN_STDIO_PROFILE: "claude", OBSIDIAN_MCP_CONFIG: POISON_CONFIG },
-      stdio: ["ignore", "ignore", "pipe"],
-    });
-    let stderr = "";
-    proc.stderr.on("data", (c) => (stderr += c.toString("utf8")));
-    const timer = setTimeout(() => {
-      proc.kill();
-      resolveExit({ code: "timeout", stderr });
-    }, 8000);
-    proc.on("exit", (code) => {
-      clearTimeout(timer);
-      resolveExit({ code, stderr });
-    });
-  });
-  check("negative control: the SAME poisoned config does crash the claude profile (so the check above is meaningful)", () => {
-    assert.notEqual(controlExit.code, 0, "claude profile unexpectedly survived an unreadable config");
-    assert.notEqual(controlExit.code, "timeout", "claude profile hung instead of failing on the bad config");
+  const controlExit = await runToExit({ ...process.env, OBSIDIAN_STDIO_PROFILE: "raycast", OBSIDIAN_MCP_CONFIG: POISON_CONFIG });
+  check("negative control: the SAME poisoned config does crash the raycast profile (so the check above is meaningful)", () => {
+    assert.notEqual(controlExit.code, 0, "raycast profile unexpectedly survived an unreadable config");
+    assert.notEqual(controlExit.code, "timeout", "raycast profile hung instead of failing on the bad config");
   });
 } finally {
   rmSync(POISON_DIR, { recursive: true, force: true });
@@ -440,10 +512,24 @@ try {
 // (3) Static drift guard: every mirrored tool name must still exist in the Command Center source.
 // (Names only — property-level drift is covered by the live checks below when :8799 is up.)
 const CC_SOURCE = resolve(__dirname, "../../../../Claude/obsidian-command-center/src/bridge/mcp-bridge-server.ts");
-check("every openclaw tool name still exists in the Command Center bridge source", () => {
+check("every openclaw :8799 tool name still exists in the Command Center bridge source", () => {
   const source = readFileSync(CC_SOURCE, "utf8");
-  const missing = EXPECTED_OPENCLAW.filter((n) => !source.includes(`name: "${n}"`));
+  const missing = EXPECTED_OPENCLAW_CC.filter((n) => !source.includes(`name: "${n}"`));
   assert.deepEqual(missing, []);
+});
+const VIZ_SOURCE = resolve(__dirname, "../../../../Claude/obsidian-viz-studio/src/bridge/toolSchemas.ts");
+check("every allowlisted Viz tool name still exists in the Viz Studio schema source", () => {
+  const source = readFileSync(VIZ_SOURCE, "utf8");
+  const missing = EXPECTED_VIZ.filter((n) => !source.includes(`name: "${n}"`));
+  assert.deepEqual(missing, []);
+});
+// A property Viz Studio adds later that picks a write target (target*, folder, useActive*, overwrite) must
+// be blocked on this door in the same change, or Claude could write outside Visualizations/ through it.
+check("every write-target property in the Viz Studio schemas is on the door's block list", () => {
+  const source = readFileSync(VIZ_SOURCE, "utf8");
+  const keys = new Set([...source.matchAll(/^\s+([A-Za-z]+): \{/gm)].map((m) => m[1]));
+  const writeTargets = [...keys].filter((k) => /^(target[A-Z]\w*|folder|useActive\w*|overwrite)$/.test(k));
+  assert.deepEqual(writeTargets.filter((k) => !VIZ_BLOCKED.includes(k)).sort(), []);
 });
 check("the Command Center source supports dry_run on run_workflow and post_run_done on status", () => {
   const source = readFileSync(CC_SOURCE, "utf8");
@@ -494,8 +580,44 @@ if (ccUp) {
         "could be ignored and start a run. Deploy the upgraded Command Center build, then re-run.",
     );
   }
+  // Read-only vault lane (D5): one search, then read the first hit. Writes nothing.
+  const vaultSearch = await runAdapter("openclaw", [callReq(50, "obsidian_search_notes", { query: "the", limit: 1 })]);
+  const firstHit = resultJson(vaultSearch, 50)?.results?.[0]?.path;
+  check("live :8799 answers a read-only search through the openclaw lane", () => {
+    assert.notEqual(vaultSearch.get(50)?.result?.isError, true, resultText(vaultSearch, 50).slice(0, 200));
+    assert.ok(typeof firstHit === "string" && firstHit.length > 0, "search returned no note path");
+  });
+  if (typeof firstHit === "string") {
+    const vaultRead = await runAdapter("openclaw", [callReq(51, "obsidian_read_note", { path: firstHit })]);
+    check("live :8799 reads that note back through the openclaw lane", () => {
+      assert.notEqual(vaultRead.get(51)?.result?.isError, true, resultText(vaultRead, 51).slice(0, 200));
+      assert.equal(typeof resultJson(vaultRead, 51)?.content, "string");
+    });
+  }
 } else {
   console.log("SKIP  live openclaw checks — Command Center bridge (:8799) unreachable (is Obsidian open?)");
+}
+
+// (5) Live Viz Studio checks against a reachable :8800. Read-only: viz_health renders nothing.
+if (vizUp) {
+  const vizLive = await runAdapter("openclaw", [callReq(60, "viz_health", {})]);
+  const vizTools = (vizLive.get(2)?.result?.tools ?? []).filter((t) => EXPECTED_VIZ.includes(t.name));
+  check("live :8800: every allowlisted Viz tool is listed with its real schema, not a stub", () => {
+    assert.equal(vizTools.length, EXPECTED_VIZ.length);
+    const stubs = vizTools.filter((t) => t.description.includes("did not answer")).map((t) => t.name);
+    assert.deepEqual(stubs, []);
+  });
+  check("live :8800: no advertised Viz schema offers a property that writes outside Visualizations/", () => {
+    const leaks = vizTools.flatMap((t) =>
+      Object.keys(t.inputSchema.properties ?? {}).filter((k) => VIZ_BLOCKED.includes(k)).map((k) => `${t.name}.${k}`),
+    );
+    assert.deepEqual(leaks, []);
+  });
+  check("live viz_health answers through the openclaw lane", () => {
+    assert.notEqual(vizLive.get(60)?.result?.isError, true, resultText(vizLive, 60).slice(0, 200));
+  });
+} else {
+  console.log("SKIP  live Viz checks — Viz Studio bridge (:8800) unreachable (is Obsidian open?)");
 }
 
 process.exit(failures === 0 ? 0 : 1);

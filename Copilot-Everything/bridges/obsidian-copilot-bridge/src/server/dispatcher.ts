@@ -14,7 +14,6 @@ import { searchNotesTool } from "./tools/searchNotes";
 import { obsidianHealthTool } from "./tools/obsidianHealth";
 import { executeCommandTool } from "./tools/executeCommand";
 import { miyoSearchContextTool } from "./tools/miyoSearchContext";
-import { researchPublishTool } from "./tools/researchPublish";
 import { researchNotifyTool } from "./tools/researchNotify";
 import {
   devConsoleLogsTool,
@@ -48,10 +47,11 @@ const handlers: Record<string, ToolHandler> = {
   obsidian_search_notes: searchNotesTool,
   obsidian_execute_command: executeCommandTool,
   miyo_search_context: miyoSearchContextTool,
-  research_publish: researchPublishTool,
-  // Emit-only companion to research_publish (no vault write): broadcasts a
-  // research_arrived bubble for a note the caller already created. Called by
-  // the Command Center plugin after it generates its workflow notes.
+  // Emit-only (no vault write): broadcasts a research_arrived bubble for a note
+  // the caller already created. Called by the Command Center plugin after it
+  // generates its workflow notes. Its old write companion, research_publish
+  // (Research-Output/ + atlas stubs), was tombstoned 2026-09-22 and removed
+  // 2026-10-23: the engine writes run notes itself.
   research_notify: researchNotifyTool,
   // Renderer-side dev console / debugging — backed by launcher IPC, NOT CDP.
   // Replaces the retired `obsidian-devtools` chrome-devtools-mcp path on :8315.
@@ -66,7 +66,6 @@ const READ_ONLY_BLOCKED_TOOLS = new Set<string>([
   "obsidian_append_note",
   "obsidian_execute_command",
   "obsidian_open_vault",
-  "research_publish",
   "obsidian_dev_console_eval",
 ]);
 

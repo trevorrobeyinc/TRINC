@@ -3,15 +3,15 @@ import type { RuntimeContext } from "../context";
 import type { BackendId, ToolResult } from "../../types";
 
 /**
- * research_notify — emit-only companion to research_publish.
+ * research_notify — emit-only research bubble (its write companion research_publish was removed 2026-10-23).
  *
  * Publishes a `research_arrived` event on the `research` SSE stream WITHOUT
  * touching the vault. Use this when the caller has ALREADY created the vault
  * note (e.g. the Command Center plugin's own note generator) and just wants the
  * Copilot chat to render a result bubble that links to that existing note.
  *
- * Unlike research_publish (read output.md → write Research-Output/ + atlas stubs
- * → emit), this ONLY broadcasts the event, so it never duplicates the output.
+ * Unlike the retired research_publish (read output.md → write Research-Output/ +
+ * atlas stubs → emit), this ONLY broadcasts the event, so it never duplicates the output.
  * It is therefore a read-only-safe notification, not a mutating write.
  */
 

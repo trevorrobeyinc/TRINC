@@ -29,7 +29,7 @@
   },
   "mcp_servers": [
     {"id": "zettelkasten-graph", "source": "Claude/Medical-Zettelkasten-MCP", "entry": "src/server.js", "registered_in": "Copilot-Everything/.mcp.json"},
-    {"id": "obsidian-bridge / openclaw-obsidian", "source": "Copilot-Everything/bridges/obsidian-stdio-adapter", "entry": "index.mjs", "registered_in": ".mcp.json + Copilot-Everything/.mcp.json"},
+    {"id": "openclaw-obsidian (+ Raycast's raycast profile)", "source": "Copilot-Everything/bridges/obsidian-stdio-adapter", "entry": "index.mjs", "registered_in": ".mcp.json (openclaw profile, Claude's one door); Raycast's own MCP settings via raycast-launch.sh (raycast profile). The Copilot-Everything/.mcp.json obsidian-bridge entry (claude profile) was retired 2026-10-23."},
     {"id": "searxng-search", "source": "Claude/searxng-search-mcp", "staged_copy": "$HOME/.claude/mcp-servers/searxng-search", "install": "Claude/searxng-search-mcp/install-connector.sh", "note": "staged copy, not a symlink — re-run the installer after editing src/"},
     {"id": "research-memory", "source": "Claude/trevorobeyinc-research-memory-mcp", "entry": "dist/cli.js"},
     {"id": "perseus-business", "external": "$HOME/.local/bin/perseus-vault", "note": "third-party binary + encrypted DB; keep outside git"},

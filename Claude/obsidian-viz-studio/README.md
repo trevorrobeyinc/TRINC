@@ -131,8 +131,9 @@ arrow (`-->|"text"|`, not `--|"text"|>`).
 The **contract of record** is `src/bridge/toolSchemas.ts` (served live by `tools/list`).
 Mirrors that must stay in sync:
 - `Copilot-Everything/repos/obsidian-copilot-mcp-v4/src/mcp/catalog.ts` (Lane A zod entries)
-- `Trevor Robey Intelligence Network Citations/openclaw-bridge/mcp/viz-bridge-mcp/index.js`
-  (engine adapter)
+- `Copilot-Everything/bridges/obsidian-stdio-adapter/index.mjs` `VIZ_TOOL_NAMES` and
+  `VIZ_BLOCKED_PROPS` (Claude's door; it reads the schemas live, so only the names and any
+  new write-target property need adding — `npm run test:profiles` fails until they are)
 
 Common writer params: `fileName?`, `folder?`, `targetNote?` (append the embed to a note,
 created with a heading if missing), `overwrite?` (default false → `-2`/`-3` suffix),
@@ -171,11 +172,13 @@ verbatim, so calling agents can self-correct.
    `catalog.ts` (no `operation` field — the `:8798` strict enum must never see one) +
    `data.json`: the `viz-studio` entry in `mcp.servers[]` and the twelve
    `mcp_viz-studio_*` ids in `autonomousAgentEnabledToolIds`.
-3. **Research engine** — `openclaw-bridge/mcp/viz-bridge-mcp/index.js`
-   (`researchRuntime.vizBridge`): fail-soft thin client, bearer-only, deliverable-render
-   shape only (never prefetch — engine LLM roles have no mid-run tool loop, and viz text in
-   prompts could inflate the citation gate's grounded-id extraction). Registry entry:
-   `viz-bridge` (`binding_status: "gate-consumed-not-prefetched"`).
+3. **Claude (since 2026-10-23)** — the stdio adapter's `openclaw` profile, registered as
+   `openclaw-obsidian` in the monorepo `.mcp.json`: all twelve tools, schemas taken live from
+   `tools/list`, with `folder`, `targetNote`, `targetCanvas`, `useActiveTab`/`useActiveNote` and
+   `overwrite` stripped and refused, so Claude's renders land only in `Visualizations/`.
+4. ~~**Research engine**~~ — the `viz-bridge-mcp` adapter (`researchRuntime.vizBridge`) was
+   never called by any deliverable and was **retired 2026-10-23**; its registry entry
+   `viz-bridge` is a tombstone with the restore command.
 
 ### `data.json` server entry recipe (deployed config, not in git)
 

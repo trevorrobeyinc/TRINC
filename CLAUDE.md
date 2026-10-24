@@ -249,14 +249,20 @@ Biomedical Workflow Observability Stack (optional, Docker Compose)
 > Obsidian plugin with its own lifecycle, token, and port (table above). An externally-drafted
 > "single unified MCP gateway" merge of :8798/:8799 was evaluated and **DECLINED 2026-08-20** —
 > it saved one duplicate health check at the cost of rewriting two plugins plus a shared
-> lifecycle supervisor. Current profiles: `claude` = the 7 canonical vault tools, :8798 only
-> (Claude Desktop surface — frozen); `raycast` = those 7 + `raycast_daily_open` +
+> lifecycle supervisor. Current profiles (2026-10-23; the profile env var is required, no default):
+> `raycast` = Raycast chat's door: the 7 canonical vault tools on :8798 + `raycast_daily_open` +
 > `video_pipeline_run`/`video_pipeline_status` proxied to :8799 (Bearer token read per-call from
-> `~/.config/openclaw-command-center/bridge-token`); **`openclaw` (v0.3.0, 2026-10-07) = Claude
-> Code's dispatch lane**: a closed 13-tool allowlist (`obsidian_health` + 12 `obsidian_openclaw_*`
-> tools) proxied ONLY to :8799, so a Claude Code session starts and watches OpenClaw runs through
-> the same door the Copilot agent uses and the plugin's post-run chain fires; it never loads the
-> :8798 config or token. Registered in `.mcp.json` as `openclaw-obsidian` on 2026-10-07, in the order
+> `~/.config/openclaw-command-center/bridge-token`); **`openclaw` (v0.4.0) = Claude's ONE door
+> into Obsidian** (TRINC reorg decisions D4 + D5): 27 tools — `obsidian_health` + 12
+> `obsidian_openclaw_*` run tools + read-only `obsidian_search_notes`/`obsidian_read_note` on :8799,
+> and the 12 `viz_*` renders on :8800, which on this door write ONLY into `Visualizations/` (the
+> adapter strips and refuses `folder`, `targetNote`, `targetCanvas`, `useActiveTab`/`useActiveNote`
+> and `overwrite`). Runs go through the same door the Copilot agent uses, so the plugin's post-run
+> chain fires; it never loads the :8798 config or token, and it has no create/append/exec. The
+> `claude` profile (7 vault tools for Claude Desktop) was **retired 2026-10-23**: unused since
+> 2026-10-07, and its last entry, `Copilot-Everything/.mcp.json` `obsidian-bridge`, was an ungated
+> write lane. Copilot and Raycast keep calling :8798/:8799/:8800 by name; those are their doors,
+> not Claude's. Registered in `.mcp.json` as `openclaw-obsidian` on 2026-10-07, in the order
 > that matters: first the Security Everything gate hook was taught the `mcp__openclaw-obsidian__`
 > prefix (sub-agent bar + Ralph-loop bar, no session scope — the hook matcher is an allowlist with no
 > catch-all, so a server listed nowhere is ungated), then the registration. A session started before
@@ -293,8 +299,8 @@ Biomedical Workflow Observability Stack (optional, Docker Compose)
 | Miyo indexing of new notes | ✅ Miyo's own watcher (the plugin additionally polls when open) | Miyo | Miyo running |
 | LLM Zettelkasten linking (appends to `Synthesizer.md`) | ❌ Obsidian open — with a catch-up sweep on load (cap per load) | Command Center + `vault-zettelkasten` | hosted `copilot-plus-flash` |
 | Backfill of runs completed while closed | ✅ `scripts/publish-workflow-to-vault.js --all` (also spawned by the plugin on load) | engine CLI | idempotent on `workflow_id` |
-| Claude Code run dispatch (`openclaw` adapter profile → `:8799`, 2026-10-07) | ❌ Obsidian open (the `:8799` bridge dies with it; the tools answer `obsidian_not_running`) — registered 2026-10-07 as `openclaw-obsidian` (restart a session to load it); the first real run, which needs the operator's touch, is still to be done | stdio adapter + Command Center | operator's armed one-shot YubiKey token per real run; a plugin-dispatched run gets the whole post-run chain, which a terminal-started run does not; `status.post_run_done` is the only reliable "chain finished" signal (the engine goes `completed` first) |
-| Viz Studio `:8800` | ❌ Obsidian open; **tool-call driven only** (Copilot agent, Raycast). The engine constructs `researchRuntime.vizBridge` (`scripts/_workflow-runtime.js:136`) but nothing ever calls it (verified 2026-10-07), so **no run produces visualizations automatically**; this row used to say "gate-consumed" | `trinc-viz-studio` | plugin lifecycle |
+| Claude's one door (`openclaw` adapter profile → `:8799` + `:8800`; dispatch 2026-10-07, widened to read-only vault + Viz 2026-10-23) | ❌ Obsidian open (both bridges die with it; the tools answer `obsidian_not_running`) — registered as `openclaw-obsidian` (restart a session to load new tools); the first real runs through it ran 2026-10-08 (run #6 delivered) | stdio adapter + Command Center | operator's armed one-shot YubiKey token per real run; a plugin-dispatched run gets the whole post-run chain, which a terminal-started run does not; `status.post_run_done` is the only reliable "chain finished" signal (the engine goes `completed` first) |
+| Viz Studio `:8800` | ❌ Obsidian open; **tool-call driven only** (Copilot agent, and Claude through the `openclaw-obsidian` door since 2026-10-23). **No run produces visualizations automatically**: the engine's `researchRuntime.vizBridge` adapter was never called and was retired 2026-10-23 (connector-registry `viz-bridge` tombstone) | `trinc-viz-studio` | plugin lifecycle |
 | Canonical business-context note refresh | ✅ `scripts/render-business-context.js --apply` — **operator-run only**, never on a hook or timer | engine script | `--check` is the drift tripwire |
 | Scheduled workflows (Phase 31) | disabled, not deployed | — | viable only because every "headless" row above is now true |
 
@@ -493,7 +499,7 @@ Predecessor of qdrant-tls-proxy: a separate subproject at `Claude/qdrant-tls-pro
 - `chrome-devtools-mcp` fully retired 2026-05-12 — process tree killed; caches, profile clone, npx cache, and `chrome-devtools-headless` entry in `claude_desktop_config.json` deleted; the `~/Code/chrome-devtools-mcp/` clone removed.
 - `claude-cli-bridge` retired 2026-05-31 — superseded by the native Claude Desktop Code tab, which replaces BOTH the OUTBOUND `claude-cli-bridge` adapter AND the INBOUND `claude mcp serve` registration. Archived to `Claude/.archive/claude-cli-bridge/` (git history + `.learnings/LEARNINGS.md` preserved; `git log --follow` works); that archive folder was itself removed in the 2026-10 reorg (restore: `git show pre-trinc-reorg-2026-10-23:Claude/.archive/claude-cli-bridge/index.mjs`). Do NOT reintroduce a custom `claude -p` subprocess bridge or a `claude mcp serve` wiring; drive Claude Code through the native Desktop Code tab instead.
 - "Single unified MCP gateway" (:8798+:8799 daemon merge) — proposed 2026-08-20, **never built, DECLINED by design**: merging the bridges would break per-plugin ownership and lifecycles for the sake of one deduplicated health check. The one-tool-list goal is achieved client-side instead — see "Client-edge aggregation pattern" under the Unified Port Map. Future consolidators: extend the stdio adapter's profiles, not the daemons.
-- **2026-10 TRINC reorganization** (operator-approved 2026-10-23) — retired, superseded and one-off files removed from the tree, junk moved to `~/.Trash/trinc-reorg-2026-10-23/`. Every path, the reason for it, and the load-bearing look-alikes deliberately KEPT are listed in [`ops/reorg/2026-10-cleanup-manifest.md`](ops/reorg/2026-10-cleanup-manifest.md). Restore anything with `git show pre-trinc-reorg-2026-10-23:<path>` (signed tag on `7f78dc4`; full bundle `~/Documents/TrevClaw-Obsidianodus-FULL-backup-20261023-1950.bundle`).
+- **2026-10 TRINC reorganization** (operator-approved 2026-10-23) — retired, superseded and one-off files removed from the tree, junk moved to `~/.Trash/trinc-reorg-2026-10-23/`. Every path, the reason for it, and the load-bearing look-alikes deliberately KEPT are listed in [`ops/reorg/2026-10-cleanup-manifest.md`](ops/reorg/2026-10-cleanup-manifest.md). Restore anything with `git show pre-trinc-reorg-2026-10-23:<path>` (signed tag on `7f78dc4`; full bundle `~/Documents/TrevClaw-Obsidianodus-FULL-backup-20261023-1950.bundle`). **Phase 5 (one door for Claude, 2026-10-23)** removed the engine's never-called `viz-bridge-mcp` adapter, the `:8798` bridge's tombstoned `research_publish` (+ `scripts/publish-to-vault.js`, `scripts/atlas-stub-creator.js`) and the adapter's `claude` profile with its ungated `Copilot-Everything/.mcp.json` `obsidian-bridge` entry (restore: `git show a0d25d7:<path>`); it also DECLINED again "one plugin owns one port" and the daemon merge. Decisions and reasons: the manifest's Phase 5 section.
 
 ## Browser Session History
 

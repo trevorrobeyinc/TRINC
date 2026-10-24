@@ -4,16 +4,20 @@
 // bridge daemon at https://127.0.0.1:8798. Replaces claude-adapter,
 // obsidian-mcp-stdio, and raycast-obsidian-stdio.
 //
-// Profiles (set via OBSIDIAN_STDIO_PROFILE env):
-//   "claude"  (default) — exposes the 7 standard obsidian_* tools
-//   "raycast"           — adds raycast_daily_open (mapped locally to
-//                         obsidian_execute_command id="daily-notes") plus
-//                         video_pipeline_run/_status, proxied to the Command
-//                         Center bridge on :8799 (separate daemon, unmodified)
-//   "openclaw"          — Claude Code's dispatch lane (added 2026-10-07): a closed
-//                         13-tool allowlist proxied ONLY to the Command Center bridge
-//                         on :8799 (start/watch OpenClaw runs). Never loads the :8798
-//                         config or token. See the "openclaw" section below.
+// Profiles (OBSIDIAN_STDIO_PROFILE env, required — there is no default):
+//   "raycast"           — Raycast chat's door: the 7 standard obsidian_* tools, plus
+//                         raycast_daily_open (mapped locally to obsidian_execute_command
+//                         id="daily-notes") and video_pipeline_run/_status, proxied to
+//                         the Command Center bridge on :8799 (separate daemon, unmodified)
+//   "openclaw"          — Claude's one door into Obsidian (dispatch lane added 2026-10-07,
+//                         widened 2026-10-23 per TRINC reorg decision D5): run dispatch,
+//                         status and results plus read-only vault search/read on :8799,
+//                         and the Viz Studio renders on :8800, writing only into
+//                         Visualizations/. Never loads the :8798 config or token. See
+//                         the "openclaw" section below.
+// The "claude" profile (the 7 vault tools for Claude Desktop) was retired 2026-10-23: no Claude
+// surface had registered it since 2026-10-07, and its last entry (Copilot-Everything/.mcp.json
+// "obsidian-bridge") was an ungated write lane into the vault.
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -60,17 +64,18 @@ function loadBridgeConfig() {
   );
 }
 
-const PROFILE = process.env.OBSIDIAN_STDIO_PROFILE || "claude";
-if (PROFILE !== "claude" && PROFILE !== "raycast" && PROFILE !== "openclaw") {
+const PROFILE = process.env.OBSIDIAN_STDIO_PROFILE;
+if (PROFILE !== "raycast" && PROFILE !== "openclaw") {
   throw new Error(
-    `obsidian-stdio-adapter: unknown profile ${JSON.stringify(PROFILE)} — allowed: "claude", "raycast", "openclaw"`,
+    `obsidian-stdio-adapter: OBSIDIAN_STDIO_PROFILE must be "raycast" or "openclaw" (got ${JSON.stringify(PROFILE)}). ` +
+      'The "claude" profile was retired 2026-10-23; Claude uses "openclaw".',
   );
 }
 
-// The "openclaw" profile talks ONLY to the Command Center bridge (:8799) and never to the canonical
-// vault bridge (:8798), so it must not even load that bridge's config: the file carries the :8798
-// auth token, and a lane that cannot use a secret should not hold it (least privilege, 2026-10-07).
-// "claude" and "raycast" behave exactly as before.
+// The "openclaw" profile talks ONLY to the Command Center (:8799) and Viz Studio (:8800) bridges and
+// never to the canonical vault bridge (:8798), so it must not even load that bridge's config: the
+// file carries the :8798 auth token, and a lane that cannot use a secret should not hold it (least
+// privilege, 2026-10-07). "raycast" behaves exactly as before.
 const USES_VAULT_BRIDGE = PROFILE !== "openclaw";
 const config = USES_VAULT_BRIDGE ? loadBridgeConfig() : null;
 if (config && !config.transport.tls) {
@@ -165,6 +170,26 @@ const COMMAND_CENTER_TOKEN_PATH = resolve(
 );
 // video_pipeline_run blocks up to ~15s waiting for RUN START confirmation.
 const COMMAND_CENTER_TIMEOUT_MS = 30_000;
+const COMMAND_CENTER = {
+  name: "Command Center",
+  pluginId: "command-center",
+  baseUrl: COMMAND_CENTER_BASE_URL,
+  tokenPath: COMMAND_CENTER_TOKEN_PATH,
+};
+
+// Viz Studio bridge (:8800), the openclaw profile's second upstream (2026-10-23). Same JSON-RPC over
+// HTTPS shape as :8799, with its own 0600 bearer token written by the trinc-viz-studio plugin. The env
+// override exists for failure-isolation testing only, like the Command Center one.
+const VIZ_STUDIO_BASE_URL = process.env.OBSIDIAN_STDIO_VIZ_URL || "https://127.0.0.1:8800";
+if (!VIZ_STUDIO_BASE_URL.startsWith("https://")) {
+  throw new Error("OBSIDIAN_STDIO_VIZ_URL must be an https:// URL — plaintext endpoints are not supported.");
+}
+const VIZ_STUDIO = {
+  name: "Viz Studio",
+  pluginId: "trinc-viz-studio",
+  baseUrl: VIZ_STUDIO_BASE_URL,
+  tokenPath: resolve(process.env.HOME || "", ".config/trinc-viz-studio/bridge-token"),
+};
 
 // Hard cap on serialized tools/call arguments — rejects runaway or buggy client
 // payloads before any re-serialization or network call. Applies to every tool
@@ -230,28 +255,24 @@ function validateVideoSource(raw) {
   return null;
 }
 
-function loadCommandCenterToken() {
-  if (!existsSync(COMMAND_CENTER_TOKEN_PATH)) {
+function loadBridgeToken(upstream) {
+  if (!existsSync(upstream.tokenPath)) {
     throw new Error(
-      `Command Center bridge token not found at ${COMMAND_CENTER_TOKEN_PATH} — ` +
-        "the command-center Obsidian plugin writes it on startup (is Obsidian open?).",
+      `${upstream.name} bridge token not found at ${upstream.tokenPath} — ` +
+        `the ${upstream.pluginId} Obsidian plugin writes it on startup (is Obsidian open?).`,
     );
   }
-  return readFileSync(COMMAND_CENTER_TOKEN_PATH, "utf8").trim();
+  return readFileSync(upstream.tokenPath, "utf8").trim();
 }
 
-async function callCommandCenter(toolName, args, timeoutMs = COMMAND_CENTER_TIMEOUT_MS) {
+/** One JSON-RPC request to an additive bridge's /mcp endpoint (:8799 or :8800); resolves to the parsed reply. */
+async function postJsonRpc(upstream, method, params, timeoutMs) {
   // Token is read at call time so a rotation never requires an adapter restart.
-  const token = loadCommandCenterToken();
-  const body = JSON.stringify({
-    jsonrpc: "2.0",
-    id: randomUUID(),
-    method: "tools/call",
-    params: { name: toolName, arguments: args },
-  });
+  const token = loadBridgeToken(upstream);
+  const body = JSON.stringify({ jsonrpc: "2.0", id: randomUUID(), method, params });
 
-  const raw = await new Promise((resolvePromise, rejectPromise) => {
-    const url = new URL(`${COMMAND_CENTER_BASE_URL}/mcp`);
+  return await new Promise((resolvePromise, rejectPromise) => {
+    const url = new URL(`${upstream.baseUrl}/mcp`);
     const req = nodeHttps.request(
       {
         hostname: url.hostname,
@@ -272,24 +293,31 @@ async function callCommandCenter(toolName, args, timeoutMs = COMMAND_CENTER_TIME
         res.on("end", () => {
           const text = Buffer.concat(chunks).toString("utf8");
           try { resolvePromise(JSON.parse(text)); }
-          catch { rejectPromise(new Error(`command-center non-JSON response: ${text.slice(0, 200)}`)); }
+          catch { rejectPromise(new Error(`${upstream.pluginId} non-JSON response: ${text.slice(0, 200)}`)); }
         });
       }
     );
     req.on("error", rejectPromise);
-    req.on("timeout", () => { req.destroy(new Error("command-center request timed out")); });
+    req.on("timeout", () => { req.destroy(new Error(`${upstream.pluginId} request timed out`)); });
     req.write(body);
     req.end();
   });
+}
 
+async function callBridgeTool(upstream, toolName, args, timeoutMs) {
+  const raw = await postJsonRpc(upstream, "tools/call", { name: toolName, arguments: args }, timeoutMs);
   if (raw.error) {
     return {
-      content: [{ type: "text", text: `Error [command-center]: ${raw.error.message || JSON.stringify(raw.error)}` }],
+      content: [{ type: "text", text: `Error [${upstream.pluginId}]: ${raw.error.message || JSON.stringify(raw.error)}` }],
       isError: true,
     };
   }
   // raw.result is already an MCP tool result ({ content: [...] }) — pass it through.
   return raw.result ?? { content: [{ type: "text", text: JSON.stringify(raw) }] };
+}
+
+async function callCommandCenter(toolName, args, timeoutMs = COMMAND_CENTER_TIMEOUT_MS) {
+  return callBridgeTool(COMMAND_CENTER, toolName, args, timeoutMs);
 }
 
 // ---------------------------------------------------------------------------
@@ -597,14 +625,20 @@ const VIDEO_TOOL_NAMES = new Set(VIDEO_TOOLS.map((t) => t.name));
 // Client-edge aggregation, not a daemon merge: the :8799 daemon is unmodified apart from the
 // additive status fields and dry_run (see Claude/obsidian-command-center, 2026-10-07).
 //
+// Since 2026-10-23 this is Claude's ONE door into Obsidian (TRINC reorg, decisions D4 and D5): the
+// dispatch tools below, read-only vault search/read on :8799, and the Viz Studio renders on :8800
+// (see the "Viz Studio" section after OPENCLAW_SPECS). Copilot and Raycast keep their own doors.
+//
 // This is a NARROW ALLOWLIST. Deliberately NOT exposed here, and why:
 //   obsidian_openclaw_research_task   the `real` provider spends the one-shot operator token and
 //                                     duplicates run_workflow
 //   obsidian_openclaw_{research_tasks_list,research_output,feed_stats}   not pipeline-related
 //   zk_*                              model analyses that write nothing; they do not close any gap
 //   video_pipeline_*                  needs a human click in Downie
-//   obsidian_{open_vault,create_note,append_note,read_note,search_notes,execute_command} and the
-//   dev-console tools                 write/exec surface; vault reads come from disk, not from here
+//   obsidian_{open_vault,create_note,append_note,execute_command} and the
+//   dev-console tools                 write/exec surface. obsidian_read_note and obsidian_search_notes
+//                                     ARE exposed (read-only, D5): :8799 serves both through Obsidian's
+//                                     own file index, which never contains the .obsidian/ config
 //   publish_vault `force` and `all`   rewriting existing notes (including an appended Zettelkasten
 //                                     section) and bulk backfills are operator decisions
 // The operator's YubiKey touch is NOT replaced by anything here: obsidian_openclaw_run_workflow still
@@ -653,6 +687,20 @@ function checkOptionalIntInRange(args, key, min, max) {
 }
 
 const noArgs = (tool) => (args) => rejectUnknownKeys(tool, args, []);
+
+// Vault-relative path for the two read-only vault tools. The daemon's safePath() re-checks; this only
+// refuses an absolute path or a '..' segment before the call leaves the adapter.
+const OPENCLAW_MAX_PATH_CHARS = 512;
+function checkVaultPath(args, key, required) {
+  const v = args[key];
+  if (v === undefined) return required ? `${key} is required: a vault-relative note path.` : null;
+  if (typeof v !== "string" || v.trim() === "") return `${key} must be a non-empty string.`;
+  if (v.length > OPENCLAW_MAX_PATH_CHARS) return `${key} exceeds ${OPENCLAW_MAX_PATH_CHARS} characters.`;
+  if (v.startsWith("/") || v.split(/[\\/]/).includes("..")) {
+    return `${key} must be vault-relative, with no leading '/' and no '..' segment.`;
+  }
+  return null;
+}
 
 /**
  * obsidian_openclaw_run_workflow — the one tool here that can spend model capacity, so it is the
@@ -715,6 +763,46 @@ const OPENCLAW_SPECS = [
       inputSchema: { type: "object", properties: {} },
     },
     validate: noArgs("obsidian_health"),
+  },
+  {
+    tool: {
+      name: "obsidian_search_notes",
+      description:
+        "Search the vault's markdown notes for a text match (read-only). Returns matching note paths with a short context snippet.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Text to find" },
+          path: { type: "string", description: "Vault-relative folder prefix to scope the search" },
+          limit: { type: "number", description: "Max results (1-100, default 20)" },
+          caseSensitive: { type: "boolean", description: "Match case (default false)" },
+        },
+        required: ["query"],
+      },
+    },
+    validate: (args) => {
+      const unknown = rejectUnknownKeys("obsidian_search_notes", args, ["query", "path", "limit", "caseSensitive"]);
+      if (unknown) return unknown;
+      if (typeof args.query !== "string" || args.query.trim() === "") return "query is required: a non-empty string.";
+      if (args.query.length > OPENCLAW_MAX_QUERY_CHARS) return `query exceeds ${OPENCLAW_MAX_QUERY_CHARS} characters.`;
+      return (
+        checkVaultPath(args, "path", false) ||
+        checkOptionalIntInRange(args, "limit", 1, 100) ||
+        checkOptionalBoolean(args, "caseSensitive")
+      );
+    },
+  },
+  {
+    tool: {
+      name: "obsidian_read_note",
+      description: "Read the full markdown content of one vault note (read-only).",
+      inputSchema: {
+        type: "object",
+        properties: { path: { type: "string", description: "Note path relative to the vault root" } },
+        required: ["path"],
+      },
+    },
+    validate: (args) => rejectUnknownKeys("obsidian_read_note", args, ["path"]) || checkVaultPath(args, "path", true),
   },
   {
     tool: {
@@ -892,6 +980,96 @@ const OPENCLAW_SPECS = [
 const OPENCLAW_TOOLS = OPENCLAW_SPECS.map((s) => s.tool);
 const OPENCLAW_SPEC_BY_NAME = new Map(OPENCLAW_SPECS.map((s) => [s.tool.name, s]));
 
+// ---------------------------------------------------------------------------
+// Viz Studio (:8800) on the openclaw profile  (2026-10-23, decisions D4 + D5)
+// ---------------------------------------------------------------------------
+//
+// A closed allowlist of the 12 viz_* tools. Their schemas are NOT mirrored by hand like the :8799 tools
+// above: Viz Studio's src/bridge/toolSchemas.ts is their contract of record and runs ~900 lines, so the
+// adapter takes the live declarations from :8800's tools/list and removes what this door must not offer.
+// A tool the daemon adds later stays hidden until it is added to VIZ_TOOL_NAMES.
+//
+// D5 says renders write ONLY into Visualizations/. These properties write somewhere else, so they are
+// stripped from every advertised schema and refused on every call:
+//   folder                     output folder override (anywhere in the vault)
+//   targetNote                 append the embed to any note, creating it if missing
+//   targetCanvas               insert a card into any canvas, creating it if missing
+//   useActiveTab/useActiveNote append into whatever note or canvas is open
+//   overwrite                  replace an existing file instead of adding a -2/-3 suffix
+const VIZ_TOOL_NAMES = [
+  "viz_health", "viz_mermaid", "viz_chart", "viz_canvas", "viz_graph_snapshot", "viz_guided",
+  "viz_perceptual_map", "viz_diagram", "viz_stat_tiles", "viz_mockup", "viz_interactive", "viz_render_svg",
+];
+const VIZ_TOOL_SET = new Set(VIZ_TOOL_NAMES);
+const VIZ_BLOCKED_PROPS = ["folder", "targetNote", "targetCanvas", "useActiveTab", "useActiveNote", "overwrite"];
+const VIZ_DOOR_NOTE =
+  "On this door the output is written only into Visualizations/: folder, targetNote, targetCanvas, " +
+  "useActiveTab/useActiveNote and overwrite are not available.";
+// tools/list asks :8800 for its declarations, and a closed Obsidian must not stall session start.
+const VIZ_LIST_TIMEOUT_MS = 3000;
+// PNG export and graph snapshots of a large vault are the slow renders.
+const VIZ_CALL_TIMEOUT_MS = 120_000;
+
+// The stripped live schemas from the last tools/list, used to check call arguments. Empty when :8800 did
+// not answer at listing time: calls then get only the blocked-property and fileName checks, and the
+// daemon validates the rest.
+const vizSchemas = new Map();
+
+function stripBlockedProps(schema) {
+  const base = isPlainObject(schema) ? schema : {};
+  const properties = { ...(isPlainObject(base.properties) ? base.properties : {}) };
+  for (const key of VIZ_BLOCKED_PROPS) delete properties[key];
+  const out = { ...base, type: "object", properties };
+  const required = (Array.isArray(base.required) ? base.required : []).filter((k) => !VIZ_BLOCKED_PROPS.includes(k));
+  if (required.length) out.required = required;
+  else delete out.required;
+  return out;
+}
+
+async function listVizTools() {
+  let live = [];
+  try {
+    const raw = await postJsonRpc(VIZ_STUDIO, "tools/list", {}, VIZ_LIST_TIMEOUT_MS);
+    live = Array.isArray(raw?.result?.tools) ? raw.result.tools : [];
+  } catch (err) {
+    process.stderr.write(
+      `[obsidian-stdio-adapter:${PROFILE}] Viz Studio tools/list unavailable (${err.message}); listing stubs\n`,
+    );
+  }
+  vizSchemas.clear();
+  return VIZ_TOOL_NAMES.map((name) => {
+    const decl = live.find((t) => t?.name === name);
+    if (!decl) {
+      return {
+        name,
+        description:
+          "Viz Studio tool. Its input schema comes from the Viz Studio bridge (:8800), which did not answer when " +
+          `this session listed tools: open Obsidian and start a new session to see it. ${VIZ_DOOR_NOTE}`,
+        inputSchema: { type: "object", properties: {} },
+      };
+    }
+    const inputSchema = stripBlockedProps(decl.inputSchema);
+    vizSchemas.set(name, inputSchema);
+    return { name, description: `${decl.description ?? ""} ${VIZ_DOOR_NOTE}`.trim(), inputSchema };
+  });
+}
+
+function validateVizCall(name, args) {
+  const blocked = VIZ_BLOCKED_PROPS.filter((k) => Object.prototype.hasOwnProperty.call(args, k));
+  if (blocked.length) {
+    return `${name}: ${blocked.join(", ")} not available on this door — Viz output is written only into Visualizations/.`;
+  }
+  if (args.fileName !== undefined && (typeof args.fileName !== "string" || /[\\/]|\.\./.test(args.fileName))) {
+    return "fileName must be a plain base name, with no '/', '\\' or '..'.";
+  }
+  const schema = vizSchemas.get(name);
+  if (!schema) return null;
+  const unknown = rejectUnknownKeys(name, args, Object.keys(schema.properties));
+  if (unknown) return unknown;
+  const missing = (schema.required ?? []).filter((k) => args[k] === undefined);
+  return missing.length ? `${name} requires: ${missing.join(", ")}` : null;
+}
+
 function openclawFailure(code, message, action) {
   const body = { success: false, error: code, message };
   if (action) body.action = action;
@@ -904,19 +1082,24 @@ function openclawFailure(code, message, action) {
  * (the daemon may still have acted). For run_workflow the second case means the run MAY have started,
  * so the action says to look, never to re-send.
  */
-function classifyCommandCenterError(toolName, err) {
+function classifyBridgeError(toolName, err, upstream = COMMAND_CENTER) {
   const msg = String(err?.message ?? err);
   const code = err?.code;
+  const isViz = upstream === VIZ_STUDIO;
   const outcomeUnknownAction =
     toolName === "obsidian_openclaw_run_workflow"
       ? "The run may have started. Call obsidian_openclaw_status to find out; do NOT re-send obsidian_openclaw_run_workflow."
-      : "The call may or may not have taken effect; check state with obsidian_openclaw_status before repeating it.";
+      : isViz
+        ? "The render may or may not have been written; look in Visualizations/ before repeating it."
+        : "The call may or may not have taken effect; check state with obsidian_openclaw_status before repeating it.";
 
-  if (/Command Center bridge token not found/.test(msg) || code === "ECONNREFUSED" || code === "EHOSTUNREACH") {
+  if (/bridge token not found/.test(msg) || code === "ECONNREFUSED" || code === "EHOSTUNREACH") {
     return openclawFailure(
       "obsidian_not_running",
-      "The Command Center bridge (:8799) is not reachable: Obsidian is closed, or the command-center plugin is not loaded. Nothing was sent.",
-      "Ask the operator to open Obsidian (the bridge starts with the plugin), then call obsidian_health. No run was started.",
+      `The ${upstream.name} bridge (:${new URL(upstream.baseUrl).port}) is not reachable: Obsidian is closed, or the ` +
+        `${upstream.pluginId} plugin is not loaded. Nothing was sent.`,
+      `Ask the operator to open Obsidian (the bridge starts with the plugin), then call ${isViz ? "viz_health" : "obsidian_health"}. ` +
+        (isViz ? "Nothing was rendered." : "No run was started."),
     );
   }
   if (/timed out/.test(msg) || code === "ETIMEDOUT") {
@@ -929,14 +1112,14 @@ function classifyCommandCenterError(toolName, err) {
   if (code === "ECONNRESET" || code === "EPIPE" || /socket hang up/.test(msg)) {
     return openclawFailure(
       "bridge_connection_lost_outcome_unknown",
-      `The connection to the Command Center bridge dropped during ${toolName}: ${msg}`,
+      `The connection to the ${upstream.name} bridge dropped during ${toolName}: ${msg}`,
       outcomeUnknownAction,
     );
   }
   if (/certificate|CERT_|UNABLE_TO_VERIFY|SELF_SIGNED/i.test(`${code ?? ""} ${msg}`)) {
     return openclawFailure(
       "tls_trust_failed",
-      `TLS verification of the Command Center bridge failed: ${msg}`,
+      `TLS verification of the ${upstream.name} bridge failed: ${msg}`,
       "Check that NODE_EXTRA_CA_CERTS points at the mkcert root CA in this MCP server's env. Do not disable verification.",
     );
   }
@@ -945,21 +1128,24 @@ function classifyCommandCenterError(toolName, err) {
 
 async function handleOpenclawCall(name, args) {
   const spec = OPENCLAW_SPEC_BY_NAME.get(name);
-  if (!spec) {
+  const isViz = VIZ_TOOL_SET.has(name);
+  if (!spec && !isViz) {
     return { content: [{ type: "text", text: `Unknown tool: ${name}` }], isError: true };
   }
   const input = args ?? {};
   if (!isPlainObject(input)) {
     return { content: [{ type: "text", text: "Rejected by adapter input validation: arguments must be an object." }], isError: true };
   }
-  const violation = spec.validate(input);
+  const violation = isViz ? validateVizCall(name, input) : spec.validate(input);
   if (violation) {
     return { content: [{ type: "text", text: `Rejected by adapter input validation: ${violation}` }], isError: true };
   }
+  const upstream = isViz ? VIZ_STUDIO : COMMAND_CENTER;
+  const timeoutMs = isViz ? VIZ_CALL_TIMEOUT_MS : (spec.timeoutMs ?? COMMAND_CENTER_TIMEOUT_MS);
   try {
-    return await callCommandCenter(name, input, spec.timeoutMs ?? COMMAND_CENTER_TIMEOUT_MS);
+    return await callBridgeTool(upstream, name, input, timeoutMs);
   } catch (err) {
-    return classifyCommandCenterError(name, err);
+    return classifyBridgeError(name, err, upstream);
   }
 }
 
@@ -976,7 +1162,8 @@ const TOOLS =
 // ---------------------------------------------------------------------------
 
 async function checkCommandCenterHealth() {
-  // The openclaw profile's only upstream. Uses the pinned mkcert agent, not global fetch.
+  // The openclaw profile's main upstream (Viz Studio on :8800 is probed lazily by tools/list). Uses the
+  // pinned mkcert agent, not global fetch.
   await new Promise((done) => {
     const req = nodeHttps.get(
       `${COMMAND_CENTER_BASE_URL}/healthz`,
@@ -1029,12 +1216,12 @@ async function checkBridgeHealth() {
 // ---------------------------------------------------------------------------
 
 const server = new Server(
-  { name: "obsidian-stdio-adapter", version: "0.3.0" },
+  { name: "obsidian-stdio-adapter", version: "0.4.0" },
   { capabilities: { tools: {} } }
 );
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools: TOOLS,
+  tools: PROFILE === "openclaw" ? [...TOOLS, ...(await listVizTools())] : TOOLS,
 }));
 
 /**
@@ -1058,8 +1245,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const result = await handleToolCall(name, args);
   // One structured line per call for post-hoc debugging — MCP hosts capture a
   // server's stderr into their own managed logs. Never log argument values.
-  const upstream =
-    PROFILE === "openclaw" || (PROFILE === "raycast" && VIDEO_TOOL_NAMES.has(name)) ? 8799 : 8798;
+  const upstream = PROFILE === "openclaw" && VIZ_TOOL_SET.has(name)
+    ? 8800
+    : PROFILE === "openclaw" || VIDEO_TOOL_NAMES.has(name) ? 8799 : 8798;
   process.stderr.write(
     `[obsidian-stdio-adapter:${PROFILE}] call tool=${name} upstream=${upstream} ` +
       `status=${result.isError ? "error" : "ok"} latency_ms=${Date.now() - startedAt}\n`,

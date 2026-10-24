@@ -4,15 +4,6 @@
       "command": "${HOME}/.nvm/versions/node/v22.13.1/bin/node",
       "args": ["/Users/myhome/TRINC/Claude/Medical-Zettelkasten-MCP/src/server.js"],
       "cwd": "/Users/myhome/TRINC/Claude/Medical-Zettelkasten-MCP"
-    },
-    "obsidian-bridge": {
-      "command": "${HOME}/.nvm/versions/node/v22.13.1/bin/node",
-      "args": [
-        "/Users/myhome/TRINC/Copilot-Everything/bridges/obsidian-stdio-adapter/index.mjs"
-      ],
-      "env": {
-        "NODE_EXTRA_CA_CERTS": "${HOME}/Library/Application Support/mkcert/rootCA.pem"
-      }
     }
   }
 }

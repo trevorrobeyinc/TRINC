@@ -829,15 +829,14 @@
         "viz_graph_snapshot",
         "viz_guided"
       ],
-      "purpose": "Local visualization rendering via the trinc-viz-studio Obsidian plugin: mermaid diagrams, deterministic SVG charts, sanitized agent-authored SVG, Canvas boards, vault link-graph snapshots. Engine consumption is DELIVERABLE-RENDER ONLY (deterministic post-gate code via researchRuntime.vizBridge, like ctgovSupplemental) \u2014 never prefetch, because engine LLM roles have no mid-run tool loop and viz text injected into prompts could inflate the citation gate's grounded-id extraction. Bundle assets must be SVG (returnContent:true), never PNG: deliverable-packager.js hashes shipped files as UTF-8 text. The plugin writes each artifact into the vault under Visualizations/, a namespace nothing else owns, so no double-write hazard with Command Center's autoGenerateNotes.",
+      "purpose": "RETIRED 2026-10-23 (TRINC reorg Phase 5). The engine-side adapter openclaw-bridge/mcp/viz-bridge-mcp/ was built 2026-08-16 for deliverable charts but NOTHING ever called researchRuntime.vizBridge (verified 2026-10-07), so no run produced visuals. Viz Studio itself stays: Claude reaches it through the openclaw-obsidian door (stdio adapter openclaw profile -> :8800, writes only into Visualizations/), Copilot through its own lane. If deliverables ever need charts, restore the adapter from git and keep its original rules: deterministic post-gate code only, never prefetch (viz text in prompts could inflate the citation gate's grounded-id extraction), SVG never PNG (deliverable-packager.js hashes shipped files as UTF-8 text).",
       "bound_roles": [],
       "bound_workflow_steps": [],
-      "binding_status": "gate-consumed-not-prefetched",
-      "business_value": "medium",
-      "adapter_status": "wired",
-      "adapter_priority": "medium",
-      "suggested_adapter_path": "openclaw-bridge/mcp/viz-bridge-mcp/index.js (thin client of the Viz Studio bridge on :8800 \u2014 opens NO listener; fail-soft when Obsidian is closed)",
-      "health_check": "viz_health returns status ok",
+      "business_value": "superseded",
+      "adapter_status": "retired",
+      "adapter_priority": "none",
+      "suggested_adapter_path": "n/a \u2014 retired 2026-10-23. Restore: git show a0d25d7:\"Trevor Robey Intelligence Network Citations/openclaw-bridge/mcp/viz-bridge-mcp/index.js\" (and tests/mcp/viz-bridge-mcp.test.js)",
+      "health_check": "n/a \u2014 retired (the live Viz Studio check is viz_health through the openclaw-obsidian door)",
       "lane": "vault"
     },
     "sequential-thinking": {

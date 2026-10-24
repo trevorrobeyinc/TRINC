@@ -39,18 +39,21 @@ tools from **multiple** bridge daemons get aggregated into one MCP server per cl
 own Obsidian plugin. Do not merge the daemons to widen a client's tool list; widen a
 profile here instead.
 
+`OBSIDIAN_STDIO_PROFILE` is **required**; there is no default.
+
 | Profile | Tools | Upstream |
 |---|---|---|
-| `claude` (default) | the 7 canonical `obsidian_*` tools | `:8798` canonical bridge (HMAC + replay-guard, token from the bridge config file) |
-| `raycast` | the 7 above + `raycast_daily_open` (local map to `obsidian_execute_command id="daily-notes"`) + `video_pipeline_run` / `video_pipeline_status` | vault tools → `:8798`; video tools → `:8799` Command Center bridge (`Authorization: Bearer`, token read per-call from `~/.config/openclaw-command-center/bridge-token`) |
+| `raycast` | the 7 canonical `obsidian_*` tools + `raycast_daily_open` (local map to `obsidian_execute_command id="daily-notes"`) + `video_pipeline_run` / `video_pipeline_status` | vault tools → `:8798` canonical bridge (HMAC + replay-guard, token from the bridge config file); video tools → `:8799` Command Center bridge (`Authorization: Bearer`, token read per-call from `~/.config/openclaw-command-center/bridge-token`) |
+| `openclaw` (0.4.0) | **Claude's one door**, 27 tools: `obsidian_health`, 12 `obsidian_openclaw_*` tools (start/watch/cancel a research run, read results, history, artifacts, citation integrity, memory search, engine health, delivery evidence, a restricted `publish_vault`), read-only `obsidian_search_notes` + `obsidian_read_note`, and the 12 `viz_*` renders | `:8799` Command Center bridge and `:8800` Viz Studio bridge (`Authorization: Bearer`, each token read per-call; Viz's from `~/.config/trinc-viz-studio/bridge-token`). Never loads the `:8798` config or its auth token. |
 
-| `openclaw` (0.3.0) | a closed **13-tool** allowlist: `obsidian_health` plus 12 `obsidian_openclaw_*` tools (start/watch/cancel a research run, read results, history, artifacts, citation integrity, memory search, engine health, delivery evidence, and a restricted `publish_vault`) | **only** `:8799` Command Center bridge (`Authorization: Bearer`, token read per-call). Never loads the `:8798` config or its auth token. |
+The `raycast` profile's surface is **frozen**: Raycast's tool list must never change as a
+side effect of work on another profile. The `claude` profile (the 7 vault tools for Claude
+Desktop) was **retired 2026-10-23**: no Claude surface had registered it since 2026-10-07, and
+its last entry (`Copilot-Everything/.mcp.json` `obsidian-bridge`) was an ungated write lane
+into the vault. Asking for it now refuses to start. `npm run test:profiles` asserts both
+surfaces exactly.
 
-The `claude` and `raycast` profiles' surfaces are **frozen** — Claude Desktop's and
-Raycast's tool lists must never change as a side effect of work on other profiles.
-`npm run test:profiles` asserts all three surfaces exactly.
-
-### The `openclaw` profile — Claude Code's dispatch lane
+### The `openclaw` profile — Claude's one door into Obsidian
 
 Purpose: let a Claude Code session start and watch OpenClaw research runs through the
 **same door the Copilot agent uses**, so the run is dispatched by the command-center
@@ -74,26 +77,47 @@ call sequence: the `openclaw-dispatch` skill (see the monorepo `CLAUDE.md`).
   retries.
 - **Per-tool timeouts** match the daemon's own spawn timeouts (engine health, publish,
   memory search and delivery evidence run for minutes); everything else keeps the shared 30 s.
-- **Deliberately absent:** `execute_command`, every vault read/write tool, the dev-console
-  tools, `research_task`, `zk_*`, `video_pipeline_*`, and `publish_vault` `force`/`all`.
-  The reasons are in the comment block above `OPENCLAW_SPECS` in `index.mjs`.
+- **Read-only vault (2026-10-23, decision D5):** `obsidian_search_notes` and
+  `obsidian_read_note` on `:8799`, which serves them through Obsidian's own file index (it
+  never contains the `.obsidian/` config). Paths must be vault-relative with no `..`
+  segment; `search_notes` takes `limit` 1–100.
+- **Viz Studio renders (2026-10-23, decisions D4 + D5)** write **only into
+  `Visualizations/`**. The 12 names are a closed allowlist in `VIZ_TOOL_NAMES`; their schemas
+  come live from `:8800`'s `tools/list` (Viz Studio's `src/bridge/toolSchemas.ts` is the
+  contract of record, ~900 lines, so they are not mirrored by hand). Six properties that would
+  write elsewhere are stripped from every advertised schema and refused on every call:
+  `folder`, `targetNote`, `targetCanvas`, `useActiveTab`, `useActiveNote` and `overwrite`.
+  `fileName` must be a plain base name. With `:8800` down at listing time, each Viz tool is
+  listed as a stub that says to open Obsidian and start a new session. `test:profiles`
+  fails if Viz Studio ever adds a `target*`/`folder`/`useActive*`/`overwrite` property
+  that is not on the block list.
+- **Deliberately absent:** `execute_command`, `create_note`, `append_note`, `open_vault`, the
+  dev-console tools, `research_task`, `zk_*`, `video_pipeline_*`, and `publish_vault`
+  `force`/`all`. The reasons are in the comment block above `OPENCLAW_SPECS` in `index.mjs`.
+- **Gating.** The Security Everything hook matches the `mcp__openclaw-obsidian__` prefix, so
+  every tool here, the new ones included, is barred to sub-agents. During a Ralph loop only
+  `run_workflow`, `cancel` and `publish_vault` are barred; Viz renders stay open by operator
+  decision (2026-10-23): they spend nothing, need no YubiKey and write only into
+  `Visualizations/`.
 - **Register it last.** The Claude Code gate hook is an allowlist with no catch-all, so a
   new MCP server name is ungated until the hook's matcher knows it. Do not add the
   `.mcp.json` entry before the Security Everything gate wiring is in. (Done in that order on 2026-10-07; the server key is
   `openclaw-obsidian`, so its tools are `mcp__openclaw-obsidian__*`.)
 
-Failure isolation: the `:8799` proxy is per-call — if the Command Center bridge is
-down, video tools return a clean MCP `isError` result and every `:8798` vault tool
-keeps working. `OBSIDIAN_STDIO_COMMAND_CENTER_URL` (https-only) exists solely so
-tests can point the video proxy at a dead port.
+Failure isolation: the `:8799` and `:8800` proxies are per-call — if one bridge is
+down, its tools return a clean MCP `isError` result (`obsidian_not_running` on the
+`openclaw` profile) and the other upstreams keep working.
+`OBSIDIAN_STDIO_COMMAND_CENTER_URL` and `OBSIDIAN_STDIO_VIZ_URL` (both https-only) exist
+solely so tests can point a proxy at a dead port.
 
 ### Adding a tool to an existing profile
 
 1. Add its definition next to `VIDEO_TOOLS`/`RAYCAST_DAILY_OPEN_TOOL` in `index.mjs`
    (mirror the upstream daemon's schema verbatim, with a provenance comment).
 2. Gate it into `TOOLS` under the right profile conditional.
-3. Route it in `handleToolCall` — either through `callBridge` (`:8798` operations) or
-   `callCommandCenter` (`:8799` MCP tools/call), or a new upstream client function.
+3. Route it in `handleToolCall` (or `handleOpenclawCall`) — either through `callBridge`
+   (`:8798` operations) or `callBridgeTool(COMMAND_CENTER | VIZ_STUDIO, …)` (`:8799` / `:8800`
+   MCP tools/call). A new upstream is one more descriptor object like `VIZ_STUDIO`.
 4. Update the table above and extend `scripts/test-profiles.mjs`'s expected set —
    the test fails on any surface drift, which is the point.
 
@@ -135,59 +159,34 @@ Desktop). Nothing daemon-side needs rolling back — the daemons were never modi
 
 ## MCP host configurations
 
-### Claude Code (user-scope)
-
-```
-claude mcp add -s user obsidian-bridge npx -y @trevoralexanderrobey/obsidian-bridge-adapter
-```
-
-### Claude Desktop (`~/Library/Application Support/Claude/claude_desktop_config.json`)
+### Claude Code (this monorepo's `.mcp.json`, server `openclaw-obsidian`)
 
 ```json
 {
   "mcpServers": {
-    "obsidian-bridge": {
-      "command": "npx",
-      "args": ["-y", "@trevoralexanderrobey/obsidian-bridge-adapter"],
+    "openclaw-obsidian": {
+      "type": "stdio",
+      "command": "/Users/myhome/.nvm/versions/node/v22.13.1/bin/node",
+      "args": ["/Users/myhome/TRINC/Copilot-Everything/bridges/obsidian-stdio-adapter/index.mjs"],
       "env": {
-        "OBSIDIAN_MCP_CONFIG": "/absolute/path/to/obsidian-cli-mcp.local.json",
-        "NODE_EXTRA_CA_CERTS": "/path/to/your/mkcert/rootCA.pem"
+        "OBSIDIAN_STDIO_PROFILE": "openclaw",
+        "NODE_EXTRA_CA_CERTS": "/Users/myhome/Library/Application Support/mkcert/rootCA.pem"
       }
     }
   }
 }
 ```
 
-### Qwen Chat — "Add MCP via JSON"
-
-```json
-{
-  "mcpServers": {
-    "obsidian-bridge": {
-      "command": "npx",
-      "args": ["-y", "@trevoralexanderrobey/obsidian-bridge-adapter"],
-      "env": {
-        "OBSIDIAN_MCP_CONFIG": "/absolute/path/to/obsidian-cli-mcp.local.json",
-        "NODE_EXTRA_CA_CERTS": "/path/to/your/mkcert/rootCA.pem"
-      }
-    }
-  }
-}
-```
+Keep the server key `openclaw-obsidian`: the Security Everything gate hook matches that
+prefix. A session sees new tools only after it restarts. Claude Desktop is not wired to
+this adapter; it reaches the vault through FilesystemPlus and miyo.
 
 ### Raycast (stdio profile)
 
-```json
-{
-  "command": "npx",
-  "args": ["-y", "@trevoralexanderrobey/obsidian-bridge-adapter"],
-  "env": {
-    "OBSIDIAN_STDIO_PROFILE": "raycast",
-    "OBSIDIAN_MCP_CONFIG": "/absolute/path/to/obsidian-cli-mcp.local.json",
-    "NODE_EXTRA_CA_CERTS": "/path/to/your/mkcert/rootCA.pem"
-  }
-}
-```
+Raycast's Install Server form takes a command with no environment fields, so register
+`raycast-launch.sh` (it sets `OBSIDIAN_STDIO_PROFILE=raycast` and the CA). After changing its
+tools, remove and re-add the server in Raycast: Raycast answers from a tool snapshot it took
+at install time.
 
 ## License
 

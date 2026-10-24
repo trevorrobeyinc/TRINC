@@ -124,16 +124,9 @@ async function buildWorkflowRuntime(options = {}) {
     const { createResearchMemory } = require("../openclaw-bridge/mcp/research-memory-mcp/index.js");
     const researchMemory = createResearchMemory({ rootDir, logger });
     researchRuntime.researchMemory = researchMemory;
-    // Viz Studio (:8800, trinc-viz-studio plugin): local visualization rendering — charts,
-    // mermaid, sanitized SVG, Canvas boards, vault link-graph snapshots. DELIBERATELY NOT in
-    // localFetchers below: engine LLM roles have no mid-run tool loop, and viz content injected
-    // into prompts could carry PMID/NCT/DOI-shaped text into the citation gate's grounded-id
-    // extraction. Deterministic post-gate deliverable code consumes it instead (like
-    // ctgovSupplemental), calling chart()/mermaid()/renderSvg() with returnContent — and bundle
-    // assets must stay SVG (the packager hashes shipped files as UTF-8 text; PNG would corrupt).
-    // Fail-soft like every sibling: a closed Obsidian degrades to { ok: false }, never a throw.
-    const { createVizBridgeMcp } = require("../openclaw-bridge/mcp/viz-bridge-mcp/index.js");
-    researchRuntime.vizBridge = createVizBridgeMcp({ logger });
+    // Viz Studio (:8800) is not an engine dependency: the researchRuntime.vizBridge adapter was built
+    // 2026-08-16 but never called, and was retired 2026-10-23 (connector-registry "viz-bridge"). Claude
+    // reaches Viz Studio through the openclaw-obsidian door instead.
     // Open Targets Platform (GraphQL). Closes the registry's only HIGH-priority adapter gap —
     // it was claude-host-mcp only, therefore unreachable from this subprocess. Both entry
     // points return records carrying `chemblId` / `pmid`, so their evidence lands in

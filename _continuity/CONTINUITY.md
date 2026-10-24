@@ -251,6 +251,26 @@ forward below.
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 
+### 2026-10-24T04:33Z · Desktop Claude Code · **TRINC reorganization: Phase 4 closed, Phase 5 done (Claude's one Obsidian door)**
+- **Did:** Phase 4 closed: operator renamed the GitHub repo to `trevorrobeyinc/TRINC` and pushed; live checks with
+  Obsidian open all passed; obsidianwatch blessed (21:06 PDT, clean). Phase 5, after three operator decisions (keep
+  the video tools, Raycast keeps its own door, Viz stays open in Ralph loops): the stdio adapter's `openclaw` profile
+  (0.4.0, `openclaw-obsidian`) is now Claude's one door: runs + read-only vault search/read on `:8799` and the 12 Viz
+  renders on `:8800`, written only into `Visualizations/`. Retired: the adapter's `claude` profile and its ungated
+  `Copilot-Everything/.mcp.json` entry, the never-called engine `viz-bridge-mcp`, and the `:8798` bridge's tombstoned
+  `research_publish` (+ two engine scripts). Declined again: one-plugin-one-port and the daemon merge.
+- **State:** done, gates green: `test:profiles` 52/52 incl. live `:8799`/`:8800`, engine 1331/1331 (was 1343; the 12
+  removed tests went with the adapter), bridge 27/27, `verify.sh` 0 FAIL, transport lints, globals, secrets,
+  phase29/23. One live render landed: `Visualizations/trinc-one-door-check-2026-10-23.md`.
+- **Next:** operator: run `node scripts/render-business-context.js --apply` (the Copilot business-context note is
+  stale: 58 vs 66 connectors since the 10-21 Evidence Desk, plus `viz-bridge` now retired). New sessions see the
+  27 tools after a restart. Then Phase 6 (one clear doc set).
+- **Touches:** `Copilot-Everything/bridges/obsidian-stdio-adapter/{index.mjs,scripts/test-profiles.mjs,README.md}`,
+  bridge dispatcher, `connector-registry.json`, `ops/reorg/2026-10-cleanup-manifest.md` (Phase 4 + 5 record), docs.
+- **SCOPE NOTE:** repo infra (Obsidian bridges + adapter); "Current focus" untouched.
+- **For whoever's next:** the running `:8798` bridge still holds the removed `research_publish` until Obsidian restarts
+  it. Raycast's MCP registration still names the old path (via the symlink); re-register it before the symlink goes.
+
 ### 2026-10-24T03:48Z · Desktop Claude Code · **TRINC reorganization: Phase 4 rename done on disk (`/Users/myhome/TRINC`); GitHub rename next**
 - **Did:** the operator ran `rename_to_trinc.py --apply` (folder moved, compat symlink at the old path, 109 Desktop/vault
   paths repointed, memory copied to the `-Users-myhome-TRINC` project key). Part 2, this session: every functional

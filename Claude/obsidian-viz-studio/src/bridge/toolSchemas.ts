@@ -1,10 +1,11 @@
 /**
  * The viz_* tool declarations served by tools/list — the CONTRACT OF RECORD
- * for every consumer (Copilot Agent Mode discovers these live; the Copilot
- * fork's catalog.ts and the research engine's viz-bridge adapter mirror them).
+ * for every consumer (Copilot Agent Mode and Claude's openclaw-obsidian door
+ * discover these live; the Copilot fork's catalog.ts mirrors them).
  * Keep in sync with:
  *   Copilot-Everything/repos/obsidian-copilot-mcp-v4/src/mcp/catalog.ts (Lane A zod)
- *   Trevor Robey Intelligence Network Citations/openclaw-bridge/mcp/viz-bridge-mcp/index.js
+ *   Copilot-Everything/bridges/obsidian-stdio-adapter/index.mjs VIZ_TOOL_NAMES + VIZ_BLOCKED_PROPS
+ *     (a new tool or write-target property must be added there; npm run test:profiles fails until it is)
  */
 
 import { DEFAULT_PRESET, GUIDED_PRESETS, PRESET_IDS } from "../render/guided/presets";
