@@ -1,9 +1,0 @@
-{
-  "id": "copilot-terminal-relay",
-  "name": "TR-Obsidian Copilot Terminal Relay",
-  "version": "1.0.0",
-  "minAppVersion": "1.4.11",
-  "description": "Lets the Copilot agent stage a shell command into the Terminal plugin's pane. Types only — never submits; the operator's Return key is the execution gate.",
-  "author": "Trevor Robey, INC.",
-  "isDesktopOnly": true
-}
