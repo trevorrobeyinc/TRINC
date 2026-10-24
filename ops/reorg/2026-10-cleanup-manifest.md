@@ -274,6 +274,23 @@ Harmless and left: old project keys in `~/.claude.json`, "formerly" notes in `~/
 recall hook's TRINC→TrevClaw search alias, `shelf-recall.py` test fixtures. Security Everything mirrored the
 rename in `7f8116d`; its remaining 22 matches are dated records.
 
-**Pending:** re-run the gates, cut and mirror the `TRINC-FULL-backup-<date>.bundle`, refresh the Drive offsite
-copy, update the Hosting section, STATUS "Repo" row and board — after the Dependabot session (started
-2026-10-24) has landed its lockfile commits, so the bundle carries them.
+**Done after the Dependabot session landed** (`6192b5c`, `039ba03`):
+- **Gates vs the 2026-10-23 baseline:** `verify.sh` 0 FAIL / 0 WARN, `lint-transport-monorepo.sh --strict` exit
+  0, phase29 + phase23 pass, connector audit exit 0 (informational ⚠ only, as before), secrets scan pass, pack
+  `--check` OK. Engine `npm test` **1331/1331** (baseline 1343: the difference is tests deleted with retired
+  code in Phases 2–5; 1331 since Phase 6). Not run: the adapter's live `test:profiles` (Obsidian closed).
+  Expected drift: `render-business-context.js --check` until the operator's `--apply`.
+- **Bundle:** `~/Documents/TRINC-FULL-backup-20261024-0304.bundle` (77,244,073 bytes, sha256
+  `b8e9678f1095230edd89e32d4006eab6d49225ad09d5a3d5961287777c5da5af`, HEAD `039ba03`, complete history,
+  carries `refs/stash` and both restore tags), byte-identical mirror in `/Volumes/ExtraCurricular/Backups/`.
+  GitHub `origin/main` was also `039ba03`. The superseded `TrevClaw-Obsidianodus-FULL-backup-20260922-1606`
+  and `-20261023-1950` (both locations) await the operator's OK to go to the Trash (one-version policy).
+- **Drive offsite:** `git archive` of `039ba03` copied to `My Drive/TRINC/Monorepo-039ba03/` with one literal
+  `cp -R` per top-level folder; file-by-file compare: 3,220 entries, 0 missing, 0 extra, 0 different.
+  `Backups/README-RESTORE.md` and `SHA256SUMS.txt` rewritten for the new snapshot. Next: the operator trashes
+  the old `Monorepo/` (commit `03b0496`) in the Drive web UI as one folder, then the new folder is renamed
+  `Monorepo/`.
+- Hosting pointer in the root `CLAUDE.md`, the STATUS Engine and Repo rows, and the board updated.
+
+**Still open after Phase 8:** remove the compat symlink (not before 2026-11-06, after the three items above);
+the Falcon rule (proposed as a Security Everything session); the dependency audit's 11 decisions.

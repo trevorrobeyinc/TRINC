@@ -170,8 +170,9 @@ forward below.
 - Landing-copy deploy to worker `shy-grass-fccd` awaits operator go; where `trevorobeyinc.com` deploys
   from post-wipe (`~/openclaw-landing-deploy/`) is unconfirmed.
 - Connector OAuth for the needs-auth plugin servers (owkin, biorender, synapse, wiley, …).
-- **Backup bundle is stale:** the newest `git bundle` (`~/Documents/…-20260922-1606.bundle`, `5122e01`) is
-  66 commits behind; cut a fresh one after this session's commits.
+- **Backup is current (2026-10-24):** `TRINC-FULL-backup-20261024-0304.bundle` (HEAD `039ba03`) in `~/Documents`
+  and on ExtraCurricular, plus an offsite copy of the same commit in the business Drive; GitHub at the same
+  commit. Cut a fresh one after the next substantial batch of commits.
 
 ---
 
@@ -251,6 +252,21 @@ forward below.
 ## 📋 Log — newest first
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
+
+### 2026-10-24T10:40Z · Desktop Claude Code · **TRINC reorganization: Phase 8 close-out done (backup current in all three places)**
+- **Did:** the `trevclaw` sweep (`ac5ca0d`: what still needs the old path, which runtime names stay on
+  purpose); gates re-run against the 2026-10-23 baseline (all pass; engine 1331/1331); fresh bundle
+  `TRINC-FULL-backup-20261024-0304` (HEAD `039ba03`, sha256 `b8e9678f…a5af`) cut, verified, mirrored
+  byte-identical to ExtraCurricular; the Drive offsite copy refreshed from `03b0496` to `039ba03` in
+  `TRINC/Monorepo-039ba03/` (file-by-file identical) with a rewritten restore README; Hosting pointer,
+  STATUS rows and memory updated.
+- **State:** done, except steps that are the operator's (below). GitHub is at `039ba03` too.
+- **Next (operator):** OK to Trash the superseded bundles (`…-20260922-1606` and `…-20261023-1950`, both
+  locations); trash the old Drive `Monorepo/` in the web UI so the new folder can be renamed; fix the Desktop
+  folder preset; the dependency audit's 11 decisions; start the proposed Falcon-rule session; the compat
+  symlink comes out no earlier than 2026-11-06, once the Raycast path, the preset and the Falcon rule are
+  cleared. **Workspace payment (suspends 2026-11-02) also puts the Drive offsite leg at risk.**
+- **SCOPE NOTE:** repo infra (backups, rename close-out); Current focus's backup line refreshed.
 
 ### 2026-10-24T10:00Z · Desktop Claude Code (side session) · **Dependabot alerts triaged; nine lockfiles refreshed in range**
 - **Did:** rebuilt GitHub's 497 alerts locally (`npm audit` over the 11 lockfiles: 489) and fixed what needed no

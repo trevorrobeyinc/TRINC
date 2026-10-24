@@ -1,7 +1,7 @@
 # Status — Trevor Robey, INC.
 
 > One page: where the business stands and what moves it next. Updated **2026-10-21 (evening)** from the
-> four TR-INC Biz sibling sessions. Keep it short and true; the running story lives in
+> four TR-INC Biz sibling sessions; Engine and Repo rows refreshed **2026-10-24** (TRINC reorg Phase 8). Keep it short and true; the running story lives in
 > [`_continuity/CONTINUITY.md`](_continuity/CONTINUITY.md), the last full handoff in
 > [`_continuity/handoffs/HANDOFF-2026-10-21.md`](_continuity/handoffs/HANDOFF-2026-10-21.md).
 
@@ -13,9 +13,9 @@
 | Entity | Trevor Robey Intelligence Network Citations LLC — CA No. B20260217250, approved 2026-06-18 |
 | **Workspace** | 🔴 **Payment failed** — the card on file was declined. Google Workspace **suspends 2026-11-02**, taking business mail AND the AWS root email (`aws@`) with it. AI Expanded Access is already suspended (auto-cancels Dec 4). → [`google-workspace.md` §8](Trevor%20Robey%20Intelligence%20Network%20Citations/03-platforms/google-workspace/google-workspace.md) |
 | Compliance | **Behind.** EIN not applied for; LLC-12 (due 2026-09-16) and $800 FTB 3522 (due 2026-08-15) not done. No agency email in `trevor@` (all time) — but notices come **by post**, and the Zoho-era mailbox (May–July) was not searched. Every answer pre-filled: [`filing-walkthrough-2026-10.md`](Trevor%20Robey%20Intelligence%20Network%20Citations/00-business-formation/compliance/filing-walkthrough-2026-10.md) |
-| Engine | Works. Run #6 (2026-10-08) delivered 45/45 verified citations. Business-research lane **ready for its first live run, never run live yet.** The Evidence Desk is built (`a110f07`, after the pre-flight fixes in `8a0f5c5`): official-statistics ids `BLS:` and `EUROSTAT:` (keyless), with `CENSUS:` and `EIA:` built but dormant until you register their free keys. Also a passage condenser and a deterministic scout brief that replaces the scout's model call; the citation gate judges model-written text only. The business section gate uses SearXNG `science`, because `general` is Bing-only junk; it reverts to `general` once a Brave Search API (deferred by you) is in. Engine suite 1343/1343. Both commits are signed and **not pushed**. |
+| Engine | Works. Run #6 (2026-10-08) delivered 45/45 verified citations. Business-research lane **ready for its first live run, never run live yet.** The Evidence Desk is built (`a110f07`, after the pre-flight fixes in `8a0f5c5`): official-statistics ids `BLS:` and `EUROSTAT:` (keyless), with `CENSUS:` and `EIA:` built but dormant until you register their free keys. Also a passage condenser and a deterministic scout brief that replaces the scout's model call; the citation gate judges model-written text only. The business section gate uses SearXNG `science`, because `general` is Bing-only junk; it reverts to `general` once a Brave Search API (deferred by you) is in. Engine suite 1331/1331 (2026-10-24, after the reorg removed retired code and its tests); everything is pushed. |
 | First product | Trial Graveyard Feed. 2026-10-21 refresh **reviewed: 0 problems** — 12 areas, 7,373 stopped trials, ~90% with a sponsor-stated reason; breast cancer stopped at 2,000 of 2,034 (not a complete census). Listing files finalized (copy, coverage table, offer terms, console walkthrough in `UPLOAD-RUNBOOK.md`). **Not promoted, not uploaded, not listed.** |
-| Repo | One production source. `ops/tr-suite/verify.sh` = 0 FAIL. Plugin bindings + connector registry reconciled (6 plugins bound; 62 connectors incl. the business lane's 4 sources; plugin audit clean). |
+| Repo | **TRINC** (renamed 2026-10-23): `/Users/myhome/TRINC`, GitHub `trevorrobeyinc/TRINC`, in sync at `039ba03`. One production source; `ops/tr-suite/verify.sh` = 0 FAIL. Backup 2026-10-24: bundle `TRINC-FULL-backup-20261024-0304` in `~/Documents` + ExtraCurricular, and an offsite copy of the same commit in the business Drive. Dependency audit 2026-10-24: local alerts 489 → 207 (158 of them in the untouched Copilot fork); **11 upgrade decisions wait for you** in `ops/security/dependency-audit-2026-10.md`. |
 
 ## Operator queue (only you can do these)
 
