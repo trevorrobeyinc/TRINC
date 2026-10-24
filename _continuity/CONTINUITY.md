@@ -253,6 +253,21 @@ forward below.
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 
+### 2026-10-24T10:17Z · Desktop Claude Code (side session) · **Dependency audit: the "do now" batch done (vitest 5, readability 0.6, staged copies re-installed)**
+- **Did:** on the operator's go (majors approved): vitest 5.0.5 in the `:8798` bridge and research-memory,
+  `@mozilla/readability` 0.6.0 in searxng, the stdio adapter's SDK floor `^1.32.2`, then both
+  `install-connector.sh` re-run (staged searxng and trinc-content now on MCP SDK 1.32.2). Local alerts 207 → 185;
+  outside the Copilot fork 49 → 27. Every test and gate as before (engine 1331/1331).
+- **State:** done, committed, not pushed.
+- **Next:** operator: push; dismiss the `locutus`/`phpmorphy-locutus` alerts on GitHub as "vulnerable code not
+  used"; reconnect sessions that use searxng-search or trinc-content (old processes keep old code). Then the
+  planned changes, one each: tooluniverse submodule bump, zod 4, the transformers port.
+- **Touches:** `Claude/searxng-search-mcp`, `Claude/trevorobeyinc-research-memory-mcp`, the bridge (+ new
+  `vitest.config.ts`), the adapter's `package.json`, `ops/security/dependency-audit-2026-10.md`.
+- **For whoever's next:** vitest 4+ no longer excludes `dist/`; the bridge's new config keeps the compiled
+  test copies out.
+- **SCOPE NOTE:** repo infra (dependency hygiene); "Current focus" untouched.
+
 ### 2026-10-24T10:40Z · Desktop Claude Code · **TRINC reorganization: Phase 8 close-out done (backup current in all three places)**
 - **Did:** the `trevclaw` sweep (`ac5ca0d`: what still needs the old path, which runtime names stay on
   purpose); gates re-run against the 2026-10-23 baseline (all pass; engine 1331/1331); fresh bundle

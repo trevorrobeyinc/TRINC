@@ -15,6 +15,12 @@ dependency crossed a major version, no rebuilt plugin `main.js` differs from the
 gate is green (see [Gates](#gates)). Everything that is left needs a major bump, a replacement, the fork, or
 the submodule, and is listed under [Decisions for the operator](#decisions-for-the-operator).
 
+**Update, later on 2026-10-24 (the operator's "do now" batch, majors approved):** vitest 5 in the bridge and
+research-memory, `@mozilla/readability` 0.6 in searxng, the adapter's SDK floor raised to `^1.32.2`, and both
+staged copies re-installed. Local total **185** (6 / 77 / 86 / 16); outside the fork **27**. The live
+staged copies now audit at 1 (searxng: zod) and 0 (trinc-content). Details are marked **Done** under
+decisions 2, 8, 9, 10 and 11.
+
 ## Inventory
 
 | Manifest | Lockfile | Runs as |
@@ -128,7 +134,9 @@ Center; `npm run test:profiles` as above. **Still to run with Obsidian open:** `
 
 ## Decisions for the operator
 
-Ranked by exposure. Each one needs your go; none was started.
+Ranked by exposure as first written. **Decided 2026-10-24:** 2, 8, 9 and 11 done the same day (below);
+6 accepted (the operator dismisses the alerts on GitHub); 10 kept; then, one change each, 5 first, 1
+second, 3 third; 4 and 7 go into the next plugin deploy, so obsidianwatch needs one bless.
 
 1. **zod 3 → 4** (high, GHSA-mrhx-c7xc-m3w5, memory exhaustion on oversized constrained collections; no 3.x
    fix exists). It affects the engine (exact 3.24.1), Medical-Zettelkasten and searxng (3.24.1),
@@ -141,6 +149,11 @@ Ranked by exposure. Each one needs your go; none was started.
    gadgets in both, the mock-redirect file read, and in research-memory (still on vitest 2) the UI-server
    critical plus the old vite/esbuild chain: 20 alerts (5 critical, 2 high, 12 moderate, 1 low). The UI
    server is never started here. *Recommendation:* do it; the test suites prove it.
+   **Done:** vitest 5.0.5 in both (vite 8.3.5 comes with it). Bridge 27/27 and research-memory 23/23, both
+   compiling to the same output, and the adapter's `test:profiles` 43/0/3; no runtime package moved.
+   Two things it needed: the bridge got a `vitest.config.ts` limiting tests to `src/**/*.spec.ts`, because
+   vitest 4+ no longer excludes `dist/` and picked up the compiled CommonJS copies; and research-memory
+   needed vitest 2 uninstalled first (its vite 5 tree blocked vitest 5's vite peer), with no `--force`.
 3. **research-memory: `@xenova/transformers` 2.x → `@huggingface/transformers` 3.x** (protobufjs: 1
    critical, 5 high, 5 moderate; sharp: 3 high; none fixable inside 2.x). As used, protobufjs comes in
    through `onnxruntime-web`'s `onnx-proto` (the Node path runs `onnxruntime-node` on a trusted cached
@@ -167,17 +180,25 @@ Ranked by exposure. Each one needs your go; none was started.
    `esbuild --serve` dev server, which these builds never start). *Recommendation:* bump with the next planned
    plugin deploy, since the bundle may change.
 8. **`@mozilla/readability` 0.5 → 0.6** in searxng (low, ReDoS, runtime). *Recommendation:* bump, smoke-test,
-   re-run the installer.
+   re-run the installer. **Done:** 0.6.0 (no API change for `new Readability(doc).parse()`); `test:unit`
+   57/57, live smoke 14/14.
 9. **Deploy the two staged copies:** re-run `Claude/searxng-search-mcp/install-connector.sh` and
    `Claude/trinc-content-mcp/install-connector.sh`. The trinc-content installer skips its tests when the
    repo copy has no `node_modules` (the state it is in now); with `node_modules` present it runs `npm test`
-   under `set -e`, and the pre-existing thumbnail failure stops it.
+   under `set -e`, and the pre-existing thumbnail failure stops it. **Done:** both re-run; each staged
+   lockfile matches the repo's. Staged searxng is on SDK 1.32.2 and readability 0.6.0, and a stdio
+   `initialize` + `tools/list` handshake answers `search, extract, map`. Staged trinc-content is on SDK
+   1.32.2 and zod 4.6.7, checked by the installer's load test only (it is gated, so it was not spawned).
+   Server processes started before the re-run keep their old code until their session reconnects.
 10. **The holds:** `@hono/node-server` stays on 1.19.17 (patched; 2.x is allowed by the SDK) and the bridge's
     esbuild on 0.27.7 (one low advisory, Windows-only dev server). *Recommendation:* keep both until a
-    planned refresh.
+    planned refresh. **Update:** vite 8 removed esbuild from the bridge's tree, so only the
+    `@hono/node-server` hold remains.
 11. **The adapter has no lockfile.** It resolves through the symlink to the bridge's tree (MCP SDK 1.32.2
     now), while its `package.json` still says `^1.27.1`. *Recommendation:* raise its floor to `^1.32.2` so
     the manifest matches what runs, and keep the symlink documented in `ops/tr-suite/manifest.json`.
+    **Done:** floor raised by hand (npm was not run there, since an install would write into the bridge's
+    tree); version left at 0.4.0, since nothing that runs changed.
 
 ## Found on the way (not dependency issues)
 
@@ -189,6 +210,12 @@ Ranked by exposure. Each one needs your go; none was started.
   which does not typecheck).
 - `Copilot-Everything/bridges/obsidian-copilot-bridge/dist/backends/operationPolicy.js` is in the live `dist/`
   but no current source compiles to it: a stale build artifact.
+- `Copilot-Everything/bridges/obsidian-stdio-adapter/CHANGELOG.md` stops at 0.3.0, while `package.json` and the
+  MCP handshake say 0.4.0.
+- The staged `~/.claude/mcp-servers/trinc-content` holds a leftover `test/` folder; its installer stages only
+  `src/`, the package files and `README.md`, and says the runtime copy carries no tests.
+- `Claude/searxng-search-mcp` has an offline `npm run test:unit` (57 tests) besides the live `npm test` smoke;
+  both pass.
 
 ## Reproduce
 
