@@ -2,7 +2,7 @@
 
 > **Naming disambiguation (2026-04-27)**: This subdirectory was renamed from `OpenClaw-Research-Agents` to `trevor-robey-inc-agents` on 2026-04-27. The homebrew `openclaw` cask and `openclaw-cli` formula at `openclaw.ai` are unrelated consumer "Personal AI assistant" products (the prior launchd entry on :18789 was that product, removed 2026-04-27). **This is the canonical Trevor Robey, INC. citation-traced biomedical due diligence engine — powered by OpenClaw (open-source agent framework).** It runs as on-demand subprocess via `node scripts/run-workflow.js` — there is no persistent gateway service for the biomedical workflow.
 
-> **Repo topology (2026-05-07)**: this is no longer a standalone repo. It lives as a top-level directory inside the **TRINC monorepo**, now **local-only** at `/Users/myhome/TRINC` (post-wipe home; the private GitHub remote was **deleted 2026-05-26**; **no git remotes** — durable backup is a `git bundle --all` at `~/Documents/TRINC-FULL-backup-<date>.bundle`, refreshed 2026-08-20). The previous standalone GitHub remote `https://github.com/trevoralexanderrobey/trevor-robey-inc-agents` is the rollback anchor (tag `pre-monorepo-consolidation-2026-05-07` at SHA `8e782a0`); the repo is being archived. The `vendor/tooluniverse/` submodule is retained, pinned at SHA `3833b0e` (v1.1.10).
+> **Repo topology**: a top-level folder of the **TRINC monorepo** at `/Users/myhome/TRINC`, pushed to the private GitHub repo `trevorrobeyinc/TRINC` (pushes are the operator's, with a YubiKey); the offline backup is a verified `git bundle --all` in `~/Documents/`. Before 2026-05-07 this was the standalone repo `trevoralexanderrobey/trevor-robey-inc-agents` (rollback tag `pre-monorepo-consolidation-2026-05-07` at `8e782a0`). The `vendor/tooluniverse/` submodule is pinned at `3833b0e` (v1.1.10). Plain-language story of the business: the root `HOW-IT-WORKS.md`; verified technical record: the root `ARCHITECTURE.md`.
 
 > **Legal entity (updated 2026-07-22)**: brand wordmark **"Trevor Robey, INC."** is the trade name of **Trevor Robey Intelligence Network Citations LLC**, California limited liability company (filed 2026-05-06; **CA SOS Entity No. B20260217250**; **APPROVED 2026-06-18**, confirmed by certified SOS copy Certificate No. 457169837). See [`REVENUE_PLAYBOOK.md` §0a](REVENUE_PLAYBOOK.md) for the legal-status update flow and dependent surfaces.
 
@@ -18,7 +18,7 @@ A governed, local-first biomedical research and dataset packaging system. Archit
 - **Modules**: CommonJS (`require()` / `module.exports`)
 - **Validation**: Zod 3.24.1
 - **Testing**: Node's native `--test` runner (no external framework)
-- **CI**: GitHub Actions (`.github/workflows/ci-enforcement.yml`)
+- **CI**: none runs. `.github/workflows/ci-enforcement.yml` sits in this subfolder, where GitHub never runs it; the policy-gate scripts read it, so it stays. The local gates below are the pipeline.
 - **LLM**: Claude Code (primary, active — scout/analyst/synthesizer on claude-opus-4-8, default on claude-sonnet-4-6), Mock (testing). The engine is 100% Claude; local models were removed from the engine (restorable).
 - **Biomedical Tools**: Harvard ToolUniverse via MCP (2,116 tools across 500 data files (vendor/tooluniverse v1.1.10), Phase 29 active)
 
@@ -139,7 +139,7 @@ node scripts/distribute.js --workflow-id <id> --targets datarade,kaggle,training
 
 ### Phase System (1-33 active)
 
-Phases 1-33 are implemented. Phase 26 bridge consolidation is complete (execution router, principal context, fail-closed enforcement). Phase 29 (Harvard ToolUniverse biomedical MCP) is active — startup integrity hooked into MCP init chain (warn-on-failure, non-blocking), 58/58 tests passing, 2,116 biomedical tools (vendor/tooluniverse v1.1.10) accessible via MCP. Phase 30 (Workflow Engine) provides single-command end-to-end orchestration with 6 workflow templates, 6 specialized agent roles, and quality auditor. Phase 31 (Enterprise Delivery) adds Research REST API, scheduled workflows, and usage metering. Phase 33 (Claude Code MCP Provider) replaces LM Studio as the primary LLM provider — Claude Code runs via `claude -p` stdin pipe using the user's authenticated session (Claude Max Pro), producing biomedical output with real verifiable citations that pass quality gates.
+Phases 1-33 are implemented. Phase 26 bridge consolidation is complete (execution router, principal context, fail-closed enforcement). Phase 29 (Harvard ToolUniverse biomedical MCP) is active — startup integrity hooked into MCP init chain (warn-on-failure, non-blocking), 58/58 tests passing, 2,116 biomedical tools (vendor/tooluniverse v1.1.10) accessible via MCP. Phase 30 (Workflow Engine) provides single-command end-to-end orchestration with 10 workflow templates (seven biomedical, three business-lane), 6 specialized agent roles, and quality auditor. Phase 31 (Enterprise Delivery) adds Research REST API, scheduled workflows, and usage metering. Phase 33 (Claude Code MCP Provider) replaces LM Studio as the primary LLM provider — Claude Code runs via `claude -p` stdin pipe using the user's authenticated session (Claude Max Pro), producing biomedical output with real verifiable citations that pass quality gates.
 
 **Role-call isolation (2026-09-22, found by the first gated run started from Copilot chat):** every
 role call is `claude -p --output-format json --allowedTools "" --strict-mcp-config --mcp-config
@@ -238,7 +238,7 @@ Key phases for daily work:
 - **26**: Bridge runtime and execution-router consolidation (fully consolidated)
 - **28**: Direct-delivery evidence
 - **29**: Harvard ToolUniverse biomedical MCP integration (active — 2,116 tools across 500 data files (vendor/tooluniverse v1.1.10), 6 mission templates, 5 dataset schemas)
-- **30**: Workflow engine — single-command orchestration (`run-workflow.js`), 6 workflow templates, 6 specialized agent roles (literature_reviewer, safety_signal_detector, molecular_profiler, competitive_intel_analyst, quality_auditor, report_generator), quality auditor self-verification
+- **30**: Workflow engine — single-command orchestration (`run-workflow.js`), 10 workflow templates, 6 specialized agent roles (literature_reviewer, safety_signal_detector, molecular_profiler, competitive_intel_analyst, quality_auditor, report_generator), quality auditor self-verification
 - **31**: Enterprise delivery layer — Research REST API (`/api/v1/research`), scheduled workflows, usage metering, `api_client` bridge principal
 - **33**: Claude Code as primary LLM provider — `claude -p` stdin pipe with JSON output, no local fallback (each role's `fallback` = "" — a claude-code failure surfaces the real error rather than chasing a local backend), per-template provider routing via `provider_preference`, citation density quality formula
 
@@ -279,7 +279,7 @@ inputs are in the lane doc. What the pre-flight found and fixed:
   The gate proves a WEB id was fetched, not that the page is about the question — this check does.
 - Command Center's template list now carries `researchProfile` and `optionalInputs` (the business
   inputs `company`/`competitors` decide whether SEC filings fire), and the run tool's input hint covers
-  the business templates — live only once the plugin is redeployed.
+  the business templates — live since the 2026-10-23 Command Center redeploy.
 **No prices**: the custom any-field tiers are ON HOLD by the operator.
 
 ### Design Principles
@@ -292,14 +292,13 @@ inputs are in the lane doc. What the pre-flight found and fixed:
 - **Fail-closed execution**: Missing router or missing principal context results in job denied
 - **Fail-closed citations**: A report whose grounded-citation ratio is below `minGroundedCitationRatio` refuses to ship (`PHASE30_CITATION_UNVERIFIED`); a report citing any retracted DOI hard-stops (`PHASE30_CITATION_RETRACTED`). The retraction screen is fail-soft (a Crossref error never wrongly blocks). See Citation Integrity Layer.
 - **Enterprise brand consistency**: All buyer-facing materials use Bloomberg Terminal dark aesthetic (#0a0a0f bg, #4a90d9 accent), verified-citation messaging, "Trevor Robey, INC." wordmark (INC = Intelligence Network Citations) over the Trevor Robey Intelligence Network Citations LLC legal entity
-- **Offering ladder (2026-04-30)**: Investor Pre-Mortem primary ($9,950 / $14,950 / $19,950), Failed Trial Archaeology flanking ($14,950), tactical SKUs ($4,950 Conference Synthesis Brief, $4,950 Trial Design Benchmark Pack, $9,950–$24,950 Cross-Silo Connector Report, $2,500 Plain-Language Patient Brief), Pharmacovigilance Pack tactical demoted ($2,500–$4,950). Tactical SKUs sold via landing-page mailto and manual ZIP; primary SKUs via direct outbound and discovery calls. Existing Datarade / HuggingFace / AWS marketplace listings preserved at tactical-tier prices.
+- **Offering ladder**: SKUs and prices live only in `OFFERINGS.md` (canonical). Do not copy them into this file, where they drift.
 
 ### LLM Providers
 
 | Provider | Config Key | Status | Endpoint |
 |----------|-----------|--------|----------|
-| Claude Code | `claude-code` | **Active** (default) | `claude -p` stdin pipe (claude-sonnet-4-6) |
-| LM Studio | — | **Decommissioned (2026-07-16)** — removed from the engine (proxy :1235, launchd unit, and provider config all deleted; app + ~/.lmstudio trashed) | — |
+| Claude Code | `claude-code` | **Active** (default) | `claude -p` stdin pipe (scout, analyst, synthesizer on `claude-opus-4-8`; everything else `claude-sonnet-4-6`) |
 | Mock | `mock` | Active (CI/testing) | N/A |
 | Anthropic API | `anthropic` | Available (disabled) | `https://api.anthropic.com/v1/messages` |
 
@@ -334,7 +333,7 @@ Recognize that Claude Max Pro token burn is becoming a problem when:
 
 **Phase 1 — Route scout to a local model (Ollama, restorable)** (saves ~33% of Claude tokens):
 - The scout role performs tool discovery and initial data collection. It does NOT require Claude-level reasoning — it reads seed documents and ToolUniverse pre-fetch results, then produces a structured summary
-- Change: re-enable the removed-but-restorable local lane — restore a `helper` block, set the `scout` role's `fallback` to `local`, and set `providers.local.enabled=true` in `config/llm-providers.json` (providers.local = Ollama at :11435) so scout runs on the local model instead of `claude-code`
+- Change: re-enable the removed-but-restorable local lane — restore a `helper` block, set the `scout` role's `fallback` to `local`, and set `providers.local.enabled=true` in `config/llm-providers.json` (providers.local = Ollama at :11435) so scout runs on the local model instead of `claude-code`. As of 2026-10-23 Ollama runs but has **no model installed**, so this phase would first need one pulled — the operator's call
 - The tool-prefetch module (`openclaw-bridge/core/tool-prefetch.js`) still runs before the scout prompt (it's independent of the LLM provider), so the scout still gets live ToolUniverse data
 - Only the `analyst` and `synthesizer` roles continue using Claude Code
 - Expected savings: ~33% reduction in Claude token usage per workflow
@@ -405,8 +404,8 @@ Typical monthly budget at current pace: 4-6 full cycles = 7-11M tokens. Check ac
 
 ## Git Conventions
 
-- Phase work on `codex/phaseNN-slug` branches, merged to main after CI passes
-- Required CI status checks: `policy-and-tests`, `deterministic-build-verify`
+- Phase work on `codex/phaseNN-slug` branches (`scripts/start-phase-branch.sh`), merged to main once the local gates pass
+- The workflow file's job names (`policy-and-tests`, `deterministic-build-verify`) are checked by the policy gates; nothing runs them on GitHub
 - Commit messages should describe the phase and change type
 
 ## Source of Truth Order
@@ -433,7 +432,6 @@ GitHub's built-in secret scanning provides push protection for provider-specific
 - **Hosting**: Cloudflare Workers static-assets. **Live worker = `shy-grass-fccd`** (Cloudflare account `f3b10bacc7e94c72e445b078433aa1d4`), deployed from the local staging folder `/Users/myhome/openclaw-landing-deploy/` (served assets live in its `public/` subdir). The folder's legacy name `openclaw-landing-deploy` is NOT the worker name — the folder's `wrangler.jsonc` pins `name = "shy-grass-fccd"` (verified 2026-06-30 against the live file; a separate worker literally named `openclaw-landing-deploy`, if any, is for something else). Domain `trevorobeyinc.com` is on Cloudflare Registrar; custom domain attached via Worker Settings → Domains & Routes (cookie-auth Universal SSL, no API key, no GitHub). Verified serving production traffic 2026-05-06.
 - **Old URL (retired)**: https://trevorrobeyinc.github.io — superseded by trevorobeyinc.com on 2026-04-26. The GitHub Pages repo can be archived.
 - **Deployment**: Copy the page source(s) from `workspace/collateral/landing-page/` into `/Users/myhome/openclaw-landing-deploy/public/`, then drag the `/Users/myhome/openclaw-landing-deploy/` folder into the **`shy-grass-fccd`** project's "New deployment" UI, or `cd /Users/myhome/openclaw-landing-deploy && npx --yes wrangler@latest deploy` (the wrangler.jsonc pins `name = "shy-grass-fccd"` and `assets.directory = "./public"`). Site updates within ~30 seconds. **Correction (2026-06-30):** the live worker IS `shy-grass-fccd` — an earlier note here wrongly called it "stale" and credited `openclaw-landing-deploy` (that is only the folder name). Confirmed against the live `wrangler.jsonc`; this also matches `README.brand.md`, `brand-system.md`, and the brand spec.
-- **Workflow**: Edit source HTML in this repo, copy to Pages repo, push. Site updates within ~60 seconds.
 
 ### Brand Identity
 
@@ -456,14 +454,6 @@ GitHub's built-in secret scanning provides push protection for provider-specific
 | `workspace/collateral/one-pagers/` | One-page product summaries |
 | `workspace/collateral/data-dictionaries/` | Target validation matrix schema |
 
-### Offering Ladder (2026-04-30)
+### Offering ladder
 
-| Tier | SKU | Price | Buyer | Delivery |
-|------|-----|-------|-------|----------|
-| **Primary** | Investor Pre-Mortem | $9,950 / $14,950 / $19,950 (+ KOL primary) | Biotech investors, pharma BD/licensing | Manual ZIP + Snowflake / AWS / BigQuery handoff for enterprise |
-| **Flanking primary** | Failed Trial Archaeology | $14,950 | Pharma R&D CI, biotech VC diligence | Manual ZIP via secure email |
-| Tactical | Conference Synthesis Brief | $4,950 / conference | Pharma R&D, investors, BD | HTML executive summary + filterable table |
-| Tactical | Trial Design Benchmark Pack | $4,950 | Biotech R&D, pharma CI | Manual ZIP — `design-benchmark.md` comparison matrix + `design-benchmark.csv` (**corrected 2026-07-30**: previously claimed "PDF + Tableau workbook", which was unbuildable — `export-release.js` emits only `folder` or `zip`, the sole npm dependency is `zod`, and "tableau" appears nowhere in the codebase) |
-| Tactical | Cross-Silo Connector Report | $9,950 – $24,950 | Pharma R&D, biotech partnerships | Narrative + interactive knowledge-graph export |
-| Tactical | Plain-Language Patient Brief | $2,500 | PAGs, trial sponsors | Word/PDF EMWA-aligned template |
-| Tactical (demoted) | Pharmacovigilance Pack | $2,500 – $4,950 | Mid-market pharma safety | Existing Datarade / HuggingFace listings preserved |
+SKUs, prices, buyers and delivery formats live only in [`OFFERINGS.md`](OFFERINGS.md), the canonical list (this file's copy was removed 2026-10-23 after it drifted). Never compute or invent a price.

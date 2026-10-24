@@ -141,7 +141,7 @@ wizard (operator, or Claude in the Claude Browser pane with the cb gate armed). 
 
 ## 5 · Wire into the stack (after live)
 
-- Update: `SYSTEM-REALITY.md` + `THE-WHOLE-SYSTEM.md` domain/email rows, monorepo `CLAUDE.md`
+- Update: `SYSTEM-REALITY.md` domain/email rows, monorepo `CLAUDE.md`
   website section, and this file's status header.
 - claude.ai-level Google Drive/Calendar connectors MAY be re-bound to the new Workspace
   identity (chat-supervisory only). **Engine-side Google Drive stays removed** — the 2026-07-01

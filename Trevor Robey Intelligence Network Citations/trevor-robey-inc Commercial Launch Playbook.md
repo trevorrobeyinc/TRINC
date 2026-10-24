@@ -4,7 +4,7 @@
 >
 > *Tagline:* **Every claim, sourced. Every risk, named. In days, not weeks.**
 >
-> *Elevator:* Citation-traced biomedical due diligence for biotech investors and pharma BD. Five days. Zero hallucinations. Audit trail included.
+> *Elevator:* Citation-traced biomedical due diligence for biotech investors and pharma BD. Five days. Every citation grounded and retraction-screened. Audit trail included.
 
 > ### STATUS UPDATE — 2026-05-04 (table kept live; rows current as of 2026-05-26 — see PROGRESS LOG 2026-05-26 below)
 >
@@ -140,7 +140,7 @@
 >   the remaining gate is AWS's own product review on an actual listing submission.
 > - **Engine note (2026-06-10):** a live test run showed the OpenClaw workflow engine
 >   halts at a human-approval gate it cannot satisfy from any production path — see
->   [`THE-WHOLE-SYSTEM.md`](THE-WHOLE-SYSTEM.md) §0a. Does not affect the AWS/GTM track,
+>   [`docs/history/THE-WHOLE-SYSTEM-2026-06-10.md`](../docs/history/THE-WHOLE-SYSTEM-2026-06-10.md) §0a. Does not affect the AWS/GTM track,
 >   but it means no research report has been produced yet; fix is a small approval wire.
 
 > ### PROGRESS LOG — 2026-06-12 (engine: citation-integrity layer shipped + two new deliverables; first complete report produced)
@@ -193,7 +193,7 @@
 >   **Failed Trial Archaeology** offering ($14,950).
 >
 > No GTM/channel impact — but the product now has the literal "every claim, sourced; audit
-> trail included" artifacts in-bundle. See [`THE-WHOLE-SYSTEM.md`](THE-WHOLE-SYSTEM.md).
+> trail included" artifacts in-bundle. See [`HOW-IT-WORKS.md`](../HOW-IT-WORKS.md).
 
 **Bottom line:** trevor-robey-inc enters a market that has been waiting for a citation-disciplined alternative — every claim PMID/NCT/ChEMBL-traced, refund-backed citation-audit SLA, audit-trail-included at investor-grade price. Two of Trevor's six "distribution platforms" (Outlier.ai, Mindrift.ai) are not marketplaces at all; the highest-leverage move in the next seven days is a Datarade vendor application paired with a gated HuggingFace teaser dataset — those two listings can be live by Friday May 1, 2026 with zero contractor spend. AWS Data Exchange should be initiated in parallel but treated as a 60–180 day enterprise channel, not a Week-1 revenue source. DrugBank must be removed from every public pack until a commercial license is signed, and FAERS is now AEMS with daily updates as of March 11, 2026 — the Pharmacovigilance Pack copy needs that update before any cold email goes out. The 12 named target accounts below all show concrete 2025–2026 buying signals. The lead public offering is **Investor Pre-Mortem** ($9,950 anchor / $14,950 standard / $19,950 custom with KOL primary research), positioned against McKinsey diligence ($150K–$750K, 2–6 weeks) and ChatGPT (free, 30%+ citation hallucination). Pharmacovigilance Pack remains as the tactical demonstration listing on Datarade and HuggingFace at the existing $2,500–$4,950 tier; it is no longer the lead product.
 

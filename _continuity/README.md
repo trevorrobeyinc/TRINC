@@ -52,7 +52,7 @@ mirror.
 5. **Name your surface** in every entry (`CLI Claude Code` / `Desktop Claude Code` / `Cowork` /
    `Claude Chat`) so cooperation is legible.
 6. **Point to canon, don't fork it.** This board is a *pointer + state* layer. Deep facts live in
-   `CLAUDE.md`, `SYSTEM-REALITY.md`, `THE-WHOLE-SYSTEM.md`. Link, don't
+   `CLAUDE.md`, `SYSTEM-REALITY.md`, `HOW-IT-WORKS.md`. Link, don't
    duplicate.
 
 > **Scope gate — business only:** only write to the board when the work relates to the Trevor

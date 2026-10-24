@@ -12,7 +12,7 @@
 - **Canonical path:** `/Users/myhome/TRINC/_continuity/CONTINUITY.md`
 - **Repo-canonical, single file** — there is no mirror and no copy. All four surfaces edit *this* file on disk.
 - **Business canon (do not duplicate here — point to it):** repo `CLAUDE.md`,
-  `Trevor Robey Intelligence Network Citations/{THE-WHOLE-SYSTEM.md, SYSTEM-REALITY.md}`.
+  `HOW-IT-WORKS.md` (the plain-language story) and `Trevor Robey Intelligence Network Citations/SYSTEM-REALITY.md`.
 
 ---
 
@@ -250,6 +250,29 @@ forward below.
 ## 📋 Log — newest first
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
+
+### 2026-10-24T05:44Z · Desktop Claude Code · **TRINC reorganization: Phase 6 done (one clear doc set; opencode delegation lane retired)**
+- **Did:** new root `HOW-IT-WORKS.md` (the plain-language story); `ARCHITECTURE.md` re-verified against live
+  code and processes and rewritten as the record; README map, root `CLAUDE.md` (89K → ~21K, current only),
+  `Claude/` and `Copilot-Everything/` `CLAUDE.md` rewritten; the engine `CLAUDE.md`, `docs/WORKFLOW_CATALOG.md` and
+  `REVENUE_PLAYBOOK.md` brought current (incl. two run commands missing `--operator-approve` and a refused
+  `run-dataset-mission.js` example). The June system map, the May dossier, the deletion log and the browser
+  history moved to `docs/history/`. "Zero hallucinations" replaced with the `OFFERINGS.md` elevator everywhere
+  live, including the vault's Copilot business-context note. On the operator's instruction, the Claude →
+  opencode delegation lane is retired (three registrations, the server, its guardrail, `_opencode-bridge/`,
+  the six repo `AGENTS.md` mirrors); `~/.config/opencode/` stays because the Copilot agent's opencode loads it.
+- **State:** done. Engine 1331/1331, `verify.sh` 0 FAIL, lints, secrets, globals, phase29/23, connector audit,
+  business-context `--check` OK, `test:profiles` 52.
+- **Next:** operator: push; decide Ollama (no model installed: reinstall one or retire the proxy); review the
+  price conflicts listed in `ops/reorg/2026-10-cleanup-manifest.md` Phase 6. Then Phase 7 (the Claude.ai
+  learn-and-pitch pack).
+- **Touches:** `HOW-IT-WORKS.md`, `ARCHITECTURE.md`, `README.md`, the `CLAUDE.md` files, `docs/history/`,
+  `.mcp.json`, `ops/`, the engine's registry, catalog and revenue playbook; outside the repo `~/.claude.json`,
+  `claude_desktop_config.json`, `~/.config/opencode/AGENTS.md`, the vault note, memory.
+- **SCOPE NOTE:** repo docs and infra; "Current focus" untouched.
+- **For whoever's next:** new browser-session entries go in `docs/history/browser-sessions.md`, not
+  `CLAUDE.md`. Security Everything still names the opencode lane (hook matcher, `opencode-delegation-guard/`,
+  se_parity); harmless until tidied there.
 
 ### 2026-10-24T04:33Z · Desktop Claude Code · **TRINC reorganization: Phase 4 closed, Phase 5 done (Claude's one Obsidian door)**
 - **Did:** Phase 4 closed: operator renamed the GitHub repo to `trevorrobeyinc/TRINC` and pushed; live checks with

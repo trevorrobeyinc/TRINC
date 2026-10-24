@@ -36,19 +36,6 @@
         "TRINC_CONTENT_PUBLISH": ""
       }
     },
-    "opencode": {
-      "type": "stdio",
-      "command": "/Users/myhome/.claude/mcp-servers/opencode-mcp/.venv/bin/python",
-      "args": [
-        "/Users/myhome/.claude/mcp-servers/opencode-mcp/server.py"
-      ],
-      "env": {
-        "OPENCODE_MCP_BIN": "/opt/homebrew/bin/opencode",
-        "OPENCODE_MCP_MODEL": "opencode/deepseek-v4-flash-free",
-        "OPENCODE_CONFIG": "/Users/myhome/.config/opencode/delegation-guardrail.json",
-        "OPENCODE_MCP_ALLOWED_DIRS": "/Users/myhome/TRINC"
-      }
-    },
     "openclaw-obsidian": {
       "type": "stdio",
       "command": "/Users/myhome/.nvm/versions/node/v22.13.1/bin/node",

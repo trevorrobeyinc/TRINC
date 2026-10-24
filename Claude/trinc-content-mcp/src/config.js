@@ -43,7 +43,7 @@ function paths() {
 
 /**
  * Verbatim, from REVENUE_PLAYBOOK.md:22 and the repo CLAUDE.md. Required on customer-facing
- * material by Cal. Bus. & Prof. Code §17910.5(a). A longer variant exists in AGENTS.md that
+ * material by Cal. Bus. & Prof. Code §17910.5(a). A longer variant exists in the engine folder's CLAUDE.md that
  * appends "INC = Intelligence Network Citations."; the short form is the canonical one and is
  * pinned here so no tool emits whichever it happens to find first.
  */

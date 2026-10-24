@@ -1,290 +1,276 @@
 # TRINC — Architecture
 
-> Renamed 2026-10-23 from `TrevClaw-Obsidianodus`; the folder is now `/Users/myhome/TRINC`.
+**Verified against live code, configuration and listening processes: 2026-10-23.**
+(Previous full verification: 2026-07-23. Renamed from `TrevClaw-Obsidianodus` the same day; the folder is
+now `/Users/myhome/TRINC`.)
 
-**Rewritten and verified against live code and running processes: 2026-07-23.**
+This is the **technical record of the stack as it is**. Every claim below was checked against source, a
+config file, or a running process on that date; anything that could not be checked says so. Things that
+were removed are listed under [Retired](#retired--do-not-reintroduce) instead of disappearing, so a
+stale memory of "we had X" can be settled quickly. For the plain-language story of how the business
+works, read [`HOW-IT-WORKS.md`](HOW-IT-WORKS.md); for what may be claimed to customers,
+[`SYSTEM-REALITY.md`](Trevor%20Robey%20Intelligence%20Network%20Citations/SYSTEM-REALITY.md); for what is in
+flight, [`_continuity/CONTINUITY.md`](_continuity/CONTINUITY.md).
 
-This document describes the stack **as it actually is**. Every claim below was checked against
-source or a running process on that date. Retired components are listed in
-[Retired](#retired--do-not-reintroduce) rather than silently deleted, so a stale memory of
-"we had X" can be resolved quickly.
+> **Brand note.** This is the stack behind **Trevor Robey, INC.**, the wordmark of **Trevor Robey
+> Intelligence Network Citations LLC**, a California limited liability company (CA SOS Entity No.
+> B20260217250, approved 2026-06-18). "OpenClaw" is the open-source agent framework the engine is built
+> on; it is not a brand the operator owns, and the homebrew `openclaw.ai` consumer assistant is unrelated.
 
-> **Brand note.** This describes the technical stack powering **Trevor Robey, INC.** — the brand
-> wordmark of **Trevor Robey Intelligence Network Citations LLC**, a California limited liability
-> company (CA SOS Entity No. B20260217250, approved 2026-06-18). "OpenClaw" appears as the
-> open-source agent framework the stack uses; it is not a brand owned by the operator, and the
-> retired homebrew `openclaw.ai` consumer assistant is unrelated.
-
-> **Repo topology.** Single **local-only** monorepo at `/Users/myhome/TRINC`
-> with **no git remotes** (the private GitHub remote was deleted 2026-05-26; durable backup is a
-> verified `git bundle --all`). Only submodule: `Trevor Robey Intelligence Network Citations/vendor/tooluniverse`.
-> Vendored fork (not a submodule): `Copilot-Everything/repos/obsidian-copilot-mcp-v4/` (the 3.3.3 fork was retired 2026-10-21).
-
-Companions: [`CLAUDE.md`](CLAUDE.md) (rules, ports, invariants) ·
-[`SYSTEM-REALITY.md`](Trevor%20Robey%20Intelligence%20Network%20Citations/SYSTEM-REALITY.md)
-(what the business can honestly claim) · [`_continuity/CONTINUITY.md`](_continuity/CONTINUITY.md)
-(what is in flight right now).
+> **Repository.** One monorepo at `/Users/myhome/TRINC`, pushed to the **private** GitHub repo
+> `trevorrobeyinc/TRINC` over `ssh.github.com:443`. Pushes are operator-run in a real terminal: the only
+> key is a PIN-protected YubiKey FIDO2 credential, which an agent shell cannot unlock. Offline backup is a
+> verified `git bundle --all` in `~/Documents/`. One submodule:
+> `Trevor Robey Intelligence Network Citations/vendor/tooluniverse` (mims-harvard/ToolUniverse, `3833b0e`,
+> v1.1.10, Apache-2.0). One vendored fork: `Copilot-Everything/repos/obsidian-copilot-mcp-v4/` (upstream
+> obsidian-copilot 4.0.0 plus an MCP client module; manifest pinned to `99.4.0` so Obsidian never
+> auto-updates over it).
 
 ---
 
 ## 1. What this stack is
 
-A **citation-traced biomedical due-diligence engine** plus the Obsidian workspace that drives it.
-
-- The **engine** turns a research question into a sealed, citation-audited deliverable bundle.
-- **Obsidian** is the operator's console: it dispatches workflows, receives results as linked
-  notes, and provides semantic search and graph analysis over the vault.
-- **Claude is the only reasoning model in the engine.** The only model on the Obsidian side is
-  hosted `copilot-plus-flash`. **No local model runtime exists on this machine.**
+- **The engine** (`Trevor Robey Intelligence Network Citations/`) turns one research question into a
+  sealed, citation-audited deliverable bundle. It has **two lanes that share one citation gate**:
+  biomedical (seven templates) and business (three templates, built and unit-tested, never run live).
+- **Obsidian** is the operator's console. Its plugins dispatch runs, receive the results as vault notes,
+  render visuals, and provide semantic search and graph analysis over the vault.
+- **Claude reaches Obsidian through one door**, the stdio adapter's `openclaw` profile (server
+  `openclaw-obsidian`). Copilot and Raycast keep their own doors.
+- **Models.** The engine is **100% Claude**. Obsidian's Copilot chat defaults to hosted
+  `copilot-plus-flash`; its agent mode runs on an opencode backend. Ollama is running behind its HTTPS
+  proxy but **has no model installed** (see §7).
 
 ---
 
 ## 2. Live component map
 
-```
-Obsidian (the console — owns two bridge lifecycles)
-├── obsidian-bridge-launcher ──spawn──> canonical MCP bridge      HTTPS :8798
-│      routes: /healthz · /metrics · /mcp/events · POST /mcp/tool
-│      auth: bearer token + replay guard (X-MCP-Nonce, X-MCP-Timestamp, X-MCP-Body-Sha256)
-├── command-center ──────────> Command Center bridge (additive)   HTTPS :8799
-│      11 tools (7 vault + 4 workflow); 32-byte token in a 0600 file,
-│      SHA-256 + timingSafeEqual; TLS mandatory, fail-closed
-│      └──spawn──> node scripts/run-workflow.js        (the engine, on demand)
-├── copilot (vendored MCP fork) ── MCP *client* ──> :8798 and :8799
-│      chat model: hosted copilot-plus-flash; MCP supplies TOOLS, never the model
-├── vault-zettelkasten ── in-process ZettelkastenService (graph analysis)
-└── contextual-wiki-definitions ── wiki-link definition writer
+Ports and owners as read with `lsof` on 2026-10-23, with Obsidian open.
 
-Third-party loopback services, each wrapped by an in-monorepo HTTPS proxy
-├── Miyo    :8743 ──> :8742     semantic search over the vault
-├── Qdrant  :6433 ──> :6333     vector store (Miyo-bundled child)
-└── SearXNG :8891 ──> :8890     private metasearch (citation gate + web search)
+```
+Obsidian — owns four HTTPS bridges; all of them die when Obsidian quits
+├── obsidian-bridge-launcher ─spawns─> canonical vault bridge        :8798  (node child process)
+│       Local REST API plugin underneath                              :27124 (the vault engine)
+│       routes /healthz /metrics /mcp/events POST /mcp/tool; bearer token + replay guard
+├── command-center ──────────────────> Command Center bridge         :8799  32 tools
+│       7 vault + 16 obsidian_openclaw_* + 7 zk_* + 2 video_pipeline_*; 0600 token file
+│       └─spawns─> node scripts/run-workflow.js   (the engine, on demand)
+├── trinc-viz-studio ────────────────> Viz Studio bridge             :8800  12 viz_* tools
+│       every render is written under Visualizations/
+├── trinc-security-bridge ───────────> Security Bridge               :8801  (owned by ~/Security Everything)
+├── copilot (vendored fork)
+│       chat: hosted copilot-plus-flash; MCP client for TOOLS only -> :8798, :8799, :8800
+│       agent mode: opencode backend (ACP); `opencode serve` on :4096 is password-locked;
+│       openclaw-stdio-proxy.mjs carries the agent's tool calls to :8799 and :8800
+├── vault-zettelkasten ── in-process ZettelkastenService (LLM linking, scheduled vault scans)
+└── personal plugins (sources outside this repo, in ~/Code): origin-nest,
+    contextual-wiki-definitions, claude-console-mirror
+
+Claude's one door (Claude Code, repo .mcp.json "openclaw-obsidian")
+└── stdio adapter, profile openclaw ──> :8799 and :8800   (never loads the :8798 token)
+Raycast chat's door
+└── stdio adapter, profile raycast  ──> :8798 vault tools + :8799 video tools
+
+Third-party loopback services, each wrapped by an in-repo HTTPS proxy (launchd)
+├── Miyo     :8743 -> :8742    semantic search over the vault
+├── Qdrant   :6433 -> :6333    vector store (Miyo's child process)
+├── SearXNG  :8891 -> :8890    private metasearch
+└── Ollama   :11435 -> :11434  running, no model installed
 ```
 
-All of the above were confirmed listening on 2026-07-23. There is **no persistent engine
-service** — the engine is an on-demand subprocess.
+There is **no persistent engine service**: the engine is a subprocess started per run.
 
 ---
 
 ## 3. The research engine
 
-Location: `Trevor Robey Intelligence Network Citations/` — a single flat-merged folder since
-2026-05-19. The former sibling directories `trevor-robey-inc-agents/` and `trevor-robey-inc/`
-**no longer exist on disk**.
-
 ### 3.1 Invocation
 
 ```bash
-node scripts/run-workflow.js --template <template_id> --inputs '<json>' \
-     [--operator-id <id>] [--operator-approve] --confirm
+node scripts/run-workflow.js --template <template_id> --inputs '<json>' [--operator-approve] --confirm
 ```
 
-- `--confirm` is **mandatory** — the runner exits 1 without it (fail-closed).
-- `--operator-approve` satisfies the Phase-15 autonomy gate (`role-router` requires
-  `context.operatorApproved === true` for every research role). It is **YubiKey-gated**: honoured
-  only against a fresh one-shot token minted by `operator-approve-gate arm` (pinentry PIN +
-  physical touch), verified and consumed before anything spawns.
-- The script **re-execs itself once** with `NODE_EXTRA_CA_CERTS` set to the mkcert root CA
-  (sentinel `__OPENCLAW_CA_REEXEC` prevents a loop) so the HTTPS loopback proxies validate.
-- Flow: `buildWorkflowRuntime()` →
-  `loadWorkflowTemplate()` → `workflowEngine.executeWorkflow()` → `runtime.shutdown()` (tears down
-  the ToolUniverse subprocess). Result JSON on stdout; exit 0 on `result.ok`, else 1.
+- `--confirm` is mandatory; the runner exits 1 without it.
+- Any non-mock run needs `--operator-approve`, honoured only against a fresh one-shot token minted by
+  `operator-approve-gate arm` (YubiKey PIN plus a physical touch, 300 s, consumed before anything spawns).
+  A `--provider mock` run is ungated because it cannot spend model capacity.
+- The script re-execs itself once with `NODE_EXTRA_CA_CERTS` set to the mkcert root CA so the HTTPS
+  loopback proxies validate.
+- From Claude Code, start runs through the door instead (`obsidian_openclaw_run_workflow`): a
+  plugin-dispatched run also gets the post-run chain (§3.7). `status.post_run_done` is the only reliable
+  "everything finished" signal; the engine reports `completed` before that chain runs.
 
-### 3.2 Six templates, one pipeline
+### 3.2 Ten templates, one pipeline
 
-`config/workflow-templates/*.json` — schema `phase30-workflow-v1`. All six declare the **same
-six-step pipeline**; only `mission_template_id`, `product_line` and the input schema differ:
-
-| Template | Product |
-|---|---|
-| `drug-discovery-full` | Drug Discovery Full Pipeline |
-| `pharmacovigilance-report` | Pharmacovigilance Safety Report |
-| `clinical-trial-landscape` | Clinical Trial Landscape Intelligence |
-| `target-validation-pack` | Target Validation Intelligence Pack |
-| `rare-disease-brief` | Rare Disease Landscape Brief |
-| `general-research-pack` | General Research Pack |
+`config/workflow-templates/*.json`. All ten declare the same pipeline:
 
 ```
 research (mission) → quality_check (quality_audit) → build_dataset (dataset)
-                   → package (offer) → approve → export (zip)
+                   → package (offer) → approve → export
 ```
 
-Each step declares `depends_on`, so this is a dependency graph, not a fixed script.
+| Template | Lane |
+|---|---|
+| `drug-discovery-full`, `pharmacovigilance-report`, `clinical-trial-landscape`, `target-validation-pack`, `rare-disease-brief`, `general-research-pack`, `trial-design-benchmark` | biomedical |
+| `business-research-pack`, `cost-reduction-analysis`, `market-landscape` | business (`research_profile: business`) |
 
 ### 3.3 Model routing — 100% Claude
 
-`config/role-provider-map.json` (schema `phase34-role-provider-map-v1`) is authoritative:
+`config/role-provider-map.json` (`phase34-role-provider-map-v1`) is authoritative:
 
 | Role | Provider | Model | Fallback |
 |---|---|---|---|
 | `scout`, `analyst`, `synthesizer` | `claude-code` | `claude-opus-4-8` | `""` |
 | `default` (every other role) | `claude-code` | `claude-sonnet-4-6` | `""` |
 
-`config/agent-topology.json` declares twelve roles (orchestrator, supervisor, scout, analyst,
-synthesizer, operator, literature_reviewer, safety_signal_detector, molecular_profiler,
-competitive_intel_analyst, quality_auditor, report_generator); those without an explicit entry
-resolve through `default`.
+Every fallback is empty on purpose: a failure surfaces the real error instead of chasing a backend that no
+longer exists. Billing is the flat Claude Max subscription, not per-token API use.
 
-**Resolution is two-layer:** `role-provider-router.resolveRoute(role, ctx)` applies precedence
-`roles[role]` → `ctx` → `default` → hard `claude-code`; `role-router.dispatch` then merges the
-result into the enriched context passed to the role's handler.
+**How Claude is called** (`openclaw-bridge/core/llm-adapter.js`): the `claude` CLI as a child process,
+prompt on stdin, tools off, and **isolated from the operator's own setup** —
+`claude -p --output-format json --model <id> --allowedTools "" --strict-mcp-config --mcp-config
+config/claude-code-print-mcp.json --setting-sources "" --no-session-persistence` with
+`CLAUDE_CODE_DISABLE_CLAUDE_MDS=1` in the environment. Without that isolation every role call booted every
+MCP server and loaded the operator's instruction files (found and fixed 2026-09-22). Re-probe it after any
+Claude CLI upgrade; the probe is in the engine's `CLAUDE.md`.
 
-**Every fallback is `""` deliberately** — a primary failure surfaces the real error instead of
-silently chasing a backend that no longer exists.
+**Agent identity.** `scout`, `analyst` and `synthesizer` each own `config/agents/<role>/{SOUL.md,
+AGENTS.md, sessions/}`; the business lane adds `SOUL.business.md`. These `AGENTS.md` files are role
+identities read by the engine, not opencode instructions.
 
-**How Claude is invoked** (`openclaw-bridge/core/llm-adapter.js`): the `claude` CLI is spawned as
-a child process —
+### 3.4 Citation integrity — the product's core
 
-```
-claude -p --output-format json --model <id> --allowedTools ''
-```
+Hard gates in `openclaw-bridge/core/workflow-engine.js`; logic in `citation-gate.js` and `section-gate.js`.
 
-— with the prompt piped via **stdin** (never argv, to avoid arg-length limits) and tools disabled
-to force a direct text response. Billing is the **flat Claude Max 20× subscription**, not
-per-token API usage.
+- **Runtime grounding.** Every identifier cited in the report must appear among the identifiers actually
+  retrieved during that run. `minGroundedCitationRatio` is **0.75**, read fail-closed from
+  `config/agent-config.json`.
+- **Verdicts:** `PASS` ships; `UNVERIFIED`, `INSUFFICIENT_EVIDENCE` (nothing retrieved) and `NO_CITATIONS`
+  block.
+- **Retraction screen:** cited DOIs against Crossref, cited PMIDs against PubMed, and every DOI
+  reverse-resolved to a PMID and cross-checked. Any retracted work blocks (`PHASE30_CITATION_RETRACTED`).
+- **Re-resolution at delivery:** every PMID, NCT and DOI is re-resolved against its issuing registry
+  (`openclaw-bridge/mcp/citation-reresolver/`). Each is stamped VERIFIED / UNRESOLVED / UNCHECKED in the
+  reproducibility manifest; any UNRESOLVED id blocks. This proves an identifier resolves to a real record,
+  not that the source's conclusions are right.
+- **Business lane ids:** `WEB:` (a stored snapshot of the exact page text read; re-resolution re-hashes the
+  snapshot), `SEC:`, `WB:`, `BLS:`, `EUROSTAT:` (and `CENSUS:` / `EIA:`, dormant until free keys exist),
+  plus OpenAlex DOIs. The gate judges model-written text only; the deterministic Evidence Brief that
+  replaces the business scout is not graded.
 
-**Persistent agent identity/memory:** `scout`, `analyst` and `synthesizer` each own
-`config/agents/<role>/{SOUL.md, AGENTS.md, sessions/}`. `agent-context-loader` injects SOUL
-(≤6000 chars) + AGENTS (≤4000 chars) + a digest of the last six sessions; `agent-session-recorder`
-writes the session back after each run.
-
-### 3.4 Quality and citation integrity
-
-This is what makes the product defensible. Hard gates live in
-`openclaw-bridge/core/workflow-engine.js`, with logic in `citation-gate.js` / `section-gate.js`.
-
-**Blocking codes** (`PHASE30_*`): `WORKFLOW_APPROVAL_REQUIRED` · `CITATION_RETRACTED` ·
-`CITATION_UNRESOLVED` · `CITATION_INSUFFICIENT_EVIDENCE` · `CITATION_NONE` ·
-`CITATION_UNVERIFIED` · `QUALITY_BELOW_THRESHOLD`.
-
-- **Runtime grounding.** The agent engine records `fetched_citation_ids` as it works. The gate
-  extracts every citation-shaped id from the assembled report and marks it grounded **only** if it
-  appears in the union of ids actually fetched during that run.
-- **`minGroundedCitationRatio = 0.75`**, read **fail-closed** from `config/agent-config.json` — a
-  missing or malformed value falls back to the same strict 0.75, never anything looser.
-- **Three-state verdict:** `PASS` / `UNVERIFIED` / `INSUFFICIENT_EVIDENCE` / `NO_CITATIONS`.
-  Zero-evidence is **not** a silent pass — it is recorded as non-shippable.
-- **Retraction screening** against **Crossref** and **PubMed**; any retracted cited work blocks.
-  Both screens are fail-soft on network error (reporting `checked:false` rather than a false
-  negative).
-- **Scaffolding-leak fence.** The engine injects a "LIVE DATABASE CONTEXT" instruction; in live
-  runs that instruction's own phrasing and internal workflow headings bled into section text and
-  were being fed to the SearXNG coverage search as subject terms. A `STOPWORDS` group plus a
-  `PROCESS_PHRASE` regex in `section-gate.js` strip that meta-prompt junk before querying.
-
-There are **no `PHASE29_*` error codes** — Phase 29 (ToolUniverse MCP) is a label, and its
-integrity check is warn-only.
+Blocking codes are all `PHASE30_*`. There are no `PHASE29_*` codes; Phase 29 is a label.
 
 ### 3.5 Deliverables
 
-`openclaw-bridge/monetization/deliverable-packager.js` → `writeDeliverables()`:
+`openclaw-bridge/monetization/deliverable-packager.js` writes the bundle into
+`workspace/releases/offer-<offerId>/`, sealed by `manifest.json` and `checksums.txt` (SHA-256 per file).
 
-| Deliverable | Nature |
+| Deliverable | How it is made |
 |---|---|
-| `report.md`, `evidence-appendix.md`, `tables.csv`, `sample-preview.md` | LLM-assembled |
-| `citation-integrity.md` | **Deterministic, no LLM** — grades A/B/C/D from the grounded ratio (0.9 / 0.75 / 0.5); **F + BLOCKED** on any retraction; N/A if nothing cited |
-| `graveyard-memo.md` | **Deterministic, no LLM** — NCT-traced terminated/withdrawn/suspended programs, each with the sponsor's own stated stop reason or an explicit "(none stated)"; fail-soft, never blocks a passing report |
-| `search-coverage.md` | **Deterministic, no LLM** — per-source ledger separating **honest zero-result** searches from **failed/unreachable** sources |
-| `reproducibility-manifest.{json,md}` | **Deterministic** — from the live re-resolution pass |
+| `report.md`, `evidence-appendix.md`, `tables.csv`, `sample-preview.md` | Claude-written, then gated |
+| `citation-integrity.md` | deterministic — grade A/B/C/D from the grounded ratio, F + BLOCKED on any retraction |
+| `graveyard-memo.md` | deterministic — terminated/withdrawn/suspended programs in the indication, NCT-traced, with the sponsor's own stop reason or "(none stated)". Its amendment-risk band reads "Not available" while ClinicalTrials.gov's history endpoint refuses the fetcher (HTTP 403 since 2026-10-08) |
+| `search-coverage.md` | deterministic — every search and what it returned, honest zero results kept apart from failed sources |
+| `reproducibility-manifest.{json,md}` | deterministic — from the re-resolution pass |
+| `design-benchmark.{md,csv}` | deterministic — the trial-design-benchmark comparison matrix |
 
-Outputs land in `workspace/workflows/<workflowId>/` (run state, `citation-verification.json`, seed
-input, interaction log) and `workspace/releases/offer-<offerId>/` (the shippable bundle:
-`deliverables/`, `offer.json`, `metadata.json`, `release-approval.json`, `submission/`, plus
-`manifest.json` and `checksums.txt` sealing every file with a SHA-256).
+Run state (citation verification, seed input, interaction log) stays in `workspace/workflows/<workflowId>/`.
 
-### 3.6 Data and tooling
+### 3.6 Data sources and tooling
 
-**ToolUniverse** — a **Python subprocess**, not an import. The Node adapter spawns
-`uv run --directory vendor/tooluniverse tooluniverse-smcp-stdio --compact-mode` and speaks
-line-delimited JSON-RPC (MCP `2025-06-18`) over stdio, with health checks, up to 3 auto-restarts
-and a 60 s spawn timeout. Vendored as the repo's only git submodule (mims-harvard/ToolUniverse,
-SHA `3833b0e`, v1.1.10, Apache-2.0); ~2,116 tools across 500 data files.
+- **ToolUniverse:** a Python subprocess (`uv run --directory vendor/tooluniverse tooluniverse-smcp-stdio`),
+  JSON-RPC over stdio, about 2,116 tools.
+- **Adapters** in `openclaw-bridge/mcp/`: ChEMBL, ClinicalTrials.gov, PubMed, Europe PMC preprints, NIH
+  RePORTER, NPI, ICD-10, HuggingFace (metadata only), Owkin (needs `OWKIN_API_KEY`), arXiv, Semantic
+  Scholar, Open Targets (GraphQL), SEC EDGAR, SearXNG, the business sources (`business-sources/`: web
+  evidence, OpenAlex, SEC filings, World Bank, BLS, Eurostat, Census, EIA), the citation re-resolver, the
+  Crossref and PubMed retraction screens, and `ctgov-supplemental` (stop reasons and change history).
+- **Context-only lanes:** vault read-back (`obsidian-bridge-mcp`, Miyo over `:8743`) and research-memory
+  priors (`research-memory-mcp`) are rendered with identifiers withheld and never count as citations.
+- **The registry:** `config/connector-registry.json` is the source of truth for every connector; run
+  `npm run audit:connectors` after any change.
 
-**Project MCP adapters** (`openclaw-bridge/mcp/`): ChEMBL · ClinicalTrials.gov · PubMed · NPI ·
-ICD-10 · HuggingFace (metadata-only, no weights downloaded) · Owkin (gated behind `OWKIN_API_KEY`,
-throws if unset) · arXiv · Semantic Scholar · ToolUniverse bridge · SearXNG citation gate ·
-citation re-resolver.
+### 3.7 After a run: the engine writes the vault itself
 
-*(The whitelisted-host scraper adapter was removed 2026-09-18 — see the root `CLAUDE.md` deletion
-log. Open-web retrieval is the SearXNG lane; eLife, its only working source, was restored
-2026-09-19 as a key-free `json_engine` against the public eLife API.)*
-
-**Direct fetchers** in the integrity layer: `ctgov-supplemental.js` (ClinicalTrials.gov API v2 plus
-the `int` change-history endpoint, for stop-reason archaeology) · `crossref-retraction.js` ·
-`pubmed-retraction.js`. All dependency-injectable for deterministic tests.
-
-**SearXNG's role in the gate:** the engine consumes the connector's already-cited output
-(`results[].citations[]`, `source: url|metadata|text`), grades each result A–D, dedupes by
-canonical URL/host, computes a coverage tier and issues a gate decision with one breadth
-reformulation retry. It is fail-closed **only at zero results**, and is pure — no wall-clock or
-RNG, per the engine's restricted-globals rule.
+On a completed, citation-PASS, non-mock run, `run-workflow.js` writes the notes into
+`My Digital Garden/OpenClaw/<template>/<date> <inputs>/` through `openclaw-bridge/vault/workflow-vault-publisher.js`
+(path-guarded, headless, `config/vault-publish.json` `enabled: true`), adds a deterministic
+`Graph Analysis.md` (Medical Zettelkasten in-process), and ingests the run into research memory
+(`researchMemory.enabled: true`, offline embedder). The Command Center plugin then **rehydrates** from
+`artifacts.vault_notes` and adds only its enrichment: the chat bubble, Miyo indexing and Zettelkasten
+linking. No visuals are produced automatically.
 
 ---
 
 ## 4. Obsidian side
 
-> **Plugin display names vs IDs (2026-07-23).** The Obsidian plugins are display-branded as the
-> **TR-Obsidian Intelligence Network Citations** suite (Command Center · Zettelkasten · Bridge
-> Launcher · Wiki Definitions) so they group together in Obsidian's plugin list. Their **plugin IDs
-> are FROZEN** (`command-center`, `vault-zettelkasten`, `obsidian-bridge-launcher`,
-> `contextual-wiki-definitions`) and must never be renamed: Copilot's 4 `mcp_command-center_*` MCP
-> tool ids and `mcp.servers[].id`, the wiki-definition plugin's `plugins['vault-zettelkasten']`
-> api lookup (a **separate git repo**), Command Center's own lookup in `zettelkasten/linker.ts`,
-> the 0600 token at `~/.config/openclaw-command-center/bridge-token`, and the on-disk directory
-> names under `.obsidian/plugins/` all key on the IDs, not the names.
+**Plugin IDs are frozen**: `command-center`, `vault-zettelkasten`, `obsidian-bridge-launcher`,
+`trinc-viz-studio`, `contextual-wiki-definitions`. Copilot's MCP tool ids, server ids, the 0600 token paths
+and the folders under `.obsidian/plugins/` all key on them. Display names are free to change.
 
-| Plugin | Role |
-|---|---|
-| `obsidian-bridge-launcher` | Spawns the canonical `:8798` bridge as a child tied to Obsidian's lifecycle. Owns the fd-3 JSON-RPC IPC channel used for renderer console capture and **gated** eval (`devConsoleEvalEnabled`, default **off**). |
-| `command-center` | Dispatches workflows, generates vault notes, owns the additive `:8799` bridge. |
-| `copilot` (vendored MCP fork) | Chat + agent mode. Its MCP is a **client, for tools only** — tools become LangChain `StructuredTool`s bound onto the selected chat model via `bindTools()`. It can never *be* the model. |
-| `vault-zettelkasten` | In-process graph analysis (semantic linker, cross-domain, serendipity, echo chamber, orphan rescue). Consumes Miyo `:8743` and Qdrant `:6433`. |
-| `contextual-wiki-definitions` | Writes a definition note when a wiki link is followed — including from the Local Graph. Source lives **outside this repo** at `/Users/myhome/Code/obsidian-auto-wiki-summarize` (own git repo, symlinked into the vault, no build step — `main.js` *is* the source). |
+| Plugin | Source | Role |
+|---|---|---|
+| `obsidian-bridge-launcher` | `Claude/obsidian-bridge-launcher` | spawns the `:8798` bridge; owns the fd-3 IPC used for console capture and the gated eval tool (off by default) |
+| `command-center` | `Claude/obsidian-command-center` | dispatches runs, owns `:8799`, runs the post-run enrichment |
+| `trinc-viz-studio` | `Claude/obsidian-viz-studio` | owns `:8800`; diagrams, charts, canvases, explainer cards, stat tiles, mockups, interactive HTML |
+| `vault-zettelkasten` | `Claude/obsidian-vault-zettelkasten` | in-process Zettelkasten analyses on hosted `copilot-plus-flash` |
+| `copilot` | `Copilot-Everything/repos/obsidian-copilot-mcp-v4` | chat + agent mode; MCP client for tools only |
+| `trinc-security-bridge` | `~/Security Everything/obsidian-security-bridge` | owns `:8801`; security control plane, no vault access |
+| `origin-nest`, `contextual-wiki-definitions`, `claude-console-mirror` | `~/Code/<name>` (personal) | vault tooling, deployed copies |
 
-All Obsidian-side model calls go to hosted **`copilot-plus-flash`**. The wiki-definition plugin
-passes its model **per call** to `vault-zettelkasten` (`resolveModel()` honours `request.model`),
-so the licence key lives in exactly one 0600 file and is never duplicated into a second config.
+Production deploys go through `ops/tr-suite/deploy.sh` only (registry `ops/tr-suite/manifest.json`);
+`ops/tr-suite/verify.sh` checks for drift. Every new `main.js` in a protected plugin raises a critical
+`obsidianwatch` finding until the operator blesses it.
+
+**Claude's door in detail** (`Copilot-Everything/bridges/obsidian-stdio-adapter/`, profile `openclaw`,
+v0.4.0, 27 tools): run dispatch, status, results, history, artifacts, cancel, citation integrity, delivery
+evidence, memory search, engine health and a restricted vault publish on `:8799`; read-only
+`obsidian_search_notes` / `obsidian_read_note`; the 12 `viz_*` renders on `:8800`, with `folder`,
+`targetNote`, `targetCanvas`, `useActiveTab`, `useActiveNote` and `overwrite` stripped and refused so
+renders land only in `Visualizations/`. No create, append or command execution. Regression guard:
+`npm run test:profiles` (52 checks).
 
 ---
 
 ## 5. Security invariants
 
-- **HTTPS-only.** Every network-facing TCP listener owned by monorepo code must be HTTPS. No
-  plaintext-fallback paths, no TLS-disable env vars, no `tls ? https : http` ternaries. On cert
-  failure the required behaviour is to **throw and refuse to listen**. Enforced by
-  `scripts/lint-transport-monorepo.sh --strict` (currently **exit 0**).
-- `:11434` and `:1234` stay in the lint's **forbidden** port list even though both runtimes are
-  gone, so neither can return silently.
-- **Bridge auth.** `:8798` uses a bearer token plus replay protection (nonce + timestamp + body
-  SHA-256); `:8799` auto-generates a 32-byte token into a 0600 file outside the vault and compares
-  with SHA-256 + `timingSafeEqual`.
-- **YubiKey gates.** `--operator-approve` and the agentic surfaces are armed by a physical touch
-  ceremony; the touch *is* the consent mechanism and must never be removed.
-- **Secrets never live in plugin `data.json`.** Obsidian persists those files and auto-creates
-  backups, which has leaked a credential in this stack before. Keys live in the OS keychain or a
-  0600 file (`~/.config/trevclaw/brevilabs-key`, `~/.config/openclaw-command-center/bridge-token`).
-- **Posture.** Research artifacts only, not validated for clinical decision support. **No PHI** —
-  sources are public biomedical databases. No autonomous publish/post/login/transact.
+- **HTTPS-only.** Every TCP listener owned by repo code is HTTPS and refuses to start on a certificate
+  failure; no plaintext fallback of any kind. `bash scripts/lint-transport-monorepo.sh --strict` enforces
+  it. Plaintext `:11434` and `:1234` stay in the lint's forbidden list.
+- **Bridge auth.** `:8798` uses a bearer token plus replay protection (nonce, timestamp, body SHA-256);
+  `:8799` and `:8800` use 32-byte tokens in 0600 files outside the vault.
+- **YubiKey gates.** Real engine runs, privileged commands, the browser pane and the gated MCP servers all
+  need a physical touch; the touch is the consent and must never be removed. The session-gate hook bars
+  sub-agents from Claude's door entirely, and bars run/cancel/publish during Ralph loops.
+- **Secrets never live in plugin `data.json`.** Keys live in the Keychain or 0600 files.
+- **Posture.** Research artifacts only, not validated for clinical decision support. No PHI. No autonomous
+  publish, post, login or purchase.
 
 ---
 
 ## 6. Verification
 
 ```bash
-# Transport invariant (must exit 0)
-bash scripts/lint-transport-monorepo.sh --strict
-
-# Engine unit suite — 939 tests passing as of 2026-07-23
-cd "Trevor Robey Intelligence Network Citations" && npm test
-
-# Engine policy gate
-cd "Trevor Robey Intelligence Network Citations" && bash scripts/verify-phase29-policy.sh | tail -1
-
-# Live services
+bash /Users/myhome/TRINC/scripts/lint-transport-monorepo.sh --strict          # exit 0
+bash /Users/myhome/TRINC/ops/tr-suite/verify.sh                               # 0 FAIL
+cd "/Users/myhome/TRINC/Trevor Robey Intelligence Network Citations" && npm test   # 1331/1331 on 2026-10-23
+cd "/Users/myhome/TRINC/Trevor Robey Intelligence Network Citations" && node scripts/audit-connector-coverage.js
+cd /Users/myhome/TRINC/Copilot-Everything/bridges/obsidian-stdio-adapter && npm run test:profiles   # 52 PASS with Obsidian open
 curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:8798/healthz
-curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:8743/v0/health
-curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:6433/collections/miyo
+curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:8800/healthz
 ```
+
+---
+
+## 7. Found during the 2026-10-23 verification
+
+- **Ollama has no model.** Ollama.app serves `:11434` behind the `:11435` proxy, but `ollama list` is
+  empty and the model store holds no blobs. Older docs describe a `granite4.1:8b` BYOK lane for Copilot;
+  it is not installed now. Either reinstall a model or retire the proxy: the operator's call.
+- **The amendment-risk band is unavailable** while ClinicalTrials.gov's history endpoint answers HTTP 403
+  (since 2026-10-08). The memo says so; sales copy that advertises the band needs checking.
+- **The business lane has never run live.** It is built and unit-tested; the first run needs the
+  operator's go and a freshly armed token.
 
 ---
 
@@ -292,14 +278,19 @@ curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.
 
 | Thing | Status |
 |---|---|
-| **Ollama** (`:11434`, proxy `:11435`) | **Removed 2026-07-23** — brew package, both LaunchAgents, TLS proxy and 9.2 GB of models deleted. |
+| **Claude → opencode delegation worker** (`opencode-mcp`, `_opencode-bridge/`, the repo `AGENTS.md` mirrors) | Retired 2026-10-23. `~/.config/opencode/` stays: it is the Copilot agent's opencode configuration. |
+| **Stdio adapter `claude` profile** and `Copilot-Everything/.mcp.json` `obsidian-bridge` | Retired 2026-10-23 (unused; was an ungated write lane). |
+| **Engine `viz-bridge-mcp` adapter** | Retired 2026-10-23, never called. Registry tombstone `viz-bridge`. |
+| **`:8798` `research_publish`**, `scripts/publish-to-vault.js`, `scripts/atlas-stub-creator.js` | Tombstoned 2026-09-22, removed 2026-10-23. The engine writes run notes itself. |
+| **Raycast extension** and three personal plugins inside the repo | Moved to `~/Code` 2026-10-23; the installed builds still work. |
+| **Copilot fork 3.3.3** (`repos/obsidian-copilot-mcp`) | Retired 2026-10-21; the live fork is the 4.0.0 port. |
+| **term-bridge** (`mcp__term-bridge__*`, `tb-gate`) | Retired 2026-07-28. |
 | **LM Studio** (`:1234`, proxy `:1235`) | Decommissioned 2026-07-16. |
-| **Traefik** `:11480`/`:11481` failover | Dead — never in the live path. |
-| **Prometheus `:9090` / Grafana `:3001` / docker-compose** | Dead. No scrape target ever existed: the engine has no persistent gateway. |
-| **PM2 / `ecosystem.config.js`** | Dead — zero apps since the bridge moved to the launcher plugin. |
-| **TrevNodus / InfraNodus** | Fully removed 2026-05-06. Graph viz is Obsidian's native view, on demand. |
-| **Backend emulator `:8789`** | Retired 2026-04-11 — `ZettelkastenService` runs in-process in the plugin. |
-| **`trevor-robey-inc-agents/` + `trevor-robey-inc/`** | Flat-merged 2026-05-19 into `Trevor Robey Intelligence Network Citations/`. These directories do not exist. |
-| **Persistent OpenClaw gateway `:18789`** | Removed 2026-04-27 (unrelated homebrew consumer product). |
-| **`claude-cli-bridge` / `claude mcp serve`** | Retired 2026-05-31, archived at `Claude/.archive/claude-cli-bridge/`. Do **not** reintroduce a custom `claude -p` subprocess bridge *for delegation*. (Distinct from the engine's own `claude -p` provider call in §3.3, which is the supported path.) |
-| **chrome-devtools-mcp / sentinel-cdp-mcp** | Removed. The only browser surface is the Claude Browser pane — see root `CLAUDE.md`. |
+| **scholar-sidekick, courtlistener, Tavily, Zoho** connectors | Removed 2026-08-27, 2026-09-15, 2026-07-04 (superseded by `searxng-search`), 2026-10-21 respectively. |
+| **Traefik `:11480/:11481`, Prometheus `:9090`, Grafana `:3001`, PM2** | Dead; no scrape target or app ever existed. |
+| **InfraNodus / TrevNodus** | Removed 2026-05-06. |
+| **Backend emulator `:8789`** | Retired 2026-04-11; Zettelkasten runs in-process. |
+| **`claude-cli-bridge` / `claude mcp serve`** | Retired 2026-05-31. The engine's own `claude -p` call (§3.3) is the supported path. |
+| **chrome-devtools-mcp, sentinel-cdp-mcp** | Removed. The only browser surface is the Claude Browser pane. |
+| **`trevor-robey-inc-agents/`, `trevor-robey-inc/`** | Flat-merged 2026-05-19 into `Trevor Robey Intelligence Network Citations/`. |
+| **Persistent gateway `:18789`** | Removed 2026-04-27 (an unrelated homebrew product). |

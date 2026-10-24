@@ -2037,8 +2037,9 @@
       {
         "id": "opencode",
         "lane": "infra",
-        "auth": "none (local stdio); read-only + public-data + no-exfil allowlist guardrail (~/Security Everything/opencode-delegation-guard/); in the session-gate MATCHER",
-        "purpose": "$0 delegation of small mechanical or research tasks to opencode's free models (_opencode-bridge/README.md). Registered in the repo .mcp.json, ~/.claude.json user scope and claude_desktop_config.json. Not the Obsidian Copilot agent's opencode instance, and no channel into it. Never an engine source."
+        "auth": "n/a — retired",
+        "status": "retired",
+        "purpose": "RETIRED 2026-10-23 by operator direction (TRINC reorg Phase 6): the Claude -> opencode free-model delegation worker. Registrations removed from the repo .mcp.json, ~/.claude.json user scope and claude_desktop_config.json; the opencode-mcp clone and its delegation-guardrail.json went to ~/.Trash/trinc-reorg-2026-10-23/opencode-delegation-lane/; the _opencode-bridge/ index and the six repo AGENTS.md mirrors were removed (restore: git show 2077e79:<path>). Do NOT re-register it. ~/.config/opencode/ STAYS: it is the Obsidian Copilot agent's opencode configuration, a separate instance that this entry never covered. Never an engine source."
       },
       {
         "id": "perseus-vault",

@@ -21,4 +21,5 @@ bash /Users/myhome/TRINC/ops/tr-suite/verify.sh
   plane kept separate from the research stack).
 - Secrets and machine state: `~/.config/raycast/config.json`, `~/.config/raycast/ai/providers.yaml`,
   `~/.perseus-vault/*`, bridge `.env.local` / `*.local.json` / `*.pem`.
-- Third-party servers: `perseus-vault` binary, `opencode-mcp`.
+- Third-party servers: `perseus-vault` binary. (`opencode-mcp`, the Claude → opencode delegation
+  worker, was retired 2026-10-23; its clone is in `~/.Trash/trinc-reorg-2026-10-23/`.)

@@ -1,7 +1,7 @@
 # ENGINE-CODEBASE-MAP — a co-developer's index of the OpenClaw research engine
 
 > **What this is (2026-07-01).** The missing peer to `SYSTEM-REALITY.md` (what the business *is*),
-> `THE-WHOLE-SYSTEM.md` (how the stack fits together), and `CONNECTOR-ALIGNMENT.md` (which connector
+> `../HOW-IT-WORKS.md` and `../ARCHITECTURE.md` (how the stack fits together), and `CONNECTOR-ALIGNMENT.md` (which connector
 > does what). This file is the **module-by-module map for someone modifying the engine** — where each
 > responsibility lives, how data flows through the pipeline, the invariants you cannot break, and the
 > seams for extending it. It exists so an AI co-developer (or a future you) can safely maintain and
@@ -26,7 +26,7 @@
   SoT for who-runs-what = `role-provider-map.json`, not the `defaultModel` field.
 - **Stale docs:** the repo-root `README.md` and this subfolder's `README.md` still use the old folder
   names (`trevor-robey-inc/`, `trevor-robey-inc-agents/`) from before the 2026-05-19 flat-merge.
-  `SYSTEM-REALITY.md` / `THE-WHOLE-SYSTEM.md` / this file win over them.
+  `SYSTEM-REALITY.md` / `../ARCHITECTURE.md` / this file win over them.
 - **CI-enforced invariants are not optional** (see §7). A PR that trips restricted-globals or the
   HTTPS-only linter fails `policy-and-tests`. The fix is to conform, never to disable the linter.
 - **Nothing runs in Docker.** `openclaw-bridge/execution/` is scaffold, never invoked — workflows are
@@ -285,7 +285,7 @@ scripts/run-workflow.sh --template pharmacovigilance-report --inputs '{"drug_cla
 | For… | Read |
 |---|---|
 | Ground-truth engine narrative | `SYSTEM-REALITY.md` |
-| Whole-stack map + live status | `THE-WHOLE-SYSTEM.md` |
+| Whole-stack map + live status | `../ARCHITECTURE.md` (technical), `../HOW-IT-WORKS.md` (plain language) |
 | Connector → business function | `CONNECTOR-ALIGNMENT.md` (+ machine source `config/connector-registry.json`) |
 | Operator runbook, phase list, conventions | `CLAUDE.md` (this folder) + repo-root `CLAUDE.md` (ports/topology) |
 | Products / pricing / strategy | `OFFERINGS.md`, `REVENUE_PLAYBOOK.md` |

@@ -152,3 +152,50 @@ including a source scan that fails if Viz Studio adds an unblocked write-target 
 - The adapter's `claude` profile (default removed; the env var is now required) and its last registration, the
   `obsidian-bridge` entry in `Copilot-Everything/.mcp.json`: unused since 2026-10-07, and an ungated write lane
   (that server name was in no gate matcher).
+
+## Phase 6 — one clear doc set (done 2026-10-23)
+
+**Operator answers (2026-10-23, ~22:10 PDT):**
+
+| # | Question | Answer |
+|---|---|---|
+| P6-a | What happens to the docs `HOW-IT-WORKS.md` is built from? | "Go over the current architecture and make sure there's nothing outdated, for record keeping." `ARCHITECTURE.md` was re-verified against live code and processes and stays as the technical record; the two dated docs moved to `docs/history/`. |
+| P6-b | How far to slim the root `CLAUDE.md`? | "Slim it to everything that's current only." 89,364 → ~21K characters; history moved to `docs/history/`. |
+| P6-c | What should the `AGENTS.md` mirrors become? | "The only opencode that needs to be connected is the Copilot agent's opencode backend. Disconnect the opencode app from Claude and remove the mirrored agent files and the opencode MCP server, unless the business configuration needs them." |
+
+**opencode delegation lane retired (P6-c).** Removed: the `opencode` server from the repo `.mcp.json`,
+`~/.claude.json` (user scope) and `claude_desktop_config.json`; `~/.claude/mcp-servers/opencode-mcp/` and
+`~/.config/opencode/delegation-guardrail.json*` → `~/.Trash/trinc-reorg-2026-10-23/opencode-delegation-lane/`;
+`_opencode-bridge/README.md` and the six repo `AGENTS.md` mirrors (root, `Claude/`, `Claude/Medical-Zettelkasten-MCP/`,
+`Claude/obsidian-command-center/`, `Copilot-Everything/`, the engine folder). **Kept, because the business
+configuration needs it:** `~/.config/opencode/` (the Copilot agent's opencode loads `opencode.jsonc`, `AGENTS.md`
+and `plugins/` from it; its delegation-lane wording was trimmed), `/opt/homebrew/bin/opencode` (BetterTouchTool's
+AI chat may use it), the engine's role-identity `config/agents/*/AGENTS.md`, and the Copilot fork's own
+upstream `AGENTS.md` files. Still naming the lane, harmless, for Security Everything to tidy: the gate hook's
+`mcp__opencode__` matcher entry, `opencode-delegation-guard/`, and the se_parity protect-list prefix.
+Restore any repo file with `git show 2077e79:<path>`.
+
+**Docs.** New: the root `HOW-IT-WORKS.md` (the plain-language story). Rewritten from live state:
+`ARCHITECTURE.md`, `README.md`, the root, `Claude/` and `Copilot-Everything/` `CLAUDE.md`, and the engine's
+`docs/WORKFLOW_CATALOG.md` (it documented 6 of 10 templates, with March-era 7B-model facts). Moved to
+`docs/history/`: `THE-WHOLE-SYSTEM-2026-06-10.md`, `TREVOR_ROBEY_INC_AGENTS_DOSSIER-2026-05.md`, the root
+`CLAUDE.md`'s deletion log (`claude-md-deletion-log.md`) and Browser Session History (`browser-sessions.md`,
+where new entries now go). Targeted fixes: the engine `CLAUDE.md` (topology, no CI runs, template counts, the
+duplicate price table replaced by a pointer to `OFFERINGS.md`), and `REVENUE_PLAYBOOK.md` (the board's
+tidy-up spec, plus run commands missing `--operator-approve`, a `run-dataset-mission.js` example that has
+refused since 2026-07-29, dead `05-launch-plan/` and `workspace/collateral/outbound/` paths, stale Ollama rows).
+"Zero hallucinations" replaced with the canonical `OFFERINGS.md` elevator in the README, the root
+`CLAUDE.md`, the Launch Playbook and the vault's Copilot business-context note (whose own open copy item
+asked for exactly this sweep).
+
+**Found, not changed (operator decisions):**
+- **Ollama has no model installed**: Ollama.app serves `:11434` behind `:11435`, but `ollama list` is empty.
+  Reinstall a model for the Copilot BYOK lane, or retire the proxy.
+- **Prices quoted outside `OFFERINGS.md`**: a Custom tier ($15K–$35K) and an Enterprise tier ($60K–$120K) in
+  `04-pricing-benchmarks/tier-*.md`, which the Launch Playbook's market tables cite; an Annual research credit
+  SKU (~$15K) in `04-pricing-benchmarks/annual-research-credit-sku.md`; and the 2026-10-20 tier-ladder draft
+  (`product-strategy/tier-ladder-DRAFT-2026-10-20.md`, on hold: feed subscriptions up to $499/month, any-field
+  reports, a $7,500/month retainer). The core ladder (Pre-Mortem, Archaeology, the tactical SKUs) agrees
+  everywhere. Competitor figures (GlobalData, DealForma) are benchmarks, not conflicts.
+- **`.specify/memory/constitution.md` still says "Zero hallucinations on customer-facing output"**: left for the
+  `/speckit-constitution` refresh that decision D11 calls for.

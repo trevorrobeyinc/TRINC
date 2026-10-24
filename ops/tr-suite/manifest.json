@@ -33,8 +33,7 @@
     {"id": "searxng-search", "source": "Claude/searxng-search-mcp", "staged_copy": "$HOME/.claude/mcp-servers/searxng-search", "install": "Claude/searxng-search-mcp/install-connector.sh", "note": "staged copy, not a symlink — re-run the installer after editing src/"},
     {"id": "research-memory", "source": "Claude/trevorobeyinc-research-memory-mcp", "entry": "dist/cli.js"},
     {"id": "perseus-business", "external": "$HOME/.local/bin/perseus-vault", "note": "third-party binary + encrypted DB; keep outside git"},
-    {"id": "trinc-content", "source": "Claude/trinc-content-mcp", "entry": "src/server.js", "staged_copy": "$HOME/.claude/mcp-servers/trinc-content", "install": "Claude/trinc-content-mcp/install-connector.sh", "note": "absorbed with history 2026-10-21 (e485565); staged copy, re-run the installer after editing src/. Gated by the PreToolUse hook since 2026-10-21 (Security Everything 07726a0): every call needs `operator-approved-gate arm trinc-content`"},
-    {"id": "opencode", "external": "$HOME/.claude/mcp-servers/opencode-mcp", "note": "community server, pinned venv"}
+    {"id": "trinc-content", "source": "Claude/trinc-content-mcp", "entry": "src/server.js", "staged_copy": "$HOME/.claude/mcp-servers/trinc-content", "install": "Claude/trinc-content-mcp/install-connector.sh", "note": "absorbed with history 2026-10-21 (e485565); staged copy, re-run the installer after editing src/. Gated by the PreToolUse hook since 2026-10-21 (Security Everything 07726a0): every call needs `operator-approved-gate arm trinc-content`"}
   ],
   "engine": {"source": "Trevor Robey Intelligence Network Citations", "dispatched_by": "command-center", "lanes": ["biomedical (default)", "business (research_profile: business)"]}
 }

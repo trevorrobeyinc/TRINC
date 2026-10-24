@@ -53,7 +53,7 @@ ToolUniverse is a pinned submodule at [`vendor/tooluniverse/`](vendor/tooluniver
 
 **First listing tier**: free Pharmacovigilance Signal Synthesis Sample Pack (10 ICI-class adverse-event signals, 29 verified-identifier rows). Paid Investor Pre-Mortem and Failed Trial Archaeology dossiers list separately after the free tier publishes and validates the seller profile.
 
-Working doc: [`05-launch-plan/week-3-may11-may15/aws-listing-go-live.md`](05-launch-plan/week-3-may11-may15/aws-listing-go-live.md).
+Working doc: the current [`trevor-robey-inc Commercial Launch Playbook.md`](trevor-robey-inc%20Commercial%20Launch%20Playbook.md); the May working doc under `05-launch-plan/` no longer exists. *(Superseded 2026-10: the first product staged for AWS is the Trial Graveyard Feed, `workspace/aws-marketplace-listing/trial-graveyard-feed/`; the listing decisions are the operator's — see `STATUS.md`.)*
 
 ---
 
@@ -93,10 +93,10 @@ Research Input  ──>  Mission (Phase 18)  ──>  Dataset (Phase 19-20)  ─
 | Provider | Role | Status | Notes |
 |----------|------|--------|-------|
 | **Claude Code** (MCP bridge) | All engine roles (scout, analyst, synthesizer + default) | **Active** | `claude -p` stdin pipe, claude-opus-4-8 for scout/analyst/synthesizer, claude-sonnet-4-6 default; flat Claude Max 20× subscription. Every role's fallback is empty (no local backend chased) |
-| **Ollama** (local) | Obsidian side only — NOT an engine role | **Active + boot-persistent** | qwen2.5:7b-instruct on :11434 (via :11435 TLS proxy) — retained for Obsidian Copilot + vault-zettelkasten; removed as an engine provider/fallback 2026-07-16 |
+| **Ollama** (local) | Obsidian side only — NOT an engine role | **Running, no model installed** (2026-10-23) | Ollama.app serves :11434 behind the :11435 TLS proxy, but `ollama list` is empty; installing a model for the Copilot BYOK lane is the operator's call. Never an engine provider or fallback |
 | ~~**LM Studio** (local)~~ | — | **Decommissioned 2026-07-16** | Proxy (:1235), launchd unit `com.trevorrobey.lm-studio-tls-proxy`, provider entry, and role route all removed; app + ~/.lmstudio moved to Trash. Local models removed from the engine (restorable) |
 | **Mock** | Testing | Active | Used for CI and deterministic tests |
-| **ToolUniverse** (MCP) | Biomedical tools | **Active** | 700+ tools via Harvard MIMS, Phase 29 verified |
+| **ToolUniverse** (MCP) | Biomedical tools | **Active** | ~2,116 tools (v1.1.10) via Harvard MIMS, Phase 29 verified |
 
 ### How a research task becomes revenue
 
@@ -111,7 +111,7 @@ node scripts/run-workflow.js --template drug-discovery-full \
 > TTL, one-shot). Since 2026-07-29 every non-mock run requires `--operator-approve` — `--confirm`
 > alone satisfies only the supervisor receipt, not authorization to spend model capacity.
 
-Available workflow templates: `drug-discovery-full`, `pharmacovigilance-report`, `clinical-trial-landscape`, `target-validation-pack`, `rare-disease-brief`, `general-research-pack`
+Available workflow templates: `drug-discovery-full`, `pharmacovigilance-report`, `clinical-trial-landscape`, `target-validation-pack`, `rare-disease-brief`, `general-research-pack`, `trial-design-benchmark`, and the business lane's `business-research-pack`, `cost-reduction-analysis` and `market-landscape` (built, never run live)
 
 **Manual step-by-step (legacy):**
 
@@ -151,7 +151,7 @@ On a gate-passing mission, two cost-avoidance deliverables are sealed into the r
 
 | Product Line | Tiers | Platforms | Description |
 |-------------|-------|-----------|-------------|
-| research_packs | Standard, Premium | Datarade | Curated research artifacts on any topic |
+| research_packs | Standard, Premium | Datarade | One agreed research question at fixed depth: biomedical today (the Scoped Research Pack); the business lane is built but has not run live, and its prices are on hold |
 | dataset_packs | Standard, Premium, Enterprise | Datarade, HuggingFace, Kaggle | Structured datasets with provenance |
 | research_subscriptions | Standard, Premium, Enterprise | Datarade | Recurring research delivery |
 | dataset_subscriptions | Standard, Premium, Enterprise | Datarade | Recurring dataset updates |
@@ -185,27 +185,34 @@ The retired **Standard / Premium / Custom / Enterprise ARR** ladder ($2,500 / $4
 
 ---
 
-## 3. Biomedical Mission Templates
+## 3. Workflow Templates
 
-Six ready-to-run templates, each using ToolUniverse for tool discovery and execution:
+Ten ready-to-run workflow templates (`config/workflow-templates/`, run with `scripts/run-workflow.js`). Each
+wraps a mission template from `config/mission-templates.json`; the full catalog is
+[`docs/WORKFLOW_CATALOG.md`](docs/WORKFLOW_CATALOG.md).
 
-| Template | Use Case | Key ToolUniverse Tools |
-|----------|----------|----------------------|
-| `biomedical_drug_discovery` | Compound profiling, ADMET, target-compound mapping | PubChem, OpenTargets, ChEMBL, ADMETai |
-| `biomedical_target_identification` | Target validation, pathway analysis, PPI networks | OpenTargets, UniProt, HPA, InterPro |
-| `clinical_trial_intelligence` | Trial landscape, endpoint analysis, competitor tracking | ClinicalTrials.gov, EuropePMC, PubMed |
-| `pharmacovigilance_scan` | Adverse event signals, drug interaction analysis | FAERS, DailyMed, RxNorm, DrugSafetyAnalyzer |
-| `genomic_variant_analysis` | Variant annotation, pathogenicity, population frequency | ClinVar, dbSNP, gnomAD, OMIM, Ensembl |
-| `rare_disease_landscape` | Orphan drug mapping, genetic disease profiling | Monarch, OMIM, OrphaNet, GDC |
+| Workflow template | Use case | Mission template | Key sources |
+|----------|----------|----------|----------------------|
+| `drug-discovery-full` | Compound profiling, ADMET, target-compound mapping | `biomedical_drug_discovery` | PubChem, Open Targets, ChEMBL, ADMETai |
+| `target-validation-pack` | Target validation, pathway analysis, PPI networks | `biomedical_target_identification` | Open Targets, UniProt, HPA, InterPro |
+| `clinical-trial-landscape` | Trial landscape, endpoint analysis, competitor tracking | `clinical_trial_intelligence` | ClinicalTrials.gov, Europe PMC, PubMed |
+| `pharmacovigilance-report` | Adverse event signals, drug interaction analysis | `pharmacovigilance_scan` | FAERS, DailyMed, RxNorm, DrugSafetyAnalyzer |
+| `rare-disease-brief` | Orphan drug mapping, genetic disease profiling | `rare_disease_landscape` | Monarch, OMIM, OrphaNet, GDC |
+| `trial-design-benchmark` | Phase 3 trial-structure benchmark against comparable programs | `trial_design_benchmark` | ClinicalTrials.gov v2 cohort |
+| `general-research-pack` | One agreed biomedical question (the Scoped Research Pack) | `research_pack` | the standard biomedical prefetch |
+| `business-research-pack`, `cost-reduction-analysis`, `market-landscape` | Business lane: built, **never run live**, prices on hold | `research_pack` | `WEB:` snapshots, SEC, World Bank, BLS, Eurostat, OpenAlex |
 
-### Running a biomedical mission
+Mission templates that no workflow template wraps (for example `genomic_variant_analysis`) are not offered.
+
+### Running a biomedical workflow
+
+`run-dataset-mission.js` has refused to run since 2026-07-29 (it never threaded operator approval); use the
+workflow lane, after `operator-approve-gate arm`:
 
 ```bash
-node scripts/run-dataset-mission.js \
-  --task "Compile molecular properties for GBM drug repurposing candidates" \
-  --dataset-type retrieval_qa \
-  --input workspace/research-input/biomedical/ \
-  --confirm
+node scripts/run-workflow.js --template drug-discovery-full \
+  --inputs '{"compound_name":"temozolomide","indication":"glioblastoma"}' \
+  --operator-approve --confirm
 ```
 
 ```bash
@@ -251,12 +258,12 @@ The pipeline reads all `.txt` files recursively and combines them into agent pro
 
 ## 5. Model Recommendations
 
-Default provider: **Claude Code** (`claude -p` stdin pipe, claude-sonnet-4-6)
+Provider: **Claude Code** only (`claude -p` stdin pipe): `claude-opus-4-8` for scout, analyst and synthesizer, `claude-sonnet-4-6` for every other role
 
 | Provider | Strength | Recommended For |
 |----------|----------|-----------------|
 | **Claude Code** (Sonnet/Opus) | Best reasoning, domain knowledge, synthesis quality | All production tiers, especially Premium/Enterprise |
-| Ollama (qwen2.5:7b-instruct) | Fast local triage | Obsidian side only (Copilot + vault-zettelkasten) — not an engine role since 2026-07-16 |
+| Ollama | — | Running but no model installed (2026-10-23); it was the Obsidian-side local lane, never an engine role |
 | ~~LM Studio (qwen/qwen3.5-9b)~~ | Decommissioned 2026-07-16 | Removed from the engine (restorable: restore a `helper` block, set the role's `fallback` to `local`, set providers.local.enabled=true) |
 
 Claude Code is the single highest-impact quality driver. Enterprise buyers require the synthesis depth that only large frontier models deliver.
@@ -315,7 +322,7 @@ All platforms are **manual submission only**. The system generates submission-re
 
 ### Manual submission steps
 
-1. Run workflow: `node scripts/run-workflow.js --template pharmacovigilance-report --inputs '{"drug_class":"immune_checkpoint_inhibitor"}' --confirm`
+1. Arm the gate (`operator-approve-gate arm`), then run the workflow: `node scripts/run-workflow.js --template pharmacovigilance-report --inputs '{"drug_class":"immune_checkpoint_inhibitor"}' --operator-approve --confirm`
 2. Export the release ZIP from `workspace/releases/`
 3. Open ZIP, review report.md quality and citation CSV completeness
 4. Submit to Datarade with generated copy-blocks.json and checklist.md
@@ -324,6 +331,9 @@ All platforms are **manual submission only**. The system generates submission-re
 ---
 
 ## 8. Enterprise API (Phase 31)
+
+> **Built, not deployed (2026-10-23).** The code and its tests exist, but nothing listens for these
+> endpoints; every run starts from `run-workflow.js` or Claude's `openclaw-obsidian` door.
 
 ### Research API endpoints
 
@@ -348,7 +358,7 @@ Usage records are appended to `state/usage/{api_key}/{yyyy-mm}.jsonl`. Use `expo
 
 ## 9. Revenue Priorities (Ordered)
 
-1. **Ship first Datarade listing** — Proves the pipeline end-to-end with real revenue. Use `node scripts/run-workflow.js --template pharmacovigilance-report --inputs '{"drug_class":"NSAID"}' --confirm`.
+1. **Ship first Datarade listing** — Proves the pipeline end-to-end with real revenue. Use `node scripts/run-workflow.js --template pharmacovigilance-report --inputs '{"drug_class":"NSAID"}' --operator-approve --confirm` (after `operator-approve-gate arm`).
 2. **Enable scheduled workflows** — Set `enabled: true` in `config/scheduled-workflows.json` for recurring pharmacovigilance scans. Recurring revenue from clinical_insights_subscription.
 3. **Offer Research API to enterprise clients** — Pharma R&D teams submit workflows via POST `/api/v1/research`, pay per workflow via usage metering.
 4. **Enterprise private delivery** — AWS Data Exchange, Snowflake, BigQuery for large pharma and hedge fund clients. $60K-$120K+ ARR.
@@ -364,13 +374,13 @@ Usage records are appended to `state/usage/{api_key}/{yyyy-mm}.jsonl`. Use `expo
 |-------|------|---------|
 | Sample deliverable (8-12 page) | `workspace/collateral/samples/pharmacovigilance-sample-deliverable.md` | Gated sample for qualified prospects — request via email |
 | 2-page teaser | `workspace/collateral/samples/pharmacovigilance-2page-teaser.md` | Email attachment for Day 7 follow-ups |
-| Landing page | `workspace/collateral/landing-page/index.html` | Static HTML — deploy to GitHub Pages, Netlify, or Vercel |
-| Prospect targeting guide | `workspace/collateral/outbound/prospect-targeting-guide.md` | LinkedIn search strings, ICP, week-by-week execution plan, discovery call script |
-| LinkedIn templates | `workspace/collateral/outbound/linkedin-connection-templates.md` | 4 connection requests + 4 follow-up messages by persona |
-| Email: CI Director | `workspace/collateral/outbound/email-ci-director.md` | 3-email cold sequence for pharma CI directors |
-| Email: Quant Analyst | `workspace/collateral/outbound/email-quant-analyst.md` | 3-email cold sequence for hedge fund alt data buyers |
-| Email: Discovery Scientist | `workspace/collateral/outbound/email-target-discovery.md` | 3-email cold sequence for biotech R&D leads |
-| Email: Academic Researcher | `workspace/collateral/outbound/email-academic-researcher.md` | 3-email cold sequence for standard-tier buyers (academic/boutique) |
+| Landing page | `workspace/collateral/landing-page/index.html` | Static HTML, served from the Cloudflare worker `shy-grass-fccd` at trevorobeyinc.com (steps in the engine `CLAUDE.md`) |
+| Prospect targeting guide | `07-outbound/prospect-targeting-guide.md` | LinkedIn search strings, ICP, week-by-week execution plan, discovery call script |
+| LinkedIn templates | `07-outbound/linkedin-openers/linkedin-connection-templates.md` | 4 connection requests + 4 follow-up messages by persona |
+| Email: CI Director | `07-outbound/cold-email-templates/email-ci-director.md` | 3-email cold sequence for pharma CI directors |
+| Email: Quant Analyst | `07-outbound/cold-email-templates/email-quant-analyst.md` | 3-email cold sequence for hedge fund alt data buyers |
+| Email: Discovery Scientist | `07-outbound/cold-email-templates/email-target-discovery.md` | 3-email cold sequence for biotech R&D leads |
+| Email: Academic Researcher | `07-outbound/cold-email-templates/email-academic-researcher.md` | 3-email cold sequence for standard-tier buyers (academic/boutique) |
 
 ### Landing Page Deployment
 
@@ -528,7 +538,7 @@ This creates a **labor income stream** alongside the data product revenue:
 The full attribution stack lives in [NOTICE.md](NOTICE.md). Summary for sales conversations:
 
 - **OpenClaw patterns** — clean-room derivative; `cleanRoomDerivative: true` flag at `openclaw-bridge/openclaw.json:5`. The `openclaw-bridge/` directory name is intentionally retained as upstream attribution. **Trevor Robey Inc Agents is not affiliated with the openclaw.ai consumer Personal-AI-assistant product** and claims no authorship of any OpenClaw-branded software.
-- **ToolUniverse** — Apache-2.0 — Harvard MIMS / Zitnik Lab. Vendored at `vendor/tooluniverse/`. Powers all six biomedical workflow templates. Cite as Gao et al., arXiv:2509.23426.
+- **ToolUniverse** — Apache-2.0 — Harvard MIMS / Zitnik Lab. Vendored at `vendor/tooluniverse/`. Powers the biomedical workflow templates. Cite as Gao et al., arXiv:2509.23426.
 - **Node.js** — MIT — required runtime, version 22.13.1 (engine-strict).
 - **Biomedical data sources** queried at runtime: PubMed/NLM, ClinicalTrials.gov/NIH, ChEMBL/EBI, OpenTargets, DrugBank (commercial license required for redistribution), CMS NPI, ICD-10/WHO, Owkin platform. Buyer must comply with each upstream source's licensing terms when using outputs in commercial workflows.
 - **HuggingFace Hub** — metadata queries only; no model weights are downloaded or run.

@@ -1,6 +1,6 @@
 # Architectural Blueprint (Implemented Scaffold)
 
-This repository now contains the implemented architecture baseline for trevor-robey-inc-agents (renamed from `OpenClaw-Research-Agents` on 2026-04-27 — see [TREVOR_ROBEY_INC_AGENTS_DOSSIER.md](TREVOR_ROBEY_INC_AGENTS_DOSSIER.md) for the current product story) through Phase 23, plus the Phase 26A, Phase 27, and Phase 28 monetization-adjacent milestones.
+This repository now contains the implemented architecture baseline for trevor-robey-inc-agents (renamed from `OpenClaw-Research-Agents` on 2026-04-27 — see [`HOW-IT-WORKS.md`](../HOW-IT-WORKS.md) for the current product story) through Phase 23, plus the Phase 26A, Phase 27, and Phase 28 monetization-adjacent milestones.
 
 Planned post-Phase 22 expansion work is tracked in `future openclaw research agents phases to be implemented.` at the repository root.
 The current dependency-ordered lock is PR 1 docs/roadmap, PR 2 Phase 26A minimal prerequisite slice, PR 3 Phase 27 integration, and PR 4 Phase 28 direct-delivery.
