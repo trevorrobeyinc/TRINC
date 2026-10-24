@@ -252,6 +252,21 @@ forward below.
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 
+### 2026-10-24T09:40Z · Desktop Claude Code · **Datarade deferred; "verified citations" overclaim cleared from collateral**
+- **Decided (operator, 2026-10-24):** Datarade is deferred "until the business is actually up and running".
+  Datarade declined the application on 2026-05-20 ("business not yet established"). The files are parked,
+  not deleted: a DEFERRED banner with the reason, the parked stale content and how to reverse is on
+  `03-platforms/datarade/go-live-checklist.md`, short banners are on `vendor-application.md` and both setup
+  guides, and STATUS.md lists it under "Not doing right now". The `datarade` platform target stays (inert,
+  manual-only).
+- **Did:** "verified citations" counts relabelled "cited identifiers" on the landing-page source (four stat
+  labels, the sample block, and its "Verified Output" heading → "Sample Output"), both one-pagers and three
+  outbound templates. The demo script no longer pitches Snowflake/BigQuery delivery. collateral-audit and
+  brand-check skills updated (1.0.3).
+- **State:** committed. **The live site is unchanged until the operator deploys the landing page**
+  (Cloudflare worker `shy-grass-fccd`).
+- **Touches:** STATUS.md, `03-platforms/datarade/`, `07-outbound/`, `workspace/collateral/`, this board.
+
 ### 2026-10-24T09:10Z · Desktop Claude Code · **Samples and platform guides: delivery overclaims and retired tiers removed**
 - **Did:** on the operator's go. Sample deliverable: the Delivery Options table (retired tier names, the
   undeployed `/api/v1/research` API, webhooks, Snowflake/BigQuery) and the unbuilt "Enterprise Delivery

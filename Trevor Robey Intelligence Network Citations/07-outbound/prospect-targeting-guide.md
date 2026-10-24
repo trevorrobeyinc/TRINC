@@ -199,8 +199,8 @@ Screen share the sample deliverable:
 
 1. Open `pharmacovigilance-sample-deliverable.md` — walk through methodology, executive summary, signal deep-dive
 2. Click a PMID (30232222) live — open pubmed.ncbi.nlm.nih.gov/30232222 in browser to demonstrate it resolves
-3. Show citation index CSV — highlight the 7 identifier types and 41 verified citations
-4. Show schema definition — explain Snowflake/BigQuery delivery format
+3. Show citation index CSV — highlight the 7 identifier types and 41 cited identifiers
+4. Show the Delivery section — one sealed ZIP bundle, with a SHA-256 checksum for every file
 
 > "Every identifier in this report is independently verifiable. You can click any PMID, NCT number, or RxNorm ID and it resolves in its source database. This is the trust mechanism — no hallucinated references, no fabricated data."
 

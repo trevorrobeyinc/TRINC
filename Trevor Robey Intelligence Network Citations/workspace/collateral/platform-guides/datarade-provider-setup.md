@@ -1,6 +1,9 @@
 # Datarade Provider Setup Guide
 
 > **Canonical copy lives at [`03-platforms/datarade/provider-setup-guide.md`](../../../03-platforms/datarade/provider-setup-guide.md).** Edit that version first and keep this one in step. Every price comes from [`OFFERINGS.md`](../../../OFFERINGS.md), verbatim.
+>
+> **PARKED 2026-10-24:** the Datarade channel is deferred until the business is operating (declined
+> 2026-05-20, "business not yet established"; see [`go-live-checklist.md`](../../../03-platforms/datarade/go-live-checklist.md)).
 
 ## Prerequisites
 

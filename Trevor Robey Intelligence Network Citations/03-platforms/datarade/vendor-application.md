@@ -1,5 +1,10 @@
 # Datarade Vendor Application — Trevor Robey Intelligence Network Citations LLC
 
+> **PARKED 2026-10-24: the channel is deferred until the business is operating** (see
+> [`go-live-checklist.md`](go-live-checklist.md)). This file's tier and delivery sections are stale (retired
+> Standard / Custom / Enterprise tiers; Snowflake / BigQuery / API delivery that is not built). Refresh from
+> `OFFERINGS.md` before any re-application; do not reuse them.
+
 > **Status (2026-06-10): SUBMITTED → DECLINED. Do not treat this as un-submitted.** The intake form was **submitted 2026-05-11** (brand-current Sample Pack + Data Dictionary; HubSpot CDN UUID `f2e8abb3-7742-4ffe-aa8e-00e5f0f0d1dc`) and cleared intake; the **2026-05-20 onboarding call ended in a decline — reason: "the business is not yet established"** (no operating track record), not a product problem. Re-apply after establishment proof (CA SOS LLC approval + a few dated closed-deal engagements); no collateral rework needed. Per-call record: [`onboarding-call-notes.md`](onboarding-call-notes.md). The "Submit by 2026-04-28" line below was a pre-submission target and is now historical.
 
 **Submission target**: https://datarade.ai/company/contact/data-providers

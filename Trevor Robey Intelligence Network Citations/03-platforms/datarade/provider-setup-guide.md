@@ -1,5 +1,9 @@
 # Datarade Provider Setup Guide
 
+> **PARKED 2026-10-24: the channel is deferred until the business is operating** (Datarade declined on
+> 2026-05-20, "business not yet established"; see [`go-live-checklist.md`](go-live-checklist.md)). Before any
+> re-application, refresh the pricing below from `OFFERINGS.md` (it lacks the Scoped Research Pack).
+
 ## Prerequisites
 
 - Business entity (Trevor Robey Intelligence Network Citations LLC; wordmark "Trevor Robey, INC.")

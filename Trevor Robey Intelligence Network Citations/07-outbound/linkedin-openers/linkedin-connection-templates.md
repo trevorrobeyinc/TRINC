@@ -26,7 +26,7 @@
 
 ### Persona 1: CI Director
 
-> Thanks for connecting, [First Name]. I wanted to share more context — we recently produced a pharmacovigilance signal synthesis covering ICI adverse events with 41 verified citations across 7 identifier types (PMID, NCT, RxNorm, UniProt, etc.).
+> Thanks for connecting, [First Name]. I wanted to share more context — we recently produced a pharmacovigilance signal synthesis covering ICI adverse events with 41 cited identifiers across 7 identifier types (PMID, NCT, RxNorm, UniProt, etc.).
 >
 > The methodology is deterministic: 3-agent pipeline (scout, analyst, synthesizer) scanning OpenFDA FAERS, DailyMed, and PubMed. Every claim is citation-backed — no hallucinated references.
 >

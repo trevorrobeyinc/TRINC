@@ -12,7 +12,7 @@ Multi-omics target validation intelligence mapping target-disease associations w
 
 | Metric | Value |
 | :----- | :---- |
-| Verified Citations | 289+ per report |
+| Cited Identifiers | 289+ per report |
 | Total Claims Analyzed | 765+ |
 | Primary Data Sources | OpenTargets, UniProt, HPA, PubMed, ChEMBL, RxNorm |
 | Quality Confidence | 1.0 (deterministic) |

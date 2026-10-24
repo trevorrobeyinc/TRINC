@@ -1,5 +1,26 @@
 # Datarade — go-live checklist
 
+> **DEFERRED: do not re-apply yet (operator decision, 2026-10-24).** Datarade declined the application at
+> the 2026-05-20 onboarding call, reason "the business is not yet established" (record:
+> [`vendor-application.md`](vendor-application.md), [`onboarding-call-notes.md`](onboarding-call-notes.md),
+> `SYSTEM-REALITY.md`, `REVENUE_PLAYBOOK.md`). On 2026-10-24 the operator parked the channel "until the business
+> is actually up and running" (an operating track record: closed, dated engagements).
+>
+> - **Until then:** do not re-apply, re-price or polish the files in this folder or
+>   `workspace/collateral/platform-guides/datarade-provider-setup.md`. They are kept as-is so a later
+>   re-application starts from them.
+> - **Known stale content, parked with the channel:** `vendor-application.md` still describes the retired
+>   Standard / Custom / Enterprise tiers with Snowflake / BigQuery / API delivery (none of it built), and
+>   `provider-setup-guide.md` lacks the Scoped Research Pack. Refresh both from `OFFERINGS.md` before any
+>   re-application; never reuse their prices or delivery claims.
+> - **Machinery left in place, inert:** `config/platform-targets.json` keeps the manual-only `datarade`
+>   target and `scripts/distribute.js --targets datarade` still builds listing assets locally. Re-applying
+>   needs no code.
+> - **To reverse:** the operator decides the business is established. Then refresh the two files above,
+>   re-check them with `/collateral-audit` and `/brand-check`, and re-apply.
+>
+> Everything below is the May 2026 record, kept as history.
+
 **Status as of 2026-05-11**: Pre-call prep DONE. Form **SUBMITTED**. Awaiting May 20 onboarding call to unlock storefront-build phase.
 
 ## Done

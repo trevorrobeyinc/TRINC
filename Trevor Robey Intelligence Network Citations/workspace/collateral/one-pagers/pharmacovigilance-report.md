@@ -12,7 +12,7 @@ Comprehensive pharmacovigilance intelligence synthesized from global adverse eve
 
 | Metric | Value |
 | :----- | :---- |
-| Verified Citations | 135+ per report |
+| Cited Identifiers | 135+ per report |
 | Total Claims Analyzed | 478+ |
 | Primary Data Sources | AEMS (formerly AEMS, migrated to daily real-time updates Mar 11, 2026), DailyMed, EudraVigilance, PubMed |
 | Quality Confidence | 1.0 (deterministic) |

@@ -1,6 +1,6 @@
 # Cold Email Sequence: Academic Researcher / Boutique Consultancy
 
-**Hook**: Systematic review speed + verified citations
+**Hook**: Systematic review speed + citations traced to public identifiers
 
 ---
 
