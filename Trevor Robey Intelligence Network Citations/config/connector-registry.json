@@ -6,7 +6,7 @@
   "workflow_template_authority": "config/workflow-templates/*.json (phase30-workflow-v1); bound_workflow_steps entries MUST reference real (template_id, step_id) tuples",
   "execution_surfaces": {
     "subprocess-mcp": "Project MCP under openclaw-bridge/mcp/<slug>-mcp/. Reachable from run-workflow.js subprocess. Default path for new biomedical connectors.",
-    "tooluniverse-tool": "Tool exposed via vendor/tooluniverse SMCP. Reachable from subprocess via tool-prefetch. ~2,116 tools available.",
+    "tooluniverse-tool": "Tool exposed via vendor/tooluniverse SMCP. Reachable from subprocess via tool-prefetch. ~2,719 tools available (v1.5.7).",
     "claude-host-mcp": "Authenticated at Claude-host level (claude.ai / Claude Code session). NOT reachable from subprocess. Either build a subprocess adapter, or accept chat-supervisory use only."
   },
   "connectors": {

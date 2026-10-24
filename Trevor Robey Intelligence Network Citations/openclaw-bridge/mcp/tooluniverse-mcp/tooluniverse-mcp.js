@@ -118,6 +118,17 @@ class ToolUniverseMcp extends BaseMcp {
           return normalizeToolList(arrayProps[0], listOpts);
         }
       }
+      // A successful call with no `data` at all: ToolUniverse v1.5.x envelopes (the FAERS
+      // case-report tools first, 2026-10-24) carry the rows in a top-level array beside paging
+      // fields — { status, reports: [...], count, total_available, truncated, truncation_note }.
+      // Same rule as the data level: exactly one array property is the rows. Only reached where
+      // the branch below would otherwise return nothing, so no existing shape changes.
+      if (result.status === "success" && (result.data === undefined || result.data === null)) {
+        const topArrays = Object.values(result).filter(Array.isArray);
+        if (topArrays.length === 1) {
+          return normalizeToolList(topArrays[0], listOpts);
+        }
+      }
       // A successful call that simply returned no rows → empty, not a hollow record.
       if (result.status === "success" &&
           (result.data === undefined || result.data === null ||

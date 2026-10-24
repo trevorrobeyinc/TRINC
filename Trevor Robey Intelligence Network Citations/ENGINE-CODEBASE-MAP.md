@@ -42,7 +42,7 @@ run-workflow.js  --template <id>  --inputs '{...}'  --confirm   [--operator-appr
       ▼
 workflow-engine  (orchestrates the mission → dataset → offer → approve → export chain)
       │   for each of 6 agent roles:
-      │     tool-prefetch.js ........... pulls live evidence (ToolUniverse ~2,116 tools + localFetchers),
+      │     tool-prefetch.js ........... pulls live evidence (ToolUniverse ~2,719 tools + localFetchers),
       │     │                            injects synthetic `tooluniverse://` docs, records fetched_citation_ids
       │     role-provider-router.js .... picks the LLM per role (map → template pref → default=claude-code)
       │     agent-context-loader.js .... prepends config/agents/<role>/SOUL.md + AGENTS.md + session memory
@@ -93,7 +93,7 @@ Everything is a plain Node process. There is **no persistent gateway** for the r
 | `workflows/` | Governance automation, observability, recovery, ingestion. |
 | `analytics/` | Portfolio intelligence (Phase 23): `portfolio-intelligence/`, `rlhf-quality/`, `compliance-explainability/`, `experiment-explainability/`, `monetization-engine.js`. |
 | `workspace/` | **All runtime state + artifacts**: `research-input/`, `research-output/`, `missions/`, `workflows/`, `releases/`, `distribution/`, `cache/`, `collateral/`. Created at runtime; often empty when idle. |
-| `vendor/tooluniverse/` | Harvard ToolUniverse submodule, pinned SHA `3833b0e` (v1.1.10, ~2,116 tools). Only submodule. |
+| `vendor/tooluniverse/` | Harvard ToolUniverse submodule, pinned SHA `f2006162` (v1.5.7, ~2,719 tools; venv from `security/tooluniverse-venv.lock.txt`). Only submodule. |
 | `tests/` | Unit, integration, security, supply-chain (Node native `--test`). |
 | `security/` | Policy files, RBAC, `interaction-log.json` (token/duration telemetry). |
 | `00-…`–`15-…`, `OFFERINGS.md`, `REVENUE_PLAYBOOK.md`, etc. | Brand/commercial canon (not engine code). |

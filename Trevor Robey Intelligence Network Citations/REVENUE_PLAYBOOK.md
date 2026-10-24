@@ -33,7 +33,7 @@ Dependent updates that fire on CA SOS approval: SOS Entity Number → AWS Market
 
 This repo is a **member of the TRINC monorepo**, now **local-only** at `/Users/myhome/TRINC` (the private GitHub remote was **deleted 2026-05-26**; **no git remotes** — durable backup is a `git bundle --all` in `~/Downloads/`, e.g. `TRINC-FULL-backup-*.bundle`). The previous standalone GitHub remote `https://github.com/trevoralexanderrobey/trevor-robey-inc-agents` is the rollback anchor (tag `pre-monorepo-consolidation-2026-05-07` at SHA `8e782a0`); archive pending. All run paths below are relative to this folder inside the monorepo (`/Users/myhome/TRINC/Trevor Robey Intelligence Network Citations/`). *(Historical: the pre-consolidation location was `~/Code/trevor-robey-inc-agents/` on the prior machine; both `trevor-robey-inc-agents/` and `trevor-robey-inc/` were flat-merged into this folder 2026-05-19 — those folder names no longer exist.)*
 
-ToolUniverse is a pinned submodule at [`vendor/tooluniverse/`](vendor/tooluniverse) (SHA `3833b0e`, v1.1.10).
+ToolUniverse is a pinned submodule at [`vendor/tooluniverse/`](vendor/tooluniverse) (SHA `f2006162`, v1.5.7).
 
 ---
 
@@ -96,7 +96,7 @@ Research Input  ──>  Mission (Phase 18)  ──>  Dataset (Phase 19-20)  ─
 | **Ollama** (local) | Obsidian side only — NOT an engine role | **Running, no model installed** (2026-10-23) | Ollama.app serves :11434 behind the :11435 TLS proxy, but `ollama list` is empty; installing a model for the Copilot BYOK lane is the operator's call. Never an engine provider or fallback |
 | ~~**LM Studio** (local)~~ | — | **Decommissioned 2026-07-16** | Proxy (:1235), launchd unit `com.trevorrobey.lm-studio-tls-proxy`, provider entry, and role route all removed; app + ~/.lmstudio moved to Trash. Local models removed from the engine (restorable) |
 | **Mock** | Testing | Active | Used for CI and deterministic tests |
-| **ToolUniverse** (MCP) | Biomedical tools | **Active** | ~2,116 tools (v1.1.10) via Harvard MIMS, Phase 29 verified |
+| **ToolUniverse** (MCP) | Biomedical tools | **Active** | ~2,719 tools (v1.5.7) via Harvard MIMS, Phase 29 verified |
 
 ### How a research task becomes revenue
 

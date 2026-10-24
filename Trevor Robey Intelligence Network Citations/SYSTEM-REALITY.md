@@ -36,7 +36,7 @@ LLM call for each agent role     ──►  per-role provider routing (role-prov
         │                              is 100% Claude — no OSS helper pre-pass, no local
         │                              fallback; unmapped roles + default → Claude Code
         ▼
-ToolUniverse                     ──►  2,116 biomedical tools (Harvard, vendored)
+ToolUniverse                     ──►  2,719 biomedical tools (Harvard, vendored)
         │
         ▼
 citation-extractor.js            ──►  regex pulls PMID / NCT / ChEMBL / DOI / UniProt / CID out of the text

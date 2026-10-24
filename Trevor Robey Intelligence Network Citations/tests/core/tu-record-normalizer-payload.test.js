@@ -13,6 +13,29 @@ const {
   normalizeToolList,
   extractIdentifiers
 } = require("../../openclaw-bridge/mcp/tooluniverse-mcp/tu-record-normalizer.js");
+const { createToolUniverseMcp } = require("../../openclaw-bridge/mcp/tooluniverse-mcp/tooluniverse-mcp.js");
+
+// A FAERS case report exactly as ToolUniverse v1.5.7 returns it (live 2026-10-24, trimmed).
+const FAERS_REPORT = {
+  safetyreportid: "10003336",
+  serious: "1",
+  seriousnessdeath: "1",
+  seriousnesshospitalization: "1",
+  occurcountry: "US",
+  receivedate: "20140312",
+  patient: {
+    patientsex: "1",
+    drug: [
+      { medicinalproduct: "JANUMET", drugindication: "TYPE 2 DIABETES MELLITUS", drugdosagetext: "50/1000 MG" },
+      { medicinalproduct: "ASPIRIN" }
+    ],
+    reaction: [
+      { reactionmeddrapt: "Metastases to spine", reactionoutcome: "6" },
+      { reactionmeddrapt: "Pancreatic carcinoma", reactionoutcome: "5" }
+    ],
+    summary: { narrativeincludeclinical: "CASE EVENT DATE: 201112" }
+  }
+};
 
 describe("tu-record-normalizer — payload + identifier preservation", () => {
   it("PubMed article: title/abstract/pmid/doi/journal/year survive normalization", () => {
@@ -138,5 +161,55 @@ describe("tu-record-normalizer — payload + identifier preservation", () => {
     const [r] = normalizeToolList([raw], {});
     assert.equal(r.title, "Real article");
     assert.equal(r.abstract, "Real abstract text");
+  });
+
+  // --- FAERS case reports (ToolUniverse v1.5.7, 2026-10-24) -----------------------------
+  it("FAERS case report: the report id titles it, reactions/seriousness/drugs fill the abstract", () => {
+    const [r] = normalizeToolList([FAERS_REPORT], {});
+    assert.equal(r.title, "FAERS safety report 10003336 (serious)");
+    assert.match(r.abstract, /^Reactions: Metastases to spine, Pancreatic carcinoma/);
+    assert.match(r.abstract, /Seriousness: death, hospitalization/);
+    assert.match(r.abstract, /JANUMET \(for TYPE 2 DIABETES MELLITUS\); ASPIRIN/);
+    assert.match(r.abstract, /Country: US \| Received: 20140312/);
+    // Codes the field names do not spell out are not decoded into the abstract.
+    assert.doesNotMatch(r.abstract, /outcome|sex/i);
+  });
+});
+
+describe("ToolUniverseMcp envelope unwrapping", () => {
+  function mcpReturning(envelope) {
+    return createToolUniverseMcp({ processManager: { call: async () => envelope, shutdown() {} } });
+  }
+  const call = { action: "executeTool", tool_name: "FAERS_search_reports_by_drug_and_indication", arguments: {} };
+
+  it("v1.5.x top-level row array beside paging fields becomes the records", async () => {
+    const records = await mcpReturning({
+      status: "success",
+      reports: [FAERS_REPORT, { ...FAERS_REPORT, safetyreportid: "10003337", serious: "2" }],
+      count: 2,
+      total_available: 103043,
+      truncated: true,
+      truncation_note: "Partial result: reports 1-2 of 103043 matching this search."
+    }).execute(call, {});
+    assert.equal(records.length, 2);
+    assert.equal(records[0].title, "FAERS safety report 10003336 (serious)");
+    assert.equal(records[1].title, "FAERS safety report 10003337");
+    assert.match(records[0].abstract, /Reactions:/);
+  });
+
+  it("a success envelope whose only row array is empty is a genuine zero, not a hollow record", async () => {
+    const records = await mcpReturning({ status: "success", reports: [], count: 0, total_available: 0 }).execute(call, {});
+    assert.deepEqual(records, []);
+  });
+
+  it("two top-level arrays are ambiguous and stay empty rather than guessing", async () => {
+    const records = await mcpReturning({ status: "success", reports: [FAERS_REPORT], warnings: ["x"] }).execute(call, {});
+    assert.deepEqual(records, []);
+  });
+
+  it("the data-level shape is unchanged", async () => {
+    const records = await mcpReturning({ status: "success", data: [{ pmid: "1", title: "T", abstract: "A" }] }).execute(call, {});
+    assert.equal(records.length, 1);
+    assert.equal(records[0].pmid, "1");
   });
 });

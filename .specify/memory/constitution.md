@@ -34,7 +34,7 @@ Enter plan mode for any non-trivial task (3+ steps or architectural decisions). 
 - CommonJS in `trevor-robey-inc-agents` (NOT ESM); TypeScript in `Copilot-Everything/bridges/` and `Claude/` plugins; Python for vendored ToolUniverse
 - Restricted globals inside `openclaw-bridge/`: `Date.now()`, `new Date()`, `Math.random()`, `randomUUID()` FORBIDDEN — use injected `timeProvider`/`entropyProvider`
 - mkcert TLS at `~/.local/share/mkcert/localhost.pem`, expires 2028-07-07; all Node processes require `NODE_EXTRA_CA_CERTS` pointing to `~/Library/Application Support/mkcert/rootCA.pem`
-- One submodule: `trevor-robey-inc-agents/vendor/tooluniverse` (mims-harvard/ToolUniverse v1.1.10, Apache-2.0). Vendor with UPSTREAM.md for everything else.
+- One submodule: `trevor-robey-inc-agents/vendor/tooluniverse` (mims-harvard/ToolUniverse v1.5.7, Apache-2.0). Vendor with UPSTREAM.md for everything else.
 
 ## Quality Gates
 - All 906 tests in `trevor-robey-inc-agents` (Phase 35 baseline) must pass

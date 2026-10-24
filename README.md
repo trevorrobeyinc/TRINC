@@ -43,7 +43,7 @@ Console Mirror) moved to its own repos under `~/Code` on 2026-10-23; the install
 
 ## Submodule and vendored fork
 
-- `Trevor Robey Intelligence Network Citations/vendor/tooluniverse` → [mims-harvard/ToolUniverse](https://github.com/mims-harvard/ToolUniverse) (Apache-2.0, ~2,116 biomedical tools). The only submodule.
+- `Trevor Robey Intelligence Network Citations/vendor/tooluniverse` → [mims-harvard/ToolUniverse](https://github.com/mims-harvard/ToolUniverse) (Apache-2.0, v1.5.7, ~2,719 biomedical tools). The only submodule.
 - `Copilot-Everything/repos/obsidian-copilot-mcp-v4` → fork of [logancyang/obsidian-copilot](https://github.com/logancyang/obsidian-copilot) at upstream `4.0.0` (SHA `a78b69b`) plus the MCP module. Not a submodule; see its [`UPSTREAM.md`](Copilot-Everything/repos/obsidian-copilot-mcp-v4/UPSTREAM.md).
 
 ## One repo

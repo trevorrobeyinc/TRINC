@@ -8,7 +8,7 @@ The runtime engine behind **Trevor Robey, INC.** — citation-traced biomedical 
 
 A single command (`node scripts/run-workflow.js --template <id>`) runs one of seven biomedical workflows that feed concrete commercial offerings: **Investor Pre-Mortem** (primary, $9,950–$19,950) and **Failed Trial Archaeology** (flanking, $14,950) drive premium revenue; **Conference Synthesis Brief**, **Trial Design Benchmark Pack**, **Cross-Silo Connector Report**, **Plain-Language Patient Brief**, and **Pharmacovigilance Pack** serve tactical demand.
 
-Workflows pull live evidence from ToolUniverse (~2,116 tools, Apache-2.0, Harvard MIMS / Zitnik Lab) plus seven project MCP servers (ChEMBL, ClinicalTrials.gov, PubMed, HuggingFace Hub, NPI Registry, ICD-10, Owkin), and produce ZIP release bundles whose citation-index CSV has a real PMID / NCT / ChEMBL CID / DOI in **every** row — verified at quality-gate time, not flagged as a warning. Every cited identifier in an assembled report is additionally checked against the source records **actually retrieved at runtime** (a report-level grounding gate) and every cited DOI is retraction-screened against Crossref before the report can ship — see [Citation Integrity Layer](#citation-integrity-layer) below.
+Workflows pull live evidence from ToolUniverse (~2,719 tools, Apache-2.0, Harvard MIMS / Zitnik Lab) plus seven project MCP servers (ChEMBL, ClinicalTrials.gov, PubMed, HuggingFace Hub, NPI Registry, ICD-10, Owkin), and produce ZIP release bundles whose citation-index CSV has a real PMID / NCT / ChEMBL CID / DOI in **every** row — verified at quality-gate time, not flagged as a warning. Every cited identifier in an assembled report is additionally checked against the source records **actually retrieved at runtime** (a report-level grounding gate) and every cited DOI is retraction-screened against Crossref before the report can ship — see [Citation Integrity Layer](#citation-integrity-layer) below.
 
 ### What this is
 
@@ -559,7 +559,7 @@ git config --local --unset core.hooksPath
 | 23 | Portfolio intelligence and commercialization decision support | Implemented |
 | 26A | Bridge streamable/auth principal prerequisite slice | Implemented |
 | 28 | Direct-delivery contracts and post-export delivery evidence governance | Implemented |
-| 29 | Harvard ToolUniverse biomedical MCP (2,116 tools) | Implemented — active, 58/58 tests |
+| 29 | Harvard ToolUniverse biomedical MCP (2,719 tools, v1.5.7) | Implemented — active, 58/58 tests |
 | 30 | Single-command workflow engine (6 templates, 6 roles) | Implemented |
 | 31 | Enterprise delivery: Research REST API + scheduled workflows + usage metering | Implemented + locally tested (34/34) — **not externally deployed** |
 | 33 | Claude Code MCP provider (default LLM; `claude -p` stdin pipe) + stateful multi-agent per-role routing | Implemented |

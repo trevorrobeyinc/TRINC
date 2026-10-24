@@ -16,7 +16,7 @@ The registry sorts every connector into one of three "surfaces." This is the sin
 | Surface | Count | Can the `run-workflow.js` engine use it? | Meaning |
 |---|---|---|---|
 | **subprocess-mcp** | 12 | ✅ Yes | A real project MCP under `openclaw-bridge/mcp/<slug>-mcp/`. This is what actually feeds your reports. |
-| **tooluniverse-tool** | 4 | ✅ Yes (via ToolUniverse prefetch) | Exposed through the vendored Harvard ToolUniverse (~2,116 tools). |
+| **tooluniverse-tool** | 4 | ✅ Yes (via ToolUniverse prefetch) | Exposed through the vendored Harvard ToolUniverse (v1.5.7, ~2,719 tools). |
 | **claude-host-mcp** | 23 | ❌ No | Authenticated at the Claude.ai / Claude Code session level. **Chat-supervisory only** — useful when *you* are in a chat, but invisible to the automated workflow engine unless someone builds a subprocess adapter. |
 
 So when you see "PubMed" or "ChEMBL" available in your Claude chat, that does **not** mean the report engine is using that same connector. The engine uses its own subprocess copies. Several sources exist at **both** layers (a lean subprocess version for the engine, a richer host version for chat) — that overlap is intentional and documented per-connector in the registry.

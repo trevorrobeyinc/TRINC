@@ -5,9 +5,11 @@
       {
         "action": "executeTool",
         "tool_name": "PubMed_search_articles",
+        "_comment": "include_abstract (all three PubMed entries): ToolUniverse v1.5.x made abstracts opt-in (one extra efetch); without it every PubMed record reaches the prompt as title + identifiers only. Found by the v1.5.7 pin bump's live A/B (2026-10-24).",
         "arguments": {
           "query": "{{therapeutic_area}} {{indication}} {{compound_name}}",
-          "limit": 8
+          "limit": 8,
+          "include_abstract": true
         }
       },
       {
@@ -210,7 +212,8 @@
         "tool_name": "PubMed_search_articles",
         "arguments": {
           "query": "{{therapeutic_area}} review {{indication}}",
-          "limit": 5
+          "limit": 5,
+          "include_abstract": true
         }
       },
       {
@@ -306,7 +309,8 @@
         "tool_name": "PubMed_search_articles",
         "arguments": {
           "query": "{{indication}} {{drug_class}}",
-          "limit": 10
+          "limit": 10,
+          "include_abstract": true
         }
       },
       {

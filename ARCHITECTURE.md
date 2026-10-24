@@ -21,8 +21,8 @@ flight, [`_continuity/CONTINUITY.md`](_continuity/CONTINUITY.md).
 > `trevorrobeyinc/TRINC` over `ssh.github.com:443`. Pushes are operator-run in a real terminal: the only
 > key is a PIN-protected YubiKey FIDO2 credential, which an agent shell cannot unlock. Offline backup is a
 > verified `git bundle --all` in `~/Documents/`. One submodule:
-> `Trevor Robey Intelligence Network Citations/vendor/tooluniverse` (mims-harvard/ToolUniverse, `3833b0e`,
-> v1.1.10, Apache-2.0). One vendored fork: `Copilot-Everything/repos/obsidian-copilot-mcp-v4/` (upstream
+> `Trevor Robey Intelligence Network Citations/vendor/tooluniverse` (mims-harvard/ToolUniverse, `f2006162`,
+> v1.5.7, Apache-2.0; its venv is built from `security/tooluniverse-venv.lock.txt`). One vendored fork: `Copilot-Everything/repos/obsidian-copilot-mcp-v4/` (upstream
 > obsidian-copilot 4.0.0 plus an MCP client module; manifest pinned to `99.4.0` so Obsidian never
 > auto-updates over it).
 
@@ -178,8 +178,8 @@ Run state (citation verification, seed input, interaction log) stays in `workspa
 
 ### 3.6 Data sources and tooling
 
-- **ToolUniverse:** a Python subprocess (`uv run --directory vendor/tooluniverse tooluniverse-smcp-stdio`),
-  JSON-RPC over stdio, about 2,116 tools.
+- **ToolUniverse:** a Python subprocess (`uv run --no-sync --directory vendor/tooluniverse tooluniverse-smcp-stdio
+  --compact-mode`), JSON-RPC over stdio, 2,719 tools (v1.5.7).
 - **Adapters** in `openclaw-bridge/mcp/`: ChEMBL, ClinicalTrials.gov, PubMed, Europe PMC preprints, NIH
   RePORTER, NPI, ICD-10, HuggingFace (metadata only), Owkin (needs `OWKIN_API_KEY`), arXiv, Semantic
   Scholar, Open Targets (GraphQL), SEC EDGAR, SearXNG, the business sources (`business-sources/`: web

@@ -66,6 +66,12 @@ function extractTitle(record) {
   if (record && Array.isArray(record["openfda.brand_name"]) && record["openfda.brand_name"].length) {
     return normalizeText(record["openfda.brand_name"].join(", "), 2000);
   }
+  // FAERS case reports (ToolUniverse v1.5.x `reports` rows, 2026-10-24): no title field at all.
+  // The safety report id is the stable handle; seriousness is what a safety reader scans for.
+  if (record && typeof record.safetyreportid === "string" && record.safetyreportid.trim()) {
+    const serious = String(record.serious) === "1" ? " (serious)" : "";
+    return normalizeText(`FAERS safety report ${record.safetyreportid}${serious}`, 2000);
+  }
 
   return normalizeText(extractToolId(record), 2000);
 }
@@ -132,6 +138,33 @@ function extractAbstract(record, maxChars) {
       record.published_date && `Published: ${record.published_date}`,
       record.spl_version !== undefined && `SPL version: ${record.spl_version}`,
       `setid: ${record.setid}`
+    ].filter((p) => typeof p === "string" && p.trim());
+    return stripHtml(parts.join(" | ")).slice(0, limit);
+  }
+  // FAERS case reports (2026-10-24): the payload is nested under `patient`. Reaction terms
+  // (MedDRA preferred terms) lead, then the seriousness criteria flagged "1", the drugs with
+  // their stated indications, and where/when the report was received. Field names read off a
+  // live v1.5.7 response; codes the field names do not spell out (sex, outcome) are left out
+  // rather than guessed.
+  if (record && typeof record.safetyreportid === "string" && record.patient && typeof record.patient === "object") {
+    const reactions = (Array.isArray(record.patient.reaction) ? record.patient.reaction : [])
+      .map((r) => r && r.reactionmeddrapt)
+      .filter((t) => typeof t === "string" && t.trim());
+    const criteria = [
+      ["death", "death"], ["hospitalization", "hospitalization"], ["lifethreatening", "life-threatening"],
+      ["disabling", "disabling"], ["congenitalanomali", "congenital anomaly"], ["other", "other"]
+    ].filter(([field]) => String(record[`seriousness${field}`]) === "1").map(([, label]) => label);
+    const drugs = (Array.isArray(record.patient.drug) ? record.patient.drug : [])
+      .filter((d) => d && typeof d.medicinalproduct === "string" && d.medicinalproduct.trim())
+      .map((d) => (typeof d.drugindication === "string" && d.drugindication.trim()
+        ? `${d.medicinalproduct} (for ${d.drugindication})`
+        : d.medicinalproduct));
+    const parts = [
+      reactions.length && `Reactions: ${reactions.join(", ")}`,
+      criteria.length && `Seriousness: ${criteria.join(", ")}`,
+      drugs.length && `Drugs: ${drugs.join("; ")}`,
+      record.occurcountry && `Country: ${record.occurcountry}`,
+      record.receivedate && `Received: ${record.receivedate}`
     ].filter((p) => typeof p === "string" && p.trim());
     return stripHtml(parts.join(" | ")).slice(0, limit);
   }

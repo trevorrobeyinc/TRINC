@@ -21,6 +21,10 @@ staged copies re-installed. Local total **185** (6 / 77 / 86 / 16); outside the 
 staged copies now audit at 1 (searxng: zod) and 0 (trinc-content). Details are marked **Done** under
 decisions 2, 8, 9, 10 and 11.
 
+**Update, decision 5 (same day):** the ToolUniverse submodule moved from v1.1.10 to v1.5.7 and its venv
+was rebuilt from a repo-owned, hashed lock: **252 known vulnerabilities in 214 packages → 0 in 107**,
+2,173 → 2,719 tools, no Playwright. Details under decision 5.
+
 ## Inventory
 
 | Manifest | Lockfile | Runs as |
@@ -168,6 +172,37 @@ second, 3 third; 4 and 7 go into the next plugin deploy, so obsidianwatch needs 
    biomedical APIs, so `urllib3`/`aiohttp`/`requests`/`pillow` parse untrusted responses. *Recommendation:*
    bump the submodule pin to a newer upstream release and re-sync the venv as its own change, gated by the
    Phase 29 tests and startup integrity. Never edit it in place.
+   **Done (operator's choice: v1.5.7 + own lock):**
+   - Pin `3833b0e` (v1.1.10) → `f2006162` (v1.5.7, 2026-10-13, upstream's newest release). No file inside
+     the submodule was edited.
+   - Upstream's v1.5.7 `uv.lock` is stale against its own pyproject (it still records eleven packages v1.5.4
+     moved behind extras), so `uv sync` would have rewritten it and `--frozen` would have installed 200 known
+     vulnerabilities. The venv is instead built from `security/tooluniverse-venv.lock.txt`: a fresh
+     resolution of the core dependencies for CPython 3.12 on macOS arm64, wheels only, 106 packages, every
+     file hash-pinned (`scripts/setup-tooluniverse.sh` does it; the regeneration command is in that script).
+     Result: **0 known vulnerabilities (OSV) in 107 installed packages**, down from 252 in 214.
+   - **Playwright is not installed and not needed.** It is the optional `browser` extra since v1.5.4; only
+     `get_webpage_text_from_url` uses it, for HTML pages, and without it that tool returns a clear "needs a
+     browser" error (checked live). `get_webpage_title` and that tool's PDF/file path work over plain
+     `requests`. The engine calls neither. For page text without a browser, the stack's scraper is the
+     searxng-search `extract` tool (jsdom → Readability → Markdown).
+   - **Live before/after of the 14 ToolUniverse tools the engine names** (engine's own adapter, fixed
+     queries): every tool answers at both versions. v1.5.7 changed two outputs, both fixed engine-side:
+     PubMed abstracts became opt-in (`include_abstract: true` added to the three PubMed prefetch entries),
+     and the FAERS case-report tool moved its rows to a top-level `reports` array (the adapter now treats a
+     single top-level row array in a `success` envelope as the records, and the normalizer gives FAERS rows
+     a title and a reactions/seriousness/drugs summary; 5 new tests). Net: PubMed 8 records with abstracts as
+     before; FAERS 5 per-report records instead of one JSON blob; DailyMed's adverse-reaction parse 154
+     records (65 with text) instead of 114 (8).
+   - Same at both versions, so not caused by the bump: EuropePMC answers HTTP 503 as one "Error" row inside
+     a `success` envelope (the engine counts it as returned); OpenTargets' drug lookup returns a nested object
+     the normalizer flattens to one empty record; Semantic Scholar answers 429 without an API key.
+   - The old venv imported ToolUniverse through `/Users/myhome/TrevClaw-Obsidianodus/…` (an editable install
+     made before the rename), so removing that compatibility symlink would have broken the engine's
+     ToolUniverse lane. The rebuilt venv points at `/Users/myhome/TRINC/…`.
+   - Rollback: the old venv is parked at `~/.local/share/trinc-rollback/tooluniverse-venv-v1.1.10`; to go
+     back, check out `3833b0e` in the submodule and move it back to `vendor/tooluniverse/.venv`. Delete it
+     once the new venv has served a real run.
 6. **Medical-Zettelkasten `locutus` (critical, no fix).** `phpmorphy-locutus` (last published 2022) requires
    `locutus ^2`. Overriding to locutus 3.0.36 was tried in a scratch copy: locutus 3 dropped the
    `locutus/php` entry point, phpmorphy fails to load, the lemmatizer silently falls back to `compromise`,

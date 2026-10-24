@@ -253,6 +253,28 @@ forward below.
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 
+### 2026-10-24T10:57Z · Desktop Claude Code (side session) · **ToolUniverse v1.1.10 → v1.5.7; venv from a repo-owned lock (252 known vulns → 0)**
+- **Did:** on the operator's go ("v1.5.7 + own lock; Playwright only if it truly must"): moved the submodule pin
+  `3833b0e` → `f2006162` (no file in it edited) and rebuilt its venv from the new hashed
+  `security/tooluniverse-venv.lock.txt` (core deps only, wheels only) via the updated
+  `scripts/setup-tooluniverse.sh`. 2,719 tools load (was 2,173); OSV finds 0 known vulnerabilities in 107
+  packages (was 252 in 214). Playwright is NOT installed: it is an optional extra; ToolUniverse works without
+  it; its one browser tool answers HTML pages with a clear error, and the stack's non-browser scraper is
+  searxng-search `extract`. A live before/after of the 14 engine tools found two upstream output changes, both
+  fixed engine-side with tests: PubMed abstracts are now opt-in (`include_abstract: true` in the three PubMed
+  prefetch entries) and FAERS moved its rows to a top-level `reports` array (adapter + normalizer). Engine
+  1336/1336, phase29 58/58. Internal docs updated (the old count and pin).
+- **State:** done, committed, not pushed.
+- **Next:** operator: push. Customer-facing `workspace/collateral/landing-page/intake.html` still says "~2,116
+  tools" (now an undercount): your brand-check. Delete the parked old venv
+  (`~/.local/share/trinc-rollback/tooluniverse-venv-v1.1.10`) after the next real run passes.
+- **Touches:** the submodule pointer, `security/tooluniverse-venv.lock.txt`, `scripts/setup-tooluniverse.sh`,
+  `config/tool-prefetch-map.json`, `openclaw-bridge/mcp/tooluniverse-mcp/`, its test, docs, the audit report.
+- **For whoever's next:** never `uv sync` in `vendor/tooluniverse` (upstream's lock is stale; it would rewrite
+  it). The old venv loaded ToolUniverse through the `TrevClaw-Obsidianodus` compat symlink; the new one does
+  not, so that symlink's removal no longer breaks the engine.
+- **SCOPE NOTE:** repo infra (dependency hygiene, the engine's ToolUniverse lane); "Current focus" untouched.
+
 ### 2026-10-24T10:17Z · Desktop Claude Code (side session) · **Dependency audit: the "do now" batch done (vitest 5, readability 0.6, staged copies re-installed)**
 - **Did:** on the operator's go (majors approved): vitest 5.0.5 in the `:8798` bridge and research-memory,
   `@mozilla/readability` 0.6.0 in searxng, the stdio adapter's SDK floor `^1.32.2`, then both
