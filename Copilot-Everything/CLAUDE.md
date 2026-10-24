@@ -93,6 +93,7 @@ cd /Users/myhome/TRINC/Copilot-Everything/repos/obsidian-copilot-mcp-v4 && npm r
 cd /Users/myhome/TRINC/Copilot-Everything/bridges/obsidian-copilot-bridge && npm run build   # bridge build
 cd /Users/myhome/TRINC/Copilot-Everything/bridges/obsidian-copilot-bridge && npm test && npm run lint:transport
 cd /Users/myhome/TRINC/Copilot-Everything/bridges/obsidian-stdio-adapter && npm run test:profiles
+NODE_EXTRA_CA_CERTS="$HOME/Library/Application Support/mkcert/rootCA.pem" node /Users/myhome/TRINC/ops/tr-suite/bridge-guard-live-check.mjs   # browser guard, Obsidian open
 bash /Users/myhome/TRINC/Copilot-Everything/scripts/bridge-start.sh    # manual/dev start; normally the launcher plugin does it
 curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:8798/healthz
 ```

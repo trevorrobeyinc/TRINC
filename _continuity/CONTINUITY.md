@@ -262,10 +262,13 @@ forward below.
   `Sec-Fetch-Site: none`, so a verbatim copy of `:8801`'s stricter rule would have cut them off. Tests in all
   three packages; `verify.sh` now fails if the three guard copies drift. Built the `:8798` bridge; deployed
   Command Center + Viz Studio in one `deploy.sh` run (backup `~/.claude/backups/tr-suite/20261024T122101Z/`).
-- **State:** committed; live behaviour not yet checked (Obsidian closed). obsidianwatch shows the two expected
-  CRITICAL `protected_plugin_changed` (command-center, trinc-viz-studio).
-- **Next (operator):** open Obsidian, bless obsidianwatch, try one Copilot tool call; then the live checks.
-  Follow-up for Security Everything: an OSSEC rule for the new `BROWSER_REJECT` audit event.
+- **State:** done and verified live (12:26–12:30Z, Obsidian open, obsidianwatch blessed by the operator):
+  `ops/tr-suite/bridge-guard-live-check.mjs` 18/18 on all three bridges (program, Electron-style and Node-fetch
+  clients 200; browser and preflight 403; rebinding Host 421), adapter `test:profiles` 52/52, and Copilot's MCP
+  Diagnostics probe (its real `requestUrl` path) answered by all three. The audit log holds only the deliberate
+  probes' refusals; no real client was refused.
+- **Next:** Security Everything could add an OSSEC rule for the new `BROWSER_REJECT` audit event (today the
+  silent parent rule ingests it). Re-run the live check after any bridge redeploy.
 - **SCOPE NOTE:** repo infra (bridge security); Current focus untouched.
 
 ### 2026-10-24T11:49Z · Desktop Claude Code (side session) · **OpenAlex and DOAJ rows reach the prompt as real records**

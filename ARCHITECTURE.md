@@ -245,7 +245,8 @@ renders land only in `Visualizations/`. No create, append or command execution. 
   (`:8801` has its own, stricter version). They send no CORS headers. The helper is three byte-identical
   copies (`browserGuard.ts` / `browser-guard.ts`), compared by `ops/tr-suite/verify.sh`. It deliberately
   ignores `Sec-Fetch-Mode`/`-Dest`: Node's `fetch` sends `sec-fetch-mode: cors`, and Obsidian's `requestUrl`
-  (Copilot's transport) may send `Sec-Fetch-Site: none`.
+  (Copilot's transport) may send `Sec-Fetch-Site: none`. Live check after any bridge redeploy (Obsidian open):
+  `node ops/tr-suite/bridge-guard-live-check.mjs` (18 cases, read-only, `/healthz` only).
 - **YubiKey gates.** Real engine runs, privileged commands, the browser pane and the gated MCP servers all
   need a physical touch; the touch is the consent and must never be removed. The session-gate hook bars
   sub-agents from Claude's door entirely, and bars run/cancel/publish during Ralph loops.
