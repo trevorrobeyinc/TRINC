@@ -1,8 +1,10 @@
 # Datarade Provider Setup Guide
 
+> **Canonical copy lives at [`03-platforms/datarade/provider-setup-guide.md`](../../../03-platforms/datarade/provider-setup-guide.md).** Edit that version first and keep this one in step. Every price comes from [`OFFERINGS.md`](../../../OFFERINGS.md), verbatim.
+
 ## Prerequisites
 
-- Business entity (Trevor Robey Inc.)
+- Business entity (Trevor Robey Intelligence Network Citations LLC; wordmark "Trevor Robey, INC.")
 - Email: trevor@trevorobeyinc.com
 - At least one completed workflow with exported ZIP
 
@@ -10,7 +12,8 @@
 
 1. Go to datarade.ai and click "Become a Data Provider" (or equivalent provider contact form)
 2. Fill in company details:
-   - Company: Trevor Robey Inc.
+   - Company (legal): Trevor Robey Intelligence Network Citations LLC
+   - Brand / trading name: Trevor Robey, INC. (INC = Intelligence Network Citations)
    - Categories: Healthcare Data, Life Sciences Data, Pharma Data
    - Website: https://trevorobeyinc.com
 3. Wait for provider approval (typically 1-2 weeks)
@@ -34,12 +37,11 @@ This creates:
    - Title, description, categories, geographic coverage
 4. Upload `sample-data.csv` as preview data
 5. Copy `product-description.md` into the long description field
-6. Set pricing:
-   - Standard: $2,500 per report
-   - Custom: $15,000 - $35,000 per project
+6. Set pricing: one listing per SKU, priced verbatim from the `OFFERINGS.md` "Offering Ladder".
 
 ## Pricing Strategy
 
-- Standard tier ($2,500-$4,950): Single-topic research intelligence packs
-- Custom tier ($15,000-$35,000): Multi-topic custom intelligence missions
-- Enterprise subscription: Contact for pricing ($60K-$120K+ ARR)
+- List the SKUs on the `OFFERINGS.md` ladder, at its prices. Never compute, round or bundle a price.
+- Do not list the Trial Graveyard Feed (price `[DECIDE]`, on hold) or the business-research tiers (booking
+  opens only after the first live business-lane run).
+- The old Standard / Custom / Enterprise-ARR tiers are retired; never list them.

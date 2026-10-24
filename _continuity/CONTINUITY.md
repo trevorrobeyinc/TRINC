@@ -252,6 +252,22 @@ forward below.
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 
+### 2026-10-24T09:10Z · Desktop Claude Code · **Samples and platform guides: delivery overclaims and retired tiers removed**
+- **Did:** on the operator's go. Sample deliverable: the Delivery Options table (retired tier names, the
+  undeployed `/api/v1/research` API, webhooks, Snowflake/BigQuery) and the unbuilt "Enterprise Delivery
+  Schema" (with its Snowflake data-masking claim) replaced by what a bundle really is (one sealed ZIP:
+  Markdown, CSV, the integrity files, `checksums.txt`, handed over manually; AWS Data Exchange "planned, not
+  yet available"). "Verified citations: 41" → "cited identifiers" in both samples, with a note that the
+  sample predates the gate and re-resolution. The licensed-pack offer for the unlicensed drug database and a
+  leftover "DB identifiers" row removed. AWS setup guide (canonical `03-platforms/` copy and its collateral
+  twin) and the Datarade collateral guide: retired Standard/Premium/Custom/Enterprise pricing replaced by
+  "price from `OFFERINGS.md`, verbatim"; Snowflake delivery removed; Datarade copy's "Trevor Robey Inc."
+  replaced by the legal name and wordmark.
+- **State:** done; no retired-ladder figure left in `workspace/collateral/` or `07-outbound/`.
+- **Still open:** `03-platforms/datarade/vendor-application.md` still describes Standard/Custom/Enterprise
+  tiers with Snowflake/BigQuery/API delivery; the canonical Datarade guide lacks the Scoped Research Pack.
+- **Touches:** the two samples, three platform guides, this board.
+
 ### 2026-10-24T08:41Z · Desktop Claude Code · **Pharmacovigilance samples: retired price ladder replaced with OFFERINGS.md**
 - **Did:** on the operator's go, both customer-facing samples (`workspace/collateral/samples/`) lost the
   retired Standard / Premium / Custom / Enterprise-ARR ladder; the full deliverable now carries the

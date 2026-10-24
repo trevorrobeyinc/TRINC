@@ -11,7 +11,7 @@
 **Mission ID**: mission-33789c3213710ed087a50ed2
 **Pipeline**: 3-agent (scout / analyst / synthesizer)
 **Generated**: 2026-04-01
-**Verified Citations**: 41
+**Cited Identifiers**: 41
 **Quality Confidence**: 1.0
 
 **Contact**: trevor@trevorobeyinc.com
@@ -40,7 +40,6 @@ This report is produced through a deterministic multi-agent research pipeline wh
 | DailyMed | SPL Set IDs | Structured product labeling and boxed warnings |
 | RxNorm | RxCUI | Drug name normalization and cross-database linkage |
 | PubChem | CID | Chemical compound properties and ADMET data |
-| RxNorm | DB identifiers | Drug-target interactions and pharmacology |
 | UniProt | Accession numbers | Enzyme and protein target identification |
 | ClinicalTrials.gov | NCT numbers | Clinical trial safety data |
 | ChEMBL | CHEMBL IDs | Bioactivity and drug-target interaction data |
@@ -130,7 +129,7 @@ This report consolidates pharmacovigilance signals across two compound cohorts -
 
 ## 4. Citation Summary
 
-**Total Verified Citations**: 41
+**Total Cited Identifiers**: 41
 
 | Citation Type | Count | Source Database |
 |---------------|-------|-----------------|
@@ -143,6 +142,8 @@ This report consolidates pharmacovigilance signals across two compound cohorts -
 | ChEMBL | 1 | ebi.ac.uk/chembl |
 
 Every identifier in this report is independently verifiable in its source database. For example: PMID: 30232222 resolves to the ICI-associated myocarditis systematic review in the Journal of the American College of Cardiology (2018).
+
+This sample was generated on 2026-04-01, before the citation-integrity gate (grounding against the records retrieved during the run, plus retraction screening) and delivery-time re-resolution were added, so the counts above are cited identifiers, not re-resolved ones. Current deliverables add a graded citation-integrity ledger and a reproducibility manifest recording how every cited PMID, NCT and DOI re-resolved.
 
 > *This is a redacted sample. Full deliverables include 48+ pages of analysis with citations grounded in retrieved evidence (count varies by topic). Contact: trevor@trevorobeyinc.com*
 
@@ -186,30 +187,19 @@ Full deliverable contains 42 citation rows across 7 identifier types with source
 | source_task | string | Agent task ID that produced this citation | No |
 | context_snippet | string | Surrounding text context (80 chars) | Yes |
 
-### Enterprise Delivery Schema (Snowflake / AWS Data Exchange)
+### Delivery
 
-| Column | Type | Description |
-|--------|------|-------------|
-| TARGET_ID | VARCHAR | Unique alphanumeric identifier (e.g., Ensembl ID) |
-| DISEASE_INDICATION | VARCHAR | ICD-10 or SNOMED CT classification |
-| EVIDENCE_SCORE | FLOAT | Deterministic association score (0.0-1.0) |
-| CITATION_DENSITY | INTEGER | Count of unique primary literature sources |
-| PRIMARY_PMID_ARRAY | VARIANT | JSON array of PubMed IDs for immediate auditability |
-| PHARMACO_MODULATION | VARCHAR | Mechanism of action classification |
-| PROVENANCE_HASH | VARCHAR | SHA-256 hash from chain-hashed evidence ledger |
+Every engagement is delivered as one sealed bundle (ZIP), handed over manually:
 
-Dynamic data masking enforced on EVIDENCE_SCORE and PRIMARY_PMID_ARRAY for non-entitled viewers. Evidence scores deterministically computed from citation density + study quality weighting + replication count.
+| Contents | Format |
+|----------|--------|
+| The report and its evidence appendix | Markdown |
+| Data tables | CSV |
+| Citation-integrity ledger, search-coverage ledger, graveyard memo (when the run has an indication) | Markdown |
+| Reproducibility manifest (how each cited PMID, NCT and DOI re-resolved at delivery) | Markdown + JSON |
+| A SHA-256 checksum for every file | `checksums.txt` |
 
-### Delivery Options
-
-| Format | Platform | Tier |
-|--------|----------|------|
-| Markdown + CSV | Manual secure transfer | Standard / Premium |
-| JSON / CSV via cloud | Snowflake Secure Data Sharing | Enterprise |
-| JSON / CSV via cloud | AWS Data Exchange | Enterprise |
-| JSON / CSV via cloud | Google Cloud BigQuery | Enterprise |
-| Structured JSON API | POST /api/v1/research | Enterprise Subscription |
-| JSONL export | Webhook delivery | Enterprise Subscription |
+Delivery through AWS Data Exchange is planned and not yet available.
 
 > *This is a redacted sample. Full deliverables include 48+ pages of analysis with citations grounded in retrieved evidence (count varies by topic). Contact: trevor@trevorobeyinc.com*
 
@@ -259,4 +249,5 @@ Research artifacts only — not validated for clinical decision support. No PHI 
 | RxNorm | Public domain (US federal data) | Drug identifiers via RxNav (rxnav.nlm.nih.gov). |
 | OpenFDA | Public domain (FDA) | Application/SPL identifiers. |
 | UniProt | CC BY 4.0 | Attribution string included. |
-| DrugBank | NOT INCLUDED | Excluded under DrugBank commercial-use ToS. Commercial DrugBank pack available under separate license — contact trevor@trevorobeyinc.com. |
+
+Only the sources listed above are used.

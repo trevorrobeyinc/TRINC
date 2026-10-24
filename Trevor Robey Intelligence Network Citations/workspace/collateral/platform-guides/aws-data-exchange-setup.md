@@ -4,14 +4,14 @@
 
 ## Purpose
 
-AWS Data Exchange is the enterprise delivery channel. Premium/Enterprise clients ($15K-$120K+) receive data via AWS native infrastructure. Provider onboarding takes 2-4 weeks.
+AWS Data Exchange carries the business's data products (the first is the Trial Graveyard Feed, not yet listed) and AWS Marketplace private offers for the report SKUs. Every price comes from [`OFFERINGS.md`](../../../OFFERINGS.md), verbatim. The seller account is registered and has been cleared to publish paid products since 2026-07-23.
 
 ## Prerequisites
 
 - **AWS account access** — see [`account-access.md`](../../../03-platforms/aws-data-exchange/account-access.md) (canonical). Account `833390816446` is reached via IAM Identity Center SSO + a YubiKey FIDO2 key; the operator assumes `AdministratorAccess` for seller work, the AI/MCP stays `ReadOnlyAccess`. **No long-lived IAM-user keys** — the earlier "root + IAM user with `aws-marketplace:*`" model is obsolete.
 - W-9 tax form on file
 - US bank account for payouts
-- At least one completed Premium/Enterprise workflow
+- At least one completed workflow that passed the citation gate
 
 ## Step 1: Apply as Provider
 
@@ -44,18 +44,19 @@ This creates:
 2. Create New Product → Data Product
 3. Use `product-description.md` for listing copy
 4. Upload `data/` directory as S3 revision
-5. Set pricing: $15,000+ per revision (Custom) or subscription pricing (Enterprise)
+5. Set pricing from [`OFFERINGS.md`](../../../OFFERINGS.md) only. The Trial Graveyard Feed's price is `[DECIDE]`, on hold since 2026-10-21 ([`offers.md`](../../aws-marketplace-listing/trial-graveyard-feed/offers.md)); never borrow a report SKU's price for a data product. (The old Standard / Premium / Custom / Enterprise-ARR ladder is retired.)
 
-## Step 4: Private Offers for Enterprise Clients
+## Step 4: Private Offers for Named Clients
 
-For enterprise clients (custom-scoped, typically $9,950–$24,950 for Cross-Silo Connector Reports + ongoing portfolio coverage):
+For a named client buying a report SKU (or, once booking opens after the first live business-lane run, a business-research tier):
 1. Create Private Offer in AWS Marketplace
-2. Set custom pricing and terms
+2. Set the price from [`OFFERINGS.md`](../../../OFFERINGS.md), verbatim, and choose the Data Exchange default legal terms
 3. Client subscribes via their AWS account
-4. Data delivered via S3 bucket — zero ETL on client side
+4. The client receives the data set through their AWS account (S3)
 
 ## Delivery Options
 
 - **Public listing**: Any AWS customer can subscribe
-- **Private offer**: Named customer with custom pricing
-- **Snowflake Secure Data Sharing**: Alternative for Snowflake-native clients
+- **Private offer**: A named customer, priced from `OFFERINGS.md`
+
+No other cloud delivery (Snowflake, BigQuery, an API or webhooks) is built.
