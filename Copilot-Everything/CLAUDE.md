@@ -60,6 +60,11 @@ mode. A real-provider engine call answers `operator_gate_not_armed` unless the o
   (the `research` SSE stream the fork's event bridge subscribes to).
 - Auth with `x-mcp-token`; replay protection with `x-mcp-timestamp`, `x-mcp-nonce` and `x-mcp-body-sha256`.
 - Every caller needs `NODE_EXTRA_CA_CERTS` pointing at the mkcert root CA.
+- **Browser guard first** (`src/server/browserGuard.ts`, 2026-10-24): a wrong Host gets 421
+  `REQUEST_WRONG_HOST`; an `Origin`, a `Referer` or a `Sec-Fetch-Site` other than `none` gets 403
+  `BROWSER_ORIGIN_REFUSED`. Each refusal writes a `BROWSER_REJECT` audit event and increments
+  `browser_rejections_total` in `/metrics`. Callers must be programs (Node `https`/`fetch`, Obsidian
+  `requestUrl`, curl, Python), never page-level `fetch`.
 - **Dev console tools**, served through the launcher's fd-3 IPC rather than a debugging port:
   `obsidian_dev_console_logs` and `obsidian_dev_console_errors` (read-only ring buffers, always on) and
   `obsidian_dev_console_eval` (off unless "Enable dev console eval tool" is switched on in the Bridge

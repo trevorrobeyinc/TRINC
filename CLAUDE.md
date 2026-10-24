@@ -229,6 +229,12 @@ coordinated unit and the offline docs at `~/Security Everything/crowdstrike-docs
 - Restricting the plaintext loopback upstreams to the proxy's UID is **closed as unbuildable** (everything
   runs as UID 501 and pf skips `lo0`); the compensating control is the Monitor-only Falcon group
   "Mac - Loopback Upstream Watch". Do not re-propose pf/UID vehicles.
+- **Bridges refuse browser traffic before auth** (2026-10-24; ARCHITECTURE.md §5 "Browser guard"). Never
+  add CORS headers back to `:8798`/`:8799`/`:8800`, and never make a bridge client a page-level `fetch`.
+  Never refuse on `Sec-Fetch-Mode`/`-Dest` either: Node's `fetch` sends `sec-fetch-mode: cors`, and
+  Obsidian's `requestUrl` (Copilot) may send `Sec-Fetch-Site: none`. The three guard copies must stay
+  byte-identical (`verify.sh` checks). Merging the bridges onto one port to "shrink the attack surface" was
+  assessed the same day and gains nothing: they are loopback-only and token-gated.
 
 ### Argv hygiene
 

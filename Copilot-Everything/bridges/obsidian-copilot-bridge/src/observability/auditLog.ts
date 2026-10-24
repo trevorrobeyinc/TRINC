@@ -20,7 +20,8 @@ export type AuditEventType =
   | "READ_ONLY_DENY"
   | "ALLOWLIST_DENY"
   | "AUTH_FAIL"
-  | "REPLAY_REJECT";
+  | "REPLAY_REJECT"
+  | "BROWSER_REJECT";
 
 export interface AuditEvent {
   eventType: AuditEventType;

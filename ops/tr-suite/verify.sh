@@ -107,6 +107,31 @@ for b in m["bridges"]:
         r = git("check-ignore", "-q", os.path.join(b["source"], lo))
         say("PASS" if r.returncode == 0 else "FAIL", f"{b['id']}: {lo} is git-ignored")
 
+print("== Bridge browser guard")
+# The :8798, :8799 and :8800 bridges refuse browser-originated requests before auth with one helper,
+# kept as three byte-identical copies (each bridge is its own deployable). Added 2026-10-24.
+guards = [
+    "Copilot-Everything/bridges/obsidian-copilot-bridge/src/server/browserGuard.ts",
+    "Claude/obsidian-command-center/src/bridge/browser-guard.ts",
+    "Claude/obsidian-viz-studio/src/bridge/browser-guard.ts",
+]
+missing = [g for g in guards if not os.path.isfile(os.path.join(repo, g))]
+for g in missing:
+    say("FAIL", f"browser guard missing: {g}")
+if not missing:
+    same = len({sha(os.path.join(repo, g)) for g in guards}) == 1
+    say("PASS" if same else "FAIL",
+        "browser guard copies are byte-identical" if same else "browser guard copies DIFFER — keep the three in step")
+for path_, port in [
+    ("Copilot-Everything/bridges/obsidian-copilot-bridge/src/server/httpCommon.ts", ":8798"),
+    ("Claude/obsidian-command-center/src/bridge/mcp-bridge-server.ts", ":8799"),
+    ("Claude/obsidian-viz-studio/src/bridge/bridge-server.ts", ":8800"),
+]:
+    full = os.path.join(repo, path_)
+    text = open(full).read() if os.path.isfile(full) else ""
+    wired = "refuseBrowserRequest(req.headers" in text and "Access-Control-Allow-Origin" not in text
+    say("PASS" if wired else "FAIL", f"{port} bridge runs the browser guard and sends no CORS headers")
+
 print("== MCP registrations")
 for cfg in [".mcp.json", "Copilot-Everything/.mcp.json"]:
     try:

@@ -10,6 +10,7 @@ import { AppError } from "./errors";
 import { ERROR_CODES } from "./errorCodes";
 import { buildMetricsSnapshot } from "./httpMetricsEndpoint";
 import { auditLog } from "../observability/auditLog";
+import { refuseBrowserRequest } from "./browserGuard";
 
 function getToken(req: IncomingMessage): string | undefined {
   const headerToken = req.headers["x-mcp-token"];
@@ -63,6 +64,27 @@ export function createRequestListener(runtime: RuntimeContext): (req: IncomingMe
   );
 
   return async (req, res) => {
+    // Browser guard first: a request a web page could have caused is refused before any route,
+    // before auth and before the body is read (see browserGuard.ts).
+    const refusal = refuseBrowserRequest(req.headers, req.socket.localPort);
+    if (refusal) {
+      auditLog.emit({
+        eventType: "BROWSER_REJECT",
+        errorCode: refusal.code,
+        reason: refusal.reason,
+        source: "obsidian-copilot-bridge",
+        remote: req.socket.remoteAddress ?? "unknown",
+      });
+      runtime.metrics.increment("browser_rejections_total", { code: refusal.code });
+      const code = refusal.code === "wrong_host" ? ERROR_CODES.REQUEST_WRONG_HOST : ERROR_CODES.BROWSER_ORIGIN_REFUSED;
+      const message =
+        refusal.code === "wrong_host"
+          ? "Host must be 127.0.0.1:<port> or localhost:<port>."
+          : "Browser-originated requests are refused.";
+      json(res, refusal.status, buildFailure(new AppError(code, message)));
+      return;
+    }
+
     if (req.method === "OPTIONS") {
       json(res, 405, buildFailure(new AppError(ERROR_CODES.AUTH_INVALID, "CORS preflight is disabled.")));
       return;

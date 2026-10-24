@@ -239,6 +239,13 @@ renders land only in `Visualizations/`. No create, append or command execution. 
   it. Plaintext `:11434` and `:1234` stay in the lint's forbidden list.
 - **Bridge auth.** `:8798` uses a bearer token plus replay protection (nonce, timestamp, body SHA-256);
   `:8799` and `:8800` use 32-byte tokens in 0600 files outside the vault.
+- **Browser guard (2026-10-24).** Before any route and before auth, all four bridges refuse what a web page
+  could send: `:8798`, `:8799` and `:8800` answer 421 to a Host other than `127.0.0.1`/`localhost`/`[::1]`
+  on the arrival port, and 403 to any `Origin`, any `Referer`, or a `Sec-Fetch-Site` other than `none`
+  (`:8801` has its own, stricter version). They send no CORS headers. The helper is three byte-identical
+  copies (`browserGuard.ts` / `browser-guard.ts`), compared by `ops/tr-suite/verify.sh`. It deliberately
+  ignores `Sec-Fetch-Mode`/`-Dest`: Node's `fetch` sends `sec-fetch-mode: cors`, and Obsidian's `requestUrl`
+  (Copilot's transport) may send `Sec-Fetch-Site: none`.
 - **YubiKey gates.** Real engine runs, privileged commands, the browser pane and the gated MCP servers all
   need a physical touch; the touch is the consent and must never be removed. The session-gate hook bars
   sub-agents from Claude's door entirely, and bars run/cancel/publish during Ralph loops.

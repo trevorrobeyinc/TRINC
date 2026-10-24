@@ -253,6 +253,21 @@ forward below.
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 
+### 2026-10-24T12:22Z · Desktop Claude Code · **Bridges refuse browser traffic before auth (:8798, :8799, :8800)**
+- **Did:** on the operator's go, a browser guard (like the `:8801` Security Bridge's) runs first in all three
+  TRINC bridges: a Host other than `127.0.0.1`/`localhost`/`[::1]` on the arrival port gets 421, and any
+  `Origin`, `Referer` or `Sec-Fetch-Site` other than `none` gets 403, before any route or auth. `:8799` and
+  `:8800` no longer send `Access-Control-Allow-Origin: *` or answer preflights. The rule was tuned to clients
+  measured live: Node's `fetch` sends `sec-fetch-mode: cors` and Obsidian's `requestUrl` (Copilot) may send
+  `Sec-Fetch-Site: none`, so a verbatim copy of `:8801`'s stricter rule would have cut them off. Tests in all
+  three packages; `verify.sh` now fails if the three guard copies drift. Built the `:8798` bridge; deployed
+  Command Center + Viz Studio in one `deploy.sh` run (backup `~/.claude/backups/tr-suite/20261024T122101Z/`).
+- **State:** committed; live behaviour not yet checked (Obsidian closed). obsidianwatch shows the two expected
+  CRITICAL `protected_plugin_changed` (command-center, trinc-viz-studio).
+- **Next (operator):** open Obsidian, bless obsidianwatch, try one Copilot tool call; then the live checks.
+  Follow-up for Security Everything: an OSSEC rule for the new `BROWSER_REJECT` audit event.
+- **SCOPE NOTE:** repo infra (bridge security); Current focus untouched.
+
 ### 2026-10-24T11:49Z · Desktop Claude Code (side session) · **OpenAlex and DOAJ rows reach the prompt as real records**
 - **Did:** closed the follow-up below. ToolUniverse's `execute_tool` wraps a tool's bare row list as
   `{result: [...]}`; the adapter now sends that list down the same row path as every other list, and the

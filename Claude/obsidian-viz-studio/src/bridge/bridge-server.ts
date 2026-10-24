@@ -6,6 +6,7 @@ import { readFileSync, writeFileSync, mkdirSync, chmodSync } from "fs";
 import { createHash, timingSafeEqual, randomBytes } from "crypto";
 import type { ToolHandlers, VizStudioSettings } from "../types";
 import { TOOL_DECLARATIONS } from "./toolSchemas";
+import { refuseBrowserRequest } from "./browser-guard";
 
 const HOST = "127.0.0.1";
 const MAX_BODY_BYTES = 1024 * 1024; // 1 MB
@@ -163,16 +164,27 @@ export class VizBridgeServer {
   // ─── Request Router ──────────────────────────────────────────
 
   private handleRequest(req: http.IncomingMessage, res: http.ServerResponse): void {
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    res.setHeader(
-      "Access-Control-Allow-Headers",
-      "content-type, authorization, x-mcp-token, x-mcp-nonce, x-mcp-timestamp, x-mcp-body-sha256"
-    );
+    // Browser guard first (2026-10-24): a request a web page could have caused is refused before
+    // any route, the open health probes included, and before auth (see browser-guard.ts). Every
+    // legitimate client is a program, so the bridge sends no CORS headers and answers no preflight.
+    const refusal = refuseBrowserRequest(req.headers, req.socket.localPort);
+    if (refusal) {
+      console.warn(`[VizStudio] Bridge refused a ${refusal.code} request (${refusal.reason})`);
+      this.sendJson(res, refusal.status, {
+        ok: false,
+        error: {
+          code: refusal.code,
+          message:
+            refusal.code === "wrong_host"
+              ? "Host must be 127.0.0.1:<port> or localhost:<port>."
+              : "Browser-originated requests are refused.",
+        },
+      });
+      return;
+    }
 
     if (req.method === "OPTIONS") {
-      res.writeHead(204);
-      res.end();
+      this.sendJson(res, 405, { ok: false, error: { message: "CORS preflight is disabled." } });
       return;
     }
 
