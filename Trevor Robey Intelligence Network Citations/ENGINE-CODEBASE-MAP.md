@@ -17,8 +17,6 @@
 
 - **Repo root:** `/Users/myhome/TRINC/`.
   Home is `/Users/myhome`. **`/Users/trevorrobey/…` is a wiped-Mac path — obsolete; ignore it.**
-  ⚠️ This subfolder's own `CLAUDE.md` header still shows the stale `/Users/trevorrobey/TrevClaw-Obsidianodus`
-  root; that line is wrong. This file's root above is correct.
 - **Model drift:** `config/agent-config.json` still declares `defaultModel: "claude-sonnet-4-6"`, but
   the **live** per-role routing (`config/role-provider-map.json`, updated 2026-06-22) runs **Claude
   Opus 4.8 (`claude-opus-4-8`, 1M context)** for scout/analyst/synthesizer. The OSS models

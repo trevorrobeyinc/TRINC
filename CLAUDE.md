@@ -2,7 +2,15 @@
 
 > **Renamed 2026-10-23** from `TrevClaw-Obsidianodus` (TRINC = Trevor Robey Intelligence Network
 > Citations). The old path `/Users/myhome/TrevClaw-Obsidianodus` is a temporary compatibility symlink, to
-> be removed after 14 days of clean use. **This file holds current facts only** (slimmed 2026-10-23);
+> be removed after 14 days of clean use (not before 2026-11-06), and only once the three things that still
+> need it are cleared: the Raycast fork's default bridge-config path (source in
+> `~/Code/raycast-obsidian-bridge-fork`, plus a rebuild), the Desktop folder preset "TrevClaw-Obsidianodus"
+> (fix it in the app's folder picker), and the Falcon Custom-IOA exfiltration rule whose pattern is
+> `.*TrevClaw-Obsidianodus.*` (Security Everything lane, propose-only). Runtime names that still say
+> `trevclaw` are kept on purpose, because launchd units, watchers and a secret depend on them:
+> `~/.local/share/trevclaw-tls-proxies/`, `~/Library/Logs/trevclaw/audit.jsonl` with `TREVCLAW_AUDIT_LOG`
+> and the `trevclaw_audit` event kind, and `~/.config/trevclaw/brevilabs-key`. Do not rename them.
+> **This file holds current facts only** (slimmed 2026-10-23);
 > dated history lives in [`docs/history/`](docs/history/), and the full previous text is
 > `git show 2077e79:CLAUDE.md`.
 

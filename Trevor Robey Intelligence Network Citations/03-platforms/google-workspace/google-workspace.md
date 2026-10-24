@@ -120,7 +120,7 @@ needs its own Save per row; on 2026-10-21 the first SPF edit did not save until 
 | Delta import | Console offers "Run delta import" for new/modified messages — **not needed**: MX now points at Google, so the Zoho mailbox receives no new mail and its archive is frozen. |
 | Diagnostic pattern (reusable) | Raw-IMAP probe with the Keychain-held secret: `printf 'a1 LOGIN user "pw"\r\n' \| openssl s_client -connect host:993 -quiet` — Zoho's `NO`-response text distinguishes bad-credential vs "IMAP not enabled" vs plan limits. |
 
-## 6 · Workspace ↔ TrevClaw-stack integration
+## 6 · Workspace ↔ TRINC-stack integration
 
 - **No agent connector reads the business mailbox (re-checked 2026-10-21).** The business
   Gmail is reached only through the Gmail web UI: the operator's own browser, or the Claude

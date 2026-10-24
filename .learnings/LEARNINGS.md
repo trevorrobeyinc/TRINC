@@ -1,4 +1,4 @@
-# LEARNINGS — TrevClaw-Obsidianodus
+# LEARNINGS — TRINC (formerly TrevClaw-Obsidianodus)
 
 Workspace-local learnings log. See global ~/.claude/CLAUDE.md "Self-Improvement System" section for templates and promotion rules.
 

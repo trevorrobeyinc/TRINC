@@ -245,3 +245,35 @@ and the internal $800 franchise-tax fee).
   at the `-inc` variant and the inline SVG instead.
 - `01-brand-system/personal-brand.md` lists founder alternates containing "No hallucinations"; the pack uses
   only the primary lockup.
+
+## Phase 8 — close-out (in progress 2026-10-24)
+
+**Done after Phase 7, same lane:** the pharmacovigilance samples, platform guides, one-pagers, landing-page
+source and outbound templates were brought to `OFFERINGS.md` and stripped of unbuilt-delivery and
+"verified citations" claims (`d69bc56`, `b7f4ff9`, `e64a6fc`). **Datarade deferred** by the operator
+(2026-10-24) until the business is operating; recorded on `03-platforms/datarade/go-live-checklist.md`.
+
+**`trevclaw` sweep (2026-10-24).** In the repo, 128 hits in 39 files: rename notes, dated history and logs
+(kept), stale headings fixed (`ENGINE-CODEBASE-MAP.md`, `google-workspace.md` §6, `.learnings/LEARNINGS.md`),
+and runtime names **kept on purpose** (decision P8-a): `~/.local/share/trevclaw-tls-proxies/`,
+`~/Library/Logs/trevclaw/audit.jsonl` + `TREVCLAW_AUDIT_LOG` + `trevclaw_audit`, `~/.config/trevclaw/brevilabs-key`,
+the Copilot fork's "TrevClaw Obsidian MCP Bridge" display name and the SearXNG example's instance name. Renaming
+them would mean launchd reloads, plugin rebuilds with obsidianwatch blessings, and moving a secret, for no gain.
+
+**Outside the repo, still resolving through the compat symlink** (all must clear before it is removed, not
+before 2026-11-06; recorded in the root `CLAUDE.md` header):
+1. The Raycast fork's default `mcpConfigPath` (source `~/Code/raycast-obsidian-bridge-fork`, 4 lines, plus the
+   installed build): fix, rebuild, reinstall, test in Raycast.
+2. The Desktop folder preset "TrevClaw-Obsidianodus": the operator fixes it in the app's folder picker.
+3. **Security finding:** the Falcon Custom-IOA exfiltration rule in anchor group `2d28d290…` (rules[20] of the
+   2026-06-01 backup) matches `.*TrevClaw-Obsidianodus.*`, so commands that name the real `/Users/myhome/TRINC`
+   path do not match it. Security Everything lane: read-only recon of the live rule, then a propose-only
+   pattern update with the operator's typed per-item approval. Never weaken it.
+
+Harmless and left: old project keys in `~/.claude.json`, "formerly" notes in `~/.claude/settings.json`, the
+recall hook's TRINC→TrevClaw search alias, `shelf-recall.py` test fixtures. Security Everything mirrored the
+rename in `7f8116d`; its remaining 22 matches are dated records.
+
+**Pending:** re-run the gates, cut and mirror the `TRINC-FULL-backup-<date>.bundle`, refresh the Drive offsite
+copy, update the Hosting section, STATUS "Repo" row and board — after the Dependabot session (started
+2026-10-24) has landed its lockfile commits, so the bundle carries them.
