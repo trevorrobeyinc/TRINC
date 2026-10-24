@@ -263,28 +263,69 @@ function isErrorOnlyRow(record) {
     ? error.trim().length > 0
     : error === true || (error !== null && typeof error === "object");
   if (!hasError) return false;
-  if (extractAbstract(record, MAX_ABSTRACT_CHARS).trim()) return false;
-  const ids = extractIdentifiers(record);
+  // Judged on the view normalizeToolRecord renders, so a placeholder is not payload here either.
+  const row = fromLiteratureIndex(record);
+  if (extractAbstract(row, MAX_ABSTRACT_CHARS).trim()) return false;
+  const ids = extractIdentifiers(row);
   return !CITATION_ID_FIELDS.some((field) => ids[field]);
+}
+
+// --- Literature-index rows: OpenAlex and DOAJ (2026-10-24) ---------------------------------------
+// openalex_literature_search and DOAJ_search_articles rows already use the generic names (title,
+// abstract, year, doi, url -- read off live v1.5.7 responses for metformin / type 2 diabetes), with
+// three differences the generic extractors would get wrong:
+//   - the journal is `venue`;
+//   - a value the source lacks is a placeholder STRING -- "Abstract not available" (5 of the 8 OpenAlex
+//     rows), "Unknown venue", DOAJ's "DOI not available" / "URL not available" -- which the tool itself
+//     flags false in the row's `data_quality`. Taken at face value a placeholder abstract counts as text
+//     and a placeholder DOI as an identifier;
+//   - OpenAlex gives the DOI as a resolver URL ("https://doi.org/10.1016/j.annonc.2020.12.008"); every
+//     other row carries the bare DOI.
+// A row is recognized by its own marker (OpenAlex `openalex_id`, DOAJ `source: "DOAJ"`), so the other
+// tools that also emit `data_quality` (Europe PMC, Semantic Scholar) are unchanged.
+const LITERATURE_INDEX_FLAGS = Object.freeze({
+  openalex: Object.freeze({ abstract: "has_abstract", doi: "has_doi", year: "has_year", venue: "has_venue" }),
+  doaj: Object.freeze({ abstract: "has_abstract", doi: "has_doi", year: "has_year", venue: "has_journal", url: "has_url" })
+});
+
+function literatureIndexSource(record) {
+  if (!record || typeof record !== "object") return "";
+  if (typeof record.openalex_id === "string" && record.openalex_id.startsWith("https://openalex.org/")) return "openalex";
+  if (record.source === "DOAJ") return "doaj";
+  return "";
+}
+
+function fromLiteratureIndex(record) {
+  const source = literatureIndexSource(record);
+  if (!source) return record;
+  const quality = record.data_quality && typeof record.data_quality === "object" ? record.data_quality : {};
+  const row = { ...record };
+  for (const [field, flag] of Object.entries(LITERATURE_INDEX_FLAGS[source])) {
+    if (quality[flag] === false) delete row[field];
+  }
+  if (typeof row.doi === "string") row.doi = row.doi.replace(/^https?:\/\/doi\.org\//i, "");
+  if (!row.journal && typeof row.venue === "string" && row.venue.trim()) row.journal = row.venue;
+  return row;
 }
 
 function normalizeToolRecord(rawRecord, options = {}) {
   const maxAbstractChars = options.maxAbstractChars || MAX_ABSTRACT_CHARS;
   const executionId = typeof options.executionId === "string" ? options.executionId : "";
+  const record = fromLiteratureIndex(rawRecord);
 
-  const toolId = extractToolId(rawRecord);
+  const toolId = extractToolId(record);
   const paperId = executionId ? `${toolId}/${executionId}` : toolId;
 
   return {
     source: "tooluniverse",
     paper_id: normalizeText(paperId, 256),
-    title: extractTitle(rawRecord),
-    abstract: extractAbstract(rawRecord, maxAbstractChars),
-    authors: extractAuthors(rawRecord),
+    title: extractTitle(record),
+    abstract: extractAbstract(record, maxAbstractChars),
+    authors: extractAuthors(record),
     citation_velocity: 0,
-    published_at: extractPublishedAt(rawRecord),
+    published_at: extractPublishedAt(record),
     retrieved_at: options.retrievedAt || timeProviderModule.nowIso(),
-    ...extractIdentifiers(rawRecord)
+    ...extractIdentifiers(record)
   };
 }
 

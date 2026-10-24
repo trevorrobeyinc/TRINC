@@ -302,8 +302,15 @@ second, 3 third; 4 and 7 go into the next plugin deploy, so obsidianwatch needs 
 - `openalex_literature_search` and `DOAJ_search_articles` (literature_reviewer) reach the engine as
   `{result: [...]}`: ToolUniverse's `execute_tool` wraps a tool's bare list that way, and the adapter does not
   unwrap `result`. Each renders as one record whose abstract is the serialized JSON of every row, cut at 20,000
-  characters (the DOIs inside still match the citation pattern), and the coverage ledger counts 1 record
-  instead of 8 and 6. Seen in the 2026-10-24 live A/B; not fixed with decision 5's gaps.
+  characters, and the coverage ledger counts 1 record instead of 8 and 6. Inside that JSON only OpenAlex's
+  DOIs still matched the citation pattern (they are resolver URLs); DOAJ's bare DOIs did not, so none of its 6
+  reached the grounding gate. Seen in the 2026-10-24 live A/B; not fixed with decision 5's gaps. **Fixed**
+  later on 2026-10-24: the adapter sends a `result` array down the same row path as every other list, and the
+  normalizer maps the two tools' rows (`venue` is the journal, OpenAlex's resolver-URL DOI is carried bare, and
+  a placeholder the tool itself flags false in `data_quality`, such as "Abstract not available", is dropped).
+  Replaying the envelopes captured live before the change: OpenAlex 1 → 8 records (3 with an abstract; the
+  other 5 have none upstream), DOAJ 1 → 6 (all with text), DOI ids 5 → the same 5 and 0 → 6. The other 22
+  ToolUniverse entries render byte-identical prompt content.
 
 ## Reproduce
 

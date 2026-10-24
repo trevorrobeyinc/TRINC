@@ -124,6 +124,16 @@ class ToolUniverseMcp extends BaseMcp {
         return this.#toRecords(result.results, listOpts, input, result);
       }
 
+      // ToolUniverse's own execute_tool (ExecuteToolTool.run, v1.5.7) passes a dict result through and
+      // wraps anything else as { result }, so a tool that returns a bare row list arrives as
+      // { result: [...rows] } with nothing beside it (openalex_literature_search, DOAJ_search_articles,
+      // live 2026-10-24). Before this the envelope fell through to one hollow record whose abstract was
+      // the serialized JSON of every row, and search-coverage.md counted 1. A { result: "<text>" } (a
+      // non-JSON string) is not a row list and still takes the single-record path below.
+      if (Array.isArray(result.result)) {
+        return this.#toRecords(result.result, listOpts, input, result);
+      }
+
       // ToolUniverse SMCP wraps tool output as { status, data, metadata }. The actual
       // records live under `data` (PubMed/SemanticScholar/EuropePMC: data is an array)
       // or one level deeper (ClinicalTrials: data.studies; others: data.results/articles/

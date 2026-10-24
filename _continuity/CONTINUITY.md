@@ -253,6 +253,20 @@ forward below.
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 
+### 2026-10-24T11:49Z · Desktop Claude Code (side session) · **OpenAlex and DOAJ rows reach the prompt as real records**
+- **Did:** closed the follow-up below. ToolUniverse's `execute_tool` wraps a tool's bare row list as
+  `{result: [...]}`; the adapter now sends that list down the same row path as every other list, and the
+  normalizer maps the two tools' rows from a live dump (`venue` is the journal, OpenAlex's resolver-URL DOI is
+  carried bare, placeholders the tool flags false in `data_quality` such as "Abstract not available" are dropped).
+  Exact A/B on envelopes captured live (metformin / type 2 diabetes): OpenAlex 1 → 8 records, DOAJ 1 → 6, DOI ids
+  5 → the same 5 and 0 → 6; the other 22 ToolUniverse entries render byte-identical prompt content. 10 tests
+  added. Engine 1355/1355, phase29 58/58.
+- **State:** done, committed on top of `156f85b`; not merged, not pushed.
+- **Next:** operator: merge and push, together with the entry below.
+- **Touches:** `openclaw-bridge/mcp/tooluniverse-mcp/` (adapter + normalizer), its test, the audit report's
+  "Found on the way".
+- **SCOPE NOTE:** engine evidence honesty (the ToolUniverse lane); "Current focus" untouched.
+
 ### 2026-10-24T11:32Z · Desktop Claude Code (side session) · **ToolUniverse result gaps: an upstream error is a failed search; OpenTargets hits reach the prompt**
 - **Did:** two of the three gaps the v1.5.7 A/B found, fixed in the adapter + normalizer with 9 tests. An
   upstream error (EuropePMC's 503 "Error" row inside a success envelope, Semantic Scholar's 429 error envelope)
