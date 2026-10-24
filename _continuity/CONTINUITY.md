@@ -251,6 +251,23 @@ forward below.
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 
+### 2026-10-24T03:20Z · Desktop Claude Code · **TRINC reorganization: Phases 0–3 done (cleanup + personal tooling moved out); rename next**
+- **Did:** operator approved a multi-session plan to make the repo business-only, rename it TRINC, give Claude one
+  Obsidian door, and build a Claude.ai "learn and pitch" pack (`~/.claude/plans/go-through-and-make-delightful-catmull.md`).
+  14 decisions answered (record: `ops/reorg/2026-10-cleanup-manifest.md`). Safety net: signed tag
+  `pre-trinc-reorg-2026-10-23` + bundle `~/Documents/TrevClaw-Obsidianodus-FULL-backup-20261023-1950.bundle` (mirrored to
+  ExtraCurricular). 132 MB of junk → `~/.Trash/trinc-reorg-2026-10-23/`; 105 retired files removed (`7dfac59`, `8b4c7f8`);
+  Raycast extension + 3 personal plugins moved to their own `~/Code` repos; speckit KEPT (operator will use it for the
+  business), old specs → `docs/history/`.
+- **State:** Phase 3 staged, **commit pending one YubiKey touch** (signing timed out three times this session). Engine
+  suite 1343/1343, `verify.sh` 0 FAIL, transport lint clean.
+- **Next:** Phase 4 rename to `/Users/myhome/TRINC` (operator present: quit Obsidian + Claude.app, GitHub rename, push).
+- **Touches:** this entry; root/Claude/Copilot-Everything/engine `CLAUDE.md`+`AGENTS.md` doc pointers; `ops/tr-suite/*`.
+- **For whoever's next:** looks-stale-but-load-bearing files are listed in the manifest — `ARCHITECTURAL_BLUEPRINT.md`,
+  `.github/`, `.githooks/`, engine `tasks/`, `workspace/comms/` (hash-chained ledger), every `workspace/missions/` dir.
+  `npm run phase2:gates` stops at `verify-phase-workflow-policy.sh` from an agent shell: its dry run needs `git fetch
+  origin` and the YubiKey PIN prompt (pre-existing since the remote returned 08-12).
+
 ### 2026-10-22T03:35Z · Desktop Claude Code (side sessions "business lane live" + "evidence-desk") · **Evidence Desk built; the business lane is ready for its first live run**
 - **Did:** the Evidence Desk the first business run was parked for is committed as `a110f07` (signed, on `8a0f5c5`).
   New citable ids `BLS:` and `EUROSTAT:` (keyless), plus `CENSUS:` and `EIA:` (built, dormant until the operator registers

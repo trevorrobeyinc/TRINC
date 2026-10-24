@@ -153,9 +153,10 @@ for s in m["mcp_servers"]:
 
 print("== Raycast")
 rc = m["raycast"]
-ext = os.path.join(repo, rc["extension"]["source"])
-say("PASS" if os.path.isfile(os.path.join(ext, "package.json")) else "FAIL", f"raycast extension source: {rc['extension']['source']}")
-tpl = os.path.join(repo, rc["ai_providers"]["template"])
+rc_base = expand(rc["external"]) if "external" in rc else repo
+ext = os.path.normpath(os.path.join(rc_base, rc["extension"]["source"]))
+say("PASS" if os.path.isfile(os.path.join(ext, "package.json")) else "FAIL", f"raycast extension source: {ext}")
+tpl = os.path.join(rc_base, rc["ai_providers"]["template"])
 if os.path.isfile(tpl):
     t = open(tpl).read()
     say("PASS" if "PASTE_COPILOT_PLUS_LICENSE_KEY_HERE" in t else "FAIL", "providers template carries a placeholder, not a key")

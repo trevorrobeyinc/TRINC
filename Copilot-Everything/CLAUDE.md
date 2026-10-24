@@ -295,7 +295,6 @@ All in `scripts/`. Key ones:
 - `plugin-reload.sh` — Reload plugin in Obsidian
 - `dev-build.sh` / `dev-deploy.sh` — Plugin dev workflow: stages the fork build into `deploy/obsidian/plugins/copilot` and symlinks it into the dev vault under the fork's REAL plugin id `copilot` (dev lane adopted the official-id identity 2026-07-31; since `9c7ce09a` the fork manifest matches upstream id+version — **which DID NOT prevent a wipe: upstream 4.0.0 sorted above the pinned 3.3.3 and overwrote the fork on 2026-08-12. Pin ABOVE upstream (99.x.y), not equal to it.** `copilot-mcp` is no longer a plugin id anywhere. `--with-official` retired same day — one id loads once per vault, and the production official slot already runs this fork)
 - `lib.sh` — Shared constants and utilities (WORKSPACE_ROOT, PRODUCTION_VAULT, etc.)
-- `raycast-relay-smoke.py` — Checks the Raycast custom provider (2026-10-13). For each model in `~/.config/raycast/ai/providers.yaml` it runs one streamed chat, then a tool-call check and an image check. It reads the licence key from that file and never prints it. Run it with `python3 -I`. See the Raycast AI custom provider section below.
 - `install-tls-proxies.sh` — Stage the three `*-tls-proxy.mjs` (Miyo/Qdrant/SearXNG) to `~/.local/share/trevclaw-tls-proxies/` and repoint + reload their launchd units. Required historically: the monorepo lived on the external `/Volumes/ExtraCurricular` volume until 2026-07-26 and launchd's TCC context cannot read scripts there. The repo is now on the internal disk, so that wall no longer applies — but staging is **retained** so launchd never depends on where the repo lives. Re-run after editing any proxy script. (LM Studio removed 2026-07-16; Ollama removed 2026-07-23.)
 
 ## MCP Bridge Contract
@@ -355,6 +354,12 @@ Copilot fork's MCP client), not via the adapter.*
 
 ### Raycast AI custom provider — Copilot Plus relay (2026-10-13)
 
+> **Moved out 2026-10-23 (TRINC reorg D2).** The Raycast extension, this provider's template,
+> its smoke test and the full doc now live in `~/Code/raycast-obsidian-bridge-fork` (`ops/`):
+> template `ops/providers.copilot-plus.template.yaml`, smoke test `ops/raycast-relay-smoke.py`,
+> doc `ops/docs/RAYCAST_COPILOT_PLUS_PROVIDER.md`. The notes below stay because the relay shares
+> the Copilot Plus licence key with Obsidian.
+
 This is separate from the MCP adapter above. Raycast **AI chat** uses the same model as the Copilot
 agent's opencode backend (`copilot-plus/copilot-plus-flash`). It does this through a Raycast v2
 Custom Provider in `~/.config/raycast/ai/providers.yaml` that points at
@@ -363,8 +368,8 @@ Custom Provider in `~/.config/raycast/ai/providers.yaml` that points at
 
 - **Live file is 0600 and NOT in git.** It holds the licence key, the same value Obsidian's keychain
   holds, so **rotating the key means updating both**.
-- **Copy with a placeholder key:** `configs/raycast/providers.copilot-plus.template.yaml`.
-- **Smoke test:** `scripts/raycast-relay-smoke.py`.
+- **Copy with a placeholder key:** `~/Code/raycast-obsidian-bridge-fork/ops/providers.copilot-plus.template.yaml`.
+- **Smoke test:** `~/Code/raycast-obsidian-bridge-fork/ops/raycast-relay-smoke.py`.
 - **Verified 2026-10-13:** 7 models work. `kimi-k2.7-code` was removed because the relay answers
   400 `invalid_model`, even though Copilot lists it.
 - **Reasoning (2026-10-13 follow-up):** on for all 7, defaulting to `high`: per-model
@@ -379,7 +384,7 @@ Custom Provider in `~/.config/raycast/ai/providers.yaml` that points at
   trust a model's self-description.
 - **Raycast plan:** custom providers need Pro, Pro+ or Max.
 - **Full doc:** rebuild steps, key handling, risks and the OpenCode Zen free-model fallback are in
-  [`docs/RAYCAST_COPILOT_PLUS_PROVIDER.md`](docs/RAYCAST_COPILOT_PLUS_PROVIDER.md).
+  `~/Code/raycast-obsidian-bridge-fork/ops/docs/RAYCAST_COPILOT_PLUS_PROVIDER.md`.
 
 ### Dev console tools (renderer-side, no CDP)
 

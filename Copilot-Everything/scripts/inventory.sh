@@ -70,7 +70,8 @@ const inventory = {
     oldSourceRepo,
     oldBridgeRepo,
     newSourceRepo: `${workspaceRoot}/repos/obsidian-copilot-mcp`,
-    newBridgeRepo: `${workspaceRoot}/bridges/raycast-obsidian-extension`,
+    // The Raycast extension moved out of the monorepo on 2026-10-23 (TRINC reorg D2).
+    newBridgeRepo: `${require("os").homedir()}/Code/raycast-obsidian-bridge-fork`,
     runtimePluginBundle,
   },
   relatedAssets: searchPatterns.flatMap((pattern) =>

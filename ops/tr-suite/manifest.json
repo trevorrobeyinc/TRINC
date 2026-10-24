@@ -9,9 +9,9 @@
     {"id": "vault-zettelkasten", "source": "Claude/obsidian-vault-zettelkasten", "build": "main.js", "deploy_files": ["main.js", "manifest.json"], "role": "In-process graph analysis; exposes this.api to other plugins"},
     {"id": "trinc-viz-studio", "source": "Claude/obsidian-viz-studio", "build": "main.js", "deploy_files": ["main.js", "manifest.json", "styles.css"], "port": 8800, "role": "Offline viz tools for Copilot and the engine's viz-bridge adapter"},
     {"id": "copilot", "source": "Copilot-Everything/repos/obsidian-copilot-mcp-v4", "build": "main.js", "deploy_files": ["main.js", "manifest.json", "styles.css"], "extra_deploy": [{"from": "Copilot-Everything/bridges/openclaw-stdio-proxy/index.mjs", "to": "openclaw-stdio-proxy.mjs"}], "role": "TR-Obsidian Copilot fork (v99.4.0) — MCP client to :8798/:8799"},
-    {"id": "claude-console-mirror", "source": "Claude/obsidian-claude-console-mirror", "build": "main.js", "deploy_files": ["main.js", "manifest.json"], "role": "Mirrors Obsidian console to ~/.claude/logs for debugging (absorbed from vault 2026-10-21)"},
-    {"id": "origin-nest", "source": "Claude/obsidian-origin-nest", "build": "main.js", "deploy_files": ["main.js", "manifest.json", "styles.css"], "role": "Groups notes under their origin note in File Explorer (absorbed 2026-10-21; the vault copy's dev .git retired the same day)"},
-    {"id": "contextual-wiki-definitions", "source": "Claude/obsidian-contextual-wiki-definitions", "build": "main.js", "deploy_files": ["main.js", "manifest.json"], "role": "Generates Feynman-style definition notes (absorbed 2026-10-21; vault entry was a symlink into ~/Code until the same day, now a deployed copy)"},
+    {"id": "claude-console-mirror", "external": "$HOME/Code/obsidian-claude-console-mirror", "role": "Mirrors Obsidian console to ~/.claude/logs for debugging. Personal dev tooling: moved out of the monorepo 2026-10-23 (TRINC reorg D3); the vault copy stays deployed"},
+    {"id": "origin-nest", "external": "$HOME/Code/obsidian-origin-nest", "role": "Groups notes under their origin note in File Explorer. Personal vault tooling: moved out 2026-10-23 (TRINC reorg D3); the vault copy stays deployed"},
+    {"id": "contextual-wiki-definitions", "external": "$HOME/Code/obsidian-contextual-wiki-definitions", "role": "Generates Feynman-style definition notes. Personal learning tooling: moved out 2026-10-23 (TRINC reorg D3); plugin id stays FROZEN (it looks up plugins['vault-zettelkasten']); the vault copy stays deployed"},
     {"id": "trinc-security-bridge", "external": "$HOME/Security Everything/obsidian-security-bridge", "port": 8801, "role": "Security control plane; kept in the Security Everything repo by design (no research-engine coupling)"}
   ],
   "bridges": [
@@ -20,8 +20,10 @@
     {"id": "openclaw-stdio-proxy", "source": "Copilot-Everything/bridges/openclaw-stdio-proxy", "entry": "index.mjs"}
   ],
   "raycast": {
-    "extension": {"name": "obsidian-bridge-fork", "source": "Copilot-Everything/bridges/raycast-obsidian-extension", "installed_at": "$HOME/.config/raycast/extensions/obsidian-bridge-fork", "install": "npm --prefix <repo>/Copilot-Everything/bridges/raycast-obsidian-extension run build"},
-    "ai_providers": {"template": "Copilot-Everything/configs/raycast/providers.copilot-plus.template.yaml", "live": "$HOME/.config/raycast/ai/providers.yaml", "secret": "Copilot Plus licence key — lives only in the live file, chmod 600"},
+    "external": "$HOME/Code/raycast-obsidian-bridge-fork",
+    "moved": "2026-10-23 — personal tooling, split out of the monorepo (TRINC reorg D2). Paths below are relative to the external repo.",
+    "extension": {"name": "obsidian-bridge-fork", "source": ".", "installed_at": "$HOME/.config/raycast/extensions/obsidian-bridge-fork", "install": "bash $HOME/Code/raycast-obsidian-bridge-fork/ops/install-raycast.sh"},
+    "ai_providers": {"template": "ops/providers.copilot-plus.template.yaml", "live": "$HOME/.config/raycast/ai/providers.yaml", "secret": "Copilot Plus licence key — lives only in the live file, chmod 600"},
     "never_commit": ["$HOME/.config/raycast/config.json (Raycast account tokens)", "$HOME/.config/raycast/ai/providers.yaml (licence key)"],
     "store_extensions_in_use": ["shottr", "file-manager", "shell"]
   },

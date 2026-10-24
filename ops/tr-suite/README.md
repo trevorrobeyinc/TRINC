@@ -7,7 +7,7 @@ where its source lives in this monorepo, where it is deployed, and how to check 
 |---|---|
 | `manifest.json` | Registry of every Obsidian plugin, bridge, Raycast piece and MCP server, with source path, deploy target and port. Update it whenever a component is added or moved. |
 | `verify.sh` | Read-only check: sources present, deployed builds byte-identical to source builds, MCP registrations resolve, Raycast template carries no key, no nested repos, no secret-shaped files tracked. Exit 1 on any FAIL. |
-| `install-raycast.sh` | Installs the Raycast AI providers file from the repo template (never overwrites the live one, which holds the licence key) and builds the Raycast extension. |
+| *(Raycast)* | The Raycast extension, its installer and its providers template moved to `~/Code/raycast-obsidian-bridge-fork` on 2026-10-23 (personal tooling). `manifest.json` still lists it as external, and `verify.sh` still checks the template carries no key. |
 
 Run from anywhere:
 
