@@ -261,8 +261,9 @@ forward below.
   `TRINC/Monorepo-039ba03/` (file-by-file identical) with a rewritten restore README; Hosting pointer,
   STATUS rows and memory updated.
 - **State:** done, except steps that are the operator's (below). GitHub is at `039ba03` too.
-- **Next (operator):** OK to Trash the superseded bundles (`…-20260922-1606` and `…-20261023-1950`, both
-  locations); trash the old Drive `Monorepo/` in the web UI so the new folder can be renamed; fix the Desktop
+- **Next (operator):** ~~OK to Trash the superseded bundles~~ (done on the operator's OK the same day: both
+  generations, both locations, now in `~/.Trash`); trash the old Drive `Monorepo/` in the web UI so the new
+  folder can be renamed; fix the Desktop
   folder preset; the dependency audit's 11 decisions; start the proposed Falcon-rule session; the compat
   symlink comes out no earlier than 2026-11-06, once the Raycast path, the preset and the Falcon rule are
   cleared. **Workspace payment (suspends 2026-11-02) also puts the Drive offsite leg at risk.**

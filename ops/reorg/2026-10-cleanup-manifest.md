@@ -283,8 +283,10 @@ rename in `7f8116d`; its remaining 22 matches are dated records.
 - **Bundle:** `~/Documents/TRINC-FULL-backup-20261024-0304.bundle` (77,244,073 bytes, sha256
   `b8e9678f1095230edd89e32d4006eab6d49225ad09d5a3d5961287777c5da5af`, HEAD `039ba03`, complete history,
   carries `refs/stash` and both restore tags), byte-identical mirror in `/Volumes/ExtraCurricular/Backups/`.
-  GitHub `origin/main` was also `039ba03`. The superseded `TrevClaw-Obsidianodus-FULL-backup-20260922-1606`
-  and `-20261023-1950` (both locations) await the operator's OK to go to the Trash (one-version policy).
+  GitHub `origin/main` was also `039ba03`. On the operator's OK (2026-10-24) the superseded
+  `TrevClaw-Obsidianodus-FULL-backup-20260922-1606` and `-20261023-1950` were moved to `~/.Trash` from both
+  locations (the drive's copies with an `.ExtraCurricular` suffix), after the new bundle was re-hashed and
+  re-verified in both places. One version, two copies, again.
 - **Drive offsite:** `git archive` of `039ba03` copied to `My Drive/TRINC/Monorepo-039ba03/` with one literal
   `cp -R` per top-level folder; file-by-file compare: 3,220 entries, 0 missing, 0 extra, 0 different.
   `Backups/README-RESTORE.md` and `SHA256SUMS.txt` rewritten for the new snapshot. Next: the operator trashes
