@@ -8,12 +8,66 @@
 
 const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
 
 const {
   normalizeToolList,
-  extractIdentifiers
+  extractIdentifiers,
+  isErrorOnlyRow
 } = require("../../openclaw-bridge/mcp/tooluniverse-mcp/tu-record-normalizer.js");
 const { createToolUniverseMcp } = require("../../openclaw-bridge/mcp/tooluniverse-mcp/tooluniverse-mcp.js");
+const { createToolPrefetch } = require("../../openclaw-bridge/core/tool-prefetch.js");
+
+// Europe PMC's answer to an upstream HTTP 503, exactly as ToolUniverse v1.5.7 returned it (live
+// 2026-10-24, both EuropePMC_search_articles calls of a metformin / type 2 diabetes run): the failure
+// is a ROW inside a `success` envelope.
+const EUROPEPMC_503_ROW = {
+  title: "Error",
+  abstract: null,
+  authors: [],
+  journal: null,
+  year: null,
+  doi: null,
+  url: null,
+  citations: 0,
+  open_access: false,
+  keywords: [],
+  source: "Europe PMC",
+  error: "Europe PMC API error 503",
+  reason: "",
+  retryable: true
+};
+const EUROPEPMC_503 = {
+  status: "success",
+  data: [EUROPEPMC_503_ROW],
+  metadata: { count: 1, query: "metformin type 2 diabetes mechanism", source: "Europe PMC", total_results: null }
+};
+
+// Semantic Scholar without an API key (live 2026-10-24, all four calls): an error ENVELOPE, no rows.
+const SEMANTIC_SCHOLAR_429 = { status: "error", error: "Semantic Scholar API error 429", retryable: true };
+
+// OpenTargets_get_drug_id_description_by_name for "metformin" (live 2026-10-24, first two of five hits).
+const OPENTARGETS_METFORMIN = {
+  status: "success",
+  data: {
+    search: {
+      hits: [
+        {
+          id: "CHEMBL1431",
+          name: "METFORMIN",
+          description: "Small molecule drug with a maximum clinical stage of Approval (across all indications), with 93 approved and 209 investigational indications."
+        },
+        {
+          id: "CHEMBL1703",
+          name: "METFORMIN HYDROCHLORIDE",
+          description: "Small molecule drug with a maximum clinical stage of Approval (across all indications), with 6 approved and 43 investigational indications."
+        }
+      ]
+    }
+  }
+};
 
 // A FAERS case report exactly as ToolUniverse v1.5.7 returns it (live 2026-10-24, trimmed).
 const FAERS_REPORT = {
@@ -174,6 +228,31 @@ describe("tu-record-normalizer — payload + identifier preservation", () => {
     // Codes the field names do not spell out are not decoded into the abstract.
     assert.doesNotMatch(r.abstract, /outcome|sex/i);
   });
+
+  // --- Open Targets search hits and error rows (2026-10-24) -------------------------------
+  it("Open Targets drug hit: the drug name titles it, the description is the abstract, the ChEMBL id is kept", () => {
+    const [r] = normalizeToolList([OPENTARGETS_METFORMIN.data.search.hits[0]], {});
+    assert.equal(r.title, "METFORMIN", "not the description sentence");
+    assert.match(r.abstract, /^Small molecule drug with a maximum clinical stage of Approval/);
+    assert.equal(r.chemblId, "CHEMBL1431");
+  });
+
+  it("a tool-discovery record still takes its description as the title", () => {
+    const [r] = normalizeToolList([{ name: "PubMed_search_articles", description: "Search PubMed articles", id: "tool-17" }], {});
+    assert.equal(r.title, "Search PubMed articles");
+    assert.equal(r.chemblId, undefined, "a non-ChEMBL id is not read as one");
+  });
+
+  it("isErrorOnlyRow: an error with no payload is error-only; an error beside real content is not", () => {
+    assert.equal(isErrorOnlyRow(EUROPEPMC_503_ROW), true);
+    assert.equal(isErrorOnlyRow(SEMANTIC_SCHOLAR_429), true, "an error envelope taken as a row");
+    assert.equal(isErrorOnlyRow({ pmid: "42238436", title: "T", abstract: null, error: "abstract fetch failed" }), false, "a PMID is payload");
+    assert.equal(isErrorOnlyRow({ title: "T", abstract: "Real abstract", error: "partial" }), false, "abstract text is payload");
+    assert.equal(isErrorOnlyRow({ title: "T", error: "" }), false, "an empty error is no error");
+    assert.equal(isErrorOnlyRow({ title: "T", error: null }), false);
+    assert.equal(isErrorOnlyRow({ error: { code: 503, message: "unavailable" } }), true, "a structured error counts");
+    assert.equal(isErrorOnlyRow(null), false);
+  });
 });
 
 describe("ToolUniverseMcp envelope unwrapping", () => {
@@ -211,5 +290,89 @@ describe("ToolUniverseMcp envelope unwrapping", () => {
     const records = await mcpReturning({ status: "success", data: [{ pmid: "1", title: "T", abstract: "A" }] }).execute(call, {});
     assert.equal(records.length, 1);
     assert.equal(records[0].pmid, "1");
+  });
+
+  // --- Upstream errors are failed calls, not records (2026-10-24) ---------------------------
+  const europePmcCall = { action: "executeTool", tool_name: "EuropePMC_search_articles", arguments: { query: "metformin" } };
+
+  it("Europe PMC's 503 row inside a success envelope throws instead of becoming a record", async () => {
+    await assert.rejects(mcpReturning(EUROPEPMC_503).execute(europePmcCall, {}), (err) => {
+      assert.equal(err.code, "TU_UPSTREAM_ERROR");
+      assert.equal(err.message, "EuropePMC_search_articles: Europe PMC API error 503");
+      assert.equal(err.retryable, true);
+      return true;
+    });
+  });
+
+  it("error rows beside real rows are dropped and the real rows kept", async () => {
+    const records = await mcpReturning({
+      status: "success",
+      data: [{ pmid: "1", title: "T", abstract: "A" }, EUROPEPMC_503_ROW]
+    }).execute(europePmcCall, {});
+    assert.equal(records.length, 1);
+    assert.equal(records[0].pmid, "1");
+  });
+
+  it("an error envelope with no rows (Semantic Scholar 429) throws instead of a hollow record", async () => {
+    const s2Call = { action: "executeTool", tool_name: "SemanticScholar_search_papers", arguments: { query: "metformin" } };
+    await assert.rejects(mcpReturning(SEMANTIC_SCHOLAR_429).execute(s2Call, {}), {
+      code: "TU_UPSTREAM_ERROR",
+      message: "SemanticScholar_search_papers: Semantic Scholar API error 429"
+    });
+  });
+
+  it("an error beside an empty row list is a failed call, not an honest zero", async () => {
+    await assert.rejects(mcpReturning({ status: "error", error: "Europe PMC API error 503", data: [] }).execute(europePmcCall, {}), {
+      code: "TU_UPSTREAM_ERROR"
+    });
+  });
+
+  it("Open Targets search envelope: data.search.hits become the records", async () => {
+    const otCall = { action: "executeTool", tool_name: "OpenTargets_get_drug_id_description_by_name", arguments: { drugName: "metformin" } };
+    const records = await mcpReturning(OPENTARGETS_METFORMIN).execute(otCall, {});
+    assert.equal(records.length, 2, "one record per hit, not one empty record");
+    assert.deepEqual(records.map((r) => r.title), ["METFORMIN", "METFORMIN HYDROCHLORIDE"]);
+    assert.deepEqual(records.map((r) => r.chemblId), ["CHEMBL1431", "CHEMBL1703"]);
+    assert.ok(records.every((r) => r.abstract.trim()), "every hit carries its description");
+  });
+});
+
+describe("Search coverage of ToolUniverse results through tool-prefetch", () => {
+  it("an upstream error row is a failed search with nothing rendered; Open Targets hits reach the prompt with their ChEMBL ids", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "tu-coverage-"));
+    fs.mkdirSync(path.join(tmp, "config"));
+    fs.writeFileSync(path.join(tmp, "config", "tool-prefetch-map.json"), JSON.stringify({
+      role_mappings: {
+        analyst: [
+          { action: "executeTool", tool_name: "EuropePMC_search_articles", arguments: { query: "{{compound_name}} {{indication}} mechanism", limit: 6 } },
+          { action: "executeTool", tool_name: "OpenTargets_get_drug_id_description_by_name", arguments: { drugName: "{{compound_name}}" } }
+        ]
+      }
+    }));
+    const envelopes = {
+      EuropePMC_search_articles: EUROPEPMC_503,
+      OpenTargets_get_drug_id_description_by_name: OPENTARGETS_METFORMIN
+    };
+    const toolUniverseMcp = createToolUniverseMcp({
+      processManager: { call: async (method, params) => JSON.parse(JSON.stringify(envelopes[params.tool_name])), shutdown() {} }
+    });
+    const warnings = [];
+    const prefetch = createToolPrefetch({
+      toolUniverseMcp,
+      rootDir: tmp,
+      logger: { info() {}, warn(entry) { warnings.push(entry); }, error() {} }
+    });
+
+    const docs = await prefetch.prefetchForRole("analyst", { compound_name: "metformin", indication: "type 2 diabetes" });
+
+    assert.deepEqual(docs.coverage.map((c) => [c.source, c.status, c.records]), [
+      ["EuropePMC_search_articles", "failed", 0],
+      ["OpenTargets_get_drug_id_description_by_name", "returned", 2]
+    ]);
+    assert.deepEqual(docs.map((d) => d.tool_name), ["OpenTargets_get_drug_id_description_by_name"], "the failed search renders nothing");
+    assert.doesNotMatch(docs.map((d) => d.content).join("\n"), /### Error|Europe PMC API error/);
+    assert.match(docs[0].content, /### METFORMIN\n.*Small molecule drug.*\nChEMBL: CHEMBL1431/);
+    const failure = warnings.find((w) => w.event === "tool_prefetch_call_failed");
+    assert.match(failure.error, /EuropePMC_search_articles: Europe PMC API error 503/);
   });
 });

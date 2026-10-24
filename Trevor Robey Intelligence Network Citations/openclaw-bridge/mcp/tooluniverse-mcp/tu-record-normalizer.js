@@ -5,6 +5,13 @@ const timeProviderModule = require("../../core/time-provider.js");
 
 const MAX_ABSTRACT_CHARS = 20_000;
 
+// Open Targets drug ids as the search API returns them ("CHEMBL1431", live 2026-10-24).
+const CHEMBL_ID = /^CHEMBL\d+$/;
+
+function chemblShapedId(record) {
+  return record && typeof record.id === "string" && CHEMBL_ID.test(record.id) ? record.id : "";
+}
+
 function truncateResult(value, maxChars) {
   if (typeof value === "string") {
     return value.length > maxChars ? value.slice(0, maxChars) : value;
@@ -30,6 +37,15 @@ function extractTitle(record) {
   // Tool-discovery record → description (preserved precedence); article
   // (PubMed/SemanticScholar/EuropePMC) → title; trial → brief_title; else the tool id.
   // Articles/trials have no `description`, so description-first does not affect them.
+
+  // Open Targets search hits (OpenTargets_get_drug_id_description_by_name, 2026-10-24) are
+  // { id: "CHEMBL1431", name: "METFORMIN", description: "Small molecule drug with a maximum clinical
+  // stage of Approval ..." }, read off a live v1.5.7 response. Description-first would title the
+  // hit with that sentence; the drug is the subject. Keyed on the ChEMBL-shaped id, which no
+  // tool-discovery record carries, so their precedence is unchanged.
+  if (chemblShapedId(record) && typeof record.name === "string" && record.name.trim()) {
+    return normalizeText(record.name, 2000);
+  }
   if (record && typeof record.description === "string" && record.description.trim()) {
     return normalizeText(record.description, 2000);
   }
@@ -187,7 +203,8 @@ function extractIdentifiers(raw) {
   if (nct) ids.nctId = take(nct, 64);
   const doi = raw.doi || raw.DOI;
   if (doi) ids.doi = take(doi, 256);
-  const chembl = raw.molecule_chembl_id || raw.chembl_id || raw.chemblId;
+  // Open Targets search hits carry the ChEMBL id under a plain `id` (see extractTitle).
+  const chembl = raw.molecule_chembl_id || raw.chembl_id || raw.chemblId || chemblShapedId(raw);
   if (chembl) ids.chemblId = take(chembl, 64);
   if (raw.pmcid) ids.pmcid = take(raw.pmcid, 64);
   if (raw.url) ids.url = take(raw.url, 512);
@@ -229,6 +246,28 @@ function extractPublishedAt(record) {
   return "1970-01-01T00:00:00.000Z";
 }
 
+// --- Error rows (2026-10-24) ---------------------------------------------------------------
+// Some tools report an upstream failure AS A ROW: Europe PMC answers HTTP 503 with { status:
+// "success", data: [{ title: "Error", error: "Europe PMC API error 503", retryable: true,
+// abstract: null, doi: null, ... }] } (live, 2026-10-24). Normalized, that row reached the prompt as
+// "### Error" and search-coverage.md counted it "returned". A row is error-only when it carries a
+// non-empty `error` and normalizes to no payload: no abstract text and no citation identifier. A
+// record that merely carries an `error` note beside real content (a PMID whose abstract fetch
+// failed) is kept.
+const CITATION_ID_FIELDS = ["pmid", "nctId", "doi", "chemblId", "pmcid"];
+
+function isErrorOnlyRow(record) {
+  if (!record || typeof record !== "object" || Array.isArray(record)) return false;
+  const error = record.error;
+  const hasError = typeof error === "string"
+    ? error.trim().length > 0
+    : error === true || (error !== null && typeof error === "object");
+  if (!hasError) return false;
+  if (extractAbstract(record, MAX_ABSTRACT_CHARS).trim()) return false;
+  const ids = extractIdentifiers(record);
+  return !CITATION_ID_FIELDS.some((field) => ids[field]);
+}
+
 function normalizeToolRecord(rawRecord, options = {}) {
   const maxAbstractChars = options.maxAbstractChars || MAX_ABSTRACT_CHARS;
   const executionId = typeof options.executionId === "string" ? options.executionId : "";
@@ -265,5 +304,6 @@ module.exports = {
   extractAuthors,
   extractPublishedAt,
   extractIdentifiers,
+  isErrorOnlyRow,
   MAX_ABSTRACT_CHARS
 };

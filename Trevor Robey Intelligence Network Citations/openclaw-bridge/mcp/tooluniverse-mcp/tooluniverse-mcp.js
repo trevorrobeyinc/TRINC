@@ -4,7 +4,7 @@ const { BaseMcp, normalizeText, stripHtml } = require("../base-mcp.js");
 const entropyProvider = require("../../core/entropy-provider.js");
 const { ToolUniverseInputSchema } = require("./tu-schema.js");
 const { createToolUniverseProcessManager } = require("./tu-process-manager.js");
-const { normalizeToolRecord, normalizeToolList } = require("./tu-record-normalizer.js");
+const { normalizeToolRecord, normalizeToolList, isErrorOnlyRow } = require("./tu-record-normalizer.js");
 
 const ACTION_TO_METHOD = Object.freeze({
   findTool: "find_tools",
@@ -13,6 +13,18 @@ const ACTION_TO_METHOD = Object.freeze({
   listTools: "list_tools",
   grepTools: "grep_tools"
 });
+
+// A call that came back with nothing but an upstream error, as tool-prefetch's catch block sees it:
+// logged, counted `failed` in search-coverage.md, nothing rendered into the prompt.
+function upstreamError(record, input) {
+  const detail = typeof record.error === "string"
+    ? record.error.trim()
+    : (record.error && typeof record.error.message === "string" && record.error.message.trim()) || "upstream error";
+  const error = new Error(`${input.tool_name || input.action}: ${detail}`);
+  error.code = "TU_UPSTREAM_ERROR";
+  error.retryable = record.retryable === true;
+  return error;
+}
 
 class ToolUniverseMcp extends BaseMcp {
   #processManager;
@@ -73,12 +85,29 @@ class ToolUniverseMcp extends BaseMcp {
     return params;
   }
 
+  // Every row list goes through here (2026-10-24). Error-only rows (tu-record-normalizer.js
+  // isErrorOnlyRow) are dropped. When nothing else came back -- every row an error, or no rows beside
+  // an error on the envelope -- the call failed, so this throws: tool-prefetch then records the search
+  // as `failed` (source unreachable, inconclusive) and renders nothing. Returning [] instead would
+  // claim an honest zero; normalizing the error row claimed a returned record.
+  #toRecords(rows, listOpts, input, envelope = null) {
+    const kept = rows.filter((row) => !isErrorOnlyRow(row));
+    if (kept.length === 0) {
+      const failure = rows.length > 0 ? rows[0] : (isErrorOnlyRow(envelope) ? envelope : null);
+      if (failure) throw upstreamError(failure, input);
+    }
+    if (kept.length < rows.length) {
+      this.logger.warn({ event: "tu_error_rows_dropped", tool_name: input.tool_name || "", dropped: rows.length - kept.length });
+    }
+    return normalizeToolList(kept, listOpts);
+  }
+
   #normalizeResult(result, input, context) {
     if (Array.isArray(result)) {
-      return normalizeToolList(result, {
+      return this.#toRecords(result, {
         maxAbstractChars: this.maxAbstractChars,
         retrievedAt: this.timeProvider.nowIso()
-      });
+      }, input);
     }
 
     if (result && typeof result === "object") {
@@ -88,11 +117,11 @@ class ToolUniverseMcp extends BaseMcp {
       };
 
       if (Array.isArray(result.tools)) {
-        return normalizeToolList(result.tools, listOpts);
+        return this.#toRecords(result.tools, listOpts, input, result);
       }
 
       if (Array.isArray(result.results)) {
-        return normalizeToolList(result.results, listOpts);
+        return this.#toRecords(result.results, listOpts, input, result);
       }
 
       // ToolUniverse SMCP wraps tool output as { status, data, metadata }. The actual
@@ -101,13 +130,20 @@ class ToolUniverseMcp extends BaseMcp {
       // records/hits). Without this, every executeTool result fell through to the
       // single-hollow-record branch and the payload + identifiers were dropped.
       if (Array.isArray(result.data)) {
-        return normalizeToolList(result.data, listOpts);
+        return this.#toRecords(result.data, listOpts, input, result);
       }
       if (result.data && typeof result.data === "object") {
         for (const key of ["studies", "results", "articles", "records", "hits", "trials"]) {
           if (Array.isArray(result.data[key])) {
-            return normalizeToolList(result.data[key], listOpts);
+            return this.#toRecords(result.data[key], listOpts, input, result);
           }
+        }
+        // Open Targets GraphQL search (OpenTargets_get_drug_id_description_by_name, 2026-10-24): the
+        // rows sit under the query's root field, data.search.hits = [{ id, name, description }], read
+        // off a live v1.5.7 response. Before this the envelope fell through to one empty record that
+        // search-coverage.md still counted "returned".
+        if (result.data.search && Array.isArray(result.data.search.hits)) {
+          return this.#toRecords(result.data.search.hits, listOpts, input, result);
         }
         // Resilience for tools whose envelope nests the row list under an unlisted key:
         // if EXACTLY ONE property is an array, treat it as the records rather than dropping
@@ -115,7 +151,7 @@ class ToolUniverseMcp extends BaseMcp {
         // require exactly one to avoid mis-picking a metadata array (e.g. warnings/errors).
         const arrayProps = Object.values(result.data).filter(Array.isArray);
         if (arrayProps.length === 1) {
-          return normalizeToolList(arrayProps[0], listOpts);
+          return this.#toRecords(arrayProps[0], listOpts, input, result);
         }
       }
       // A successful call with no `data` at all: ToolUniverse v1.5.x envelopes (the FAERS
@@ -126,8 +162,14 @@ class ToolUniverseMcp extends BaseMcp {
       if (result.status === "success" && (result.data === undefined || result.data === null)) {
         const topArrays = Object.values(result).filter(Array.isArray);
         if (topArrays.length === 1) {
-          return normalizeToolList(topArrays[0], listOpts);
+          return this.#toRecords(topArrays[0], listOpts, input, result);
         }
+      }
+      // An error envelope with no rows to unwrap -- { status: "error", error: "Semantic Scholar API
+      // error 429", retryable: true } (live, 2026-10-24) -- is a failed call. Taken as the one row it
+      // is, it rendered as a hollow "*error*" record that search-coverage.md counted "returned".
+      if (isErrorOnlyRow(result)) {
+        throw upstreamError(result, input);
       }
       // A successful call that simply returned no rows → empty, not a hollow record.
       if (result.status === "success" &&

@@ -253,6 +253,22 @@ forward below.
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 
+### 2026-10-24T11:32Z · Desktop Claude Code (side session) · **ToolUniverse result gaps: an upstream error is a failed search; OpenTargets hits reach the prompt**
+- **Did:** two of the three gaps the v1.5.7 A/B found, fixed in the adapter + normalizer with 9 tests. An
+  upstream error (EuropePMC's 503 "Error" row inside a success envelope, Semantic Scholar's 429 error envelope)
+  is now a `failed` search with nothing rendered, where it used to be a record counted "returned" in
+  `search-coverage.md`. OpenTargets' drug lookup now yields its `data.search.hits` (metformin: 5 records with
+  descriptions and ChEMBL ids, was one empty record). Live A/B over all 24 ToolUniverse prefetch entries: exactly
+  those 7 change, the other 17 are identical. Engine 1345/1345, phase29 58/58.
+- **State:** done, committed on `claude/eloquent-thompson-7830d1`; not merged, not pushed.
+- **Next:** operator: decide on a Semantic Scholar API key (the option is in
+  `ops/security/dependency-audit-2026-10.md`, decision 5; without one its calls draw 429 intermittently and now
+  count as failed). Then merge and push. Open follow-up: OpenAlex and DOAJ arrive as `{result: [...]}` and render
+  as one JSON blob (same report, "Found on the way").
+- **Touches:** `openclaw-bridge/mcp/tooluniverse-mcp/` (adapter + normalizer), its test, the engine `CLAUDE.md`
+  Scholar Gateway note, the audit report.
+- **SCOPE NOTE:** engine evidence honesty (the ToolUniverse lane); "Current focus" untouched.
+
 ### 2026-10-24T10:57Z · Desktop Claude Code (side session) · **ToolUniverse v1.1.10 → v1.5.7; venv from a repo-owned lock (252 known vulns → 0)**
 - **Did:** on the operator's go ("v1.5.7 + own lock; Playwright only if it truly must"): moved the submodule pin
   `3833b0e` → `f2006162` (no file in it edited) and rebuilt its venv from the new hashed

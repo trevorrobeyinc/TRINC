@@ -23,7 +23,10 @@ decisions 2, 8, 9, 10 and 11.
 
 **Update, decision 5 (same day):** the ToolUniverse submodule moved from v1.1.10 to v1.5.7 and its venv
 was rebuilt from a repo-owned, hashed lock: **252 known vulnerabilities in 214 packages → 0 in 107**,
-2,173 → 2,719 tools, no Playwright. Details under decision 5.
+2,173 → 2,719 tools, no Playwright. Its live before/after found three result gaps present at both versions:
+two are fixed engine-side (an upstream error is now a failed search, not a returned record; OpenTargets'
+drug lookup now yields its hits), and the third (Semantic Scholar's 429) needs an API key, written up as an
+option. Details under decision 5.
 
 ## Inventory
 
@@ -197,6 +200,51 @@ second, 3 third; 4 and 7 go into the next plugin deploy, so obsidianwatch needs 
    - Same at both versions, so not caused by the bump: EuropePMC answers HTTP 503 as one "Error" row inside
      a `success` envelope (the engine counts it as returned); OpenTargets' drug lookup returns a nested object
      the normalizer flattens to one empty record; Semantic Scholar answers 429 without an API key.
+     **The first two fixed engine-side the same day** (`tooluniverse-mcp.js`, `tu-record-normalizer.js`; 9 tests
+     added to `tests/core/tu-record-normalizer-payload.test.js`):
+     - *Error rows.* The 503 row is `{title: "Error", error: "Europe PMC API error 503", retryable: true,
+       abstract: null, doi: null, …}`; the engine rendered it into the prompt as "### Error" and
+       `search-coverage.md` counted it as a returned record. A row that carries an `error` and normalizes to no
+       payload (no abstract text, no citation id) is now dropped, and a call left with nothing else throws
+       `TU_UPSTREAM_ERROR`: tool-prefetch records the search as `failed` (source unreachable, inconclusive) and
+       renders nothing. A record that only carries an `error` note beside real content is kept. The same rule
+       covers an error envelope with no rows, which is how Semantic Scholar's 429 arrives (`{status: "error",
+       error: "Semantic Scholar API error 429"}`): it too had been rendered as a hollow record counted returned.
+     - *OpenTargets.* The rows are `data.search.hits`, each `{id: "CHEMBL1431", name: "METFORMIN", description:
+       "Small molecule drug with …"}` (names read off the live response). The adapter unwraps the hits; the
+       normalizer titles a hit by `name` (ahead of the description-first rule for tool cards, keyed on the
+       ChEMBL-shaped id) and carries `id` as its ChEMBL id, which the citation gate can ground and the
+       re-resolver checks against ChEMBL.
+     - *Live A/B* (inputs metformin / type 2 diabetes, all 24 ToolUniverse entries of the prefetch map, the
+       engine's adapter and tool-prefetch): replaying the envelopes captured before the change through the new
+       code changes exactly 7 entries. EuropePMC ×2 and Semantic Scholar ×4 go from `returned/1` to `failed/0`,
+       with nothing rendered; OpenTargets goes from 1 empty record to 5 (5 with text, 5 ChEMBL ids). The other
+       17 are identical in records, rows with text and citation ids. A fresh live pass after the change agrees:
+       EuropePMC 503 again on both calls (now `failed/0`), OpenTargets 5 records, the 17 others unchanged, and
+       Semantic Scholar answered 2 of 4 calls (8 and 10 records) and drew 429 on the other 2 (now `failed/0`).
+   - **Option for the operator: a Semantic Scholar API key** (nothing requested or configured). Without one the
+     shared anonymous pool throttles the engine's four `SemanticScholar_search_papers` entries (scout, analyst,
+     literature_reviewer, competitive_intel_analyst): 429 on 4 of 4 calls in the first pass on 2026-10-24, 2 of 4
+     in the second. Since the fix above those calls count as failed searches and the literature roles fall back
+     on PubMed, EuropePMC and OpenAlex.
+     - *How v1.5.7 reads it:* `SemanticScholarTool` asks `BaseTool.credential("SEMANTIC_SCHOLAR_API_KEY")`
+       (`credentials.get_credential`), which uses a request-scoped credential context when one is active and
+       otherwise the process environment. The engine's server (`tooluniverse-smcp-stdio --compact-mode`) runs each
+       call through `execute_tool` → `run_one_function` with no credentials, so no context is active and the
+       environment variable decides. The tool config lists it under `optional_api_keys`; the key is sent as the
+       `x-api-key` header on the search and on the per-paper abstract lookups that `include_abstract: true` makes
+       for rows that arrive without one.
+     - *How it would reach the tool:* `tu-process-manager.js` spawns ToolUniverse with the engine's environment
+       (only `GOOGLE_DRIVE_*` and `GOOGLE_CLIENT_SECRET` are removed), so it only has to be in the environment
+       of whatever starts `run-workflow.js`; no code or config change. Same route as the business lane's free
+       keys (`docs/business-research-lane.md`, "P2 activation"): Keychain → LaunchAgent `launchctl setenv`, then
+       quit and reopen Obsidian so a Command Center-dispatched run inherits it. Never in git or a config file.
+     - *What it changes:* with a key, ToolUniverse paces Semantic Scholar at 1 request a second (the quota new
+       keys start on) instead of the throttled anonymous pool. The largest entry (literature_reviewer, `limit`
+       10) is then at most 11 requests, about 11 s, inside tool-prefetch's 30 s per-call timeout.
+     - *To get one:* the request form at https://www.semanticscholar.org/product/api (its license terms were not
+       reviewed here). To check it afterwards, one live `SemanticScholar_search_papers` call should return a
+       `success` envelope with rows instead of `Semantic Scholar API error 429`.
    - The old venv imported ToolUniverse through `/Users/myhome/TrevClaw-Obsidianodus/…` (an editable install
      made before the rename), so removing that compatibility symlink would have broken the engine's
      ToolUniverse lane. The rebuilt venv points at `/Users/myhome/TRINC/…`.
@@ -251,6 +299,11 @@ second, 3 third; 4 and 7 go into the next plugin deploy, so obsidianwatch needs 
   `src/`, the package files and `README.md`, and says the runtime copy carries no tests.
 - `Claude/searxng-search-mcp` has an offline `npm run test:unit` (57 tests) besides the live `npm test` smoke;
   both pass.
+- `openalex_literature_search` and `DOAJ_search_articles` (literature_reviewer) reach the engine as
+  `{result: [...]}`: ToolUniverse's `execute_tool` wraps a tool's bare list that way, and the adapter does not
+  unwrap `result`. Each renders as one record whose abstract is the serialized JSON of every row, cut at 20,000
+  characters (the DOIs inside still match the citation pattern), and the coverage ledger counts 1 record
+  instead of 8 and 6. Seen in the 2026-10-24 live A/B; not fixed with decision 5's gaps.
 
 ## Reproduce
 
