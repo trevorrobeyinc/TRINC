@@ -36,8 +36,10 @@ In short:
 - **Tactical reports**: Conference Synthesis Brief, Trial Design Benchmark Pack, Scoped Research Pack,
   Cross-Silo Connector Report, Plain-Language Patient Brief, Pharmacovigilance Pack.
 - **The first data product**: the Trial Graveyard Feed on AWS Data Exchange (section 7).
-
-Custom research on any topic is **not** for sale yet: those price tiers are on hold by the operator.
+- **Business research, any field** (the same engine and the same citation gate, applied outside
+  biomedicine): Quick Brief, Standard Report, Deep-Dive Report, Research Retainer and Enterprise Program.
+  The prices were approved on 2026-10-23, but **booking opens only after the first live business run passes
+  the citation gate**, and none has run yet.
 
 ## 3. How a research run works
 

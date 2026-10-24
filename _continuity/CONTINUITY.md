@@ -139,7 +139,8 @@ forward below.
   sponsor-stated reason; **breast cancer hit a 2,000-record cap — not a complete census.** Operator:
   review → price (`offers.md` `[DECIDE]`) → StandardDSA → move the AWS root email off `.edu` → publish.
 - **Business-research lane** (`6ca9d78`) is built and unit-tested, **never run live**. One gated run is
-  needed before any custom sale. Custom any-field prices are ON HOLD by operator call (2026-10-21).
+  needed before any custom sale. Its five tiers were **priced and approved 2026-10-23** (`OFFERINGS.md` →
+  "Business research (any field)"); booking waits for that first run.
 - **Repo is ONE production source (2026-10-21).** trinc-content absorbed with history (`e485565`); the v3
   Copilot fork, its sync scripts and the committed build snapshot retired; vault plugin folders are
   deployed copies (no symlinks out, no `.git`); `ops/tr-suite/deploy.sh` is the one deploy path and
@@ -250,6 +251,29 @@ forward below.
 ## 📋 Log — newest first
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
+
+### 2026-10-24T06:42Z · Desktop Claude Code · **TRINC reorganization: Phase 7 done (learn-and-pitch pack; business tiers priced, booking gated)**
+- **Did:** on the operator's "approve prices, gated", the five business-research tiers (Quick Brief $1,500 →
+  Enterprise Program, custom) went into `OFFERINGS.md` → "Business research (any field)", marked "booking
+  after the first live business-lane run", with the guarantee scope for `WEB:`/`SEC:`/`WB:`/`BLS:`/`EUROSTAT:`/DOI
+  stated. Every "prices on hold" line for those tiers updated (feed prices stay on hold). The Copilot
+  business-context renderer now copies that section too. New `docs/learn-and-pitch/` (parts 00–10 + a generated
+  combined file, `scripts/build-learn-and-pitch-pack.py`): a study deck for the operator, an 8-slide
+  biotech-investor pitch and a 10-slide all-buyers pitch, both leading with run #6 as proof of method, and
+  three animation storyboards. brand-check and collateral-audit applied (fixed: the pack named the unlicensed
+  drug database; three captions overstated re-resolution or completeness; one storyboard showed a template id).
+- **State:** done. Found, not changed: **Investor Pre-Mortem (the lead SKU) and Cross-Silo have no documented
+  fulfilment path**; Conference Synthesis Brief and Plain-Language Patient Brief have no code; the ICP table's
+  market statistics have no sources on this machine. All flagged in the pack (`02` §C, `07`).
+- **Next:** operator: push; run `node scripts/render-business-context.js --apply` (the vault note is now
+  behind by the new tiers); read pack `03`, then write `docs/learn-and-pitch/00-in-my-own-words.md`; confirm
+  how Pre-Mortem is fulfilled before the investor pitch goes out. Then Phase 8 (close-out).
+- **Touches:** `OFFERINGS.md`, `STATUS.md`, `HOW-IT-WORKS.md`, the root and engine `CLAUDE.md`,
+  `SYSTEM-REALITY.md`, `REVENUE_PLAYBOOK.md`, `WORKFLOW_CATALOG.md`, the tier-ladder draft, the renderer + test,
+  `docs/learn-and-pitch/`, `scripts/`, the reorg manifest, "Current focus" (business-lane line), memory.
+- **For whoever's next:** the brand-check, collateral-audit and offer-quote skills carry stale facts (the
+  "Zero hallucinations" elevator, a 50-row feed cap, the retired catalog defect) and their `$` prices get
+  mangled if invoked with args; take prices from `OFFERINGS.md` only.
 
 ### 2026-10-24T05:44Z · Desktop Claude Code · **TRINC reorganization: Phase 6 done (one clear doc set; opencode delegation lane retired)**
 - **Did:** new root `HOW-IT-WORKS.md` (the plain-language story); `ARCHITECTURE.md` re-verified against live

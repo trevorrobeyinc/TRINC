@@ -280,7 +280,8 @@ inputs are in the lane doc. What the pre-flight found and fixed:
 - Command Center's template list now carries `researchProfile` and `optionalInputs` (the business
   inputs `company`/`competitors` decide whether SEC filings fire), and the run tool's input hint covers
   the business templates — live since the 2026-10-23 Command Center redeploy.
-**No prices**: the custom any-field tiers are ON HOLD by the operator.
+**Prices**: five business tiers in `OFFERINGS.md` → "Business research (any field)" (approved
+2026-10-23). **Booking stays closed until the first live business run passes the gate.**
 
 ### Design Principles
 

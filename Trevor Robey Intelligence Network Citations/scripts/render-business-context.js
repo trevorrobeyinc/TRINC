@@ -181,6 +181,14 @@ function renderDerivedBlock(rootDir = ROOT) {
   else L.push("*(OFFERINGS.md has no \"## Offering Ladder\" section — nothing copied; never computed.)*");
   L.push("");
 
+  // 6b. Business research tiers — verbatim, with their booking gate and guarantee scope
+  const business = sectionLines(offerings, "## Business research (any field)");
+  L.push("### Business research tiers (copied verbatim from `OFFERINGS.md` → \"Business research (any field)\")");
+  L.push("");
+  if (business.length) L.push(...business);
+  else L.push("*(OFFERINGS.md has no \"## Business research (any field)\" section — nothing copied; never computed.)*");
+  L.push("");
+
   // 7. Legal entity — verbatim rows
   const rows = tableRows(certificate, ["Legal entity name", "Filing date", "Approval status", "California Entity No", "Certified copy"]);
   L.push("### Legal entity (rows copied verbatim from `00-business-formation/llc/certificate-of-formation.md`)");

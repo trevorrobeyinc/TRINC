@@ -47,4 +47,4 @@
 - Selling the amendment-risk band — paused since 2026-10-08 (ClinicalTrials.gov refuses the history endpoint).
 - Absorbing the Security Bridge (`:8801`) — stays in Security Everything by decision.
 - **GAM7** (Workspace admin CLI) — declined 2026-10-21: a super-admin token on disk for a one-user org.
-- Custom any-field research prices — on hold by your call (2026-10-21).
+- Booking business research (any field). The five tiers were priced and approved on 2026-10-23 (`OFFERINGS.md` → "Business research (any field)"), but booking waits for the first live business run to pass the gate (queue item 9).

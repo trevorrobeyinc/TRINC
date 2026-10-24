@@ -199,3 +199,49 @@ asked for exactly this sweep).
   everywhere. Competitor figures (GlobalData, DealForma) are benchmarks, not conflicts.
 - **`.specify/memory/constitution.md` still says "Zero hallucinations on customer-facing output"**: left for the
   `/speckit-constitution` refresh that decision D11 calls for.
+
+## Phase 7 — the learn-and-pitch pack (done 2026-10-23)
+
+**Operator decisions (2026-10-23, verbatim where quoted):**
+- **P7-a, pitches:** "8-slide client pitch to biotech investors and then a separate however many slide pitch
+  for general, all buyers as well." Built: an 8-slide investor pitch and a 10-slide all-buyers pitch.
+- **P7-b, prices:** "show the core ladder but also cheaper overall business tiers as well … it's moving to
+  general research/other services etc with a focus of bio medical research." Framing: biomedical is the
+  flagship, business research "also available", one engine and one gate.
+- **P7-c, early stage:** lead with proof of method (no customers exist, so the proof is run #6).
+- **P7-d, the learning deck** is for the operator only, covering every detail of the business and both lanes,
+  including the missing pieces.
+- **P7-e, business tiers:** "Approve prices, gated." The five Section B tiers of
+  `product-strategy/tier-ladder-DRAFT-2026-10-20.md` moved into `OFFERINGS.md` → "Business research (any
+  field)" exactly as drafted, marked "booking after the first live business-lane run", with the guarantee scope
+  for business identifiers. This supersedes the Phase 6 note above for those tiers only; the feed
+  subscription prices (Section A) stay on hold, and the other price conflicts listed above stand.
+
+**Built:** `docs/learn-and-pitch/` parts 00–10 and the generated `TRINC-learn-and-pitch-pack.md`
+(`scripts/build-learn-and-pitch-pack.py`, `--check` for staleness). Every fact carries its repo path.
+`scripts/render-business-context.js` now copies the business section into the Copilot note (test updated).
+Every "prices on hold" line for the business tiers was updated (root and engine `CLAUDE.md`,
+`HOW-IT-WORKS.md`, `STATUS.md`, `SYSTEM-REALITY.md`, `REVENUE_PLAYBOOK.md`, `WORKFLOW_CATALOG.md`, the
+draft, the board's Current focus).
+
+**Checks:** `trinc-business:brand-check` and `trinc-marketing:collateral-audit` applied. Fixed in the pack: it
+named the unlicensed drug database (the run #4 lesson: name what may be used, never what must be avoided);
+two captions said "every identifier/source" was re-resolved (it is every PMID, NCT and DOI); a graveyard
+count read as complete for the disease (it is complete for the query term); a storyboard frame showed a
+template id. Every `$` figure in the pack exists verbatim in `OFFERINGS.md` (the only others are $0 revenue
+and the internal $800 franchise-tax fee).
+
+**Found, not changed (operator decisions):**
+- **Investor Pre-Mortem and Cross-Silo Connector Report have no documented fulfilment path** (no template is
+  named for either); the Conference Synthesis Brief and the Plain-Language Patient Brief have no code. The
+  pitches leave out the two with no code and gate the investor pitch on confirming the Pre-Mortem path.
+- **The ICP table's market statistics** (`OFFERINGS.md` → ICPs) trace to a 2026-04-30 report whose files are
+  not on this machine; the pack marks them `[UNVERIFIED]`.
+- **Stale plugin skills** (`~/.claude/local-plugins/`, outside the repo): brand-check's elevator still says
+  "Zero hallucinations" and its price rule names `REVENUE_PLAYBOOK.md`; brand-check and collateral-audit
+  describe a 50-row feed cap and a catalog defect that are both gone. Invoking them with args also mangles
+  their `$` figures.
+- `01-brand-system/logo-300x150-transparent.png` is visibly clipped ("TREVOR / CITATION-"); the pack points
+  at the `-inc` variant and the inline SVG instead.
+- `01-brand-system/personal-brand.md` lists founder alternates containing "No hallucinations"; the pack uses
+  only the primary lockup.

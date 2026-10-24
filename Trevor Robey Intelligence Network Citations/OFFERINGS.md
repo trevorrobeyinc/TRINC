@@ -19,6 +19,36 @@
 | Tactical | Plain-Language Patient Brief | Regulatory-compliant PLS at 8th-grade health-literacy level (EU CTR 536/2014). | Patient Advocacy Groups, trial sponsors | **$2,500** |
 | Tactical (demoted) | Pharmacovigilance Pack | Safety-signal + AEMS/FAERS analysis with a graded citation-integrity ledger. Existing marketplace listings preserved. | Mid-market pharma safety teams | $2,500 – $4,950 |
 
+## Business research (any field)
+
+> **Added 2026-10-23. Prices approved by the operator on 2026-10-23** (from Section B of
+> `product-strategy/tier-ladder-DRAFT-2026-10-20.md`). **Booking opens after the first live business-lane run
+> passes the citation gate**; as of 2026-10-23 none has run. Biomedical due diligence stays the flagship; this
+> section is the same engine and the same gate applied to research questions in any field.
+
+| Tier | Scope | Turnaround | Price |
+|---|---|---|---|
+| **Quick Brief** | One question, a short answer memo with every source listed | 3 business days | **$1,500** |
+| **Standard Report** | One agreed question at fixed depth: full report + source ledger (the Scoped Research Pack, widened to any field) | 5 business days | **$4,950** |
+| **Deep-Dive Report** | Up to three related questions: options compared, cost-avoidance or cost-cutting analysis, risks named | 10 business days | **$9,950** |
+| **Research Retainer** | An ongoing research desk: up to two Standard-depth reports a month, plus quick questions | monthly | **$7,500 / month** |
+| **Enterprise Program** | Multi-month programs, private data rooms, or reports built on the client's own data | scoped in writing | **custom quote** |
+
+- **Every tier:** the question and depth are agreed in writing before the run. If the evidence does not
+  exist, the report says so and shows what was searched.
+- **How it is sold:** invoiced directly, or as an AWS private offer for buyers who pay through their AWS bill.
+  Public AWS Data Exchange listings carry data products, not these services.
+- **What the guarantee covers here.** The Zero-Fabrication Guarantee and the Citation-Audit SLA apply to the
+  sections of an engine-generated business report that are cited to identifiers the business lane
+  recognizes: `WEB:` (a stored snapshot of the exact page text read), `SEC:` filings, `WB:` World Bank
+  indicators, `BLS:` and `EUROSTAT:` statistics (`CENSUS:` and `EIA:` once their free keys are registered),
+  and DOIs. Each is grounded in the evidence retrieved for that run and re-resolved at delivery. A `WEB:`
+  citation proves exactly what was read, from which URL and when; it does not prove the page is correct or
+  still online. A statistics citation re-resolves the series, not the value, which is shown as the agency
+  published it on the retrieval date. Sections built on anything else sit outside the Guarantee and the SLA
+  and say so on their face.
+- **Research, not advice:** never legal, medical, tax or investment advice.
+
 ## ICPs
 
 | Segment | Buyer Titles | Top Pain | WTP | Trigger |
@@ -45,7 +75,9 @@
   types — PMID, PubChem CID, NCT, UniProt, ChEMBL, DrugBank, DOI. Evidence carrying none of them is
   **never extracted as a citation at all**: it is not graded, not counted in the grounded ratio, and not
   retraction-screened — so it is neither improved nor penalised by the Gate, it is invisible to it.
-  **Patent evidence is the live instance of this** (a patent number matches none of the seven). Two
+  **Patent evidence is the live instance of this** (a patent number matches none of the seven). *(The
+  business research lane adds its own identifier types and its own scope statement; see "Business research
+  (any field)" above.)* Two
   consequences, stated here so no deliverable has to imply otherwise: (a) any section built on evidence
   outside those seven types sits outside the Guarantee and outside this SLA, and must say so on its face;
   (b) a bundle's Citation Integrity grade covers only its PMID/NCT/ChEMBL/DOI-traced sections — the

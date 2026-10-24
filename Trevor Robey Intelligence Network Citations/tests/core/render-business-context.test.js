@@ -21,7 +21,7 @@ describe("render-business-context (derived block of the canonical Copilot note)"
     assert.ok(block.endsWith(MARK_END));
     for (const h of [
       "### LLM routing", "### Research sources", "### Evidence prefetch per role",
-      "### Distribution & content channels", "### Engine → Obsidian pipeline", "### Offering ladder", "### Legal entity"
+      "### Distribution & content channels", "### Engine → Obsidian pipeline", "### Offering ladder", "### Business research tiers", "### Legal entity"
     ]) assert.ok(block.includes(h), `missing ${h}`);
 
     // Routing rows come from the live map.

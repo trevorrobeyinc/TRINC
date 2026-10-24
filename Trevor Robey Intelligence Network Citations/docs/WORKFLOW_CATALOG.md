@@ -53,7 +53,8 @@ node scripts/run-workflow.js --template trial-design-benchmark --inputs '{"indic
 
 ## Business templates (`research_profile: business`)
 
-Built and unit-tested, **never run live**; custom any-field prices are on hold. Same pipeline and gate, with
+Built and unit-tested, **never run live**. Priced in `OFFERINGS.md` (approved 2026-10-23); booking opens after
+the first live run passes the gate. Same pipeline and gate, with
 business evidence: `WEB:` snapshots of pages read, `SEC:` filings, `WB:` World Bank indicators, `BLS:` /
 `EUROSTAT:` statistics (`CENSUS:` / `EIA:` dormant until their free keys exist) and OpenAlex DOIs. The scout's
 model call is replaced by a deterministic Evidence Brief. Design and the recommended first run:

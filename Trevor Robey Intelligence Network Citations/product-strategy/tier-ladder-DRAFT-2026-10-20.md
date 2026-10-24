@@ -29,6 +29,11 @@ annual discount is `[DECIDE]`.
 
 ## Section B — Custom research reports (any field)
 
+> **Update 2026-10-23: APPROVED by the operator, gated.** The five tiers below moved into `OFFERINGS.md`
+> → "Business research (any field)" exactly as listed, marked "booking after the first live business-lane run",
+> with the guarantee scope for business identifiers stated there. `OFFERINGS.md` is now canonical; this
+> section is the record of the proposal. Section A (the feed prices) is **not** affected and stays on hold.
+>
 > **Status, checked 2026-10-21 (live files, not notes): ON HOLD by the operator's call.**
 > The "second research engine" is a **module inside the same engine**, by design, not a separate
 > engine (`docs/business-research-lane.md` §"Why a module, not a second engine"): commit `6ca9d78`

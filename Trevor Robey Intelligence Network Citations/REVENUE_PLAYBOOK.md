@@ -151,7 +151,7 @@ On a gate-passing mission, two cost-avoidance deliverables are sealed into the r
 
 | Product Line | Tiers | Platforms | Description |
 |-------------|-------|-----------|-------------|
-| research_packs | Standard, Premium | Datarade | One agreed research question at fixed depth: biomedical today (the Scoped Research Pack); the business lane is built but has not run live, and its prices are on hold |
+| research_packs | Standard, Premium | Datarade | One agreed research question at fixed depth: biomedical today (the Scoped Research Pack); the business lane is built but has not run live; its tiers are priced in `OFFERINGS.md` and booking waits for that first run |
 | dataset_packs | Standard, Premium, Enterprise | Datarade, HuggingFace, Kaggle | Structured datasets with provenance |
 | research_subscriptions | Standard, Premium, Enterprise | Datarade | Recurring research delivery |
 | dataset_subscriptions | Standard, Premium, Enterprise | Datarade | Recurring dataset updates |
@@ -200,7 +200,7 @@ wraps a mission template from `config/mission-templates.json`; the full catalog 
 | `rare-disease-brief` | Orphan drug mapping, genetic disease profiling | `rare_disease_landscape` | Monarch, OMIM, OrphaNet, GDC |
 | `trial-design-benchmark` | Phase 3 trial-structure benchmark against comparable programs | `trial_design_benchmark` | ClinicalTrials.gov v2 cohort |
 | `general-research-pack` | One agreed biomedical question (the Scoped Research Pack) | `research_pack` | the standard biomedical prefetch |
-| `business-research-pack`, `cost-reduction-analysis`, `market-landscape` | Business lane: built, **never run live**, prices on hold | `research_pack` | `WEB:` snapshots, SEC, World Bank, BLS, Eurostat, OpenAlex |
+| `business-research-pack`, `cost-reduction-analysis`, `market-landscape` | Business lane: built, **never run live**; priced (2026-10-23), booking after the first live run | `research_pack` | `WEB:` snapshots, SEC, World Bank, BLS, Eurostat, OpenAlex |
 
 Mission templates that no workflow template wraps (for example `genomic_variant_analysis`) are not offered.
 

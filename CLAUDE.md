@@ -170,7 +170,8 @@ The deep dive is `Trevor Robey Intelligence Network Citations/CLAUDE.md`.
   `claude-sonnet-4-6`, every fallback empty. Ollama is not an engine provider.
 - **Ten templates** (seven biomedical, three business with `research_profile: business`), one pipeline:
   research → quality check → dataset → package → approve → export. The business lane has **zero live
-  runs**; custom any-field prices are on hold.
+  runs**; its five tiers are priced in `OFFERINGS.md` (approved 2026-10-23), and booking opens only after
+  the first live business run passes the gate.
 - **Citation integrity** is the product: every cited id must have been retrieved during the run (floor
   0.75, fail-closed), cited works are retraction-screened (Crossref + PubMed), and every PMID/NCT/DOI is
   re-resolved against its registry at delivery (any UNRESOLVED blocks). Ground truth for copy is
