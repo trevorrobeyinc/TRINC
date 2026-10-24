@@ -8,8 +8,9 @@ offer", "Creating public offers", "Subscription verification for providers").
 The operator set the tier prices on 2026-10-20 (`../../../product-strategy/tier-ladder-DRAFT-2026-10-20.md`)
 and on 2026-10-21 said to hold writing them into the offers until later. Nothing on this page sets
 a price, and no price may be taken from `private-offer-tiers.md`, `setup-guide.md` or the dossier
-ladder: those belong to the bespoke reports, not this self-serve feed. Custom any-field research
-prices are also on hold (2026-10-21).
+ladder: those belong to the bespoke reports, not this self-serve feed. (The any-field business-research
+tiers were priced on 2026-10-23 in `OFFERINGS.md`, booking gated on the first live business run; they are
+services, never feed offers.)
 
 ## Decided
 

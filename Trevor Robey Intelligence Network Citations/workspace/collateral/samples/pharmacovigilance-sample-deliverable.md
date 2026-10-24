@@ -219,50 +219,31 @@ Dynamic data masking enforced on EVIDENCE_SCORE and PRIMARY_PMID_ARRAY for non-e
 
 ## 7. Engagement Options
 
-### Research Intelligence Pack -- $2,500 - $4,950 per report
+This sample corresponds to the **Pharmacovigilance Pack**. The full offering ladder:
 
-Single-topic research report with full citation backing:
+| Tier | SKU | Description | ICP | Price |
+|---|---|---|---|---|
+| **Primary** | **Investor Pre-Mortem** | Per-asset risk dossier — trial design + comparable failures + KOL sentiment + IP runway. Every claim PMID/NCT/ChEMBL-traced. 5–10 business days, written Speed SLA. | Biotech hedge funds, biotech-specialist VC, pharma BD/licensing | **$9,950 / $14,950 / $19,950 (+ KOL primary)** |
+| **Flanking primary** | **Failed Trial Archaeology** | Structured post-mortem of Phase 2/3 terminations in a single mechanism. NCT-indexed failure pattern matrix. | Pharma R&D CI, biotech VC diligence | **$14,950** |
+| Tactical | Conference Synthesis Brief | 500+ ASCO/ESMO/AACR abstracts synthesized in 24–48 hours. | Pharma R&D, investors, BD | **$4,950 / conference** |
+| Tactical | Trial Design Benchmark Pack | Comparative Phase 3 structure analysis vs **up to 20** comparable programs — allocation, masking, intervention model, arms, enrollment, primary endpoints, sponsor class. Cohort is reported as **N of M eligible** under a stated selection rule; where an indication has fewer than 20 eligible programs the pack covers the **entire** eligible population and says so. | Biotech R&D, pharma CI | **$4,950** |
+| Tactical | **Scoped Research Pack** | One agreed **biomedical** research question, scoped in writing before the run and answered through the **full citation-integrity gate** — same guarantee as every other gated SKU. Bounded to a **single question at fixed depth**; the bound is what makes a flat price honest. If the evidence does not exist, the bundle ships the **search-coverage ledger documenting exactly that**, never a padded report. | Medical-startup founders (SBIR/STTR Phase I), investors with a question outside the standard SKUs | **$4,950** |
+| Tactical | Cross-Silo Connector Report | Hidden mechanistic links across ChEMBL/PubMed/CT.gov as repurposing opportunities. | Pharma R&D, biotech partnerships | **$9,950 – $24,950** |
+| Tactical | Plain-Language Patient Brief | Regulatory-compliant PLS at 8th-grade health-literacy level (EU CTR 536/2014). | Patient Advocacy Groups, trial sponsors | **$2,500** |
+| Tactical (demoted) | Pharmacovigilance Pack | Safety-signal + AEMS/FAERS analysis with a graded citation-integrity ledger. Existing marketplace listings preserved. | Mid-market pharma safety teams | $2,500 – $4,950 |
 
-- Single-topic research report (48+ pages)
-- citations grounded in retrieved evidence (count varies by topic) across all identifier types
-- Citation index CSV with full provenance
-- Methodology statement
-- 72-hour delivery via secure email
-
-Ideal for academic researchers, boutique consultancies, and teams evaluating our methodology before enterprise commitment.
-
-### Custom Intelligence Mission -- $15,000 - $35,000 per project
-
-Choose any pharmacovigilance, drug discovery, or competitive intelligence topic. Receive:
-
-- Full multi-section research report (40-80+ pages)
-- Citation index CSV with full provenance chain
-- Methodology statement and schema definition
-- Executive summary with prioritized findings
-- Evidence appendix with chain-hashed integrity verification
-- Private delivery via Snowflake, AWS Data Exchange, or BigQuery
-
-Typical turnaround: 48-72 hours from mission initiation.
-
-### Enterprise Intelligence Subscription -- $60,000 - $120,000+ ARR
-
-Recurring delivery of intelligence products across your portfolio:
-
-- Scheduled pharmacovigilance scans on compounds of interest
-- API access for programmatic workflow submission (POST /api/v1/research)
-- Native integration with your data infrastructure (Snowflake, AWS, BigQuery)
-- Usage metering and SLA
-- Custom schema design for your ingestion pipeline
-- Dedicated support
+Research artifacts only — not validated for clinical decision support. No PHI is hosted, transmitted, or processed.
 
 ---
 
 **Contact**: trevor@trevorobeyinc.com
 **Web**: https://trevorobeyinc.com
 
+*Trevor Robey, INC. is the wordmark of Trevor Robey Intelligence Network Citations LLC, a California limited liability company.*
+
 *This report was produced using AI-assisted research synthesis with human editorial oversight. All citations are independently verifiable in their respective source databases.*
 
-*This is a redacted sample. Full deliverables include 48+ pages of original analysis, complete citation indices, evidence provenance appendices, and chain-hashed integrity verification. Contact trevor@trevorobeyinc.com to request the full deliverable or initiate a custom intelligence mission.*
+*This is a redacted sample. Full deliverables include 48+ pages of original analysis, complete citation indices, evidence provenance appendices, and chain-hashed integrity verification. Contact trevor@trevorobeyinc.com to request the full deliverable or to scope an engagement from the ladder above.*
 
 ---
 

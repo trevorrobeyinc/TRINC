@@ -252,6 +252,20 @@ forward below.
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 
+### 2026-10-24T08:41Z · Desktop Claude Code · **Pharmacovigilance samples: retired price ladder replaced with OFFERINGS.md**
+- **Did:** on the operator's go, both customer-facing samples (`workspace/collateral/samples/`) lost the
+  retired Standard / Premium / Custom / Enterprise-ARR ladder; the full deliverable now carries the
+  `OFFERINGS.md` ladder table verbatim, the 2-page teaser a compact Tier · SKU · Price version, both with the
+  posture line and the statutory LLC disclosure (missing before; the teaser's footer also said "Trevor Robey
+  Inc."). `offers.md` no longer says the any-field prices are on hold. The trinc-business and trinc-marketing
+  skills (outside the repo) were brought to canon and updated to 1.0.1.
+- **State:** done; every price in both samples traces to `OFFERINGS.md`.
+- **Still open in the same samples (operator's call):** the deliverable's "Delivery Options" table names the
+  retired tiers and offers an undeployed API, webhooks and Snowflake/BigQuery delivery; "41 verified
+  citations"; the license register offers a separately licensed drug-database pack that is not on the
+  ladder. The two platform guides still carry the retired tiers.
+- **Touches:** the two samples, `offers.md`, this board.
+
 ### 2026-10-24T06:42Z · Desktop Claude Code · **TRINC reorganization: Phase 7 done (learn-and-pitch pack; business tiers priced, booking gated)**
 - **Did:** on the operator's "approve prices, gated", the five business-research tiers (Quick Brief $1,500 →
   Enterprise Program, custom) went into `OFFERINGS.md` → "Business research (any field)", marked "booking

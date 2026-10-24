@@ -60,16 +60,24 @@ Check any identifier above in its source database. It resolves.
 
 ## Pricing
 
-| Engagement | Price | Delivery |
-|-----------|-------|----------|
-| Research Intelligence Pack (Standard) | $2,500 - $4,950 per report | Single-topic report, citations (count varies by topic), 72-hour secure email delivery |
-| Premium Intelligence Pack | $4,950 - $14,950 per report | Standard + appendix, methodology statement, schema definition, enhanced QA, longer SLA |
-| Custom Intelligence Mission | $15,000 - $35,000 per project | Bespoke build with private delivery (Snowflake / AWS / BigQuery / secure transfer) + provenance package |
-| Enterprise Subscription | $60,000 - $120,000+ ARR | Recurring delivery, native cloud integration, usage metering, SLA |
+This sample corresponds to the **Pharmacovigilance Pack**. The full offering ladder:
+
+| Tier | SKU | Price |
+|---|---|---|
+| **Primary** | **Investor Pre-Mortem** | **$9,950 / $14,950 / $19,950 (+ KOL primary)** |
+| **Flanking primary** | **Failed Trial Archaeology** | **$14,950** |
+| Tactical | Conference Synthesis Brief | **$4,950 / conference** |
+| Tactical | Trial Design Benchmark Pack | **$4,950** |
+| Tactical | **Scoped Research Pack** | **$4,950** |
+| Tactical | Cross-Silo Connector Report | **$9,950 – $24,950** |
+| Tactical | Plain-Language Patient Brief | **$2,500** |
+| Tactical (demoted) | Pharmacovigilance Pack | $2,500 – $4,950 |
+
+Research artifacts only — not validated for clinical decision support. No PHI is hosted, transmitted, or processed.
 
 ## Next Steps
 
-Request the full 48-page sample deliverable or initiate a custom intelligence mission on a topic relevant to your pipeline.
+Request the full 48-page sample deliverable or scope an engagement from the ladder above for a topic relevant to your pipeline.
 
 **Contact**: trevor@trevorobeyinc.com
 **Web**: https://trevorobeyinc.com
@@ -77,7 +85,8 @@ Request the full 48-page sample deliverable or initiate a custom intelligence mi
 ---
 
 *Produced using AI-assisted research synthesis with human editorial oversight. All citations independently verifiable.*
-*Trevor Robey Inc. | Biomedical Research Intelligence*
+*Trevor Robey, INC. | Biomedical Research Intelligence*
+*Trevor Robey, INC. is the wordmark of Trevor Robey Intelligence Network Citations LLC, a California limited liability company.*
 
 ---
 
