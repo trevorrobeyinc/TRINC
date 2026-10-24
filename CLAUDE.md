@@ -5,9 +5,8 @@
 Single-repo monorepo for the **Trevor Robey, INC.** biomedical research intelligence stack. As of 2026-05-07 this is the canonical source of truth — three previously separate sub-trees (`Claude/`, `Copilot-Everything/`, `trevor-robey-inc-agents/`) plus the brand canon at `trevor-robey-inc/` are all first-class members of this repo.
 
 Hosting: **PRIVATE GitHub remote, restored (recorded 2026-08-12).** `origin` =
-`ssh://git@ssh.github.com:443/trevorrobeyinc/TRINC.git` (**GitHub rename pending, 2026-10-23**: until the
-operator renames the repo in GitHub settings and runs `git -C /Users/myhome/TRINC remote set-url origin` with this
-URL, `origin` still reads `…/trevorrobeyinc/TrevClaw-Obsidianodus.git`) — a **different account** from the
+`ssh://git@ssh.github.com:443/trevorrobeyinc/TRINC.git` (the operator renamed the GitHub repo from
+`TrevClaw-Obsidianodus` on 2026-10-23 and `origin` was repointed the same day; GitHub redirects the old name) — a **different account** from the
 `trevoralexanderrobey/…` remote deleted 2026-05-26. **🔑 PUSHES MUST BE RUN BY THE OPERATOR, IN A REAL TERMINAL — this is the security model working, not a
 fault (established 2026-08-12).** The GitHub key setup is **correct and accepted**; `ssh -vvv` shows
 `debug1: Server accepts key: … ECDSA-SK SHA256:ke2ZoL0v3WRqS+i2uBlmeQAixuQxBWiwD+THaFFiAo0`. What fails from
