@@ -77,14 +77,14 @@ Moved to `~/.Trash/trinc-reorg-2026-10-23/<original path>`; the operator empties
 - `repos/.upstream-v3.3.2-vault-snapshot/` — superseded plugin snapshot (0 refs).
 - `tasks/` — retired backend-emulator plan.
 - `tools/zettelkasten-graph-enhancer{,.test}.mjs` + `configs/zettelkasten-graph-enhancer.json` — self-contained, unused.
-- 8 scripts whose own headers say RETIRED, or whose lane is gone: `backend-bridge-compat-test`, `cli-stability-gate`, `direct-cli-stability-gate`, `full-functional-sweep`, `plugin-backend-emulator-check`, `zettelkasten-scheduler`, `zettelkasten-smoke-test`, `devtools-lockdown` (the CDP debug-port lane it cleared was retired 2026-05-08).
+- 9 scripts whose own headers say RETIRED, or whose lane is gone: `backend-bridge-compat-test`, `bridge-health-check` (header: RETIRED 2026-07-31; added during execution, same category), `cli-stability-gate`, `direct-cli-stability-gate`, `full-functional-sweep`, `plugin-backend-emulator-check`, `zettelkasten-scheduler`, `zettelkasten-smoke-test`, `devtools-lockdown` (the CDP debug-port lane it cleared was retired 2026-05-08).
 - 18 docs bannered RETIRED / SUPERSEDED or dated one-offs: `BACKEND_EMULATOR_{ARCHITECTURE,RUNBOOK}`, `COPILOT_WORKSPACE_CLAUDE_HANDOFF_2026-03-24`, `FUNCTIONAL_TEST_{CHECKLIST,REPORT_2026-03-20}`, `HMAC_PLUGIN_BACKEND`, `NAMESPACE_AUDIT`, `NEXT_STEPS`, `OBSIDIAN_CLI_STACK_HANDOFF`, `OFFICIAL_DIRECT_MCP_MIYO_CUTOVER_REPORT_2026-03-21`, `OFFICIAL_WRITE_AND_RAYCAST_PHASE2_REPORT_2026-03-21`, `OPENCODE-AGENT-HANDOFF`, `SELF_HOST_{COMPAT_MATRIX,CONTRACT,LOGIC_MAP}`, `UPSTREAM_SYNC`, `ZETTELKASTEN_BACKEND_{ARCHITECTURE,PLAN}`.
 
 **2d · `Trevor Robey Intelligence Network Citations/`**
 - `scripts/{rebrand-to-trevor-robey-inc.mjs,generate-phase29-artifacts.js,generate-phase2-audit-artifacts.sh}` — 0 refs.
 - `05-launch-plan/` — the Apr 27–May 22 week-by-week plan (superseded by `STATUS.md` + the Commercial Launch Playbook).
 - `audit/business-reality-2026-06/` — superseded by `SYSTEM-REALITY.md`.
-- `workspace/audit/` — 7 dated validation / rebrand reports (April–July).
+- `workspace/audit/` — 7 dated validation / rebrand reports (April–July). The folder stays (a `README.md` keeps it), because `config/plugin-bindings.json` names it as the place for engine run artifacts.
 - `workspace/collateral/platform-guides/{outlier,mindrift}-contributor-setup.md` — contradict `03-platforms/rejected-channels`.
 - `workspace/collateral/claude-design-client-intake-form-prompt-balanced.md` — one-time prompt.
 - `.learnings/{mcp-isolation-log.md,mcp-isolation-summary.json,runtime-mcp-check-raw.json}` — raw one-off dumps (0 refs).

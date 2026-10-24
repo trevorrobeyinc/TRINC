@@ -166,7 +166,7 @@ Claude Code (`claude -p --allowedTools ""`) using parametric knowledge only (no 
 - **Average confidence improved 538%** over 7B model across scored templates
 - All citations are real and verifiable (vs fabricated by 7B model)
 - Pharmacovigilance-report is closest to passing (0.484/0.6) — prompt tuning recommended
-- See `workspace/audit/phase33-live-validation-report.md` for full analysis
+- The full analysis (`workspace/audit/phase33-live-validation-report.md`) was removed in the 2026-10 reorg; restore with `git show pre-trinc-reorg-2026-10-23:"Trevor Robey Intelligence Network Citations/workspace/audit/phase33-live-validation-report.md"`
 
 The quality auditor uses a citation density formula: `min(1.0, (verified_citations / total_lines) * 10)` with a minimum of 5 verified citations. The 7B local model produces hallucinated citations that fail verification. Claude Code produces real, verifiable identifiers from parametric knowledge.
 

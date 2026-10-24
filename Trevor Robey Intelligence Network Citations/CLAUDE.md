@@ -132,7 +132,7 @@ node scripts/distribute.js --workflow-id <id> --targets datarade,kaggle,training
 | `security/` | Policy files, RBAC definitions |
 | `workspace/collateral/` | Sales collateral, landing page, email sequences, prospect targeting, sample deliverables |
 | `openclaw-bridge/distribution/` | Format adapters (Datarade, Kaggle, HuggingFace, AWS, Data & Sons) and training data generator |
-| `workspace/collateral/platform-guides/` | Setup guides for 6 distribution platforms (Datarade, Kaggle, HuggingFace, AWS, Outlier, Mindrift) |
+| `workspace/collateral/platform-guides/` | Setup guides for 4 distribution platforms (Datarade, Kaggle, HuggingFace, AWS). The Outlier and Mindrift contributor guides were removed in the 2026-10 reorg (both are rejected channels — `03-platforms/rejected-channels/`). |
 | `workspace/distribution/` | Distribution output (created at runtime by `scripts/distribute.js`) |
 
 ## Architecture

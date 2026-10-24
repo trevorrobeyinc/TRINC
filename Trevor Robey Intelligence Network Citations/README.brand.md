@@ -20,7 +20,6 @@ This directory is the canonical home for everything the [`trevor-robey-inc Comme
 | _(product-pack collateral)_ | §3 + §7.4 | Product one-pagers, teasers, catalog, and samples live in `workspace/collateral/`. The duplicate `02-product-packs/` tree (un-rebranded, carrying stale overclaims) was removed 2026-07-13. |
 | `03-platforms/` | §2 + §7.7 | Datarade, AWS Data Exchange, HuggingFace gated dataset, Kaggle SEO breadcrumb, rejected channels (Outlier/Mindrift), tier-1 aggregators, tier-2 cloud-native, tier-3 creator-centric, tier-4 Web3. |
 | `04-pricing-benchmarks/` | §3 | trevor-robey-inc pricing ladder ($9,950 / $14,950 / $19,950 anchors + tactical SKUs) + five competitor benchmarks (GlobalData, DealForma, Citeline, Cortellis, Definitive Healthcare). |
-| `05-launch-plan/` | §4 | Week-by-week, day-by-day execution plan from Mon Apr 27 to Fri May 22, plus contractor budget. |
 | `06-target-accounts/` | §1 | 12 named accounts across 4 personas + 3 wildcards, each with verified 2025–2026 buying signal. |
 | `07-outbound/` | §1 + §4 Week 2 | Cold-email templates by persona, LinkedIn openers, 9-touch sequence cadence, SDR contractor brief. |
 | `08-contracts-legal/` | §5 items 3–9 | Common Paper MSA / SOW / NDA / DPA, IP license structure, LoL, indemnification, refund policy, payment terms, vendor security questionnaires (SIG-Lite, CAIQ-Lite). |

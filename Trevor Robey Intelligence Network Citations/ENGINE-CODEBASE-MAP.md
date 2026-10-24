@@ -290,7 +290,7 @@ scripts/run-workflow.sh --template pharmacovigilance-report --inputs '{"drug_cla
 | Operator runbook, phase list, conventions | `CLAUDE.md` (this folder) + repo-root `CLAUDE.md` (ports/topology) |
 | Products / pricing / strategy | `OFFERINGS.md`, `REVENUE_PLAYBOOK.md` |
 | Scoreboard / KPIs | `12-pipeline-tracking/kpis-end-of-month.md` |
-| The audit this all came from | `audit/business-reality-2026-06/` |
+| The audit this all came from | `audit/business-reality-2026-06/` (removed in the 2026-10 reorg, superseded by `SYSTEM-REALITY.md`; restore with `git show pre-trinc-reorg-2026-10-23:"Trevor Robey Intelligence Network Citations/audit/business-reality-2026-06/00-audit-report.md"`) |
 | How the Claude `data` + `bio-research` plugins are wired to this engine | `CLAUDE-PLUGINS-WIRING.md` |
 
 ---

@@ -159,10 +159,8 @@ Working Miyo endpoints: `/v0/health`, `/v0/search`, `/v0/search/related`, `/v0/p
 
 All in `scripts/`. Key ones:
 
-- `bridge-start.sh` — MCP bridge manual/dev start (`bridge-health-check.sh` RETIRED 2026-07-31 — tombstoned; replacement checks in its header)
-- `full-functional-sweep.sh` — RETIRED 2026-05-09 (tombstone; replacement checks in its header: canonical bridge `healthz` curl + Local REST API :27124 auth probe)
-- `zettelkasten-smoke-test.sh` — RETIRED 2026-05-09 (tombstone; smoke-test through the plugin's own commands or the canonical bridge)
-- `zettelkasten-scheduler.sh` — RETIRED 2026-05-09 (tombstone; scheduling is driven by the plugin's in-process Scheduler)
+- `bridge-start.sh` — MCP bridge manual/dev start. Health: canonical bridge `healthz` curl plus the Local REST API `:27124` auth probe.
+- The retired tombstone scripts were removed in the 2026-10 reorg — see `../ops/reorg/2026-10-cleanup-manifest.md`.
 - `plugin-reload.sh` — Reload plugin in Obsidian
 - `dev-build.sh` / `dev-deploy.sh` — Plugin dev workflow: stages the fork build into `deploy/obsidian/plugins/copilot` and symlinks it into the dev vault under the fork's REAL plugin id `copilot` (since `9c7ce09a` the fork manifest deliberately matches upstream id+version so auto-update cannot wipe it)
 - `lib.sh` — Shared constants and utilities (WORKSPACE_ROOT, PRODUCTION_VAULT, etc.)
@@ -264,14 +262,13 @@ Related workspaces:
 
 ## Source of Truth (read order)
 
-1. `docs/COPILOT_WORKSPACE_CLAUDE_HANDOFF_2026-03-24.md`
-2. `docs/OBSIDIAN_CLI_STACK_HANDOFF.md`
-3. `docs/OFFICIAL_DIRECT_MCP_MIYO_RUNTIME.md`
-4. `docs/SELF_HOST_CONTRACT.md`
-5. `docs/BACKEND_EMULATOR_ARCHITECTURE.md`
-6. `docs/OFFICIAL_PLUGIN_COMPATIBILITY.md`
-7. `docs/ZETTELKASTEN_BACKEND_ARCHITECTURE.md`
-8. `docs/OFFICIAL_MIYO_CONTRACT.md`
+1. `repos/obsidian-copilot-mcp-v4/UPSTREAM.md` (the fork's identity and sync rules)
+2. `docs/OFFICIAL_DIRECT_MCP_MIYO_RUNTIME.md`
+3. `docs/OFFICIAL_PLUGIN_COMPATIBILITY.md`
+4. `docs/OFFICIAL_MIYO_CONTRACT.md`
+5. `docs/MCP_SECURITY.md`
+
+(The March-era handoffs and emulator / self-host / ZK-backend docs were removed in the 2026-10 reorg — see `../ops/reorg/2026-10-cleanup-manifest.md`.)
 
 ## Rules
 

@@ -290,10 +290,8 @@ Working Miyo endpoints: `/v0/health`, `/v0/search`, `/v0/search/related`, `/v0/p
 
 All in `scripts/`. Key ones:
 
-- `bridge-start.sh` — MCP bridge manual/dev start (`bridge-health-check.sh` RETIRED 2026-07-31 — tombstoned CLI-era parity gate, same pattern as `cli-stability-gate.sh`; replacement checks in its header)
-- `full-functional-sweep.sh` — 21-check validation suite (RETIRED 2026-05-09 — tombstone; wired against the deleted backend emulator + CLI backend selection. Replacement checks in its header: canonical bridge `healthz` curl + Local REST API :27124 auth probe)
-- `zettelkasten-smoke-test.sh` — 11-check ZK validation suite (RETIRED 2026-05-09 — tombstone; ZettelkastenService moved in-process into the `vault-zettelkasten` plugin, so smoke-testing happens through the plugin's own commands or the canonical bridge — see its header)
-- `zettelkasten-scheduler.sh` — Scheduled ZK report generation (RETIRED 2026-05-09 — tombstone; scheduling is driven by the Command Center plugin's workflow lifecycle. Header notes no LaunchAgents/cron referenced it as of 2026-05-09)
+- `bridge-start.sh` — MCP bridge manual/dev start. Health: `curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:8798/healthz` plus the Local REST API `:27124` auth probe.
+- The retired tombstones (`bridge-health-check`, `full-functional-sweep`, `zettelkasten-smoke-test`, `zettelkasten-scheduler`, `cli-stability-gate`, `direct-cli-stability-gate`, `backend-bridge-compat-test`, `plugin-backend-emulator-check`, `devtools-lockdown`) were removed in the 2026-10 reorg — list and restore command in [`../ops/reorg/2026-10-cleanup-manifest.md`](../ops/reorg/2026-10-cleanup-manifest.md).
 - `plugin-reload.sh` — Reload plugin in Obsidian
 - `dev-build.sh` / `dev-deploy.sh` — Plugin dev workflow: stages the fork build into `deploy/obsidian/plugins/copilot` and symlinks it into the dev vault under the fork's REAL plugin id `copilot` (dev lane adopted the official-id identity 2026-07-31; since `9c7ce09a` the fork manifest matches upstream id+version — **which DID NOT prevent a wipe: upstream 4.0.0 sorted above the pinned 3.3.3 and overwrote the fork on 2026-08-12. Pin ABOVE upstream (99.x.y), not equal to it.** `copilot-mcp` is no longer a plugin id anywhere. `--with-official` retired same day — one id loads once per vault, and the production official slot already runs this fork)
 - `lib.sh` — Shared constants and utilities (WORKSPACE_ROOT, PRODUCTION_VAULT, etc.)
@@ -444,14 +442,13 @@ Related workspaces:
 
 ## Source of Truth (read order)
 
-1. `docs/COPILOT_WORKSPACE_CLAUDE_HANDOFF_2026-03-24.md`
-2. `docs/OBSIDIAN_CLI_STACK_HANDOFF.md`
-3. `docs/OFFICIAL_DIRECT_MCP_MIYO_RUNTIME.md`
-4. `docs/SELF_HOST_CONTRACT.md`
-5. `docs/BACKEND_EMULATOR_ARCHITECTURE.md`
-6. `docs/OFFICIAL_PLUGIN_COMPATIBILITY.md`
-7. `docs/ZETTELKASTEN_BACKEND_ARCHITECTURE.md`
-8. `docs/OFFICIAL_MIYO_CONTRACT.md`
+1. `repos/obsidian-copilot-mcp-v4/UPSTREAM.md` (the fork's identity and sync rules)
+2. `docs/OFFICIAL_DIRECT_MCP_MIYO_RUNTIME.md`
+3. `docs/OFFICIAL_PLUGIN_COMPATIBILITY.md`
+4. `docs/OFFICIAL_MIYO_CONTRACT.md`
+5. `docs/MCP_SECURITY.md`
+
+(The March-era handoffs and the emulator / self-host / ZK-backend architecture docs that used to head this list were removed in the 2026-10 reorg — see [`../ops/reorg/2026-10-cleanup-manifest.md`](../ops/reorg/2026-10-cleanup-manifest.md).)
 
 ## Rules
 
