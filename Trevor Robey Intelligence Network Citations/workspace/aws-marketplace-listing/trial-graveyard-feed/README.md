@@ -68,7 +68,7 @@ operator's call of 2026-10-21).
 Rebuild every area into a dated staging folder. This never overwrites `data/`:
 
 ```
-bash "/Users/myhome/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations/scripts/refresh-graveyard-feeds.sh"
+bash "/Users/myhome/TRINC/Trevor Robey Intelligence Network Citations/scripts/refresh-graveyard-feeds.sh"
 ```
 
 - The generator runs a full census since 2026-07-30. `--pageSize` is accepted and ignored. The

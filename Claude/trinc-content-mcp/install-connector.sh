@@ -7,7 +7,7 @@
 # target, not a second source — it carries no .git and no tests.
 #
 # RE-RUN THIS SCRIPT AFTER EDITING ANY FILE UNDER src/ to re-sync the staged copy.
-# Drift check: bash /Users/myhome/TrevClaw-Obsidianodus/ops/tr-suite/verify.sh
+# Drift check: bash /Users/myhome/TRINC/ops/tr-suite/verify.sh
 set -e -u
 set -o pipefail
 

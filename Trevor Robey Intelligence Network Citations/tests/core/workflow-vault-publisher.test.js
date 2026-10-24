@@ -322,7 +322,7 @@ describe("workflow-vault-publisher", () => {
   });
 
   it("adds a wikilink-free Graph Analysis note when graphAnalysis is enabled and the package is present", async () => {
-    const zkRoot = "/Users/myhome/TrevClaw-Obsidianodus/Claude/Medical-Zettelkasten-MCP";
+    const zkRoot = "/Users/myhome/TRINC/Claude/Medical-Zettelkasten-MCP";
     if (!fs.existsSync(path.join(zkRoot, "lib", "openclaw-bridge-adapter.js"))) return; // package not on this machine
     // Give the synthesizer enough science text for a graph.
     const synthOut = path.join(fx.root, "workspace", "research-output", "task-synth0001", "output.md");

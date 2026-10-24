@@ -16,7 +16,7 @@ which deploys under its REAL plugin id `copilot` (upstream-exact identity since 
 scripts/lib.sh). Side-by-side fork-vs-official installs were retired 2026-07-31: one id loads
 once per vault.
 
-- Source code lives outside the vault in `/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything`.
+- Source code lives outside the vault in `/Users/myhome/TRINC/Copilot-Everything`.
 - Built runtime bundles are deployed into the vault's plugin directory.
 - Runtime note/plugin data may still live in the vault by design.
 EOF

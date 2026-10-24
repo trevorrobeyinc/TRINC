@@ -24,7 +24,7 @@ Three active layers (backend-emulator retired 2026-04-11, deleted from monorepo 
 
 ## Key Paths
 
-- Workspace root: `/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything/`
+- Workspace root: `/Users/myhome/TRINC/Copilot-Everything/`
 - Target vault: `/Users/myhome/My Digital Garden`
 - Official plugin dir: `<vault>/.obsidian/plugins/copilot`
 
@@ -257,7 +257,7 @@ The bridge **must be running** before other operators can access the vault. Star
 **Note on Zettelkasten implementations**: This workspace's `ZettelkastenService` (LLM-driven, vault-grounded) now runs in-process inside the `vault-zettelkasten` Obsidian plugin under `Claude/obsidian-vault-zettelkasten/`. It is complementary to — not a duplicate of — the algorithmic Medical Zettelkasten MCP at `Claude/Medical-Zettelkasten-MCP/`, which analyzes research text for structural patterns without an LLM.
 
 Related workspaces:
-- `/Users/myhome/TrevClaw-Obsidianodus/Claude/` — Zettelkasten MCP, Command Center plugin
+- `/Users/myhome/TRINC/Claude/` — Zettelkasten MCP, Command Center plugin
 - The former sibling workspace `/Users/trevorrobey/OpenClaw-Research-Agents/` is **GONE** (corrected 2026-07-31) — folded into this monorepo at `Trevor Robey Intelligence Network Citations/` (the 2026-05-19 flat merge). There is no persistent gateway; the engine runs on demand via `node scripts/run-workflow.js`.
 
 ## Source of Truth (read order)

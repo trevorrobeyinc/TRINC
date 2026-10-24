@@ -29,7 +29,7 @@ const path = require("node:path");
 
 const { CITATION_PATTERNS } = require("../core/citation-extractor.js");
 
-const DEFAULT_PACKAGE_ROOT = "/Users/myhome/TrevClaw-Obsidianodus/Claude/Medical-Zettelkasten-MCP";
+const DEFAULT_PACKAGE_ROOT = "/Users/myhome/TRINC/Claude/Medical-Zettelkasten-MCP";
 const DEFAULT_MAX_ITEMS = 8;
 const MIN_TEXT_CHARS = 200;
 

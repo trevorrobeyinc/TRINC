@@ -187,7 +187,7 @@ from the operator's own words. Live once the rebuilt plugin is deployed (`ops/tr
 
 ## Running one (on the Mac; needs the network)
 ```
-cd "/Users/myhome/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations" && scripts/run-workflow.sh --template cost-reduction-analysis --inputs '{"topic":"Where can a mid-size US 3PL warehouse cut labour and energy cost?","industry":"warehousing and logistics","country":"US"}' --operator-approve --confirm
+cd "/Users/myhome/TRINC/Trevor Robey Intelligence Network Citations" && scripts/run-workflow.sh --template cost-reduction-analysis --inputs '{"topic":"Where can a mid-size US 3PL warehouse cut labour and energy cost?","industry":"warehousing and logistics","country":"US"}' --operator-approve --confirm
 ```
 Arm the YubiKey approval gate first, as for any run.
 

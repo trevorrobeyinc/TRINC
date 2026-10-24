@@ -1122,10 +1122,10 @@ export const DEFAULT_SETTINGS: CopilotSettings = {
   customCommandNoteFolder: "Copilot Summaries",
 
   // MCP defaults (forked addition, ported to upstream 4.0.0 on 2026-08-12).
-  // Points at the canonical TrevClaw-Obsidianodus obsidian-copilot-bridge
+  // Points at the canonical TRINC obsidian-copilot-bridge
   // (HTTPS, mkcert-signed) at :8798 and the Command Center at :8799.
   // NOTE: :8787 was only ever a dev placeholder — nothing has ever listened
-  // there. See TrevClaw-Obsidianodus/CLAUDE.md (HTTPS-only invariant).
+  // there. See TRINC/CLAUDE.md (HTTPS-only invariant).
   mcp: {
     enabled: false,
     confirmationPolicy: "allow_without_prompt",

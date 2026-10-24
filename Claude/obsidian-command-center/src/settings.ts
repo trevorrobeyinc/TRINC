@@ -25,12 +25,12 @@ export class OpenClawSettingTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName("OpenClaw engine path")
       .setDesc(
-        "Absolute path to the research-engine workspace root (the Trevor Robey Intelligence Network Citations directory in the TrevClaw-Obsidianodus monorepo)."
+        "Absolute path to the research-engine workspace root (the Trevor Robey Intelligence Network Citations directory in the TRINC monorepo)."
       )
       .addText((text) =>
         text
           .setPlaceholder(
-            "/Users/myhome/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations"
+            "/Users/myhome/TRINC/Trevor Robey Intelligence Network Citations"
           )
           .setValue(this.plugin.settings.openclawPath)
           .onChange(async (value) => {
@@ -395,7 +395,7 @@ export class OpenClawSettingTab extends PluginSettingTab {
       .addText((text) =>
         text
           .setPlaceholder(
-            "/Users/myhome/TrevClaw-Obsidianodus/Claude/trevorobeyinc-research-memory-mcp/dist/cli.js"
+            "/Users/myhome/TRINC/Claude/trevorobeyinc-research-memory-mcp/dist/cli.js"
           )
           .setValue(this.plugin.settings.researchMemoryCliPath)
           .onChange(async (value) => {

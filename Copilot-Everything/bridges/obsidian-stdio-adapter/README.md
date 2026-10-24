@@ -126,9 +126,9 @@ expected-set assertion in `scripts/test-profiles.mjs`. Never touch the daemons.
 The aggregation lives entirely in this package. To restore the previous adapter:
 
 - While the change is uncommitted:
-  `git -C /Users/myhome/TrevClaw-Obsidianodus checkout -- Copilot-Everything/bridges/obsidian-stdio-adapter/index.mjs Copilot-Everything/bridges/obsidian-stdio-adapter/package.json`
+  `git -C /Users/myhome/TRINC checkout -- Copilot-Everything/bridges/obsidian-stdio-adapter/index.mjs Copilot-Everything/bridges/obsidian-stdio-adapter/package.json`
 - After it is committed:
-  `git -C /Users/myhome/TrevClaw-Obsidianodus revert <that commit>` (or `git checkout <commit>^ -- Copilot-Everything/bridges/obsidian-stdio-adapter/index.mjs`)
+  `git -C /Users/myhome/TRINC revert <that commit>` (or `git checkout <commit>^ -- Copilot-Everything/bridges/obsidian-stdio-adapter/index.mjs`)
 
 Then have each MCP host respawn the adapter (quit/reopen Raycast; restart Claude
 Desktop). Nothing daemon-side needs rolling back — the daemons were never modified.

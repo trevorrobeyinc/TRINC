@@ -43,12 +43,12 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` → `mc
 ```json
 "trevorobeyinc-research-memory": {
   "command": "/Users/myhome/.nvm/versions/node/v22.13.1/bin/node",
-  "args": ["/Users/myhome/TrevClaw-Obsidianodus/Claude/trevorobeyinc-research-memory-mcp/dist/index.js"],
+  "args": ["/Users/myhome/TRINC/Claude/trevorobeyinc-research-memory-mcp/dist/index.js"],
   "env": {
     "QDRANT_URL": "https://127.0.0.1:6433",
     "QDRANT_COLLECTION": "trevorobeyinc-packs",
     "EMBED_MODEL": "Xenova/nomic-embed-text-v1",
-    "LOG_FILE": "/Users/myhome/TrevClaw-Obsidianodus/Claude/.logs/research-memory.log"
+    "LOG_FILE": "/Users/myhome/TRINC/Claude/.logs/research-memory.log"
   }
 }
 ```

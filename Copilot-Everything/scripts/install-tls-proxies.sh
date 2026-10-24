@@ -14,7 +14,8 @@
 #
 #   Error: EPERM: operation not permitted, open '/Volumes/.../<name>-tls-proxy.mjs'
 #
-# UPDATE 2026-07-26: the monorepo moved to /Users/myhome/TrevClaw-Obsidianodus on
+# UPDATE 2026-07-26: the monorepo moved to /Users/myhome/TrevClaw-Obsidianodus (renamed
+# /Users/myhome/TRINC on 2026-10-23) on
 # the internal, FileVault-protected disk, so that specific TCC wall no longer
 # applies to this repo. The staging pattern is KEPT anyway, for two reasons:
 #   1. The launchd units currently point at the staged copies. Repointing them at

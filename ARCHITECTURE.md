@@ -1,4 +1,6 @@
-# TrevClaw-Obsidianodus — Architecture
+# TRINC — Architecture
+
+> Renamed 2026-10-23 from `TrevClaw-Obsidianodus`; the folder is now `/Users/myhome/TRINC`.
 
 **Rewritten and verified against live code and running processes: 2026-07-23.**
 
@@ -13,7 +15,7 @@ source or a running process on that date. Retired components are listed in
 > open-source agent framework the stack uses; it is not a brand owned by the operator, and the
 > retired homebrew `openclaw.ai` consumer assistant is unrelated.
 
-> **Repo topology.** Single **local-only** monorepo at `/Users/myhome/TrevClaw-Obsidianodus`
+> **Repo topology.** Single **local-only** monorepo at `/Users/myhome/TRINC`
 > with **no git remotes** (the private GitHub remote was deleted 2026-05-26; durable backup is a
 > verified `git bundle --all`). Only submodule: `Trevor Robey Intelligence Network Citations/vendor/tooluniverse`.
 > Vendored fork (not a submodule): `Copilot-Everything/repos/obsidian-copilot-mcp-v4/` (the 3.3.3 fork was retired 2026-10-21).

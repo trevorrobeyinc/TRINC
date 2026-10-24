@@ -6,7 +6,7 @@ const fs = require("node:fs");
 
 const { createGraphAnalysis, precleanForGraph } = require("../../openclaw-bridge/vault/graph-analysis.js");
 
-const ZK_ROOT = "/Users/myhome/TrevClaw-Obsidianodus/Claude/Medical-Zettelkasten-MCP";
+const ZK_ROOT = "/Users/myhome/TRINC/Claude/Medical-Zettelkasten-MCP";
 const zkPresent = fs.existsSync(`${ZK_ROOT}/lib/openclaw-bridge-adapter.js`);
 
 const SAMPLE = [

@@ -1,4 +1,6 @@
-# TrevClaw-Obsidianodus — opencode instructions
+# TRINC — opencode instructions
+
+> **Renamed 2026-10-23** from `TrevClaw-Obsidianodus`; the folder is now `/Users/myhome/TRINC` (the old path is a temporary symlink). Dated history below keeps the old name on purpose.
 
 > **opencode mirror (created 2026-08-09).** This is the opencode counterpart to the `CLAUDE.md`
 > next to it: same rules, worded for opencode. Claude surfaces read `CLAUDE.md`; opencode reads
@@ -148,7 +150,7 @@ Three independent operators share this stack. None is subordinate to the others.
 > `_continuity/CONTINUITY.md`.
 > **Claude Chat (Desktop) is NOT limited to the `:8798` Obsidian bridge for local files:** it has a
 > **Filesystem MCP connector with allowed roots `/Users/myhome` and `/Volumes/ExtraCurricular`**,
-> so it reads/writes `/Users/myhome/TrevClaw-Obsidianodus` (and sees `My Digital Garden`
+> so it reads/writes `/Users/myhome/TRINC` (and sees `My Digital Garden`
 > as a sibling dir) directly. `:8798` is an *additional* semantic path (Obsidian/Zettelkasten over
 > `My Digital Garden`), not Chat's only route to disk. Caveat: Chat-side writes to the external
 > volume have hung before — a Filesystem-MCP restart clears it; treat Chat writes as
@@ -212,7 +214,7 @@ All HTTPS services use mkcert certificates at `~/.local/share/mkcert/localhost.p
 
 > **Notes**:
 > - backend-emulator (:8789) was retired 2026-04-11 — ZettelkastenService now runs in-process inside the `vault-zettelkasten` Obsidian plugin.
-> - The biomedical research engine (`/Users/myhome/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations/`) runs as on-demand subprocess via `node scripts/run-workflow.js` — there is no persistent gateway service. The previous launchd entry on :18789 was for the unrelated homebrew `openclaw` (a consumer "Personal AI assistant" from openclaw.ai, different product entirely; removed 2026-04-27).
+> - The biomedical research engine (`/Users/myhome/TRINC/Trevor Robey Intelligence Network Citations/`) runs as on-demand subprocess via `node scripts/run-workflow.js` — there is no persistent gateway service. The previous launchd entry on :18789 was for the unrelated homebrew `openclaw` (a consumer "Personal AI assistant" from openclaw.ai, different product entirely; removed 2026-04-27).
 
 1. **Obsidian** — opening Obsidian loads two bridge-owning plugins:
    - `obsidian-bridge-launcher` spawns the canonical MCP bridge child process on :8798 (HTTPS).
@@ -230,7 +232,7 @@ lsof -nP -iTCP:8742 -sTCP:LISTEN | grep -i miyo   # plaintext Miyo upstream (pro
 curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:6433/collections/miyo   # Qdrant via TLS proxy
 lsof -nP -iTCP:6333 -sTCP:LISTEN | grep -i qdrant   # plaintext Qdrant upstream (proxy backs onto this)
 # Biomedical workflow runtime check (no persistent service — verify the subprocess path is wired):
-cd "/Users/myhome/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations" && bash scripts/verify-phase29-policy.sh | tail -1
+cd "/Users/myhome/TRINC/Trevor Robey Intelligence Network Citations" && bash scripts/verify-phase29-policy.sh | tail -1
 ```
 
 ## Key Integration Points
@@ -352,7 +354,7 @@ Every network-facing TCP listener owned by code in this monorepo MUST be HTTPS. 
 
 All monorepo consumers now point at the HTTPS proxies. The plaintext upstream ports keep listening (we can't make Miyo, Qdrant, or SearXNG stop), but the documented architecture no longer routes through them. The pf-per-UID idea for :8742/:6333/:8890 was **closed 2026-07-10 as unbuildable**; the live compensating control is the Monitor-only Falcon Custom-IOA "Mac - Loopback Upstream Watch" (group `117393db…`).
 
-> **launchd ↔ external-volume gotcha (2026-06-03; superseded 2026-07-26).** This monorepo *used to live* on `/Volumes/ExtraCurricular` (external); it moved to `/Users/myhome/TrevClaw-Obsidianodus` on the internal FileVault disk on 2026-07-26, so the TCC wall no longer applies to this repo. The staging pattern is kept regardless, so launchd never depends on the repo's location: [`Copilot-Everything/scripts/install-tls-proxies.sh`](Copilot-Everything/scripts/install-tls-proxies.sh) stages the proxy scripts to `~/.local/share/trevclaw-tls-proxies/` (internal volume) and repoints each plist's `ProgramArguments` there. The repo copies under `Copilot-Everything/scripts/` remain source-of-truth — **re-run the installer after editing any `*-tls-proxy.mjs`** to re-sync the staged copy.
+> **launchd ↔ external-volume gotcha (2026-06-03; superseded 2026-07-26).** This monorepo *used to live* on `/Volumes/ExtraCurricular` (external); it moved to `/Users/myhome/TrevClaw-Obsidianodus` (renamed `/Users/myhome/TRINC` on 2026-10-23) on the internal FileVault disk on 2026-07-26, so the TCC wall no longer applies to this repo. The staging pattern is kept regardless, so launchd never depends on the repo's location: [`Copilot-Everything/scripts/install-tls-proxies.sh`](Copilot-Everything/scripts/install-tls-proxies.sh) stages the proxy scripts to `~/.local/share/trevclaw-tls-proxies/` (internal volume) and repoints each plist's `ProgramArguments` there. The repo copies under `Copilot-Everything/scripts/` remain source-of-truth — **re-run the installer after editing any `*-tls-proxy.mjs`** to re-sync the staged copy.
 
 **Deletion log (2026-05-08 cleanup pass):** retired modules previously kept "as reference" were deleted from the monorepo. If you ever need to revive any of them, fetch from the rollback tag `pre-monorepo-consolidation-2026-05-07` on the archived predecessor repo and re-apply with the HTTPS-only invariant enforced (no `http.createServer`, no TLS-disable env vars). The full item-by-item log (backend emulator, raycast backend-emulator client, empty PM2 ecosystem, github-pro-mcp, stale logs/CI dirs/handoff files, qdrant-tls-proxy subproject, obsidian-devtools CDP path, chrome-devtools-mcp, claude-cli-bridge) is preserved in the CLAUDE.md twin of this file.
 

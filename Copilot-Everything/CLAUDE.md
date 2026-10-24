@@ -136,7 +136,7 @@ lane only.
 
 ## Key Paths
 
-- Workspace root: `/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything/` (corrected 2026-07-31 — this line still carried the pre-wipe home `/Users/trevorrobey/…`, which has not existed since the 2026-05-31 machine wipe. Historical: the workspace lived at `~/Code/THE Copilot in Obsidian Everything/` until the 2026-05-07 monorepo consolidation, and the whole monorepo moved off `/Volumes/ExtraCurricular` onto the internal FileVault disk on 2026-07-26)
+- Workspace root: `/Users/myhome/TRINC/Copilot-Everything/` (corrected 2026-07-31 — this line still carried the pre-wipe home `/Users/trevorrobey/…`, which has not existed since the 2026-05-31 machine wipe. Historical: the workspace lived at `~/Code/THE Copilot in Obsidian Everything/` until the 2026-05-07 monorepo consolidation, and the whole monorepo moved off `/Volumes/ExtraCurricular` onto the internal FileVault disk on 2026-07-26)
 - Target vault: `/Users/myhome/My Digital Garden`
 - Official plugin dir: `<vault>/.obsidian/plugins/copilot`
 - Personal side-repos: `Code/` → **symlink** to `/Users/myhome/Code` (added 2026-08-18; see next section)
@@ -437,7 +437,7 @@ The bridge **must be running** before other operators can access the vault. Star
 **Note on Zettelkasten implementations**: This workspace's `ZettelkastenService` (LLM-driven, vault-grounded) now runs in-process inside the `vault-zettelkasten` Obsidian plugin under `Claude/obsidian-vault-zettelkasten/` (formerly hosted by the backend emulator on :8789, retired 2026-04-11 / deleted 2026-05-08). It is complementary to — not a duplicate of — the algorithmic Medical Zettelkasten MCP at `Claude/Medical-Zettelkasten-MCP/`, which analyzes research text for structural patterns without an LLM.
 
 Related workspaces:
-- `/Users/myhome/TrevClaw-Obsidianodus/Claude/` — Zettelkasten MCP, Command Center plugin
+- `/Users/myhome/TRINC/Claude/` — Zettelkasten MCP, Command Center plugin
 - ~~`/Users/trevorrobey/OpenClaw-Research-Agents/` — Research pipeline, HTTPS gateway on :18789~~
   **GONE (corrected 2026-07-31).** No such directory exists. That sibling workspace was folded
   into this monorepo and now lives at `Trevor Robey Intelligence Network Citations/` (the

@@ -14,7 +14,7 @@ Obsidian plugin that turns a vault into the single UI for the OpenClaw biomedica
 ## Quick Reference
 
 ```bash
-cd /Users/myhome/TrevClaw-Obsidianodus/Claude/obsidian-command-center   # path corrected 2026-10-07 (was the pre-rename ...-openclaw-command-center)
+cd /Users/myhome/TRINC/Claude/obsidian-command-center   # path corrected 2026-10-07 (was the pre-rename ...-openclaw-command-center)
 npm run build
 npm run dev
 npm test              # unit tests for the pure modules (node --test, strip-types); no Obsidian needed
@@ -70,11 +70,11 @@ the plugin's post-run chain runs with nobody operating Obsidian:
   pack itself, headless and idempotent, so this stage had cost no data, only an honest `failed` in the ledger.
 
 The canonical Obsidian MCP bridge (with auth, replay protection, idempotency) lives at:
-`/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge/`
+`/Users/myhome/TRINC/Copilot-Everything/bridges/obsidian-copilot-bridge/`
 
 ### OpenClaw Integration
 
-Spawns `scripts/run-workflow.js` in `/Users/myhome/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations/` via `child_process.spawn()`. The tracker polls `workflow.json` every 2s for progress and completion detection. On completion (since 2026-09-22) it **rehydrates** the vault notes the engine already wrote — `waitForEngineVaultNotes` + `rehydrateEngineNotes` in `src/notes/note-generator.ts` read `artifacts.vault_notes` from `workflow.json` — and runs only its enrichment stages (chat bubble, Miyo index, LLM Zettelkasten linking, research-memory ingest); `generateWorkflowNotes` is the fallback for runs the engine did not write. On load it backfills (`scripts/publish-workflow-to-vault.js --all`, setting `backfillVaultNotesOnLoad`) and links up to `zkCatchUpMaxPerLoad` synthesizer notes that lack the Zettelkasten section (`zkCatchUpOnLoad`). The single "Open Pipeline" ribbon icon opens the pipeline status sidebar; no automatic visualization handoff. (InfraNodus integration was fully removed 2026-05-06 — no local clone, no webview handoff, no MCP server.)
+Spawns `scripts/run-workflow.js` in `/Users/myhome/TRINC/Trevor Robey Intelligence Network Citations/` via `child_process.spawn()`. The tracker polls `workflow.json` every 2s for progress and completion detection. On completion (since 2026-09-22) it **rehydrates** the vault notes the engine already wrote — `waitForEngineVaultNotes` + `rehydrateEngineNotes` in `src/notes/note-generator.ts` read `artifacts.vault_notes` from `workflow.json` — and runs only its enrichment stages (chat bubble, Miyo index, LLM Zettelkasten linking, research-memory ingest); `generateWorkflowNotes` is the fallback for runs the engine did not write. On load it backfills (`scripts/publish-workflow-to-vault.js --all`, setting `backfillVaultNotesOnLoad`) and links up to `zkCatchUpMaxPerLoad` synthesizer notes that lack the Zettelkasten section (`zkCatchUpOnLoad`). The single "Open Pipeline" ribbon icon opens the pipeline status sidebar; no automatic visualization handoff. (InfraNodus integration was fully removed 2026-05-06 — no local clone, no webview handoff, no MCP server.)
 
 - **PATH enrichment**: `src/subprocess/openclaw-runner.ts:73-89` enriches the spawned subprocess PATH to include `~/.local/bin` (claude CLI), nvm node bin, `/opt/homebrew/bin`, and `/usr/local/bin`. Without this, Obsidian launched from Finder/Spotlight inherits a minimal PATH that breaks `claude -p` spawning.
 

@@ -70,7 +70,7 @@ handoff into a **living, multi-writer board**.
 ## Write safety <a id="write-safety-external-volume"></a>
 
 > **Updated 2026-07-26 — the external-volume hazards below no longer apply.** `CONTINUITY.md` now
-> lives at `/Users/myhome/TrevClaw-Obsidianodus/_continuity/CONTINUITY.md` on the **internal,
+> lives at `/Users/myhome/TRINC/_continuity/CONTINUITY.md` on the **internal,
 > FileVault-protected APFS disk**: always mounted, journaled, no disksleep. The two failure modes
 > this section used to warn about — first-access `EPERM` after the SSD slept, and Chat-side writes
 > wedging the Filesystem MCP against `/Volumes/ExtraCurricular` — were **properties of that external

@@ -53,7 +53,7 @@ If you ever wonder "this Obsidian plugin is ours, why isn't it under `Copilot-Ev
 
 ## Multi-Operator Topology, Port Map, Startup Order
 
-**Canonical source of truth**: [`/Users/myhome/TrevClaw-Obsidianodus/AGENTS.md`](../AGENTS.md)
+**Canonical source of truth**: [`/Users/myhome/TRINC/AGENTS.md`](../AGENTS.md)
 (root monorepo instructions; the CLAUDE.md twin carries identical content). It owns the
 operator-topology diagram, the unified port map (`:8798`, `:8799`, `:8743`, `:6433`, `:8891`,
 etc.), the TLS proxy table, and the startup order. All questions about ports, protocols,

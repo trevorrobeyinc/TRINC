@@ -93,7 +93,7 @@ npm test     # 56 unit + integration tests
 npm run smoke  # real MCP handshake against the running server
 ```
 
-Registered in `/Users/myhome/TrevClaw-Obsidianodus/.mcp.json`, which is git-tracked — so **no
+Registered in `/Users/myhome/TRINC/.mcp.json`, which is git-tracked — so **no
 secret may ever go in that stanza**. `TRINC_CONTENT_REPO` points at the monorepo and is also what
 lets tests target a fixture.
 

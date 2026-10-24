@@ -15,7 +15,7 @@
 
 ## 0. Read-me-first realities (drift a co-developer WILL trip on)
 
-- **Repo root:** `/Users/myhome/TrevClaw-Obsidianodus/`.
+- **Repo root:** `/Users/myhome/TRINC/`.
   Home is `/Users/myhome`. **`/Users/trevorrobey/…` is a wiped-Mac path — obsolete; ignore it.**
   ⚠️ This subfolder's own `CLAUDE.md` header still shows the stale `/Users/trevorrobey/TrevClaw-Obsidianodus`
   root; that line is wrong. This file's root above is correct.

@@ -1,15 +1,16 @@
 #!/bin/bash
-# TrevClaw-Obsidianodus-backup.sh — back up the TrevClaw-Obsidianodus monorepo
-# to an encrypted external drive.
+# trinc-backup.sh — back up the TRINC monorepo to an encrypted external drive.
+# (Renamed from TrevClaw-Obsidianodus-backup.sh on 2026-10-23 with the repo; bundles
+# cut before then keep the old TrevClaw-Obsidianodus-* prefix.)
 #
 # Creates a timestamped `git bundle --all` (full history, all branches, all tags)
 # on the target volume and verifies it. Produces files named
-# TrevClaw-Obsidianodus-YYYYMMDD-HHMM.bundle so they match the canonical
-# backup bundle ~/TrevClaw-Obsidianodus.bundle on disk.
+# TRINC-FULL-backup-YYYYMMDD-HHMM.bundle, the same name as the canonical
+# bundle in ~/Documents.
 #
 # Usage:
-#   scripts/TrevClaw-Obsidianodus-backup.sh                       # auto-detect external drive
-#   scripts/TrevClaw-Obsidianodus-backup.sh /Volumes/<drive-name>  # explicit target
+#   scripts/trinc-backup.sh                       # auto-detect external drive
+#   scripts/trinc-backup.sh /Volumes/<drive-name>  # explicit target
 #
 # Prerequisites:
 #   The encrypted USB drive must already be unlocked (PIN entered on the keypad)
@@ -17,7 +18,7 @@
 
 set -euo pipefail
 
-SRC="/Users/myhome/TrevClaw-Obsidianodus"
+SRC="/Users/myhome/TRINC"
 TARGET="${1:-}"
 
 # Auto-detect a writable external volume when no arg is given.
@@ -45,7 +46,7 @@ if [ -z "$TARGET" ] || [ ! -d "$TARGET" ]; then
 fi
 
 STAMP=$(date +%Y%m%d-%H%M)
-BUNDLE="${TARGET%/}/TrevClaw-Obsidianodus-${STAMP}.bundle"
+BUNDLE="${TARGET%/}/TRINC-FULL-backup-${STAMP}.bundle"
 
 echo "creating bundle (all refs): $BUNDLE"
 git -C "$SRC" bundle create "$BUNDLE" --all
@@ -55,7 +56,7 @@ echo "size: $(du -h "$BUNDLE" | awk '{print $1}')"
 
 echo
 echo "all bundles on target (newest first):"
-ls -lht "${TARGET%/}"/TrevClaw-Obsidianodus-*.bundle 2>/dev/null | awk '{print "  "$5"  "$9}'
+ls -lht "${TARGET%/}"/TRINC-FULL-backup-*.bundle 2>/dev/null | awk '{print "  "$5"  "$9}'
 echo
 echo "done. eject the drive when finished:"
 echo "  diskutil eject \"$TARGET\""

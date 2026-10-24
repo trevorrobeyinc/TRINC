@@ -1,9 +1,13 @@
-# TrevClaw-Obsidianodus
+# TRINC
+
+> **Renamed 2026-10-23** from `TrevClaw-Obsidianodus` (TRINC = Trevor Robey Intelligence Network Citations). The folder is now `/Users/myhome/TRINC`; the old path `/Users/myhome/TrevClaw-Obsidianodus` is a temporary compatibility symlink, to be removed after 14 days of clean use. Dated history below keeps the old name on purpose.
 
 Single-repo monorepo for the **Trevor Robey, INC.** biomedical research intelligence stack. As of 2026-05-07 this is the canonical source of truth — three previously separate sub-trees (`Claude/`, `Copilot-Everything/`, `trevor-robey-inc-agents/`) plus the brand canon at `trevor-robey-inc/` are all first-class members of this repo.
 
 Hosting: **PRIVATE GitHub remote, restored (recorded 2026-08-12).** `origin` =
-`ssh://git@ssh.github.com:443/trevorrobeyinc/TrevClaw-Obsidianodus.git` — a **different account** from the
+`ssh://git@ssh.github.com:443/trevorrobeyinc/TRINC.git` (**GitHub rename pending, 2026-10-23**: until the
+operator renames the repo in GitHub settings and runs `git -C /Users/myhome/TRINC remote set-url origin` with this
+URL, `origin` still reads `…/trevorrobeyinc/TrevClaw-Obsidianodus.git`) — a **different account** from the
 `trevoralexanderrobey/…` remote deleted 2026-05-26. **🔑 PUSHES MUST BE RUN BY THE OPERATOR, IN A REAL TERMINAL — this is the security model working, not a
 fault (established 2026-08-12).** The GitHub key setup is **correct and accepted**; `ssh -vvv` shows
 `debug1: Server accepts key: … ECDSA-SK SHA256:ke2ZoL0v3WRqS+i2uBlmeQAixuQxBWiwD+THaFFiAo0`. What fails from
@@ -178,7 +182,7 @@ Three independent operators share this stack. None is subordinate to the others.
 > this repo on disk and coordinate through the shared board at `_continuity/CONTINUITY.md`.
 > **Claude Chat (Desktop) is NOT limited to the `:8798` Obsidian bridge for local files:** it has a
 > **Filesystem MCP connector with allowed roots `/Users/myhome` and `/Volumes/ExtraCurricular`**,
-> so it reads/writes `/Users/myhome/TrevClaw-Obsidianodus` (and sees `My Digital Garden`
+> so it reads/writes `/Users/myhome/TRINC` (and sees `My Digital Garden`
 > as a sibling dir) directly. `:8798` is an *additional* semantic path (Obsidian/Zettelkasten over
 > `My Digital Garden`), not Chat's only route to disk. Caveat: Chat-side writes to the external
 > volume have hung before — a Filesystem-MCP restart clears it; treat Chat writes as
@@ -305,7 +309,7 @@ All HTTPS services use mkcert certificates at `~/.local/share/mkcert/localhost.p
 
 > **Notes**:
 > - backend-emulator (:8789) was retired 2026-04-11 — ZettelkastenService now runs in-process inside the `vault-zettelkasten` Obsidian plugin.
-> - The biomedical research engine (`/Users/myhome/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations/`) runs as on-demand subprocess via `node scripts/run-workflow.js` — there is no persistent gateway service. The previous launchd entry on :18789 was for the unrelated homebrew `openclaw` (a consumer "Personal AI assistant" from openclaw.ai, different product entirely; removed 2026-04-27).
+> - The biomedical research engine (`/Users/myhome/TRINC/Trevor Robey Intelligence Network Citations/`) runs as on-demand subprocess via `node scripts/run-workflow.js` — there is no persistent gateway service. The previous launchd entry on :18789 was for the unrelated homebrew `openclaw` (a consumer "Personal AI assistant" from openclaw.ai, different product entirely; removed 2026-04-27).
 
 1. **Obsidian** — opening Obsidian loads three bridge-owning plugins:
    - `obsidian-bridge-launcher` spawns the canonical MCP bridge child process on :8798 (HTTPS).
@@ -325,7 +329,7 @@ lsof -nP -iTCP:8742 -sTCP:LISTEN | grep -i miyo   # plaintext Miyo upstream (pro
 curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:6433/collections/miyo   # Qdrant via TLS proxy
 lsof -nP -iTCP:6333 -sTCP:LISTEN | grep -i qdrant   # plaintext Qdrant upstream (proxy backs onto this)
 # Biomedical workflow runtime check (no persistent service — verify the subprocess path is wired):
-cd "/Users/myhome/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations" && bash scripts/verify-phase29-policy.sh | tail -1
+cd "/Users/myhome/TRINC/Trevor Robey Intelligence Network Citations" && bash scripts/verify-phase29-policy.sh | tail -1
 ```
 
 ## Key Integration Points
@@ -471,7 +475,7 @@ Every network-facing TCP listener owned by code in this monorepo MUST be HTTPS. 
 
 All monorepo consumers (Copilot plugin's `MiyoServiceDiscovery`, Command Center's `miyo-client.ts`, `trevorobeyinc-research-memory-mcp/src/qdrant.ts`, `obsidian-vault-zettelkasten/src/{constants,settings,adapters/{miyo-client,qdrant-client,model-gateway}}.ts`, and the `searxng-search` connector's `config.js` — consumed by both the Claude MCP surfaces and the openclaw-bridge engine adapter) now point at the HTTPS proxies. The plaintext upstream ports keep listening (we can't make Miyo, Qdrant, or SearXNG stop), but the documented architecture no longer routes through them. The pf-per-UID idea for :8742/:6333/:8890 was **closed 2026-07-10 as unbuildable** (all parties are UID 501 and pf skips `lo0` — full analysis + the P3 app-layer-auth verdict of 2026-08-07 in `~/Security Everything/pf/LOOPBACK-UPSTREAM-HARDENING-PROPOSAL.md`); the live compensating control is the Monitor-only Falcon Custom-IOA "Mac - Loopback Upstream Watch" (group `117393db…`). (:1234 no longer exists — LM Studio was removed. **:11434 is live again as of 2026-08-12** and is wrapped by the restored `:11435` proxy.)
 
-> **launchd ↔ external-volume gotcha (2026-06-03; superseded 2026-07-26).** This monorepo *used to live* on `/Volumes/ExtraCurricular` (external); it moved to `/Users/myhome/TrevClaw-Obsidianodus` on the internal FileVault disk on 2026-07-26, so the TCC wall below no longer applies to this repo. The staging pattern is kept regardless, so launchd never depends on the repo's location. A launchd user-agent's TCC context **cannot read scripts on that volume**, so after the machine wipe all proxy units died at startup with `EPERM` opening their `.mjs` (an interactive shell *can* read it, which masks the problem). Fix: [`Copilot-Everything/scripts/install-tls-proxies.sh`](Copilot-Everything/scripts/install-tls-proxies.sh) stages the five proxy scripts to `~/.local/share/trevclaw-tls-proxies/` (internal volume) and repoints each plist's `ProgramArguments` there, then reloads via `launchctl bootout`/`bootstrap`. The repo copies under `Copilot-Everything/scripts/` remain source-of-truth — **re-run the installer after editing any `*-tls-proxy.mjs`** to re-sync the staged copy. This changes only *where launchd reads the proxy source from*; transport behavior (throw-on-cert-failure, no plaintext fallback) is unchanged.
+> **launchd ↔ external-volume gotcha (2026-06-03; superseded 2026-07-26).** This monorepo *used to live* on `/Volumes/ExtraCurricular` (external); it moved to `/Users/myhome/TrevClaw-Obsidianodus` (renamed `/Users/myhome/TRINC` on 2026-10-23) on the internal FileVault disk on 2026-07-26, so the TCC wall below no longer applies to this repo. The staging pattern is kept regardless, so launchd never depends on the repo's location. A launchd user-agent's TCC context **cannot read scripts on that volume**, so after the machine wipe all proxy units died at startup with `EPERM` opening their `.mjs` (an interactive shell *can* read it, which masks the problem). Fix: [`Copilot-Everything/scripts/install-tls-proxies.sh`](Copilot-Everything/scripts/install-tls-proxies.sh) stages the five proxy scripts to `~/.local/share/trevclaw-tls-proxies/` (internal volume) and repoints each plist's `ProgramArguments` there, then reloads via `launchctl bootout`/`bootstrap`. The repo copies under `Copilot-Everything/scripts/` remain source-of-truth — **re-run the installer after editing any `*-tls-proxy.mjs`** to re-sync the staged copy. This changes only *where launchd reads the proxy source from*; transport behavior (throw-on-cert-failure, no plaintext fallback) is unchanged.
 
 Predecessor of qdrant-tls-proxy: a separate subproject at `Claude/qdrant-tls-proxy/` (with its own package.json + PM2 ownership) was deleted 2026-05-08 — wrong pattern, never wired in. The single-file launchd pattern above replaces it.
 

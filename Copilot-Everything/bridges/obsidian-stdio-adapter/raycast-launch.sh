@@ -7,4 +7,4 @@ export NODE_EXTRA_CA_CERTS="$HOME/Library/Application Support/mkcert/rootCA.pem"
 NODE="$HOME/.nvm/versions/node/v22.13.1/bin/node"
 [ -x "$NODE" ] || NODE="$(command -v node)"
 
-exec "$NODE" "/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-stdio-adapter/index.mjs"
+exec "$NODE" "/Users/myhome/TRINC/Copilot-Everything/bridges/obsidian-stdio-adapter/index.mjs"

@@ -1,4 +1,6 @@
-# TrevClaw-Obsidianodus
+# TRINC
+
+> Renamed 2026-10-23 from `TrevClaw-Obsidianodus` (TRINC = Trevor Robey Intelligence Network Citations).
 
 Monorepo for the **Trevor Robey, INC.** biomedical research intelligence stack.
 

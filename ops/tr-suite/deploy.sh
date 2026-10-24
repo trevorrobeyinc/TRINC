@@ -4,8 +4,8 @@
 # Reads ops/tr-suite/manifest.json; copies each plugin's "deploy_files" (and
 # "extra_deploy") from its repo source into "$VAULT/.obsidian/plugins/<id>/".
 #
-#   bash /Users/myhome/TrevClaw-Obsidianodus/ops/tr-suite/deploy.sh <id>... | --all     # dry run (default)
-#   bash /Users/myhome/TrevClaw-Obsidianodus/ops/tr-suite/deploy.sh --build --apply <id>
+#   bash /Users/myhome/TRINC/ops/tr-suite/deploy.sh <id>... | --all     # dry run (default)
+#   bash /Users/myhome/TRINC/ops/tr-suite/deploy.sh --build --apply <id>
 #
 # Flags:
 #   --apply   actually copy (without it, nothing on disk changes)

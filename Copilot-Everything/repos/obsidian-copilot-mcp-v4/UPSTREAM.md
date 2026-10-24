@@ -140,7 +140,7 @@ tools (see bug 1 above). Its schema mirrors
 ## Re-sync / rebuild
 
 ```bash
-cd "/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything/repos/obsidian-copilot-mcp-v4"
+cd "/Users/myhome/TRINC/Copilot-Everything/repos/obsidian-copilot-mcp-v4"
 npm install
 npm run build            # tsc -noEmit -skipLibCheck && esbuild production
 ```

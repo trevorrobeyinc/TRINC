@@ -12,7 +12,7 @@
 
 const path = require("node:path");
 
-const DEFAULT_REPO = "/Users/myhome/TrevClaw-Obsidianodus";
+const DEFAULT_REPO = "/Users/myhome/TRINC";
 const BUSINESS_DIR = "Trevor Robey Intelligence Network Citations";
 
 function repoRoot() {

@@ -6,7 +6,7 @@ Business workspace for **Trevor Robey, INC.** — citation-traced biomedical due
 
 This directory is the canonical home for everything the [`trevor-robey-inc Commercial Launch Playbook.md`](./trevor-robey-inc%20Commercial%20Launch%20Playbook.md) prescribes. Every folder below corresponds to a specific section of that playbook. Files are placeholders unless noted; fill them in as you work the 30-day plan.
 
-> **Status:** Real directory inside the `TrevClaw-Obsidianodus` monorepo — the consolidated **`Trevor Robey Intelligence Network Citations/`** folder (flat-merged 2026-05-19 from the former `trevor-robey-inc/` brand dir + `trevor-robey-inc-agents/` engine dir; those folder names no longer exist on disk).
+> **Status:** Real directory inside the `TRINC` monorepo — the consolidated **`Trevor Robey Intelligence Network Citations/`** folder (flat-merged 2026-05-19 from the former `trevor-robey-inc/` brand dir + `trevor-robey-inc-agents/` engine dir; those folder names no longer exist on disk).
 
 ---
 

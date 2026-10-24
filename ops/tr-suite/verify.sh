@@ -5,7 +5,7 @@
 # MCP registrations resolve, no nested repos, no secrets tracked.
 #
 # Read-only. Safe to run any time, from any directory:
-#   bash /Users/myhome/TrevClaw-Obsidianodus/ops/tr-suite/verify.sh
+#   bash /Users/myhome/TRINC/ops/tr-suite/verify.sh
 #
 # Env overrides: VAULT (default "$HOME/My Digital Garden").
 # Exit 0 = no FAIL (WARN/SKIP allowed), 1 = at least one FAIL.
@@ -40,7 +40,7 @@ def sha(p):
 def git(*args):
     return subprocess.run(["git", "-C", repo, *args], capture_output=True, text=True)
 
-CANON_REPO = "/Users/myhome/TrevClaw-Obsidianodus"
+CANON_REPO = "/Users/myhome/TRINC"
 on_mac = sys.platform == "darwin"
 m = json.load(open(os.path.join(repo, "ops/tr-suite/manifest.json")))
 plugins_dir = os.path.join(vault, ".obsidian/plugins")

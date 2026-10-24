@@ -32,7 +32,7 @@
         "/Users/myhome/.claude/mcp-servers/trinc-content/src/server.js"
       ],
       "env": {
-        "TRINC_CONTENT_REPO": "/Users/myhome/TrevClaw-Obsidianodus",
+        "TRINC_CONTENT_REPO": "/Users/myhome/TRINC",
         "TRINC_CONTENT_PUBLISH": ""
       }
     },
@@ -46,14 +46,14 @@
         "OPENCODE_MCP_BIN": "/opt/homebrew/bin/opencode",
         "OPENCODE_MCP_MODEL": "opencode/deepseek-v4-flash-free",
         "OPENCODE_CONFIG": "/Users/myhome/.config/opencode/delegation-guardrail.json",
-        "OPENCODE_MCP_ALLOWED_DIRS": "/Users/myhome/TrevClaw-Obsidianodus"
+        "OPENCODE_MCP_ALLOWED_DIRS": "/Users/myhome/TRINC"
       }
     },
     "openclaw-obsidian": {
       "type": "stdio",
       "command": "/Users/myhome/.nvm/versions/node/v22.13.1/bin/node",
       "args": [
-        "/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-stdio-adapter/index.mjs"
+        "/Users/myhome/TRINC/Copilot-Everything/bridges/obsidian-stdio-adapter/index.mjs"
       ],
       "env": {
         "OBSIDIAN_STDIO_PROFILE": "openclaw",

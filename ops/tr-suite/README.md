@@ -12,7 +12,7 @@ where its source lives in this monorepo, where it is deployed, and how to check 
 Run from anywhere:
 
 ```
-bash /Users/myhome/TrevClaw-Obsidianodus/ops/tr-suite/verify.sh
+bash /Users/myhome/TRINC/ops/tr-suite/verify.sh
 ```
 
 ## What stays outside this repo on purpose

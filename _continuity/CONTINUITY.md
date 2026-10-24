@@ -1,7 +1,7 @@
 # Trevor Robey, INC. — Shared Continuity Board
 
 > **ONE living board, shared by all four Claude surfaces plus opencode.** This is the single
-> source of truth for *what is being worked on right now* across the whole `TrevClaw-Obsidianodus`
+> source of truth for *what is being worked on right now* across the whole `TRINC`
 > business stack. Every surface — **CLI Claude Code**, **Desktop Claude Code**, **Cowork**,
 > **Claude Chat (Desktop)**, and **opencode** (via `~/.config/opencode/AGENTS.md`) — reads this
 > file at the start of a session and appends to it when it makes meaningful progress or hands off.
@@ -9,7 +9,7 @@
 > **Read this top-to-bottom before you touch anything.** How the system works, how each
 > surface reaches this file, and the write-safety rules are in **[`README.md`](README.md)**.
 
-- **Canonical path:** `/Users/myhome/TrevClaw-Obsidianodus/_continuity/CONTINUITY.md`
+- **Canonical path:** `/Users/myhome/TRINC/_continuity/CONTINUITY.md`
 - **Repo-canonical, single file** — there is no mirror and no copy. All four surfaces edit *this* file on disk.
 - **Business canon (do not duplicate here — point to it):** repo `CLAUDE.md`,
   `Trevor Robey Intelligence Network Citations/{THE-WHOLE-SYSTEM.md, SYSTEM-REALITY.md}`.
@@ -250,6 +250,29 @@ forward below.
 ## 📋 Log — newest first
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
+
+### 2026-10-24T03:48Z · Desktop Claude Code · **TRINC reorganization: Phase 4 rename done on disk (`/Users/myhome/TRINC`); GitHub rename next**
+- **Did:** the operator ran `rename_to_trinc.py --apply` (folder moved, compat symlink at the old path, 109 Desktop/vault
+  paths repointed, memory copied to the `-Users-myhome-TRINC` project key). Part 2, this session: every functional
+  in-repo path (`.mcp.json` ×2, engine defaults, Command Center + Bridge Launcher sources, `ops/tr-suite`, CE scripts,
+  2 tests); backup script → `scripts/trinc-backup.sh` (prefix `TRINC-FULL-backup-`); Command Center and Bridge Launcher
+  rebuilt + deployed via `deploy.sh` (sha-verified); trinc-content re-staged; 27 live docs renamed with dated history
+  protected; outside the repo: `~/.claude/settings.json` trust lines (operator OK'd), memory files, global `CLAUDE.md`,
+  `SHARED-AGENT-RULES.md`, opencode `AGENTS.md`, skills, trinc-engineering 2.1.2 + trinc-productivity 1.0.1, and the
+  recall hook (`FORMER_NAMES`: a TRINC session also searches "TrevClaw").
+- **State:** engine suite 1343/1343 (twice), `verify.sh` 0 FAIL, transport lint clean, phase29/23 pass, connector-audit
+  plugin section clean. Left verbatim on purpose: logs, handoffs, `docs/history/`, `audit/evidence/`, dated bundle
+  names, and `state/runtime/state.json` run records (nothing reads those paths back).
+- **Next:** (1) operator: open Obsidian, then `obsidianwatch.py --bless` / `--bless --confirm` (expect
+  `protected_plugin_changed` for command-center + obsidian-bridge-launcher plus `data_json_changed` for both);
+  (2) operator: rename the repo to `TRINC` in GitHub settings, then `remote set-url` + push; (3) live checks with
+  Obsidian open (`obsidian_health`, `:8798`/`:8800` healthz, `test:profiles`); then Phase 5.
+- **Touches:** this entry; the paths above; plan `~/.claude/plans/go-through-and-make-delightful-catmull.md`.
+- **For whoever's next:** Claude.app re-wrote `ccd-session-presets.json` from memory on relaunch, so the preset named
+  "TrevClaw-Obsidianodus" still starts at the old path (works through the symlink); fix it in the app's preset UI.
+  The Raycast build (`~/.config/raycast/extensions/obsidian-bridge-fork`) and Security Everything (recall-hook source
+  `perseus-vault/bin/`, `obsidian-security-bridge/test/build.mjs`, 24 docs) still name the old path. Both must be fixed
+  before the symlink comes out.
 
 ### 2026-10-24T03:20Z · Desktop Claude Code · **TRINC reorganization: Phases 0–3 done (cleanup + personal tooling moved out); rename next**
 - **Did:** operator approved a multi-session plan to make the repo business-only, rename it TRINC, give Claude one

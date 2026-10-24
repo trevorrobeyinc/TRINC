@@ -4,7 +4,7 @@
 # Review the staging folder before promoting it to data/ for an ADX revision.
 #
 # Usage (from anywhere):
-#   bash "/Users/myhome/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations/scripts/refresh-graveyard-feeds.sh" [YYYY-MM-DD]
+#   bash "/Users/myhome/TRINC/Trevor Robey Intelligence Network Citations/scripts/refresh-graveyard-feeds.sh" [YYYY-MM-DD]
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

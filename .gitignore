@@ -1,5 +1,5 @@
 # =============================================================================
-# TrevClaw-Obsidianodus monorepo .gitignore
+# TRINC monorepo .gitignore (renamed from TrevClaw-Obsidianodus 2026-10-23)
 # =============================================================================
 # This is the single root .gitignore. Per-package .gitignore files are also
 # honored downstream; this file holds the shared baseline.

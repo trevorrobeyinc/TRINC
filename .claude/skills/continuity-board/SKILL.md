@@ -1,6 +1,6 @@
 ---
 name: continuity-board
-description: Read from and append to the shared cross-surface continuity board at `_continuity/CONTINUITY.md` for the Trevor Robey, INC. / TrevClaw-Obsidianodus stack. This is the ONE living file all four Claude surfaces (CLI Claude Code, Desktop Claude Code, Cowork, Claude Chat) share to know what's being worked on. Trigger at the START of substantive work in this repo (read the board first), and whenever the user says "update the continuity board", "log this to continuity", "what's the current focus", "what are we working on", "check the board", "hand this off", "log progress", "continuity", or any close variant. Also trigger before stopping meaningful work to append a Log entry. This is a repo-scoped file convention, not a service.
+description: Read from and append to the shared cross-surface continuity board at `_continuity/CONTINUITY.md` for the Trevor Robey, INC. / TRINC stack. This is the ONE living file all four Claude surfaces (CLI Claude Code, Desktop Claude Code, Cowork, Claude Chat) share to know what's being worked on. Trigger at the START of substantive work in this repo (read the board first), and whenever the user says "update the continuity board", "log this to continuity", "what's the current focus", "what are we working on", "check the board", "hand this off", "log progress", "continuity", or any close variant. Also trigger before stopping meaningful work to append a Log entry. This is a repo-scoped file convention, not a service.
 ---
 
 # continuity-board — shared cross-surface work log
@@ -17,7 +17,7 @@ being worked on right now* across all four Claude surfaces. Full docs: `_continu
 ## Read (session start)
 
 Read `_continuity/CONTINUITY.md`. Absolute path:
-`/Users/myhome/TrevClaw-Obsidianodus/_continuity/CONTINUITY.md`.
+`/Users/myhome/TRINC/_continuity/CONTINUITY.md`.
 Report back **Current focus** + the top 3–5 Log entries — that's the live state. Then do the work.
 
 ## Append (progress / handoff)

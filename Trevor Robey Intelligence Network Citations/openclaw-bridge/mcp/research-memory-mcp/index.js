@@ -42,7 +42,7 @@ const path = require("node:path");
 
 const { loadConfig, assessWorkflow, atomicWriteJson } = require("../../vault/workflow-vault-publisher.js");
 
-const DEFAULT_CLI = "/Users/myhome/TrevClaw-Obsidianodus/Claude/trevorobeyinc-research-memory-mcp/dist/cli.js";
+const DEFAULT_CLI = "/Users/myhome/TRINC/Claude/trevorobeyinc-research-memory-mcp/dist/cli.js";
 const DEFAULT_QDRANT = "https://127.0.0.1:6433";
 const DEFAULT_MKCERT_CA = path.join(os.homedir(), "Library/Application Support/mkcert/rootCA.pem");
 const MAX_CAPTURE = 512 * 1024;

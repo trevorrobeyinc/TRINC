@@ -61,7 +61,7 @@ So this hub **documents and links**; it does not relocate.
 | Path | Covers |
 |---|---|
 | `~/.claude.json` | user scope — every Claude Code session (CLI + Desktop Code tab). |
-| `TrevClaw-Obsidianodus/.mcp.json` | project scope — wins in-repo; adds `OPENCODE_MCP_ALLOWED_DIRS` (write confined to the repo). **The only committed piece.** |
+| `TRINC/.mcp.json` | project scope — wins in-repo; adds `OPENCODE_MCP_ALLOWED_DIRS` (write confined to the repo). **The only committed piece.** |
 | `~/Library/Application Support/Claude/claude_desktop_config.json` | Desktop Chat twin. |
 
 Every stanza sets `OPENCODE_MCP_BIN=/opt/homebrew/bin/opencode` (GUI servers don't inherit brew's PATH) + `OPENCODE_MCP_MODEL` + `OPENCODE_CONFIG` (the guardrail).
@@ -77,10 +77,10 @@ Every stanza sets `OPENCODE_MCP_BIN=/opt/homebrew/bin/opencode` (GUI servers don
 ### Coordination, memory, backups
 | Path | Role |
 |---|---|
-| `TrevClaw-Obsidianodus/_continuity/CONTINUITY.md` | Shared board; **opencode** is a participating surface. |
+| `TRINC/_continuity/CONTINUITY.md` | Shared board; **opencode** is a participating surface. |
 | `~/.claude/projects/<this-project>/memory/opencode-mcp-delegation-lane.md` | Project memory for the lane (+ `biomed-readonly-mcp-server`). |
 | Global Perseus vault | `opencode-delegation-worker-mcp-guardrail` (security-invariant) + `biomed-readonly-mcp-server`. |
-| `~/Documents/TrevClaw-Obsidianodus-FULL-backup-*.bundle` + `/Volumes/ExtraCurricular/Backups/` | DR bundles (git history only — **not** these out-of-repo files). |
+| `~/Documents/TRINC-FULL-backup-*.bundle` + `/Volumes/ExtraCurricular/Backups/` | DR bundles (git history only — **not** these out-of-repo files). |
 
 ---
 
@@ -115,4 +115,4 @@ Attach context for the model with `-f ~/.claude/mcp-servers/biomed-readonly-mcp/
   the `models` tool re-checks).
 - **After editing the third-party `opencode-mcp` clone or before `git pull`:** run the guard's
   `verify.sh`.
-- **Cut a DR backup:** `git bundle create ~/Documents/TrevClaw-Obsidianodus-FULL-backup-$(date +%Y%m%d-%H%M).bundle --all`, `git bundle verify` it, copy to `/Volumes/ExtraCurricular/Backups/`, SHA-256-match, and update the pointer in the repo `CLAUDE.md` Hosting line.
+- **Cut a DR backup:** `git bundle create ~/Documents/TRINC-FULL-backup-$(date +%Y%m%d-%H%M).bundle --all`, `git bundle verify` it, copy to `/Volumes/ExtraCurricular/Backups/`, SHA-256-match, and update the pointer in the repo `CLAUDE.md` Hosting line.

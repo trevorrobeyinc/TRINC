@@ -69,7 +69,7 @@ const os = require("node:os");
 
 const DEFAULT_BRIDGE = "https://127.0.0.1:8798";
 const DEFAULT_BRIDGE_CONFIG =
-  "/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything/bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json";
+  "/Users/myhome/TRINC/Copilot-Everything/bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json";
 const DEFAULT_VAULT_ROOT = "/Users/myhome/My Digital Garden";
 const DEFAULT_VAULT_NAME = "My Digital Garden";
 const DEFAULT_MKCERT_CA = path.join(

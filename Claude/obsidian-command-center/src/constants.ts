@@ -5,7 +5,7 @@ export const VIEW_TYPE_WORKFLOW = "openclaw-workflow-status";
 export const PLUGIN_ID = "command-center";
 
 export const DEFAULT_SETTINGS: OpenClawSettings = {
-  openclawPath: "/Users/myhome/TrevClaw-Obsidianodus/Trevor Robey Intelligence Network Citations",
+  openclawPath: "/Users/myhome/TRINC/Trevor Robey Intelligence Network Citations",
   nodePath: "/Users/myhome/.nvm/versions/node/v22.13.1/bin/node",
   vaultOutputFolder: "OpenClaw",
   autoGenerateNotes: true,
@@ -18,7 +18,7 @@ export const DEFAULT_SETTINGS: OpenClawSettings = {
   workflowTimeoutMs: 1800000,
   miyoEnabled: true,
   // Default points at the in-monorepo TLS-terminating proxy (`miyo-tls-proxy`),
-  // NOT Miyo's raw plaintext port (8742). See TrevClaw-Obsidianodus/CLAUDE.md
+  // NOT Miyo's raw plaintext port (8742). See TRINC/CLAUDE.md
   // HTTPS-only invariant.
   miyoPort: 8743,
   miyoSimilarityThreshold: 0.5,
@@ -31,7 +31,7 @@ export const DEFAULT_SETTINGS: OpenClawSettings = {
   // Trevorobeyinc Research Memory MCP — auto-ingest hook (added 2026-04-26).
   autoIngestToResearchMemory: true,
   researchMemoryCliPath:
-    "/Users/myhome/TrevClaw-Obsidianodus/Claude/trevorobeyinc-research-memory-mcp/dist/cli.js",
+    "/Users/myhome/TRINC/Claude/trevorobeyinc-research-memory-mcp/dist/cli.js",
   researchMemoryDefaultClient: "trevorobeyinc",
   researchMemoryTimeoutMs: 60000,
 };

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-WORKSPACE_ROOT="/Users/myhome/TrevClaw-Obsidianodus/Copilot-Everything"
+WORKSPACE_ROOT="/Users/myhome/TRINC/Copilot-Everything"
 PRODUCTION_VAULT="/Users/myhome/My Digital Garden"
 DEV_VAULT="$WORKSPACE_ROOT/dev-vault"
 # LIVE fork since the 2026-08-12 port onto upstream 4.0.0. The old repos/obsidian-copilot-mcp

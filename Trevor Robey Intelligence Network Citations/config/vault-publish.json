@@ -17,13 +17,13 @@
   "_comment_graphAnalysis": "Plan D6 (2026-09-22): deterministic, LLM-free text-network analysis of the synthesizer output via the Medical Zettelkasten MCP's in-process adapter, written as `Graph Analysis.md` in the run folder (bounded, no wikilinks). Runs headless with every publish; fail-soft (package absent or too little text = no note). The plugin's LLM Zettelkasten linking is separate and appends to Synthesizer.md while Obsidian is open.",
   "graphAnalysis": {
     "enabled": true,
-    "packageRoot": "/Users/myhome/TrevClaw-Obsidianodus/Claude/Medical-Zettelkasten-MCP",
+    "packageRoot": "/Users/myhome/TRINC/Claude/Medical-Zettelkasten-MCP",
     "maxItems": 8
   },
   "_comment_researchMemory": "Cross-run priors (plan D5, 2026-09-22). ENABLED 2026-09-22 on the operator's instruction after the one-time manual steps: `node dist/cli.js health` in Claude/trevorobeyinc-research-memory-mcp (created the Qdrant collection trevorobeyinc-packs over :6433), then one manual `ingest` run with EMBED_ALLOW_REMOTE=1, which is what fetched Xenova/nomic-embed-text-v1 from huggingface.co into that package's node_modules/@xenova/transformers/.cache/. The pack store's embedder is OFFLINE BY DEFAULT (its embed.ts sets allowRemoteModels only when EMBED_ALLOW_REMOTE=1), so a research run, the Command Center's ingest and the store's MCP server can never download a model as a side effect: if that cache is ever deleted, every embed fails loudly with EMBED_MODEL_NOT_CACHED and the operator repeats the manual ingest. With enabled=true every shippable run ingests its synthesizer pack (idempotent on content hash; the Command Center's own later ingest of the same run returns skipped_duplicate) and the synthesizer role reads priors as CONTEXT ONLY (identifiers withheld, excluded from fetched_citation_ids). Set enabled=false to turn both jobs back into recorded skips. scoreThreshold 0.5 was checked against the first four packs on 2026-09-22: on-topic queries score 0.45-0.60 and an off-topic query tops out at 0.43, so 0.5 favours precision (an indication with no prior returns nothing rather than a neighbouring indication's pack) - re-measure when the store grows.",
   "researchMemory": {
     "enabled": true,
-    "cliPath": "/Users/myhome/TrevClaw-Obsidianodus/Claude/trevorobeyinc-research-memory-mcp/dist/cli.js",
+    "cliPath": "/Users/myhome/TRINC/Claude/trevorobeyinc-research-memory-mcp/dist/cli.js",
     "client": "trevorobeyinc",
     "qdrantUrl": "https://127.0.0.1:6433",
     "timeoutMs": 90000,

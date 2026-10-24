@@ -81,8 +81,8 @@ git rev-parse --is-inside-work-tree >/dev/null 2>&1 || fail "This command must b
 # A dry run only prints what a real run WOULD do — it must not require, contact, or
 # depend on a remote. Previously DRY_RUN was consulted only at the very end (after the
 # origin fetch below), so `--dry-run` still demanded an 'origin' and hit the network.
-# On this repo that is not a hypothetical: TrevClaw-Obsidianodus is local-only by design
-# (GitHub remote deleted 2026-05-26, `git remote` returns nothing), which made
+# On this repo that was not a hypothetical: it was local-only by design from 2026-05-26
+# until 2026-08-12 (GitHub remote deleted, `git remote` returned nothing), which made
 # verify-phase-workflow-policy.sh — the gate that smoke-tests this script via --dry-run —
 # fail permanently. A real (non-dry) run still requires origin, because it pushes.
 HAS_ORIGIN=0
