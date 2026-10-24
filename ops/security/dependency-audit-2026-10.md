@@ -21,6 +21,9 @@ staged copies re-installed. Local total **185** (6 / 77 / 86 / 16); outside the 
 staged copies now audit at 1 (searxng: zod) and 0 (trinc-content). Details are marked **Done** under
 decisions 2, 8, 9, 10 and 11.
 
+**Update, decision 4 (same day):** the Copilot fork's lockfile refresh took it from 158 advisories to 54
+(72 → 1 at runtime); repo-wide 185 → **81** (4 critical, 30 high, 38 moderate, 9 low). Not yet deployed.
+
 **Update, decision 5 (same day):** the ToolUniverse submodule moved from v1.1.10 to v1.5.7 and its venv
 was rebuilt from a repo-owned, hashed lock: **252 known vulnerabilities in 214 packages → 0 in 107**,
 2,173 → 2,719 tools, no Playwright. Its live before/after found three result gaps present at both versions:
@@ -171,6 +174,25 @@ second, 3 third; 4 and 7 go into the next plugin deploy, so obsidianwatch needs 
    `handlebars` 4.7.9 (via `@langchain/classic`) and `proxy-addr` (via the Claude agent SDK's MCP SDK).
    *Recommendation:* a lockfile-only refresh as its own change, batched with the next fork rebuild and
    deploy (one obsidianwatch bless); leave the majors for the next upstream re-sync.
+   **Done (lockfile only, 2026-10-24):** `npm audit fix` with scripts off; no fork source, `package.json` or
+   manifest change. **158 → 54 advisories, and 72 → 1 reaching the runtime bundle**; the fork's own
+   runtime critical-level audit (`review:obsidian:audit`) now passes. Three transitive moves needed a call:
+   - `@hono/node-server` held on patched 1.19.17 (the MCP SDK allows 1.x or 2.x; npm had picked 2.x).
+   - `@langchain/core` 1.1.46 → 1.3.0 and `langsmith` 0.5.4 → 0.11.1 kept: `langsmith`'s 0.5 line ends at its
+     last vulnerable release, so its fix needs the newer line.
+   - `@langchain/openai` held on 1.5.8 and `@langchain/classic` on 1.0.43 (it clears its own advisory): npm
+     had taken them to 1.7.0 / 1.0.55, which moves every OpenAI-compatible provider to OpenAI SDK v7 and
+     broke a Jest suite (that SDK reads the global `Response` at import). The hold keeps one `openai`
+     6.49.0, the major the fork already ran.
+   Tests: Jest 5,831/5,831 with 425/426 suites, unchanged from baseline (the one suite that fails to load,
+   `customCommandRegister.test.ts`, already did). Lint unchanged (132 problems, 6 errors, pre-existing);
+   `review:obsidian` stops at the same pre-existing manifest key (`upstreamBase`). The production build
+   passes (`main.js` 5.29 → 5.53 MB, `styles.css` identical), and the fork's mobile-load smoke test passes
+   on the new bundle. **Not deployed:** the repo-side `main.js` was put back, so nothing changes in Obsidian
+   (and `verify.sh` shows no drift) until `ops/tr-suite/deploy.sh --build --apply copilot`, then the
+   obsidianwatch bless with Obsidian open. Left: 53 need majors (Electron 27 → 45 alone is 46 of them,
+   then `eslint-plugin-boundaries`, `diff` 9 and `eslint-plugin-obsidianmd`), 1 has no fix; leave them for
+   the next upstream re-sync.
 5. **`vendor/tooluniverse` (252 in its venv, outside Dependabot).** Real exposure: these tools call remote
    biomedical APIs, so `urllib3`/`aiohttp`/`requests`/`pillow` parse untrusted responses. *Recommendation:*
    bump the submodule pin to a newer upstream release and re-sync the venv as its own change, gated by the

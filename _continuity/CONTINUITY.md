@@ -253,6 +253,20 @@ forward below.
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 
+### 2026-10-24T22:44Z · Desktop Claude Code (side session) · **Copilot fork: lockfile-only refresh (158 → 54 advisories), not yet deployed**
+- **Did:** on the operator's go, an in-range `npm audit fix` of `Copilot-Everything/repos/obsidian-copilot-mcp-v4`
+  (no source, `package.json` or manifest change). 72 → 1 advisories reach the runtime bundle; repo-wide 185 → 81.
+  Held `@hono/node-server` on 1.19.x and `@langchain/openai` 1.5.8 / `@langchain/classic` 1.0.43 so every
+  OpenAI-compatible provider stays on OpenAI SDK v6 (npm's pick, SDK v7, broke a Jest suite). Jest 5,831/5,831,
+  lint and `review:obsidian` unchanged, build and mobile-load smoke pass.
+- **State:** committed, not pushed, **not deployed** (repo-side `main.js` restored, so Obsidian is unchanged).
+- **Next:** operator: push; then, with Obsidian open, `ops/tr-suite/deploy.sh --build --apply copilot` and the
+  obsidianwatch bless. Then the zod 4 migration, one package at a time.
+- **Touches:** the fork's `package-lock.json`, `ops/security/dependency-audit-2026-10.md`.
+- **For whoever's next:** `/private/tmp/claude-501` is a small cap (~4 GB) shared by every Claude session, so
+  ENOSPC there is not a full disk: keep big caches and clones in `~/.npm` or `~/.local/share/trinc-rollback/`.
+- **SCOPE NOTE:** repo infra (dependency hygiene, Copilot fork); "Current focus" untouched.
+
 ### 2026-10-24T12:22Z · Desktop Claude Code · **Bridges refuse browser traffic before auth (:8798, :8799, :8800)**
 - **Did:** on the operator's go, a browser guard (like the `:8801` Security Bridge's) runs first in all three
   TRINC bridges: a Host other than `127.0.0.1`/`localhost`/`[::1]` on the arrival port gets 421, and any
