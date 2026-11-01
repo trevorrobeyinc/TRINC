@@ -31,15 +31,17 @@ two are fixed engine-side (an upstream error is now a failed search, not a retur
 drug lookup now yields its hits), and the third (Semantic Scholar's 429) needs an API key, written up as an
 option. Details under decision 5.
 
-**Update, 2026-11-01 (cloud session, branch `claude/compassionate-tesla-9n57ew`):** a fresh audit found
+**Update, 2026-11-01 (cloud session; merged to `main` at the operator's request):** a fresh audit found
 **89**, not 81: one new `@hono/node-server` advisory with no 1.x fix landed in the six trees that held it,
-and two more in the fork's dev tree. After the work below: **89 → 25** (2 critical, 11 high, 10 moderate,
-2 low), 21 of them runtime. Of those 25, the engine's zod flip is rehearsed and needs only the operator's
-review fields; research-memory's 14 need the transformers port on the Mac; Medical-Zettelkasten's 5 have no
-fix (dismiss on GitHub); the fork's 5 are dev-only or unreachable. Details in
-[2026-11-01 follow-up](#2026-11-01-follow-up-89--25).
+and two more in the fork's dev tree. After the work below, including the engine's zod flip (the operator is
+the named reviewer): **89 → 24** (2 critical, 10 high, 10 moderate, 2 low), 20 of them runtime.
+- research-memory's 14 need the transformers port on the Mac.
+- Medical-Zettelkasten's 5 have no fix (dismiss on GitHub).
+- The fork's 5 are dev-only or unreachable.
 
-## 2026-11-01 follow-up: 89 → 25
+Details in [2026-11-01 follow-up](#2026-11-01-follow-up-89--24).
+
+## 2026-11-01 follow-up: 89 → 24
 
 Same method as 2026-10-24 (`npm audit`, one record per package × advisory, scripts off, scratch npm cache),
 in a Linux cloud container: no Obsidian, Qdrant, SearXNG or Hugging Face, and the ToolUniverse submodule is
@@ -56,7 +58,7 @@ not checked out. Every test below was run before and after on the same machine.
 | `obsidian-command-center` | 1 | 0 | esbuild 0.24.2 → 0.28.2 (decision 7); `main.js` byte-identical |
 | `obsidian-viz-studio` | 1 | 0 | esbuild 0.28.2; `main.js` 26 bytes smaller, and the only change is constant folding (`40*2` → `80`, `24*2` → `48`, `14*2` → `28`) |
 | `obsidian-copilot-mcp-v4` (fork) | 57 | 5 | hono 2.1.5; dev `electron` `^27.3.2` → `^45.2.1` (−48: Electron and its `extract-zip`); dev `eslint-plugin-boundaries` `^6.0.2` → `^7.4.0` (−3 handlebars). `main.js` and `styles.css` **byte-identical** |
-| engine | 1 | 1 | source made zod-4-ready, version not flipped (below) |
+| engine | 1 | 0 | source made zod-4-ready, then zod 3.24.1 → 4.6.7 with the operator as reviewer (below) |
 | `obsidian-bridge-launcher` | 0 | 0 | — |
 
 **`@hono/node-server` 2.x.** GHSA-rmxm-3fg6-px4f (`serveStatic` decodes the path twice) covers every 1.19.10+
@@ -74,46 +76,36 @@ harness ran identical inputs through the same compiled schemas under zod 3.24.1 
 does differ, so it can tell the versions apart. It found 0 differences: research-memory's six tool schemas
 (36 cases) and the engine's research-API schemas (49 cases, including URL edge cases and coercion).
 
-**Engine: source ready, version not flipped.**
+**Engine: source first, then the version.**
 - *Source* (works on both zod 3.24.1 and 4.6.7):
   - The 13 one-argument `z.record(X)` calls are now `z.record(z.string(), X)`, the documented v4 form
     (zod 4.6.7 still accepts the old form at runtime, and the results match).
   - `workflow-schema.js`'s `input_schema` default is a function. zod 4 only shallow-copies a value default,
     so the nested `required: []` and `properties: {}` would be shared by every template that omits
     `input_schema`. A probe confirms it: under v4, a push into one parse's array shows up in the next parse.
-- *Tests:* `npm test` under Node 22.13.1 gives **1352 / 1355 in all four states**: the old source on zod 3,
-  the new source on zod 3, the new source on zod 4 swapped into the real checkout, and the rehearsed flip
-  below. The 2 failures are the Phase 29 startup-integrity checks (the submodule is not checked out) and the
-  1 skip is pre-existing.
-- *Why the flip is not committed:* changing the lockfile and the locked cache needs
-  `security/dependency-review.md` to say `Lockfile-Review: approved` with a named `Reviewer`, and moves the
-  supply-chain trust anchor `security/known-good-dependencies.json` (written once in March, never changed
-  since). Both are the operator's to sign, so they are not written here.
-- *Rehearsal:* run in a git-backed scratch copy, with a reviewer line that said it was a rehearsal. It
-  passes `verify-lockfile-review.sh`, `verify-npm-cache-checksum.sh`, `verify-dependency-integrity.js`
-  (`valid: true`), `verify-phase12-policy.sh`, an offline `npm ci` from the new cache (which installs 4.6.7)
-  and the full suite. The rebuilt cache holds exactly one tarball blob plus its index entry, as before, and
-  the blob's sha512 equals the lockfile's integrity.
+- *Why the version waited for the operator:* changing the lockfile and the locked cache needs
+  `security/dependency-review.md` to say `Lockfile-Review: approved` with a named `Reviewer`, and it moves
+  the supply-chain trust anchor `security/known-good-dependencies.json` (written once in March, never changed
+  since). Those are the operator's to sign. The flip was first rehearsed in a git-backed scratch copy whose
+  reviewer line said it was a rehearsal.
+- *Applied 2026-11-01:* the operator approved it in the session and asked to be named as reviewer. In one
+  commit:
+  - `package.json` exact `4.6.7`, and the lockfile to match;
+  - `.ci/npm-cache` rebuilt from the new lockfile with scripts off (the 3.24.1 blob and index entry out,
+    the 4.6.7 pair in; the blob's sha512 equals the lockfile's integrity);
+  - `security/npm-cache.lock.json` regenerated;
+  - the zod component of `security/known-good-dependencies.json` regenerated from the SBOM generator;
+  - `Reviewer: Trevor Robey (operator)`, `Review-Date` and `Cache-Rebuild-Reason` in
+    `security/dependency-review.md`, with a note saying Claude Code applied it on the operator's approval.
 
-The operator's flip, on the Mac (Node 22.13.1). It takes a few minutes; fill in the two review lines by hand:
-
-```bash
-cd "/Users/myhome/TRINC/Trevor Robey Intelligence Network Citations" && npm install zod@4.6.7 --save-exact --package-lock-only --ignore-scripts --cache "$HOME/.npm/trinc-scratch" --no-audit --no-fund
-```
-
-```bash
-cd "/Users/myhome/TRINC/Trevor Robey Intelligence Network Citations" && git rm -r -q --cached .ci/npm-cache/_cacache && rm -rf .ci/npm-cache && npm ci --ignore-scripts --cache "$PWD/.ci/npm-cache" --no-audit --no-fund && git add -f .ci/npm-cache/_cacache && bash scripts/generate-npm-cache-lock.sh
-```
-
-```bash
-cd "/Users/myhome/TRINC/Trevor Robey Intelligence Network Citations" && node -e 'const fs=require("fs"),c=require("crypto");const {createSbomGenerator}=require("./workflows/supply-chain/sbom-generator.js");const comps=createSbomGenerator({rootDir:process.cwd(),timeProvider:{nowIso:()=>"1970-01-01T00:00:00.000Z"}}).generateSbom().sbom.components;const p="security/known-good-dependencies.json";const kg=JSON.parse(fs.readFileSync(p,"utf8"));const order=["name","version","purl","license","package_hash_sha256","dependency_depth","direct_dependency"];kg.generated_at=new Date().toISOString().slice(0,10)+"T00:00:00.000Z";kg.source_lockfile_sha256=c.createHash("sha256").update(fs.readFileSync("package-lock.json")).digest("hex");kg.components=comps.map(x=>Object.fromEntries(order.map(k=>[k,x[k]])));fs.writeFileSync(p,JSON.stringify(kg,null,2)+"\n")'
-```
-
-Then, in `security/dependency-review.md`: set `Reviewer:` to yourself, `Review-Date:` to the day and
-`Cache-Rebuild-Reason:` to `zod 3.24.1 -> 4.6.7 (GHSA-mrhx-c7xc-m3w5)`, and add a note line. Change "Zod
-3.24.1" in the engine's `CLAUDE.md`. Check with `npm test`, `npm run phase12:verify`, `npm run cache:verify`
-and `node scripts/verify-dependency-integrity.js`. Commit the lockfile, `package.json`, the cache pair and the
-three `security/` files together, since `verify-lockfile-review.sh` reads the last commit.
+  It matches the rehearsal hash for hash.
+- *Tests:* `npm test` under Node 22.13.1 gives **1352 / 1355 in all five states**: the old source on zod 3,
+  the new source on zod 3, the new source on zod 4 swapped into the real checkout, the rehearsed flip, and
+  the real flip installed with `npm ci --offline` from the new cache. The 2 failures are the Phase 29
+  startup-integrity checks (the submodule is not checked out) and the 1 skip is pre-existing.
+- *Gates on the real flip:* `verify-lockfile-review.sh` against the commit itself, plus
+  `verify-npm-cache-checksum.sh`, `verify-dependency-integrity.js` (`valid: true`),
+  `verify-phase12-policy.sh` and `verify-no-lifecycle-hooks.sh`, all pass. `npm audit` on the engine: 0.
 
 **Fork: Electron and eslint-plugin-boundaries.** The fork marks `electron` external (Obsidian supplies it at
 runtime), and the four files that use it `require("electron")` and cast it to a local shape, so the
@@ -138,11 +130,10 @@ deploy for these; the fork still needs the 10-24 deploy for decision 4.
 | vault-zettelkasten (`tsc`, build) | OK, `main.js` = tracked | OK, `main.js` = tracked | |
 | command-center (`npm test`, `lint:transport`, `tsc`) | 47 / 47, OK, 4 errors | 47 / 47, OK, 4 errors | the 4 are the known `workflow-modal.ts` ones |
 | viz-studio (`npm test`, `lint:transport`, `tsc`) | 15 / 15, OK, OK | 15 / 15, OK, OK | |
-| engine (`npm test`, Node 22.13.1) | 1352 / 1355 | 1352 / 1355 | 2 fail without the submodule; 1 skip |
+| engine (`npm test`, Node 22.13.1) | 1352 / 1355 | 1352 / 1355 (zod 4.6.7 from the new LOCKED cache) | 2 fail without the submodule; 1 skip |
 | fork (build, lint, Jest) | builds; 6 errors, 126 warnings; 5,831 / 5,831 on 10-24 | identical bundle; identical report; 5,831 / 5,831 | Jest was run after the change only, against the 10-24 baseline |
 
-**Left after 2026-11-01 (25):**
-- **Engine, 1 high (zod):** the operator's flip above.
+**Left after 2026-11-01 (24):**
 - **research-memory, 14 (1 critical, 8 high, 5 moderate: protobufjs and sharp):** decision 3. Measured
   here: a lockfile-only scratch swap to `@huggingface/transformers` 4.3.2 (protobufjs 7.6.6, sharp 0.35.5,
   onnxruntime 1.30) audits at **0**. It has to be done on the Mac, because:
@@ -162,15 +153,28 @@ deploy for these; the fork still needs the 10-24 deploy for decision 4.
     `diffArrays` and `diffTrimmedLines`. Dismiss as "vulnerable code not used", or bump at the next upstream
     re-sync.
 
-**On the Mac, before or with the next deploy:**
-- re-run `Claude/searxng-search-mcp/install-connector.sh` and `Claude/trinc-content-mcp/install-connector.sh`
-  (the staged copies keep the old trees until then);
-- rebuild the bridge (`npm run build`), since `loader.js` changed;
-- rebuild research-memory's `dist/` (only its `.d.ts` changed) and run its integration test against Qdrant;
-- `npm run test:profiles` with Obsidian open;
-- `ops/tr-suite/deploy.sh --build --apply command-center trinc-viz-studio copilot`, then the obsidianwatch
-  bless. Command Center's bundle is unchanged; Viz Studio's differs only by constant folding; the fork
-  carries decision 4.
+**On the Mac, in this order.** The repo's `node_modules` folders still hold the old trees after a pull, so
+each runtime tree is reinstalled from its lockfile before it is built or run:
+1. Quit Obsidian. The `:8798` bridge runs from its folder's `node_modules`, so it must not be running while
+   that folder is replaced.
+2. `git pull --ff-only origin main`. If it refuses, local commits exist: stop and reconcile first.
+3. Engine: `npm ci --offline --ignore-scripts` under Node 22.13.1. It installs zod 4.6.7 from the LOCKED
+   cache.
+4. Medical-Zettelkasten (loaded in-process by the engine): `npm ci --ignore-scripts`.
+5. Bridge, which is also the adapter's tree: `npm ci --ignore-scripts`, then `npm run build`, since
+   `loader.js` changed.
+6. research-memory: `npm install --ignore-scripts`, **not** `npm ci`, so the native `sharp` binary
+   survives (as on 10-24). Then `npm run build` (only its `.d.ts` changed) and its test against Qdrant with
+   `NODE_EXTRA_CA_CERTS` set.
+7. Re-run the searxng and trinc-content installers. Each runs its own `npm ci` in the staged copy. Claude
+   Code sessions pick the new trees up when they restart.
+8. Command Center and Viz Studio: `npm ci --ignore-scripts`. `deploy.sh --build` builds with whatever is in
+   `node_modules`.
+9. `ops/tr-suite/deploy.sh --build --apply command-center trinc-viz-studio copilot`. Command Center's bundle
+   is unchanged, Viz Studio's differs only by constant folding, and the fork carries decision 4.
+10. Open Obsidian. Then run `npm run test:profiles` in the adapter, `ops/tr-suite/verify.sh` and the
+    obsidianwatch bless.
+11. Cut a fresh backup bundle (`scripts/trinc-backup.sh`).
 
 **Process note:** esbuild's own `install.js` from the locked `esbuild` package was run once by hand in
 vault-zettelkasten. It was not needed, since the platform binary ships as an optional dependency. Every other
@@ -302,8 +306,8 @@ second, 3 third; 4 and 7 go into the next plugin deploy, so obsidianwatch needs 
    fork's port to 4.0.0 found that zod v4 changes `z.record()`.
    **2026-11-01:** done in the bridge (and so the adapter), searxng, Medical-Zettelkasten, research-memory
    and vault-zettelkasten. Correction: vault-zettelkasten's `main.js` never contained zod (types only), so it
-   needs no rebuild, deploy or bless. Engine: source ready on both versions; the flip waits on the
-   operator's review fields (see the 2026-11-01 follow-up).
+   needs no rebuild, deploy or bless. Engine: done the same day, source first and then the version, with the
+   operator as the named reviewer (see the 2026-11-01 follow-up). Decision 1 is complete.
 2. **vitest → 5** in the bridge and research-memory (dev-only). It clears tinypool's two critical RCE
    gadgets in both, the mock-redirect file read, and in research-memory (still on vitest 2) the UI-server
    critical plus the old vite/esbuild chain: 20 alerts (5 critical, 2 high, 12 moderate, 1 low). The UI

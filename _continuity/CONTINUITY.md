@@ -253,6 +253,17 @@ forward below.
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 
+### 2026-11-01T12:05Z · Claude Code on the web (cloud session) · **Engine zod 4.6.7 applied with the operator as reviewer; merged to `main` (24 advisories left)**
+- **Did:** on the operator's go, with "Trevor Robey (operator)" as the named reviewer, applied the engine
+  flip: lockfile, LOCKED cache, cache lock, known-good manifest, `dependency-review.md`. It matches the
+  rehearsal hash for hash. All engine gates pass, `npm test` 1352 / 1355 as before, engine audit 0. Merged
+  the branch to `main` (fast-forward).
+- **State:** on `main`; nothing on the Mac is reinstalled, rebuilt or deployed yet.
+- **Next (operator):** the ordered list in `ops/security/dependency-audit-2026-10.md`, "On the Mac, in this
+  order". Pull first, then reinstall each runtime tree before it builds or runs; research-memory uses
+  `npm install`, not `npm ci`.
+- **SCOPE NOTE:** repo infra (dependency hygiene); "Current focus" untouched.
+
 ### 2026-11-01T11:47Z · Claude Code on the web (cloud session) · **Dependency advisories 89 → 25 (zod 4, hono 2, esbuild 0.28, fork dev majors)**
 - **Did:**
   - A fresh audit found 89, not 81: a new `@hono/node-server` advisory with no 1.x fix, plus two in the
