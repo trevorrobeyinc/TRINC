@@ -253,6 +253,34 @@ forward below.
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 
+### 2026-11-01T11:47Z · Claude Code on the web (cloud session) · **Dependency advisories 89 → 25 (zod 4, hono 2, esbuild 0.28, fork dev majors)**
+- **Did:**
+  - A fresh audit found 89, not 81: a new `@hono/node-server` advisory with no 1.x fix, plus two in the
+    fork's dev tree.
+  - hono 2.1.5 in six trees.
+  - zod 4 in the bridge (and so the adapter), searxng, Medical-Zettelkasten, research-memory and
+    vault-zettelkasten. The trap was `.default({})` on objects, which drops inner defaults; now
+    `.prefault({})`, pinned by a new bridge test.
+  - esbuild 0.28 in Command Center and Viz Studio.
+  - Fork: dev Electron 45 and `eslint-plugin-boundaries` 7.4 (57 → 5). `main.js` is byte-identical to
+    HEAD's build, lint is identical, Jest 5,831 / 5,831.
+  - Engine: schemas made zod-4-ready and tested on both versions (1352 / 1355 each).
+- **State:** on branch `claude/compassionate-tesla-9n57ew`, not merged, nothing deployed.
+- **Next (operator, on the Mac):**
+  - Engine zod flip: recipe in `ops/security/dependency-audit-2026-10.md`, "2026-11-01 follow-up". Needs
+    your `Reviewer` line and the known-good update, so it was not committed for you.
+  - Re-run the searxng and trinc-content installers.
+  - Rebuild the bridge.
+  - research-memory: run the integration test against Qdrant; the transformers port clears its 14.
+  - Dismiss locutus (×5) and the fork's `diff` advisory as "vulnerable code not used".
+  - Then one `deploy.sh --build --apply command-center trinc-viz-studio copilot` and the bless.
+- **Touches:** nine lockfiles; `package.json` in eight packages; bridge `src/config/loader.ts` and
+  `src/tests/configLoader.spec.ts`; vault-zettelkasten `src/types/zettelkasten.ts`; seven engine schema
+  files and its `CHANGELOG.md`; Medical-Zettelkasten `CLAUDE.md`; the audit record.
+- **For whoever's next:** vault-zettelkasten's `main.js` never contained zod (it imports only types), so its
+  zod change needs no deploy or bless.
+- **SCOPE NOTE:** repo infra (dependency hygiene); "Current focus" untouched.
+
 ### 2026-10-24T22:44Z · Desktop Claude Code (side session) · **Copilot fork: lockfile-only refresh (158 → 54 advisories), not yet deployed**
 - **Did:** on the operator's go, an in-range `npm audit fix` of `Copilot-Everything/repos/obsidian-copilot-mcp-v4`
   (no source, `package.json` or manifest change). 72 → 1 advisories reach the runtime bundle; repo-wide 185 → 81.
