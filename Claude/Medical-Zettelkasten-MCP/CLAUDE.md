@@ -13,7 +13,7 @@ All graph analysis is algorithmic (no LLM calls) and runs in-memory per-request 
 
 - **Runtime**: Node.js 22.13.1 (engine-strict=true)
 - **Modules**: CommonJS (`require()` / `module.exports`)
-- **Validation**: Zod 3.24.1
+- **Validation**: Zod 4.6.7 (declared; no source file imports it directly, the MCP SDK shares it)
 - **MCP SDK**: @modelcontextprotocol/sdk ^1.29.0
 - **Testing**: Node's native `--test` runner
 - **Dependencies**: 2 total (MCP SDK + Zod). All graph algorithms are hand-rolled.

@@ -119,7 +119,9 @@ export const zettelkastenCommandRequestSchema = z.object({
       batchMode: z.boolean().default(false),
       writeReport: z.boolean().default(false),
     })
-    .default({}),
+    // zod 4: `.prefault({})` parses `{}` through the object so its inner defaults apply;
+    // `.default({})` would hand back the bare `{}` (it is what zod 3's `.default({})` meant).
+    .prefault({}),
 });
 
 export type ZettelkastenCommandRequest = z.infer<typeof zettelkastenCommandRequestSchema>;

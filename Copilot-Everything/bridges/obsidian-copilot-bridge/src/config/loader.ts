@@ -5,6 +5,10 @@ import { AppError } from "../server/errors";
 import { ERROR_CODES } from "../server/errorCodes";
 import type { ServerConfig } from "./types";
 
+// zod 4: a missing section uses `.prefault({})`, which parses `{}` through the section's
+// schema so its inner defaults (port 8798, the timeouts, the queue sizes, ...) still apply.
+// `.default({})` would return the bare `{}` and drop every one of them; it is what zod 3's
+// `.default({})` meant. Pinned by src/tests/configLoader.spec.ts.
 const schema = z.object({
   transport: z
     .object({
@@ -31,12 +35,12 @@ const schema = z.object({
         keyPath: z.string(),
       }).optional(),
     })
-    .default({}),
+    .prefault({}),
   cliStability: z
     .object({
       requiredVaultNames: z.array(z.string().min(1)).min(1).default(["My Digital Garden"]),
     })
-    .default({}),
+    .prefault({}),
   timeouts: z
     .object({
       openVaultMs: z.number().int().min(1000).default(25000),
@@ -45,13 +49,13 @@ const schema = z.object({
       readNoteMs: z.number().int().min(1000).default(15000),
       searchNotesMs: z.number().int().min(1000).default(20000),
     })
-    .default({}),
+    .prefault({}),
   queue: z
     .object({
       capacity: z.number().int().min(1).default(256),
       workerConcurrency: z.number().int().min(1).default(4),
     })
-    .default({}),
+    .prefault({}),
   allowedVaultRoots: z.array(z.string()).min(1),
   security: z.object({
     authToken: z.string().min(22),
@@ -80,9 +84,9 @@ const schema = z.object({
           search_notes: z.number().int().min(1).default(1500),
           execute_command: z.number().int().min(1).default(3000),
         })
-        .default({}),
+        .prefault({}),
     })
-    .default({}),
+    .prefault({}),
   readOnlyMode: z.boolean().default(false),
 });
 
