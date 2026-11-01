@@ -151,6 +151,7 @@
     "zod": "^4.4.2"
   },
   "overrides": {
-    "@browserbasehq/stagehand": "3.2.1"
+    "@browserbasehq/stagehand": "3.2.1",
+    "moment": "2.31.0"
   }
 }
