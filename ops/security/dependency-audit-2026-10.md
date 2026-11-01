@@ -196,6 +196,57 @@ each runtime tree is reinstalled from its lockfile before it is built or run:
 vault-zettelkasten. It was not needed, since the platform binary ships as an optional dependency. Every other
 install ran with `--ignore-scripts`.
 
+### Clearing the last 18 (2026-11-01, later)
+
+Tracing each package to its parents corrected two assumptions written above. The fork's vulnerable `glob`
+came from Tailwind's `sucrase`, not Jest. Its `minimatch` copies come from ESLint plugins.
+
+**Fork, fixed (glob, moment), on `main`:**
+- `sucrase` 3.35.0 → 3.35.1, inside Tailwind's `^3.35.0`. That release no longer depends on `glob`, so
+  `glob` 10.5.0 and 21 other dev packages leave the tree. `package.json` is unchanged.
+- `"moment": "2.31.0"` added to the fork's existing `overrides` block. Both `obsidian` typings packages
+  (1.2.5, and 1.12.3 inside `eslint-plugin-obsidianmd`, whose newest release 0.4.2 still pins it) required
+  2.29.4 exactly. The fork never imports moment, and Obsidian supplies it at runtime.
+- Checks: `main.js` and `styles.css` are byte-identical to the HEAD build, the ESLint report is identical
+  message for message, and Jest gives 5,831 / 5,831 with 425 / 426 suites, unchanged
+  (`customCommandRegister.test.ts` still fails to load). Nothing to deploy.
+
+**Fork, no fix exists (dismiss on GitHub):**
+- **`minimatch`:** all seven copies (3.0.5, 3.1.5, 8.0.7, 9.0.9 ×3, 10.2.5) are below the first fixed
+  release, 11.0.1. They belong to ESLint plugins and test tooling written against the v3–v10 APIs, so an
+  override to 11 would break them. *Dismiss:* "Risk is tolerable to this project". It is dev-only, and its
+  patterns come from the repo's own config.
+- **`deepmerge`:** 4.3.1 is its newest release and is inside the range, and Jest 30's `jest-config` still
+  depends on it. *Dismiss:* "Risk is tolerable to this project". It merges the repo's own Jest config.
+- **`diff`:** *dismiss* as "Vulnerable code is not actually used" (above).
+
+**research-memory: `@huggingface/transformers` 4.3.2. On the branch, not on `main` until the Mac parity
+check passes.** Changes:
+- `@xenova/transformers` 2.17.2 → `@huggingface/transformers` `^4.3.2`. protobufjs goes to 7.6.6, sharp to
+  0.35.5 and onnxruntime to 1.30, and `npm audit` gives **0**, down from 14.
+- `dtype: "q8"` replaces `quantized: true`. Both load `onnx/model_quantized.onnx` (the suffix map was
+  checked); without it v4 would default to fp32, a different file.
+- The model cache moves out of `node_modules` to `~/.cache/trevorobeyinc-research-memory/transformers/`
+  (`EMBED_CACHE_DIR` overrides it), so `npm ci` can no longer delete it. Its layout is the old one: a probe
+  with only `config.json` in place found it and moved on to `onnx/model_quantized.onnx`, so a copy of the old
+  cache works and nothing needs downloading.
+- Offline-by-default is kept, by probe: a cache miss throws `EMBED_MODEL_NOT_CACHED` naming the folder,
+  nothing is downloaded, and the empty cache stays empty.
+- **`npm ci` is now safe here.** sharp ≥0.33 ships prebuilt binaries as optional packages (darwin-arm64 is
+  in the lockfile), and onnxruntime-node bundles its darwin-arm64 binary; its install script only fetches
+  optional CUDA files.
+
+**New: `npm run parity`.** It is read-only (scroll only, never `ensureCollection`). It re-embeds every pack
+whose source file is still readable and still hashes to its stored `content_sha256`, and compares the
+result with the stored vector (cosine ≥ 0.999). Exit 0 means PASS; 1 means drift, or nothing comparable;
+2 means Qdrant or the model is unreachable. Tests:
+- `tsc` passes; offline vitest 20 / 20 (7 new for the parity logic);
+- the CLI's paging was checked against a scratch Qdrant stand-in (70 points over 2 pages);
+- `integration.test.ts` and the parity run itself need the Mac.
+
+**After the merge, on GitHub:** `glob`, `moment` and research-memory's 14 close by themselves. Dismiss the 9
+scrape-sidecar alerts, `diff`, `minimatch` and `deepmerge` as above. That leaves 0 open.
+
 ## Inventory
 
 | Manifest | Lockfile | Runs as |

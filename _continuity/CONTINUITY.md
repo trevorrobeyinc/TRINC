@@ -253,6 +253,25 @@ forward below.
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 
+### 2026-11-01T12:40Z · Claude Code on the web (cloud session) · **Last 18 Dependabot alerts: fork fixed on `main`; research-memory port waits on a Mac parity check**
+- **Did:**
+  - The operator's GitHub page showed 28 open: research-memory 14, fork 5, and 9 stale alerts for
+    `scrape-sidecar/uv.lock`, a folder deleted in `a148d9e` on 2026-09-18 that the dependency graph kept.
+  - Fork, on `main`: sucrase 3.35.1 in range (drops glob) and a `moment` 2.31.0 override. `main.js` is
+    byte-identical, lint is identical, Jest 5,831 / 5,831.
+  - research-memory, **on the branch only**: `@huggingface/transformers` 4.3.2 (audit 14 → 0), `dtype: "q8"`
+    (same model file), model cache moved to `~/.cache/trevorobeyinc-research-memory/`, and a new read-only
+    `npm run parity` comparing re-embedded sources with the stored Qdrant vectors.
+- **State:** the fork fix and the docs are on `main`. The research-memory port is the last commit on
+  `claude/compassionate-tesla-9n57ew`, not merged.
+- **Next (operator, on the Mac):**
+  1. Copy the model cache, then run `npm run parity` from a git worktree of the branch. Steps are in
+     Claude's reply and in `ops/security/dependency-audit-2026-10.md`, "Clearing the last 18".
+  2. On PASS: Claude merges the port, and the operator runs `npm ci` + build + the integration test.
+  3. On GitHub: dismiss the 9 scrape-sidecar alerts ("inaccurate"), `diff` ("not used"), and `minimatch` and
+     `deepmerge` ("risk tolerable"; no fixed release exists).
+- **SCOPE NOTE:** repo infra (dependency hygiene); "Current focus" untouched.
+
 ### 2026-11-01T12:05Z · Claude Code on the web (cloud session) · **Engine zod 4.6.7 applied with the operator as reviewer; merged to `main` (24 advisories left)**
 - **Did:** on the operator's go, with "Trevor Robey (operator)" as the named reviewer, applied the engine
   flip: lockfile, LOCKED cache, cache lock, known-good manifest, `dependency-review.md`. It matches the
