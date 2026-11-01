@@ -16,7 +16,7 @@ A governed, local-first biomedical research and dataset packaging system. Archit
 
 - **Runtime**: Node.js 22.13.1 (strictly enforced — `.npmrc` has `engine-strict=true`)
 - **Modules**: CommonJS (`require()` / `module.exports`)
-- **Validation**: Zod 3.24.1
+- **Validation**: Zod 4.6.7 (from 3.24.1 on 2026-11-01; `CHANGELOG.md`. Under zod 4, `.default()` on an object skips its inner defaults and only shallow-copies a value default: use `.prefault({})` or a function default)
 - **Testing**: Node's native `--test` runner (no external framework)
 - **CI**: none runs. `.github/workflows/ci-enforcement.yml` sits in this subfolder, where GitHub never runs it; the policy-gate scripts read it, so it stays. The local gates below are the pipeline.
 - **LLM**: Claude Code (primary, active — scout/analyst/synthesizer on claude-opus-4-8, default on claude-sonnet-4-6), Mock (testing). The engine is 100% Claude; local models were removed from the engine (restorable).

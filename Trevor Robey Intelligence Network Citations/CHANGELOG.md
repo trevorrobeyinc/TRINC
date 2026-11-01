@@ -4,14 +4,14 @@ All notable changes to this repository are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [2026-11-01] The schemas are ready for zod 4; the engine itself stays on zod 3.24.1 until the operator signs the flip
+## [2026-11-01] zod 3.24.1 → 4.6.7, with the schemas made version-neutral first
 
-The engine's only open dependency advisory is zod 3.24.1 (GHSA-mrhx-c7xc-m3w5, high; no 3.x fix). This change makes every schema behave the same on zod 3.24.1 and 4.6.7. It does not change the installed version: the lockfile, the LOCKED cache and the supply-chain trust anchor need the operator's review fields. The tested recipe is in `ops/security/dependency-audit-2026-10.md`, "2026-11-01 follow-up".
+The engine's only open dependency advisory was zod 3.24.1 (GHSA-mrhx-c7xc-m3w5, high; no 3.x fix). The work went in two commits. The first makes every schema behave the same on zod 3.24.1 and 4.6.7 (the bullets below). The second moves the version, and the operator approved it as the named reviewer in `security/dependency-review.md`. It changes `package.json` (exact `4.6.7`), `package-lock.json`, the LOCKED cache, `security/npm-cache.lock.json` and `security/known-good-dependencies.json`. The cache again holds one tarball blob plus its index entry. Record: `ops/security/dependency-audit-2026-10.md`, "2026-11-01 follow-up".
 
 - **`z.record(X)` → `z.record(z.string(), X)`** in 13 places (`workflow-schema.js`, `cc-schema.js`, `mcp-service.js`, `notion-mcp.js`, `notion-mcp.stub.js`, `searxng-mcp/index.js`, `tu-schema.js`). This is the documented zod 4 form and means the same in zod 3. zod 4.6.7 still accepts the one-argument form at runtime, with the same results (checked).
 - **`workflow-schema.js` `input_schema` default is now a function.** zod 4 only shallow-copies a value default, so the nested `required: []` and `properties: {}` would be one shared array and one shared object for every template that omits `input_schema`. A probe shows a push into one parse's array appearing in the next parse under zod 4, and not under zod 3 or with the function default.
-- **Tests:** `npm test` (Node 22.13.1) gives 1352 / 1355 on zod 3.24.1 before and after the change, on zod 4.6.7 swapped into the checkout, and on the rehearsed flip. The 2 failures are the Phase 29 startup-integrity checks, which need the ToolUniverse submodule checked out, and the 1 skip is pre-existing.
-- **Not changed, stated:** `package.json`, `package-lock.json`, `.ci/npm-cache`, `security/npm-cache.lock.json`, `security/known-good-dependencies.json` and `security/dependency-review.md`.
+- **Tests:** `npm test` (Node 22.13.1) gives 1352 / 1355 in every state: zod 3.24.1 before and after the schema change, zod 4.6.7 swapped into the checkout, a rehearsed flip in a scratch copy, and the real flip installed offline from the new LOCKED cache. The 2 failures are the Phase 29 startup-integrity checks, which need the ToolUniverse submodule checked out (it is not in the cloud container), and the 1 skip is pre-existing.
+- **After pulling on the Mac:** run `npm ci --offline --ignore-scripts` in this folder. Until then, `node_modules` still holds zod 3.24.1, which the new schemas also accept.
 
 ## [2026-10-08] The stall watchdog no longer kills a healthy model call — the orchestrator's time guards nest (run #5 was paused at exactly 120 s)
 
