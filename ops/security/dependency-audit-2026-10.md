@@ -133,7 +133,23 @@ deploy for these; the fork still needs the 10-24 deploy for decision 4.
 | engine (`npm test`, Node 22.13.1) | 1352 / 1355 | 1352 / 1355 (zod 4.6.7 from the new LOCKED cache) | 2 fail without the submodule; 1 skip |
 | fork (build, lint, Jest) | builds; 6 errors, 126 warnings; 5,831 / 5,831 on 10-24 | identical bundle; identical report; 5,831 / 5,831 | Jest was run after the change only, against the 10-24 baseline |
 
-**Left after 2026-11-01 (24):**
+**GitHub after the merge (the operator read the page, 28 open):**
+- research-memory 14 and the fork 5, the same records as the local audit.
+- Medical-Zettelkasten's locutus alerts are absent (already dismissed).
+- **9 for `Trevor Robey Intelligence Network Citations/scrape-sidecar/uv.lock`**: starlette ×5, anyio ×2,
+  idna, and a certifi alert opened that day. That folder was deleted from `main` by `a148d9e` on 2026-09-18.
+  It is absent from `main` on GitHub (checked), and nothing in the repo refers to it outside history notes.
+  GitHub's dependency graph never dropped the lockfile, so its alerts stay open and new advisories keep
+  matching it. These were the 10-24 "8-alert gap" (the certifi one is new).
+
+  The local audits missed it because they read only the current tree. The 2026-11-01 cloud clone was also
+  shallow, with no history before April.
+
+  *Action:* dismiss the 9 as "This alert is inaccurate or incorrect", noting "manifest deleted in a148d9e".
+  Turning the dependency graph off and on would rebuild it, but it also switches Dependabot alerts off, so
+  it was not recommended.
+
+**Left after 2026-11-01 (24 by the local audit):**
 - **research-memory, 14 (1 critical, 8 high, 5 moderate: protobufjs and sharp):** decision 3. Measured
   here: a lockfile-only scratch swap to `@huggingface/transformers` 4.3.2 (protobufjs 7.6.6, sharp 0.35.5,
   onnxruntime 1.30) audits at **0**. It has to be done on the Mac, because:
@@ -195,7 +211,9 @@ install ran with `--ignore-scripts`.
 | `Copilot-Everything/repos/obsidian-copilot-mcp-v4` | yes | the vendored Copilot fork (upstream 4.0.0 + the MCP module), bundled into its `main.js` |
 | `…/vendor/tooluniverse` (submodule, `3833b0e`) | `pyproject.toml` + `uv.lock` (upstream's) | Python; local `.venv` built from that `uv.lock` |
 
-There are no tracked Python manifests outside the submodule.
+There are no tracked Python manifests outside the submodule (true since 2026-09-18, when `a148d9e` removed
+`scrape-sidecar/` with its `pyproject.toml` and `uv.lock`; GitHub still holds that lockfile, see the
+2026-11-01 follow-up).
 
 ## Triage table
 
@@ -226,6 +244,9 @@ locally. Likely sources are Dependabot reading the adapter's lockfile-less `pack
 differences in the advisory database. The YubiKey-gated read-only `github` MCP cannot help: none of its 24
 pinned tools reads Dependabot alerts, so it was not armed. The counts on GitHub refresh on the next push;
 read them on the Dependabot page then.
+**Resolved 2026-11-01:** the gap is `Trevor Robey Intelligence Network Citations/scrape-sidecar/uv.lock` (see
+the 2026-11-01 follow-up). Commit `a148d9e` deleted that folder on 2026-09-18, but GitHub's dependency graph
+kept it, so its alerts stayed open and new advisories still match it.
 
 **Submodule (Python), not part of the 497:** Dependabot does not scan inside a submodule. The local
 `vendor/tooluniverse/.venv` (214 packages, identical to upstream's `uv.lock` at `3833b0e`) was checked
