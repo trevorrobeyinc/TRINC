@@ -64,8 +64,11 @@ const WorkflowTemplateSchema = z.object({
   research_profile: z.enum(Object.keys(PROFILES)).optional(),
   input_schema: z.object({
     required: z.array(z.string()).default([]),
-    properties: z.record(InputPropertySchema).default({})
-  }).default({ required: [], properties: {} }),
+    properties: z.record(z.string(), InputPropertySchema).default({})
+  // A function default hands every template its own `required` array and `properties` object.
+  // zod 4 only shallow-copies a value default, so a plain object here would be shared by every
+  // template that omits input_schema; zod 3 rebuilt it on each parse.
+  }).default(() => ({ required: [], properties: {} })),
   pipeline: z.array(PipelineStepSchema).min(1).max(20)
 }).strict();
 

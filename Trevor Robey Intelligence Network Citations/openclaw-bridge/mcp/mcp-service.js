@@ -80,8 +80,8 @@ const MutationPrepareNewsletterSchema = z.object({
 const MutationPrepareNotionSchema = z.object({
   provider: z.literal("notion"),
   databaseId: z.string().min(1).max(128),
-  properties: z.record(z.any()),
-  content: z.array(z.record(z.any())).max(50).optional(),
+  properties: z.record(z.string(), z.any()),
+  content: z.array(z.record(z.string(), z.any())).max(50).optional(),
   approvalToken: z.string().min(8).max(256)
 }).strict();
 

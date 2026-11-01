@@ -34,7 +34,7 @@ const GateInput = z.object({
   topic: z.string().default("science"),
   max_results: z.number().int().default(10),
   min_distinct_sources: z.number().int().default(1),
-  search_params: z.record(z.any()).optional(),
+  search_params: z.record(z.string(), z.any()).optional(),
 });
 
 const Citation = z.object({

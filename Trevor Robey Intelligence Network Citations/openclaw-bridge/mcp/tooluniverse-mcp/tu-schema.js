@@ -7,7 +7,7 @@ const ToolUniverseInputSchema = z
     action: z.enum(["findTool", "getToolInfo", "executeTool", "listTools", "grepTools"]),
     query: z.string().min(2).max(512).optional(),
     tool_name: z.string().min(1).max(256).optional(),
-    arguments: z.record(z.unknown()).optional(),
+    arguments: z.record(z.string(), z.unknown()).optional(),
     limit: z.number().int().min(1).max(100).default(20),
     category: z.string().min(1).max(128).optional()
   })
@@ -28,7 +28,7 @@ const ToolUniverseToolRecordSchema = z.object({
   tool_name: z.string().min(1).max(256),
   description: z.string().max(10000).optional(),
   category: z.string().max(128).optional(),
-  parameters: z.record(z.unknown()).optional(),
+  parameters: z.record(z.string(), z.unknown()).optional(),
   result: z.unknown().optional()
 }).passthrough();
 
@@ -36,7 +36,7 @@ const ToolUniverseJsonRpcRequestSchema = z.object({
   jsonrpc: z.literal("2.0"),
   id: z.union([z.string(), z.number()]),
   method: z.string().min(1),
-  params: z.record(z.unknown()).optional()
+  params: z.record(z.string(), z.unknown()).optional()
 }).strict();
 
 const ToolUniverseJsonRpcResponseSchema = z.object({
@@ -64,7 +64,7 @@ const McpToolCallResultSchema = z.object({
 
 const McpInitializeResultSchema = z.object({
   protocolVersion: z.string(),
-  capabilities: z.record(z.unknown()).optional(),
+  capabilities: z.record(z.string(), z.unknown()).optional(),
   serverInfo: z.object({
     name: z.string(),
     version: z.string().optional()

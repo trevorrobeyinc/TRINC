@@ -27,7 +27,7 @@ const McpToolCallResultSchema = z.object({
 
 const McpInitializeResultSchema = z.object({
   protocolVersion: z.string(),
-  capabilities: z.record(z.unknown()).optional(),
+  capabilities: z.record(z.string(), z.unknown()).optional(),
   serverInfo: z.object({
     name: z.string(),
     version: z.string().optional()

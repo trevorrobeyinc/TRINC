@@ -7,7 +7,7 @@ const { BaseMcp, MCP_ERROR_CODES } = require("./base-mcp.js");
 const NotionInputSchema = z
   .object({
     action: z.enum(["create_page", "update_page", "sync_database"]),
-    payload: z.record(z.any()).optional()
+    payload: z.record(z.string(), z.any()).optional()
   })
   .strict();
 
