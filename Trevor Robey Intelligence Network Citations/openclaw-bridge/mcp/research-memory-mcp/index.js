@@ -24,8 +24,10 @@
 //
 // ONE SWITCH, AND NO NETWORK FETCH BY ACCIDENT. `config/vault-publish.json` → `researchMemory.enabled`
 // turns both jobs on (enabled 2026-09-22 after the operator's manual first ingest); while false both
-// are recorded skips. The CLI embeds with `Xenova/nomic-embed-text-v1` through @xenova/transformers,
-// which would download the model from huggingface.co whenever its cache is empty — so every spawn
+// are recorded skips. The CLI embeds with `Xenova/nomic-embed-text-v1` through @huggingface/transformers
+// (until 2026-11-01 @xenova/transformers; the cache is now ~/.cache/trevorobeyinc-research-memory/,
+// overridable with EMBED_CACHE_DIR), which would download the model from huggingface.co whenever its
+// cache is empty — so every spawn
 // from here sets EMBED_ALLOW_REMOTE=0 (the pack store's embedder is offline by default and fails
 // loudly with EMBED_MODEL_NOT_CACHED) unless the caller passes `allowRemote: true`, which only the
 // operator CLI (`scripts/research-memory.js ingest --allow-remote-model`) ever does. A research run
