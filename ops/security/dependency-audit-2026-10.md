@@ -220,8 +220,8 @@ came from Tailwind's `sucrase`, not Jest. Its `minimatch` copies come from ESLin
   depends on it. *Dismiss:* "Risk is tolerable to this project". It merges the repo's own Jest config.
 - **`diff`:** *dismiss* as "Vulnerable code is not actually used" (above).
 
-**research-memory: `@huggingface/transformers` 4.3.2. On the branch, not on `main` until the Mac parity
-check passes.** Changes:
+**research-memory: `@huggingface/transformers` 4.3.2. Held on the branch until the Mac parity check
+passed; merged 2026-11-02 after the re-embed below.** Changes:
 - `@xenova/transformers` 2.17.2 → `@huggingface/transformers` `^4.3.2`. protobufjs goes to 7.6.6, sharp to
   0.35.5 and onnxruntime to 1.30, and `npm audit` gives **0**, down from 14.
 - `dtype: "q8"` replaces `quantized: true`. Both load `onnx/model_quantized.onnx` (the suffix map was
@@ -267,6 +267,12 @@ Tests: offline vitest 26 / 26 (6 new). They cover that the backup comes first, t
 changes nothing, that only comparable packs are rewritten, and that a backup from another collection is
 refused. Against the scratch stand-in, `--restore` sent one vectors-only update with the right ids, a
 wrong-collection backup was refused without a write, and `--reembed` with nothing comparable wrote nothing.
+
+**Applied 2026-11-02T00:55Z (operator, from the worktree): re-embedded 6 of 6.** The after-check gave
+**min 0.999999, mean 1.000000: PASS.** The old vectors are in
+`/Users/myhome/.local/share/trinc-rollback/research-memory-vectors-2026-11-02T00-55-51-606Z.json`; undo with
+`npm run parity -- --restore <that file>`. The port was then merged to `main`. Keep the backup until the new
+embedder has served a real run.
 
 **After the merge, on GitHub:** `glob`, `moment` and research-memory's 14 close by themselves. Dismiss the 9
 scrape-sidecar alerts, `diff`, `minimatch` and `deepmerge` as above. That leaves 0 open.

@@ -253,6 +253,21 @@ forward below.
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 
+### 2026-11-02T00:57Z · Claude Code on the web (cloud session) · **research-memory re-embedded (PASS); transformers port merged to `main`**
+- **Did:** the operator ran `npm run parity -- --reembed` from the worktree. 6 / 6 packs re-embedded; the
+  after-check gave min 0.999999, mean 1.000000: PASS. Old vectors are backed up at
+  `~/.local/share/trinc-rollback/research-memory-vectors-2026-11-02T00-55-51-606Z.json`. The port is merged
+  to `main` (fast-forward).
+- **State:** the store and the code agree, but the real folder still runs the old `dist/` until it is
+  rebuilt.
+- **Next (operator, on the Mac):**
+  - pull, then `npm ci --ignore-scripts && npm run build` in research-memory (`npm ci` is now safe);
+  - `npm test` with Qdrant, then `npm run parity`;
+  - remove the worktree and cut a fresh backup bundle;
+  - dismiss the 12 no-fix alerts on GitHub.
+  - Keep the vector backup until a real run has used the new embedder.
+- **SCOPE NOTE:** repo infra (dependency hygiene); "Current focus" untouched.
+
 ### 2026-11-02T00:52Z · Claude Code on the web (cloud session) · **research-memory parity: 0.4% drift (int8 arithmetic); reversible re-embed added, port still off `main`**
 - **Did:**
   - The operator's Mac parity run compared 6 of 6 packs: cosine 0.993–0.998 (FAIL at 0.999). Same model
