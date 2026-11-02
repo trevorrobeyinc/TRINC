@@ -244,6 +244,30 @@ result with the stored vector (cosine ≥ 0.999). Exit 0 means PASS; 1 means dri
 - the CLI's paging was checked against a scratch Qdrant stand-in (70 points over 2 pages);
 - `integration.test.ts` and the parity run itself need the Mac.
 
+**Mac parity run (2026-11-02, operator, from a worktree of the branch): FAIL by the 0.999 bar.** All 6
+packs were comparable (sources readable, hashes matching): cosine 0.992867–0.998355, mean 0.995745. The
+same model, read with the Hugging Face connector, rules out the big explanations:
+- `tokenizer_config.json` gives `model_max_length` 8192, and both library versions truncate at that, so
+  neither embeds less of a pack than the other.
+- `onnx/model_quantized.onnx` is the one file both versions load.
+
+What remains is arithmetic. The weights are int8, and onnxruntime moved from 1.14 (the @xenova build) to
+1.30. Small rounding differences add up over thousands of tokens, which fits a uniform 0.4% drift on long
+packs. The vectors are the same model's output; mixing them would only nudge search scores (calibrated
+2026-09-22 at on-topic 0.45–0.60 against off-topic ≤ 0.43, threshold 0.5).
+
+*Decision proposed:* re-embed the 6 stored vectors with the new library, so stored packs and new queries
+come from one embedder; then parity reads ≈1.0 and stays a guard for future bumps. `npm run parity`
+gained `--reembed` and `--restore`:
+- `--reembed` writes a backup of the old vectors to `~/.local/share/trinc-rollback/` before it changes
+  anything, then replaces vectors only (payloads untouched) and re-checks.
+- `--restore <file>` puts a backup back.
+
+Tests: offline vitest 26 / 26 (6 new). They cover that the backup comes first, that a failed backup
+changes nothing, that only comparable packs are rewritten, and that a backup from another collection is
+refused. Against the scratch stand-in, `--restore` sent one vectors-only update with the right ids, a
+wrong-collection backup was refused without a write, and `--reembed` with nothing comparable wrote nothing.
+
 **After the merge, on GitHub:** `glob`, `moment` and research-memory's 14 close by themselves. Dismiss the 9
 scrape-sidecar alerts, `diff`, `minimatch` and `deepmerge` as above. That leaves 0 open.
 

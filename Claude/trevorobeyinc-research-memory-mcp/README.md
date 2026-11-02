@@ -40,6 +40,13 @@ and still hashes to its stored `content_sha256`, it re-embeds the text and compa
 vector (`--min`, default 0.999; `--json` for machine output). It exits 0 on PASS, 1 on drift or when
 nothing was comparable, and 2 when Qdrant or the model is unreachable.
 
+When an embedder change moves vectors slightly, `npm run parity -- --reembed` makes the store
+consistent again. It first saves the comparable packs' old vectors to
+`~/.local/share/trinc-rollback/research-memory-vectors-<time>.json` (`--backup-dir` overrides), then
+replaces only those vectors (payloads untouched) and re-checks. `npm run parity -- --restore <file>` puts
+a backup back. The first real case was the 2026-11-01 port: the six packs re-embedded at cosine
+0.993–0.998, which is the same int8 model file under onnxruntime 1.14 versus 1.30.
+
 ## Environment
 
 | Var | Default | Purpose |

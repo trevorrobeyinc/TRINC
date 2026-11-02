@@ -253,6 +253,21 @@ forward below.
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 
+### 2026-11-02T00:52Z · Claude Code on the web (cloud session) · **research-memory parity: 0.4% drift (int8 arithmetic); reversible re-embed added, port still off `main`**
+- **Did:**
+  - The operator's Mac parity run compared 6 of 6 packs: cosine 0.993–0.998 (FAIL at 0.999). Same model
+    file and same 8192-token limit in both versions, so the cause is int8 arithmetic (onnxruntime 1.14 →
+    1.30), not truncation.
+  - Added `npm run parity -- --reembed`: backup of the old vectors to `~/.local/share/trinc-rollback/`
+    first, then vectors only, then a re-check. Added `--restore <file>` to undo it. Unit tests 26 / 26.
+- **State:** on `claude/compassionate-tesla-9n57ew` only; `main` unchanged (`90ba460`).
+- **Next (operator):**
+  1. Update the worktree, rebuild, and run `--reembed`.
+  2. On an after-PASS, Claude merges the port, and the operator runs pull, `npm ci`, build and the
+     integration test.
+  3. Don't start a research run between the re-embed and that rebuild.
+- **SCOPE NOTE:** repo infra (dependency hygiene); "Current focus" untouched.
+
 ### 2026-11-01T12:40Z · Claude Code on the web (cloud session) · **Last 18 Dependabot alerts: fork fixed on `main`; research-memory port waits on a Mac parity check**
 - **Did:**
   - The operator's GitHub page showed 28 open: research-memory 14, fork 5, and 9 stale alerts for
