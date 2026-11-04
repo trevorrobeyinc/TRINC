@@ -85,12 +85,26 @@ function createOpenAlex(options = {}) {
       const doi = typeof w.doi === "string" ? w.doi.replace(/^https?:\/\/doi\.org\//i, "") : "";
       if (!/^10\.\d{4,9}\//.test(doi)) continue;
       const venue = w.primary_location && w.primary_location.source && w.primary_location.source.display_name;
+      // The work's real authors (2026-11-04), so the model never writes a byline from memory:
+      // tool-prefetch.js renderAuthors prints author_names; OpenAlex stops at 100 authorships, so a
+      // list that long is a floor.
+      const authorships = Array.isArray(w.authorships) ? w.authorships : [];
+      const names = authorships
+        .map((a) => a && a.author && a.author.display_name)
+        .filter((n) => typeof n === "string" && n.trim() && !/^unknown author$/i.test(n.trim()))
+        .map((n) => n.trim());
+      const byline = names.length === 0 ? {} : {
+        author_names: names.slice(0, 25),
+        ...(names.length > 25 ? { author_count: names.length } : {}),
+        ...(authorships.length >= 100 ? { author_count: names.length, author_count_is_minimum: true } : {})
+      };
       records.push({
         title: w.display_name || w.title || doi,
         year: w.publication_year ? String(w.publication_year) : "",
         journal: venue || "",
         abstract: abstractFromInvertedIndex(w.abstract_inverted_index),
-        doi
+        doi,
+        ...byline
       });
     }
     logger.info({ event: "openalex_search_completed", query, returned: records.length });

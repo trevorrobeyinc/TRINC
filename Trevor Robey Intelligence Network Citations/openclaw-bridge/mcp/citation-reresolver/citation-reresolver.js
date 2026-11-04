@@ -17,6 +17,14 @@
 
 const timeProviderModule = require("../../core/time-provider.js");
 const { createNcbiPacing } = require("../../core/ncbi-pacing.js");
+const {
+  findWrittenAttributions,
+  compareAttribution,
+  registryLabel,
+  bibFromCrossref,
+  bibFromNcbiDocsum,
+  normName
+} = require("../../core/citation-attribution.js");
 
 const STATUS = Object.freeze({ VERIFIED: "VERIFIED", UNRESOLVED: "UNRESOLVED", UNCHECKED: "UNCHECKED" });
 const RESOLVER_TABLE_VERSION = "2026-06-19";
@@ -79,6 +87,10 @@ function createCitationReresolver(options = {}) {
   const ncbiApiKey = options.ncbiApiKey || "";
   const nowIso = typeof options.nowIso === "function" ? options.nowIso : () => timeProviderModule.nowIso();
   const cache = new Map(); // per-run only: `${type}:${ID}` -> result
+  // Attribution check (2026-11-04): registry authors and years per cited work, `${type}:${ID}` ->
+  // { authors, years } or { error }. PMIDs fill it from the docsum resolvePMID already reads; DOIs
+  // are fetched from Crossref only when the report names an author beside them.
+  const bibliographic = new Map();
   // Business lane: the run's web snapshot store (mcp/business-sources/web-snapshot-store.js). Absent
   // → every WEB id is UNCHECKED `no_snapshot_store`, never a false VERIFIED.
   const webSnapshotStore = options.webSnapshotStore && typeof options.webSnapshotStore.verify === "function"
@@ -169,6 +181,9 @@ function createCitationReresolver(options = {}) {
     if (!body || !body.result) return { status: STATUS.UNCHECKED, http_status: 200, resolved_url, evidence: { reason: "unparseable" }, attempts };
     if (!rec) return { status: STATUS.UNCHECKED, http_status: 200, resolved_url, evidence: { reason: "unparseable" }, attempts };
     if (rec.error) return { status: STATUS.UNRESOLVED, http_status: 200, resolved_url, evidence: { reason: "cannot_get_document_summary" }, attempts };
+    // The docsum already names the authors and dates: keep them for the attribution check
+    // (checkAttributions) instead of fetching the record twice.
+    bibliographic.set(`PMID:${String(id).toUpperCase()}`, bibFromNcbiDocsum(rec));
     return { status: STATUS.VERIFIED, http_status: 200, resolved_url, evidence: { has_docsum: true }, attempts };
   }
 
@@ -522,7 +537,88 @@ function createCitationReresolver(options = {}) {
     return results;
   }
 
-  return Object.freeze({ resolveOne, resolveAll, STATUS, RESOLVER_TABLE_VERSION });
+  // Crossref work metadata for one DOI → { authors, years } or { error }. Separate from resolveDOI
+  // (which only proves registration via /agency) so the existence check never depends on it.
+  async function fetchDoiBibliographic(id) {
+    const url = `https://api.crossref.org/works/${encodeURIComponent(id)}?mailto=${encodeURIComponent(contactEmail)}`;
+    const res = await doFetch(url);
+    const t = classifyTransport(res);
+    if (t) return { error: t.reason };
+    if (res.status !== 200) return { error: `http_${res.status}` };
+    const body = await safeJson(res);
+    if (!body || !body.message) return { error: "unparseable" };
+    return bibFromCrossref(body.message);
+  }
+
+  // Attribution check (citation-attribution.js): for every VERIFIED DOI / PMID that the report
+  // names an author beside, compare that author (and year, when one is written) with the registry
+  // record. Never changes an identifier's VERIFIED / UNRESOLVED / UNCHECKED status. Fail-soft: a
+  // registry that cannot be reached leaves that citation `not_checked`, never a false mismatch.
+  async function checkAttributions(reresolved, reportText) {
+    const list = (Array.isArray(reresolved) ? reresolved : [])
+      .filter((r) => r && (r.type === "DOI" || r.type === "PMID") && r.status === STATUS.VERIFIED && r.id);
+    const written = findWrittenAttributions(String(reportText || ""), list);
+    const results = [];
+    for (const r of list) {
+      const key = `${r.type}:${String(r.id).toUpperCase()}`;
+      const w = written.get(key) || { checkable: [], skipped: [] };
+      if (w.checkable.length === 0) {
+        results.push({ id: r.id, type: r.type, status: "not_checked", reason: (w.skipped[0] && w.skipped[0].reason) || "not_found_in_report" });
+        continue;
+      }
+      // A DOI that resolved only through doi.org (another registration agency) has no Crossref
+      // record to read authors from; asking would only spend a 404.
+      if (r.type === "DOI" && r.resolver_type === "fallback") {
+        results.push({ id: r.id, type: r.type, status: "not_checked", reason: "non_crossref_doi" });
+        continue;
+      }
+      if (r.type === "DOI" && !bibliographic.has(key)) {
+        try {
+          bibliographic.set(key, await fetchDoiBibliographic(r.id));
+        } catch (err) {
+          bibliographic.set(key, { error: String(err && err.message) });
+        }
+      }
+      const registry = bibliographic.get(key);
+      if (!registry || registry.error) {
+        results.push({ id: r.id, type: r.type, status: "not_checked", reason: "registry_unavailable", detail: registry && registry.error });
+        continue;
+      }
+      const lines = w.checkable.map((e) => ({ ...e, ...compareAttribution(e, registry) }));
+      const badLines = lines.filter((x) => x.status === "author_mismatch" || x.status === "year_mismatch");
+      const good = lines.find((x) => x.status === "match");
+      const chosen = badLines[0] || good || lines[0];
+      results.push({
+        id: r.id,
+        type: r.type,
+        status: badLines.length ? badLines[0].status : good ? "match" : "not_checked",
+        reason: badLines.length || good ? undefined : chosen.reason,
+        written: { name: chosen.name, year: chosen.year },
+        registry: { authors: registry.authors.slice(0, 6), author_count: registry.authors.length, years: registry.years },
+        // The full record, for the annotator's per-line re-check; never serialized into the manifest.
+        registry_full: { authors: registry.authors, years: registry.years },
+        registry_label: registryLabel(registry),
+        bad_lines: badLines.length,
+        lines: lines.map((x) => ({ line_no: x.line_no, excerpt: x.excerpt, name: x.name, year: x.year, status: x.status }))
+      });
+    }
+    const counts = { cited: results.length, checked: 0, matched: 0, mismatched: 0, mismatched_works: 0, not_checked: 0 };
+    const badWorks = new Set();
+    for (const x of results) {
+      if (x.status === "match") { counts.checked++; counts.matched++; }
+      else if (x.status === "author_mismatch" || x.status === "year_mismatch") {
+        counts.checked++;
+        counts.mismatched++;
+        // A paper cited as "PMID: …; doi: …" is ONE work: group its two ids by the line and name.
+        const first = x.lines.find((l) => l.status === x.status);
+        badWorks.add(first ? `${first.line_no}|${normName(first.name)}` : `${x.type}:${x.id}`);
+      } else counts.not_checked++;
+    }
+    counts.mismatched_works = badWorks.size;
+    return { checked: true, counts, results };
+  }
+
+  return Object.freeze({ resolveOne, resolveAll, checkAttributions, STATUS, RESOLVER_TABLE_VERSION });
 }
 
 module.exports = { createCitationReresolver, STATUS, RESOLVER_TABLE_VERSION, normType, hostFor };

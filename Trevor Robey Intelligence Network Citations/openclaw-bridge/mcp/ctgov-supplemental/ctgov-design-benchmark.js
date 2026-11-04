@@ -59,6 +59,9 @@ const BENCHMARK_FIELDS = [
   "protocolSection.designModule.designInfo",
   "protocolSection.designModule.enrollmentInfo",
   "protocolSection.armsInterventionsModule.armGroups",
+  // Added 2026-11-04 so a "Drug / Intervention" column comes from the registry rather than from
+  // trial titles (run #6 inferred interventions and sponsors from titles). Same single call.
+  "protocolSection.armsInterventionsModule.interventions",
   "protocolSection.outcomesModule.primaryOutcomes"
 ].join(",");
 
@@ -91,6 +94,12 @@ function createCtgovDesignBenchmark(options = {}) {
 
   function textDate(struct) {
     return (struct && struct.date) ? String(struct.date) : "";
+  }
+
+  // ACTUAL or ESTIMATED. For a recruiting trial both dates are plans, and a prompt that printed them
+  // bare would read them as history (2026-11-04 review).
+  function dateType(struct) {
+    return (struct && struct.type) ? String(struct.type) : "";
   }
 
   // Search the comparator cohort in an indication → flat structural records, each NCT-traced.
@@ -171,16 +180,25 @@ function createCtgovDesignBenchmark(options = {}) {
         interventionModel: info.interventionModel || "",
         primaryPurpose: info.primaryPurpose || "",
         masking: (info.maskingInfo && info.maskingInfo.masking) || "",
-        enrollmentCount: Number.isFinite(Number(enrollment.count)) && enrollment.count !== undefined
+        // A registry count of null is "not reported", not zero: `Number(null)` is 0 and used to slip
+        // through as a real enrollment of 0. Likewise an empty armGroups list is "not reported",
+        // not "0 arms" (2026-11-04 review).
+        enrollmentCount: enrollment.count !== null && enrollment.count !== undefined
+          && Number.isFinite(Number(enrollment.count))
           ? Number(enrollment.count)
           : null,
         enrollmentType: enrollment.type || "",
-        armCount: Array.isArray(arms.armGroups) ? arms.armGroups.length : null,
+        armCount: Array.isArray(arms.armGroups) && arms.armGroups.length > 0 ? arms.armGroups.length : null,
+        interventions: (Array.isArray(arms.interventions) ? arms.interventions : [])
+          .map((iv) => ({ type: (iv && iv.type) || "", name: (iv && iv.name) || "" }))
+          .filter((iv) => iv.name),
         primaryOutcomes: (Array.isArray(outcomes.primaryOutcomes) ? outcomes.primaryOutcomes : [])
           .map((o) => ({ measure: (o && o.measure) || "", timeFrame: (o && o.timeFrame) || "" }))
           .filter((o) => o.measure),
         startDate: textDate(status.startDateStruct),
-        primaryCompletionDate: textDate(status.primaryCompletionDateStruct)
+        startDateType: dateType(status.startDateStruct),
+        primaryCompletionDate: textDate(status.primaryCompletionDateStruct),
+        primaryCompletionDateType: dateType(status.primaryCompletionDateStruct)
       });
     }
 

@@ -325,8 +325,38 @@ function normalizeToolRecord(rawRecord, options = {}) {
     citation_velocity: 0,
     published_at: extractPublishedAt(record),
     retrieved_at: options.retrievedAt || timeProviderModule.nowIso(),
-    ...extractIdentifiers(record)
+    ...extractIdentifiers(record),
+    ...extractAuthorNames(record)
   };
+}
+
+// The record's REAL author list, for the prompt (tool-prefetch.js renderRecord). Kept apart from
+// `authors`, which falls back to the category, the source or "tooluniverse" when a row names no
+// author and so cannot be shown to a model as a byline. Found 2026-11-04: run #7's report credited
+// 6 of the 7 papers in its reference table to the wrong authors because no author name ever reached
+// the prompt, so the model wrote them from memory. PubMed rows carry at most 5 names plus
+// `author_count`; the count is kept so the renderer can say how many were left out.
+// Placeholders sources put where a name should be (OpenAlex's "Unknown Author" for an authorship with
+// no display_name, openalex_tool.py:200): never a byline.
+const PLACEHOLDER_AUTHOR = /^(?:unknown author|anonymous|author information not available|n\/?a)$/i;
+const MAX_AUTHOR_NAMES = 25;
+function extractAuthorNames(record) {
+  if (!record || !Array.isArray(record.authors)) return {};
+  const all = normalizeAuthors(record.authors).filter((n) => !PLACEHOLDER_AUTHOR.test(n.trim()));
+  if (all.length === 0) return {};
+  const names = all.slice(0, MAX_AUTHOR_NAMES);
+  const out = { author_names: names };
+  const declared = Number(record.author_count);
+  if (Number.isInteger(declared) && declared > names.length) {
+    out.author_count = declared; // PubMed declares the true count beside its first five names
+  } else if (all.length > names.length) {
+    // Semantic Scholar, Europe PMC and OpenAlex send the list without a count: the total is the list
+    // length — a floor, not a total, once the list may itself have been cut (OpenAlex stops at 100
+    // authorships; normalizeAuthors keeps 200).
+    out.author_count = all.length;
+    if (all.length >= 100) out.author_count_is_minimum = true;
+  }
+  return out;
 }
 
 function normalizeToolList(toolList, options = {}) {

@@ -606,9 +606,12 @@ describe("Search coverage of ToolUniverse results through tool-prefetch", () => 
     ]);
     const [openAlex, doaj] = docs.map((d) => d.content);
     assert.equal((openAlex.match(/^### /gm) || []).length, 3);
-    assert.match(openAlex, /### A prospective study of type 2 diabetes, metformin use, and risk of breast cancer\n\*2021 · Annals of Oncology\*\ndoi: 10\.1016\/j\.annonc\.2020\.12\.008\n/);
+    // 2026-11-04: each row's real author list now reaches the prompt (renderAuthors), so the model no
+    // longer writes bylines from memory; a list longer than five is shortened with its true count.
+    assert.match(openAlex, /### A prospective study of type 2 diabetes, metformin use, and risk of breast cancer\n\*2021 · Annals of Oncology\*\n\*\*Authors:\*\* Yong‐Moon Park, Deborah B\. Bookwalter, Katie M\. O’Brien, Chandra L\. Jackson, Clarice Ring Weinberg et al\. \(6 authors\)\ndoi: 10\.1016\/j\.annonc\.2020\.12\.008\n/);
+    assert.match(openAlex, /\*2013\*\n\*\*Authors:\*\* Gregory W\. Rutecki\n/);
     assert.doesNotMatch(openAlex, /Abstract not available|Unknown venue|"data_quality"/);
-    assert.match(doaj, /\*2024 · Diabetes & Metabolism Journal\*\nBackground Guidelines for switching/);
+    assert.match(doaj, /\*2024 · Diabetes & Metabolism Journal\*\n\*\*Authors:\*\* Ji-Yeon Park, Joonyub Lee, Yoon-Hee Choi\nBackground Guidelines for switching/);
     const dois = (content) => deduplicateCitations(extractCitations(content)).filter((c) => c.type === "DOI").map((c) => c.id).sort();
     assert.deepEqual(dois(openAlex), ["10.1016/j.annonc.2020.12.008", "10.12968/indn.2021.3.14"]);
     assert.deepEqual(dois(doaj), ["10.1186/s12962-017-0082-7", "10.4093/dmj.2023.0259"], "a bare DOAJ DOI is groundable once rendered");

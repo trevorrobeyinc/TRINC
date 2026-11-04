@@ -95,3 +95,90 @@ test("markdown render includes decision + manifest header", () => {
   assert.match(md, /Reproducibility Manifest/);
   assert.match(md, /DELIVER/);
 });
+
+// Attribution check (2026-11-04): operator decision — flag and mark inline, never block.
+const FELDMAN_DOI = "10.1016/s0140-6736(22)01272-7";
+const ATTRIBUTION = {
+  checked: true,
+  marked_lines: 1,
+  counts: { cited: 2, checked: 2, matched: 1, mismatched: 1, mismatched_works: 1, not_checked: 0 },
+  results: [
+    { id: FELDMAN_DOI, type: "DOI", status: "author_mismatch", written: { name: "Chio", year: 2022 }, registry_label: "Feldman et al., 2022" },
+    { id: "28700839", type: "PMID", status: "match", written: { name: "Brown", year: 2017 }, registry_label: "Brown & Al-Chalabi, 2017" }
+  ]
+};
+
+test("attribution mismatch -> DELIVER_WITH_FLAGS with its own reason and markdown, not the network blurb", () => {
+  const m = buildReproducibilityManifest({
+    reresolved: [cit("DOI", FELDMAN_DOI, "VERIFIED"), cit("PMID", "28700839", "VERIFIED")],
+    attribution: ATTRIBUTION,
+    meta: META
+  });
+  assert.equal(m.summary.delivery_decision, "DELIVER_WITH_FLAGS");
+  assert.deepEqual(m.summary.flag_reasons, ["attribution_mismatch"]);
+  assert.deepEqual(m.summary.block_reasons, []);
+  assert.equal(m.summary.counts.verified, 2, "every identifier still resolved");
+  assert.equal(m.summary.attribution_check.mismatches.length, 1);
+  assert.equal(m.summary.attribution_check.mismatches[0].registry_label, "Feldman et al., 2022");
+  assert.equal(m.citations[0].attribution.status, "author_mismatch");
+  const md = renderManifestMarkdown(m);
+  assert.match(md, /## Attribution check/);
+  assert.match(md, /\| DOI \| 10\.1016\/s0140-6736\(22\)01272-7 \| Chio, 2022 \| Feldman et al\., 2022 \| author mismatch \|/);
+  assert.match(md, /marked \[ATTRIBUTION MISMATCH\]/);
+  assert.doesNotMatch(md, /network\/throttle limit/, "a wrong author is not a network problem");
+});
+
+test("attribution mismatch + unchecked ids -> both flags and both explanations", () => {
+  const m = buildReproducibilityManifest({
+    reresolved: [cit("DOI", FELDMAN_DOI, "VERIFIED"), cit("PMID", "28700839", "UNCHECKED", "rate_limited")],
+    attribution: ATTRIBUTION,
+    meta: META
+  });
+  assert.deepEqual(m.summary.flag_reasons, ["unchecked_over_threshold", "attribution_mismatch"]);
+  const md = renderManifestMarkdown(m);
+  assert.match(md, /network\/throttle limit/);
+  assert.match(md, /ATTRIBUTION MISMATCH/);
+});
+
+test("all attributions match -> DELIVER stays DELIVER", () => {
+  const clean = { checked: true, counts: { cited: 1, checked: 1, matched: 1, mismatched: 0, not_checked: 0 }, results: [ATTRIBUTION.results[1]] };
+  const m = buildReproducibilityManifest({ reresolved: [cit("PMID", "28700839", "VERIFIED")], attribution: clean, meta: META });
+  assert.equal(m.summary.delivery_decision, "DELIVER");
+  assert.deepEqual(m.summary.flag_reasons, []);
+});
+
+test("an attribution mismatch never turns a BLOCK into a delivery", () => {
+  const m = buildReproducibilityManifest({
+    reresolved: [cit("DOI", FELDMAN_DOI, "VERIFIED"), cit("PMID", "999999999", "UNRESOLVED", "cannot_get_document_summary")],
+    attribution: ATTRIBUTION,
+    meta: META
+  });
+  assert.equal(m.summary.delivery_decision, "BLOCK");
+});
+
+test("attribution flag says 'listed', not 'marked', when no line was actually marked", () => {
+  const unmarked = { ...ATTRIBUTION, marked_lines: 0 };
+  const m = buildReproducibilityManifest({ reresolved: [cit("DOI", FELDMAN_DOI, "VERIFIED"), cit("PMID", "28700839", "VERIFIED")], attribution: unmarked, meta: META });
+  const md = renderManifestMarkdown(m);
+  assert.match(md, /It is listed under "Attribution check"/);
+  assert.doesNotMatch(md, /marked \[ATTRIBUTION MISMATCH\]/);
+});
+
+test("a report with no DOI or PMID (business lane) gets no attribution section; a crash records a fixed code", () => {
+  const none = { checked: true, counts: { cited: 0, checked: 0, matched: 0, mismatched: 0, mismatched_works: 0, not_checked: 0 }, results: [] };
+  const m1 = buildReproducibilityManifest({ reresolved: [cit("WEB", "abc123abc123", "VERIFIED")], attribution: none, meta: META });
+  assert.ok(!("attribution_check" in m1.summary));
+  assert.doesNotMatch(renderManifestMarkdown(m1), /Attribution check/);
+  const crashed = { checked: false, error: "internal_error", results: [] };
+  const m2 = buildReproducibilityManifest({ reresolved: [cit("PMID", "1", "VERIFIED")], attribution: crashed, meta: META });
+  assert.equal(m2.summary.attribution_check.error, "internal_error");
+  assert.equal(m2.summary.delivery_decision, "DELIVER", "a check that could not run never flags or blocks");
+  assert.match(renderManifestMarkdown(m2), /Not completed this run \(internal_error\)/);
+});
+
+test("no attribution input -> the manifest is exactly as before (no new keys)", () => {
+  const m = buildReproducibilityManifest({ reresolved: [cit("PMID", "1", "VERIFIED")], meta: META });
+  assert.ok(!("attribution_check" in m.summary));
+  assert.ok(!("attribution" in m.citations[0]));
+  assert.doesNotMatch(renderManifestMarkdown(m), /Attribution check/);
+});

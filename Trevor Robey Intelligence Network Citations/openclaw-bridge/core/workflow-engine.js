@@ -23,6 +23,7 @@ const { extractCitations, deduplicateCitations } = require("./citation-extractor
 const { createCitationReresolver } = require("../mcp/citation-reresolver/citation-reresolver.js");
 const { getResearchProfile } = require("./research-profiles.js");
 const { buildReproducibilityManifest, renderManifestMarkdown } = require("./reproducibility-manifest.js");
+const { annotateSubtaskAttributions } = require("./citation-attribution.js");
 const { buildGraveyardMemo, buildAmendmentRisk } = require("../monetization/graveyard-memo.js");
 const { buildDesignBenchmark } = require("../monetization/design-benchmark.js");
 const { buildSearchCoverageLedger, collectSearchCoverage } = require("../monetization/search-coverage-ledger.js");
@@ -447,8 +448,22 @@ function createWorkflowEngine(options = {}) {
             eiaApiKey: process.env.EIA_API_KEY || ""
           });
           const reresolved = await reresolver.resolveAll(cites);
+          // Attribution check (2026-11-04, run #7): is the author / year written beside each DOI / PMID
+          // the registry's? Operator decision: flag and mark inline, never block. An injected
+          // re-resolver without the method (tests) simply skips it; a crash is recorded, not thrown.
+          let attribution = null;
+          if (typeof reresolver.checkAttributions === "function") {
+            try {
+              attribution = await reresolver.checkAttributions(reresolved, gate.reportText || "");
+            } catch (attrErr) {
+              // The message goes to the log only: the manifest ships, so it carries a fixed code.
+              logger.warn({ event: "citation_attribution_check_failed", error: safeString(attrErr && attrErr.message) });
+              attribution = { checked: false, error: "internal_error", results: [] };
+            }
+          }
           const manifest = buildReproducibilityManifest({
             reresolved,
+            attribution,
             // `checked` must reflect whether the screens actually covered every cited identifier —
             // hardcoding `true` made the manifest claim a retraction screen that a rate-limited or
             // unreachable source may have skipped entirely. DOI and PMID retractions stay in their
@@ -472,6 +487,26 @@ function createWorkflowEngine(options = {}) {
               completedAt: timeProviderModule.nowIso()
             }
           });
+          // Mark each mismatched attribution in the shipped sections, the way annotateSubtaskOutputs
+          // marks [UNVERIFIED]: the reader sees "[ATTRIBUTION MISMATCH: registry lists …]" beside the
+          // identifier. Nothing is rewritten silently; the model's text stays, with the correction next
+          // to it. Done BEFORE the manifest is written, so the manifest records how many lines were
+          // actually marked and never claims a mark that a failed rewrite did not make.
+          const attributionMismatches = attribution && Array.isArray(attribution.results)
+            ? attribution.results.filter((a) => a && (a.status === "author_mismatch" || a.status === "year_mismatch"))
+            : [];
+          if (manifest.summary.attribution_check) {
+            let marked = 0;
+            if (attributionMismatches.length > 0 && manifest.summary.delivery_decision !== "BLOCK") {
+              try {
+                marked = annotateSubtaskAttributions(missionResult.subtask_results, attributionMismatches);
+              } catch (markErr) {
+                logger.warn({ event: "citation_attribution_mark_failed", error: safeString(markErr && markErr.message) });
+              }
+            }
+            manifest.summary.attribution_check.marked_lines = marked;
+            logger.info({ event: "citation_attribution_check", mismatched: attributionMismatches.length, marked_lines: marked });
+          }
           try {
             const mdir = getWorkflowDir(context.workflowId);
             ensureDir(mdir);

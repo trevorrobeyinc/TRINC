@@ -165,7 +165,17 @@ function createDeliverablePackager(options = {}) {
       unresolved: num(counts.unresolved),
       unchecked: num(counts.unchecked),
       decision: safeString(s.delivery_decision),
-      byType: asPlainObject(s.by_type)
+      byType: asPlainObject(s.by_type),
+      // Attribution check (2026-11-04): cited WORKS (a "PMID: …; doi: …" pair is one) that resolve but
+      // carry the wrong author/year in the report, and whether marks actually reached the sections.
+      attributionMismatches: (() => {
+        const ac = asPlainObject(s.attribution_check);
+        const k = asPlainObject(ac.counts);
+        if (Number.isFinite(k.mismatched_works) && k.mismatched_works > 0) return k.mismatched_works;
+        return Array.isArray(ac.mismatches) ? ac.mismatches.length : 0;
+      })(),
+      attributionMarked: Number.isFinite(asPlainObject(s.attribution_check).marked_lines)
+        && asPlainObject(s.attribution_check).marked_lines > 0
     };
   }
 
@@ -200,13 +210,22 @@ function createDeliverablePackager(options = {}) {
     if (res.unchecked > 0) residue.push(`${res.unchecked} returned no definitive answer and are recorded UNCHECKED`);
     if (res.unresolved > 0) residue.push(`${res.unresolved} did not resolve and are recorded UNRESOLVED`);
     // Full strength is gated on DELIVER, not merely on a clean residue: DELIVER is the only
-    // decision that asserts "every identifier was re-resolved" (Q8 policy, doctrine-REQUIRED).
+    // decision that asserts "every identifier was re-resolved" (Q8 policy, doctrine-REQUIRED). An
+    // attribution flag alone leaves every id VERIFIED, so that fact is stated as such and the flag
+    // follows as its own sentence (the mismatches are a subset of the VERIFIED, not extra ids).
+    const attributionOnly = res.attributionMismatches > 0 && res.verified === res.total;
     const outcome = residue.length > 0
       ? `For this report ${res.verified} of ${res.total} resolved VERIFIED; ${residue.join("; ")}.`
-      : res.decision === "DELIVER"
+      : res.decision === "DELIVER" || attributionOnly
         ? `For this report all ${res.total} resolved VERIFIED.`
         : `For this report ${res.verified} of ${res.total} resolved VERIFIED (delivery decision: ${res.decision || "not recorded"}).`;
-    return `Every cited identifier is submitted at delivery for independent re-resolution against its issuing public registry (${registries}). ${outcome} `
+    let attribution = "";
+    if (res.attributionMismatches > 0) {
+      const n = res.attributionMismatches;
+      attribution = ` Of the VERIFIED, ${n} cited work${n === 1 ? "" : "s"} ${n === 1 ? "carries" : "carry"} an author or year in the report that does not match the registry record`
+        + `${res.attributionMarked ? ` and ${n === 1 ? "is" : "are"} marked [ATTRIBUTION MISMATCH] in the report` : ""}.`;
+    }
+    return `Every cited identifier is submitted at delivery for independent re-resolution against its issuing public registry (${registries}). ${outcome}${attribution} `
       + "Per-identifier results are recorded in the accompanying Reproducibility Manifest. " + copy.correctnessNote;
   }
 
@@ -373,7 +392,10 @@ function createDeliverablePackager(options = {}) {
       lines.push("");
       lines.push(`Independently re-resolved at delivery: **${reportResolution.verified} VERIFIED** of ${reportResolution.total}`
         + `${reportResolution.unchecked > 0 ? ` · ${reportResolution.unchecked} UNCHECKED` : ""}`
-        + `${reportResolution.unresolved > 0 ? ` · ${reportResolution.unresolved} UNRESOLVED` : ""}`);
+        + `${reportResolution.unresolved > 0 ? ` · ${reportResolution.unresolved} UNRESOLVED` : ""}`
+        + `${reportResolution.attributionMismatches > 0
+          ? ` · ${reportResolution.attributionMismatches} cited work${reportResolution.attributionMismatches === 1 ? "" : "s"} with an author/year that does not match the registry (see the Reproducibility Manifest)`
+          : ""}`);
     }
     lines.push("");
 

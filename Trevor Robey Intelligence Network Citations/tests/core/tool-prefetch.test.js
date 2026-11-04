@@ -212,6 +212,172 @@ describe("tool-prefetch", () => {
     });
   });
 
+  // 2026-11-04: run #6 (workflow-6cc2f82c) showed the competitive_intel_analyst only titles for the
+  // design-benchmark cohort, so it inferred sponsors from drug names and contradicted the run's own
+  // design-benchmark.csv. These pin that the registry fields reach the prompt, that a missing field
+  // is simply absent (never guessed), and that records from every other source render unchanged.
+  describe("registry design fields (Trial Design Benchmark cohort)", () => {
+    const DESIGN_RECORD = {
+      title: "Synthetic design-benchmark trial",
+      nctId: "NCT00000001",
+      status: "RECRUITING",
+      phase: "PHASE3",
+      sponsor: "National Cancer Institute (NCI)",
+      sponsorClass: "NIH",
+      allocation: "RANDOMIZED",
+      interventionModel: "PARALLEL",
+      primaryPurpose: "TREATMENT",
+      masking: "NONE",
+      enrollmentCount: 1210,
+      enrollmentType: "ESTIMATED",
+      armCount: 2,
+      interventions: [{ type: "DRUG", name: "Example drug" }],
+      primaryOutcomes: [{ measure: "Disease-free survival", timeFrame: "Up to 5 years" }],
+      startDate: "2026-03",
+      startDateType: "ESTIMATED",
+      primaryCompletionDate: "2031-12",
+      primaryCompletionDateType: "ESTIMATED"
+    };
+    const STOPPED_RECORD = {
+      title: "Synthetic stopped trial",
+      nctId: "NCT00000002",
+      status: "TERMINATED",
+      phase: "PHASE3",
+      whyStopped: "slow accrual"
+    };
+    const NOTE = "_Registry fields below come from ClinicalTrials.gov, lightly normalized";
+
+    // The real fetcher attaches the denominator, rule and sort as non-enumerable properties.
+    function asCohort(records, eligibleTotal) {
+      const { SELECTION_RULE, COHORT_SORT } = require("../../openclaw-bridge/mcp/ctgov-supplemental/ctgov-design-benchmark.js");
+      const arr = records.slice();
+      Object.defineProperty(arr, "eligibleTotal", { value: eligibleTotal, enumerable: false });
+      Object.defineProperty(arr, "selectionRule", { value: SELECTION_RULE, enumerable: false });
+      Object.defineProperty(arr, "sort", { value: COHORT_SORT, enumerable: false });
+      return arr;
+    }
+
+    it("shows the competitive_intel_analyst N of M and every design field the cohort fetcher returned", async () => {
+      const { SELECTION_RULE } = require("../../openclaw-bridge/mcp/ctgov-supplemental/ctgov-design-benchmark.js");
+      const prefetch = createToolPrefetch({
+        toolUniverseMcp: createMockToolUniverseMcp([], { whenExhausted: [] }),
+        logger,
+        rootDir: ROOT_DIR,
+        localFetchers: {
+          ctgov_design_benchmark: async () => asCohort([DESIGN_RECORD], 675),
+          ctgov_stopped_trials: async () => [STOPPED_RECORD]
+        }
+      });
+      const docs = await prefetch.prefetchForRole("competitive_intel_analyst", {
+        indication: "non-small cell lung cancer"
+      });
+
+      const bench = docs.find((d) => d.content.includes("## Live Data: ctgov_design_benchmark"));
+      assert.ok(bench, "the analyst's prefetch must include the design-benchmark cohort");
+      assert.ok(bench.content.includes(
+        `_Cohort: 1 of 675 eligible registered programs (a count of ClinicalTrials.gov records, not a patient population). Selection rule: ${SELECTION_RULE} Sort: StartDate:desc._\n\n`
+      ), `the cohort denominator must reach the prompt (run #6 wrote "20 of 20"); got:\n${bench.content}`);
+      assert.ok(bench.content.includes(NOTE), "the design-benchmark result carries the do-not-infer note");
+      assert.ok(bench.content.includes('call it "not retrieved", never "not reported"'), "the note separates not-requested from not-reported");
+      assert.ok(bench.content.includes(
+        "### Synthetic design-benchmark trial\n" +
+        "*Phase PHASE3 · RECRUITING*\n" +
+        "**Lead sponsor:** National Cancer Institute (NCI) (class: NIH)\n" +
+        "**Design:** allocation RANDOMIZED · intervention model PARALLEL · masking NONE · primary purpose TREATMENT · 2 arm groups\n" +
+        "**Enrollment:** 1210 (ESTIMATED)\n" +
+        "**Interventions:** DRUG: Example drug\n" +
+        "**Primary outcome:** Disease-free survival [time frame: Up to 5 years]\n" +
+        "**Dates:** start 2026-03 (ESTIMATED) · primary completion 2031-12 (ESTIMATED)\n" +
+        "NCT: NCT00000001\n\n"
+      ), `design record should render every field it carries; got:\n${bench.content}`);
+
+      const stopped = docs.find((d) => d.content.includes("## Live Data: ctgov_stopped_trials"));
+      assert.ok(stopped, "the analyst's prefetch must include the stopped-trial records");
+      assert.ok(stopped.content.includes(
+        "### Synthetic stopped trial\n*Phase PHASE3 · TERMINATED*\n**Stopped:** slow accrual\nNCT: NCT00000002\n\n"
+      ), `a record without design fields renders exactly as before; got:\n${stopped.content}`);
+      assert.ok(!stopped.content.includes(NOTE), "no note outside the design-benchmark source");
+      assert.ok(!stopped.content.includes("_Cohort:"), "no cohort line outside the design-benchmark source");
+    });
+
+    it("prints only what is present, caps long lists, and ties the note to the design-benchmark tool", async () => {
+      const fs = require("node:fs");
+      const os = require("node:os");
+      const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "tool-prefetch-design-"));
+      try {
+        fs.mkdirSync(path.join(tmpRoot, "config"));
+        fs.writeFileSync(path.join(tmpRoot, "config", "tool-prefetch-map.json"), JSON.stringify({
+          role_mappings: {
+            fixture_role: [
+              { action: "executeTool", tool_name: "ctgov_design_benchmark", arguments: { condition: "{{indication}}" } },
+              { action: "executeTool", tool_name: "fixture_other_registry", arguments: { condition: "{{indication}}" } },
+              { action: "executeTool", tool_name: "fixture_literature", arguments: { query: "{{indication}}" } }
+            ]
+          }
+        }));
+        const longFrame = "x".repeat(400);
+        const prefetch = createToolPrefetch({
+          toolUniverseMcp: createMockToolUniverseMcp([], { whenExhausted: [] }),
+          logger,
+          rootDir: tmpRoot,
+          localFetchers: {
+            // No eligibleTotal on this array: no cohort line may be invented.
+            ctgov_design_benchmark: async () => [{
+              title: "Withdrawn fixture trial",
+              nctId: "NCT00000003",
+              sponsor: "Example University",
+              enrollmentCount: 0,
+              enrollmentType: "ACTUAL",
+              armCount: 1,
+              interventions: Array.from({ length: 8 }, (_, i) => ({ type: "DRUG", name: `Agent ${i + 1}` })),
+              primaryOutcomes: [
+                { measure: "  " },
+                { measure: "Overall survival", timeFrame: longFrame },
+                "not-an-object",
+                { measure: "Progression-free survival" },
+                { measure: "Objective response rate" },
+                { measure: "Duration of response" }
+              ]
+            }],
+            fixture_other_registry: async () => [{ title: "Other source row", sponsor: "Some Sponsor", startDate: "2020-01" }],
+            fixture_literature: async () => [{ title: "A paper", pmid: "12345678", abstract: "Abstract text." }]
+          }
+        });
+        const docs = await prefetch.prefetchForRole("fixture_role", { indication: "fixture disease" });
+
+        const bench = docs.find((d) => d.content.includes("## Live Data: ctgov_design_benchmark"));
+        assert.ok(bench.content.includes(NOTE));
+        assert.ok(!bench.content.includes("_Cohort:"), "no cohort line without a fetcher-supplied denominator");
+        assert.ok(bench.content.includes("**Lead sponsor:** Example University\n"), "no class suffix when the class is absent");
+        assert.ok(bench.content.includes("**Design:** 1 arm group\n"), "singular arm group; absent design fields omitted");
+        assert.ok(bench.content.includes("**Enrollment:** 0 (ACTUAL)\n"), "a reported enrollment of 0 is printed");
+        assert.ok(bench.content.includes(
+          "**Interventions:** DRUG: Agent 1; DRUG: Agent 2; DRUG: Agent 3; DRUG: Agent 4; DRUG: Agent 5; DRUG: Agent 6 (+2 more)\n"
+        ), "interventions capped at six with a count of the rest");
+        const outcomesLine = bench.content.split("\n").find((l) => l.startsWith("**Primary outcomes:**"));
+        assert.ok(outcomesLine, "plural label for several outcomes");
+        assert.ok(outcomesLine.includes("Overall survival [time frame: "), "outcome with its time frame");
+        assert.ok(outcomesLine.includes("…]"), "an over-long time frame is clipped with an ellipsis");
+        assert.ok(!outcomesLine.includes(longFrame), "the full 400-character time frame is not printed");
+        assert.ok(outcomesLine.endsWith("(+1 more primary outcome not shown)"), "three shown, the rest counted; blanks and non-objects dropped");
+        assert.ok(!outcomesLine.includes("Duration of response"), "the fourth valid outcome is left out");
+        assert.ok(!bench.content.includes("**Dates:**"), "no dates line when no date was returned");
+
+        const other = docs.find((d) => d.content.includes("## Live Data: fixture_other_registry"));
+        assert.ok(other.content.includes("**Lead sponsor:** Some Sponsor\n"), "per-record fields render for any source");
+        assert.ok(other.content.includes("**Dates:** start 2020-01\n"), "an untyped date prints bare");
+        assert.ok(!other.content.includes(NOTE), "the ClinicalTrials.gov note never attaches to another source");
+
+        const literature = docs.find((d) => d.content.includes("## Live Data: fixture_literature"));
+        assert.ok(literature.content.includes("### A paper\nAbstract text.\nPMID: 12345678\n\n"), "literature renders unchanged");
+        assert.ok(!literature.content.includes(NOTE));
+        assert.ok(!literature.content.includes("**Lead sponsor:**"));
+      } finally {
+        fs.rmSync(tmpRoot, { recursive: true, force: true });
+      }
+    });
+  });
+
   describe("clearCache", () => {
     it("clears cached results so next call re-queries ToolUniverse", async () => {
       const mcp = createMockToolUniverseMcp();

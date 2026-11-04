@@ -259,3 +259,102 @@ test("NCBI 5xx is not retried (only a 429 earns the one retry)", async () => {
   assert.equal(calls.n, 1);
   assert.deepEqual(state.waits, []);
 });
+
+// Attribution check (2026-11-04, run #7): the author written beside a DOI / PMID vs the registry.
+const FELDMAN_DOI = "10.1016/s0140-6736(22)01272-7";
+const ATTRIBUTION_REPORT = [
+  `| Chio et al. / Lancet | 2022 | doi: ${FELDMAN_DOI} | ALSFRS-R slope |`,
+  "| Brown & Al-Chalabi / NEJM | 2017 | PMID: 28700839 | review |",
+  "| Paganoni et al. / NEJM | 2017 | PMID: 99999999 | wrong author |"
+].join("\n");
+const ATTRIBUTION_ROUTES = [
+  { match: "/agency", status: 200, body: { status: "ok", "message-type": "work-agency" } },
+  { match: "api.crossref.org/works/", status: 200, body: { status: "ok", message: {
+    author: [{ family: "Feldman" }, { family: "Goutman" }, { family: "Petri" }],
+    issued: { "date-parts": [[2022, 8, 6]] }
+  } } },
+  { match: "id=28700839", status: 200, body: { result: { "28700839": { uid: "28700839", authors: [{ name: "Brown RH" }, { name: "Al-Chalabi A" }], pubdate: "2017 Jul 13" } } } },
+  { match: "id=99999999", status: 200, body: { result: { "99999999": { uid: "99999999", authors: [{ name: "Brown RH" }, { name: "Al-Chalabi A" }], pubdate: "2017 Jul 13" } } } }
+];
+
+test("attribution: author checked against Crossref (DOI) and the docsum resolvePMID already read (PMID)", async () => {
+  const counter = { n: 0 };
+  const resolver = rr(ATTRIBUTION_ROUTES, counter);
+  const resolved = await resolver.resolveAll([
+    { type: "DOI", id: FELDMAN_DOI },
+    { type: "PMID", id: "28700839" },
+    { type: "PMID", id: "99999999" }
+  ]);
+  assert.ok(resolved.every((r) => r.status === "VERIFIED"));
+  const callsBefore = counter.n;
+  const out = await resolver.checkAttributions(resolved, ATTRIBUTION_REPORT);
+  assert.equal(counter.n - callsBefore, 1, "one Crossref metadata call for the DOI; PMIDs reuse the docsum");
+  const byId = Object.fromEntries(out.results.map((r) => [r.id, r]));
+  assert.equal(byId[FELDMAN_DOI].status, "author_mismatch");
+  assert.equal(byId[FELDMAN_DOI].registry_label, "Feldman et al., 2022");
+  assert.deepEqual(byId[FELDMAN_DOI].written, { name: "Chio", year: 2022 });
+  assert.equal(byId["28700839"].status, "match");
+  assert.equal(byId["99999999"].status, "author_mismatch");
+  assert.deepEqual(out.counts, { cited: 3, checked: 3, matched: 1, mismatched: 2, mismatched_works: 2, not_checked: 0 });
+  assert.deepEqual(byId[FELDMAN_DOI].registry_full.authors, ["Feldman", "Goutman", "Petri"], "the full record travels to the annotator");
+  assert.ok(resolved.every((r) => r.status === "VERIFIED"), "the check never changes an identifier's status");
+});
+
+test("attribution: a 'PMID: …; doi: …' pair for one paper counts as ONE mismatched work", async () => {
+  const doi = "10.1002/ana.78394";
+  const routes = [
+    { match: "/agency", status: 200, body: { status: "ok", "message-type": "work-agency" } },
+    { match: "api.crossref.org/works/", status: 200, body: { status: "ok", message: { author: [{ family: "Calvo" }, { family: "Moglia" }], issued: { "date-parts": [[2026]] } } } },
+    { match: "id=42937037", status: 200, body: { result: { "42937037": { uid: "42937037", authors: [{ name: "Calvo A" }, { name: "Moglia C" }], pubdate: "2026 Oct" } } } }
+  ];
+  const resolver = rr(routes);
+  const resolved = await resolver.resolveAll([{ type: "PMID", id: "42937037" }, { type: "DOI", id: doi }]);
+  const out = await resolver.checkAttributions(resolved, `| Rissanen et al. / Ann Neurol | 2026 | PMID: 42937037; doi: ${doi} | models |`);
+  assert.equal(out.counts.mismatched, 2, "two identifiers");
+  assert.equal(out.counts.mismatched_works, 1, "one cited work");
+});
+
+test("attribution: a DOI resolved only via doi.org (non-Crossref agency) is not_checked without a wasted /works call", async () => {
+  const counter = { n: 0 };
+  const routes = [
+    { match: "/agency", status: 404, body: {} },
+    { match: "doi.org/", status: 200, body: {} }
+  ];
+  const resolver = rr(routes, counter);
+  const resolved = await resolver.resolveAll([{ type: "DOI", id: "10.5281/zenodo.11966097" }]);
+  assert.equal(resolved[0].resolver_type, "fallback");
+  const before = counter.n;
+  const out = await resolver.checkAttributions(resolved, "Razuvayevskaya et al. (2024; doi: 10.5281/zenodo.11966097)");
+  assert.equal(out.results[0].reason, "non_crossref_doi");
+  assert.equal(counter.n, before, "no metadata request");
+});
+
+test("attribution: a PMID whose record lists only collective names is not_checked, never a mismatch", async () => {
+  const routes = [{ match: "id=28522181", status: 200, body: { result: { "28522181": { uid: "28522181", authors: [{ name: "Writing Group", authtype: "CollectiveName" }], pubdate: "2017 Jul" } } } }];
+  const resolver = rr(routes);
+  const resolved = await resolver.resolveAll([{ type: "PMID", id: "28522181" }]);
+  const out = await resolver.checkAttributions(resolved, "Abe et al. (2017; PMID: 28522181) reported the trial.");
+  assert.equal(out.results[0].status, "not_checked");
+  assert.equal(out.results[0].reason, "registry_has_no_authors");
+});
+
+test("attribution: Crossref unreachable -> not_checked registry_unavailable, never a false mismatch", async () => {
+  const routes = [
+    { match: "/agency", status: 200, body: { status: "ok", "message-type": "work-agency" } },
+    { match: "api.crossref.org/works/", status: 429, body: {} }
+  ];
+  const resolver = rr(routes);
+  const resolved = await resolver.resolveAll([{ type: "DOI", id: FELDMAN_DOI }]);
+  const out = await resolver.checkAttributions(resolved, ATTRIBUTION_REPORT);
+  assert.equal(out.results[0].status, "not_checked");
+  assert.equal(out.results[0].reason, "registry_unavailable");
+  assert.equal(out.counts.mismatched, 0);
+});
+
+test("attribution: an UNRESOLVED or UNCHECKED id is never attribution-checked", async () => {
+  const resolver = rr([{ match: "esummary", throw: true }]);
+  const resolved = await resolver.resolveAll([{ type: "PMID", id: "28700839" }]);
+  assert.equal(resolved[0].status, "UNCHECKED");
+  const out = await resolver.checkAttributions(resolved, ATTRIBUTION_REPORT);
+  assert.deepEqual(out.results, []);
+});

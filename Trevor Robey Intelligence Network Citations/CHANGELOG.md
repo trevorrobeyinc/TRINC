@@ -4,6 +4,98 @@ All notable changes to this repository are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-11-04] Root cause of the misattributions: the model now sees each paper's real authors
+
+The attribution check (next entry) found 6 of the 7 papers in run #7's reference table credited to the wrong authors. The cause: every literature source the engine queries returns author names, but no author name ever reached the prompt, so the model wrote bylines from memory. A live re-render of the four mis-credited PMIDs makes it concrete. Before, the writer saw no author line. Now it sees "Calvo A, Moglia C, Canosa A, Manera U, Zucchi E et al. (21 authors)", "Yin Y … (8 authors)", "Benatar M, Wuu J, Turner MR, Macklin EA" and "Uysal SP … (10 authors)"; the report had said "Rissanen", "Mazzini", "Al-Chalabi" and "Basiri".
+
+- **`tooluniverse-mcp/tu-record-normalizer.js`:** new `author_names` field, filled only from a row's genuine `authors` list (at most 25, placeholders such as OpenAlex's "Unknown Author" dropped).
+  - It sits apart from the legacy `authors`, which falls back to a category, the source or "tooluniverse" and is never printed.
+  - `author_count` is PubMed's declared total (it sends five names), otherwise the list length when the list was cut. `author_count_is_minimum` is set when a source may itself have cut the list (OpenAlex stops at 100).
+- **`core/tool-prefetch.js`:**
+  - `renderAuthors` prints `**Authors:** a, b, c, d, e et al. (N authors)` ("at least N" for a floor). It also prints a local fetcher's `authors` string, for example Europe PMC preprints' `authorString`.
+  - Context-only prior-run text now has its bylines withheld as well as its identifiers (`redactBylines`). Run #7's vault notes and research-memory pack still say "Chio et al. / Lancet 2022", and a model must not re-attach that to the live DOI.
+- **`mcp/business-sources/openalex.js`:** keeps each work's authorships as `author_names`. The business lane had no author data at all.
+- **`core/agent-engine.js` `buildPrompt`:** the ZERO FABRICATION clause gains one sentence. Name an author only as the record's "Authors:" line gives it; with no such line, cite by identifier without naming an author.
+- **`config/role-prompts.json`:**
+  - The literature_reviewer's references table becomes "Authors | Year | PMID or DOI | Key Finding", with Authors copied from the Authors line or "not retrieved". This is the table that failed in run #7.
+  - The report_generator (no evidence of its own) no longer says "Add additional identifiers where possible". It names an author only where its input already does.
+- **`core/citation-attribution.js`:**
+  - Reads the plain Vancouver list the Authors line now shows the model ("Calvo A, Moglia C, …"), taking the FIRST surname. Initials are required on every name, so "Japan, Korea", "Type II, Type III" and "Stage IV" never qualify.
+  - Accepts an italic *et al.*
+  - Reads a year after ", et al.".
+- **Adversarial review (2 lenses):** no false Authors: line from any mapped tool (no tool puts inventors, sponsors or firms in `authors`), and prompt growth is small. Its should-fixes are all applied above: the over-25 count, the role prompts, the prior-run bylines, the Vancouver backstop and the placeholder. Left as notes:
+  - The attribution check accepts any author on the record, not only the lead.
+  - A record's identifiers print after its abstract, below its byline.
+- **Tests:** new `tests/core/author-byline.test.js` (15); `tests/core/citation-attribution.test.js` (+3); `tests/core/tu-record-normalizer-payload.test.js` now pins the live-captured OpenAlex and DOAJ bylines. `npm test` 1394 → 1412, 0 fail. Phase 18/19/29/30 policy gates and the restricted-globals lint pass. The live attribution check over the 7 reports on disk is unchanged: 6 misattributed works, all run #7, no false alarm.
+- **Not done (operator's call):** run #7's vault notes and research-memory pack still carry the wrong bylines as data. The prompt can no longer pick them up, but correcting or superseding them is a separate decision.
+
+## [2026-11-04] Attribution check: the author and year written beside a cited DOI / PMID are now compared with the registry record
+
+Run #7 (`workflow-e5947dccdce0e06fde1884b5`, ALS, DELIVER 38/38) credited Feldman et al., Lancet 2022 (10.1016/s0140-6736(22)01272-7) to "Chio et al." and Brown & Al-Chalabi, NEJM 2017 (10.1056/NEJMra1603471, PMID 28700839) to "Paganoni et al." The identifiers were real, retrieved and resolvable, so the citation gate (was it fetched?) and re-resolution (does it exist?) both passed them. Neither checks the attribution written beside an identifier.
+
+- **New `openclaw-bridge/core/citation-attribution.js`** (pure, plus a fail-soft annotator).
+  - **What counts as a checkable attribution:** a line names exactly one author ("X et al.", or "X & Y" / "X and Y" anchored to a year or a table's "Author / Journal" slash) beside exactly one cited work. A DOI + PMID count as one work only in the "PMID: …; doi: …" form. Outside a table the name must sit near the identifier.
+  - **Year:** the one written next to the name, or a table's year-only cell. Never any year on the line, and never one inside an identifier or a wiki-link target.
+  - **Name match:** the name matches if it is on the record's author list at all, compared token by token, so particles, compound surnames, diacritics and transliterations ("Ø", "æ"), "Jr" suffixes and collective-name-only NCBI records do not raise a flag.
+  - Anything else is `not_checked` with a reason.
+- **`citation-reresolver.js`:**
+  - `resolvePMID` keeps the docsum's authors and years.
+  - New `checkAttributions(reresolved, reportText)` fetches Crossref `/works/{doi}` only for DOIs with an author beside them. It skips doi.org-fallback DOIs, counts mismatched identifiers and mismatched works, and never changes an identifier's status. An unreachable registry gives `not_checked`.
+- **`reproducibility-manifest.js`:**
+  - Optional `attribution` input. Without it the manifest is byte-identical.
+  - A mismatch adds `flag_reasons: ["attribution_mismatch"]` → `DELIVER_WITH_FLAGS` (operator decision 2026-11-04: flag and mark inline, never block; BLOCK still wins).
+  - New `summary.attribution_check`, recording counts, mismatches, `marked_lines`, and a fixed `error` code if the check could not run.
+  - An "Attribution check" markdown section, omitted when no DOI or PMID was cited (the business lane).
+  - The DELIVER_WITH_FLAGS explanation is now per reason. The network/throttle sentence no longer appears for an attribution flag.
+- **`workflow-engine.js`:**
+  - Runs the check after re-resolution; a crash is logged and recorded as `internal_error`.
+  - Writes `[ATTRIBUTION MISMATCH: registry lists …]` into the shipped section files before the manifest is persisted. Each line is re-checked; the mark goes after the whole wiki-link, markdown link or URL, and the write is idempotent.
+- **`deliverable-packager.js`:** the re-resolution sentence and `report.md`'s Citation Summary state the mismatched works as a subset of the VERIFIED: "Of the VERIFIED, N cited works carry an author or year … and are marked …", with "marked" only when a mark was written.
+- **Adversarial review (same day):** found no regression and no path to a block. Its false-alarm probes are now pinned as tests: "Merck Sharp & Dohme", "Muscle & Nerve", "*Tissue & Cell*", "Pemetrexed & Carboplatin", "EULAR & ACR", "Japan and Korea", a guideline year on the line, a DOI-embedded year in a wiki-link, "Jack CR Jr", collective-only PMIDs, "Van Es", "Pascual Figal", an unverified second work on the line, a name sentences away, marks inside links, DOI prefixes, and PMIDs inside PMCIDs.
+- **Tests:**
+  - new `tests/core/citation-attribution.test.js` (20) and `tests/core/citation-attribution-engine.test.js` (1, through the real engine into the sealed bundle);
+  - `tests/citation-reresolver.test.js` (+6) and `tests/reproducibility-manifest.test.js` (+7).
+- **Live, read-only, over the 7 real reports on disk:**
+  - 151 DOI/PMID cited; 17 checkable.
+  - 7 match.
+  - 10 mismatch, all in run #7: 6 of the 7 papers in its reference table, cited 10 times. Feldman → "Chio", Brown & Al-Chalabi → "Paganoni", Calvo → "Rissanen", Yin → "Mazzini", Benatar → "Al-Chalabi", Uysal → "Basiri". Only Hardiman is right.
+- **Root cause:** `tool-prefetch.js` `renderRecord` never printed a literature record's authors, so the model wrote author names from memory. Fixed the same day; see the entry above.
+
+## [2026-11-04] The Trial Design Benchmark analyst now sees the registry fields it is asked to compare, and the cohort's N of M (run #6 guessed sponsors from drug names)
+
+Building the first sales sample from run #6 (`workflow-6cc2f82cbced588b04c4d135`, NSCLC, 45/45 VERIFIED) showed its narrative contradicting its own `design-benchmark.csv`. It named Roche as sponsor of NCT07388524 ("inferred — atezolizumab"); the registry says the National Cancer Institute. NCT07738172 became AstraZeneca instead of National Taiwan University Hospital. The narrative also said the design fields "must be retrieved separately", gave a 14/6 phase split where the registry has 15/5, and headed the cohort "20 of 20" where the deliverable says 20 of 675.
+
+- **Cause: fetched, then dropped on the way into the prompt.** `ctgov-design-benchmark.js` returns sponsor and class, allocation, masking, intervention model, arm count, enrollment, primary outcomes and dates for every cohort trial. `tool-prefetch.js` `renderRecord` printed only title, phase and status. The `competitive_intel_analyst`, whose task is to compare exactly those fields, never saw them. The eligible-population denominator rides on the array as non-enumerable properties and was never rendered either.
+- **`openclaw-bridge/core/tool-prefetch.js`:**
+  - New `renderRegistryDesignFields` prints each field a record carries, with ESTIMATED/ACTUAL on dates. It prints nothing for a field the record lacks, so every other source renders byte-identically (verified by a regression review over every wired fetcher, the ToolUniverse normalizer and the business sources).
+  - Outcome and intervention lists are capped at 3 and 6, with a count of the rest. A 50-trial vaccine cohort reached about 70K characters uncapped.
+  - The `ctgov_design_benchmark` result now opens with a cohort line ("20 of 64 eligible registered programs … not a patient population", plus the selection rule and sort) and a note naming exactly which fields were requested. That note separates "not retrieved" from "not reported" and forbids inferring a sponsor, phase or design field from a title or an intervention name. Both lines are tied to the tool name, never to field names.
+- **`openclaw-bridge/mcp/ctgov-supplemental/ctgov-design-benchmark.js`:**
+  - Also requests `armsInterventionsModule.interventions` (same call), so a Drug/Intervention column comes from the registry.
+  - Keeps the start and primary-completion date types.
+  - A `null` registry enrollment count is now `null`, not 0 (`Number(null)` was slipping through), and an empty arm list is `null`, not 0 arms. `design-benchmark.js` already treats null as not reported and leaves zeros out of the median.
+- **`config/mission-templates.json` (`trial_design_benchmark`):**
+  - The analyst step names the table columns (sponsor and class through primary endpoint), to be filled from the registry fields with "not retrieved" for a gap. They replace the generic pipeline table.
+  - The synthesizer step now depends on steps 1 and 2, so it reads the analyst's registry table, not only the literature review. It defines N of M as a count of registered trials.
+- **Tests:**
+  - `tests/core/tool-prefetch.test.js` (+2): the real analyst mapping renders the cohort line and every field while a stopped-trial record renders exactly as before; plus caps, missing fields, the 0-vs-null case, and the note never attaching to another source.
+  - New `tests/core/ctgov-design-benchmark.test.js` (+3): record shape from an injected v2 response, interventions requested, date types kept, null enrollment and empty arm list not reported as 0.
+  - `npm test`: 1355 → 1360, 0 fail. Phase 18, 19 and 29 policy gates and the restricted-globals lint pass.
+- **Live check (read-only CT.gov, no model call):** the ALS cohort renders 20 of 64 eligible programs, each with lead sponsor, design, enrollment, interventions, outcomes and typed dates.
+- **Not changed, stated:**
+  - Cohort tallies (phase split, sponsor class) are still model arithmetic. `design-benchmark.md` does not tally them.
+  - Nothing yet compares the narrative against `design-benchmark.csv` after assembly.
+  - Local-fetcher docs still carry the "Source: ToolUniverse SMCP" label.
+  - `config/role-prompts.json` still asks this analyst for a ChEMBL id per drug, while the commercial paper (2026-11-04) excludes ChEMBL ids from paid deliverables pending counsel. That is the operator's decision.
+- **Proven the same day by run #7** (`workflow-e5947dccdce0e06fde1884b5`, ALS, operator-armed through the Command Center door, about 6½ min):
+  - **Gate and delivery:** citation gate PASS, 38/38 grounded, retraction screen clean. Delivery re-resolution 38/38 VERIFIED (20 NCT, 7 PMID, 11 DOI), DELIVER. Post-run chain all `ok`.
+  - **The narrative now agrees with `design-benchmark.csv`:**
+    - all 20 cohort trials are named with their registry sponsor;
+    - the cohort reads "20 of 64 eligible registered programs … not a patient population", with no "20 of 20";
+    - the phase split (9 Phase 3 / 11 Phase 2/3) and the sponsor classes (13 INDUSTRY / 7 OTHER) match the registry, every listed NCT under the right heading;
+    - missing fields say "not retrieved" (7×), never "not reported".
+  - It is also the Pack's first gate-PASS outside NSCLC. Still open: the report quotes the source as "ToolUniverse ctgov_design_benchmark" (the local-fetcher label above).
+
 ## [2026-11-01] zod 3.24.1 → 4.6.7, with the schemas made version-neutral first
 
 The engine's only open dependency advisory was zod 3.24.1 (GHSA-mrhx-c7xc-m3w5, high; no 3.x fix). The work went in two commits. The first makes every schema behave the same on zod 3.24.1 and 4.6.7 (the bullets below). The second moves the version, and the operator approved it as the named reviewer in `security/dependency-review.md`. It changes `package.json` (exact `4.6.7`), `package-lock.json`, the LOCKED cache, `security/npm-cache.lock.json` and `security/known-good-dependencies.json`. The cache again holds one tarball blob plus its index entry. Record: `ops/security/dependency-audit-2026-10.md`, "2026-11-01 follow-up".

@@ -8,6 +8,7 @@ const { safeString } = require("../../workflows/governance-automation/common.js"
 const defaultTimeProvider = require("./time-provider.js");
 
 const { CITATION_PATTERNS } = require("./citation-extractor.js");
+const { redactBylines } = require("./citation-attribution.js");
 
 // CONTEXT-ONLY SOURCES (2026-09-22). Vault read-back and research-memory priors inform a role but
 // are NEVER citation evidence: their identifiers come from PRIOR runs, not from a source-of-record
@@ -27,7 +28,8 @@ function redactIdentifiers(text) {
     const fresh = new RegExp(regex.source, regex.flags);
     out = out.replace(fresh, `<prior-run ${type} withheld>`);
   }
-  return out;
+  // Bylines too (2026-11-04): a prior run's wrong "Chio et al." must not be re-attached to a live id.
+  return redactBylines(out);
 }
 
 function isPlainObject(value) {
@@ -137,6 +139,131 @@ function createToolPrefetch(options = {}) {
     });
   }
 
+  // Registry design fields carried by ctgov_design_benchmark records (ctgov-design-benchmark.js).
+  // Until 2026-11-04 renderRecord printed only title, phase and status for them, so the
+  // competitive_intel_analyst, whose task is to compare allocation, masking, enrollment, endpoints
+  // and sponsor class, never saw those fields and guessed: run #6 (workflow-6cc2f82c) named Roche
+  // as sponsor of NCT07388524, which the registry, in the same run's design-benchmark.csv, gives
+  // as the National Cancer Institute. Print exactly what the fetcher returned, one labelled line
+  // per group, and nothing for a field it did not return. A record without these fields (every
+  // other source) renders exactly as before.
+  // Caps keep an outcome-heavy cohort from flooding the prompt (a 50-trial vaccine cohort reached
+  // ~70K characters uncapped, one trial listing 31 primary outcomes). The model is told how many
+  // were left out; the deterministic design-benchmark deliverable keeps every value.
+  const MAX_RENDERED_OUTCOMES = 3;
+  const MAX_RENDERED_INTERVENTIONS = 6;
+  const MAX_OUTCOME_TEXT = 240;
+  const MAX_TIMEFRAME_TEXT = 160;
+  function clip(value, max) {
+    return value.length > max ? `${value.slice(0, max - 1).trimEnd()}…` : value;
+  }
+
+  function renderRegistryDesignFields(record) {
+    const text = (v) => (typeof v === "string" ? v.trim() : "");
+    const out = [];
+    const sponsor = text(record.sponsor);
+    if (sponsor) {
+      const sponsorClass = text(record.sponsorClass);
+      out.push(`**Lead sponsor:** ${sponsor}${sponsorClass ? ` (class: ${sponsorClass})` : ""}`);
+    }
+    const design = [];
+    if (text(record.allocation)) design.push(`allocation ${text(record.allocation)}`);
+    if (text(record.interventionModel)) design.push(`intervention model ${text(record.interventionModel)}`);
+    if (text(record.masking)) design.push(`masking ${text(record.masking)}`);
+    if (text(record.primaryPurpose)) design.push(`primary purpose ${text(record.primaryPurpose)}`);
+    if (Number.isInteger(record.armCount)) design.push(`${record.armCount} arm group${record.armCount === 1 ? "" : "s"}`);
+    if (design.length) out.push(`**Design:** ${design.join(" · ")}`);
+    if (Number.isFinite(record.enrollmentCount)) {
+      const type = text(record.enrollmentType);
+      out.push(`**Enrollment:** ${record.enrollmentCount}${type ? ` (${type})` : ""}`);
+    }
+    if (Array.isArray(record.interventions)) {
+      const interventions = record.interventions
+        .filter((iv) => isPlainObject(iv) && text(iv.name))
+        .map((iv) => (text(iv.type) ? `${text(iv.type)}: ${text(iv.name)}` : text(iv.name)));
+      if (interventions.length) {
+        const shown = interventions.slice(0, MAX_RENDERED_INTERVENTIONS);
+        const more = interventions.length - shown.length;
+        out.push(`**Interventions:** ${shown.join("; ")}${more > 0 ? ` (+${more} more)` : ""}`);
+      }
+    }
+    if (Array.isArray(record.primaryOutcomes)) {
+      const outcomes = record.primaryOutcomes
+        .filter((o) => isPlainObject(o) && text(o.measure))
+        .map((o) => {
+          const measure = clip(text(o.measure), MAX_OUTCOME_TEXT);
+          return text(o.timeFrame) ? `${measure} [time frame: ${clip(text(o.timeFrame), MAX_TIMEFRAME_TEXT)}]` : measure;
+        });
+      if (outcomes.length) {
+        const shown = outcomes.slice(0, MAX_RENDERED_OUTCOMES);
+        const more = outcomes.length - shown.length;
+        out.push(
+          `**Primary outcome${outcomes.length === 1 ? "" : "s"}:** ${shown.join("; ")}` +
+          (more > 0 ? ` (+${more} more primary outcome${more === 1 ? "" : "s"} not shown)` : "")
+        );
+      }
+    }
+    const dates = [];
+    const dated = (value, type) => (text(type) ? `${text(value)} (${text(type)})` : text(value));
+    if (text(record.startDate)) dates.push(`start ${dated(record.startDate, record.startDateType)}`);
+    if (text(record.primaryCompletionDate)) {
+      dates.push(`primary completion ${dated(record.primaryCompletionDate, record.primaryCompletionDateType)}`);
+    }
+    if (dates.length) out.push(`**Dates:** ${dates.join(" · ")}`);
+    return out;
+  }
+
+  // The design-benchmark cohort is the only source whose records carry these fields today, and the
+  // note below names exactly what that fetcher requests, so it is tied to the tool, never to field
+  // names (a future source with a `startDate` must not inherit a ClinicalTrials.gov label).
+  const DESIGN_BENCHMARK_TOOL = "ctgov_design_benchmark";
+  const DESIGN_BENCHMARK_NOTE =
+    "_Registry fields below come from ClinicalTrials.gov, lightly normalized (phases joined, masking " +
+    "flattened, arm groups counted, long outcome lists shortened with a count of what was left out). " +
+    "Only these were requested for each trial: lead sponsor and class, allocation, intervention model, " +
+    "masking, primary purpose, arm-group count, enrollment, interventions, primary outcomes, start and " +
+    "primary-completion dates. A requested field missing for a trial was not returned for that trial. " +
+    "Anything else (collaborators, conditions, eligibility, secondary outcomes) was not retrieved in this " +
+    "run: call it \"not retrieved\", never \"not reported\". Never infer a sponsor, phase or design field " +
+    "from a trial title or an intervention name._\n\n";
+
+  // The cohort's denominator and selection rule ride on the array as non-enumerable properties
+  // (ctgov-design-benchmark.js). Until 2026-11-04 nothing rendered them, so no role could state
+  // "N of M": run #6's narrative said "20 of 20" while its own design-benchmark.md said 20 of 675.
+  function renderCohortLine(result) {
+    if (!Array.isArray(result) || !Number.isFinite(result.eligibleTotal)) return "";
+    const rule = typeof result.selectionRule === "string" && result.selectionRule ? ` Selection rule: ${result.selectionRule}` : "";
+    const sort = typeof result.sort === "string" && result.sort ? ` Sort: ${result.sort}.` : "";
+    return `_Cohort: ${result.length} of ${result.eligibleTotal} eligible registered programs (a count of ` +
+      `ClinicalTrials.gov records, not a patient population).${rule}${sort}_\n\n`;
+  }
+
+  // A literature record's real author list (2026-11-04). Until then no author name reached the
+  // prompt, so the model wrote bylines from memory: run #7 credited 6 of the 7 papers in its
+  // reference table to the wrong people (Feldman et al. as "Chio et al.", Brown & Al-Chalabi as
+  // "Paganoni et al." …), all with real, retrieved, resolving identifiers. Two shapes reach here:
+  // ToolUniverse rows carry `author_names` (tu-record-normalizer.js, only from a genuine list — the
+  // record's `authors` field there falls back to a category or "tooluniverse" and is never printed),
+  // and local fetchers carry `authors` as a plain "Calvo A, Moglia C, …" string.
+  const MAX_RENDERED_AUTHORS = 5;
+  const MAX_AUTHOR_STRING = 240;
+  function renderAuthors(record) {
+    if (Array.isArray(record.author_names)) {
+      const names = record.author_names.filter((n) => typeof n === "string" && n.trim()).map((n) => n.trim());
+      if (names.length === 0) return "";
+      const shown = names.slice(0, MAX_RENDERED_AUTHORS);
+      const total = Number.isInteger(record.author_count) && record.author_count > names.length ? record.author_count : names.length;
+      const rest = total - shown.length;
+      const count = record.author_count_is_minimum === true ? `at least ${total} authors` : `${total} authors`;
+      return `**Authors:** ${shown.join(", ")}${rest > 0 ? ` et al. (${count})` : ""}`;
+    }
+    if (typeof record.authors === "string" && record.authors.trim()) {
+      const s = record.authors.trim().replace(/\.$/, "");
+      return `**Authors:** ${s.length > MAX_AUTHOR_STRING ? `${s.slice(0, MAX_AUTHOR_STRING - 1).trimEnd()}… (list shortened)` : s}`;
+    }
+    return "";
+  }
+
   function renderRecord(record) {
     if (!isPlainObject(record)) return `${String(record)}\n\n`;
     const title = record.title || record.tool_name || record.name || record.nctId || record.id || record.path || "";
@@ -154,6 +281,9 @@ function createToolPrefetch(options = {}) {
     if (record.changeSummary && record.changeSummary.versions) {
       lines.push(`**Protocol history:** ${record.changeSummary.versions} versions; most-amended: ${(record.changeSummary.amended_modules || []).join(", ")} (${record.changeSummary.first}–${record.changeSummary.last})`);
     }
+    lines.push(...renderRegistryDesignFields(record));
+    const byline = renderAuthors(record);
+    if (byline) lines.push(byline);
     if (record.abstract) lines.push(record.abstract);
     if (record.description) lines.push(record.description);
     // Vault / memory read-back records carry their prose under `text` (or a `snippet`), not an
@@ -188,6 +318,12 @@ function createToolPrefetch(options = {}) {
       : `## Live Data: ${toolName}\n\n`;
 
     let body = "";
+    // Design-benchmark cohort: state N of M and what was (and was not) requested, once, before the
+    // records, so the model neither invents a denominator nor fills a missing field from a title.
+    if (toolName === DESIGN_BENCHMARK_TOOL && !contextOnly && Array.isArray(result) && result.length > 0) {
+      body += renderCohortLine(result);
+      body += DESIGN_BENCHMARK_NOTE;
+    }
     if (Array.isArray(result) && result.length > 0) {
       for (const record of result) {
         body += renderRecord(record);

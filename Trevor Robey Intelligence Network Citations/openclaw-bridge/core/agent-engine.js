@@ -142,7 +142,7 @@ function buildPrompt(taskDefinition, inputDocs, context = {}) {
     `Constraints: ${JSON.stringify(taskDefinition.constraints || {})}`,
     "",
     profile.citationInstruction,
-    `ABSOLUTE RULE — ZERO FABRICATION (this is the entire value of the business): NEVER invent, guess, or approximate an identifier. Cite ONLY identifiers that appear verbatim in the live database documents provided below. If you cannot find a real, retrievable source for a claim, you MUST write "[no verifiable citation found]" and state the claim as UNVERIFIED — it is always correct to say you could not find a source, and never acceptable to fabricate one. A single invented ${profile.identifierList} identifier is a critical failure that destroys the report. Do not pattern-match plausible-looking numbers; if it is not in the provided evidence, it is not a citation.`,
+    `ABSOLUTE RULE — ZERO FABRICATION (this is the entire value of the business): NEVER invent, guess, or approximate an identifier. Cite ONLY identifiers that appear verbatim in the live database documents provided below. If you cannot find a real, retrievable source for a claim, you MUST write "[no verifiable citation found]" and state the claim as UNVERIFIED — it is always correct to say you could not find a source, and never acceptable to fabricate one. A single invented ${profile.identifierList} identifier is a critical failure that destroys the report. Do not pattern-match plausible-looking numbers; if it is not in the provided evidence, it is not a citation. The same holds for who wrote a cited work: name an author only as that record's "Authors:" line in the documents below gives it, and if a record shows no "Authors:" line, cite it by its identifier without naming an author.`,
     ""
   ];
 
