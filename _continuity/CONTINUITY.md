@@ -179,7 +179,8 @@ forward below.
 - Connector OAuth for the needs-auth plugin servers (owkin, biorender, synapse, wiley, …).
 - **Backup is current (2026-11-04):** `TRINC-FULL-backup-20261104-1519.bundle` (HEAD `4d8eff6`, sha256
   `85c08426…9d6e`) in `~/Documents` and on ExtraCurricular, plus an offsite copy of the same commit in the business
-  Drive (`TRINC/Monorepo-4d8eff6/`). The 10-24 bundle is in the Trash. GitHub was 4 commits behind at cut time. Cut
+  Drive (`TRINC/Monorepo/`, the only snapshot there; the two older ones were trashed 2026-11-04). The 10-24
+  bundle is in the Trash. GitHub was 4 commits behind at cut time. Cut
   a fresh one after the next substantial batch of commits.
 
 ---
