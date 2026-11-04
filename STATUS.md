@@ -20,7 +20,7 @@
 | Proven SKUs | **Trial Design Benchmark Pack** ($4,950): 3 gate-PASS runs, all NSCLC; run #6 `workflow-6cc2f82c` is 45/45 VERIFIED. **Failed Trial Archaeology** ($14,950): heart failure `workflow-72f0c288`, 47/47. The Pack fills a 20-of-M cohort in all 13 indications checked; passing the gate outside NSCLC is unproven. Investor Pre-Mortem has no fulfilment path. Neither proven SKU has a packaged sample. |
 | Feed | Trial Graveyard Feed: 7,373 rows staged (`refresh-2026-10-21/`, untracked), not listed. **Not worth paying for as built.** Its live columns (NCT id, title, status, phase, stop reason, link) are all free in AACT and the CT.gov API, and 5 paid columns are empty or "UNKNOWN" on every row (CT.gov history 403 since 2026-10-08). Feed tests 38/38. |
 | Engine | Works. Engine suite 1352/1355 (2026-11-01, unchanged). The business lane is built but has never run live. |
-| Repo | In sync with GitHub at `0d0baa8` (pulled 2026-11-04). The research-memory transformers port is merged; on the Mac it still needs `npm ci --ignore-scripts && npm run build` and the integration test (board, 2026-11-02). |
+| Repo | Local `main` holds today's four signed commits (`d208f2d` engine, `8f238ac` legal, `b48f9d1` sales, `4d8eff6` status), **not yet pushed**; GitHub is at `0d0baa8`. Backup cut 2026-11-04: `TRINC-FULL-backup-20261104-1519` (HEAD `4d8eff6`) in `~/Documents` and on ExtraCurricular, plus the business-Drive copy `TRINC/Monorepo-4d8eff6/`. The research-memory transformers port is merged; on the Mac it still needs `npm ci --ignore-scripts && npm run build` and the integration test (board, 2026-11-02). |
 
 ## The plan, in order
 

@@ -58,9 +58,11 @@ before asserting how the engine behaves.
   Drive at `My Drive/TRINC/Monorepo/` (with `TRINC/Backups/{README-RESTORE.md,SHA256SUMS.txt}`). The
   bundle itself never goes to cloud storage. Cut a fresh one with `scripts/trinc-backup.sh` (prefix
   `TRINC-FULL-backup-`) after any substantial batch of commits; a bundle carries no gitignored files.
-  **Current (2026-10-24):** `TRINC-FULL-backup-20261024-0304.bundle`, HEAD `039ba03`, sha256 `b8e9678f…a5af`,
-  "records a complete history", in both places; the Drive copy holds the same commit. Keep one version only
-  (two copies of it): superseded bundles go to the Trash once the new one is verified and mirrored.
+  **Current (2026-11-04):** `TRINC-FULL-backup-20261104-1519.bundle`, HEAD `4d8eff6`, sha256 `85c08426…9d6e`,
+  "records a complete history", in both places; the Drive copy of the same commit is `TRINC/Monorepo-4d8eff6/`
+  (the older `Monorepo/` and `Monorepo-039ba03/` wait for the operator to trash them in the Drive web UI, then
+  it is renamed `Monorepo/`). Keep one version only (two copies of it): superseded bundles go to the Trash
+  once the new one is verified and mirrored.
 - **One repo.** Do not split it back into sub-repos. The only submodule is
   `Trevor Robey Intelligence Network Citations/vendor/tooluniverse`; vendor anything else with an
   `UPSTREAM.md` instead of adding a submodule.
