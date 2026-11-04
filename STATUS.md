@@ -1,51 +1,117 @@
 # Status — Trevor Robey, INC.
 
-> One page: where the business stands and what moves it next. Updated **2026-10-21 (evening)** from the
-> four TR-INC Biz sibling sessions; Engine and Repo rows refreshed **2026-10-24** (TRINC reorg Phase 8). Keep it short and true; the running story lives in
-> [`_continuity/CONTINUITY.md`](_continuity/CONTINUITY.md), the last full handoff in
+> One page: where the business stands and what moves it next. **Rewritten 2026-11-04 as a money-first plan**
+> after the 26 older "TR-INC Biz" sessions were folded into one hub session and archived. Three independent planners
+> drafted the plan (fastest first dollar, recurring revenue, risk-first); skeptics then checked its claims
+> against the web and the repo. The evidence is in the 2026-11-04 entry on
+> [`_continuity/CONTINUITY.md`](_continuity/CONTINUITY.md). The previous version of this page is
+> `git show cf1c6b0:STATUS.md`; the last full handoff is
 > [`_continuity/handoffs/HANDOFF-2026-10-21.md`](_continuity/handoffs/HANDOFF-2026-10-21.md).
 
-## Where it stands
+## Where it stands (2026-11-04)
 
 | | |
 |---|---|
-| Revenue | **$0.** Nothing listed on AWS yet; no calls or deals on record. |
-| Entity | Trevor Robey Intelligence Network Citations LLC — CA No. B20260217250, approved 2026-06-18 |
-| **Workspace** | 🔴 **Payment failed** — the card on file was declined. Google Workspace **suspends 2026-11-02**, taking business mail AND the AWS root email (`aws@`) with it. AI Expanded Access is already suspended (auto-cancels Dec 4). → [`google-workspace.md` §8](Trevor%20Robey%20Intelligence%20Network%20Citations/03-platforms/google-workspace/google-workspace.md) |
-| Compliance | **Behind.** EIN not applied for; LLC-12 (due 2026-09-16) and $800 FTB 3522 (due 2026-08-15) not done. No agency email in `trevor@` (all time) — but notices come **by post**, and the Zoho-era mailbox (May–July) was not searched. Every answer pre-filled: [`filing-walkthrough-2026-10.md`](Trevor%20Robey%20Intelligence%20Network%20Citations/00-business-formation/compliance/filing-walkthrough-2026-10.md) |
-| Engine | Works. Run #6 (2026-10-08) delivered 45/45 verified citations. Business-research lane **ready for its first live run, never run live yet.** The Evidence Desk is built (`a110f07`, after the pre-flight fixes in `8a0f5c5`): official-statistics ids `BLS:` and `EUROSTAT:` (keyless), with `CENSUS:` and `EIA:` built but dormant until you register their free keys. Also a passage condenser and a deterministic scout brief that replaces the scout's model call; the citation gate judges model-written text only. The business section gate uses SearXNG `science`, because `general` is Bing-only junk; it reverts to `general` once a Brave Search API (deferred by you) is in. Engine suite 1331/1331 (2026-10-24, after the reorg removed retired code and its tests); everything is pushed. |
-| First product | Trial Graveyard Feed. 2026-10-21 refresh **reviewed: 0 problems** — 12 areas, 7,373 stopped trials, ~90% with a sponsor-stated reason; breast cancer stopped at 2,000 of 2,034 (not a complete census). Listing files finalized (copy, coverage table, offer terms, console walkthrough in `UPLOAD-RUNBOOK.md`). **Not promoted, not uploaded, not listed.** |
-| Repo | **TRINC** (renamed 2026-10-23): `/Users/myhome/TRINC`, GitHub `trevorrobeyinc/TRINC`, in sync at `039ba03`. One production source; `ops/tr-suite/verify.sh` = 0 FAIL. Backup 2026-10-24: bundle `TRINC-FULL-backup-20261024-0304` in `~/Documents` + ExtraCurricular, and an offsite copy of the same commit in the business Drive. Dependency audit 2026-10-24: local alerts 489 → 207 (158 of them in the untouched Copilot fork); **11 upgrade decisions wait for you** in `ops/security/dependency-audit-2026-10.md`. |
+| Revenue | **$0.** Nothing listed; no calls, NDAs or deals (`12-pipeline-tracking/` is all zero). |
+| Entity | LLC, CA No. B20260217250, approved 2026-06-18. **Behind on filings:** EIN not applied for; LLC-12 (due 2026-09-16) and the $800 FTB 3522 (due 2026-08-15) are past due. Suspension follows notices, not the due date, and contracts a suspended LLC makes are *voidable* by the other party (R&TC §23304.1). Check the live status read-only on bizfile (B20260217250). |
+| Workspace | 🔴 Card declined; the suspension date **(2026-11-02) has passed** and no fix is recorded. Workspace carries trevor@ and `aws@`, the AWS root email. Google reactivates "within a few hours" only after a working **primary** payment method is set; a one-off payment can fall back into suspension. |
+| Money rails | **AWS Marketplace payout works** (ACH ending 262; "Publish paid and free products" since 2026-07-22). It is the only way to receive money today. **There is no direct-sale rail:** no business bank account (blocked on the EIN), and the Stripe/invoicing and banking folders are placeholders. |
+| Paper | **Nothing signable for direct sales.** All 15 `08-contracts-legal/` files and the `common-paper/` notes are placeholders. `workspace/legal/CommonPaper-Mutual-NDA-v2.pdf` is a saved 404 web page, not an NDA. `nda-mutual-template.md:35` names a non-existent "Trevor Robey Inc. d/b/a OpenClaw…" under Delaware law. The refund policy behind the "refund-backed" SLA is empty. AWS sales use AWS's standard DSA (decided). |
+| Proven SKUs | **Trial Design Benchmark Pack** ($4,950): 3 gate-PASS runs, all NSCLC; run #6 `workflow-6cc2f82c` is 45/45 VERIFIED. **Failed Trial Archaeology** ($14,950): heart failure `workflow-72f0c288`, 47/47. The Pack fills a 20-of-M cohort in all 13 indications checked; passing the gate outside NSCLC is unproven. Investor Pre-Mortem has no fulfilment path. Neither proven SKU has a packaged sample. |
+| Feed | Trial Graveyard Feed: 7,373 rows staged (`refresh-2026-10-21/`, untracked), not listed. **Not worth paying for as built.** Its live columns (NCT id, title, status, phase, stop reason, link) are all free in AACT and the CT.gov API, and 5 paid columns are empty or "UNKNOWN" on every row (CT.gov history 403 since 2026-10-08). Feed tests 38/38. |
+| Engine | Works. Engine suite 1352/1355 (2026-11-01, unchanged). The business lane is built but has never run live. |
+| Repo | In sync with GitHub at `0d0baa8` (pulled 2026-11-04). The research-memory transformers port is merged; on the Mac it still needs `npm ci --ignore-scripts && npm run build` and the integration test (board, 2026-11-02). |
 
-## Operator queue (only you can do these)
+## The plan, in order
 
-1. **Fix the Workspace payment before 2026-11-02.** Decide AI Expanded Access first (fixing payment restores it), then replace the card and add a backup. Steps: `google-workspace.md` §8.
-2. **File the compliance items — EIN (free) → LLC-12 ($20) → FTB 3522 ($800)**, before any paid product goes Public (a suspended entity cannot sell). Walkthrough above. Two things to have ready: the **bizfile login** (LLC-12 now needs bizfile "User Access" since 2026-08-01 — find the login in Bitwarden under `sos.ca.gov`; fallback is a PIN letter by post) and the **FTB Web Pay entity ID `20260217250`** (not the EIN). Check paper mail at the business address for any notice.
-3. **AWS listing decisions** (*deferred by you, 2026-10-21, until the business-engine work is set up*) — breast cancer in v1 or not; which products launch first; promote the refresh into `data/`; the price (back on hold by your call, 2026-10-21; `offers.md` says `[DECIDE]`). There is **no separate DSA acceptance**: choose *Data Exchange default* in each offer's legal-terms step. Also read two AWS "[ACTION REQUIRED]" emails in `trevor@` (Brazil 2P distribution, Oct 1; India Marketplace Operator Phase 2, Aug 28).
-4. ~~**Set DMARC to `p=quarantine`**~~ — **DONE 2026-10-21** (you, in Cloudflare; one record at `p=quarantine` on 1.1.1.1 and 8.8.8.8, SPF and MX unchanged). Follow-up: read the DMARC aggregate reports around **2026-11-04** for any legitimate sender failing before any talk of `p=reject` (`google-workspace.md` §8).
-5. **Chrome Enterprise Premium trial ends ~2026-11-13** — keep or cancel.
-6. **Workspace housekeeping (~10 min):** turn off the Strayer Outlook forward; remove GAM7 (`~/bin/gam7`, `~/.gam`, its `.zshrc` alias); check `trevor@`'s recovery email; decide whether AWS mail should also reach `trevorrobeyinc@gmail.com`.
-7. **Re-seal the `gmail` MCP client** (Security Everything lane — the sealed client is malformed, so the lane returns `client_malformed`): `cd '/Users/myhome/Security Everything/gmail-mcp' && .venv/bin/python3 gmail_setup.py --seal-client --replace` with the Desktop client's ID.
-8. **After the next commit:** run `node scripts/render-business-context.js --apply` (operator-run only); authorize BioRender if you want it.
-9. **First live business-lane run — ready, needs your go.** The Evidence Desk it was parked for is built (`a110f07`). Recommended inputs: `cost-reduction-analysis` with `{"topic":"Where can a mid-size US 3PL warehouse cut labour and energy cost?","industry":"warehousing and logistics","country":"US"}` (rationale in the engine's `docs/business-research-lane.md` § "Recommended first run"). Open Obsidian, arm `operator-approve`, and dispatch through Command Center. Keyless BLS allows 25 queries a day, so avoid repeat runs the same day. Before or after it: **push** `8a0f5c5` + `a110f07`; **bless obsidianwatch** with Obsidian open (6 CRITICAL `protected_plugin_changed` findings — command-center is from this lane's deploy, the other five came earlier; look at `obsidian-local-rest-api` before blessing); register the **free Census + EIA keys** to switch on those two sources. Needed before any custom sale.
-10. **CI decision** — free/local options are on the table; nothing built yet.
+The owner is in brackets. Prices come only from `OFFERINGS.md`; the feed numbers are your 2026-10-20 ones, still on hold.
 
-## Build queue (agent work)
+1. **[you] Today, 45–60 min: get business mail back.** Sign in to admin.google.com as trevor@ → Billing. Decide on AI Expanded Access, set a working card as **primary**, pay the balance, and add a backup card (`Trevor Robey Intelligence Network Citations/03-platforms/google-workspace/google-workspace.md` §8). Then test it:
+   - Mail from outside reaches trevor@ and aws@.
+   - Mail from trevor@ to an outside Gmail shows SPF, DKIM and DMARC passing.
 
-- ~~Apply the two tested sibling patches~~ — APPLIED 2026-10-21: the Graveyard Feed **generator copy fix** (13/13 feed tests; a monthly refresh now writes the corrected copy itself) and the **connector-audit fix** (now cross-checks the business lane's prefetch map too).
-- **DEFERRED by the operator (2026-10-21) until the business-engine work is set up** — the listing and generator follow-ups: sort the free sample by `nct_id` so it is the same on every rebuild (a row-selection change); have `build-graveyard-feed.js` pass `maxRecords` (pending the breast-cancer decision); regenerate `refresh-2026-10-21/` with the fixed generator instead of the hand-patched copy before promotion; update the stale `trinc-engineering:feed-refresh` skill (obsolete page-size warning, old 6-area/300-row product); and queue item 3's listing decisions.
-- `ops/paths.env` + generate both `.mcp.json` files from it.
-- The local `trinc-business:compliance-calendar` skill describes the past (still says R1 is unresolved; lacks the User Access rule and the Web Pay ID).
-- Brand one-pager + sample; monetization write-up; turn on one social channel via `trinc-content` (now gated: `operator-approved-gate arm trinc-content`).
-- ~~Gate `trinc-content`; strip both Zoho servers from the gate~~ — DONE (Security Everything `07726a0`).
-- ~~Retire Zoho~~ — account **closed**, DNS **confirmed clean** (SPF Google-only), records updated, Strayer stopgap retired (filter + calendar series deleted). Left: on-device Zoho app uninstalls (yours), and the Falcon follow-ups in `~/Security Everything/alertdesk/proposals/falcon-219-drop-retired-launchers-2026-10-21.md` § "Noticed, not changed" — you decide and apply those in the Falcon console (two agent attempts stopped at a safety safeguard, correctly).
-- ~~Finalize the listing files~~ — DONE 2026-10-21 (not uploaded).
+   Check the AWS console's own notifications, because mail to aws@ since 11-02 may be lost, and read the two AWS "[ACTION REQUIRED]" emails. Skim today's DMARC reports and stay at `p=quarantine`. ~~Finally, pull in your terminal~~ (done 2026-11-04).
+2. **[you] Tomorrow, about 2 h in one sitting: good standing.** Follow `00-business-formation/compliance/filing-walkthrough-2026-10.md`:
+   - EIN online (free). Save the CP 575 outside the repo.
+   - FTB 3522 by Web Pay, $800, entity ID `20260217250`.
+   - LLC-12 on bizfile, $20 (login in Bitwarden under `sos.ca.gov`). If the login fails, request the PIN letter and keep going.
 
-## Not doing right now (by decision)
+   Then apply for the business bank account. Also ask AWS to change the Marketplace legal name from "Trevor Robey Inc" to the LLC (likely through Partner Central support). That runs in parallel; it doesn't block anything.
+3. **[Claude drafts, you decide] Days 1–3: the minimum signable paper.**
+   - A real mutual NDA naming the LLC, replacing the 404 file and the template.
+   - A refund policy that defines the Citation-Audit SLA. A material defect is a cited identifier that is ungrounded, retracted or UNRESOLVED at delivery. The remedy is correct-and-redeliver first, then a refund capped at the fee.
+   - A one-page order form/SOW for the two proven SKUs.
+   - A W-9 and vendor-onboarding checklist.
 
-- New infrastructure (two-week freeze from the 2026-10-20 audit, until the first AWS product ships). One exception, by your decision 2026-10-21: the business lane's Evidence Desk.
-- Selling the amendment-risk band — paused since 2026-10-08 (ClinicalTrials.gov refuses the history endpoint).
-- Absorbing the Security Bridge (`:8801`) — stays in Security Everything by decision.
-- **GAM7** (Workspace admin CLI) — declined 2026-10-21: a super-admin token on disk for a one-user org.
-- **Datarade** — deferred by you 2026-10-24 "until the business is actually up and running". Datarade declined the application on 2026-05-20 ("business not yet established"); the files are parked, not deleted (`03-platforms/datarade/go-live-checklist.md`).
-- Booking business research (any field). The five tiers were priced and approved on 2026-10-23 (`OFFERINGS.md` → "Business research (any field)"), but booking waits for the first live business run to pass the gate (queue item 9).
+   **Decided by you, 2026-11-04:**
+   - **Governing law:** California.
+   - **Refunds, fix first:** the buyer claims within 30 days of delivery; we correct and redeliver within 15 business days; if it's still defective, a refund capped at the fee paid, as the sole remedy.
+   - **Payment:** Net 30 after delivery. The cash arrives about a month after delivery, and the business bank account must exist before the first invoice.
+   - **Counsel:** deferred for lack of budget. Book the recommended hour, before a first signature, once funds allow; until then every document says it hasn't been reviewed by counsel, and no ChEMBL identifiers go in paid deliverables.
+
+   Drafting started 2026-11-04.
+4. **[Claude builds, you approve] Days 1–3: two samples and one honesty redline.**
+   - Benchmark sample from run #6 (`workflow-6cc2f82c`). Never use `workflow-21d82407`: its memo prints "Amendment-risk: HIGH".
+   - Archaeology sample from `workflow-72f0c288`, with its amendment section removed (it prints "MODERATE").
+   - One redline across the OFFERINGS copy, the landing page, the four outbound templates and the feed listing: remove amendment-risk claims, unsourced statistics and unfulfillable SKUs; add a CAN-SPAM opt-out line and a postal address; qualify the Pre-Mortem SLA.
+
+   You deploy the landing page.
+
+   **Drafted 2026-11-04, not committed:** both samples, both one-page offer sheets, the NDA cover page (Common Paper MNDA v1.0), the Order Form/SOW (Common Paper PSA v1.1), the refund policy (Exhibit A), payment terms (Exhibit B), a vendor-onboarding checklist and the AWS legal-name request. No banned terms; canon prices only. They carry open `[DECIDE]` markers, and every one is your call. **Found while drafting, and it changes the order:**
+   - **Benchmark Pack: fixed and proven (2026-11-04, uncommitted).** Run #6's narrative guessed sponsors from drug names because the registry fields never reached it. The engine fix (tests 1,360/1,360) was proven the same day by **run #7, ALS** (`workflow-e5947dccdce0e06fde1884b5`):
+     - gate PASS 38/38; delivery 38/38 VERIFIED; DELIVER;
+     - all 20 sponsors, the 20-of-64 cohort and the phase and sponsor-class counts match the registry.
+
+     That's the Pack's first pass outside NSCLC. **The sample is rebuilt from run #7** (`workspace/collateral/samples/trial-design-benchmark-sample-als.md`, plus the updated offer sheet). Every one of its 30 NCTs traces to run #7, and every table row carries the registry sponsor. The run #6 sample moved to `.archive/superseded-samples-2026-11-04/`.
+   - **Still not buyer-ready: run #7's full `report.md`.** The table and the gate are solid, but the model-written prose still has errors no check catches:
+     - two **confirmed author misattributions**: `report.md:146-147` credit Feldman et al. (Lancet 2022) to "Chio et al." and Brown & Al-Chalabi (NEJM 2017) to "Paganoni et al.". The DOIs are real and resolve, so the gate and re-resolution passed them;
+     - "14 of 20 use ALSFRS-R", where the registry shows 9;
+     - an estimated-enrollment, still-recruiting trial listed among the "largest completed-accrual" trials;
+     - leftover internal markup (task ids, "Doc 5", `[[…]]`, "ToolUniverse" as the registry source).
+
+     **Guard built (2026-11-04, uncommitted):** delivery now compares the author and year written beside each DOI/PMID with the Crossref/NCBI record. A mismatch flags the report (DELIVER_WITH_FLAGS, your decision: flag plus an inline `[ATTRIBUTION MISMATCH: registry lists …]` mark, never block). Tests 1,394/1,394; adversarially reviewed. Run live over the 7 real reports, it found **6 of the 7 papers in run #7's reference table credited to the wrong authors**, with no false alarm elsewhere. **Root cause fixed too (2026-11-04, uncommitted):** the model now sees each paper's real authors, and the prompt and role instructions say to name authors only from that line. Prior-run bylines are withheld from context. Tests 1,412/1,412. Run #7's report itself is unchanged, so send the sample, not that report. The next real Benchmark run is the proof that the bylines come out right.
+   - **Failed Trial Archaeology, as OFFERINGS describes it, isn't produced by the engine:** no phase filter, no mechanism filter, no pattern-matrix generator, and no template. Hold its sheet. Feed v1.1 (coded stop reasons plus phase and interventions) is the building block that makes it real.
+   - **Client confidentiality:** vault publish and research-memory ingest are on for every run (`config/vault-publish.json`), so a client's run would land in the vault and the shared memory. Customer runs need an off switch before the first client run.
+   - **Proof-run ZIPs carry internal files** (marketing copy that overclaims, Datarade packs). Build each buyer ZIP from the deliverable files only, with fresh checksums.
+5. **[Claude lists and drafts, you send] Week 2: 40 trigger-matched emails.** Claude builds a list of 30–40 small and mid-size sponsors and boutique firms from read-only CT.gov triggers: a Phase 3 registered in roughly the last 6 months, or a Phase 2 completed in roughly the last 12. It targets indications that match a sample, or whose cohort fills with already-run trials (ALS, IPF). Claude drafts each email. You find the person, send 8–10 a day from trevor@, follow up once on day 4, and log everything in `12-pipeline-tracking/`. Skip the giants for now.
+6. **[both] On the first yes: quote, get paid, deliver.**
+   - Before you quote, Claude checks read-only that the buyer's indication fills a full cohort.
+   - Then: NDA if asked, order form, invoice from the business account, payment before the run. Once the feed is public, an AWS private offer is an alternative and uses the working AWS rail.
+   - You arm `openclaw`. Claude dispatches through the door and waits for `post_run_done`, citation PASS and zero UNRESOLVED. You deliver.
+7. **[Claude builds about 3 days, you list] In parallel: Feed v1.1, then list it.**
+
+   First, lift the 2026-10-21 deferral and fill in a one-page decision sheet: breast cancer complete; which products; your 10-20 prices or not; durations; auto-renew (cannot be changed later).
+
+   Then Claude builds:
+   - **Honest columns:** drop the five dead ones, stop the 403 call, take a stable sorted sample, raise maxRecords.
+   - **New fields from the same CT.gov call:** lead sponsor and its class, dates, enrollment and its type, conditions, interventions, hasResults.
+   - **A coded stop reason:** a versioned, rule-based `stop_reason_category`, with the sponsor's own words kept as evidence. A 12-rule draft already covers 78.8% of the rows that state a reason.
+   - **Truthful listing and runbook copy:** CT.gov attribution, the processing date, a description of every modification, and the Partner Central console.
+
+   You upload and Finalize, but only after steps 1–2. Every free-sample verification request names a company and a use case, which makes it a lead for step 5.
+8. **[both] Week 3 onward, only when there's a signal.**
+   - A monthly delta file (newly stopped trials), which is what makes subscribers renew.
+   - Time-limited ADX data grants for interested accounts.
+   - Check whether a feed-tied "Assessments" professional-services listing passes AWS review. It would carry private offers at OFFERINGS prices, at a 0.5% fee, or 0% in an offer set with a paid feed.
+   - Sponsor-to-ticker mapping, only if a buyer asks. For reference, Ozmosi BEAM sells ticker-mapped CT.gov data on ADX at $8,500/month.
+
+   The first business-lane run and the Retainer wait until after the first biomedical sale.
+
+## Not doing now (by decision or by this plan)
+
+- Leading with Investor Pre-Mortem, or selling Conference Synthesis, the Patient Brief, Cross-Silo, the Scoped Research Pack or Pharmacovigilance.
+- Parquet or the Enterprise tier; ticker mapping before a buyer asks; any scheduler or new service (the infra freeze holds until the first AWS product ships); turning on a social channel before the first sale.
+- The `scripts/distribute.js` ADX adapter, the retrieval_qa dataset path, Datarade (deferred 2026-10-24), Outlier or Mindrift (rejected).
+- Working around the CT.gov history 403, or selling the amendment-risk band.
+- Taking money into a personal account, or quoting any price not in `OFFERINGS.md`.
+- Absorbing the Security Bridge (`:8801`); GAM7 (declined).
+
+## Also open (housekeeping, after steps 1–2)
+
+- Chrome Enterprise Premium trial ends around 2026-11-13: keep or cancel.
+- Workspace housekeeping (about 10 min): turn off the Strayer Outlook forward, remove the GAM7 leftovers, check trevor@'s recovery email.
+- Re-seal the `gmail` MCP client (Security Everything lane).
+- Bless obsidianwatch with Obsidian open. Run `node scripts/render-business-context.js --apply` after the next commit.
+- Dependency work on the Mac: `ops/security/dependency-audit-2026-10.md`, "On the Mac, in this order". Also decide on a Semantic Scholar API key and register the free Census and EIA keys.
+- `ops/paths.env`; the CI decision; the stale `trinc-business:compliance-calendar` skill; revoking the InfraNodus keys. The Zoho and security leftovers are on the Security Everything board (2026-11-04 entry).
+- Qdrant gRPC `127.0.0.1:6334` is plaintext with no proxy and is missing from the root `CLAUDE.md` ports table (see Security Everything `docs/mac-listener-inventory-2026-10-24.md`).

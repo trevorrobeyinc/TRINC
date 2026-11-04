@@ -125,7 +125,14 @@ are *logical*, and each has a guard:
 > The single source of "what are we working on right now." Overwrite this to keep it true.
 > If nothing is in flight, leave the placeholder so the next surface knows the board is idle.
 
-**🔴 2026-10-21 — START HERE: [`../STATUS.md`](../STATUS.md)** (one page: where the business stands + the
+**🔴 2026-11-04 — REVENUE FIRST. START HERE: [`../STATUS.md`](../STATUS.md), rewritten today as an 8-step money
+plan** (operator's instruction: "the sole goal right now is make as much money from this research engine as
+possible"). Hub session: Desktop "Research engine AWS Data Exchange setup" (`local_1ad8daa7…`); the 26 older
+TR-INC Biz sessions were folded into it and archived. Step 1 is the operator's: restore Google Workspace billing
+(suspension date 11-02 passed, nothing records a fix). The 2026-10-21 notes below still hold where STATUS.md does not
+supersede them.
+
+**(previous) 2026-10-21 — START HERE: [`../STATUS.md`](../STATUS.md)** (one page: where the business stands + the
 operator queue) and the last full handoff, [`handoffs/HANDOFF-2026-10-21.md`](handoffs/HANDOFF-2026-10-21.md).
 The previous Current focus (written 2026-07-22 → 2026-09-01) is preserved verbatim in
 [`log/CONTINUITY-2026-10-21.md`](log/CONTINUITY-2026-10-21.md); every item still open from it is carried
@@ -252,6 +259,137 @@ forward below.
 ## 📋 Log — newest first
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
+
+### 2026-11-04T22:48Z · Desktop Claude Code (hub) · **Misattribution root cause fixed: the model now sees each paper's real authors (uncommitted)**
+- **Did:** on the operator's "yes, fix the root cause":
+  - the normalizer keeps a row's genuine author list as `author_names` (+ an honest count; placeholders dropped);
+  - `tool-prefetch.js` prints `**Authors:** …`;
+  - the business-lane OpenAlex fetcher keeps authorships;
+  - the ZERO FABRICATION prompt clause and the literature_reviewer / report_generator role prompts say to name authors only from that line;
+  - prior-run context has its bylines withheld;
+  - the attribution check reads the Vancouver list form.
+- **Verified:**
+  - Live re-render of run #7's four mis-credited PMIDs: before, no author line; now Calvo…(21), Yin…(8), Benatar…, Uysal…(10).
+  - Tests 1,394 → 1,412, 0 fail; phase 18/19/29/30 gates and the lint pass.
+  - Two-lens adversarial review: no false Authors: line from any tool; its should-fixes applied.
+  - Live attribution check unchanged: 6 works, run #7 only, no false alarm.
+- **Next:** the next real Benchmark run shows whether bylines come out right. Optional operator decision: correct or supersede run #7's vault notes and research-memory pack (still wrong as data, now withheld from prompts). Operator commits.
+- **Touches:** normalizer, `tool-prefetch.js`, `agent-engine.js`, `business-sources/openalex.js`, `citation-attribution.js`, `config/role-prompts.json`, three test files, engine `CLAUDE.md` / `CHANGELOG.md`, `STATUS.md`, this board.
+
+### 2026-11-04T14:12Z · Desktop Claude Code (hub) · **Attribution check built: author/year beside each DOI/PMID vs the registry (uncommitted)**
+- **Did:** on the operator's "yes, add the check" and choice "flag + mark inline":
+  - new `openclaw-bridge/core/citation-attribution.js`;
+  - `citation-reresolver.js` `checkAttributions` (PMID docsum reused; one Crossref `/works` call per DOI with an author beside it);
+  - manifest `attribution_mismatch` → `DELIVER_WITH_FLAGS`, plus an "Attribution check" section;
+  - inline `[ATTRIBUTION MISMATCH: registry lists …]` in the shipped sections;
+  - packager sentence and `report.md` Citation Summary;
+  - `SYSTEM-REALITY.md` §3, the engine `CLAUDE.md` and `CHANGELOG.md`.
+- **Verified:**
+  - Tests 1,360 → 1,394, 0 fail, including an end-to-end test into a sealed bundle. Policy gates 18/19/29/30 and the lint pass.
+  - Adversarial review: no regression and no path to a block. Every false-alarm probe it raised (Merck Sharp & Dohme, journal and regimen pairs, nearby years, wiki-links, Jr, collective authors, particles, links) is fixed and pinned.
+  - Live over the 7 real reports: 151 DOI/PMID, 17 checkable, 7 match, 10 mismatch = **6 misattributed works, all in run #7** (Feldman→"Chio", Brown & Al-Chalabi→"Paganoni", Calvo→"Rissanen", Yin→"Mazzini", Benatar→"Al-Chalabi", Uysal→"Basiri").
+- **Next:** root-cause fix: `renderRecord` should print literature `authors` (the normalizer keeps them) so the model stops writing names from memory. Operator commits.
+- **Touches:** the files above, two new test files, three test files extended, `STATUS.md`, this board.
+
+### 2026-11-04T13:35Z · Desktop Claude Code (hub) · **Benchmark sample rebuilt from run #7 (ALS); two author misattributions confirmed in its report**
+- **Did:** on the operator's "yes, rebuild it", a build → two reviewers → fix workflow wrote
+  `workspace/collateral/samples/trial-design-benchmark-sample-als.md` and updated
+  `workspace/collateral/one-pagers/trial-design-benchmark-pack.md` (13 findings applied). The run #6 sample went to
+  `.archive/superseded-samples-2026-11-04/`, and the vendor checklist was repointed.
+- **Checked by script:** all 30 NCTs trace to run #7; 0 table rows lack their registry sponsor; $4,950 verbatim;
+  disclosure present; SAMPLE mark ×6. Open `[DECIDE]`s: turnaround, client-data reuse, buyer-ZIP contents, memo
+  generator wording.
+- **Found:** run #7's model-written `report.md` still has errors the gate cannot see:
+  - two confirmed author misattributions (`:146-147`): Crossref says `10.1016/s0140-6736(22)01272-7` is Feldman et al.,
+    and NCBI says `10.1056/NEJMra1603471` (PMID 28700839) is Brown & Al-Chalabi;
+  - an ALSFRS-R count of 14 where the registry shows 9;
+  - a recruiting trial called "completed-accrual";
+  - internal markup.
+
+  The gate proves an identifier was retrieved, and re-resolution that it exists; neither checks the author/year written
+  beside it.
+- **Next:** proposed engine guard: author and year cross-check at re-resolution. Operator decides the `[DECIDE]`s and
+  commits.
+
+### 2026-11-04T12:56Z · Desktop Claude Code (hub) · **Run #7 (ALS Trial Design Benchmark): DELIVER, and the narrative now matches the registry**
+- **Did:** on the operator's "yes, set it up", through the door:
+  - preflight → dry run → `operator-approved-gate arm openclaw` (operator's PIN + touch);
+  - `trial-design-benchmark` with `{"indication":"amyotrophic lateral sclerosis"}` → `workflow-e5947dccdce0e06fde1884b5` (12:48–12:55Z);
+  - `post_run_done:true`, every stage `ok`; token consumed, nothing armed.
+- **Verified:**
+  - citation gate PASS 38/38 grounded, retraction screen clean; delivery 38/38 VERIFIED (20 NCT / 7 PMID / 11 DOI); DELIVER.
+  - Checked by script against `design-benchmark.csv`: the narrative names all 20 sponsors correctly and states "20 of 64" with no "20 of 20". The phase split (9/11) and sponsor classes (13 INDUSTRY / 7 OTHER) are correct, NCT by NCT. It says "not retrieved" 7×, "not reported" 0×.
+  - First Benchmark PASS outside NSCLC. Bundle: `workspace/releases/offer-6e024a207af1d5e62c6a15ef/`; vault: `OpenClaw/trial-design-benchmark/2026-11-04 amyotrophic lateral sclerosis/`.
+- **Next:** Claude rebuilds the Benchmark sample from run #7, with the buyer ZIP built from deliverable files only (the bundle again carries `store-copy.md` and a Datarade approval). Operator commits the batch.
+- **Touches:** engine `CHANGELOG.md` (proof line), `STATUS.md`, this board.
+
+### 2026-11-04T12:46Z · Desktop Claude Code (hub) · **Benchmark analyst now sees the registry fields and N of M (run #6's sponsor guessing fixed; uncommitted)**
+- **Did:** on the operator's "yes, fix it":
+  - `openclaw-bridge/core/tool-prefetch.js` renders the design-benchmark fields `renderRecord` used to drop: sponsor and class, design, enrollment, interventions, primary outcomes (capped), and typed dates. It adds a cohort "N of M" line and an honest "not retrieved ≠ not reported" note, tied to `ctgov_design_benchmark` only.
+  - `ctgov-design-benchmark.js` fetches interventions in the same call, keeps the date types, and reports a null count or empty arm list as not reported (was 0).
+  - `config/mission-templates.json`: the analyst gets a column spec; the synthesizer depends on steps 1 and 2 and defines M as registered trials.
+- **Verified:** engine suite baseline 1,355 → 1,360, 0 fail. Phase 18, 19 and 29 policy gates and the restricted-globals lint pass. A two-lens adversarial review found no regression in any other source; its should-fixes are applied. Live read-only render for ALS: 20 of 64 eligible, 20/20 with sponsor and enrollment.
+- **Next (operator):** open Obsidian, `operator-approved-gate arm openclaw`, then Claude dispatches `trial-design-benchmark` with `{"indication":"amyotrophic lateral sclerosis"}` through the door (dry run first). Claude then rebuilds the Benchmark sample from that run. Commit the batch with your YubiKey.
+- **Open, stated in `CHANGELOG.md`:** cohort tallies are still model arithmetic, and there is no post-assembly narrative-vs-csv check. Local-fetcher docs are labelled "ToolUniverse SMCP". `role-prompts.json` asks this analyst for ChEMBL ids, which conflicts with the paper's ChEMBL exclusion; that's the operator's decision.
+- **Touches:** the three engine files, two test files, the engine `CHANGELOG.md` and `CLAUDE.md`, `STATUS.md`, this board.
+
+### 2026-11-04T12:25Z · Desktop Claude Code (hub) · **Sales samples and contract paper drafted (not committed); four product gaps found**
+- **Did:** finished the operator's pull locally: fast-forward to `0d0baa8`; the hub edits were stashed and restored, and
+  the board conflict was resolved with both sides kept. Recorded the operator's paper decisions in `STATUS.md` step 3:
+  California law; refunds fix-first (30 days / 15 business days / cap = fee, sole remedy); Net 30 after delivery;
+  counsel deferred for budget. Two workflows (build → two reviewers → fix) wrote:
+  - samples: `workspace/collateral/samples/{trial-design-benchmark-sample-nsclc,failed-trial-archaeology-sample-heart-failure}.md`
+  - offer sheets: `workspace/collateral/one-pagers/{trial-design-benchmark-pack,failed-trial-archaeology}.md`
+  - paper: `08-contracts-legal/common-paper/{mutual-nda,sow-template}.md`, `08-contracts-legal/{refund-policy-boilerplate,payment-terms}.md`
+  - `11-financial-ops/vendor-onboarding-checklist.md`, `03-platforms/aws-data-exchange/legal-name-change-request.md`
+  - `workspace/legal/nda-mutual-template.md` → superseded pointer
+
+  Checked by hand: 0 banned terms, canon prices only, the disclosure in all 11 files.
+- **Found:**
+  1. Run #6's narrative never saw the cohort's registry fields (`tool-prefetch.js:140` `renderRecord` drops sponsor,
+     allocation, masking, enrollment, endpoints). It inferred sponsors from drug names (NCT07388524 "Roche"; the
+     registry says NCI) and contradicts its own `design-benchmark.csv`.
+  2. Failed Trial Archaeology as described in OFFERINGS has no engine path: no phase or mechanism filter, no matrix, no
+     template.
+  3. Vault publish and research memory run on every run, so client work is not isolated.
+  4. The proof-run ZIPs include `store-copy.md` (overclaims) and Datarade packs.
+
+  Also: two old NSCLC benchmark bundles (`offer-3dec35…`, `offer-7e373e…`) contain ChEMBL ids, so the first-sale-gate
+  skill's "no shipped bundle contains a ChEMBL id" is stale.
+- **Next:** the operator's steps 1–2 (Workspace, filings) are unchanged. Claude: fix `renderRecord` with a test, then the
+  operator arms one Benchmark re-run (ALS or IPF); boil the open `[DECIDE]`s into one decision sheet; a customer-run
+  isolation switch; a buyer-ZIP builder.
+- **Touches:** the 11 files above, `STATUS.md`, this board.
+
+### 2026-11-04T11:35Z · Desktop Claude Code (hub "Research engine AWS Data Exchange setup") · **Sessions consolidated; STATUS.md rewritten as a verified money-first plan**
+- **Asked:** fold the TR-INC Biz session nest ("TRINC monorepo cleanup continuation", "TrevClaw-Obsidianodus monorepo
+  consolidation", their 23 side sessions, and the predecessor "cleanup and organization plan") into one session,
+  archive them, research what would make the engine's ADX datasets sellable, and start making money.
+- **Consolidated:** all 26 tails were read; all 26 sessions are archived (reversible from the Archived list). None holds uncommitted TRINC work. Both worktree branches
+  (`eloquent-thompson`, `wonderful-banach`) are merged, and the `festive-bun` worktree was already gone. Every business
+  item still live is now in `STATUS.md`. Four security items were open only in transcripts: the unanswered OpenCode
+  AP-read question, the SE backup 130 commits behind, the Zoho leftovers, and the pending LST/AGCA authorizations.
+  They went to the Security Everything board (uncommitted there).
+- **Found:**
+  - **The paid feed's live columns are all free in AACT and the CT.gov API.** 5 paid columns are empty or UNKNOWN on
+    all 7,373 rows (history 403).
+  - `workspace/legal/CommonPaper-Mutual-NDA-v2.pdf` is a saved 404 HTML page. No signable paper and no direct-sale
+    rail exist (no bank account, invoicing placeholders). AWS payout (ACH 262) is the only working rail.
+  - The Benchmark Pack fills a 20-of-M cohort in 13 indications, but has passed the gate only in NSCLC.
+  - The `workflow-21d82407` and `workflow-72f0c288` memos print amendment bands (HIGH and MODERATE), so samples come
+    from run #6 or are redacted.
+  - CT.gov v2 returns sponsor class, dates, enrollment type, interventions and references in the existing call.
+  - A 12-rule stop-reason draft covers 78.8% of the 6,623 reasoned rows.
+  - External, read 11-04: Ozmosi BEAM (ticker-mapped CT.gov data) lists at $8,500/month on ADX. AWS professional
+    services need one public product first (fee 0.5%, or 0% in an offer set). Partner Central moved into the AWS
+    console 2025-11-30. Notes in memory `adx-market-research-2026-11`.
+- **Did:** `STATUS.md` rewritten: 8 ordered steps, owners, "not doing", housekeeping, every old open item kept. This
+  Current focus line. Memory `adx-market-research-2026-11`. Workflow evidence (plan, verdicts) is in this session's
+  transcript; nothing was built, committed or published.
+- **Next:** operator, step 1 (Workspace billing) today, step 2 (EIN → FTB 3522 → LLC-12 → bank) tomorrow. Claude,
+  steps 3–4 (paper and samples, files only) on the operator's go. Feed v1.1 (step 7) waits on the operator lifting the
+  10-21 deferral.
+- **Touches:** `STATUS.md`, this board; outside the repo, memory and the Security Everything board.
 
 ### 2026-11-02T00:57Z · Claude Code on the web (cloud session) · **research-memory re-embedded (PASS); transformers port merged to `main`**
 - **Did:** the operator ran `npm run parity -- --reembed` from the worktree. 6 / 6 packs re-embedded; the
