@@ -1,0 +1,50 @@
+<!-- INTERNAL: do not attach this sheet to any email until every [DECIDE] below is resolved. The turnaround and the Citation-Audit SLA terms must first be recorded in OFFERINGS.md and copied here verbatim; never fill them from the elevator's "Five days" or from the Investor Pre-Mortem's 5-10 business days. -->
+
+# Failed Trial Archaeology
+
+**Trevor Robey, INC.** · Offer sheet
+
+> Structured post-mortem of Phase 2/3 terminations in a single mechanism. NCT-indexed failure pattern matrix.
+
+**How the scope is applied today.** The engine's stopped-trial search queries ClinicalTrials.gov by a condition term and returns terminated, withdrawn and suspended records with no phase filter. Narrowing to Phase 2/3 and to one mechanism, and grouping the result into the failure-pattern matrix, are [DECIDE: done by an analyst from the engine's memo, or not offered until the engine does them]. Anything assembled by hand is labelled as such and sits outside the citation grade and the Zero-Fabrication Guarantee.
+
+**Price: $14,950**
+
+## Who it is for
+
+- **Pharma R&D competitive intelligence**, such as a Head of CI or a VP of BD/Licensing, when evaluating a new asset or deciding on Phase 2 to Phase 3.
+- **Biotech VC diligence**, such as a biotech VC partner, before a deal or a phase readout.
+- **Medical-startup founders** preparing an NIH SBIR/STTR Phase II application. The offering is sized to the Phase II Technical and Business Assistance (TABA) line: NIH Guide Notice NOT-OD-26-075 (2026-04-20) allows up to $50,000 per Phase II project and lists "market research and/or validation" as an eligible activity. NIH institute TABA guidance asks for the vendor to be named in the budget justification, so scope is agreed before the application is submitted. Confirm eligibility and amounts with your program officer; this is not grant or regulatory advice.
+
+## What you get
+
+- **Stopped-trial memo.** Lists the terminated, withdrawn and suspended trials that ClinicalTrials.gov returns for the agreed search. Each trial links to its NCT record and carries the sponsor's stated stop reason, quoted verbatim or marked "(none stated by sponsor)". The memo is rendered without a language model, straight from the fetched registry records. It states how many of the registry's matching records it lists, and says so when retrieval was partial.
+- **Failure-pattern matrix**, indexed by NCT number: the stopped trials grouped by the sponsor's stated reason. [DECIDE: engine-generated or analyst-assembled; if analyst-assembled, say so here and in the deliverable.]
+- **Written report.** Every identifier it cites is checked against the evidence retrieved in that run. A report whose share of grounded citations falls below the threshold does not ship, and any ungrounded citation that remains is marked [UNVERIFIED]. [DECIDE: confirm every report section searches the agreed condition term]
+- **Retraction screen.** Cited DOIs are checked against Crossref and cited PMIDs against PubMed. A retracted citation stops delivery. If a registry does not answer for every identifier, the manifest marks the screen INCOMPLETE; that alone does not stop delivery, and the companion sample's run is one such case.
+- **Re-check at delivery.** Every cited PMID, NCT and DOI is looked up again in the public registry that issued it. The result for each is recorded in a reproducibility manifest as VERIFIED, UNRESOLVED or UNCHECKED, and any UNRESOLVED identifier blocks delivery. An identifier the registry did not answer for is recorded UNCHECKED, is never counted as verified, and ships flagged (DELIVER_WITH_FLAGS). The memo's NCT numbers come straight from the registry response; they are not part of this re-check and do not count toward the citation grade.
+- **Audit files:** the citation-integrity ledger, a search-coverage ledger, a CSV of cited identifiers, and checksums.txt.
+
+## What the checks cover
+
+The Zero-Fabrication Guarantee and the Citation-Audit SLA cover the identifiers cited in the written report. Grounding shows that a cited identifier was retrieved in the run; it does not show that the record is relevant to the question. The SLA is refund-backed, with terms set in the order agreement [DECIDE: SLA terms]. The stopped-trial memo is grounded by construction because it is rendered straight from registry records, but it does not count toward the report's citation grade. A re-check confirms that an identifier resolves to a real record, not that the source's conclusions are correct. Stop reasons are reported by sponsors and are not independently checked.
+
+## How delivery works today
+
+You receive one sealed ZIP, handed over manually. It contains Markdown files, a CSV, the ledgers, the reproducibility manifest and checksums.txt. Turnaround: [DECIDE: turnaround].
+
+## How to order
+
+Email **trevor@trevorobeyinc.com** with the condition you want examined (and, once decided, the mechanism and phase limits). The scope is agreed in writing before the run. [DECIDE: how mechanism and phase limits are applied] [DECIDE: which engine workflow a Failed Trial Archaeology order runs; config/workflow-templates/ has none for it]
+
+A companion sample is available: stopped heart-failure trials, from an internal proof run on 2026-07-16.
+
+## Limits
+
+This is a research artifact only. It is not medical, investment, legal or regulatory advice, and it is not validated for clinical decision support. No protected health information is used or processed. Registry condition searches work on the search term used: the memo states how many of the registry's records for that term it lists, and a different name for the same condition returns a different set. Statistics from protocol change histories are not included, because ClinicalTrials.gov has refused those requests since 2026-10-08.
+
+---
+
+Trevor Robey, INC. is the wordmark of Trevor Robey Intelligence Network Citations LLC, a California limited liability company.
+
+trevor@trevorobeyinc.com · trevorobeyinc.com · Powered by OpenClaw (open-source agent framework).
