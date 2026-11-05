@@ -1,0 +1,8 @@
+# Build output and per-user Xcode state never belong in the repo.
+build/
+DerivedData/
+TRINCKit/.build/
+TRINCKit/.swiftpm/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcuserstate

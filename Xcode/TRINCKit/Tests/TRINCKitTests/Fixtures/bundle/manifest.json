@@ -1,0 +1,21 @@
+{
+  "schema_version": "phase19-release-manifest-v1",
+  "files": [
+    {
+      "file": "deliverables/citation-integrity.md",
+      "sha256": "2f3d9178c114b5ec65d819ad477c30d0ef1fa6c0b1975846d6059b86058e5b0e"
+    },
+    {
+      "file": "deliverables/report.md",
+      "sha256": "668ec911f9e1558eb54c6ef5be29f9674bf8c007f4903ba6f43f9ef04a72e72d"
+    },
+    {
+      "file": "deliverables/reproducibility-manifest.json",
+      "sha256": "e1970c633ed5bb2ef804f0d5c1360d4470f55d5d93d5d4f6a06554397d9f1a13"
+    },
+    {
+      "file": "deliverables/tables.csv",
+      "sha256": "0fb1386195ce0c9f5ae408bbf50a44a1fe945796629bd30b64996af8137cd498"
+    }
+  ]
+}

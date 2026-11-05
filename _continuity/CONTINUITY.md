@@ -46,6 +46,7 @@
 | **Desktop Claude Code** (Desktop Code tab) | direct filesystem (Filesystem MCP) | repo `CLAUDE.md` pointer + repo skill `continuity-board` |
 | **Cowork** | direct filesystem | repo `CLAUDE.md` board pointer (top of file) |
 | **Claude Chat (Desktop app)** | direct filesystem — Filesystem MCP connector, allowed roots `/Users/myhome` + `/Volumes/ExtraCurricular` | user points it here; see `README.md` |
+| **Xcode's Claude Agent** (Xcode 27 › Intelligence; added 2026-11-05) | direct filesystem, with its own config folder, so no `~/.claude` hook reaches it; rules in `ops/xcode/claude-agent-settings.json` | root `CLAUDE.md` + `Xcode/CLAUDE.md` when it works under `Xcode/` |
 | **opencode** (app + CLI; incl. the Claude→opencode delegation lane) | direct filesystem (built-in read/write; interactive sessions have full toolset, the delegated worker is guardrail-scoped) | global `~/.config/opencode/AGENTS.md` pointer (auto-loaded every session) |
 
 > Not the web version of Chat — the **Desktop** app, which has the Filesystem MCP connector.
@@ -261,6 +262,23 @@ forward below.
 ## 📋 Log — newest first
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
+
+### 2026-11-05T10:05Z · Desktop Claude Code (side session of the Security Everything toolchain audit) · **Xcode set up for TRINC: project "Trevor Robey Intelligence Network Citations" + an offline buyer app; Xcode's Claude Agent given rules**
+- **SCOPE NOTE:** tooling, on the operator's word ("apply it … create 'Trevor Robey Intelligence Network Citations' project from the monorepo and help me create an app for buyers"); Current focus untouched (the app is not on the money path and sells nothing by itself).
+- **Did:**
+  - `Xcode/`: a hand-written project, the SwiftUI app `TRINCReader` (macOS and iPhone/iPad) and the `TRINCKit` package. The app opens the sealed ZIP or folder a buyer receives, renders the report, lists every cited identifier with its delivery-time status and a registry link, re-checks every file's SHA-256 against `manifest.json`, and previews CSVs. It runs in the sandbox with no network entitlement and ships the two proven-SKU samples by reference.
+  - `ops/xcode/`: the decision record, plus the rules for Xcode's built-in Claude Agent. That agent is a separate Claude Code with its own config folder, so none of our hooks reach it. The rules make it ask before acting, disable bypass and auto mode, turn off account connectors and plugin sync, and deny credential and ceremony paths and every TRINC MCP server. They are deployed as a real copy (sha256 `3735b033…`).
+  - `verify.sh` gained an "== Xcode" section. The registry gained `xcode-claude-agent` (active) and `xcode-tools` (`declined-until-gated`: it waits for the Security Everything `mcp-xcode` lane). The root `CLAUDE.md` gained a row and a note.
+- **Verified:**
+  - `swift test` 26/26; a hand-mutation pass killed 7 of 8, the survivor was dead code, now removed.
+  - The opt-in real-bundle test on the sealed NSCLC export: 22/22 fingerprints match, 45/45 VERIFIED, DELIVER.
+  - `xcodebuild` builds macOS and iOS; the app launches with no crash report.
+  - The built app's entitlements are sandbox and user-selected read-only, with `get-task-allow` in Debug only.
+  - Connector audit clean. Other gates are in the session report.
+- **Next (operator):**
+  - Xcode › Settings › Intelligence: turn off the unsafe all-agents mode (`verify.sh` WARNs until then).
+  - Push (`git -C /Users/myhome/TRINC push origin main`), then cut a fresh backup bundle (`scripts/trinc-backup.sh`).
+  - Before any buyer gets the app: Apple Developer Program, a signing team, notarization or TestFlight, an icon, and `brand-check` + `first-sale-gate` on `Xcode/TRINCReader/Brand.swift`.
 
 ### 2026-11-05T04:41Z · Desktop Claude Code (hub) · **Monorepo cleanup: junk, test leftovers and stale config removed; every gate unchanged (uncommitted)**
 - **SCOPE NOTE:** repo hygiene (infra), on the operator's request; Current focus untouched. One business-facing correction rides along: `NOTICE.md` no longer claims "no model weights downloaded or run" (it was false: the research-memory index runs nomic-embed-text-v1 locally). The new wording is the operator's (decision N5).

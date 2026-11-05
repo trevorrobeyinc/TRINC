@@ -193,6 +193,73 @@ if os.path.isfile(live):
     if os.path.isfile(tpl):
         say("PASS" if strip(open(live).read()) == strip(t) else "WARN", "live providers.yaml matches the repo template (apart from the key)")
 
+print("== Xcode")
+# Added 2026-11-05 (ops/xcode/README.md). Xcode's built-in Claude Agent runs its own Claude Code with its
+# own config folder, so ~/.claude and every Security Everything hook stay out of its reach: the deployed
+# rules file and the empty MCP registrations below are what stands in for them.
+import plistlib
+xc = m.get("xcode")
+if not xc:
+    say("FAIL", "manifest.json has no xcode entry")
+else:
+    say("PASS" if os.path.isfile(os.path.join(repo, xc["project"], "project.pbxproj")) else "FAIL",
+        f"Xcode project: {xc['project']}")
+    say("PASS" if os.path.isfile(os.path.join(repo, xc["package"], "Package.swift")) else "FAIL",
+        f"Swift package: {xc['package']}")
+    ent = os.path.join(repo, xc["entitlements_macos"])
+    if os.path.isfile(ent):
+        e = plistlib.load(open(ent, "rb"))
+        net = sorted(k for k in e if k.startswith("com.apple.security.network."))
+        say("FAIL" if net else "PASS",
+            f"buyer app requests network access ({', '.join(net)}): it must stay offline" if net
+            else "buyer app requests no network entitlement")
+        say("PASS" if e.get("com.apple.security.app-sandbox") is True else "FAIL", "buyer app runs in the App Sandbox")
+    else:
+        say("FAIL", f"entitlements missing: {xc['entitlements_macos']}")
+    a = xc["agent_settings"]
+    src, dep = os.path.join(repo, a["source"]), expand(a["deploy_target"])
+    if not os.path.isfile(src):
+        say("FAIL", f"Xcode agent rules source missing: {a['source']}")
+    elif not on_mac:
+        say("SKIP", "Xcode agent rules deploy check (run on the Mac)")
+    elif not os.path.isdir(os.path.dirname(dep)):
+        say("WARN", f"Xcode's Claude Agent is not set up ({os.path.dirname(dep)} absent); nothing to protect yet")
+    elif os.path.islink(dep):
+        say("FAIL", f"Xcode agent rules are a symlink ({os.path.realpath(dep)}); run {a['install']}")
+    elif not os.path.isfile(dep):
+        say("FAIL", f"Xcode's Claude Agent runs WITHOUT the TRINC rules; run {a['install']}")
+    else:
+        same = sha(src) == sha(dep)
+        say("PASS" if same else "FAIL", "Xcode agent rules match ops/xcode source" if same
+            else f"Xcode agent rules DRIFTED from source; run {a['install']}")
+    if on_mac:
+        for reg in xc["agent_mcp_registrations"]:
+            p = expand(reg)
+            if not os.path.isfile(p):
+                say("SKIP", f"{reg}: absent")
+                continue
+            try:
+                d = json.load(open(p))
+            except Exception as ex:
+                say("WARN", f"{reg}: unreadable ({ex})")
+                continue
+            names = list((d.get("mcpServers") or {}).keys())
+            for proj_path, v in (d.get("projects") or {}).items():
+                names += [f"{n} (project {proj_path})" for n in ((v or {}).get("mcpServers") or {})]
+            say("FAIL" if names else "PASS",
+                f"{os.path.basename(p)}: MCP server(s) added for Xcode's agents, outside every gate: {', '.join(names)}"
+                if names else f"{os.path.basename(p)}: no MCP servers registered for Xcode's agents")
+        prefs = expand(xc["xcode_prefs"])
+        if os.path.isfile(prefs):
+            try:
+                unsafe = plistlib.load(open(prefs, "rb")).get("IDEAllowUnauthenticatedAgents")
+            except Exception:
+                unsafe = None
+            say("WARN" if unsafe else "PASS",
+                "Xcode lets ANY local agent drive its tools without approval (IDEAllowUnauthenticatedAgents): "
+                "turn the unsafe all-agents mode off in Xcode > Settings > Intelligence > Model Context Protocol"
+                if unsafe else "Xcode's unsafe all-agents mode is off")
+
 print("== Repo hygiene")
 nested = [d for d, subs, _ in os.walk(repo) if ".git" in subs and d != repo
           and "/node_modules" not in d and "/vendor/" not in d + "/"]

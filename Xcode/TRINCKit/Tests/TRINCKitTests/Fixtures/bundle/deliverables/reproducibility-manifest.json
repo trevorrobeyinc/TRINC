@@ -1,0 +1,72 @@
+{
+  "citations": [
+    {
+      "id": "00000001",
+      "type": "PMID",
+      "status": "VERIFIED",
+      "checked_at": "2026-11-05T00:00:00Z",
+      "grounded_in_run": true
+    },
+    {
+      "id": "NCT00000000",
+      "type": "NCT",
+      "status": "VERIFIED",
+      "checked_at": "2026-11-05T00:00:00Z",
+      "grounded_in_run": true
+    },
+    {
+      "id": "10.0000/fixture.1",
+      "type": "DOI",
+      "status": "UNRESOLVED",
+      "checked_at": "2026-11-05T00:00:00Z",
+      "grounded_in_run": false
+    }
+  ],
+  "summary": {
+    "report_id": "mission-fixture",
+    "delivery_id": "workflow-fixture",
+    "as_of": "2026-11-05",
+    "counts": {
+      "total": 3,
+      "verified": 2,
+      "unresolved": 1,
+      "unchecked": 0
+    },
+    "by_type": {
+      "PMID": {
+        "total": 1,
+        "verified": 1,
+        "unresolved": 0,
+        "unchecked": 0
+      },
+      "NCT": {
+        "total": 1,
+        "verified": 1,
+        "unresolved": 0,
+        "unchecked": 0
+      },
+      "DOI": {
+        "total": 1,
+        "verified": 0,
+        "unresolved": 1,
+        "unchecked": 0
+      }
+    },
+    "delivery_decision": "BLOCK",
+    "block_reasons": [
+      "1 unresolved identifier"
+    ],
+    "retraction_screen": {
+      "checked": true,
+      "retracted_dois": [],
+      "retracted_pmids": []
+    },
+    "gate_crosscheck": {
+      "cited": 3,
+      "grounded": 2,
+      "ungrounded": 1,
+      "grounded_ratio": 0.667,
+      "min_grounded_ratio": 0.75
+    }
+  }
+}

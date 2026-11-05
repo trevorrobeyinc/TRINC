@@ -1,6 +1,6 @@
 {
   "$comment": "Single registry of every TR-Obsidian Intelligence Network Citations component. ops/tr-suite/verify.sh reads this. Paths under 'source' are repo-relative; 'external' entries live outside this repo on purpose or until absorbed. Plugin ids are FROZEN (see CLAUDE.md) — never rename them here.",
-  "updated": "2026-10-21",
+  "updated": "2026-11-05",
   "deploy_model": "This repo is the ONLY source. Vault plugin folders and ~/.claude/mcp-servers/* are deploy targets: real copies made by ops/tr-suite/deploy.sh or the connector installers — never a symlink out of the repo, never a .git. Dev builds stay local and untracked (Copilot-Everything/dev-vault, Copilot-Everything/deploy/obsidian/plugins). Retired side repos: ~/Code/_retired-absorbed-into-monorepo/.",
   "vault_default": "$HOME/My Digital Garden",
   "obsidian_plugins": [
@@ -35,5 +35,24 @@
     {"id": "perseus-business", "external": "$HOME/.local/bin/perseus-vault", "note": "third-party binary + encrypted DB; keep outside git"},
     {"id": "trinc-content", "source": "Claude/trinc-content-mcp", "entry": "src/server.js", "staged_copy": "$HOME/.claude/mcp-servers/trinc-content", "install": "Claude/trinc-content-mcp/install-connector.sh", "note": "absorbed with history 2026-10-21 (e485565); staged copy, re-run the installer after editing src/. Gated by the PreToolUse hook since 2026-10-21 (Security Everything 07726a0): every call needs `operator-approved-gate arm trinc-content`"}
   ],
-  "engine": {"source": "Trevor Robey Intelligence Network Citations", "dispatched_by": "command-center", "lanes": ["biomedical (default)", "business (research_profile: business)"]}
+  "engine": {"source": "Trevor Robey Intelligence Network Citations", "dispatched_by": "command-center", "lanes": ["biomedical (default)", "business (research_profile: business)"]},
+  "xcode": {
+    "added": "2026-11-05",
+    "project": "Xcode/Trevor Robey Intelligence Network Citations.xcodeproj",
+    "scheme": "TRINCReader",
+    "package": "Xcode/TRINCKit",
+    "entitlements_macos": "Xcode/Config/TRINCReader-macOS.entitlements",
+    "agent_settings": {
+      "source": "ops/xcode/claude-agent-settings.json",
+      "deploy_target": "$HOME/Library/Developer/Xcode/CodingAssistant/ClaudeAgentConfig/settings.json",
+      "install": "bash ops/xcode/install-claude-agent-settings.sh --apply",
+      "note": "Rules for Xcode's built-in Claude Agent, which runs its own Claude Code with CLAUDE_CONFIG_DIR = ClaudeAgentConfig and so never sees ~/.claude or its hooks. Real copy, never a symlink."
+    },
+    "agent_mcp_registrations": [
+      "$HOME/Library/Developer/Xcode/CodingAssistant/mcp-servers.json",
+      "$HOME/Library/Developer/Xcode/CodingAssistant/ClaudeAgentConfig/.claude.json"
+    ],
+    "xcode_prefs": "$HOME/Library/Preferences/com.apple.dt.Xcode.plist",
+    "record": "ops/xcode/README.md"
+  }
 }
