@@ -163,3 +163,44 @@ It WARNs while the unsafe Xcode mode is on.
 - Agent rules: restore the backup the installer printed (under `~/.claude/backups/xcode-agent/`), or delete the deployed
   file. That returns Xcode's agent to Claude Code's defaults, which is weaker.
 - Project: `git rm -r Xcode ops/xcode` and remove the `xcode` entry from `ops/tr-suite/manifest.json`.
+
+## 9 · Measured facts behind these decisions (recon 2026-11-05)
+
+Folded in from the side session's recon note, corrected where later evidence changed it. The note itself is kept
+verbatim, uncommitted on purpose (TRINC keeps exploration reports out of git), at
+`.archive/xcode/xcode-trinc-recon-2026-11-05.md`. Its Security Everything sections stay in that repo
+(`docs/toolchain-audit-2026-11-05.md` and `mcp-gates/XCODE-LANE.md`): the Falcon alerts to attribute, whether
+Xcode's agent gets the gate hooks, and Falcon rule 240 on `lldb`.
+
+**Install and toolchain**
+- Xcode 27.2 (27B52), App Store, at `/Applications/Xcode.app`; `xcode-select -p` points there; first-launch setup
+  done.
+- Swift 6.4.2 with `sourcekit-lsp`. SDKs for macOS, iOS, tvOS, watchOS, visionOS and DriverKit 27.2.
+- **No simulator runtime installed** (`xcrun simctl list runtimes` is empty), so the iPhone/iPad build runs only on a
+  device until one is downloaded (several GB). Developer Mode is off.
+- Before 2026-11-05 TRINC tracked no Swift at all; the engine is Node.
+
+**The three ways Claude meets Xcode**
+1. **Xcode's built-in Claude Agent.**
+   - Xcode downloads Anthropic's own Claude Code (2.1.294, Developer ID Anthropic PBC, signature valid) into the
+     user-writable `~/Library/Developer/Xcode/CodingAssistant/Agents/`.
+   - It runs that binary with its own `CLAUDE_CONFIG_DIR` (§3). It merges MCP servers from
+     `CodingAssistant/mcp-servers.json` (empty).
+   - Sign-in is the operator's claude.ai account, held by Xcode.
+   - *(Corrected: the first reading called it an Apple binary, launched with `--strict-mcp-config`.)*
+2. **Claude Code using Xcode's tools** through `xcrun mcpbridge`: decision X3.
+3. **`xcrun mcpbridge run-agent claude`** starts a Claude Code with Xcode's MCP config. Its dry run resolves to:
+   - `CLAUDE_CONFIG_DIR=…/ClaudeAgentConfig` and `MCP_XCODE_PID`;
+   - `--mcp-config` with the one server `xcode-tools` (= `mcpbridge`);
+   - `--settings` with telemetry off;
+   - **no `--strict-mcp-config`**, which is why the agent rules deny the TRINC MCP servers by name.
+
+**Settings that bind Xcode's agent**
+- Root-owned managed settings (`/Library/Application Support/ClaudeCode/managed-settings.json`) apply to every Claude
+  Code on the machine, Xcode's included. On 2026-11-05 they held only the Remote Control lock.
+- The setting names used in `claude-agent-settings.json` (`disableBypassPermissionsMode`, `disableAutoMode`,
+  `disableClaudeAiConnectors` and the rest) were confirmed present in the 2.1.294 binary before deploying.
+
+**Superseded readings, so they are not re-derived**
+- "No Xcode project yet": recommended, then overruled by the operator (X1).
+- `IDEAllowUnauthenticatedAgents = true` read as the unsafe all-agents mode: corrected in §4. Leave it on.

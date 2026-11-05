@@ -199,6 +199,31 @@ forward below.
 
 > Ideas, blocked items, and "someday" work — not active, but don't lose them.
 
+**🔧 OPEN — Xcode and the buyer app (added 2026-11-05; record `ops/xcode/README.md`, recon in its §9).** None of
+this moves revenue: the money-first plan in `STATUS.md` (Workspace billing; EIN, FTB 3522, LLC-12; signable paper)
+stays first.
+- **[operator, Drive web UI]** Move `TRINC/Monorepo/` (commit 4d8eff6) to the Drive trash, then rename
+  `TRINC/Monorepo-e6a35f4/` to `Monorepo/`. Both folders were still present at 2026-11-05 ~02:55 PST.
+- **[operator, about 2 minutes]** Try the buyer app:
+  - Open `Xcode/Trevor Robey Intelligence Network Citations.xcodeproj` and press Cmd-R.
+  - Open the sealed NSCLC export (`workspace/releases/offer-2bc4ee4a8cfd54e0a788a0b0-export.zip`). Expect Seal
+    22/22 and Citations 45/45 VERIFIED.
+  - Then ask Xcode's Claude to run `sudo -n true`: it must be refused without a prompt. This is the one agent-rule
+    check Claude Code could not run itself.
+- **[operator decision]** No iOS simulator runtime is installed, so the iPhone/iPad build runs only on a device until
+  one is downloaded (several GB, Xcode > Settings > Components).
+- **[operator decision]** Keep or trash the untracked feed-refresh folder
+  `Trevor Robey Intelligence Network Citations/workspace/aws-marketplace-listing/trial-graveyard-feed/refresh-2026-10-21/`
+  (7,373 staged rows, kept out of git by decision). STATUS rates the feed "not worth paying for as built".
+- **[operator, only once a buyer wants the app]** Apple Developer Program membership, a signing team, notarization
+  or TestFlight, an app icon, then `brand-check` and `first-sale-gate` on `Xcode/TRINCReader/Brand.swift`.
+- **[the Security Everything repo, not here]** All of these stay in that repo (`docs/toolchain-audit-2026-11-05.md`,
+  `mcp-gates/XCODE-LANE.md`):
+  - the gated `mcp-xcode` lane's release and first armed run;
+  - attributing the 2026-11-05 Falcon alerts;
+  - whether Xcode's agent gets the gate hooks;
+  - the Agent Supervisor's default grants (the operator's call, in Xcode's Permissions UI).
+
 **✅ DONE 2026-07-24 — see the Log entry. The adapter is BUILT, WIRED and VERIFIED** (`openclaw-bridge/mcp/obsidian-bridge-mcp/index.js`, exposed to scout prefetch as `obsidian_prior_research`; registry `adapter_status: wired`). The original queued brief is kept below for context.
 
 **🗄️ (COMPLETED) NEXT TASK (queued 2026-07-23, operator-requested): give the research engine live Obsidian access during a run.**
