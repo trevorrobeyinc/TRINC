@@ -16,20 +16,19 @@ This directory is the canonical home for everything the [`trevor-robey-inc Comme
 |---|---|---|
 | [`trevor-robey-inc Commercial Launch Playbook.md`](./trevor-robey-inc%20Commercial%20Launch%20Playbook.md) | (root file) | The 30-day source of truth. Moved here from `~/Downloads`. Renamed from "OpenClaw Commercial Launch Playbook.md" on 2026-04-30. |
 | `00-business-formation/` | §5 items 7–10 | LLC, banking, insurance, tax, compliance (OFAC, HIPAA, GDPR, conflicts log). |
-| `01-brand-system/` | (Trevor Robey, INC. brand wordmark) | TR monogram logo, IBM Plex typography, color tokens, landing-page HTML, marketplace listing visuals. |
+| `01-brand-system/` | (Trevor Robey, INC. brand wordmark) | `brand-system.md` (logo usage, IBM Plex typography, color tokens), brand identity, personal brand, Figma reference, landing-page HTML. The empty logo, typography, color-token and marketplace-visual placeholder files were removed 2026-11-04. |
 | _(product-pack collateral)_ | §3 + §7.4 | Product one-pagers, teasers, catalog, and samples live in `workspace/collateral/`. The duplicate `02-product-packs/` tree (un-rebranded, carrying stale overclaims) was removed 2026-07-13. |
-| `03-platforms/` | §2 + §7.7 | Datarade, AWS Data Exchange, HuggingFace gated dataset, Kaggle SEO breadcrumb, rejected channels (Outlier/Mindrift), tier-1 aggregators, tier-2 cloud-native, tier-3 creator-centric, tier-4 Web3. |
+| `03-platforms/` | §2 + §7.7 | Datarade, AWS Data Exchange, HuggingFace gated dataset, Kaggle SEO breadcrumb, Google Workspace, rejected channels (Outlier/Mindrift, Kaggle-as-paid), business identity map. The tier-1 aggregator, Databricks, Snowflake, Substack/Patreon and Ocean Protocol placeholder stubs were removed 2026-11-04. |
 | `04-pricing-benchmarks/` | §3 | trevor-robey-inc pricing ladder ($9,950 / $14,950 / $19,950 anchors + tactical SKUs) + five competitor benchmarks (GlobalData, DealForma, Citeline, Cortellis, Definitive Healthcare). |
-| `06-target-accounts/` | §1 | 12 named accounts across 4 personas + 3 wildcards, each with verified 2025–2026 buying signal. |
 | `07-outbound/` | §1 + §4 Week 2 | Cold-email templates by persona, LinkedIn openers, 9-touch sequence cadence, SDR contractor brief. |
 | `08-contracts-legal/` | §5 items 3–9 | Common Paper MSA / SOW / NDA / DPA, IP license structure, LoL, indemnification, refund policy, payment terms, vendor security questionnaires (SIG-Lite, CAIQ-Lite). |
 | `09-source-licenses/` | §5 item 1 + §6 item 2 | Per-source license register (FAERS/AEMS, ChEMBL share-alike, ClinicalTrials.gov, PubMed, PubChem, UniProt, **DrugBank STOP-SHIP**). |
-| `10-quality-pipeline/` | §6 (the 5 YES/NO items) | Citation reproducibility validator (Python ≤200 lines), Microsoft Presidio PHI/PII screen, Ragas LLM-as-judge, freshness windows YAML, pre-publication checklist. |
-| `11-financial-ops/` | §5 item 5 | Stripe Invoicing (ACH primary, card fallback), Bonsai bundle, pricing tiers, P&L, invoices archive. |
+| `11-financial-ops/` | §5 item 5 | Stripe Invoicing (ACH primary, card fallback), Bonsai bundle, P&L, invoices archive, vendor onboarding checklist. Prices come only from `OFFERINGS.md`. |
 | `12-pipeline-tracking/` | §4 Week 4 KPIs | Discovery calls log, NDA pipeline, signed deals, end-of-month KPIs. |
-| `13-supplementary-research/` | §7 | Monetization architecture, buyer cohorts, vendor landscape, tiered report architecture, CPL benchmarks, publisher economics, 4-tier distribution taxonomy, RFP/government, community-led growth. |
 | `14-due-diligence-checklist/` | §6 | The five YES/NO items required before any pack ships. |
 | `15-first-sale-risk-mitigation/` | §5 | The 10-item checklist to run if a $50K custom inquiry arrives in Week 2. |
+
+_Removed 2026-11-04 as unfilled one-line placeholders: `06-target-accounts/`, `10-quality-pipeline/` and `13-supplementary-research/` (restore from commit `5ecc33b` if one is ever written). The five YES/NO quality items live in `14-due-diligence-checklist/`._
 
 ---
 
@@ -54,7 +53,7 @@ This directory is the canonical home for everything the [`trevor-robey-inc Comme
 
 ## Note on "graphic files"
 
-The TR monogram and all marketing visuals were built as **inline SVG inside HTML**, not as standalone `.svg`/`.png` files on disk. The canonical pixels ship from `01-brand-system/landing-page/index.html`. If you need raster exports for marketplace listings (Datarade thumbnail, AWS DX product logo, HF banner), generate them from that source — the placeholder folders under `01-brand-system/marketplace-listing-visuals/` mark where each export should land.
+The TR monogram and all marketing visuals were built as **inline SVG inside HTML**, not as standalone `.svg`/`.png` files on disk. The canonical pixels ship from `01-brand-system/landing-page/index.html`. If you need raster exports for marketplace listings (Datarade thumbnail, AWS DX product logo, HF banner), generate them from that source. (The empty placeholder folders under `01-brand-system/marketplace-listing-visuals/` that marked where each export should land were removed 2026-11-04.)
 
 The Figma file (`cAlmeot0lXqqcIDecpQjdO`, trevorobeyinc-team education-Pro) holds 5 logo variants and the 7-token color collection — kept as visual reference only, not as production source.
 
@@ -70,7 +69,7 @@ These paths are referenced by other systems in the monorepo. Files were **copied
 | `~/openclaw-landing-deploy/assets/openclaw-pharmacovigilance-teaser.html` — **STALE: prior machine; confirm current path** | Same Cloudflare deploy. |
 | `Trevor Robey Intelligence Network Citations/workspace/collateral/` (this monorepo) | Command Center plugin (powered by OpenClaw) reads from here. (Path migrated from `~/Code/trevor-robey-inc-agents/workspace/collateral/` on the prior machine during the 2026-05-07 consolidation, then flat-merged into the current folder 2026-05-19.) |
 
-Edits to brand/landing copy should happen at `Trevor Robey Intelligence Network Citations/workspace/collateral/` (relative to the monorepo root); copy back into `01-brand-system/` here to keep the canonical brand kit in this folder current.
+Edit the brand kit (`brand-system.md` and the other `01-brand-system/` documents) directly in `01-brand-system/`: it is canonical, and the older `workspace/collateral/brand-system.md` copy was removed 2026-11-04. Landing-page and other collateral copy is still edited at `Trevor Robey Intelligence Network Citations/workspace/collateral/` (relative to the monorepo root) and copied back here.
 
 ---
 

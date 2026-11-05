@@ -19,7 +19,7 @@ The registry sorts every connector into one of three "surfaces." This is the sin
 | **tooluniverse-tool** | 4 | ✅ Yes (via ToolUniverse prefetch) | Exposed through the vendored Harvard ToolUniverse (v1.5.7, ~2,719 tools). |
 | **claude-host-mcp** | 23 | ❌ No | Authenticated at the Claude.ai / Claude Code session level. **Chat-supervisory only** — useful when *you* are in a chat, but invisible to the automated workflow engine unless someone builds a subprocess adapter. |
 
-So when you see "PubMed" or "ChEMBL" available in your Claude chat, that does **not** mean the report engine is using that same connector. The engine uses its own subprocess copies. Several sources exist at **both** layers (a lean subprocess version for the engine, a richer host version for chat) — that overlap is intentional and documented per-connector in the registry.
+So when you see "PubMed" or "ChEMBL" available in your Claude chat, that does **not** mean the report engine is using that same connector. The engine reaches PubMed and ClinicalTrials.gov through ToolUniverse and its own local fetchers, and has no ChEMBL connector at all (ChEMBL ids arrive inside Open Targets records). *(Corrected 2026-11-04: this said "the engine uses its own subprocess copies"; those adapter folders were never called and have been removed.)* Several sources exist at **both** layers (a lean engine path, a richer host version for chat) — that overlap is intentional and documented per-connector in the registry.
 
 ## Table A — Connectors the engine actually uses (15 product data sources)
 
@@ -33,15 +33,15 @@ These are the `subprocess-mcp` (12) + `tooluniverse-tool` (4) connectors. They a
 | **pubmed** | Peer-reviewed literature with PMID provenance — every workflow | optional NCBI_API_KEY |
 | **scholar-gateway-semantic-scholar** | Citation-context literature lane — every workflow | optional Semantic Scholar key |
 | **clinicaltrials-gov** | Trial discovery / eligibility / status | none |
-| **chembl** | Compound, target, bioactivity (molecular profiling, target validation) | none |
+| ~~**chembl**~~ | **REMOVED 2026-11-04** — the `chembl-mcp` adapter folder was never called by the engine. ChEMBL ids still reach reports inside Open Targets records and are re-resolved against the ChEMBL API at delivery. Registry tombstone. | — |
 | **faers-tooluniverse** | FDA adverse-event signals — load-bearing for Pharmacovigilance | optional FDA_API_KEY |
 | **opentargets-tooluniverse** | Drug-ID resolution | none |
 | **europepmc** | Broader open-access literature than PubMed | none |
 | **arxiv** | Preprints (comp-bio, bioinformatics, ML) | none |
-| **npi-registry** | HCP / investigator identity verification | none |
-| **icd10** | Indication mapping for Patient Brief deliverables | none |
-| **huggingface-metadata** | Dataset/model-card metadata (metadata only) | optional HF_TOKEN |
-| **owkin** | Digital-pathology biomarker context | vendor-issued |
+| ~~**npi-registry**~~ | **REMOVED 2026-11-04** — the `npi-mcp` adapter folder was never called. Chat-side: `npi-host-validate` (Table B). Registry tombstone. | — |
+| ~~**icd10**~~ | **REMOVED 2026-11-04** — the `icd10-mcp` adapter folder was never called. Chat-side: `icd10-host-enriched` (Table B). Registry tombstone. | — |
+| ~~**huggingface-metadata**~~ | **REMOVED 2026-11-04** — the `huggingface-mcp` adapter folder was never called. Chat-side: `huggingface-host-rich` (Table B). Registry tombstone. | — |
+| ~~**owkin**~~ | **REMOVED 2026-11-04** — the `owkin-mcp` adapter folder was never called, and Owkin is not used. Registry tombstone. | — |
 | ~~**scrape**~~ | **REMOVED 2026-09-18** — the whitelisted-host adapter and its sidecar are deleted, not disabled. Its one working source (eLife) was restored 2026-09-19 as a key-free SearXNG `json_engine` against the public eLife API. Do not rebuild; the verify-phase gates fail the build if browser automation returns. | — |
 | **newsletter-publisher** | Marketing-pack distribution — **Phase 24, disabled** | vendor-issued |
 | **notion-sync** | Prospect-tracking handoff — **Phase 24, disabled** | OAuth (done) |
@@ -60,7 +60,7 @@ These are the `subprocess-mcp` (12) + `tooluniverse-tool` (4) connectors. They a
 
 Available to you in a Claude chat, **not** to the workflow engine. Many are richer versions of Table A sources (use them for hands-on research; don't assume a report used them).
 
-- **Richer biomedical duplicates of Table A:** pubmed-fulltext (PMC full text), clinicaltrials-enriched (endpoint analysis), open-targets-graphql, drug-search-admet (ADMET + mechanism), biorxiv-medrxiv, icd10-host-enriched, npi-host-validate, huggingface-host-rich, tooluniverse-host, semantic-search-host.
+- **Richer biomedical duplicates of Table A:** pubmed-fulltext (PMC full text), clinicaltrials-enriched (endpoint analysis), open-targets-graphql, biorxiv-medrxiv, tooluniverse-host, semantic-search-host. **No engine counterpart since 2026-11-04** (the never-called project adapters were removed): drug-search-admet (ADMET + mechanism), icd10-host-enriched, npi-host-validate, huggingface-host-rich.
 - **Specialty research:** synthesize-bio (generative genomics GEM-1 — authenticated/live; adapter `missing(design-corrected)`, a supervised remote-MCP client, **not** a prefetch source), tavily (**SUPERSEDED 2026-07-04** by searxng-search — registry tombstone, bound to nothing), research-memory (Qdrant pack memory `:6433`).
 - **Pipeline plumbing:** obsidian-bridge (vault READ-BACK, context-only — Miyo `:8743` direct, `:8798` bridge fallback; **notes are written by the engine's own post-run publisher, not through this connector**, since 2026-09-22), research-memory (WIRED 2026-09-22: engine-side ingest + `research_memory_priors`, context-only; switched ON 2026-09-22 in `config/vault-publish.json`, offline embedder), scheduled-tasks, mcp-registry.
 - **Operator tools (not product data):** github, gmail (no MCP path is live as of 2026-10-21: the claude.ai Gmail connector did not load and the local gated `gmail` server is out of service by operator decision since 2026-09-05), filesystem-sandboxed, sequential-thinking, context7-library-docs.
@@ -143,10 +143,14 @@ Chrome extension lane exists or may be installed.)*
    Synapse, Wiley and Owkin (bio-research plugin copies) and alphaXiv (host). *(Recommendation, as
    recorded in `config/plugin-bindings.json` → `oauth_posture`)* authorize **BioRender only**, through
    claude.ai connector settings; Synapse only if its datasets are wanted; **do not** authorize Wiley
-   (already reachable through the connected Scholar Gateway connector) or Owkin (duplicates the engine's
-   `owkin-mcp`); read alphaXiv's terms before its first OAuth, then register it within 7 days. The
+   (already reachable through the connected Scholar Gateway connector) or Owkin (not used by this business;
+   until 2026-11-04 this said it duplicated the engine's `owkin-mcp`, a folder nothing called, since removed); read alphaXiv's terms before its first OAuth, then register it within 7 days. The
    `data` plugin's six needs-auth servers all map to NONE — leave them. Synthesize Bio is recorded as
    `blocked-operator-decision` in the registry and did not load in the 2026-10-21 session.
-2. **Overlap is intentional but undocumented for buyers.** A deliverable should state which lane produced a citation if you ever expose the pipeline to a buyer; the engine uses the lean subprocess lane. *(Update 2026-06-12: partially addressed — every mission bundle now ships `deliverables/citation-integrity.md`, a graded provenance ledger attesting that cited identifiers are grounded in the source records actually retrieved at runtime and DOI retraction-screened against Crossref. It does not yet name which connector lane produced each citation.)*
+2. **Overlap is intentional but undocumented for buyers.** A deliverable should state which lane produced a citation if you ever expose the pipeline to a buyer; the engine uses the lean subprocess lane (since 2026-11-04 that means ToolUniverse plus the project's live local fetchers; the never-called per-source adapters were removed). *(Update 2026-06-12: partially addressed — every mission bundle now ships `deliverables/citation-integrity.md`, a graded provenance ledger attesting that cited identifiers are grounded in the source records actually retrieved at runtime and DOI retraction-screened against Crossref. It does not yet name which connector lane produced each citation.)*
 3. **Phase 24 connectors (notion-sync, newsletter-publisher) are wired but disabled.** Leave disabled until there's a reason to publish; revisit alongside the Phase 31 deployment decision.
-4. No rogue, duplicate, or dead-path registrations were found — the alignment work here is **documentation**, not reconfiguration. *(Re-checked 2026-10-21 against all three host configs: still true. Two audit blind spots were found instead — the script reads only the biomedical prefetch map and scans only rpm plugin packages; both were checked by hand, and a tested patch is proposed to the hub session.)*
+4. No rogue, duplicate, or dead-path registrations were found — the alignment work here is **documentation**, not reconfiguration. *(Re-checked 2026-10-21 against all three host configs: still true. Two audit blind spots were found instead — the script reads only the biomedical prefetch map and scans only rpm plugin packages; both were checked by hand, and a tested patch is proposed to the hub session.)* *(Corrected 2026-11-04:
+   seven dead-path registrations did exist. `chembl`, `clinicaltrials-gov`, `pubmed`, `huggingface-metadata`,
+   `npi-registry`, `icd10` and `owkin` named adapter folders that nothing called. The folders were removed;
+   `pubmed` and `clinicaltrials-gov` were re-pointed at ToolUniverse, which is how they always ran, and the
+   other five were tombstoned.)*

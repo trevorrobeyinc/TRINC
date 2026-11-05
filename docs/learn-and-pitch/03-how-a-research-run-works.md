@@ -34,8 +34,9 @@ flowchart TD
    PIN plus a physical touch, good for **one run within 300 seconds**. A practice run on the mock provider
    needs no approval and spends nothing. [src: `ENGINE/CLAUDE.md` → Quick Reference, operator authorization]
 3. **Evidence is fetched before any model writes.** A prefetch layer pulls records for each role from Harvard's
-   ToolUniverse (about 2,116 biomedical tools) and the engine's own connectors (PubMed, ClinicalTrials.gov,
-   ChEMBL, Open Targets, Semantic Scholar and others). Every identifier fetched is remembered: this list is
+   ToolUniverse (about 2,116 biomedical tools, which is how PubMed, ClinicalTrials.gov and Semantic Scholar
+   are searched) and the engine's own connectors (Open Targets, whose records carry ChEMBL ids, the
+   ClinicalTrials.gov stop-reason fetcher, and others). Every identifier fetched is remembered: this list is
    what the gate later checks against. [src: `ENGINE/CLAUDE.md` → "ToolUniverse Live Pre-Fetch", "Citation Integrity Layer"]
 4. **Three Claude roles do the research.** The *scout* gathers, the *analyst* weighs, the *synthesizer*
    writes. All three run on Claude Opus (`claude-opus-4-8`); every other role runs on Claude Sonnet. Claude is

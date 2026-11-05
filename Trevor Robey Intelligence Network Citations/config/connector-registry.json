@@ -11,7 +11,7 @@
   },
   "connectors": {
     "chembl": {
-      "tool_prefix": "openclaw-bridge/mcp/chembl-mcp/",
+      "tool_prefix": "n/a: removed 2026-11-04 (was openclaw-bridge/mcp/chembl-mcp/)",
       "execution_surface": "subprocess-mcp",
       "auth": "none",
       "tools": [
@@ -19,44 +19,22 @@
         "chembl_target_search",
         "chembl_bioactivity"
       ],
-      "purpose": "Compound, target, and bioactivity data for molecular profiling and target validation",
-      "bound_roles": [
-        "analyst",
-        "molecular_profiler",
-        "competitive_intel_analyst"
-      ],
-      "bound_workflow_steps": [
-        {
-          "workflow_template_id": "drug-discovery-full",
-          "step_id": "research"
-        },
-        {
-          "workflow_template_id": "drug-discovery-full",
-          "step_id": "quality_check"
-        },
-        {
-          "workflow_template_id": "target-validation-pack",
-          "step_id": "research"
-        },
-        {
-          "workflow_template_id": "pharmacovigilance-report",
-          "step_id": "research"
-        }
-      ],
-      "business_value": "load-bearing",
-      "adapter_status": "wired",
-      "adapter_priority": "n/a",
-      "suggested_adapter_path": "openclaw-bridge/mcp/chembl-mcp/",
-      "health_check": "chembl_compound_search('aspirin') returns CHEMBL25 with PubChem CID 2244",
+      "purpose": "REMOVED 2026-11-04 (operator-approved cleanup). The project adapter openclaw-bridge/mcp/chembl-mcp/ was added 2026-04-27 (commit 7b1ca04) and never required by any code, prefetch entry or test, so the 'wired' status this entry carried was never true and no run ever called it. Its tools[] are kept as history. ChEMBL still reaches reports another way: Open Targets drug ids are ChEMBL ids (open-targets-graphql, and OpenTargets_get_drug_id_description_by_name through ToolUniverse), and citation-reresolver re-resolves every cited CHEMBL id against the ChEMBL API (identifier only, no data values). ToolUniverse ships ChEMBL_* tools; none is in a prefetch map. Was: compound, target, and bioactivity data for molecular profiling and target validation.",
+      "bound_roles": [],
+      "bound_workflow_steps": [],
+      "business_value": "superseded",
+      "adapter_status": "retired",
+      "adapter_priority": "none",
+      "suggested_adapter_path": "n/a: removed 2026-11-04. Restore: git show '5ecc33b:Trevor Robey Intelligence Network Citations/openclaw-bridge/mcp/chembl-mcp/chembl-mcp.js' (and chembl-schema.js, chembl-tool-descriptions.js)",
+      "health_check": "n/a: removed (the live ChEMBL check is citation-reresolver resolving a cited CHEMBL id)",
       "lane": "research"
     },
     "clinicaltrials-gov": {
-      "tool_prefix": "openclaw-bridge/mcp/clinicaltrials-mcp/",
-      "execution_surface": "subprocess-mcp",
+      "tool_prefix": "vendor/tooluniverse/search_clinical_trials",
+      "execution_surface": "tooluniverse-tool",
       "auth": "none",
       "tools": [
-        "search_clinical_trials",
-        "get_trial_by_nct"
+        "search_clinical_trials"
       ],
       "purpose": "Public ClinicalTrials.gov API for trial discovery, eligibility, and status tracking",
       "bound_roles": [
@@ -81,17 +59,17 @@
       "business_value": "load-bearing",
       "adapter_status": "wired",
       "adapter_priority": "n/a",
-      "suggested_adapter_path": "openclaw-bridge/mcp/clinicaltrials-mcp/",
+      "registry_note": "Corrected 2026-11-04. Until then this entry named the project adapter openclaw-bridge/mcp/clinicaltrials-mcp/ as its surface, but nothing ever required that folder (its own tools were named ct_*), and search_clinical_trials in tool-prefetch-map.json has always run through ToolUniverse. The folder was removed 2026-11-04; the live path did not change. get_trial_by_nct was dropped from tools[]: no such tool exists in ToolUniverse or in the engine. ClinicalTrials.gov is also reached by ctgov-supplemental, ctgov-design-benchmark and citation-reresolver.",
+      "suggested_adapter_path": "vendor/tooluniverse (already integrated via tool-prefetch.js)",
       "health_check": "search_clinical_trials({query_term: 'NSCLC pembrolizumab', pageSize: 1}) returns at least one NCT id",
       "lane": "research"
     },
     "pubmed": {
-      "tool_prefix": "openclaw-bridge/mcp/pubmed-mcp/",
-      "execution_surface": "subprocess-mcp",
+      "tool_prefix": "vendor/tooluniverse/PubMed_*",
+      "execution_surface": "tooluniverse-tool",
       "auth": "optional: NCBI_API_KEY (3x faster)",
       "tools": [
-        "PubMed_search_articles",
-        "PubMed_get_article_metadata"
+        "PubMed_search_articles"
       ],
       "purpose": "Peer-reviewed literature discovery with PMID provenance",
       "bound_roles": [
@@ -130,7 +108,8 @@
       "business_value": "load-bearing",
       "adapter_status": "wired",
       "adapter_priority": "n/a",
-      "suggested_adapter_path": "openclaw-bridge/mcp/pubmed-mcp/",
+      "registry_note": "Corrected 2026-11-04. Until then this entry named the project adapter openclaw-bridge/mcp/pubmed-mcp/ as its surface, but nothing ever required that folder (its own tools were named pubmed_*, lower case), and PubMed_search_articles in tool-prefetch-map.json has always run through ToolUniverse. The folder was removed 2026-11-04; the live path did not change. PubMed_get_article_metadata was dropped from tools[]: no such tool exists in ToolUniverse or in the engine. PubMed is also reached by pubmed-retraction and citation-reresolver (NCBI E-utilities).",
+      "suggested_adapter_path": "vendor/tooluniverse (already integrated via tool-prefetch.js)",
       "health_check": "PubMed_search_articles({query: 'pembrolizumab NSCLC', limit: 1}) returns a PMID",
       "lane": "research"
     },
@@ -301,104 +280,74 @@
       "lane": "research"
     },
     "huggingface-metadata": {
-      "tool_prefix": "openclaw-bridge/mcp/huggingface-mcp/",
+      "tool_prefix": "n/a: removed 2026-11-04 (was openclaw-bridge/mcp/huggingface-mcp/)",
       "execution_surface": "subprocess-mcp",
       "auth": "optional: HF_TOKEN",
       "tools": [
         "hf_metadata_lookup",
         "hf_dataset_search"
       ],
-      "purpose": "Hugging Face Hub metadata (datasets, model cards) \u2014 METADATA ONLY, no weight downloads",
-      "bound_roles": [
-        "literature_reviewer",
-        "competitive_intel_analyst"
-      ],
-      "bound_workflow_steps": [
-        {
-          "workflow_template_id": "general-research-pack",
-          "step_id": "research"
-        }
-      ],
-      "business_value": "medium",
-      "adapter_status": "wired",
-      "adapter_priority": "n/a",
-      "suggested_adapter_path": "openclaw-bridge/mcp/huggingface-mcp/",
-      "health_check": "hf_metadata_lookup('openai/whisper-large-v3') returns model card metadata",
+      "purpose": "REMOVED 2026-11-04 (operator-approved cleanup). The project adapter openclaw-bridge/mcp/huggingface-mcp/ was added 2026-04-27 (commit 7b1ca04) and never required by any code, prefetch entry or test, so the 'wired' status this entry carried was never true and no run ever called it. No engine connector queries the Hugging Face Hub now: ToolUniverse ships HuggingFace_* metadata tools, none is in a prefetch map, and the chat-side connector is huggingface-host-rich. Was: Hugging Face Hub metadata (datasets, model cards) \u2014 METADATA ONLY, no weight downloads",
+      "bound_roles": [],
+      "bound_workflow_steps": [],
+      "business_value": "superseded",
+      "adapter_status": "retired",
+      "adapter_priority": "none",
+      "suggested_adapter_path": "n/a: removed 2026-11-04. Restore: git show '5ecc33b:Trevor Robey Intelligence Network Citations/openclaw-bridge/mcp/huggingface-mcp/huggingface-mcp.js' (and huggingface-schema.js, huggingface-tool-descriptions.js)",
+      "health_check": "n/a: removed",
       "lane": "research"
     },
     "npi-registry": {
-      "tool_prefix": "openclaw-bridge/mcp/npi-mcp/",
+      "tool_prefix": "n/a: removed 2026-11-04 (was openclaw-bridge/mcp/npi-mcp/)",
       "execution_surface": "subprocess-mcp",
       "auth": "none",
       "tools": [
         "npi_lookup",
         "npi_search"
       ],
-      "purpose": "NPI Registry lookup for HCP / investigator identity verification (citation-traced KOL identification)",
-      "bound_roles": [
-        "competitive_intel_analyst",
-        "report_generator"
-      ],
-      "bound_workflow_steps": [
-        {
-          "workflow_template_id": "clinical-trial-landscape",
-          "step_id": "research"
-        }
-      ],
-      "business_value": "medium",
-      "adapter_status": "wired",
-      "adapter_priority": "n/a",
-      "suggested_adapter_path": "openclaw-bridge/mcp/npi-mcp/",
-      "health_check": "npi_lookup with a known NPI number returns provider record",
+      "purpose": "REMOVED 2026-11-04 (operator-approved cleanup). The project adapter openclaw-bridge/mcp/npi-mcp/ was added 2026-04-27 (commit 7b1ca04) and never required by any code, prefetch entry or test, so the 'wired' status this entry carried was never true and no run ever called it. No engine connector queries the NPI Registry now: ToolUniverse ships NPIProvider_search (NLM Clinical Tables over NPPES), which is not in a prefetch map, and the chat-side connector is npi-host-validate. Was: NPI Registry lookup for HCP / investigator identity verification (citation-traced KOL identification).",
+      "bound_roles": [],
+      "bound_workflow_steps": [],
+      "business_value": "superseded",
+      "adapter_status": "retired",
+      "adapter_priority": "none",
+      "suggested_adapter_path": "n/a: removed 2026-11-04. Restore: git show '5ecc33b:Trevor Robey Intelligence Network Citations/openclaw-bridge/mcp/npi-mcp/npi-mcp.js' (and npi-schema.js, npi-tool-descriptions.js)",
+      "health_check": "n/a: removed",
       "lane": "research"
     },
     "icd10": {
-      "tool_prefix": "openclaw-bridge/mcp/icd10-mcp/",
+      "tool_prefix": "n/a: removed 2026-11-04 (was openclaw-bridge/mcp/icd10-mcp/)",
       "execution_surface": "subprocess-mcp",
       "auth": "none",
       "tools": [
         "icd10_lookup",
         "icd10_search"
       ],
-      "purpose": "ICD-10 code lookup for indication mapping in Patient Brief deliverables",
-      "bound_roles": [
-        "report_generator"
-      ],
-      "bound_workflow_steps": [
-        {
-          "workflow_template_id": "rare-disease-brief",
-          "step_id": "research"
-        }
-      ],
-      "business_value": "medium",
-      "adapter_status": "wired",
-      "adapter_priority": "n/a",
-      "suggested_adapter_path": "openclaw-bridge/mcp/icd10-mcp/",
-      "health_check": "icd10_lookup('C34.9') returns 'malignant neoplasm of bronchus or lung, unspecified'",
+      "purpose": "REMOVED 2026-11-04 (operator-approved cleanup). The project adapter openclaw-bridge/mcp/icd10-mcp/ was added 2026-04-27 (commit 7b1ca04) and never required by any code, prefetch entry or test, so the 'wired' status this entry carried was never true and no run ever called it. No engine connector queries ICD-10 now: ToolUniverse ships ICD10_* (ICD-10-CM) and ICD11_* tools, none is in a prefetch map, and the chat-side connector is icd10-host-enriched. Was: ICD-10 code lookup for indication mapping in Patient Brief deliverables.",
+      "bound_roles": [],
+      "bound_workflow_steps": [],
+      "business_value": "superseded",
+      "adapter_status": "retired",
+      "adapter_priority": "none",
+      "suggested_adapter_path": "n/a: removed 2026-11-04. Restore: git show '5ecc33b:Trevor Robey Intelligence Network Citations/openclaw-bridge/mcp/icd10-mcp/icd10-mcp.js' (and icd10-schema.js, icd10-tool-descriptions.js)",
+      "health_check": "n/a: removed",
       "lane": "research"
     },
     "owkin": {
-      "tool_prefix": "openclaw-bridge/mcp/owkin-mcp/",
+      "tool_prefix": "n/a: removed 2026-11-04 (was openclaw-bridge/mcp/owkin-mcp/)",
       "execution_surface": "subprocess-mcp",
       "auth": "vendor-issued",
       "tools": [
         "owkin_pathology_query"
       ],
-      "purpose": "Owkin pathology platform integration for digital-pathology biomarker context",
-      "bound_roles": [
-        "molecular_profiler"
-      ],
-      "bound_workflow_steps": [
-        {
-          "workflow_template_id": "target-validation-pack",
-          "step_id": "research"
-        }
-      ],
-      "business_value": "medium",
-      "adapter_status": "wired",
-      "adapter_priority": "n/a",
-      "suggested_adapter_path": "openclaw-bridge/mcp/owkin-mcp/",
-      "health_check": "owkin_pathology_query reachability ping",
+      "purpose": "REMOVED 2026-11-04 (operator-approved cleanup). The project adapter openclaw-bridge/mcp/owkin-mcp/ was added 2026-04-27 (commit 7b1ca04) and never required by any code, prefetch entry or test, so the 'wired' status this entry carried was never true and no run ever called it. Owkin is not used by this business: no template, prefetch entry or deliverable needs digital-pathology data, ToolUniverse has no Owkin tool, and the claude.ai Owkin connector and the bio-research plugin's owkin server stay unauthenticated by decision (config/plugin-bindings.json oauth_posture). Was: Owkin pathology platform integration for digital-pathology biomarker context.",
+      "bound_roles": [],
+      "bound_workflow_steps": [],
+      "business_value": "superseded",
+      "adapter_status": "retired",
+      "adapter_priority": "none",
+      "suggested_adapter_path": "n/a: removed 2026-11-04. Restore: git show '5ecc33b:Trevor Robey Intelligence Network Citations/openclaw-bridge/mcp/owkin-mcp/owkin-mcp.js' (and owkin-schema.js, owkin-tool-descriptions.js)",
+      "health_check": "n/a: removed",
       "lane": "research"
     },
     "newsletter-publisher": {
@@ -473,7 +422,7 @@
       "business_value": "load-bearing",
       "adapter_status": "blocked-operator-decision",
       "adapter_priority": "high",
-      "suggested_adapter_path": "openclaw-bridge/mcp/synthesize-bio-mcp/ \u2014 but NOT the chembl REST scaffold and NOT a deterministic tool-prefetch localFetcher. Verified 2026-07-16 against the live tool schemas + docs.synthesize.bio/platform/tools-reference: every capability is async / stateful / budget-metered (resolve_sample_metadata \u2192 analyze_gene_expression [job_id] \u2192 get_analysis_results [poll] \u2192 get_counts_data_url); get_metadata_schema is the ONLY static, budget-free call and there is NO synchronous indication-drivable retrieval tool. Correct design = a remote-MCP client (Bearer \u2192 https://app.synthesize.bio/api/mcp) driven by a DELIBERATE, supervised generative workflow step and attached to researchRuntime like ctgovSupplemental \u2014 never auto-fired in the fail-soft prefetch seam. Blocked on: operator API key + a per-run generation-budget decision.",
+      "suggested_adapter_path": "openclaw-bridge/mcp/synthesize-bio-mcp/ \u2014 but NOT a one-shot REST fetcher and NOT a deterministic tool-prefetch localFetcher. Verified 2026-07-16 against the live tool schemas + docs.synthesize.bio/platform/tools-reference: every capability is async / stateful / budget-metered (resolve_sample_metadata \u2192 analyze_gene_expression [job_id] \u2192 get_analysis_results [poll] \u2192 get_counts_data_url); get_metadata_schema is the ONLY static, budget-free call and there is NO synchronous indication-drivable retrieval tool. Correct design = a remote-MCP client (Bearer \u2192 https://app.synthesize.bio/api/mcp) driven by a DELIBERATE, supervised generative workflow step and attached to researchRuntime like ctgovSupplemental \u2014 never auto-fired in the fail-soft prefetch seam. Blocked on: operator API key + a per-run generation-budget decision.",
       "health_check": "get_metadata_schema() returns group_schema (static; consumes no generation budget)",
       "lane": "research",
       "blocked_on": "Operator must (a) provision SYNTHESIZE_API_KEY at https://app.synthesize.bio/account/api-keys and (b) make a per-run generation-budget decision. Its API is a remote MCP server (JSON-RPC over Streamable-HTTP at https://app.synthesize.bio/api/mcp), NOT a REST API, and every capability is async/stateful/generation-metered (resolve -> analyze[job] -> poll -> counts). Correct design is a SUPERVISED remote-MCP client as a deliberate generative workflow step, never the deterministic prefetch seam."
@@ -593,7 +542,7 @@
         "lookup_article_by_citation",
         "get_copyright_status"
       ],
-      "purpose": "PubMed Central full-text retrieval (richer than subprocess pubmed-mcp which is metadata-first). Required for citation-density quality formula on Failed Trial Archaeology and Investor Pre-Mortem.",
+      "purpose": "PubMed Central full-text retrieval (richer than the engine's ToolUniverse PubMed_search_articles, which returns metadata and abstracts). Required for citation-density quality formula on Failed Trial Archaeology and Investor Pre-Mortem.",
       "bound_roles": [
         "literature_reviewer",
         "synthesizer"
@@ -627,7 +576,7 @@
         "get_bioactivity",
         "get_mechanism"
       ],
-      "purpose": "ADMET predictions + mechanism-of-action lookup \u2014 load-bearing for Trial Design Benchmark Pack physicochemical sections. Complements ChEMBL bioactivity with predicted vs. measured.",
+      "purpose": "ADMET predictions + mechanism-of-action lookup \u2014 load-bearing for Trial Design Benchmark Pack physicochemical sections. Host-side only; the engine has no ChEMBL connector (registry chembl is a tombstone since 2026-11-04).",
       "bound_roles": [
         "molecular_profiler"
       ],
@@ -660,7 +609,7 @@
         "search_by_sponsor",
         "search_investigators"
       ],
-      "purpose": "ClinicalTrials.gov enrichment with endpoint analysis, eligibility filtering, sponsor + investigator search \u2014 replaces basic clinicaltrials-mcp lookup for Trial Design Benchmark Pack and Failed Trial Archaeology.",
+      "purpose": "ClinicalTrials.gov enrichment with endpoint analysis, eligibility filtering, sponsor + investigator search \u2014 richer than the engine's ToolUniverse search_clinical_trials lookup, for Trial Design Benchmark Pack and Failed Trial Archaeology.",
       "bound_roles": [
         "competitive_intel_analyst",
         "report_generator"
@@ -988,7 +937,7 @@
         "get_by_category",
         "validate_code"
       ],
-      "purpose": "Richer ICD-10 lookup (hierarchy, body system, category) than subprocess icd10-mcp. Useful for the operator when authoring Patient Brief copy.",
+      "purpose": "ICD-10 lookup with hierarchy, body system and category. The engine has no ICD-10 connector (the icd10-mcp adapter was never called and was removed 2026-11-04). Useful for the operator when authoring Patient Brief copy.",
       "bound_roles": [
         "report_generator"
       ],
@@ -1001,7 +950,7 @@
       "business_value": "medium",
       "adapter_status": "missing",
       "adapter_priority": "low",
-      "suggested_adapter_path": "openclaw-bridge/mcp/icd10-enriched-mcp/ (or extend existing icd10-mcp)",
+      "suggested_adapter_path": "openclaw-bridge/mcp/icd10-enriched-mcp/",
       "health_check": "get_hierarchy('C34') returns lung-cancer subcategories",
       "lane": "research"
     },
@@ -1014,7 +963,7 @@
         "npi_search",
         "npi_validate"
       ],
-      "purpose": "NPI Registry with explicit validate endpoint. Replaces subprocess npi-mcp for KOL verification phase.",
+      "purpose": "NPI Registry with explicit validate endpoint, for the KOL verification phase. The engine has no NPI connector (the npi-mcp adapter was never called and was removed 2026-11-04).",
       "bound_roles": [
         "competitive_intel_analyst"
       ],
@@ -1027,7 +976,7 @@
       "business_value": "medium",
       "adapter_status": "missing",
       "adapter_priority": "low",
-      "suggested_adapter_path": "openclaw-bridge/mcp/npi-mcp/ (extend existing adapter with validate)",
+      "suggested_adapter_path": "openclaw-bridge/mcp/npi-registry/ (new local fetcher)",
       "health_check": "npi_validate of a known NPI returns valid=true",
       "lane": "research"
     },
@@ -1046,7 +995,7 @@
         "dynamic_space",
         "hf_whoami"
       ],
-      "purpose": "Hugging Face Hub deep search including papers and spaces. Richer than subprocess huggingface-metadata-only. STILL METADATA-ONLY by repo policy \u2014 no model weight downloads.",
+      "purpose": "Hugging Face Hub deep search including papers and spaces. The engine has no Hugging Face connector (the huggingface-mcp adapter was never called and was removed 2026-11-04). STILL METADATA-ONLY by repo policy \u2014 no model weight downloads.",
       "bound_roles": [
         "literature_reviewer"
       ],
@@ -1059,7 +1008,7 @@
       "business_value": "medium",
       "adapter_status": "missing",
       "adapter_priority": "low",
-      "suggested_adapter_path": "openclaw-bridge/mcp/huggingface-mcp/ (extend existing adapter)",
+      "suggested_adapter_path": "openclaw-bridge/mcp/huggingface-hub/ (new local fetcher, metadata only)",
       "health_check": "paper_search({query: 'AlphaFold', limit: 1}) returns paper id",
       "lane": "research"
     },
@@ -2085,7 +2034,7 @@
       }
     ],
     "needs_host_auth": {
-      "note": "As reported by the Claude Code host in the 2026-10-21 Desktop Code session (first recorded 2026-07-24; reconciled 2026-10-21). OAuth is the operator's (claude.ai connector settings, or /mcp in an interactive terminal); Claude cannot run it. Only MCP servers need auth; plugin SKILLS work regardless. What to authorize is decided in config/plugin-bindings.json oauth_posture: BioRender (through claude.ai connector settings, not the plugin) is the one recommended authorization, Synapse is conditional, Wiley and Owkin are do-not-authorize (duplicates). Everything else here maps to a category that resolves to NONE: unauthenticated is the correct end state.",
+      "note": "As reported by the Claude Code host in the 2026-10-21 Desktop Code session (first recorded 2026-07-24; reconciled 2026-10-21). OAuth is the operator's (claude.ai connector settings, or /mcp in an interactive terminal); Claude cannot run it. Only MCP servers need auth; plugin SKILLS work regardless. What to authorize is decided in config/plugin-bindings.json oauth_posture: BioRender (through claude.ai connector settings, not the plugin) is the one recommended authorization, Synapse is conditional, Wiley (a duplicate of the connected Scholar Gateway connector) and Owkin (not used by this business) are do-not-authorize. Everything else here maps to a category that resolves to NONE: unauthenticated is the correct end state.",
       "research_lane": [
         "alphaxiv",
         "plugin:bio-research:biorender",
@@ -2144,7 +2093,7 @@
           "consensus",
           "open-targets-graphql"
         ],
-        "duplicate_note": "Claude-host duplicates of already-registered engine connectors. Interactive/chat-side only \u2014 the engine keeps its own subprocess adapters under openclaw-bridge/mcp/. Do NOT double-register and do NOT add to tool-prefetch-map.json: doing so would dilute the grounded-citation ratio the Phase-30 gate computes.",
+        "duplicate_note": "Claude-host duplicates of already-registered connectors: pubmed and clinicaltrials-gov reach the engine through ToolUniverse, open-targets-graphql is a project adapter, chembl is a tombstone (the engine has no ChEMBL connector; ChEMBL ids arrive in Open Targets records), and biorxiv-medrxiv and consensus are host-only. Interactive/chat-side only \u2014 the engine reaches its sources through ToolUniverse and its own local fetchers under openclaw-bridge/mcp/. Do NOT double-register and do NOT add to tool-prefetch-map.json: doing so would dilute the grounded-citation ratio the Phase-30 gate computes.",
         "mcp_inert_placeholders": 1,
         "mcp_note_2026-10-21": "needs auth: biorender, owkin, synapse, wiley; benchling ships an empty url (inert). Connected: pubmed, biorxiv, consensus, c-trials, chembl, ot."
       },
@@ -2336,5 +2285,5 @@
     "reconciled": "2026-10-21"
   },
   "last_reconciled": "2026-10-21",
-  "reconciliation_note": "2026-07-24 pass: added lane taxonomy to every entry; declared ctgov-supplemental (was used in prefetch, declared nowhere); registered scholar-sidekick (host-auth 2026-07-10, missed the 7-day rule) and consensus; registered the three citation-gate modules as gate-consumed-not-prefetched; tombstoned AdisInsight as declined-no-public-api; added operator_surfaces as the complete non-research ledger; declared report_generator/quality_auditor prefetch-exempt. 2026-07-24 second pass (plugin weave): added plugin_surfaces \u2014 the 13 operator-selected plugins bound to the business via config/plugin-bindings.json, 2 installed-not-bound recorded as decisions, and bio-research flagged as a Claude-host duplicate of six already-registered research connectors so it never double-registers or enters prefetch. 2026-08-27 targeted pass (not a full reconciliation): tombstoned scholar-sidekick as RETIRED EVERYWHERE per operator direction (leaked API key; rotation failed twice service-side) \u2014 business_value 'superseded', adapter_status 'retired-never-built', history kept in place per registry convention; citation-verification guidance in config/plugin-bindings.json + PLUGIN-BINDINGS.md repointed to the surviving lanes (PubMed metadata title-vs-record checks, searxng-search topic:'science' for Crossref/OpenAlex, in-engine crossref-retraction.js/pubmed-retraction.js); FEAT-20260724-001 annotated MOOT. Canonical record: ~/Security Everything/docs/scholar-sidekick-removal-2026-08-27.md. 2026-10-21 pass (connector registry + plugin bindings reconciliation): registered the business research profile's four local fetchers (web-evidence, sec-filings-citable, world-bank-indicators, openalex-works; lane research, research_profile business, prefetch_map tool-prefetch-map.business.json, commit 6ca9d78) and recorded their resolvers on citation-reresolver and sec-edgar; lanes text names the second prefetch map and the business-research-vs-business-lane naming trap; operator_surfaces made complete against all three host configs (added openclaw-obsidian, opencode, perseus-vault, perseus-business, miyo, FilesystemPlus, klsense-btt, phone-gate, the claude.ai documents/visualize connectors; trinc-content source + gate, gmail out of service since 09-05, falcon MCP retired 10-09, term-bridge retired 07-28, computer-use disabled 07-26, Zoho account closed + DNS clean); needs_host_auth replaced with the 2026-10-21 host list; plugin_surfaces: the seven plugins uninstalled 2026-08-12 moved to removed (tombstones, verified absent), math-olympiad and both output-style plugins recorded as installed-not-bound, needs-auth counts corrected for empty-url placeholders."
+  "reconciliation_note": "2026-07-24 pass: added lane taxonomy to every entry; declared ctgov-supplemental (was used in prefetch, declared nowhere); registered scholar-sidekick (host-auth 2026-07-10, missed the 7-day rule) and consensus; registered the three citation-gate modules as gate-consumed-not-prefetched; tombstoned AdisInsight as declined-no-public-api; added operator_surfaces as the complete non-research ledger; declared report_generator/quality_auditor prefetch-exempt. 2026-07-24 second pass (plugin weave): added plugin_surfaces \u2014 the 13 operator-selected plugins bound to the business via config/plugin-bindings.json, 2 installed-not-bound recorded as decisions, and bio-research flagged as a Claude-host duplicate of six already-registered research connectors so it never double-registers or enters prefetch. 2026-08-27 targeted pass (not a full reconciliation): tombstoned scholar-sidekick as RETIRED EVERYWHERE per operator direction (leaked API key; rotation failed twice service-side) \u2014 business_value 'superseded', adapter_status 'retired-never-built', history kept in place per registry convention; citation-verification guidance in config/plugin-bindings.json + PLUGIN-BINDINGS.md repointed to the surviving lanes (PubMed metadata title-vs-record checks, searxng-search topic:'science' for Crossref/OpenAlex, in-engine crossref-retraction.js/pubmed-retraction.js); FEAT-20260724-001 annotated MOOT. Canonical record: ~/Security Everything/docs/scholar-sidekick-removal-2026-08-27.md. 2026-10-21 pass (connector registry + plugin bindings reconciliation): registered the business research profile's four local fetchers (web-evidence, sec-filings-citable, world-bank-indicators, openalex-works; lane research, research_profile business, prefetch_map tool-prefetch-map.business.json, commit 6ca9d78) and recorded their resolvers on citation-reresolver and sec-edgar; lanes text names the second prefetch map and the business-research-vs-business-lane naming trap; operator_surfaces made complete against all three host configs (added openclaw-obsidian, opencode, perseus-vault, perseus-business, miyo, FilesystemPlus, klsense-btt, phone-gate, the claude.ai documents/visualize connectors; trinc-content source + gate, gmail out of service since 09-05, falcon MCP retired 10-09, term-bridge retired 07-28, computer-use disabled 07-26, Zoho account closed + DNS clean); needs_host_auth replaced with the 2026-10-21 host list; plugin_surfaces: the seven plugins uninstalled 2026-08-12 moved to removed (tombstones, verified absent), math-olympiad and both output-style plugins recorded as installed-not-bound, needs-auth counts corrected for empty-url placeholders. 2026-11-04 targeted pass (not a full reconciliation): the seven project adapter folders chembl-mcp, clinicaltrials-mcp, pubmed-mcp, huggingface-mcp, npi-mcp, icd10-mcp and owkin-mcp under openclaw-bridge/mcp/ were removed (operator-approved cleanup; added 2026-04-27 in 7b1ca04 and never required by any code, prefetch entry or test). pubmed and clinicaltrials-gov were corrected to tooluniverse-tool, which is how their prefetch tools always ran; chembl, huggingface-metadata, npi-registry, icd10 and owkin were tombstoned in place (business_value 'superseded', adapter_status 'retired', unbound); pubmed-fulltext, clinicaltrials-enriched, icd10-host-enriched, npi-host-validate, huggingface-host-rich, synthesize-bio, needs_host_auth and the bio-research plugin_surfaces entry no longer describe the removed adapters as existing."
 }

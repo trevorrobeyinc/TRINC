@@ -33,8 +33,8 @@ promises the agreement does not contain. Do not restore any of them.
   there would be committed to the repo.
 - **Never paste this note or the new file's notes into a buyer email.** Send only the Cover Page block
   (plus the new file's status box, if the operator decides the box travels; that `[DECIDE]` is in the new file).
-- **Do not attach `CommonPaper-Mutual-NDA-v2.pdf`** from this folder. It is a saved 404 web page, not an NDA.
-- **Stale companion, not changed here:** `workspace/templates/first-order-reply.md` still attaches that dead PDF
-  path and describes the retired purchase flow. It needs its own rewrite before use.
+- **Removed 2026-11-04:** `CommonPaper-Mutual-NDA-v2.pdf` (a saved 404 web page, not an NDA) from this folder,
+  and `workspace/templates/first-order-reply.md`, which attached it and described the retired purchase flow.
+  Do not restore either.
 
 *Trevor Robey, INC. is the wordmark of Trevor Robey Intelligence Network Citations LLC, a California limited liability company.*

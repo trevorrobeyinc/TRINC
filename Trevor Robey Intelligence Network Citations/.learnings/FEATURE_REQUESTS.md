@@ -2,6 +2,11 @@
 
 Tracked by audit-connector-coverage.js and operator notes.
 
+> **2026-11-04:** tickets below that say to follow the `openclaw-bridge/mcp/chembl-mcp/` pattern predate the
+> removal of that folder (it was never called by the engine). Follow a live local fetcher instead, such as
+> `openclaw-bridge/mcp/open-targets-graphql/` (one `createX(options)` factory with an injectable `fetchImpl`,
+> fail-soft, wired through the `localFetchers` seam in `scripts/_workflow-runtime.js`).
+
 ## [FEAT-20260511-001] adapter-missing
 
 **Logged**: 2026-05-11T01:41:59.063Z

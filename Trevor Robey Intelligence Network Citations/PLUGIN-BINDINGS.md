@@ -58,8 +58,8 @@ skill, no placeholders, no MCP server), and the two output-style plugins `explan
 longer installed.
 
 **Local replacements (`trinc-local`, `~/.claude/local-plugins/`, 9, all zero MCP servers):**
-`trinc-engineering` 2.1.1 · `trinc-founder` 1.1.0 · `trinc-bioresearch`, `trinc-business`, `trinc-data`,
-`trinc-design`, `trinc-marketing`, `trinc-operations`, `trinc-productivity` 1.0.0.
+`trinc-engineering` 2.1.4 · `trinc-founder` 1.1.1 · `trinc-business` 1.0.3 · `trinc-marketing` 1.0.3 ·
+`trinc-bioresearch` 1.0.1 · `trinc-operations` 1.0.1 · `trinc-productivity` 1.0.1 · `trinc-data`, `trinc-design` 1.0.0.
 
 **Needs OAuth — the operator's to do (Claude cannot run it).** Plugin skills work regardless.
 
@@ -67,7 +67,7 @@ longer installed.
 |---|---|
 | BioRender | **Authorize — the one worthwhile authorization**, through claude.ai → Settings → Connectors, not the plugin copy. Not done as of 2026-10-21. |
 | `plugin:bio-research:synapse` | Only if Synapse datasets are wanted. |
-| `plugin:bio-research:wiley`, `plugin:bio-research:owkin` | Do not authorize: Wiley is already reachable through the connected Scholar Gateway connector, and Owkin duplicates the engine's own `owkin-mcp`. |
+| `plugin:bio-research:wiley`, `plugin:bio-research:owkin` | Do not authorize: Wiley is already reachable through the connected Scholar Gateway connector, and Owkin is not used by this business, so `~~AI research` resolves to NONE (corrected 2026-11-04: the old reason, that it duplicated the engine's `owkin-mcp`, was wrong; that folder was never called and has been removed). |
 | `alphaxiv` (host, gated by its mcp-gates shim) | Read alphaXiv's terms in a browser first (they answer 403 to fetchers). After OAuth it must be registered in `config/connector-registry.json` within 7 days. |
 | `plugin:data:` amplitude, amplitude-eu, atlassian, bigquery, definite, hex | Leave unauthenticated: every one maps to a category that resolves to NONE. |
 
@@ -123,7 +123,7 @@ uses the named fallback. That is the configuration.
 |---|---|---|
 | `~~literature` | PubMed · Europe PMC · bioRxiv/medRxiv · Consensus | research |
 | `~~clinical trials` | ClinicalTrials.gov v2 (+ `ctgov-supplemental` stop reasons) | research |
-| `~~chemical database` | ChEMBL | research |
+| `~~chemical database` | ChEMBL ids inside Open Targets records (`open-targets-graphql`; no ChEMBL connector since 2026-11-04) | research |
 | `~~drug targets` | Open Targets (`open-targets-graphql`, shipped `134a5ad`) | research |
 | `~~competitive intelligence` | searxng-search + ClinicalTrials.gov sponsor queries | research |
 | `~~patent` | **PatSnap Patent & Literature Search** (OAuth 2026-07-30) — see the caveat below | research |
@@ -136,7 +136,7 @@ uses the named fallback. That is the configuration.
 | `~~source control` | local git, **no remote** (local-only since 2026-05-26) | infra |
 
 **Connected but awaiting operator OAuth** — treat as unavailable until authorized:
-`~~data repository` (Synapse) · `~~AI research` (Owkin) · `~~scientific illustration` (BioRender)
+`~~data repository` (Synapse) · `~~scientific illustration` (BioRender)
 
 > **`~~journal access` was corrected off this list 2026-07-29.** Wiley Scholar Gateway is the
 > claude.ai connector **Scholar Gateway** and it is **already connected** — a live call returned
@@ -149,7 +149,8 @@ uses the named fallback. That is the configuration.
 `~~data warehouse` · `~~notebook` · `~~product analytics` · `~~user feedback` ·
 `~~sales engagement` · `~~conversation intelligence` · `~~meeting transcription` · `~~design` ·
 `~~design tool` · `~~SEO` · `~~marketing analytics` · `~~marketing automation` ·
-`~~email marketing` · `~~procurement` · `~~lab platform` · `~~genomics platform`
+`~~email marketing` · `~~procurement` · `~~lab platform` · `~~genomics platform` ·
+`~~AI research` (Owkin is not used; leave its servers unauthenticated)
 
 ---
 
@@ -396,10 +397,12 @@ hand off to.
 
 The only plugin whose MCP servers overlap the research lane — and that overlap needs care.
 
-Its `pubmed` / `chembl` / `c-trials` / `biorxiv` / `consensus` / `ot` servers are **Claude-host
-duplicates** of connectors already registered and role-bound in `config/connector-registry.json`.
-They are for interactive, chat-side orientation. The engine keeps using its own subprocess adapters
-under `openclaw-bridge/mcp/`. **Do not double-register them, and do not add them to
+Its `pubmed` / `c-trials` / `ot` servers are **Claude-host duplicates** of connectors registered and
+role-bound in `config/connector-registry.json`; `chembl` has only a registry tombstone (the engine has no
+ChEMBL connector; ChEMBL ids arrive inside Open Targets records), and `biorxiv` / `consensus` are
+registered host-only. They are for interactive, chat-side orientation. The engine reaches PubMed and
+ClinicalTrials.gov through ToolUniverse and Open Targets through its own `open-targets-graphql` adapter.
+**Do not double-register them, and do not add them to
 `config/tool-prefetch-map.json`** — doing so would dilute the grounded-citation ratio the Phase-30
 gate computes and inflate a token budget already near 300K per template.
 
@@ -587,8 +590,8 @@ summarization or text extraction (use native Read instead)"* — genuinely compl
 `pdf` skill (merge/split/OCR) and to native `Read`. `sign` carries its own correct caveat: *"for
 legally binding e-signatures, use a dedicated signing service."* Uses `npx -y
 @modelcontextprotocol/server-pdf` (v1.7.5, cached) — the same unpinned pattern as others, but from
-the official MCP org. Real documents waiting: the CA SOS certified copy, the AWS StandardDSA
-comparison, `CommonPaper-Mutual-NDA-v2.pdf`.
+the official MCP org. Real documents waiting: the CA SOS certified copy and the AWS StandardDSA
+comparison (`CommonPaper-Mutual-NDA-v2.pdf`, a saved 404 page, was removed 2026-11-04).
 
 ### `vpai` — **KEEP AS-IS, dormant**
 
@@ -680,8 +683,9 @@ session. Claude cannot run those flows non-interactively.
 
 ~~Wiley~~ — **do not authorize; you already have it.** The plugin's `wiley` is byte-identical to the
 **connected, working** `claude.ai Scholar Gateway` connector (live call returned full text of a
-paywalled Wiley article). ~~Owkin~~ — do not authorize; duplicates both the engine's `owkin-mcp`
-adapter and the claude.ai Owkin connector.
+paywalled Wiley article). ~~Owkin~~ — do not authorize; Owkin is not used by this business, and the
+plugin's server is the same endpoint as the claude.ai Owkin connector. *(Corrected 2026-11-04: this said
+it duplicated the engine's `owkin-mcp` adapter, which was never called and has been removed.)*
 
 **Do NOT authorize `plugin:engineering:github` — security. Contained 2026-07-28.** See the section
 below for why a redirect to the gated server is impossible and what was done instead.
@@ -715,7 +719,7 @@ applied to every remaining plugin. Measured across all `.md` files in each packa
 | design | 7 | 9 | 0 | 0 | **TAILORED → `trinc-design`** (2026-07-29) — see below |
 | product-management | 8 | 16 | 2* | 0 | **DROP — assessed 2026-07-31.** All 8 skills dead or covered: `metrics-review` (no analytics), `sprint-planning` (team of one), `roadmap-update`/`stakeholder-update` (the roadmap IS the continuity board → `orient`/`triage`), `synthesize-research` (no users), `competitive-brief` (citable path is CT.gov `search_by_sponsor`), `write-spec`/`product-brainstorming` (native). 14 of 16 servers need auth and map to NONE. |
 | sales | 9 | 14 | 2* | 0 | **DROP as a plugin** (2026-07-29) — but the `~~CRM` binding was CORRECTED; see below |
-| bio-research | 6 | 11 | 6* | 0 | **KEEP — DROP REVERSED 2026-08-12** (see correction; the engine-only test was the wrong question). Superseded detail: (2026-07-29→31): skills DO-NOT-USE; five servers duplicate engine adapters; Wiley = the already-connected Scholar Gateway; BioRender/Owkin = independent claude.ai connectors. Unique value = **Synapse only** (unauthenticated). Uninstall pending operator — see below |
+| bio-research | 6 | 11 | 6* | 0 | **KEEP — DROP REVERSED 2026-08-12** (see correction; the engine-only test was the wrong question). Superseded detail: (2026-07-29→31): skills DO-NOT-USE; five servers duplicate engine adapters (corrected 2026-11-04: only `ot` does; the pubmed/chembl/c-trials/owkin adapter folders were never called and were removed); Wiley = the already-connected Scholar Gateway; BioRender/Owkin = independent claude.ai connectors. Unique value = **Synapse only** (unauthenticated). Uninstall pending operator — see below |
 | engineering | 10 | 10 | 0 | 0 | **DROPPED** → replaced by `trinc-engineering` |
 | cowork-plugin-management | 2 | 0 | — | — | installed, not bound (its customizer cannot run in CLI) |
 | desktop-commander | — | — | — | — | **REMOVED 2026-07-28** (tombstoned) |
@@ -869,7 +873,7 @@ global **`dataviz`** skill, which is better.
   (`register-sample.csv` / `citation-index-sample.csv`) → `trinc-engineering:feed-refresh`
 - the three decoy paths (`workspace/datasets/` license-blocked scratch; the stale 12-row
   `workspace/distribution/graveyard-feed/glioblastoma-2026-06-20/` at the build script's default
-  `--out`; retired `/Volumes/ExtraCurricular` export paths) → recorded in this file
+  `--out`, moved to the Trash 2026-11-04; retired `/Volumes/ExtraCurricular` export paths) → recorded in this file
 - Qdrant reachable at `https://127.0.0.1:6433` (HTTP 200, verified 2026-07-29) → recorded here
 
 **Open, unfixed engine bug found during this work** — `renderDataDictionary()`
@@ -968,7 +972,8 @@ DrugBank-derived fields may ship — enforced **mechanically** by a `DB\d{5}` bu
 documented licence-free substitute stack.
 
 **ChEMBL is open**: flagged CC BY-SA 3.0 **share-alike with counsel pending**, and that file is
-itself a placeholder. ChEMBL is a bound connector and the citation gate accepts `CHEMBL` ids, so
+itself a placeholder. ChEMBL ids reach runs inside Open Targets records (`open-targets-graphql`; the
+registry's `chembl` entry is a tombstone since 2026-11-04) and the citation gate accepts `CHEMBL` ids, so
 ChEMBL content *can* reach a paid deliverable, and unlike DrugBank there is **no mechanical gate**.
 Scoped accurately: **no shipped bundle currently contains a ChEMBL identifier** — the three in
 `workspace/releases/` cite NCT/PMID/DOI only. The exposure is **latent, not realized**, and whether
@@ -1055,6 +1060,14 @@ The five duplicates stay **out of `config/tool-prefetch-map.json`**: the engine 
 subprocess adapters, and double-registering would dilute the grounded-citation ratio the Phase-30
 gate computes.
 
+> **Corrected 2026-11-04.** The Surface column above is wrong for `pubmed`, `chembl`, `c-trials` and
+> `owkin`, and so is "the engine has its own subprocess adapters" here and every "duplicates an engine
+> adapter" claim in this 2026-07-29 section. The folders `openclaw-bridge/mcp/{pubmed,chembl,clinicaltrials,owkin}-mcp/`
+> existed but nothing called them; they were removed 2026-11-04. The engine reaches PubMed and
+> ClinicalTrials.gov through ToolUniverse, ChEMBL ids arrive inside Open Targets records, and Owkin is
+> not used. Only `ot` duplicates a project adapter (`open-targets-graphql`). The plugin servers still
+> stay out of every prefetch map.
+
 > **OAuth ranking corrected:** Owkin was previously listed among the four worth authorizing. It
 > **duplicates an existing `subprocess-mcp` engine adapter**, so it ranks below the three that
 > exist nowhere else. Revised order: **Wiley → BioRender → Synapse**, then Owkin only if the
@@ -1123,7 +1136,10 @@ returns nothing.
 #### ⚖️ What this does to the verdict
 
 **The five that work all duplicate existing `subprocess-mcp` engine adapters**, so they add nothing
-the engine does not already have. **The three that justify keeping the plugin contribute nothing
+the engine does not already have. *(Corrected 2026-11-04: only `ot` duplicates a project adapter,
+`open-targets-graphql`. The pubmed, chembl, c-trials and owkin adapter folders existed but nothing
+called them, and they were removed; the engine reaches PubMed and ClinicalTrials.gov through
+ToolUniverse.)* **The three that justify keeping the plugin contribute nothing
 today**, because they are unauthenticated.
 
 > **So KEEP stands as a bet on future OAuth, not as current value.** As of today this plugin adds

@@ -41,7 +41,7 @@ coming from contradiction in *what* the business is.
 | Promise | Zero-Fabrication Guarantee · refund-backed Citation-Audit SLA · 5–10 business-day speed SLA | `OFFERINGS.md:32-35` |
 | Moat | *"Citation traceability is enforced as a gate, not a warning"* — outputs lacking a verifiable PMID/NCT/CID/DOI **fail**, they do not pass flagged | `REVENUE_PLAYBOOK.md:70`, `DOSSIER:68` |
 | Voice | *Technical · citation-dense · zero marketing hyperbole. Lead with verifiability, not AI.* | `01-brand-system/brand-system.md:11` |
-| Refusals | Not clinical decision support · not a publishing bot · not a PHI processor | `README.md:19-23`, `NOTICE.md:94-108` |
+| Refusals | Not clinical decision support · not a publishing bot · not a PHI processor | `README.md:19-23`, `NOTICE.md:98-112` |
 | Entity | Trevor Robey Intelligence Network Citations LLC (CA **B20260217250**); "INC" is a backronym — Intelligence Network Citations — never a corporate suffix | `NOTICE.md:13-21` |
 
 **Drift found — two items, both real:**

@@ -1,6 +1,0 @@
-{
-  "schema_version": "agent-profile-v1",
-  "role": "analyst",
-  "recommended_route": { "provider": "claude-code", "model": "claude-opus-4-8", "fallback": "" },
-  "_note": "config/role-provider-map.json is authoritative at runtime. Option B (2026-07-16): the engine is 100% Claude — analyst runs on claude-opus-4-8 with no fallback (LM Studio decommissioned)."
-}

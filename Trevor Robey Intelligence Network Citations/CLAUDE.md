@@ -418,7 +418,7 @@ Typical monthly budget at current pace: 4-6 full cycles = 7-11M tokens. Check ac
 1. Current repo code and git state (primary)
 2. Current repo docs and scripts
 3. Vault notes (historical context only)
-4. `workspace/MEMORY.md`, `workspace/HEARTBEAT.md` are Phase 1-era artifacts — **no longer tracked**
+4. The Phase 1-era `workspace/MEMORY.md`, `workspace/HEARTBEAT.md` and `workspace/memory/*.md` notes were deleted 2026-11-04; nothing reads them
 
 ## Secret Scanning
 

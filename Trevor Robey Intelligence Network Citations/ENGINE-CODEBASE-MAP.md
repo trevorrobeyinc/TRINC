@@ -157,7 +157,7 @@ contract; the code that produces each file is in `dataset/` and `monetization/`.
 | `config/agents/<role>/` | `SOUL.md`, `AGENTS.md`, `sessions/` — per-role identity + memory. |
 | `config/role-prompts.json` | Per-role prompt scaffolding. |
 | `config/dataset-{schemas,quality-rules,license-rules}.json` | Dataset shape, quality gates, license rules. |
-| `config/scheduled-workflows.json`, `agent-spawner.json`, `agent-topology.json`, `autonomy-ladder.json`, `monetization-map.json`, `platform-targets.json`, `direct-delivery-targets.json`, `data-source-credentials.json` | Scheduling, spawning, topology, autonomy, monetization + platform routing, credentials. |
+| `config/scheduled-workflows.json`, `agent-spawner.json`, `agent-topology.json`, `autonomy-ladder.json`, `monetization-map.json`, `platform-targets.json`, `direct-delivery-targets.json` | Scheduling, spawning, topology, autonomy, monetization + platform routing. |
 
 ---
 

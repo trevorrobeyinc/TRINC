@@ -202,7 +202,7 @@ re-read 2026-11-04 while applying the review) · <https://commonpaper.com/standa
 and survival, re-read 2026-11-04) · <https://www.ebi.ac.uk/chembl/> ("Creative Commons
 Attribution-ShareAlike 3.0 Unported").
 Address of record: `00-business-formation/llc/certificate-of-formation.md` (member-managed, sole member).
-`workspace/legal/CommonPaper-Mutual-NDA-v2.pdf` is a saved 404 page, not an NDA; it was not used.
+`workspace/legal/CommonPaper-Mutual-NDA-v2.pdf`, a saved 404 page rather than an NDA, was not used; it was removed 2026-11-04.
 **ClinicalTrials.gov terms: not verified on the live page.** <https://clinicaltrials.gov/about-site/terms-conditions>
 renders by JavaScript and returned no terms on 2026-11-04. Archived copies (2009, 2013) ask users to credit
 ClinicalTrials.gov, show when the data were processed, describe any modification, and keep the data

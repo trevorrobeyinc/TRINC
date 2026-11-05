@@ -33,9 +33,6 @@ npm start
 # Demo: OpenClaw pipeline
 node scripts/demo-openclaw-pipeline.js
 
-# Demo: Copilot/Obsidian pipeline
-node scripts/demo-copilot-pipeline.js
-
 # Export analysis as Obsidian-compatible notes
 node scripts/export-to-obsidian.js --input <file> --output <dir> --confirm
 ```
@@ -74,9 +71,9 @@ All tools accept:
 | `src/server.js` | MCP server entry point (stdio transport) |
 | `src/tools.js` | 10 tool definitions |
 | `src/handlers/` | Tool handler dispatch and common utilities |
-| `config/` | Server config, biomedical entities, OpenClaw role-tool mapping |
+| `config/` | Biomedical entities (`biomedical-entities.json`) |
 | `tests/` | 111 tests (unit + integration); includes `tests/integration/export-to-obsidian.test.js` (export pipeline tests) |
-| `scripts/` | Demo pipelines for OpenClaw and Copilot integration |
+| `scripts/` | OpenClaw demo pipeline (`demo-openclaw-pipeline.js`) |
 | `scripts/export-to-obsidian.js` | CLI: reads input, runs full analysis, writes Obsidian markdown notes (main analysis, concept notes, MOC) |
 
 ## Architecture
@@ -111,7 +108,6 @@ All reimplemented from academic papers, not extracted from InfraNodus source:
 **OpenClaw** (`lib/openclaw-bridge-adapter.js`):
 - In-process adapter wrapping all 10 MCP tools as async functions
 - `analyzeToolUniverseData(json)` convenience method for the most common use case
-- Role-to-tool mapping in `config/openclaw-role-tool-map.json`
 
 **Copilot MCP** (`lib/copilot-bridge.js`):
 - Converts analysis output to `ZettelkastenCommandResponse` format

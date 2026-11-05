@@ -91,8 +91,8 @@ Secondary headroom, not a channel: consultants and contractors *"generally may n
 the total requested amount"* on Phase I (NIH GPS 18.5.2), against an SBA Phase I ceiling of **$323,090**
 (SBIR.gov/about, April 2026).
 
-**No named-account list exists for this persona.** `06-target-accounts/` has four persona directories and
-none is founders. Do not create one populated with invented company names — an empty-but-present directory
+**No named-account list exists for this persona.** (The old `06-target-accounts/` folder had four persona
+directories, none for founders, and was removed 2026-11-04 because every file in it was a one-line placeholder.) Do not create one populated with invented company names — an empty-but-present directory
 reads as finished work.
 
 ---
@@ -333,7 +333,7 @@ Ranked. Each is a decision, not a documentation task.
 18. Do **not** rewrite the tagline, elevator, moat, or voice.
 19. Do **not** treat this as a replacement for the investor lane.
 20. Do **not** build outbound on post-award timing (§2).
-21. Do **not** stand up `06-target-accounts/persona-5-*/` with invented company names.
+21. Do **not** stand up a founder account list (the old `06-target-accounts/persona-5-*/` idea) with invented company names.
 
 ---
 

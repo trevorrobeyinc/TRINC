@@ -357,7 +357,7 @@ function renderTicket(id, registry, ticketId) {
   lines.push(`Connector \`${id}\` is bound in \`config/connector-registry.json\` to roles ${(entry.bound_roles || []).join(", ") || "(none)"} and workflow steps ${(entry.bound_workflow_steps || []).map(s => `${s.workflow_template_id}#${s.step_id}`).join(", ") || "(none)"}, but has \`adapter_status: missing\` — it is reachable only at the Claude-host level and cannot be called from \`run-workflow.js\` subprocess. Business value: ${entry.business_value}. Purpose: ${entry.purpose}`);
   lines.push("");
   lines.push("### Suggested Action");
-  lines.push(`Scaffold adapter at \`${entry.suggested_adapter_path}\` following the \`openclaw-bridge/mcp/chembl-mcp/\` pattern (index.js + schema.js + tool-descriptions.js). Wire into \`config/tool-prefetch-map.json\` for the roles listed above. Add health check: ${entry.health_check}.`);
+  lines.push(`Scaffold adapter at \`${entry.suggested_adapter_path}\` following the \`openclaw-bridge/mcp/open-targets-graphql/\` pattern (one \`createX(options)\` factory with an injectable \`fetchImpl\`, fail-soft, wired through the \`localFetchers\` seam in \`scripts/_workflow-runtime.js\`, tested in \`tests/core/\`). Wire into \`config/tool-prefetch-map.json\` for the roles listed above. Add health check: ${entry.health_check}.`);
   lines.push("");
   lines.push("### Metadata");
   lines.push("- Source: connector-registry-audit");

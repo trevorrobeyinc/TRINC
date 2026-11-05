@@ -98,7 +98,7 @@ The first three are shared across the whole contract set (decided 2026-11-04). T
 
 ## Source verification (all read 2026-11-04)
 
-- **Current version: 1.0**, the only version listed on the versions page. The "version 2.0" named in the superseded note, and its PDF URL, do not exist (and `workspace/legal/CommonPaper-Mutual-NDA-v2.pdf` is a saved 404 web page, not an NDA).
+- **Current version: 1.0**, the only version listed on the versions page. The "version 2.0" named in the superseded note, and its PDF URL, do not exist (and `workspace/legal/CommonPaper-Mutual-NDA-v2.pdf`, a saved 404 web page rather than an NDA, was removed 2026-11-04).
 - Standard Terms (hosted, incorporated by reference): <https://commonpaper.com/standards/mutual-nda/1.0>
 - Product page ("Current version: 1.0"): <https://commonpaper.com/standards/mutual-nda/>
 - Versions list: <https://commonpaper.com/standards/mutual-nda/versions>

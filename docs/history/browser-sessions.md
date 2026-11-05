@@ -205,6 +205,29 @@ sessions log in `~/Security Everything/docs/browser-session-history/` instead.
   abandoned (rate-limit 403s + auto-mode flagged the page→localhost relay as exfil). Public corpus
   built separately under `crowdstrike-docs/`.
 
+_The two entries below were recovered on 2026-11-04 from the 2026-05-27 stash (commit `a7fc6a0c`, kept as `refs/stash` in `TRINC-FULL-backup-20261104-1519.bundle`), where they sat uncommitted in the root `CLAUDE.md`. They are copied in their original format, except the Falcon detection details (one bullet and one open thread), which moved to the Security Everything browser-session log._
+
+### 2026-05-27 01:25 — AWS API MCP Server wired to IAM Identity Center (YubiKey SSO, read-only)
+- **Tool(s)**: Claude in Chrome (IAM + IAM Identity Center console walkthrough), AWS API MCP Server (`call_aws`), Falcon MCP (detection triage), Tavily (AWS docs verification), Bash (awscli install + `~/.aws/config`).
+- **URLs touched**: `console.aws.amazon.com/iam`, `console.aws.amazon.com/singlesignon` (IAM Identity Center), `aws.amazon.com/marketplace/management`→partnercentral, `console.aws.amazon.com/dataexchange`.
+- **Outcome**: awslabs **AWS API MCP Server** (Claude Desktop extension v1.3.3) now authenticates to account **833390816446** via IAM Identity Center SSO as the **ReadOnlyAccess** role, gated by a **YubiKey 5 NFC FIPS** FIDO2 MFA. Verified end-to-end — `sts get-caller-identity` returns `AWSReservedSSO_ReadOnlyAccess_6f773b26ef4872e0/Trevoralexanderrobey` on both local CLI and through the MCP server (HTTP 200). No long-lived keys on disk; short-lived SSO creds in `~/.aws/sso/cache/`.
+- **Findings worth remembering**:
+  - **IAM Identity Center ACCOUNT instances do NOT support permission sets / AWS-account access — only ORGANIZATION instances do.** For an SSO→CLI credential setup on a standalone account, enable the *Organization* instance (creates a single-account AWS Org, this account = management account). Account instances are app-only, can't be converted, and only one instance exists per standalone account — so you must delete the account instance and re-enable as org (cost a delete/recreate mid-session). New org `o-dram9st6t2`, instance `ssoins-722314a77ded4856`.
+  - SSO wired via `~/.aws/config` as the **`default`** profile (sso-session `trevor-robey-sso`, start URL `https://d-90660e72bc.awsapps.com/start`, role `ReadOnlyAccess`). The MCP extension picks it up via the boto3 default chain with **no restart needed**.
+  - `aws sso login` rode an existing access-portal session (YubiKey already tapped at portal sign-in) → "Successfully logged in" with no fresh prompt; expected — re-prompts (password + tap) on session expiry.
+  - Security choice: AI MCP server = ReadOnlyAccess (IAM-enforced wall vs. prompt-injection); a separate user-assumed AdministratorAccess permission set was recommended but deliberately NOT created/wired to the AI (deferred).
+  - _(A Falcon detection note from this session was moved on 2026-11-04 to the Security Everything browser-session log, `docs/browser-session-history/2026-11.md`, so its details stay off GitHub.)_
+- **Artifacts**: `/Users/trevorrobey/.aws/config` (new).
+- **Open threads**: optional user-assumed `AdministratorAccess` permission set not yet created; one Falcon tuning candidate (detail in the Security Everything log).
+
+### 2026-05-26 — AWS IAM roles triage (4 service-linked roles, account 833390816446)
+- **Tool(s)**: Claude in Chrome (`navigate`, `get_page_text`, `computer` screenshot/click) + Tavily verification.
+- **URLs touched**: `console.aws.amazon.com/iam#/roles` and `#/roles/details/AWSServiceRoleForResourceExplorer`.
+- **Outcome**: Confirmed all 4 IAM roles are AWS-managed **service-linked roles** (Support, TrustedAdvisor, AccessAnalyzer, ResourceExplorer) — none user-created, none compromise-related, none tied to the AWS Data Exchange seller playbook.
+- **Findings worth remembering**: As of 2026-05-26 the account has exactly 4 roles, all SLRs under the `/aws-service-role/` ARN path (definitive AWS-owned marker; viewable-not-editable). No `DataExchange`/`Marketplace` seller roles exist yet — consistent with `03-platforms/aws-data-exchange/` registration still in progress. ResourceExplorer SLR created 2026-05-01; recent "last activity" timestamps matched the owner's own console session (MFA hardening: added FIDO USB key, removed an unrecognized virtual MFA).
+- **Artifacts**: none.
+- **Open threads**: advisory-only follow-ups recommended, not performed — CloudTrail `CreateVirtualMFADevice`/`EnableMFADevice` lookup to trace the unrecognized virtual MFA origin; IAM Users + Credential Report review; confirm root MFA + no root access keys.
+
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan

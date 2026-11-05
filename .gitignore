@@ -55,7 +55,6 @@ junit.xml
 *.pid
 *.seed
 *.pid.lock
-.pm2/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -162,20 +161,6 @@ Copilot-Everything/configs/validation/*-nohup.log
 *.pkl
 # Allow small bundled fixtures up to ~5MB by NOT excluding *.bin globally;
 # add specific paths if needed.
-
-# -----------------------------------------------------------------------------
-# Self-Evolving skill — per-workspace memory (private friction logs, not shared)
-# Resolved per .claude/skills/self-evolving/SKILL.md "Memory Path Resolution":
-# matches at monorepo root and inside any sub-workspace (Claude/,
-# Copilot-Everything/, trevor-robey-inc-agents/, trevor-robey-inc/).
-# -----------------------------------------------------------------------------
-.self-evolving/
-
-# -----------------------------------------------------------------------------
-# cc-bridge-monitor runtime heartbeat state (churns every monitor tick — noise)
-# -----------------------------------------------------------------------------
-Claude/.logs/.cc-bridge-last-state
-Claude/.logs/cc-bridge-monitor.events.jsonl
 
 # -----------------------------------------------------------------------------
 # Unrelated migrated project — "PVA Mobility Equipment Loan Closet" (AppSheet

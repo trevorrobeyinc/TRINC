@@ -56,7 +56,7 @@ with a YubiKey), and a verified `git bundle` in `~/Documents/` is the offline ba
 
 - **Research artifacts only**, not validated for clinical decision support.
 - **No PHI** hosted or processed. Sources are public databases (PubMed, ClinicalTrials.gov, ChEMBL, Open
-  Targets, NPI, ICD-10, and others).
+  Targets, and others; see `NOTICE.md` for which ones current templates query).
 - **Manual-only external actions**: no autonomous publishing, posting, logging in or purchasing.
 - **Citation traceability is a hard gate**: every cited identifier must have been retrieved during the run,
   and is retraction-screened and re-resolved before delivery.

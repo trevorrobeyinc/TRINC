@@ -75,7 +75,7 @@ bash "/Users/myhome/TRINC/Trevor Robey Intelligence Network Citations/scripts/re
   old "pageSize defaults to 20" warning (and the `trinc-engineering:feed-refresh` skill text that
   repeats it) is obsolete.
 - Omitting `--out` on a single-area build writes to `workspace/distribution/graveyard-feed/`, a
-  different tree that holds a stale June build. That tree is not the product.
+  different tree that is not the product (its stale June build was moved to the Trash on 2026-11-04).
 - To add an area, add its condition term to `CONDITIONS` in `scripts/refresh-graveyard-feeds.sh`.
 - Parquet for paid tiers is not built (Enterprise depends on it).
 

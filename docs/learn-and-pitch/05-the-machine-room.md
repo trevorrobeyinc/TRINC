@@ -70,10 +70,11 @@ agent mode runs on an opencode backend. Raycast chat has a separate door to the 
 
 - **Models:** Claude only. Scout, analyst and synthesizer on `claude-opus-4-8`; every other role on
   `claude-sonnet-4-6`; no fallback to any other model. [src: `CLAUDE.md` → engine rules]
-- **Evidence tools:** Harvard ToolUniverse (about 2,116 tools) plus the engine's own adapters: ChEMBL,
-  ClinicalTrials.gov, PubMed, Europe PMC, NIH RePORTER, NPI, ICD-10, HuggingFace (metadata only), arXiv,
+- **Evidence tools:** Harvard ToolUniverse (about 2,116 tools, which is also how PubMed and
+  ClinicalTrials.gov are searched) plus the engine's own adapters: Europe PMC, NIH RePORTER, arXiv,
   Semantic Scholar, Open Targets, SEC EDGAR, SearXNG, the business sources (web evidence, OpenAlex, SEC
-  filings, World Bank, BLS, Eurostat, Census, EIA), the re-resolver and the retraction screens.
+  filings, World Bank, BLS, Eurostat, Census, EIA), ClinicalTrials.gov stop reasons, the re-resolver and
+  the retraction screens.
   [src: `ARCHITECTURE.md` §3.6]
 - **Context-only lanes:** earlier research in the vault and the research memory are shown to the models as
   background, with identifiers withheld, and **never count as citations**. [src: same]

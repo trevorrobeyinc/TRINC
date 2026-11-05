@@ -105,7 +105,7 @@ Coordinated here; do not reassign one without updating this table.
 | 8743 → 8742 | Miyo semantic search: HTTPS proxy → plaintext upstream | launchd `com.trevorrobey.miyo-tls-proxy` / Miyo.app |
 | 6433 → 6333 | Qdrant: HTTPS proxy → plaintext upstream | launchd `com.trevorrobey.qdrant-tls-proxy` / Miyo's child |
 | 8891 → 8890 | SearXNG: HTTPS proxy → plaintext upstream | launchd `com.trevorrobey.searxng-tls-proxy` / `com.trevorrobey.searxng` |
-| 11435 → 11434 | Ollama: HTTPS proxy → plaintext upstream (no model installed) | launchd `com.trevorrobey.ollama-tls-proxy` / Ollama.app |
+| 11435 → 11434 | Ollama: HTTPS proxy → plaintext upstream (no model installed) | launchd `com.trevorrobey.ollama-tls-proxy` / launchd `homebrew.mxcl.ollama` |
 | 4096 | `opencode serve` of the Copilot agent (password-locked by the operator) | Copilot plugin |
 
 All four Obsidian bridges die when Obsidian quits, so vault tools answer "not running" while it is

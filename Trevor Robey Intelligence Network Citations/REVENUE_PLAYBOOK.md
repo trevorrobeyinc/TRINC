@@ -93,7 +93,7 @@ Research Input  ──>  Mission (Phase 18)  ──>  Dataset (Phase 19-20)  ─
 | Provider | Role | Status | Notes |
 |----------|------|--------|-------|
 | **Claude Code** (MCP bridge) | All engine roles (scout, analyst, synthesizer + default) | **Active** | `claude -p` stdin pipe, claude-opus-4-8 for scout/analyst/synthesizer, claude-sonnet-4-6 default; flat Claude Max 20× subscription. Every role's fallback is empty (no local backend chased) |
-| **Ollama** (local) | Obsidian side only — NOT an engine role | **Running, no model installed** (2026-10-23) | Ollama.app serves :11434 behind the :11435 TLS proxy, but `ollama list` is empty; installing a model for the Copilot BYOK lane is the operator's call. Never an engine provider or fallback |
+| **Ollama** (local) | Obsidian side only — NOT an engine role | **Running, no model installed** (2026-10-23) | the Homebrew service (`homebrew.mxcl.ollama`) serves :11434 behind the :11435 TLS proxy, but `ollama list` is empty; installing a model for the Copilot BYOK lane is the operator's call. Never an engine provider or fallback |
 | ~~**LM Studio** (local)~~ | — | **Decommissioned 2026-07-16** | Proxy (:1235), launchd unit `com.trevorrobey.lm-studio-tls-proxy`, provider entry, and role route all removed; app + ~/.lmstudio moved to Trash. Local models removed from the engine (restorable) |
 | **Mock** | Testing | Active | Used for CI and deterministic tests |
 | **ToolUniverse** (MCP) | Biomedical tools | **Active** | ~2,719 tools (v1.5.7) via Harvard MIMS, Phase 29 verified |
@@ -540,8 +540,8 @@ The full attribution stack lives in [NOTICE.md](NOTICE.md). Summary for sales co
 - **OpenClaw patterns** — clean-room derivative; `cleanRoomDerivative: true` flag at `openclaw-bridge/openclaw.json:5`. The `openclaw-bridge/` directory name is intentionally retained as upstream attribution. **Trevor Robey Inc Agents is not affiliated with the openclaw.ai consumer Personal-AI-assistant product** and claims no authorship of any OpenClaw-branded software.
 - **ToolUniverse** — Apache-2.0 — Harvard MIMS / Zitnik Lab. Vendored at `vendor/tooluniverse/`. Powers the biomedical workflow templates. Cite as Gao et al., arXiv:2509.23426.
 - **Node.js** — MIT — required runtime, version 22.13.1 (engine-strict).
-- **Biomedical data sources** queried at runtime: PubMed/NLM, ClinicalTrials.gov/NIH, ChEMBL/EBI, OpenTargets, DrugBank (commercial license required for redistribution), CMS NPI, ICD-10/WHO, Owkin platform. Buyer must comply with each upstream source's licensing terms when using outputs in commercial workflows.
-- **HuggingFace Hub** — metadata queries only; no model weights are downloaded or run.
+- **Biomedical data sources** queried at runtime: PubMed/NLM, ClinicalTrials.gov/NIH, OpenTargets, and ChEMBL/EBI (ChEMBL ids arrive inside Open Targets records and are re-resolved at delivery). DrugBank, CMS NPI and ICD-10/WHO are reachable through ToolUniverse but not queried by any current template, and DrugBank content is excluded from deliverables (commercial license required for redistribution). See NOTICE.md. Buyer must comply with each upstream source's licensing terms when using outputs in commercial workflows.
+- **Models** — no model weights are shipped to buyers. Reports are written by hosted Claude models. The only models the system runs locally are retrieval models that search its own past research (the research-memory index's nomic-embed-text-v1 and the local note-search app's retrieval model); they write no report text, and what they find is context only, never a citation. HuggingFace Hub is reachable through ToolUniverse but not queried by any current template.
 
 Buyer-facing positioning copy:
 

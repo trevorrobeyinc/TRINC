@@ -189,7 +189,7 @@ forward below.
 
 > Named threads currently open, with a one-line status each. Move finished ones to the Log.
 
-- **Citation-overclaim sweep (E1)** — _mostly done._ All collateral surfaces reframed + verified (see newest Log entry). **Remaining:** the 10 un-swept `03-platforms/` dirs — `databricks-marketplace`, `gumroad`, `kaggle-seo-breadcrumb`, `ocean-protocol`, `snowflake-marketplace`, `substack-patreon`, `tier1-aggregators-{marketresearch-com,reportlinker,research-and-markets}`, `rejected-channels`.
+- **Citation-overclaim sweep (E1)** — _mostly done._ All collateral surfaces reframed + verified (see newest Log entry). **Remaining:** `03-platforms/kaggle-seo-breadcrumb/setup-guide.md` and `03-platforms/rejected-channels/`. (`gumroad/` is already gone; the seven placeholder stubs `databricks-marketplace`, `ocean-protocol`, `snowflake-marketplace`, `substack-patreon`, `tier1-aggregators-{marketresearch-com,reportlinker,research-and-markets}` and `kaggle-seo-breadcrumb/README.md` were removed 2026-11-04.)
 - **`REVENUE_PLAYBOOK.md` reality-alignment** — _blocked (drive stall)._ Tidy-up spec is ready (routing table → Opus 4.8; tools 700+ → ~2,116; §3 template names → canonical six; Phase 31 API → built-not-deployed; stale plans → current Commercial Launch Playbook). Apply via **CLI / Desktop Code** (bypasses the wedging connector) or copy to `/Users/myhome`, edit, copy back.
 
 ---
@@ -261,6 +261,12 @@ forward below.
 ## 📋 Log — newest first
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
+
+### 2026-11-05T04:41Z · Desktop Claude Code (hub) · **Monorepo cleanup: junk, test leftovers and stale config removed; every gate unchanged (uncommitted)**
+- **SCOPE NOTE:** repo hygiene (infra), on the operator's request; Current focus untouched. One business-facing correction rides along: `NOTICE.md` no longer claims "no model weights downloaded or run" (it was false: the research-memory index runs nomic-embed-text-v1 locally). The new wording is the operator's (decision N5).
+- **Did:** 118 tracked files `git rm`'d and 30 edited (restore from `5ecc33b`); 28 ignored junk paths to `~/.Trash/trinc-cleanup-2026-11-04/`; failed/mock runs discarded recoverably to `~/.claude/backups/discarded-runs-20261104/` (9 missions, 13 outputs, 1 dataset, 921 orphan session records; `state.json` and the indexes edited after before-copies; scout and analyst prompts no longer carry test entries as "Recent sessions"; run #5 can no longer be resumed); the seven never-called connector adapters removed and every record that called them wired corrected; Gumroad leftovers, seven channel stubs, the Ollama warmer and the May stash removed (its AWS entries saved to `docs/history/browser-sessions.md`, its Falcon bullet to the Security Everything log); `SYSTEM-REALITY.md`'s Ollama line corrected. Test suites kept (N1). Full record: `ops/reorg/2026-11-cleanup-manifest.md`.
+- **Verified:** engine `npm test` 1,412/1,412 before and after; `verify.sh` 0 FAIL / 0 WARN; transport lint, Phase 29 policy, connector audit (plugin section all ✓) unchanged; the engine's own loaders read the edited runtime state with no discarded id left (older gaps in `state.json` and `datasets-index.json`, which predate the cleanup, are listed in the manifest's follow-ups). A four-lens adversarial review then found 12 real issues, all fixed, including a too-absolute NOTICE sentence (Miyo also runs a local retrieval model).
+- **Next:** operator: signed commit (one touch), then `git -C /Users/myhome/TRINC push origin main`; cut a fresh backup bundle after the push (the current one is the stash's only copy; keep it if the stash matters). Found, not changed: the corrupt access-decision ledger (repair pending), STATUS's stale Paper row, two failed missions still in `state.json` holding the last 6 open loops, the vault Business Context note now drifted (`render-business-context.js --apply` is operator-run).
 
 ### 2026-11-04T22:48Z · Desktop Claude Code (hub) · **Misattribution root cause fixed: the model now sees each paper's real authors (uncommitted)**
 - **Did:** on the operator's "yes, fix the root cause":

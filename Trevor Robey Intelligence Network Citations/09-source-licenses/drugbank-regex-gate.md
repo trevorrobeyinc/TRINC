@@ -5,7 +5,7 @@
 ## Gate logic
 
 - **Pattern:** `DB\d{5}` (DrugBank accession format, e.g. `DB00945`).
-- **Where it runs:** the pre-publication quality pass (the same stage that runs the Presidio PHI screen and citation-density check) — see [`../10-quality-pipeline/`](../10-quality-pipeline/) and the due-diligence checklist [`../14-due-diligence-checklist/`](../14-due-diligence-checklist/). It must run on the rendered deliverable (PDF/markdown + structured appendix), not just source notes.
+- **Where it runs:** the pre-publication quality pass (the same stage that runs the Presidio PHI screen and citation-density check) — see the due-diligence checklist [`../14-due-diligence-checklist/`](../14-due-diligence-checklist/) (the placeholder `10-quality-pipeline/` folder was removed 2026-11-04). It must run on the rendered deliverable (PDF/markdown + structured appendix), not just source notes.
 - **Default state:** license flag **OFF** → any `DB\d{5}` match is a **build failure** (non-zero exit; deliverable does not ship).
 - **Licensed state:** when a signed DrugBank commercial license is recorded in `drugbank-stop-ship-unless-licensed.md`, set the license flag ON to allow matches within the licensed scope.
 

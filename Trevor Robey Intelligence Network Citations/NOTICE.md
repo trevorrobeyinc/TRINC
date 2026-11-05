@@ -55,22 +55,22 @@ is shipped by this project.
 
 ## Biomedical data sources
 
-The system queries the following databases at runtime via ToolUniverse and the
-project's MCP servers. Data licenses, redistribution rules, and citation
+The system reaches the following databases through ToolUniverse and the
+project's own connectors. A row marked "not queried by any current template" is
+reachable but unused today. Data licenses, redistribution rules, and citation
 requirements vary by source. Buyers must comply with each upstream source's
 terms when using outputs derived from these databases.
 
 | Source | Authority | Used by |
 | --- | --- | --- |
-| PubMed | U.S. National Library of Medicine (NLM) | `pubmed-mcp`, ToolUniverse |
-| ClinicalTrials.gov | U.S. National Institutes of Health (NIH) / NLM | `clinicaltrials-gov-mcp`, ToolUniverse |
-| ChEMBL | European Bioinformatics Institute (EBI / EMBL) | `chembl-mcp`, ToolUniverse |
-| OpenTargets | OpenTargets consortium | ToolUniverse |
-| DrugBank | DrugBank, University of Alberta (where applicable; commercial license required for redistribution) | ToolUniverse |
-| NPI Registry | U.S. Centers for Medicare & Medicaid Services (CMS) | `npi-mcp` |
-| ICD-10 | World Health Organization (WHO) | `icd10-mcp` |
-| Owkin pathology | Owkin platform | `owkin-mcp` |
-| HuggingFace Hub | HuggingFace, Inc. (metadata queries only — no model weights downloaded or run) | `huggingface-mcp`, ToolUniverse |
+| PubMed | U.S. National Library of Medicine (NLM) | ToolUniverse, `pubmed-retraction`, `citation-reresolver` |
+| ClinicalTrials.gov | U.S. National Institutes of Health (NIH) / NLM | ToolUniverse, `ctgov-supplemental`, `citation-reresolver` |
+| ChEMBL | European Bioinformatics Institute (EBI / EMBL) | ChEMBL ids inside Open Targets records (`open-targets-graphql`); `citation-reresolver` (identifier check only) |
+| OpenTargets | OpenTargets consortium | `open-targets-graphql`, ToolUniverse |
+| DrugBank | DrugBank, University of Alberta (where applicable; commercial license required for redistribution) | ToolUniverse (not queried by any current template; DrugBank content is excluded from deliverables) |
+| NPI Registry | U.S. Centers for Medicare & Medicaid Services (CMS) | ToolUniverse (not queried by any current template) |
+| ICD-10 | World Health Organization (WHO) | ToolUniverse (not queried by any current template) |
+| HuggingFace Hub | HuggingFace, Inc. | ToolUniverse (not queried by any current template) |
 
 ## What is NOT in this project's stack
 
@@ -79,10 +79,14 @@ shipped, downloaded, run, or relied on by trevor-robey-inc-agents:
 
 - Qwen2.5-7B-Instruct — not downloaded; not bundled.
 - OpenBioLLM-Llama3-8B — not downloaded; not bundled.
-- Any other HuggingFace model weights — `huggingface-mcp` queries Hub metadata
-  only; no models are pulled to disk and no weights are executed.
 - The `openclaw` macOS cask and the `openclaw-cli` Homebrew formula
   (consumer products from `openclaw.ai`) are unrelated to this project.
+
+No model weights are shipped to buyers. Reports are written by hosted Claude models. The only
+models the system runs locally are retrieval models that search its own past research: the
+research-memory index's open text-embedding model (nomic-embed-text-v1) and the local note-search
+app's retrieval model. They write no report text, and what they find is used as context only,
+never as a citation; a deliverable reports at most how many past items they matched.
 
 ## Trademarks
 

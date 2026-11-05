@@ -21,9 +21,9 @@ License compliance build gate: <pass/fail>  (see 14-due-diligence-checklist/02-l
 
 | # | Source | Access path | License | Attribution requirement | Stop-ship flag? | Identifier in deliverable |
 |---|---|---|---|---|---|---|
-| 1 | PubMed | API / pubmed-mcp | Public — citation metadata + abstracts free; full text per PMC OA only | "Source: PubMed" + PMID per row | No | PMID |
-| 2 | ClinicalTrials.gov | API / clinicaltrials-mcp | Public domain | Attribute NLM | No | NCT |
-| 3 | ChEMBL | API / chembl-mcp | CC BY-SA 3.0 ⚠️ share-alike | Attribute EMBL-EBI | Counsel review pending — confirm before ship | ChEMBL CID |
+| 1 | PubMed | API / ToolUniverse `PubMed_search_articles` | Public — citation metadata + abstracts free; full text per PMC OA only | "Source: PubMed" + PMID per row | No | PMID |
+| 2 | ClinicalTrials.gov | API / ToolUniverse `search_clinical_trials`, `ctgov-supplemental` | Public domain | Attribute NLM | No | NCT |
+| 3 | ChEMBL | Open Targets records (`open-targets-graphql`); ids re-resolved against the ChEMBL API | CC BY-SA 3.0 ⚠️ share-alike | Attribute EMBL-EBI | Counsel review pending — confirm before ship | ChEMBL CID |
 | 4 | eLife | API / EuropePMC | CC BY 4.0 | "Source: eLife" + DOI per row | No | DOI |
 | ... | ... | ... | ... | ... | ... | ... |
 

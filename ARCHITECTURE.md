@@ -180,11 +180,11 @@ Run state (citation verification, seed input, interaction log) stays in `workspa
 
 - **ToolUniverse:** a Python subprocess (`uv run --no-sync --directory vendor/tooluniverse tooluniverse-smcp-stdio
   --compact-mode`), JSON-RPC over stdio, 2,719 tools (v1.5.7).
-- **Adapters** in `openclaw-bridge/mcp/`: ChEMBL, ClinicalTrials.gov, PubMed, Europe PMC preprints, NIH
-  RePORTER, NPI, ICD-10, HuggingFace (metadata only), Owkin (needs `OWKIN_API_KEY`), arXiv, Semantic
-  Scholar, Open Targets (GraphQL), SEC EDGAR, SearXNG, the business sources (`business-sources/`: web
-  evidence, OpenAlex, SEC filings, World Bank, BLS, Eurostat, Census, EIA), the citation re-resolver, the
-  Crossref and PubMed retraction screens, and `ctgov-supplemental` (stop reasons and change history).
+- **Adapters** in `openclaw-bridge/mcp/`: Europe PMC preprints, NIH RePORTER, arXiv, Semantic Scholar,
+  Open Targets (GraphQL), SEC EDGAR, SearXNG, the business sources (`business-sources/`: web evidence,
+  OpenAlex, SEC filings, World Bank, BLS, Eurostat, Census, EIA), the citation re-resolver, the Crossref
+  and PubMed retraction screens, and `ctgov-supplemental` (stop reasons and change history). PubMed and
+  ClinicalTrials.gov searches run through ToolUniverse.
 - **Context-only lanes:** vault read-back (`obsidian-bridge-mcp`, Miyo over `:8743`) and research-memory
   priors (`research-memory-mcp`) are rendered with identifiers withheld and never count as citations.
 - **The registry:** `config/connector-registry.json` is the source of truth for every connector; run
@@ -272,9 +272,13 @@ curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.
 
 ## 7. Found during the 2026-10-23 verification
 
-- **Ollama has no model.** Ollama.app serves `:11434` behind the `:11435` proxy, but `ollama list` is
+- **Ollama has no model.** The Homebrew service (`homebrew.mxcl.ollama`) serves `:11434` behind the `:11435` proxy, but `ollama list` is
   empty and the model store holds no blobs. Older docs describe a `granite4.1:8b` BYOK lane for Copilot;
   it is not installed now. Either reinstall a model or retire the proxy: the operator's call.
+  **Operator decision 2026-11-04:** the model warmer `Copilot-Everything/scripts/ollama-preload.sh` was removed.
+  No `com.trevorrobey.ollama-preload` plist existed in `~/Library/LaunchAgents`, nothing called the script, and
+  its default `granite4.1:8b` is not installed. The `:11435` TLS proxy is separate and stays; the model
+  question above is still open.
 - **The amendment-risk band is unavailable** while ClinicalTrials.gov's history endpoint answers HTTP 403
   (since 2026-10-08). The memo says so; sales copy that advertises the band needs checking.
 - **The business lane has never run live.** It is built and unit-tested; the first run needs the
@@ -286,9 +290,11 @@ curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.
 
 | Thing | Status |
 |---|---|
+| **Ollama model warmer** (`Copilot-Everything/scripts/ollama-preload.sh`, launchd label `com.trevorrobey.ollama-preload`) | Removed 2026-11-04 by operator decision: no plist was installed, nothing called it, and its model is not installed. The `:11435` TLS proxy is separate and stays. |
 | **Claude → opencode delegation worker** (`opencode-mcp`, `_opencode-bridge/`, the repo `AGENTS.md` mirrors) | Retired 2026-10-23. `~/.config/opencode/` stays: it is the Copilot agent's opencode configuration. |
 | **Stdio adapter `claude` profile** and `Copilot-Everything/.mcp.json` `obsidian-bridge` | Retired 2026-10-23 (unused; was an ungated write lane). |
 | **Engine `viz-bridge-mcp` adapter** | Retired 2026-10-23, never called. Registry tombstone `viz-bridge`. |
+| **Engine adapters `chembl-mcp`, `clinicaltrials-mcp`, `pubmed-mcp`, `huggingface-mcp`, `npi-mcp`, `icd10-mcp`, `owkin-mcp`** | Removed 2026-11-04, never called (added 2026-04-27). Registry: `pubmed` and `clinicaltrials-gov` re-pointed at ToolUniverse; the other five are tombstones. |
 | **`:8798` `research_publish`**, `scripts/publish-to-vault.js`, `scripts/atlas-stub-creator.js` | Tombstoned 2026-09-22, removed 2026-10-23. The engine writes run notes itself. |
 | **Raycast extension** and three personal plugins inside the repo | Moved to `~/Code` 2026-10-23; the installed builds still work. |
 | **Copilot fork 3.3.3** (`repos/obsidian-copilot-mcp`) | Retired 2026-10-21; the live fork is the 4.0.0 port. |
