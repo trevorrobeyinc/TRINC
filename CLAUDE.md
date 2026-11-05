@@ -56,13 +56,17 @@ before asserting how the engine behaves.
 - **Backups:** one verified `git bundle --all` in `~/Documents/` plus a byte-identical copy in
   `/Volumes/ExtraCurricular/Backups/`; the offsite leg is the unpacked, `.git`-less copy in the business
   Drive at `My Drive/TRINC/Monorepo/` (with `TRINC/Backups/{README-RESTORE.md,SHA256SUMS.txt}`). The
-  bundle itself never goes to cloud storage. Cut a fresh one with `scripts/trinc-backup.sh` (prefix
-  `TRINC-FULL-backup-`) after any substantial batch of commits; a bundle carries no gitignored files.
-  **Current (2026-11-04):** `TRINC-FULL-backup-20261104-1519.bundle`, HEAD `4d8eff6`, sha256 `85c08426…9d6e`,
-  "records a complete history", in both places; the Drive copy of the same commit is `TRINC/Monorepo/`
-  (3,240 files, `diff -rq` clean, all accepted by Drive; the two older snapshots went to the Drive trash on
-  2026-11-04). Keep one version only (two copies of it): superseded bundles go to the Trash once the new one
-  is verified and mirrored, and a superseded Drive snapshot is trashed in the Drive web UI.
+  bundle itself never goes to cloud storage. Cut a fresh one after any substantial batch of commits with
+  `bash /Users/myhome/TRINC/scripts/trinc-backup.sh --prune` (rewritten 2026-11-05: it writes both copies,
+  verifies, compares them byte for byte, and moves superseded bundles to the Trash; the Drive snapshot and
+  this line stay manual). A bundle carries no gitignored files.
+  **Current (2026-11-05):** `TRINC-FULL-backup-20261105-0229.bundle`, HEAD `e6a35f4`, sha256 `25cd7e0f…aefc`
+  (78,861,034 bytes), "records a complete history", 15 refs, in both places. The Drive copy of the same
+  commit is `TRINC/Monorepo-e6a35f4/`: 3,164 files + 4 symlinks, compared entry by entry (sha256, exec bits,
+  link targets) with 0 differences. **Operator, in the Drive web UI:** trash `Monorepo/` (4d8eff6), then
+  rename `Monorepo-e6a35f4/` to `Monorepo/`. The 11-04 bundles are in the Trash. Keep one version only (two
+  copies of it): superseded bundles go to the Trash once the new one is verified and mirrored, and a
+  superseded Drive snapshot is trashed in the Drive web UI.
 - **One repo.** Do not split it back into sub-repos. The only submodule is
   `Trevor Robey Intelligence Network Citations/vendor/tooluniverse`; vendor anything else with an
   `UPSTREAM.md` instead of adding a submodule.

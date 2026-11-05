@@ -263,6 +263,16 @@ forward below.
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 
+### 2026-11-05T10:50Z · Desktop Claude Code (Xcode side session) · **Backup cut at `e6a35f4`; `scripts/trinc-backup.sh` rewritten to the documented routine**
+- **SCOPE NOTE:** repo hygiene, on the operator's "Yes, do both"; Current focus untouched.
+- **Why:** the operator's run of `trinc-backup.sh` failed with "no writable external volume found". The 2026-10-23 script hunted for a separate keypad USB drive and SKIPPED ExtraCurricular, calling it the vault volume (the vault is the local `~/My Digital Garden`). It also wrote to the volume root and never made the `~/Documents` copy. The 11-04 backup had been made by hand, which hid the drift.
+- **Did:**
+  - Cut `TRINC-FULL-backup-20261105-0229.bundle`: complete history, 15 refs, sha256 `25cd7e0f…aefc`, byte-identical in `~/Documents` and `ExtraCurricular/Backups`.
+  - Moved the 11-04 pair to the Trash.
+  - Wrote the Drive snapshot `TRINC/Monorepo-e6a35f4/`: 3,168 entries, 0 differences against a separate export. Rewrote Drive's `README-RESTORE.md` and `SHA256SUMS.txt`.
+  - Rewrote the script: it writes both copies, verifies, compares, and with `--prune` moves superseded bundles to the Trash. It refuses before writing anything when the target is missing, unmounted or read-only. 16/16 scenario tests in scratch folders.
+- **Next (operator):** in the Drive web UI, trash `Monorepo/` (4d8eff6) and rename `Monorepo-e6a35f4/` to `Monorepo/`. Expect a few Medium Falcon rule-55 detections from the snapshot write into Drive (same as 11-04); close them with an attribution comment.
+
 ### 2026-11-05T10:05Z · Desktop Claude Code (side session of the Security Everything toolchain audit) · **Xcode set up for TRINC: project "Trevor Robey Intelligence Network Citations" + an offline buyer app; Xcode's Claude Agent given rules**
 - **SCOPE NOTE:** tooling, on the operator's word ("apply it … create 'Trevor Robey Intelligence Network Citations' project from the monorepo and help me create an app for buyers"); Current focus untouched (the app is not on the money path and sells nothing by itself).
 - **Did:**
