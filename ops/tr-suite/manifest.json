@@ -53,6 +53,8 @@
       "$HOME/Library/Developer/Xcode/CodingAssistant/ClaudeAgentConfig/.claude.json"
     ],
     "xcode_prefs": "$HOME/Library/Preferences/com.apple.dt.Xcode.plist",
+    "xcode_unsafe_keys": ["IDEChatInternalAllowUntrustedAgentsWithoutUserInteraction", "IDEChatAgenticChatSkipPermissions"],
+    "xcode_master_switch_note": "IDEAllowUnauthenticatedAgents is the master 'external agents allowed' switch, expected ON for the gated mcp-xcode lane; it is NOT the unsafe mode (corrected 2026-11-05).",
     "record": "ops/xcode/README.md"
   }
 }

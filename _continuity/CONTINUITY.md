@@ -275,8 +275,9 @@ forward below.
   - `xcodebuild` builds macOS and iOS; the app launches with no crash report.
   - The built app's entitlements are sandbox and user-selected read-only, with `get-task-allow` in Debug only.
   - Connector audit clean. Other gates are in the session report.
+- **Corrected the same morning:** `IDEAllowUnauthenticatedAgents` is Xcode's master "external agents allowed" switch, not the unsafe mode: leave it on (the gated `mcp-xcode` lane needs it). The operator set "While Xcode is Open" and turned on Xcode's Agent Supervisor. `verify.sh` now WARNs only on the two real unsafe keys (`ops/xcode/README.md` §4).
 - **Next (operator):**
-  - Xcode › Settings › Intelligence: turn off the unsafe all-agents mode (`verify.sh` WARNs until then).
+  - Optional: tighten the Agent Supervisor's default grants in Xcode › Settings › Intelligence › Permissions (they still allow writing `~/.claude` and `~/Library/Keychains`, and reading `~/.*`). Never edit Xcode's SecureSettingsContainer files directly.
   - Push (`git -C /Users/myhome/TRINC push origin main`), then cut a fresh backup bundle (`scripts/trinc-backup.sh`).
   - Before any buyer gets the app: Apple Developer Program, a signing team, notarization or TestFlight, an icon, and `brand-check` + `first-sale-gate` on `Xcode/TRINCReader/Brand.swift`.
 

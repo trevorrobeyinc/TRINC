@@ -83,12 +83,32 @@ managed settings (`/Library/Application Support/ClaudeCode/managed-settings.json
 path is still a Bash command, so in this mode it waits for the operator's approval. That is a prompt, not a
 refusal: approve shell commands that touch those paths only knowingly.
 
-## 4 · The one setting the operator changes (audit F3)
+**A second, separate layer: Xcode's Agent Supervisor.** The operator turned on Xcode › Settings › Intelligence ›
+Permissions › "Control file and folder access" (2026-11-05). It is Xcode's own file-access gate and sits beside the
+deny list above; neither replaces the other. Its default grants still allow:
+- writing to `~/.claude` and `~/Library/Keychains`;
+- reading `~/.*`, including `.ssh`, `.config/gh`, `.mcp-auth` and `.perseus-vault`.
 
-In Xcode › Settings › Intelligence › Model Context Protocol, turn off the unsafe all-agents mode for "Allow External
-Agents to Use Xcode Tools". (`XCODE-LANE.md` §5 step 8 later sets "While Xcode is Open" for the gated lane.) Until
-then any local process can drive Xcode builds without approval, and `verify.sh` WARNs. After the change, ask Xcode's
-Claude to build once to confirm its own tools still work.
+The deny list above refuses those for Claude's own file tools. Tightening the supervisor itself is the operator's call,
+in Xcode's Permissions UI. Its settings live in Xcode's protected
+`~/Library/Group Containers/group.com.apple.dt.Xcode.SecureSettingsContainer/`: **never edit those files directly**,
+from this repo or any agent.
+
+## 4 · Xcode's external-agent setting (audit F3, corrected 2026-11-05)
+
+**Done by the operator, about 01:55:** Xcode › Settings › Intelligence › Model Context Protocol › "Allow External Agents
+to Use Xcode Tools" = **While Xcode is Open** (the value `XCODE-LANE.md` §5 step 8 wants for the gated lane). Xcode
+now asks before an external agent connects.
+
+**Correction.** This record's first version, and the toolchain audit, read the preference
+`IDEAllowUnauthenticatedAgents = true` as Xcode's unsafe all-agents mode. The Security Everything session found it
+stays `true` after "While Xcode is Open" is chosen, while Xcode's own agent settings record the MCP server as not
+enabled. The key is most likely the master "external agents allowed" switch, which the gated lane needs on.
+**Do not switch it off or delete it.** The unsafe modes are two other keys, absent as of 2026-11-05:
+- `IDEChatInternalAllowUntrustedAgentsWithoutUserInteraction`
+- `IDEChatAgenticChatSkipPermissions`
+
+`verify.sh` WARNs only if one of them becomes true; the key list is in `ops/tr-suite/manifest.json` (`xcode_unsafe_keys`).
 
 ## 5 · How to check everything
 

@@ -249,16 +249,21 @@ else:
             say("FAIL" if names else "PASS",
                 f"{os.path.basename(p)}: MCP server(s) added for Xcode's agents, outside every gate: {', '.join(names)}"
                 if names else f"{os.path.basename(p)}: no MCP servers registered for Xcode's agents")
+        # Corrected 2026-11-05 (ops/xcode/README.md §4): IDEAllowUnauthenticatedAgents is Xcode's master
+        # "external agents allowed" switch, expected ON for the gated mcp-xcode lane; it stayed true after the
+        # operator chose "While Xcode is Open". The unsafe modes are the two keys below. Report only; never
+        # write Xcode's preferences or its SecureSettingsContainer from here.
         prefs = expand(xc["xcode_prefs"])
         if os.path.isfile(prefs):
             try:
-                unsafe = plistlib.load(open(prefs, "rb")).get("IDEAllowUnauthenticatedAgents")
+                p_ = plistlib.load(open(prefs, "rb"))
             except Exception:
-                unsafe = None
+                p_ = {}
+            unsafe = [k for k in xc.get("xcode_unsafe_keys", []) if p_.get(k) is True]
             say("WARN" if unsafe else "PASS",
-                "Xcode lets ANY local agent drive its tools without approval (IDEAllowUnauthenticatedAgents): "
-                "turn the unsafe all-agents mode off in Xcode > Settings > Intelligence > Model Context Protocol"
-                if unsafe else "Xcode's unsafe all-agents mode is off")
+                f"Xcode's unsafe agent mode is ON ({', '.join(unsafe)}): agents act without approval; "
+                "switch it off in Xcode > Settings > Intelligence" if unsafe
+                else "Xcode's unsafe agent modes are off (external agents still need approval)")
 
 print("== Repo hygiene")
 nested = [d for d, subs, _ in os.walk(repo) if ".git" in subs and d != repo
