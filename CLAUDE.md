@@ -62,12 +62,15 @@ before asserting how the engine behaves.
   this line stay manual). A bundle carries no gitignored files.
   **Current (2026-11-06):** `TRINC-FULL-backup-20261106-0042.bundle`, HEAD `bd9abf2` (GitHub was level: 0
   ahead / 0 behind), sha256 `664b96ee…1c23` (78,986,209 bytes), "records a complete history", 15 refs, in
-  both places. The 11-05 pair (`…-20261105-0229`, HEAD `e6a35f4`) is in the Trash. The Drive copy is still the
-  11-05 snapshot `TRINC/Monorepo-e6a35f4/` (3,164 files + 4 symlinks, 0 differences); refreshing it is manual
-  and waits on Workspace billing (`STATUS.md` step 1). **Operator, in the Drive web UI:** trash `Monorepo/`
-  (4d8eff6), then rename `Monorepo-e6a35f4/` to `Monorepo/`. Keep one version only (two copies of it):
-  superseded bundles go to the Trash once the new one is verified and mirrored, and a superseded Drive
-  snapshot is trashed in the Drive web UI.
+  both places. The 11-05 pair (`…-20261105-0229`, HEAD `e6a35f4`) is in the Trash. **Drive:** `TRINC/Monorepo/`
+  is now the one snapshot, of the same commit `bd9abf2` (3,184 files + 4 symlinks; compared entry by entry with
+  0 differences; every file accepted by Google; folder id `1L1sXyiO…yVpb`). The two older snapshots
+  (`Monorepo/` at 4d8eff6 and `Monorepo-e6a35f4/`) are in the Drive trash until about 2026-12-06, and
+  `Backups/README-RESTORE.md` + `SHA256SUMS.txt` name the new bundle. Keep one version only (two copies of it):
+  superseded bundles go to the Trash once the new one is verified and mirrored. A superseded Drive snapshot is
+  trashed from the mount with ONE literal `mv <folder> ~/.Trash/<unique name>`. DriveFS's database then shows
+  the folder `trashed=1` from a single client operation, as one trash item. Never `rm -rf`, which trashes file
+  by file.
 - **One repo.** Do not split it back into sub-repos. The only submodule is
   `Trevor Robey Intelligence Network Citations/vendor/tooluniverse`; vendor anything else with an
   `UPSTREAM.md` instead of adding a submodule.
