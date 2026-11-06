@@ -144,11 +144,17 @@ in the transport lint's forbidden list, as does `:11434`.
   with its own lifecycle, token and port. Merging them was declined on 2026-08-20 and again on 2026-10-23,
   as was "one plugin owns one port". Also declined, do not re-propose without new evidence: a TTL cache for
   the per-call token read, and a homegrown rotating log file in the adapter.
-- **Xcode (2026-11-05, `ops/xcode/README.md`).** Claude Code builds `Xcode/` from its shell (`xcodebuild`,
-  `swift test`). Xcode's tools (`xcrun mcpbridge`) are **not** registered here: they stay out until the Security
-  Everything `mcp-xcode` gate lane is released. Xcode's built-in Claude Agent is a separate Claude Code with its own
-  config folder that none of our hooks reach. Its rules come from `ops/xcode/claude-agent-settings.json` via that
-  folder's installer, never by hand, and `ops/tr-suite/verify.sh` FAILs if anyone registers an MCP server for it.
+- **Xcode (2026-11-05, `ops/xcode/README.md`).**
+  - Claude Code builds `Xcode/` from its shell (`xcodebuild`, `swift test`). Xcode's tools (`xcrun mcpbridge`) are
+    **not** registered here: their gated lane, `mcp-xcode`, was released in the Security Everything repo on
+    2026-11-05 and lives there only.
+  - Xcode's built-in Claude Agent is a separate Claude Code with its own config folder that none of our hooks reach,
+    but it does read this repo's project settings. Its rules come from `ops/xcode/claude-agent-settings.json` via that
+    folder's installer, never by hand. They **reject every server in this repo's `.mcp.json` files**
+    (`disabledMcpjsonServers`), so a new server added here must be added there too.
+  - This repo's machine-local `.claude/settings.local.json` keeps `enableAllProjectMcpServers` false and lists its
+    servers in `enabledMcpjsonServers`.
+  - `ops/tr-suite/verify.sh` FAILs if any of this drifts.
 - **There is no channel from Claude into the Copilot agent, on purpose**: `:4096` is password-locked, ACP
   stdio belongs to the Obsidian renderer, and the `:8801` bridge has no text-carrying operation. If one is
   ever built, the route chosen is a schema-validated vault inbox, never `:4096`.

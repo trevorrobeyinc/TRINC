@@ -2038,15 +2038,15 @@
         "status": "active",
         "recorded": "2026-11-05",
         "auth": "the operator's own Claude account, signed in by the operator in Xcode > Settings > Intelligence (2026-11-05); Claude never handles it",
-        "purpose": "Xcode 27's built-in Claude Agent: Anthropic's Claude Code (2.1.294) run by Xcode with its own config folder (~/Library/Developer/Xcode/CodingAssistant/ClaudeAgentConfig), so no ~/.claude hook or gate reaches it. Its rules are ops/xcode/claude-agent-settings.json (ask before acting, bypass and auto mode disabled, account connectors and plugin sync off, hard denies on credential/ceremony paths and on every TRINC MCP server), deployed as a real copy by ops/xcode/install-claude-agent-settings.sh and checked by ops/tr-suite/verify.sh, which FAILs if any MCP server is registered for Xcode's agents. Not an engine connector. Record: ops/xcode/README.md."
+        "purpose": "Xcode 27's built-in Claude Agent: Anthropic's Claude Code (2.1.294) run by Xcode with its own config folder (~/Library/Developer/Xcode/CodingAssistant/ClaudeAgentConfig), so no ~/.claude hook or gate reaches it, though it does read TRINC's project settings and ~/.claude/CLAUDE.md. Its rules are ops/xcode/claude-agent-settings.json (ask before acting, bypass and auto mode disabled, account connectors and plugin sync off, every TRINC project MCP server REJECTED via disabledMcpjsonServers and denied, hard denies on credential/ceremony paths and gate commands), deployed as a real copy by ops/xcode/install-claude-agent-settings.sh and checked by ops/tr-suite/verify.sh. 2026-11-05: before disabledMcpjsonServers it started all four TRINC servers through TRINC's project-local enableAllProjectMcpServers (now false). Not an engine connector. Record: ops/xcode/README.md section 3."
       },
       {
         "id": "xcode-tools",
         "lane": "infra",
-        "status": "declined-until-gated",
+        "status": "not-registered-here",
         "recorded": "2026-11-05",
-        "auth": "none of its own; gating pending the Security Everything mcp-gates lane `mcp-xcode` (built and tested 2026-11-05, NOT released: ~/Security Everything/mcp-gates/XCODE-LANE.md)",
-        "purpose": "Xcode's MCP bridge (xcrun mcpbridge: build, test, read the open project). DELIBERATELY NOT in this repo's .mcp.json: the session-gate hook has no matcher for it, so a registration today would reach every session and sub-agent with no YubiKey step. Claude Code builds the TRINC Xcode project from its shell instead (xcodebuild / swift). If it reappears in a TRINC config before that lane's release, remove it. Record: ops/xcode/README.md decision X3."
+        "auth": "gated in the Security Everything repo only: mcp-gates lane `mcp-xcode`, released 2026-11-05 (bd2c253, 550eb8d; record ~/Security Everything/mcp-gates/XCODE-LANE.md)",
+        "purpose": "Xcode's MCP bridge (xcrun mcpbridge: build, test, read the open project). DELIBERATELY NOT in this repo's .mcp.json: TRINC sessions build the Xcode project from the shell (xcodebuild / swift), and the gated lane is registered in the Security Everything repo, not here. Registering it in a TRINC config would need that lane's launcher and the gate hook's coverage first. Record: ops/xcode/README.md decision X3."
       }
     ],
     "needs_host_auth": {

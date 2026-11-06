@@ -232,6 +232,44 @@ else:
         same = sha(src) == sha(dep)
         say("PASS" if same else "FAIL", "Xcode agent rules match ops/xcode source" if same
             else f"Xcode agent rules DRIFTED from source; run {a['install']}")
+    # Added 2026-11-05 (ops/xcode/README.md §3): Xcode's agent started all four TRINC project servers through
+    # TRINC's project-local enableAllProjectMcpServers. Every project server must be REJECTED for it
+    # (disabledMcpjsonServers, checked before any approval) and its tools denied.
+    if os.path.isfile(src):
+        rules = json.load(open(src))
+        disabled_ = set(rules.get("disabledMcpjsonServers") or [])
+        denied_ = set((rules.get("permissions") or {}).get("deny") or [])
+        gaps = []
+        for mcp_file in (".mcp.json", "Copilot-Everything/.mcp.json"):
+            try:
+                names_ = json.load(open(os.path.join(repo, mcp_file))).get("mcpServers", {})
+            except Exception:
+                continue
+            gaps += [f"{n} ({mcp_file})" for n in names_ if n not in disabled_ or f"mcp__{n}" not in denied_]
+        say("FAIL" if gaps else "PASS",
+            f"project MCP server(s) NOT rejected for Xcode's agent: {', '.join(gaps)}; add each to "
+            "disabledMcpjsonServers and permissions.deny in ops/xcode/claude-agent-settings.json, then redeploy"
+            if gaps else "every TRINC project MCP server is rejected and denied for Xcode's agent")
+    # TRINC's own machine-local settings (gitignored) must not approve every project server or let a session
+    # register MCP servers unprompted.
+    local_ = os.path.join(repo, ".claude/settings.local.json")
+    if os.path.isfile(local_):
+        try:
+            ls_ = json.load(open(local_))
+        except Exception as ex:
+            ls_ = None
+            say("WARN", f".claude/settings.local.json unreadable ({ex})")
+        if ls_ is not None:
+            say("FAIL" if ls_.get("enableAllProjectMcpServers") is True else "PASS",
+                ".claude/settings.local.json approves EVERY project MCP server (enableAllProjectMcpServers): set it "
+                "false and list the servers in enabledMcpjsonServers" if ls_.get("enableAllProjectMcpServers") is True
+                else "TRINC sessions load only the project MCP servers listed in enabledMcpjsonServers")
+            reg_ = [r for r in ((ls_.get("permissions") or {}).get("allow") or []) if r.replace(" ", "").startswith("Bash(claudemcp")]
+            say("FAIL" if reg_ else "PASS",
+                f".claude/settings.local.json lets sessions register MCP servers unprompted: {', '.join(reg_)}"
+                if reg_ else "no unprompted `claude mcp` allow in TRINC's local settings")
+    else:
+        say("SKIP", ".claude/settings.local.json absent (machine-local file)")
     if on_mac:
         for reg in xc["agent_mcp_registrations"]:
             p = expand(reg)

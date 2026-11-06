@@ -10,7 +10,7 @@ monorepo except the three items in "What cannot live in the repo" below.
 |---|---|---|---|
 | X1 | **An Xcode project exists**: `Xcode/Trevor Robey Intelligence Network Citations.xcodeproj`, with a buyer app (`TRINCReader`) and its logic package (`Xcode/TRINCKit`). | operator | Claude's earlier recommendation of "no Xcode project yet" (below) |
 | X2 | **Claude Code builds the project from its shell** (`xcodebuild`, `swift build`, `swift test`), with every Security Everything hook and gate still on. Nothing to install. | Claude's call, operator-approved | — |
-| X3 | **Xcode's tools (`xcode-tools`, `xcrun mcpbridge`) are NOT registered in this repo's `.mcp.json`.** Registering them today would be ungated: the PreToolUse hook has no matcher for them. The Security Everything lane `mcp-xcode` (built and tested 2026-11-05, **not released**; `~/Security Everything/mcp-gates/XCODE-LANE.md`) is the only route, and its release sequence registers it in that repo, not here. | operator-approved | the lane's release, by that repo |
+| X3 | **Xcode's tools (`xcode-tools`, `xcrun mcpbridge`) are NOT registered in this repo's `.mcp.json`.** The gated route is the Security Everything lane `mcp-xcode`, **released 2026-11-05** (`bd2c253`, `550eb8d`), with its first armed run (`2ada6d2`), pin edit (`b054daa`) and end-to-end record (`289b062`) in `~/Security Everything/mcp-gates/XCODE-LANE.md`. It is registered in that repo only. TRINC sessions do not need it, because Claude Code builds from the shell (X2). | operator-approved | a TRINC need for Xcode's tools |
 | X4 | **Xcode's built-in Claude Agent gets the third-party-agent posture**: not sandboxed, asks before acting, and hard-refused on credential and ceremony surfaces. The rules are `ops/xcode/claude-agent-settings.json`, deployed as a real copy by `install-claude-agent-settings.sh`. | operator-approved | — |
 | X5 | **Hooks inside Xcode's agent are a Security Everything decision**, not set from TRINC (`XCODE-LANE.md` §7 lists the two routes). The installer refuses a source that adds `hooks`. | operator-approved | that repo |
 
@@ -57,8 +57,14 @@ HTTPS-only invariant has nothing to cover). Registry links open in the buyer's b
 
 Xcode 27 runs Anthropic's Claude Code (2.1.294, Developer ID Anthropic PBC `Q6L2SF6YDW`, downloaded by Xcode into
 `~/Library/Developer/Xcode/CodingAssistant/Agents/`) with `CLAUDE_CONFIG_DIR` set to `…/CodingAssistant/ClaudeAgentConfig`.
-It therefore never reads `~/.claude`: none of the session-gate PreToolUse hooks and no LLM Guard reach it. Root-owned
-managed settings (`/Library/Application Support/ClaudeCode/managed-settings.json`, Remote Control off) DO apply to it.
+It therefore never reads `~/.claude/settings.json`, `~/.claude.json` or their MCP servers and plugins: none of the
+session-gate PreToolUse hooks and no LLM Guard reach it.
+- It **does** load `~/.claude/CLAUDE.md`. Claude Code reads `CLAUDE.md` and `.claude/CLAUDE.md` in every folder above
+  its working folder, and at `/Users/myhome` that walk finds `.claude/CLAUDE.md` (seen in its transcript, 2026-11-05).
+- It also reads **TRINC's project settings** (`.claude/settings.json` and the machine-local `.claude/settings.local.json`)
+  when it works anywhere under TRINC. They outrank its own settings.
+- Root-owned managed settings (`/Library/Application Support/ClaudeCode/managed-settings.json`, Remote Control off)
+  DO apply to it.
 
 `claude-agent-settings.json`, key by key:
 - `permissions.defaultMode: default`: it asks before every edit and command not otherwise allowed. No `allow` list
@@ -68,16 +74,32 @@ managed settings (`/Library/Application Support/ClaudeCode/managed-settings.json
 - `disableClaudeAiConnectors`: the operator's claude.ai account connectors would otherwise load into it, ungated.
 - `syncClaudeAiPlugins: false`: a plugin can declare its own MCP servers (the 2026-07-28 desktop-commander lesson in
   `audit-connector-coverage.js`).
-- `enableAllProjectMcpServers: false` plus deny rules for every TRINC MCP server: Xcode's launcher passes no
-  `--strict-mcp-config`, so a project `.mcp.json` would otherwise come along.
+- `disabledMcpjsonServers`, listing every server in TRINC's two `.mcp.json` files (plus `perseus-vault`), together
+  with `mcp__<name>` deny rules for each: Xcode's launcher passes no `--strict-mcp-config`, so TRINC's project servers
+  come along.
+  - **Corrected 2026-11-05 (evening).** The first version relied on `enableAllProjectMcpServers: false`. TRINC's
+    machine-local `.claude/settings.local.json` set it `true`, and project-local settings outrank the agent's own.
+    So when Xcode's agent ran under `TRINC/Xcode` (11:33Z), it **started all four TRINC servers**: perseus-business
+    opened the encrypted business vault for about 642 s, and the other three ran until 14:51Z. The deny rules hid
+    their tools; they did not stop the processes.
+  - In Claude Code 2.1.294, a server listed in `disabledMcpjsonServers` is **rejected before any approval is
+    checked**. TRINC's local file does not set that key, so the agent's list holds whatever TRINC approves.
+  - TRINC's local settings were fixed the same evening: `enableAllProjectMcpServers` is false, the four servers are
+    listed in `enabledMcpjsonServers`, and the `Bash(claude mcp *)` allow is removed.
+  - `ops/tr-suite/verify.sh` FAILs if any of this comes back, and the installer refuses a source that misses a server.
+- `enableAllProjectMcpServers: false` is kept, but on its own it cannot win against a project-local `true`.
 - `autoUploadSessions: false`.
 - `deny` rules:
   - reading or editing SSH, GnuPG, the Keychains, AWS, gh, `.mcp-auth`, `~/.config/trevclaw`, Perseus, the mkcert CA and
     localhost keys, `.env*` / `*.pem` / `*.p12` / `*.key`, and `~/.claude.json` and `~/.claude/`;
   - editing Preferences, LaunchAgents, `~/.local/bin`, shell startup files, Security Everything, this folder,
     `ops/tr-suite`, TRINC's `.mcp.json` and `.claude/`, and its own config folder;
-  - `sudo`, `security`, `gpg*`, `ssh-add`, the gate commands, `fw`, `git push`, `launchctl`, `defaults write/delete`,
-    `plutil`, `xattr`, `spctl`, `csrutil` and `tccutil`.
+  - `sudo`, `security`, `gpg*`, `ssh-add`, `git push`, `claude mcp`, `launchctl`, `defaults write/delete`, `plutil`,
+    `xattr`, `spctl`, `csrutil` and `tccutil`;
+  - every gate command on `PATH` (2026-11-05: `operator-approved-gate`, `operator-approve-gate`, `cb-gate`,
+    `ccu-gate`, `gmail-arm`, `gmail-mcp-seal`, `gh-mcp`, `fw`, `fw-seal` and `fw-armed-write`), plus `sudo-gate` and
+    `yk-session-gate`. Bash rules match the command as typed: a gate called by its full path would prompt rather than
+    be refused.
 
 **Limit, stated plainly:** `Read(...)` rules govern Claude's file tools, not a shell `cat`. A shell read of a denied
 path is still a Bash command, so in this mode it waits for the operator's approval. That is a prompt, not a
@@ -129,9 +151,17 @@ cd /Users/myhome/TRINC/Xcode && xcodebuild build -project "Trevor Robey Intellig
 - the deployed rules drift from this folder or become a symlink;
 - an MCP server is registered for Xcode's agents (`CodingAssistant/mcp-servers.json`, or `mcpServers` in
   `ClaudeAgentConfig/.claude.json`);
-- the buyer app gains a network entitlement or loses the sandbox.
+- the buyer app gains a network entitlement or loses the sandbox;
+- a server in TRINC's `.mcp.json` or `Copilot-Everything/.mcp.json` is missing from the agent rules'
+  `disabledMcpjsonServers` or `mcp__` deny rules;
+- TRINC's machine-local `.claude/settings.local.json` sets `enableAllProjectMcpServers: true`, or allows `claude mcp`
+  without a prompt.
 
 It WARNs while the unsafe Xcode mode is on.
+
+**Re-test after the 2026-11-05 fix (operator).** Open Xcode's Claude once on the TRINC project. The only folder in
+`~/Library/Caches/claude-cli-nodejs/-Users-myhome-TRINC-Xcode/` that may then show a newer time is
+`mcp-logs-xcode-tools`. Before the fix (2026-11-06T01:34Z) all five folders were dated 2026-11-05 03:34 PST.
 
 ## 6 · What cannot live in the repo
 

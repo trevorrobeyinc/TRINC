@@ -75,6 +75,23 @@ if perm.get("allow"):
     problems.append("permissions.allow must stay absent: Xcode's agent asks for everything not denied")
 if "hooks" in cfg:
     problems.append("hooks are a Security Everything decision (mcp-gates/XCODE-LANE.md §7), not set from TRINC")
+# Every TRINC project MCP server must be REJECTED for Xcode's agent (disabledMcpjsonServers is checked before
+# any approval, so TRINC's own project-local approvals cannot switch it back on) and its tools denied.
+# Added 2026-11-05 after Xcode's agent started all four TRINC servers through TRINC's project-local
+# enableAllProjectMcpServers (ops/xcode/README.md §3).
+disabled = set(cfg.get("disabledMcpjsonServers") or [])
+denied = set(perm.get("deny") or [])
+for mcp_file in (".mcp.json", "Copilot-Everything/.mcp.json"):
+    try:
+        names = json.load(open(os.path.join(repo, mcp_file))).get("mcpServers", {})
+    except Exception as e:
+        problems.append(f"{mcp_file} unreadable ({e})")
+        continue
+    for name in names:
+        if name not in disabled:
+            problems.append(f"{mcp_file} server '{name}' missing from disabledMcpjsonServers")
+        if f"mcp__{name}" not in denied:
+            problems.append(f"{mcp_file} server '{name}' missing from permissions.deny (mcp__{name})")
 if problems:
     fail("source rejected: " + "; ".join(problems))
 src_sha = sha(raw)

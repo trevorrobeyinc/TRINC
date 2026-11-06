@@ -210,6 +210,10 @@ stays first.
     22/22 and Citations 45/45 VERIFIED.
   - Then ask Xcode's Claude to run `sudo -n true`: it must be refused without a prompt. This is the one agent-rule
     check Claude Code could not run itself.
+  - **Re-test of the 2026-11-05 MCP fix**, during the same Xcode Claude session: afterwards, in
+    `~/Library/Caches/claude-cli-nodejs/-Users-myhome-TRINC-Xcode/`, only `mcp-logs-xcode-tools` may be newer than
+    2026-11-05 03:34 PST. A newer perseus-business, openclaw-obsidian, searxng-search or trinc-content folder means
+    TRINC servers started again (`ops/xcode/README.md` §5).
 - **[operator decision]** No iOS simulator runtime is installed, so the iPhone/iPad build runs only on a device until
   one is downloaded (several GB, Xcode > Settings > Components).
 - **[operator decision]** Keep or trash the untracked feed-refresh folder
@@ -287,6 +291,18 @@ stays first.
 ## 📋 Log — newest first
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
+
+### 2026-11-06T01:40Z · Desktop Claude Code (Xcode side session) · **Xcode's Claude had started all four TRINC MCP servers; now rejected by name, and TRINC's approve-all is off**
+- **SCOPE NOTE:** security fix on TRINC config, from the Security Everything session's read-only verification (the operator's "Yes, send them"), applied on the operator's "Yes, apply all"; Current focus untouched.
+- **Found:** TRINC's machine-local `.claude/settings.local.json` set `enableAllProjectMcpServers: true`, which outranks Xcode's agent rules. When Xcode's Claude ran under `TRINC/Xcode` (11:33Z) it started perseus-business (the business vault, ~642 s), openclaw-obsidian, searxng-search and trinc-content. The deny rules hid their tools; the processes still ran.
+- **Did:**
+  - Xcode's agent rules now carry `disabledMcpjsonServers` with every TRINC project server. Claude Code 2.1.294 rejects a server on that list before any approval is checked.
+  - The rules also deny 8 more gate commands plus `claude mcp`. Redeployed: sha256 `72e4a14c…f198`. The Security Everything watcher session was told, so the change is approved into its baseline rather than paged; delivery queued, not confirmed.
+  - TRINC local settings: `enableAllProjectMcpServers` false, the four servers listed, the `Bash(claude mcp *)` allow removed.
+  - `verify.sh` gained 3 checks (7/7 good/bad cases) and the installer validates server coverage.
+  - Docs corrected: the `mcp-xcode` lane was released on 2026-11-05; Xcode's agent loads `~/.claude/CLAUDE.md` and TRINC's project settings.
+- **Next (operator):** the re-test in Parking lot (open Xcode's Claude once; only `mcp-logs-xcode-tools` may update).
+- **Seen, not changed (operator's call):** the same local file still allows bare `Bash(python3)`, `Bash(node -e ':*)`, `Bash(git add *)`, `Bash(git commit -m ' *)` (inline commit messages break argv hygiene) and four `mcp__Claude_in_Chrome__*` tools from the retired Chrome lane.
 
 ### 2026-11-05T10:50Z · Desktop Claude Code (Xcode side session) · **Backup cut at `e6a35f4`; `scripts/trinc-backup.sh` rewritten to the documented routine**
 - **SCOPE NOTE:** repo hygiene, on the operator's "Yes, do both"; Current focus untouched.
