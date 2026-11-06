@@ -194,10 +194,10 @@ if os.path.isfile(live):
         say("PASS" if strip(open(live).read()) == strip(t) else "WARN", "live providers.yaml matches the repo template (apart from the key)")
 
 print("== Xcode")
-# Added 2026-11-05 (ops/xcode/README.md). Xcode's built-in Claude Agent runs its own Claude Code with its
-# own config folder, so ~/.claude and every Security Everything hook stay out of its reach: the deployed
-# rules file and the empty MCP registrations below are what stands in for them.
-import plistlib
+# The buyer app's Xcode project and Swift package (business). The Xcode setup's security checks (the rules for
+# Xcode's built-in Claude Agent, TRINC's MCP approvals as that agent sees them, Xcode's unsafe modes, and the buyer
+# app's sandbox, entitlement and networking-API scan) moved to Security Everything on 2026-11-05:
+#   bash "/Users/myhome/Security Everything/xcode-agent/check-trinc-xcode.sh"
 xc = m.get("xcode")
 if not xc:
     say("FAIL", "manifest.json has no xcode entry")
@@ -206,102 +206,6 @@ else:
         f"Xcode project: {xc['project']}")
     say("PASS" if os.path.isfile(os.path.join(repo, xc["package"], "Package.swift")) else "FAIL",
         f"Swift package: {xc['package']}")
-    ent = os.path.join(repo, xc["entitlements_macos"])
-    if os.path.isfile(ent):
-        e = plistlib.load(open(ent, "rb"))
-        net = sorted(k for k in e if k.startswith("com.apple.security.network."))
-        say("FAIL" if net else "PASS",
-            f"buyer app requests network access ({', '.join(net)}): it must stay offline" if net
-            else "buyer app requests no network entitlement")
-        say("PASS" if e.get("com.apple.security.app-sandbox") is True else "FAIL", "buyer app runs in the App Sandbox")
-    else:
-        say("FAIL", f"entitlements missing: {xc['entitlements_macos']}")
-    a = xc["agent_settings"]
-    src, dep = os.path.join(repo, a["source"]), expand(a["deploy_target"])
-    if not os.path.isfile(src):
-        say("FAIL", f"Xcode agent rules source missing: {a['source']}")
-    elif not on_mac:
-        say("SKIP", "Xcode agent rules deploy check (run on the Mac)")
-    elif not os.path.isdir(os.path.dirname(dep)):
-        say("WARN", f"Xcode's Claude Agent is not set up ({os.path.dirname(dep)} absent); nothing to protect yet")
-    elif os.path.islink(dep):
-        say("FAIL", f"Xcode agent rules are a symlink ({os.path.realpath(dep)}); run {a['install']}")
-    elif not os.path.isfile(dep):
-        say("FAIL", f"Xcode's Claude Agent runs WITHOUT the TRINC rules; run {a['install']}")
-    else:
-        same = sha(src) == sha(dep)
-        say("PASS" if same else "FAIL", "Xcode agent rules match ops/xcode source" if same
-            else f"Xcode agent rules DRIFTED from source; run {a['install']}")
-    # Added 2026-11-05 (ops/xcode/README.md §3): Xcode's agent started all four TRINC project servers through
-    # TRINC's project-local enableAllProjectMcpServers. Every project server must be REJECTED for it
-    # (disabledMcpjsonServers, checked before any approval) and its tools denied.
-    if os.path.isfile(src):
-        rules = json.load(open(src))
-        disabled_ = set(rules.get("disabledMcpjsonServers") or [])
-        denied_ = set((rules.get("permissions") or {}).get("deny") or [])
-        gaps = []
-        for mcp_file in (".mcp.json", "Copilot-Everything/.mcp.json"):
-            try:
-                names_ = json.load(open(os.path.join(repo, mcp_file))).get("mcpServers", {})
-            except Exception:
-                continue
-            gaps += [f"{n} ({mcp_file})" for n in names_ if n not in disabled_ or f"mcp__{n}" not in denied_]
-        say("FAIL" if gaps else "PASS",
-            f"project MCP server(s) NOT rejected for Xcode's agent: {', '.join(gaps)}; add each to "
-            "disabledMcpjsonServers and permissions.deny in ops/xcode/claude-agent-settings.json, then redeploy"
-            if gaps else "every TRINC project MCP server is rejected and denied for Xcode's agent")
-    # TRINC's own machine-local settings (gitignored) must not approve every project server or let a session
-    # register MCP servers unprompted.
-    local_ = os.path.join(repo, ".claude/settings.local.json")
-    if os.path.isfile(local_):
-        try:
-            ls_ = json.load(open(local_))
-        except Exception as ex:
-            ls_ = None
-            say("WARN", f".claude/settings.local.json unreadable ({ex})")
-        if ls_ is not None:
-            say("FAIL" if ls_.get("enableAllProjectMcpServers") is True else "PASS",
-                ".claude/settings.local.json approves EVERY project MCP server (enableAllProjectMcpServers): set it "
-                "false and list the servers in enabledMcpjsonServers" if ls_.get("enableAllProjectMcpServers") is True
-                else "TRINC sessions load only the project MCP servers listed in enabledMcpjsonServers")
-            reg_ = [r for r in ((ls_.get("permissions") or {}).get("allow") or []) if r.replace(" ", "").startswith("Bash(claudemcp")]
-            say("FAIL" if reg_ else "PASS",
-                f".claude/settings.local.json lets sessions register MCP servers unprompted: {', '.join(reg_)}"
-                if reg_ else "no unprompted `claude mcp` allow in TRINC's local settings")
-    else:
-        say("SKIP", ".claude/settings.local.json absent (machine-local file)")
-    if on_mac:
-        for reg in xc["agent_mcp_registrations"]:
-            p = expand(reg)
-            if not os.path.isfile(p):
-                say("SKIP", f"{reg}: absent")
-                continue
-            try:
-                d = json.load(open(p))
-            except Exception as ex:
-                say("WARN", f"{reg}: unreadable ({ex})")
-                continue
-            names = list((d.get("mcpServers") or {}).keys())
-            for proj_path, v in (d.get("projects") or {}).items():
-                names += [f"{n} (project {proj_path})" for n in ((v or {}).get("mcpServers") or {})]
-            say("FAIL" if names else "PASS",
-                f"{os.path.basename(p)}: MCP server(s) added for Xcode's agents, outside every gate: {', '.join(names)}"
-                if names else f"{os.path.basename(p)}: no MCP servers registered for Xcode's agents")
-        # Corrected 2026-11-05 (ops/xcode/README.md §4): IDEAllowUnauthenticatedAgents is Xcode's master
-        # "external agents allowed" switch, expected ON for the gated mcp-xcode lane; it stayed true after the
-        # operator chose "While Xcode is Open". The unsafe modes are the two keys below. Report only; never
-        # write Xcode's preferences or its SecureSettingsContainer from here.
-        prefs = expand(xc["xcode_prefs"])
-        if os.path.isfile(prefs):
-            try:
-                p_ = plistlib.load(open(prefs, "rb"))
-            except Exception:
-                p_ = {}
-            unsafe = [k for k in xc.get("xcode_unsafe_keys", []) if p_.get(k) is True]
-            say("WARN" if unsafe else "PASS",
-                f"Xcode's unsafe agent mode is ON ({', '.join(unsafe)}): agents act without approval; "
-                "switch it off in Xcode > Settings > Intelligence" if unsafe
-                else "Xcode's unsafe agent modes are off (external agents still need approval)")
 
 print("== Repo hygiene")
 nested = [d for d, subs, _ in os.walk(repo) if ".git" in subs and d != repo

@@ -41,20 +41,7 @@
     "project": "Xcode/Trevor Robey Intelligence Network Citations.xcodeproj",
     "scheme": "TRINCReader",
     "package": "Xcode/TRINCKit",
-    "entitlements_macos": "Xcode/Config/TRINCReader-macOS.entitlements",
-    "agent_settings": {
-      "source": "ops/xcode/claude-agent-settings.json",
-      "deploy_target": "$HOME/Library/Developer/Xcode/CodingAssistant/ClaudeAgentConfig/settings.json",
-      "install": "bash ops/xcode/install-claude-agent-settings.sh --apply",
-      "note": "Rules for Xcode's built-in Claude Agent, which runs its own Claude Code with CLAUDE_CONFIG_DIR = ClaudeAgentConfig and so never sees ~/.claude or its hooks. Real copy, never a symlink."
-    },
-    "agent_mcp_registrations": [
-      "$HOME/Library/Developer/Xcode/CodingAssistant/mcp-servers.json",
-      "$HOME/Library/Developer/Xcode/CodingAssistant/ClaudeAgentConfig/.claude.json"
-    ],
-    "xcode_prefs": "$HOME/Library/Preferences/com.apple.dt.Xcode.plist",
-    "xcode_unsafe_keys": ["IDEChatInternalAllowUntrustedAgentsWithoutUserInteraction", "IDEChatAgenticChatSkipPermissions"],
-    "xcode_master_switch_note": "IDEAllowUnauthenticatedAgents is the master 'external agents allowed' switch, expected ON for the gated mcp-xcode lane; it is NOT the unsafe mode (corrected 2026-11-05).",
-    "record": "ops/xcode/README.md"
+    "record": "ops/xcode/README.md",
+    "security_checks": "Moved to Security Everything on 2026-11-05 (security stays out of the business monorepo): the rules for Xcode's built-in Claude Agent, its MCP and preference checks, and the buyer app's sandbox, entitlement and networking-API scan. Run: bash \"/Users/myhome/Security Everything/xcode-agent/check-trinc-xcode.sh\""
   }
 }

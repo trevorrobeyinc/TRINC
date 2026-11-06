@@ -1,7 +1,8 @@
 # Xcode/ — rules for agents working here (Claude Code, and Xcode's own Claude Agent)
 
-The Xcode project **"Trevor Robey Intelligence Network Citations"** and the buyer app it builds. The decision record,
-the agent rules and the checks are in [`../ops/xcode/README.md`](../ops/xcode/README.md). The root `CLAUDE.md` still
+The Xcode project **"Trevor Robey Intelligence Network Citations"** and the buyer app it builds. The decision record
+is [`../ops/xcode/README.md`](../ops/xcode/README.md). The security side (the rules for Xcode's own Claude Agent and
+the checks that hold the app offline) lives in `~/Security Everything/xcode-agent/`. The root `CLAUDE.md` still
 applies in full.
 
 ## Layout
@@ -45,7 +46,9 @@ node /Users/myhome/TRINC/Xcode/TRINCKit/Scripts/make-engine-fixtures.js
 ## Invariants
 
 - **The app stays offline.** No network entitlement, no URLSession, no listener of any kind; registry links open in
-  the buyer's browser. `ops/tr-suite/verify.sh` FAILs on a `com.apple.security.network.*` entitlement.
+  the buyer's browser. Security Everything's `xcode-agent/check-trinc-xcode.sh` FAILs on a
+  `com.apple.security.network.*` entitlement and on any networking API in the app's own Swift sources (`TRINCReader/`,
+  `TRINCKit/Sources/`); a comment naming one trips it too.
 - **Read-only.** The app never writes the buyer's files and keeps no copies beyond memory.
 - **Copy is canon.** The disclosure, tagline, elevator and research-only line in `Brand.swift` are verbatim from the
   brand canon (the `brand-check` skill). "VERIFIED" appears only beside the reproducibility manifest's own VERIFIED

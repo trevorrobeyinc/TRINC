@@ -79,7 +79,7 @@ before asserting how the engine behaves.
 | `Claude/` | Obsidian plugins and MCP servers built here | its `CLAUDE.md` |
 | `Copilot-Everything/` | Vendored Copilot fork, the `:8798` bridge, the stdio adapter, the TLS proxies | its `CLAUDE.md` |
 | `Xcode/` | Xcode project "Trevor Robey Intelligence Network Citations": the offline buyer app `TRINCReader` and its `TRINCKit` package (added 2026-11-05) | its `CLAUDE.md` |
-| `ops/` | `tr-suite/` (registry, `verify.sh`, `deploy.sh`), `xcode/` (Xcode decision record + Xcode's Claude Agent rules) and the 2026-10 reorg record | — |
+| `ops/` | `tr-suite/` (registry, `verify.sh`, `deploy.sh`), `xcode/` (the buyer app's Xcode decision record) and the 2026-10 reorg record | — |
 | `docs/history/` | Retired and dated documents | — |
 
 Each workspace's `CLAUDE.md` is authoritative for its own domain. **The `:8798` bridge is the canonical
@@ -146,15 +146,11 @@ in the transport lint's forbidden list, as does `:11434`.
   the per-call token read, and a homegrown rotating log file in the adapter.
 - **Xcode (2026-11-05, `ops/xcode/README.md`).**
   - Claude Code builds `Xcode/` from its shell (`xcodebuild`, `swift test`). Xcode's tools (`xcrun mcpbridge`) are
-    **not** registered here: their gated lane, `mcp-xcode`, was released in the Security Everything repo on
-    2026-11-05 and lives there only.
-  - Xcode's built-in Claude Agent is a separate Claude Code with its own config folder that none of our hooks reach,
-    but it does read this repo's project settings. Its rules come from `ops/xcode/claude-agent-settings.json` via that
-    folder's installer, never by hand. They **reject every server in this repo's `.mcp.json` files**
-    (`disabledMcpjsonServers`), so a new server added here must be added there too.
-  - This repo's machine-local `.claude/settings.local.json` keeps `enableAllProjectMcpServers` false and lists its
-    servers in `enabledMcpjsonServers`.
-  - `ops/tr-suite/verify.sh` FAILs if any of this drifts.
+    **not** registered here.
+  - The Xcode setup's security side lives in `~/Security Everything/xcode-agent/` (moved 2026-11-05; security stays
+    out of this repo). That covers the rules for Xcode's built-in Claude Agent and its checks. Two couplings remain:
+    - a new server in either `.mcp.json` must also go into that agent's rules there, and its checker FAILs until it does;
+    - this repo's machine-local `.claude/settings.local.json` keeps `enableAllProjectMcpServers` false.
 - **There is no channel from Claude into the Copilot agent, on purpose**: `:4096` is password-locked, ACP
   stdio belongs to the Obsidian renderer, and the `:8801` bridge has no text-carrying operation. If one is
   ever built, the route chosen is a schema-validated vault inbox, never `:4096`.
