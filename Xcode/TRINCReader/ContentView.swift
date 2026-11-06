@@ -101,7 +101,8 @@ struct BundleRow: View {
     private var subtitle: String {
         if bundle.isSample { return "Sample excerpt" }
         if let counts = bundle.citations?.summary.counts {
-            return "\(counts.verified) of \(counts.total) cited identifiers VERIFIED"
+            let decision = bundle.verdict?.recordedValue.map { " · \($0)" } ?? ""
+            return "\(counts.verified) of \(counts.total) cited identifiers VERIFIED\(decision)"
         }
         return bundle.snapshot.name
     }

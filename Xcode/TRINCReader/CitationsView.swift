@@ -6,45 +6,57 @@ struct CitationsView: View {
     @State private var query = ""
     @State private var status = "All"
 
+    static let attributionFilter = "Attribution mismatch"
+
     var body: some View {
         if let ledger = bundle.citations {
             ledgerView(ledger)
         } else {
             EmptyNote(
                 title: "No citation ledger",
-                text: bundle.isSample ? Copy.sampleNoLedger
-                    : "This bundle has no deliverables/reproducibility-manifest.json, so there is no per-identifier record to show."
+                text: bundle.isSample ? Copy.sampleNoLedger : Copy.noLedger
             )
         }
     }
 
     private func ledgerView(_ ledger: ReproducibilityManifest) -> some View {
-        let statuses = ["All"] + Set(ledger.citations.map(\.status)).sorted()
+        var statuses = ["All"] + Set(ledger.citations.map(\.status)).sorted()
+        if ledger.citations.contains(where: \.hasAttributionMismatch) { statuses.append(Self.attributionFilter) }
         let shown = ledger.citations.filter {
-            (status == "All" || $0.status == status)
-                && (query.isEmpty || $0.id.localizedCaseInsensitiveContains(query))
+            let statusOK = status == "All"
+                || (status == Self.attributionFilter ? $0.hasAttributionMismatch : $0.status == status)
+            return statusOK && (query.isEmpty || $0.id.localizedCaseInsensitiveContains(query))
         }
-        return VStack(alignment: .leading, spacing: 12) {
-            LedgerSummary(summary: ledger.summary)
-            Text(Copy.verifiedMeaning).font(.callout).foregroundStyle(.secondary)
-            HStack {
-                TextField("Search identifiers", text: $query)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(maxWidth: 320)
-                Picker("Status", selection: $status) {
-                    ForEach(statuses, id: \.self) { Text($0).tag($0) }
+        // One list, so the decision, the summary and the identifiers scroll together.
+        return List {
+            Section {
+                VerdictPanel(bundle: bundle, ledger: ledger)
+                    .listRowSeparator(.hidden)
+                LedgerSummary(summary: ledger.summary)
+                    .listRowSeparator(.hidden)
+                Text(Copy.verifiedMeaning).font(.callout).foregroundStyle(.secondary)
+            }
+            Section {
+                ForEach(shown) { citation in
+                    CitationRow(citation: citation)
                 }
-                .fixedSize()
-                Spacer()
-                Text("\(shown.count) shown").font(.caption).foregroundStyle(.secondary)
+            } header: {
+                HStack {
+                    TextField("Search identifiers", text: $query)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(maxWidth: 320)
+                    Picker("Status", selection: $status) {
+                        ForEach(statuses, id: \.self) { Text($0).tag($0) }
+                    }
+                    .fixedSize()
+                    Spacer()
+                    Text("\(shown.count) shown").font(.caption).foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 4)
             }
-            List(shown) { citation in
-                CitationRow(citation: citation)
-            }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
         }
-        .padding()
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
     }
 }
 
@@ -68,8 +80,12 @@ struct LedgerSummary: View {
                 row("Grounded in the run's evidence", "\(grounded) of \(cited) (\(ratio); floor \(floor))")
             }
             if let asOf = summary.asOf { row("Checked as of", asOf) }
-            if let decision = summary.deliveryDecision {
-                row("Delivery decision", decision, color: Theme.statusColor(decision))
+            if let start = summary.verificationStartedAt, let end = summary.verificationCompletedAt {
+                row("Re-resolution ran", "\(start) → \(end)")
+            }
+            if let table = summary.resolverTableVersion { row("Resolver table", table) }
+            if summary.environment?.offline == true {
+                row("Registries", "unreachable at delivery (offline)", color: Theme.caution)
             }
         }
         .font(.callout)
@@ -97,6 +113,13 @@ struct CitationRow: View {
                 .textSelection(.enabled)
             if citation.groundedInRun == false {
                 Text("not in the run's retrieved evidence").font(.caption).foregroundStyle(Theme.caution)
+            }
+            if !citation.isVerified, let why = Copy.unchecked(reason: citation.evidence?.reason) {
+                Text(why).font(.caption).foregroundStyle(.secondary)
+            }
+            if let attribution = citation.attribution, attribution.isMismatch {
+                Badge(text: attribution.status == "year_mismatch" ? "YEAR MISMATCH" : "AUTHOR MISMATCH", color: Theme.caution)
+                    .help("Report says \(attribution.written?.label ?? "–"); registry lists \(attribution.registryLabel ?? "–")")
             }
             Spacer()
             Badge(text: citation.status, color: Theme.statusColor(citation.status))

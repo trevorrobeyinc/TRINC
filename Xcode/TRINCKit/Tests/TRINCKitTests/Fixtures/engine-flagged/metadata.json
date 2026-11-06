@@ -1,0 +1,8 @@
+{
+  "offer_id": "offer-fixture-flagged",
+  "offer_title": "Fixture flagged benchmark (synthetic)",
+  "product_line": "biomedical_research_packs",
+  "release_status": "packaged",
+  "schema_version": "phase21-release-metadata-v1",
+  "tier": "standard"
+}

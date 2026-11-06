@@ -1,0 +1,8 @@
+{
+  "approved_at": "2026-11-05T00:00:00.000Z",
+  "approved_platform_targets": [],
+  "approver": "fixture",
+  "hash_of_release_bundle": "1aa9d6b6af74dcd116b023b7ff43e440646a8ca91eb2220433c10634b3eb9b7a",
+  "offer_id": "offer-fixture-flagged",
+  "schema_version": "phase21-release-approval-v1"
+}

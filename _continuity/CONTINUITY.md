@@ -207,7 +207,10 @@ stays first.
 - **[operator, about 2 minutes]** Try the buyer app:
   - Open `Xcode/Trevor Robey Intelligence Network Citations.xcodeproj` and press Cmd-R.
   - Open the sealed NSCLC export (`workspace/releases/offer-2bc4ee4a8cfd54e0a788a0b0-export.zip`). Expect Seal
-    22/22 and Citations 45/45 VERIFIED.
+    22/22 with three green checks (fingerprints, `checksums.txt`, approved release) and Citations 45/45 VERIFIED
+    under a DELIVER verdict panel. Then `offer-2af242bc1548229c102fee55-export.zip`: DELIVER_WITH_FLAGS with the
+    "earlier layout" note. For an attribution mismatch, open the synthetic
+    `Xcode/TRINCKit/Tests/TRINCKitTests/Fixtures/engine-flagged.zip` (list in `ops/xcode/README.md` §2).
   - Then ask Xcode's Claude to run `sudo -n true`: it must be refused without a prompt. This is the one agent-rule
     check Claude Code could not run itself.
   - **Re-test of the 2026-11-05 MCP fix**, during the same Xcode Claude session: afterwards, in
@@ -291,6 +294,18 @@ stays first.
 ## 📋 Log — newest first
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
+
+### 2026-11-06T03:26Z · Desktop Claude Code (Xcode side session) · **Buyer app reads the engine's real release formats: verdict, flags, attribution check, three seal checks; tested on all seven releases in place (uncommitted)**
+- **SCOPE NOTE:** tooling (the buyer app), delegated by the hub session; Current focus untouched.
+- **Did:**
+  - Read the engine's packager, approval manager, manifest builder, attribution module and ZIP writer, and probed all seven releases.
+  - TRINCKit now reads the delivery verdict (DELIVER / DELIVER_WITH_FLAGS / BLOCK), the flag and block reasons (including `attribution_mismatch`), `attribution_check`, per-citation attribution and UNCHECKED reasons. It reads the pre-Q8 layout (July flags under `block_reasons`) as flags, and re-derives the engine's delivery policy from the ledger to name any contradiction.
+  - The seal now does three checks: fingerprints hashed as the engine does (UTF-8 text), `checksums.txt`, and the approval record's `hash_of_release_bundle`. Post-seal records are listed apart. ChEMBL ids get record links.
+  - The app shows a verdict panel, seal checks and the inline marks; customer-facing text is in `Brand.swift`.
+  - Tests: an engine-built fixture (`make-engine-fixtures.js`, synthetic content in the engine's own formats) plus a suite that reads every release in `workspace/releases/` in place (nothing copied). The hand-written fixture's invented reason code was fixed.
+- **Verified:** `swift test` 61/61 (seven releases, folder and ZIP, all checks pass); 8/8 mutants killed; `xcodebuild` macOS + iOS clean; the app launches; `verify.sh` 0 FAIL / 0 WARN.
+- **Found:** no release on disk carries an attribution check. Run #7 (`offer-6e024a…`, ALS) shipped as DELIVER hours before the check existed; the app says "no attribution check recorded" for it.
+- **Next (operator):** the 2-minute app trial in Parking lot (new expectations there); a signed commit when you say so; a `brand-check` on the new copy. Proposed, not done: a `verify.sh` scan for networking APIs (iOS has no entitlement to withhold), and whether to re-issue run #7. Full list: `ops/xcode/README.md` §2.
 
 ### 2026-11-06T01:40Z · Desktop Claude Code (Xcode side session) · **Xcode's Claude had started all four TRINC MCP servers; now rejected by name, and TRINC's approve-all is off**
 - **SCOPE NOTE:** security fix on TRINC config, from the Security Everything session's read-only verification (the operator's "Yes, send them"), applied on the operator's "Yes, apply all"; Current focus untouched.

@@ -54,8 +54,9 @@
     },
     "delivery_decision": "BLOCK",
     "block_reasons": [
-      "1 unresolved identifier"
+      "unresolved_present"
     ],
+    "flag_reasons": [],
     "retraction_screen": {
       "checked": true,
       "retracted_dois": [],

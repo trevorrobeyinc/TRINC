@@ -8,7 +8,9 @@ zipfile module, so the Swift ZIP reader is checked against an independent implem
   bundle-nested.zip  deflate, everything under one top-level folder (a re-zipped bundle)
   bundle-stored.zip  no compression
   tampered.zip       report.md changed AFTER the manifest was written
-Fixed timestamps keep the output byte-stable between runs.
+Fixed timestamps keep the output byte-stable between runs. It replaces only its own outputs: the
+engine-built fixture (engine-flagged/ and engine-flagged.zip) comes from make-engine-fixtures.js.
+Reason codes are the engine's own (reproducibility-manifest.js), never free text.
 """
 import hashlib
 import json
@@ -67,7 +69,8 @@ REPRO = {
                     "NCT": {"total": 1, "verified": 1, "unresolved": 0, "unchecked": 0},
                     "DOI": {"total": 1, "verified": 0, "unresolved": 1, "unchecked": 0}},
         "delivery_decision": "BLOCK",
-        "block_reasons": ["1 unresolved identifier"],
+        "block_reasons": ["unresolved_present"],
+        "flag_reasons": [],
         "retraction_screen": {"checked": True, "retracted_dois": [], "retracted_pmids": []},
         "gate_crosscheck": {"cited": 3, "grounded": 2, "ungrounded": 1, "grounded_ratio": 0.667,
                             "min_grounded_ratio": 0.75},
@@ -105,7 +108,12 @@ def write_zip(path, files, method, prefix=""):
 
 def main():
     if os.path.isdir(OUT):
-        shutil.rmtree(OUT)
+        for own in ("bundle", "bundle.zip", "bundle-nested.zip", "bundle-stored.zip", "tampered.zip"):
+            p = os.path.join(OUT, own)
+            if os.path.isdir(p):
+                shutil.rmtree(p)
+            elif os.path.exists(p):
+                os.remove(p)
     folder = os.path.join(OUT, "bundle")
     sealed = dict(CONTENT)
     sealed["manifest.json"] = manifest_for(CONTENT)

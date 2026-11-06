@@ -234,13 +234,16 @@ struct RealBundleTests {
         let bundle = DeliverableBundle(snapshot: snapshot)
         #expect(bundle.problems.isEmpty)
         #expect(bundle.manifest != nil)
-        #expect(bundle.citations != nil)
-        let report = try #require(bundle.verifyIntegrity())
+        let seal = try #require(bundle.verifySeal())
+        let report = seal.fingerprints
         #expect(report.isIntact, "mismatched \(report.mismatched), missing \(report.missing)")
+        #expect(seal.isIntact, "checksums \(seal.checksums), approval \(seal.approval)")
+        #expect(bundle.ledgerFindings.isEmpty, "\(bundle.ledgerFindings)")
         print("REAL BUNDLE: \(bundle.title) | files \(snapshot.paths.count) | manifest rows \(report.rows.count) "
-              + "| intact \(report.isIntact) | uncovered \(report.uncovered) "
+              + "| intact \(seal.isIntact) | post-seal \(report.postSeal) | uncovered \(report.uncovered) "
+              + "| checksums \(seal.checksums) | approval \(seal.approval) "
               + "| citations \(bundle.citations?.summary.counts.verified ?? -1)/\(bundle.citations?.summary.counts.total ?? -1) VERIFIED "
-              + "| decision \(bundle.citations?.summary.deliveryDecision ?? "-")")
+              + "| decision \(bundle.verdict?.recordedValue ?? "-") flags \(bundle.verdict?.flags ?? [])")
     }
 }
 

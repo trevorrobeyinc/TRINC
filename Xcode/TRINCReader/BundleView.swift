@@ -60,8 +60,8 @@ struct BundleHeader: View {
                 if let tier = bundle.metadata?.tier {
                     Badge(text: tier.uppercased())
                 }
-                if let decision = bundle.citations?.summary.deliveryDecision {
-                    Badge(text: decision, color: Theme.statusColor(decision))
+                if let verdict = bundle.verdict {
+                    VerdictLine(verdict: verdict)
                 }
             }
             if let counts = bundle.citations?.summary.counts {
@@ -70,6 +70,10 @@ struct BundleHeader: View {
             }
             ForEach(bundle.problems, id: \.self) { problem in
                 Label(problem, systemImage: "exclamationmark.triangle").foregroundStyle(Theme.caution).font(.callout)
+            }
+            if !bundle.ledgerFindings.isEmpty {
+                Label(Copy.ledgerContradiction + " (see Citations).", systemImage: "exclamationmark.octagon")
+                    .foregroundStyle(Theme.bad).font(.callout)
             }
         }
     }
@@ -88,7 +92,7 @@ struct DocumentsView: View {
                 if bundle.documents.count > 1 {
                     Picker("Document", selection: Binding(get: { current }, set: { selected = $0 })) {
                         ForEach(bundle.documents, id: \.self) { path in
-                            Text((path as NSString).lastPathComponent).tag(path)
+                            Text(label(path)).tag(path)
                         }
                     }
                     .pickerStyle(.menu)
@@ -105,6 +109,13 @@ struct DocumentsView: View {
     }
 
     private var current: String { selected ?? bundle.documents[0] }
+
+    /// The file name (with its folder outside `deliverables/`), plus how many attribution marks it carries.
+    private func label(_ path: String) -> String {
+        let name = path.hasPrefix("deliverables/") ? String(path.dropFirst("deliverables/".count)) : path
+        let marks = bundle.attributionMarks(in: path).count
+        return marks == 0 ? name : "\(name) — \(marks) attribution mark\(marks == 1 ? "" : "s")"
+    }
 }
 
 struct FilesView: View {

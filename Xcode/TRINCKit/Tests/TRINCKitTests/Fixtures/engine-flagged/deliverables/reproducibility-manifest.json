@@ -1,0 +1,152 @@
+{
+  "citations": [
+    {
+      "id": "NCT00000002",
+      "type": "NCT",
+      "status": "VERIFIED",
+      "resolver_type": "primary",
+      "resolved_url": "https://clinicaltrials.gov/api/v2/studies/NCT00000002?format=json",
+      "http_status": 200,
+      "checked_at": "2026-11-05T00:00:00.000Z",
+      "evidence": {
+        "nctId_echo": "NCT00000002"
+      },
+      "grounded_in_run": true,
+      "attempts": 1
+    },
+    {
+      "id": "10.0000/fixture.2",
+      "type": "DOI",
+      "status": "VERIFIED",
+      "resolver_type": "primary",
+      "resolved_url": "https://api.crossref.org/works/10.0000%2Ffixture.2/agency",
+      "http_status": 200,
+      "checked_at": "2026-11-05T00:00:00.000Z",
+      "evidence": {
+        "crossref_status": "ok",
+        "message_type": "work-agency"
+      },
+      "grounded_in_run": true,
+      "attempts": 1,
+      "attribution": {
+        "status": "author_mismatch",
+        "reason": null,
+        "written": {
+          "name": "Chio",
+          "year": 2022
+        },
+        "registry_label": "Feldman et al., 2022"
+      }
+    },
+    {
+      "id": "00000002",
+      "type": "PMID",
+      "status": "VERIFIED",
+      "resolver_type": "primary",
+      "resolved_url": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&id=00000002&retmode=json",
+      "http_status": 200,
+      "checked_at": "2026-11-05T00:00:00.000Z",
+      "evidence": {
+        "has_docsum": true
+      },
+      "grounded_in_run": true,
+      "attempts": 1,
+      "attribution": {
+        "status": "match",
+        "reason": null,
+        "written": {
+          "name": "Brown",
+          "year": 2017
+        },
+        "registry_label": "Brown et al., 2017"
+      }
+    }
+  ],
+  "summary": {
+    "report_id": "mission-fixture-flagged",
+    "delivery_id": "workflow-fixture-flagged",
+    "engine_version": null,
+    "resolver_table_version": "2026-06-19",
+    "as_of": "2026-11-05",
+    "verification_started_at": "2026-11-05T00:00:00.000Z",
+    "verification_completed_at": "2026-11-05T00:00:04.000Z",
+    "counts": {
+      "total": 3,
+      "verified": 3,
+      "unresolved": 0,
+      "unchecked": 0
+    },
+    "by_type": {
+      "NCT": {
+        "total": 1,
+        "verified": 1,
+        "unresolved": 0,
+        "unchecked": 0
+      },
+      "DOI": {
+        "total": 1,
+        "verified": 1,
+        "unresolved": 0,
+        "unchecked": 0
+      },
+      "PMID": {
+        "total": 1,
+        "verified": 1,
+        "unresolved": 0,
+        "unchecked": 0
+      }
+    },
+    "verified_ratio": 1,
+    "unresolved_ratio": 0,
+    "unchecked_ratio": 0,
+    "delivery_decision": "DELIVER_WITH_FLAGS",
+    "block_reasons": [],
+    "flag_reasons": [
+      "attribution_mismatch"
+    ],
+    "retraction_screen": {
+      "checked": true,
+      "retracted_dois": [],
+      "retracted_pmids": []
+    },
+    "gate_crosscheck": {
+      "cited": 3,
+      "grounded": 3,
+      "ungrounded": 0,
+      "grounded_ratio": 1,
+      "min_grounded_ratio": 0.75
+    },
+    "thresholds": {
+      "max_unchecked_ratio": 0,
+      "block_on_unresolved": true
+    },
+    "environment": {
+      "offline": false
+    },
+    "attribution_check": {
+      "checked": true,
+      "counts": {
+        "cited": 2,
+        "checked": 2,
+        "matched": 1,
+        "mismatched": 1,
+        "mismatched_works": 1,
+        "not_checked": 0
+      },
+      "mismatches": [
+        {
+          "id": "10.0000/fixture.2",
+          "type": "DOI",
+          "kind": "author_mismatch",
+          "written": {
+            "name": "Chio",
+            "year": 2022
+          },
+          "registry_label": "Feldman et al., 2022"
+        }
+      ],
+      "marked_lines": 1,
+      "error": null
+    }
+  }
+}
