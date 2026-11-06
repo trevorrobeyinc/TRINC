@@ -2043,10 +2043,10 @@
       {
         "id": "xcode-tools",
         "lane": "infra",
-        "status": "not-registered-here",
+        "status": "active",
         "recorded": "2026-11-05",
-        "auth": "gated in the Security Everything repo only: mcp-gates lane `mcp-xcode`, released 2026-11-05 (bd2c253, 550eb8d; record ~/Security Everything/mcp-gates/XCODE-LANE.md)",
-        "purpose": "Xcode's MCP bridge (xcrun mcpbridge: build, test, read the open project). DELIBERATELY NOT in this repo's .mcp.json: TRINC sessions build the Xcode project from the shell (xcodebuild / swift), and the gated lane is registered in the Security Everything repo, not here. Registering it in a TRINC config would need that lane's launcher and the gate hook's coverage first. Record: ops/xcode/README.md decision X3."
+        "auth": "the operator's YubiKey: Security Everything's gate scope `mcp-xcode` (operator-approved-gate arm xcode, one touch; close xcode), then Xcode's own Allow-once alert for each connection. Gate record: ~/Security Everything/mcp-gates/XCODE-LANE.md (released 2026-11-05; TRINC's alone since its section 10)",
+        "purpose": "Xcode's MCP bridge (xcrun mcpbridge): read, build and test the open project, 25 pinned tools, main session only. TRINC's alone since 2026-11-05 (operator: \"entirely for TRINC and not security everything\"): registered as `xcode` at LOCAL scope for /Users/myhome/TRINC in ~/.claude.json, never in this repo's .mcp.json, so Xcode's built-in Claude Agent cannot see it; started by Security Everything's gated launcher (~/.claude/mcp/xcode-gated-launch.sh). Security Everything sessions are walled off by disabledMcpjsonServers [\"xcode\"] in ~/.claude/settings.json. Not an engine connector. Record: ops/xcode/README.md decision X7."
       }
     ],
     "needs_host_auth": {

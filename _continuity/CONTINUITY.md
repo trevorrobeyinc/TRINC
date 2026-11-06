@@ -295,6 +295,12 @@ stays first.
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 
+### 2026-11-06T06:51Z · Desktop Claude Code (Xcode side session) · **TRINC has its own Xcode lane; Security Everything sessions are walled off from Xcode (uncommitted)**
+- **SCOPE NOTE:** tooling for the buyer app, on the operator's "This is entirely for TRINC and not security everything"; Current focus untouched. The gate and the wall are Security Everything's and are logged on its board.
+- **Did:** `xcode` registered at local scope for this folder only (`~/.claude.json`, not `.mcp.json`, so Xcode's built-in agent cannot see it), started by Security Everything's gated launcher: one YubiKey touch opens it, Xcode asks to allow each connection, 25 read, build and test tools. Recorded in `CLAUDE.md`, `ops/xcode/README.md` (X7 and how to use it) and the connector registry's `xcode-tools` entry.
+- **Verified:** `claude mcp get xcode` here: Local config, ✔ Connected; from Security Everything: ✘ Rejected. `verify.sh` 0 FAIL / 0 WARN; the connector audit shows no new warning; Security Everything's checker 14 PASS.
+- **Next (operator):** the signed commits, Security Everything's first; then the proof run in a NEW session here (arm, connect, Allow once in Xcode, list windows, close).
+
 ### 2026-11-06T03:26Z · Desktop Claude Code (Xcode side session) · **Buyer app reads the engine's real release formats: verdict, flags, attribution check, three seal checks; tested on all seven releases in place (uncommitted)**
 - **SCOPE NOTE:** tooling (the buyer app), delegated by the hub session; Current focus untouched.
 - **Did:**

@@ -21,6 +21,7 @@ how it is built and tested, and what it reads.
 | X2 | **Claude Code builds the project from its shell** (`xcodebuild`, `swift build`, `swift test`), with every Security Everything hook and gate still on. Nothing to install. | Claude's call, operator-approved | — |
 | X3–X5 | Xcode's tools (`xcrun mcpbridge`, not registered in this repo's `.mcp.json`), the rules for Xcode's built-in Claude Agent, and hooks inside it. These are security decisions, recorded in `~/Security Everything/xcode-agent/README.md` since 2026-11-05. | operator-approved | — |
 | X6 | **The Xcode setup's security rules and checks live in Security Everything, not here** (2026-11-05). | operator | — |
+| X7 | **The Xcode lane is TRINC's alone** (2026-11-05, late evening: "entirely for TRINC and not security everything"). A session started in this folder can drive Xcode through `xcode`, registered at local scope for `/Users/myhome/TRINC` only (machine-local, not in `.mcp.json`, so Xcode's built-in agent cannot see it) and started by Security Everything's gated launcher: one YubiKey touch opens it, Xcode asks to allow each connection, and only the 25 read, build and test tools work. Security Everything sessions are walled off. | operator | Security Everything's own `xcode` registration (its `.mcp.json`, 2026-11-05) |
 
 **The superseded recommendation, kept so it is not rediscovered as a gap.** On 2026-11-05 Claude recommended no
 Xcode project yet: TRINC had no Swift code, and its products (citation-traced report bundles, AWS Data Exchange
@@ -132,6 +133,23 @@ setup run from Security Everything:
 bash "/Users/myhome/Security Everything/xcode-agent/check-trinc-xcode.sh"
 ```
 
+**Driving Xcode from a TRINC session (X7).**
+1. Start a new session in `/Users/myhome/TRINC`. The entry is tied to this folder, so worktree sessions, and sessions
+   started before it was added, do not have it. Its tools show as `mcp__xcode__*`.
+2. Run `operator-approved-gate arm xcode` (PIN and touch), then call `xcode_connect`.
+3. Xcode shows an alert naming "python". Choose Allow once, and only in the seconds after your own connect; at any
+   other time choose Don't Allow.
+4. Use the read, build and test tools (`BuildProject`, `RunAllTests`, `RenderPreview`, `GetBuildLog` and the rest).
+   Tools that edit files, run the app under the debugger or drive a device are refused.
+5. Run `operator-approved-gate close xcode` (touch) when done.
+
+The entry lives only on this Mac, so after a wipe add it again:
+```bash
+cd /Users/myhome/TRINC && claude mcp add -s local xcode -- /Users/myhome/.claude/mcp/xcode-gated-launch.sh
+```
+The gate, the wall that keeps Security Everything sessions out, and the checks that keep both true are Security
+Everything's (`mcp-gates/XCODE-LANE.md` §10).
+
 **Two couplings with that repo.** Xcode's built-in Claude Agent reads this repo's project settings. So:
 - A new server in `.mcp.json` or `Copilot-Everything/.mcp.json` must also be added to the agent's rules in
   `~/Security Everything/xcode-agent/`, then redeployed and re-blessed. That repo's checker FAILs until it is.
@@ -151,8 +169,9 @@ bash "/Users/myhome/Security Everything/xcode-agent/check-trinc-xcode.sh"
 
 ## 5 · Rollback
 
-`git rm -r Xcode ops/xcode` and remove the `xcode` entry from `ops/tr-suite/manifest.json`. The security side has its
-own rollback in `~/Security Everything/xcode-agent/README.md`.
+`git rm -r Xcode ops/xcode` and remove the `xcode` entry from `ops/tr-suite/manifest.json`. Remove the Xcode lane with
+`cd /Users/myhome/TRINC && claude mcp remove -s local xcode`. The security side has its own rollback in
+`~/Security Everything/xcode-agent/README.md`.
 
 ## 6 · Measured facts behind these decisions (recon 2026-11-05)
 

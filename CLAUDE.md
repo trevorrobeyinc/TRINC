@@ -145,8 +145,13 @@ in the transport lint's forbidden list, as does `:11434`.
   as was "one plugin owns one port". Also declined, do not re-propose without new evidence: a TTL cache for
   the per-call token read, and a homegrown rotating log file in the adapter.
 - **Xcode (2026-11-05, `ops/xcode/README.md`).**
-  - Claude Code builds `Xcode/` from its shell (`xcodebuild`, `swift test`). Xcode's tools (`xcrun mcpbridge`) are
-    **not** registered here.
+  - **The Xcode lane is TRINC's alone** (operator, 2026-11-05: "entirely for TRINC and not security everything").
+    Claude Code builds `Xcode/` from its shell (`xcodebuild`, `swift test`), and a session started in
+    `/Users/myhome/TRINC` can also drive Xcode through `xcode`: registered at local scope for this folder only (in
+    `~/.claude.json`, never `.mcp.json`, so Xcode's built-in agent cannot see it) and started by Security Everything's
+    gated launcher. Open it with `operator-approved-gate arm xcode` (touch), allow the connection once in Xcode, and
+    `close xcode` after. Read, build and test tools only (25); no sub-agents. Security Everything sessions cannot load
+    an Xcode server: `~/.claude/settings.json` rejects `xcode` from every `.mcp.json`.
   - The Xcode setup's security side lives in `~/Security Everything/xcode-agent/` (moved 2026-11-05; security stays
     out of this repo). That covers the rules for Xcode's built-in Claude Agent and its checks. Two couplings remain:
     - a new server in either `.mcp.json` must also go into that agent's rules there, and its checker FAILs until it does;
