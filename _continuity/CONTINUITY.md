@@ -130,7 +130,9 @@ are *logical*, and each has a guard:
 plan** (operator's instruction: "the sole goal right now is make as much money from this research engine as
 possible"). Hub session: Desktop "Research engine AWS Data Exchange setup" (`local_1ad8daa7…`); the 26 older
 TR-INC Biz sessions were folded into it and archived. Step 1 is the operator's: restore Google Workspace billing
-(suspension date 11-02 passed, nothing records a fix). The 2026-10-21 notes below still hold where STATUS.md does not
+(the suspension date, 11-02, has passed; on 2026-11-06 the operator confirmed that steps 1–2 are still not done).
+Claude's steps 3–4 now wait on the operator's answers to the decision sheet,
+`…/08-contracts-legal/decision-sheet-2026-11.md` (41 decisions, answerable in one line). The 2026-10-21 notes below still hold where STATUS.md does not
 supersede them.
 
 **(previous) 2026-10-21 — START HERE: [`../STATUS.md`](../STATUS.md)** (one page: where the business stands + the
@@ -294,6 +296,26 @@ stays first.
 ## 📋 Log — newest first
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
+
+### 2026-11-06T07:58Z · Desktop Claude Code (side session) · **Back on the money plan: the 132 open `[DECIDE]` markers are now one decision sheet (41 decisions, each with a pick)**
+- **Did:**
+  - Resumed the business thread that the 2026-11-05 Xcode detour interrupted: `STATUS.md`'s money-first plan, steps 3–4.
+  - The operator confirmed the resume point, chose the decision sheet as the next step, and said their own steps 1–2 (Workspace billing; EIN, FTB 3522, LLC-12) are **not done yet**.
+  - Wrote `Trevor Robey Intelligence Network Citations/08-contracts-legal/decision-sheet-2026-11.md`. It turns the 132 markers in the nine 11-04 drafts, plus 2 in the old NDA pointer, into 41 decisions. They are ordered by what each unblocks: the first outreach email, the first NDA, the first order form, then procurement forms. Each decision lists its options, a recommended pick and every file:line where it appears.
+  - `STATUS.md` step 3 now points to the sheet. Its three stale "uncommitted" claims now name the commits that hold that work (`8f238ac`, `b48f9d1`, `d208f2d`).
+- **Verified:**
+  - A script maps all 122 marker lines to the sheet, with no reference to a wrong line.
+  - Each of the 41 decisions has a pick and an answer slot.
+  - No price was touched.
+  - NAICS 541690's definition was checked on census.gov.
+- **Found:**
+  - The untracked `…/trial-graveyard-feed/refresh-2026-10-21/` (3.0 MB: 12 indications plus `refresh.log`) is the feed's staged refresh (STATUS step 7), still on hold. The keep-or-trash call stays in the Parking lot.
+  - The step-4 honesty redline is still open: `OFFERINGS.md:96` and `landing-page/intake.html:672` still sell the amendment-risk band, and no cold email has an opt-out line.
+- **State:** waiting on the operator.
+- **Next:**
+  - **Operator:** answer the sheet in one line ("all picks, except …"). Steps 1–2 stay first.
+  - **Then Claude:** apply the answers at every place they appear, and build what picks #4–#7 approve, with tests, uncommitted for review: the customer-run switch, the buyer-ZIP builder, two generator wording fixes and the memo sentence.
+- **Touches:** the new sheet, `STATUS.md` and this board. Nothing is committed; the operator signs commits.
 
 ### 2026-11-06T06:51Z · Desktop Claude Code (Xcode side session) · **TRINC has its own Xcode lane; Security Everything sessions are walled off from Xcode (uncommitted)**
 - **SCOPE NOTE:** tooling for the buyer app, on the operator's "This is entirely for TRINC and not security everything"; Current focus untouched. The gate and the wall are Security Everything's and are logged on its board.
