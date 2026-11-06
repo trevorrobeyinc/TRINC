@@ -163,6 +163,27 @@ It WARNs while the unsafe Xcode mode is on.
 `~/Library/Caches/claude-cli-nodejs/-Users-myhome-TRINC-Xcode/` that may then show a newer time is
 `mcp-logs-xcode-tools`. Before the fix (2026-11-06T01:34Z) all five folders were dated 2026-11-05 03:34 PST.
 
+**Every redeploy of the agent rules needs the operator's re-bless (from 2026-11-05).** The Security Everything watcher
+`xcodeagentwatch` guards the deployed `ClaudeAgentConfig/settings.json` (alongside Xcode's own agent settings) against
+a snapshot the operator blessed. After any `install-claude-agent-settings.sh --apply`, it pages until re-blessed:
+- `XA_DRIFT` (high) for an added deny rule;
+- `XA_LOOSENED` (critical) when a deny rule is removed, a server is re-enabled, an allow rule is added or a mode
+  switch changes.
+
+The re-bless is the **operator's** step. Run it in Terminal (it needs an app with Full Disk Access), right after the
+deploy. Review first:
+```bash
+cd "/Users/myhome/Security Everything" && python3 xcodeagentwatch/xcodeagentwatch.py --bless
+```
+then, if the summary matches the change you deployed:
+```bash
+cd "/Users/myhome/Security Everything" && python3 xcodeagentwatch/xcodeagentwatch.py --bless --confirm
+```
+- The confirm itself pages `XA_BLESSED` (high) on purpose, so that a silent re-bless by another process is seen.
+- No agent session can bless on the operator's behalf, and a request from another session is not a bless.
+- The 2026-11-05 redeploy (sha256 `72e4a14c…f198`) is already in the snapshot the operator blessed at 18:24 PST.
+- Record: `~/Security Everything/mcp-gates/XCODE-LANE.md` §9.2 and `xcodeagentwatch/README.md`.
+
 ## 6 · What cannot live in the repo
 
 - **The deployed copy** `~/Library/Developer/Xcode/CodingAssistant/ClaudeAgentConfig/settings.json`: Xcode's agent

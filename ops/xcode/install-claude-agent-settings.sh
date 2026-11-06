@@ -23,6 +23,10 @@
 # The repo is the only source (ops/tr-suite/manifest.json "deploy_model"). Edit the source,
 # then re-run with --apply; ops/tr-suite/verify.sh reports drift. Xcode's agent picks the
 # new rules up at its next conversation.
+#
+# After every --apply the Security Everything watcher xcodeagentwatch pages (XA_DRIFT / XA_LOOSENED)
+# until the OPERATOR re-blesses its snapshot from that repo (ops/xcode/README.md §5). No agent
+# session blesses on the operator's behalf.
 
 set -uo pipefail
 
@@ -155,4 +159,10 @@ if os.path.islink(dest) or sha(open(dest, "rb").read()) != src_sha:
     fail("deployed file does not match the source after writing")
 print(f"[PASS] deployed; sha256 {src_sha}, mode {oct(os.stat(dest).st_mode & 0o777)}")
 print("Xcode's Claude Agent applies the rules from its next conversation.")
+print()
+print("NEXT, OPERATOR ONLY: the Security Everything watcher xcodeagentwatch now pages (XA_DRIFT / XA_LOOSENED)")
+print("until you re-bless it. In Terminal, review the change, then confirm it:")
+print('  cd "/Users/myhome/Security Everything" && python3 xcodeagentwatch/xcodeagentwatch.py --bless')
+print('  cd "/Users/myhome/Security Everything" && python3 xcodeagentwatch/xcodeagentwatch.py --bless --confirm')
+print(f"The --bless summary should show agent settings at sha256 {src_sha[:8]}…")
 PY
