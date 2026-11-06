@@ -6,15 +6,15 @@
 > (<https://commonpaper.com/standards/professional-services-agreement/1.1>, read 2026-11-04, free to use
 > under CC BY 4.0), and Section 11 says how the two fit together.
 
-> **Operator only, never sent.** What goes to the counterparty: everything above the operator and counsel
-> notes, attached to the Order Form as Exhibit A. The notes never go. `[DECIDE: does the status box above
-> go to the counterparty too? One rule for the NDA, Order Form, Refund Policy and Payment Terms.]` Do not
-> send for signature until bizfile shows Entity No. B20260217250 as Active, the LLC-12 is filed and the FTB
-> 3522 is paid.
+> **Operator only, never sent.** What goes to the counterparty: everything from the title down to the operator
+> and counsel notes, attached to the Order Form as Exhibit A. The status box above and the notes never go:
+> status boxes stay on the operator's copies (operator decision 2026-11-06). The operator's choices were
+> settled on 2026-11-06 (`08-contracts-legal/decision-sheet-2026-11.md`). Do not send for signature until
+> bizfile shows Entity No. B20260217250 as Active, the LLC-12 is filed and the FTB 3522 is paid.
 
 # Refund Policy: the Citation-Audit SLA for research deliverables
 
-**Exhibit A to the Order Form · Version 2026-11-04**
+**Exhibit A to the Order Form · Version 2026-11-06**
 
 **Provider:** Trevor Robey Intelligence Network Citations LLC, a California limited liability company
 (California Secretary of State Entity No. B20260217250), 8161 Oahu Dr, Fair Oaks, CA 95628-3745 ·
@@ -28,10 +28,10 @@ trevor@trevorobeyinc.com · trevorobeyinc.com ("**Provider**").
 
 1.1 **Covered.** This policy defines the refund-backed Citation-Audit SLA that Provider gives on every
 research deliverable its engine generates and delivers under an Order Form. It applies whether Customer
-pays Provider's invoice directly or, if an AWS Marketplace private offer is used for the order, through
-AWS `[DECIDE: offer an AWS private-offer route for these services?]`. The services prepared for sale first
-are the **Trial Design Benchmark Pack** and **Failed Trial Archaeology** (prices and payment terms: the
-Order Form and Provider's Payment Terms).
+pays Provider's invoice directly or, if an AWS Marketplace private offer is ever used for the order,
+through AWS (Section 8). The first service offered under it is the **Trial Design Benchmark Pack**; **Failed
+Trial Archaeology** is covered the same way once it is offered (prices and payment terms: the Order Form
+and Provider's Payment Terms).
 
 1.2 **Not covered.** This policy does not apply to:
 
@@ -65,7 +65,7 @@ Order Form and Provider's Payment Terms).
   Provider's counsel has answered whether the CC BY-SA 3.0 share-alike terms of the ChEMBL licence reach a
   paid report that cites them. Provider checks every paid Deliverable for ChEMBL identifiers before
   delivery and removes any it finds. A ChEMBL identifier is not a Covered Identifier.
-- **Material Defect**: a Covered Identifier that, as of the Delivery Date, failed one of these three
+- **Material Defect**: a Covered Identifier that, as of the Delivery Date, failed one of these four
   tests:
   - **(a) Ungrounded.** It is presented as fact but was not present in the evidence Provider's engine
     actually retrieved for that run, as recorded in the run's sealed records (the citation-integrity
@@ -79,12 +79,13 @@ Order Form and Provider's Payment Terms).
     applies whatever status the reproducibility manifest recorded: an identifier marked VERIFIED in error
     is still a Material Defect, and an identifier marked UNCHECKED is a Material Defect only if it did not
     in fact resolve.
+  - **(d) Misattributed author.** An author name written beside it, as an author of the work it
+    identifies, is not among the authors that the issuing registry's record lists for that work (PubMed
+    for a PMID; the DOI's registration agency, such as Crossref, for a DOI). Whether the cited work supports
+    the statement it is cited for is not part of this test (Section 9, item 4).
 
-  This is the only definition of Material Defect in the agreement; the Order Form refers to it.
-  `[DECIDE: does a citation that resolves but does not support its claim (misattribution) count as a
-  Material Defect? The ADX report-product draft §2(b) says yes; Section 9.4 here says no. And must a defect
-  materially affect a finding? This definition has no materiality test. Write the answer here and in
-  Section 9.4.]`
+  A single Material Defect is enough; no test of materiality applies. This is the only definition of
+  Material Defect in the agreement; the Order Form refers to it.
 - **Delivery Failure**: (i) Provider has not delivered the Deliverable by the scheduled delivery date in
   the Order Form, or (ii) the delivered bundle cannot be opened, or is missing a file the Order Form lists
   as part of the Deliverable.
@@ -129,11 +130,12 @@ number]"**. Include:
 2. the Deliverable's file name or SHA-256 checksum, so both sides are looking at the same bundle;
 3. for each identifier claimed:
    - the identifier exactly as cited, and where it appears (file, section, and table row or line);
-   - which test it fails: ungrounded, retracted, or did not resolve;
+   - which test it fails: ungrounded, retracted, did not resolve, or misattributed author;
    - the evidence you have: for a retraction, the retraction notice (its DOI or URL and its publication
      date); for an identifier that did not resolve, the registry address you checked, the date and time you
      checked it, and what the registry returned; for an ungrounded identifier, why you believe it is absent
-     from the retrieved evidence (for example, it is not in the citation-integrity ledger);
+     from the retrieved evidence (for example, it is not in the citation-integrity ledger); for a
+     misattributed author, the registry record you checked and the author list it shows;
 4. for a Delivery Failure: the scheduled delivery date from the Order Form, and what is missing or cannot
    be opened;
 5. for a purchase made through AWS: Customer's AWS account ID, and the AWS agreement or offer ID;
@@ -160,9 +162,8 @@ applies.
 
 ## 7. Refund and cancellation
 
-7.1 **Amount.** When Section 3 entitles Customer to a refund, Provider refunds the Fee paid for the
+7.1 **Amount.** When Section 3 entitles Customer to a refund, Provider refunds the full Fee paid for the
 affected Deliverable. The refund never exceeds that Fee.
-`[DECIDE: is the refund always the full Fee for the affected Deliverable, or may it be partial, and if partial, how is it measured? Recommendation: the full Fee; each service is one Deliverable, and a fixed answer is what procurement will ask for.]`
 
 7.2 **Fee not yet paid.** If the Fee for the affected Deliverable has not been paid when the refund becomes
 due, Provider cancels the invoice for that Deliverable by issuing a credit note for the amount the refund
@@ -175,12 +176,12 @@ delivered is never payable: under directly invoiced orders no invoice is issued 
 an AWS purchase Provider refunds the amount charged for that Deliverable under Section 8.
 
 7.4 **Payment method and timing.** A direct refund is paid by ACH or wire to the account Customer paid
-from. `[DECIDE: how many Business Days after the cure period ends Provider pays a refund]`
+from, within 10 Business Days after the refund becomes due under Section 3, item 2.
 
 ## 8. Purchases billed through AWS (only if an AWS private offer is used)
 
-This Section applies only to an order placed through an AWS Marketplace private offer
-`[DECIDE: offer an AWS private-offer route for these services?]`.
+This Section applies only to an order placed through an AWS Marketplace private offer. Provider does not
+currently offer these services through an AWS private offer; until it does, this Section has no effect.
 
 8.1 **Who decides.** For a purchase made through an AWS Marketplace private offer, AWS processes only
 refunds that Provider authorizes. AWS's seller guide states that all refunds for private offers must be
@@ -214,9 +215,9 @@ The Citation-Audit SLA tests identifiers. It does not cover:
 3. **The scientific conclusions of cited sources**, and whether a source's findings are correct. A
    resolving identifier proves that the record exists. It does not prove the record's conclusions.
 4. **Analysis and judgement.** This includes Provider's analysis, interpretation, risk characterisations
-   and wording; how a statement characterises a source it correctly cites (unless the misattribution
-   `[DECIDE]` in Section 2 makes that a Material Defect); and the methodology, selection rule, or cohort
-   that the Deliverable states.
+   and wording; how a statement characterises a source it correctly cites, and whether a cited work
+   supports the statement it is cited for (an author name the registry does not list is test (d) in
+   Section 2); and the methodology, selection rule, or cohort that the Deliverable states.
 5. **Changes after the Delivery Date.** This includes a retraction, correction or withdrawal published
    after delivery, and a registry record, page or link that resolved on the Delivery Date and later
    changed, moved, went behind a paywall, or stopped resolving. Registries and publishers are run by third
@@ -258,8 +259,8 @@ to state the precedence itself.
 11.3 **Governing law.** California law governs, without regard to its conflict-of-laws rules (operator
 decision 2026-11-04).
 
-11.4 **Disputes.** Disputes go to the forum stated in the agreement's key terms.
-`[DECIDE: venue / forum for disputes — on the counsel list]`
+11.4 **Disputes.** Disputes go to the state and federal courts located in Sacramento County, California, the
+forum stated in the agreement's key terms.
 
 11.5 **Changes.** Provider may revise this policy for future orders. The version attached to a signed
 Order Form governs that order.
@@ -292,27 +293,35 @@ trevor@trevorobeyinc.com · https://trevorobeyinc.com · Trevor Robey Intelligen
   a buyer can raise a claim before paying.
 - The Material Defect definition (ungrounded / retracted / did not resolve, as of delivery) matches root
   `STATUS.md` (2026-11-04 plan, step 3). It is now the **only** definition: the Order Form's section 5
-  refers to it instead of defining its own (review of 2026-11-04). Whether to add misattribution (a
-  citation that resolves but does not support its sentence; the ADX report-product draft §2(b) includes it)
-  or a materiality test is an open `[DECIDE]` in Section 2; apply the answer in Section 2 and Section 9.4
-  together. See counsel question 5.
+  refers to it instead of defining its own (review of 2026-11-04). On 2026-11-06 the operator added test
+  (d), misattributed author: an author name that the registry record does not list, which is what the
+  engine's 2026-11-04 attribution check tests. No materiality test applies. Whether a source supports its
+  sentence stays outside (Section 9, item 4). The ADX report-product draft §2(b) is broader; see counsel
+  question 5.
+
+### Decisions applied 2026-11-06 (operator, "all picks" on `08-contracts-legal/decision-sheet-2026-11.md`)
+
+- Status boxes stay on the operator's copies; the counterparty gets the policy from its title down.
+- No AWS private-offer route for these services for now: Section 1.1 names it only conditionally, and
+  Section 8 says it has no effect until such an offer exists.
+- Section 2: test (d) misattributed author, and no materiality test (above). Section 5 asks for the
+  registry's author list as the evidence for test (d).
+- Section 7.1: the refund is always the full Fee for the affected Deliverable. Section 7.4: paid within
+  10 Business Days after it becomes due.
+- Section 11.4: disputes go to the Sacramento County courts.
+- Failed Trial Archaeology is held, so Section 1.1 names the Trial Design Benchmark Pack as the first
+  service offered. The version moved to 2026-11-06.
 
 ### Open markers in this file
 
-- `[DECIDE: does the status box go to the counterparty too? One rule for the NDA, Order Form, Refund Policy and Payment Terms.]`
-- `[DECIDE: offer an AWS private-offer route for these services?]` (Section 1.1 and Section 8)
 - `[PENDING: the engine's bundles do not yet print a Scope Statement; until the packager does, the Order Form's list governs]`
-- `[DECIDE: misattribution and materiality in the Material Defect definition]` (Section 2, Section 9.4)
-- `[DECIDE: is the refund always the full Fee for the affected Deliverable, or may it be partial ...]`
-- `[DECIDE: how many Business Days after the cure period ends Provider pays a refund]`
-- `[DECIDE: venue / forum for disputes — on the counsel list]`
 
 ### Questions for the counsel hour (flat fee, before the first signature)
 
 Required:
 
-1. **Governing law and venue.** California law is decided. Which forum, and should it be courts or
-   arbitration? Does a pharma counterparty's usual demand for its own state's law change anything?
+1. **Governing law and venue.** California law and the Sacramento County courts are decided. Should
+   arbitration be added? Does a pharma counterparty's usual demand for its own state's law change anything?
 2. **Refund cap and sole remedy.** Is a sole and exclusive remedy capped at the Fee enforceable in
    California for B2B research services? Does California law require carve-outs (for example for fraud
    or wilful misconduct)? How should the cap sit with the master agreement's limitation of liability?
@@ -323,28 +332,29 @@ Required:
 If time allows:
 
 4. The precedence wording against Common Paper PSA v1.1 §4.1 and §6.4 (Section 11.2).
-5. Should the SLA also cover misattributed citations, as the ADX report-product draft does? And which of
-   the two drafts should change so they agree?
-6. Does the Customer keep its licence to a Deliverable after a full refund?
+5. The SLA now covers a misattributed author name (test (d), decided 2026-11-06), but not whether a source
+   supports its sentence; the ADX report-product draft is broader. Which of the two drafts should change so
+   they agree?
+6. The Order Form now ends the licence, and requires deletion, when the Fee is refunded (decided
+   2026-11-06): is that enforceable as written?
 7. Is the `[UNVERIFIED]` exclusion (Section 9.2) disclosed clearly enough to hold?
 
 ### Implementation gaps found while drafting (not fixed in the engine)
 
-- **No mechanical ChEMBL gate, and the exclusion has already been broken once.** The citation gate accepts
-  `CHEMBL` identifiers, and no build check blocks them (unlike the unlicensed database, which has a regex
-  gate); the Open Targets fetchers bound to the scout role return `chemblId` records. Two earlier NSCLC
-  benchmark bundles (`workspace/releases/offer-3dec35098e8e47e2d0a72012/`, `offer-7e373eb2de36a7a2e73e7c1c/`)
-  carry ChEMBL ids in `report.md` / `tables.csv`. Until a gate exists, search every customer ZIP for
-  `CHEMBL` before delivery (Order Form operator notes, "Before every delivery"); Section 2 now promises that
-  check, not an outcome.
+- **The ChEMBL gate is at the buyer ZIP (2026-11-06), and the exclusion had already been broken once.** The
+  citation gate still accepts `CHEMBL` identifiers, and the Open Targets fetchers bound to the scout role return
+  `chemblId` records. Two earlier NSCLC benchmark bundles (`workspace/releases/offer-3dec35098e8e47e2d0a72012/`,
+  `offer-7e373eb2de36a7a2e73e7c1c/`) carry ChEMBL ids in `report.md` / `tables.csv`. `scripts/build-buyer-zip.js`
+  now refuses any customer ZIP that carries one (Order Form operator notes, "Before every delivery"). Section 2
+  promises that check, not an outcome.
 - **No Scope Statement in bundles.** The shipped bundle checked (`workspace/releases/offer-2af242bc1548229c102fee55/deliverables/`)
   has a citation-integrity ledger and a reproducibility manifest but no statement of which sections and
   identifier types the Guarantee covers. The Order Form now carries the Covered Identifier types (PMID,
-  NCT, DOI, with a `[DECIDE: confirm this list]`) until the packager prints one.
+  NCT, DOI, confirmed by the operator on 2026-11-06) until the packager prints one.
 - **The manifest is fail-soft.** If the re-resolution pass itself fails, the engine can ship without a
   reproducibility manifest (`SYSTEM-REALITY.md`, "GAP CLOSED"). Under Section 2, a missing file that the
-  Order Form lists is a Delivery Failure. The Order Form lists the manifest; whether to keep it on the list
-  (and hold delivery until one exists) is a `[DECIDE]` in the Order Form's operator notes.
+  Order Form lists is a Delivery Failure. The Order Form lists the manifest as a required file (operator
+  decision 2026-11-06), so delivery waits until one exists.
 - **The memo and benchmark tables are not in the manifest.** In the benchmark bundle checked
   (`offer-2bc4ee4a8cfd54e0a788a0b0`), `graveyard-memo.md` cites 1,420 distinct NCT numbers and the manifest
   re-resolves none of them (it covers the 45 identifiers cited in `report.md`). They are still Covered

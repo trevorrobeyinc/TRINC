@@ -80,9 +80,8 @@ YubiKey; nobody else signs in.
       such as an EIN alongside the legal company name (create-public-profile page above).
 - [ ] **Good standing**: Statement of Information (LLC-12) filed and FTB 3522 paid. Both were not done as of
       2026-10-21 (`../../00-business-formation/compliance/compliance-calendar.md`). `[PENDING]`
-- [ ] `[DECIDE: open the case now with the Articles and say the EIN letter will follow, or wait for the CP 575]`.
-      Recommendation: wait. The EIN is planned for the same sitting as the filings (`STATUS.md` step 2), and one
-      complete case avoids a second round.
+- [ ] **Wait for the CP 575** and send one complete case (operator decision 2026-11-06). The EIN is planned for
+      the same sitting as the filings (`STATUS.md` step 2), and one complete case avoids a second round.
 
 ## 4 · What to attach
 
@@ -111,14 +110,14 @@ Check every PDF before upload, and redact anything not on this list.
 > of our Articles of Organization (California Certificate No. 457169837) and our IRS EIN confirmation letter (CP
 > 575). Please also tell us whether this change requires us to update the tax interview, business verification or
 > disbursement bank account on file, and whether anything changes for our public profile or listings. Thank you.
-> Trevor Robey, [DECIDE: title — same as the NDA Cover Page], Trevor Robey Intelligence Network Citations
-> LLC, trevor@trevorobeyinc.com.
+> Trevor Robey, Managing Member, Trevor Robey Intelligence Network Citations LLC, trevor@trevorobeyinc.com.
 
-The signer's title is decided once, in the open-decisions table of
+The signer's title (Managing Member, operator decision 2026-11-06) is recorded once, in the decisions table of
 `../../08-contracts-legal/common-paper/mutual-nda.md`, and copied here so the NDA, the Order Form and this
 case use the same one.
 
-If the case goes out before the EIN exists (the `[DECIDE]` in §3), replace the attachment sentence with:
+The operator decided on 2026-11-06 to wait for the CP 575 (§3). Only if that changes and the case goes out
+before the EIN exists, replace the attachment sentence with:
 *"Attached is a certified copy of our Articles of Organization (California Certificate No. 457169837); our IRS
 EIN confirmation letter will follow in this case as soon as it is issued."*
 
@@ -130,7 +129,8 @@ EIN confirmation letter will follow in this case as soon as it is issued."*
   federal tax gives the owner's name on line 1 and the LLC's name on line 2, with the owner's SSN (or EIN, if the
   owner has one). The entity's EIN goes on the form only if the LLC is classified as a corporation or partnership
   (<https://www.irs.gov/pub/irs-pdf/fw9.pdf>, read 2026-11-04).
-  `[DECIDE: the LLC's federal tax classification and the TIN to give AWS — with a tax preparer]`
+  `[PENDING: the LLC's federal tax classification and the TIN to give AWS — with a tax preparer]`. Until then
+  the default applies (a disregarded single-member LLC). Claude never fills in a TIN.
 - **Bank account.** Disbursements go to the ACH account ending 262. Whose name it is in is not recorded here.
   `[PENDING: whether AWS needs a bank account in the LLC's name; a business account is blocked on the EIN]`
 - **Business verification / KYC.** Global KYC was ruled out on 2026-07-22 as not needed for US selling

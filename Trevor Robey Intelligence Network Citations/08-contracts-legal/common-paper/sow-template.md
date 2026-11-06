@@ -3,20 +3,18 @@
 > first contract is signed.** Not legal advice.
 
 > **Operator only, never sent.** What goes to the counterparty: this Order Form (sections 1 to 9 and the
-> signature block) with Exhibit A attached, and Exhibit B if the `[DECIDE]` below attaches it. The operator
-> notes at the end never go. `[DECIDE: does the status box above go to the counterparty too? One rule for
-> the NDA, Order Form, Refund Policy and Payment Terms.]` Fill every `[DECIDE: …]`, `[PENDING: …]` and blank
-> first. Do not send for signature until bizfile shows Entity No. B20260217250 as Active, the LLC-12 is
-> filed and the FTB 3522 is paid.
+> signature block) with Exhibits A and B attached. The status box above and the operator notes at the end
+> never go: status boxes stay on the operator's copies (operator decision 2026-11-06). The operator's
+> choices were settled on 2026-11-06 (`08-contracts-legal/decision-sheet-2026-11.md`); fill every
+> `[PENDING: …]` and blank first. Do not send for signature until bizfile shows Entity No. B20260217250 as
+> Active, the LLC-12 is filed and the FTB 3522 is paid.
 
 # Order Form and Statement of Work — Trevor Robey, INC.
 
 **Order Form No.** [____]. This Agreement has these parts: (1) this Order Form, which combines Common
 Paper's Key Terms and SOW Cover Pages; (2) **Exhibit A**, *Refund Policy: the Citation-Audit SLA for
-research deliverables*, version 2026-11-04, attached; (3) **Exhibit B**, *Payment Terms: research
-services*, version 2026-11-04, attached `[DECIDE: attach payment-terms.md as Exhibit B (its purchase-order,
-bank-detail-change and tax rules then bind), or keep it as an internal operator note and rely on section 6
-alone]`; and (4) the Common Paper Professional Services Agreement Standard Terms, Version 1.1 (released
+research deliverables*, version 2026-11-06, attached; (3) **Exhibit B**, *Payment Terms: research
+services*, version 2026-11-06, attached; and (4) the Common Paper Professional Services Agreement Standard Terms, Version 1.1 (released
 2023-12-12), <https://commonpaper.com/standards/professional-services-agreement/1.1> (read 2026-11-04),
 incorporated by reference. **Order of precedence:** this Order Form, then Exhibit A, then Exhibit B, then
 the Standard Terms. Capitalized terms not defined here have their Exhibit A or Standard Terms meaning; "§"
@@ -36,7 +34,7 @@ means a Standard Terms section, and "section" means a section of this Order Form
 | Effective Date | the date of the last signature below |
 | Scheduled delivery date | [YYYY-MM-DD]: the later of the Effective Date and confirmation of the Agreed Question (section 3), plus the Turnaround in section 4 |
 | Customer purchase order no. | [____, or "none"] |
-| Covered Identifier types (Exhibit A §2) | PMID, NCT, DOI `[DECIDE: confirm this list]` |
+| Covered Identifier types (Exhibit A §2) | PMID, NCT, DOI |
 | Payment instructions | ACH or wire to Provider's business account in the name of Trevor Robey Intelligence Network Citations LLC: `[PENDING: business bank account — blocked on EIN]`. Provider never changes these details by email alone; confirm any change through the contacts above before paying. |
 
 ## 2. Services and Fees (check one)
@@ -44,7 +42,7 @@ means a Standard Terms section, and "section" means a section of this Order Form
 | ☐ | SKU | Services | Fees |
 |---|---|---|---|
 | ☐ | **Trial Design Benchmark Pack** | Comparative Phase 3 structure analysis vs up to 20 comparable programs: allocation, masking, intervention model, arms, enrollment, primary endpoints, sponsor class. The cohort is reported as N of M eligible under a stated selection rule; where an indication has fewer than 20 eligible programs, the pack covers the entire eligible population and says so. | **$4,950** |
-| ☐ | **Failed Trial Archaeology** | Structured post-mortem of Phase 2/3 terminations in a single mechanism. NCT-indexed failure pattern matrix. | **$14,950** |
+| ☐ | **Failed Trial Archaeology** (not offered yet) | Structured post-mortem of Phase 2/3 terminations in a single mechanism. NCT-indexed failure pattern matrix. | **$14,950** |
 
 Fees are fixed, in U.S. dollars and exclusive of taxes (§4.1, §4.3). No expenses are charged.
 
@@ -54,8 +52,9 @@ Indication (Benchmark Pack) or mechanism (Archaeology): [____] · Selection rule
 (Provider proposes, Customer confirms): [____] · Phases, statuses, date window: [____]. Before the run
 starts, Provider reports the eligible count (M) that the confirmed query returns, and Customer confirms the
 Agreed Question with that count in hand. Provider starts only after both parties confirm the Agreed
-Question by email. Any change after the run starts is a Change Order (§1.3). `[DECIDE: minimum eligible
-count below which either party may cancel this Order Form without charge before the run starts]`
+Question by email. Any change after the run starts is a Change Order (§1.3). There is no minimum eligible
+count: Customer confirms the Agreed Question with M in hand and may cancel without charge until the run
+starts (section 4).
 
 ## 4. Deliverable, delivery and turnaround
 
@@ -69,12 +68,14 @@ count below which either party may cancel this Order Form without charge before 
   is part of the Deliverable.
 - **Delivery:** manual, by email or a secure download link to the Delivery Contact in section 1. No API,
   portal or marketplace delivery.
-- **Turnaround:** [DECIDE: business days] after the later of the Effective Date and confirmation of the
-  Agreed Question; the result is the scheduled delivery date in section 1. `[DECIDE: late-delivery remedy —
-  Exhibit A §3 item 3 and §7.3 propose a 15-Business-Day cure after Customer's notice, then cancellation at
-  no charge; confirm or replace]`
-- **Cancellation:** `[DECIDE: Customer's right to cancel before the run starts and after it starts, and the
-  fee, if any]`. The Standard Terms give no right to end an SOW for convenience (§5.2).
+- **Turnaround** (Trial Design Benchmark Pack): 5 business days after the Agreed Question is confirmed, or
+  after the Effective Date if that is later; the result is the scheduled delivery date in section 1. Failed
+  Trial Archaeology is not offered yet. **Late delivery:** Exhibit A §3 item 3 and §7.3 apply: Provider
+  delivers within 15 Business Days after Customer's notice, and if it does not, Customer may cancel at no
+  charge.
+- **Cancellation:** Customer may cancel this Order Form without charge at any time before the run starts.
+  After the run starts, there is no cancellation for convenience (the Standard Terms give no right to end
+  an SOW for convenience, §5.2).
 - **Coverage:** set by the selection rule and query terms in the search-coverage ledger; "entire" means
   every eligible record those terms returned on the retrieval date. Missing evidence is reported as such,
   with what was searched. A Deliverable that reports, with its search-coverage ledger, that fewer eligible
@@ -108,49 +109,40 @@ count below which either party may cancel this Order Form without charge before 
 - **Rejection Period (§1.4):** 30 days after delivery; a Deliverable with no Material Defect reported in
   that period is accepted. **Resubmission Period:** 15 Business Days after Provider receives a complete
   claim (Exhibit A §6.1).
-- `[DECIDE: does a citation that resolves but does not support its claim (misattribution) count as a
-  Material Defect? The ADX report-product draft §2(b) says yes; Exhibit A §9.4 says no. And must a defect
-  materially affect a finding? Exhibit A §2 has no materiality test. Write the answer into Exhibit A §2 and
-  §9.4, not here.]`
 
 ## 6. Payment
 
 **Invoice Period:** one invoice, issued on the Delivery Date. **Payment Period:** Net 30 after the Delivery
-Date. **A pending Material Defect claim and the due date:** `[DECIDE: Option A — payment stays due on Net
-30, and if the correction fails Provider refunds or credits under Exhibit A §7; or Option B — Customer may
-withhold the invoice for the affected Deliverable, in good faith, while its claim is open, as §4.4 implies
-by requiring only undisputed amounts to be paid on time (the claim is then a §4.4 dispute and must be
-notified within the Payment Period, which the 30-day Rejection Period matches)]`. **Late charges:**
-`[DECIDE: late-payment interest, if any]`. Payment instructions: section 1.
+Date. **A pending Material Defect claim and the due date:** a pending claim does not pause the due date;
+payment stays due on Net 30, and if the correction fails, Provider refunds or credits under Exhibit A §7.
+**Late charges:** none. Payment instructions: section 1.
 
 ## 7. Licence to the Deliverable (replaces §2.1; Time of Assignment: none)
 
 Provider keeps ownership of the Deliverable and grants Customer a non-exclusive, non-transferable,
-perpetual, worldwide licence to use, copy and adapt it for Customer's internal business purposes. Customer
-may not sell, sublicense, publish or redistribute it without Provider's written consent.
-`[DECIDE: does the licence extend to Customer's Affiliates and to its advisers and co-investors bound by
-confidentiality?]` `[DECIDE: is the licence irrevocable once the Fee is paid, as the §2.3 licence to
-Pre-Existing Materials is?]` `[DECIDE: does the licence end, and must Customer delete the Deliverable, if
-its Fee is refunded or its invoice cancelled?]` Provider's methodology, software, prompts and templates are
-Pre-Existing Materials (§2.3). Provider may use public-source records in other work.
+perpetual, worldwide licence to use, copy and adapt it for Customer's internal business purposes. The
+licence extends to Customer's Affiliates, and Customer may share the Deliverable with its advisers and
+co-investors, provided each is bound by confidentiality obligations no less protective than §11. Once the
+Fee is paid, the licence is irrevocable, except that if the Fee for the Deliverable is refunded or its
+invoice cancelled under Exhibit A §7, the licence ends and Customer deletes the Deliverable. Customer may not
+otherwise sell, sublicense, publish or redistribute it without Provider's written consent. Provider's
+methodology, software, prompts and templates are Pre-Existing Materials (§2.3). Provider may use
+public-source records in other work.
 
 **Processing.** Provider processes the Agreed Question with its own software and Anthropic's Claude models
 under `[PENDING: the data-use terms of Provider's Claude account — training on inputs, retention]`. These
 are tools, not Subcontractors (§1.5), and Customer consents to their processing the Agreed Question.
-Provider does not use the Agreed Question or the Deliverable in work for anyone else. `[DECIDE: before that
-sentence can be signed, either switch off, for customer runs, the engine's cross-run research memory
-(ingest and priors), its Obsidian vault publish and read-back, and the hosted note-linking model
-(recommended), or replace the sentence with a disclosure of them]`
+Provider does not use the Agreed Question or the Deliverable in work for anyone else: Provider runs
+Customer's order with its engine's customer-run setting, under which no earlier research is read into the
+run and nothing from the run is added to Provider's research memory or notes.
 
 ## 8. Liability, warranties and research posture
 
-- **General Cap Amount (§8.1):** `[DECIDE: General Cap Amount, e.g. the Fees paid or payable under this
-  Order Form]`. **Increased Claims / Increased Cap Amount:** `[DECIDE: Increased Claims and Increased Cap
-  Amount, or none]`. **Unlimited Claims:** [DECIDE: none, or named carve-outs]. The §8.2 damages waiver
-  applies: no lost profits or revenues, and no consequential, special, indirect, exemplary, punitive or
-  incidental damages; under §8.3 it does not apply to a breach of §11.
-- **Covered Claims (§9):** [DECIDE: Provider Covered Claims / Customer Covered Claims, or none].
-  **Insurance Minimums (§10):** [DECIDE: none on file].
+- **General Cap Amount (§8.1):** the Fees paid or payable under this Order Form. **Increased Claims /
+  Increased Cap Amount:** none. **Unlimited Claims:** none. The §8.2 damages waiver applies: no lost profits
+  or revenues, and no consequential, special, indirect, exemplary, punitive or incidental damages; under
+  §8.3 it does not apply to a breach of §11.
+- **Covered Claims (§9):** none. **Insurance Minimums (§10):** none.
 - **Additional Warranty (§6.1):** at delivery, every PMID, NCT number and DOI cited in the narrative report
   (`report.md`) was retrieved during the run or is flagged `[UNVERIFIED]` on its face; the reproducibility
   manifest records a re-resolution result for each, none UNRESOLVED; and no cited record was flagged
@@ -172,14 +164,14 @@ sentence can be signed, either switch off, for customer runs, the engine's cross
 Mutual NDA between the parties for that information. The Agreed Question and the contents of the
 Deliverable, other than public-source records, are Customer's Confidential Information. Customer's use of
 the Deliverable is governed by section 7. **Governing Law (§12.3):** State of California. **Chosen
-Courts:** state and federal courts in [DECIDE: California county — same as the NDA] County, California.
+Courts:** state and federal courts in Sacramento County, California.
 **Publicity Rights:** none. **SOW Term:** from the Effective Date until acceptance or the end of the
 Exhibit A process.
 
 | **Provider** — Trevor Robey Intelligence Network Citations LLC | **Customer** — [legal name] |
 |---|---|
 | Signature: ______________________ | Signature: ______________________ |
-| Print name: Trevor Robey · Title: [DECIDE: title — same as the NDA Cover Page] | Print name: __________ · Title: __________ |
+| Print name: Trevor Robey · Title: Managing Member | Print name: __________ · Title: __________ |
 | Date: __________ | Date: __________ |
 
 *Common Paper Professional Services Agreement (Version 1.1) free to use under CC BY 4.0. This Order Form
@@ -220,44 +212,64 @@ information: the NDA restricts use to its Purpose and expires with its MNDA Term
 termination (§5.4) and §8.3 keeps its breach outside the damages waiver. §1.5 requires consent for
 Subcontractors, hence the processing disclosure in section 7.
 
-**Decisions this form leaves to the operator** (none is answered in the form): every `[DECIDE]` above,
-plus one that lives only here. `[DECIDE: list the reproducibility manifest as a required file (as section 4
-now does), so delivery is held whenever the re-resolution pass fails, or take it off the list; the engine
-is fail-soft and can ship without one]`. The signer's title is decided once, in the NDA's open-decisions
-table, and copied here.
+**Decisions applied on 2026-11-06** (decision sheet `08-contracts-legal/decision-sheet-2026-11.md`, the
+operator's "all picks"):
+- Exhibits A and B are both attached, and status boxes stay on the operator's copies.
+- Covered Identifier types: PMID, NCT and DOI.
+- The reproducibility manifest stays a required file (section 4), so delivery is held whenever the
+  re-resolution pass fails; the engine is fail-soft and could otherwise ship without one.
+- Turnaround: 5 business days after the Agreed Question is confirmed, as in `OFFERINGS.md`. Failed Trial
+  Archaeology is held, so it is marked "not offered yet".
+- No minimum eligible count; free cancellation until the run starts, and none for convenience after it.
+- Late delivery is handled by Exhibit A §3 item 3 and §7.3.
+- A pending claim does not pause the due date; no late charges.
+- The licence extends to Affiliates, and to advisers and co-investors under confidentiality; it is
+  irrevocable once paid and ends, with deletion, on a refund.
+- Customer runs are isolated (section 7).
+- General Cap Amount: the Fees paid or payable. No Increased or Unlimited Claims, no Covered Claims, no
+  Insurance Minimums.
+- Sacramento County courts.
+- The signer's title, Managing Member, is recorded once in the NDA's decisions table and copied here.
 
 **Inferences to confirm (not operator-decided):** an unpaid invoice is cancelled by credit note rather than
 refunded (Exhibit A §7.2); publicity none; no expenses.
 
-**Before every delivery (controls the form relies on; none is automatic yet).**
-1. **Build the customer ZIP from the section 4 files only,** with a fresh `checksums.txt` over exactly those
-   files. Never send the engine's export ZIP: it also carries `store-copy.md` (marketplace copy that names
-   ChEMBL as a source), `sample-preview.md`, `evidence-appendix.md` (internal paths), `offer.json`,
-   `release-approval.json` and `submission/datarade/` listing files (checked in
-   `workspace/releases/offer-2bc4ee4a8cfd54e0a788a0b0-export.zip`, 25 files). `[PENDING: build the customer
-   ZIP from those files only; never run generate-offer with a marketplace target for a customer order]`
-2. **ChEMBL check.** Search every file of the customer ZIP for `CHEMBL` (and ChEMBL-derived fields such as
-   `chemblId`) and remove any hit, or regenerate. There is no mechanical gate, and the Open Targets
-   fetchers bound to the scout role return `chemblId` records. Two earlier NSCLC benchmark bundles
-   (`offer-3dec35098e8e47e2d0a72012`, `offer-7e373eb2de36a7a2e73e7c1c`) carry ChEMBL ids in `report.md` /
-   `tables.csv`, so the first-sale-gate skill's "no shipped bundle contains a ChEMBL identifier" is stale.
-   `[PENDING: pre-delivery CHEMBL check, by hand or as a mechanical gate]`
-3. **Manifest present** and no identifier UNRESOLVED (see the manifest `[DECIDE]` above).
-4. **Customer-run isolation**, if section 7's `[DECIDE]` goes the recommended way: `researchMemory.enabled`
-   false in `config/vault-publish.json` and `OPENCLAW_VAULT_PUBLISH=0`, run from the CLI. A run dispatched
-   through the Obsidian door also gets the Command Center plugin's own post-run chain (vault notes,
-   Zettelkasten linking on the hosted `copilot-plus-flash` model, research-memory ingest), and the
-   `obsidian_prior_research` read-back fed 7 records from earlier runs into the benchmark bundle checked.
-   `[PENDING: a tested switch for the plugin's post-run chain and the vault read-back on customer runs]`
+**Before every delivery (controls the form relies on; built and tested 2026-11-06).**
+1. **Build the customer ZIP with `node scripts/build-buyer-zip.js --offer-id <offer-…> --out <file.zip>`**
+   (engine folder). It copies only the section 4 files out of the sealed release and writes a fresh
+   `checksums.txt` over exactly those files. Never send the engine's export ZIP: it also carries `store-copy.md`
+   (marketplace copy that names ChEMBL as a source), `sample-preview.md`, `evidence-appendix.md` (internal
+   paths), `offer.json`, `release-approval.json` and `submission/datarade/` listing files (checked in
+   `workspace/releases/offer-2bc4ee4a8cfd54e0a788a0b0-export.zip`, 25 files). Never run generate-offer with a
+   marketplace target for a customer order.
+2. **ChEMBL check: done by the builder.** It refuses, writing nothing, when any file carries a `CHEMBL<digits>`
+   identifier or a `chemblId` field. The Open Targets fetchers bound to the scout role return `chemblId`
+   records, and two earlier NSCLC benchmark bundles (`offer-3dec35098e8e47e2d0a72012`,
+   `offer-7e373eb2de36a7a2e73e7c1c`) carry ChEMBL ids in `report.md` / `tables.csv`, so the first-sale-gate
+   skill's "no shipped bundle contains a ChEMBL identifier" is stale. The builder also refuses a release that
+   is BLOCKED, has an UNRESOLVED identifier, was altered after sealing, or still carries wording the operator
+   retired on 2026-11-06. That makes every bundle sealed before that date unshippable, run #7's included.
+3. **Manifest present** and no identifier UNRESOLVED (the manifest is a required file; decided 2026-11-06).
+   The builder enforces both.
+4. **Customer-run isolation** (section 7; the operator chose isolation on 2026-11-06): run every customer order
+   from the CLI with `node scripts/run-workflow.js … --operator-approve --customer-run --confirm`, never through
+   the Obsidian door. That run never calls the prior-research read-back or the research-memory priors, and
+   gets no "Recent sessions" digest. It writes no session record, no vault notes and no memory pack, and
+   `workflow.json` carries `customer_run: true`, so no later backfill can publish it (engine
+   `core/customer-run.js`, tested in `tests/core/customer-run.test.js`). **One gap:** while a door-dispatched
+   run is waiting, the Command Center plugin's tracker can latch onto any new workflow folder and write notes
+   itself, so never start a customer run while a door run is in flight.
 5. Optional: if the operator wants the warranty to cover the memo and table identifiers too,
    `[PENDING: re-resolver extended to memo and table identifiers]`; keep the narrow wording until then.
 
 **Questions for the future flat-fee counsel hour.**
-1. Governing law and venue: California law with exclusive courts in which county; whether to add arbitration.
+1. Governing law and venue: California law with exclusive courts in Sacramento County (both decided); whether
+   to add arbitration.
 2. Refund cap and sole remedy: is "fees paid for the affected Deliverable" enforceable as the sole remedy
    under California law, and should any claims (confidentiality, indemnity, fraud or wilful misconduct, Cal.
-   Civ. Code §1668) sit outside the cap? What General Cap Amount should the form use, given that "fees
-   paid" is $0 until the buyer pays under Net 30?
+   Civ. Code §1668) sit outside the cap? Is the General Cap Amount chosen on 2026-11-06 ("the Fees paid or
+   payable under this Order Form", which covers the gap that nothing is paid until the buyer pays under
+   Net 30) sound?
 3. ChEMBL CC BY-SA 3.0 share-alike: does citing ChEMBL identifiers, or using ChEMBL-derived values such as
    Open Targets drug records, make a paid Deliverable a share-alike adaptation? Until answered, ChEMBL
    identifiers stay excluded (section 4).

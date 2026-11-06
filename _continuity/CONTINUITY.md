@@ -297,6 +297,31 @@ stays first.
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 
+### 2026-11-06T08:34Z · Desktop Claude Code (side session) · **All 41 picks applied; customer runs and the buyer-ZIP builder built and tested (committed `3b9689e` + documents)**
+- **Did:**
+  - The operator's outstanding work was committed and signed as `2a82a3e` (the decision sheet). `main` is 4 ahead of GitHub (`4cce048`, `b8bd769`, `5ee2e18`, `2a82a3e`), and the push is the operator's. The untracked feed-refresh folder stays out of git, by the 10-21 decision.
+  - On the operator's "all picks", every answer is in the ten drafts and `OFFERINGS.md`, with no `[DECIDE]` left and no price changed. The Benchmark turnaround (5 business days) and the refund rule are now in `OFFERINGS.md`. The main decisions are listed in `STATUS.md` step 3.
+  - Engine, from picks #4–#7:
+    - `--customer-run`: a client's run reads no prior-run context and leaves none. It also covers a leak found today: the "Recent sessions" digest put earlier runs' topics into every role prompt.
+    - `scripts/build-buyer-zip.js`: the deliverable files only, with a fresh `checksums.txt`. It refuses an altered file, BLOCK or UNRESOLVED, any ChEMBL id, and retired wording.
+    - The benchmark scope note and each local fetcher's source label are corrected.
+    - The memo's funding sentence is replaced.
+- **Verified:**
+  - `npm test` 1,439/1,439 (was 1,412).
+  - The restricted-globals lint and the phase 18/19/29/30 and monetization policy gates pass.
+  - The builder refuses run #7's sealed release for its two retired sentences only.
+  - Brand check on the sample and both one-pagers passes: the disclosure is verbatim, every price is in `OFFERINGS.md`, and there is no amendment-risk or retired claim.
+- **State:** done. On the operator's "Yes, commit", it is committed as two signed commits: `3b9689e` (engine), then the documents commit that carries this entry. Nothing is pushed yet.
+- **Next (operator):**
+  - Push: `git -C /Users/myhome/TRINC push origin main`.
+  - Run `node scripts/render-business-context.js --apply`; its `--check` reports DRIFT.
+  - Steps 1–2 (Workspace billing, then EIN/FTB/LLC-12) are still first.
+- **For whoever's next:**
+  - Every release sealed before today is refused by the builder, so the first client delivery needs a fresh run with `--customer-run`.
+  - Never dispatch a client's run through the door.
+  - Still open: the W-9 tax classification (a tax preparer) and the fictitious-business-name question (the counsel hour).
+- **Touches:** the ten drafts, `OFFERINGS.md`, the decision sheet, engine code and tests, the engine `CHANGELOG.md` and `CLAUDE.md`, the root `CLAUDE.md`, `STATUS.md` and this board.
+
 ### 2026-11-06T07:58Z · Desktop Claude Code (side session) · **Back on the money plan: the 132 open `[DECIDE]` markers are now one decision sheet (41 decisions, each with a pick)**
 - **Did:**
   - Resumed the business thread that the 2026-11-05 Xcode detour interrupted: `STATUS.md`'s money-first plan, steps 3–4.

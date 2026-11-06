@@ -6,15 +6,16 @@
 > (<https://commonpaper.com/standards/professional-services-agreement/1.1>, read 2026-11-04, free to use
 > under CC BY 4.0). They are reworded, not copied.
 
-> **Operator only, never sent.** What goes to the counterparty: everything above the operator and counsel
-> notes, attached to the Order Form as Exhibit B, if the Order Form's `[DECIDE]` attaches it. The notes
-> never go. `[DECIDE: does the status box above go to the counterparty too? One rule for the NDA, Order
-> Form, Refund Policy and Payment Terms.]` Do not send for signature until bizfile shows Entity No.
-> B20260217250 as Active, the LLC-12 is filed and the FTB 3522 is paid.
+> **Operator only, never sent.** What goes to the counterparty: everything from the title down to the operator
+> and counsel notes, attached to the Order Form as Exhibit B (operator decision 2026-11-06). The status box
+> above and the notes never go: status boxes stay on the operator's copies (operator decision 2026-11-06). The
+> operator's choices were settled on 2026-11-06 (`08-contracts-legal/decision-sheet-2026-11.md`). Do not send
+> for signature until bizfile shows Entity No. B20260217250 as Active, the LLC-12 is filed and the FTB 3522 is
+> paid.
 
 # Payment Terms: research services
 
-**Exhibit B to the Order Form, if attached · Version 2026-11-04**
+**Exhibit B to the Order Form · Version 2026-11-06**
 
 **Provider:** Trevor Robey Intelligence Network Citations LLC, a California limited liability company
 (California Secretary of State Entity No. B20260217250), 8161 Oahu Dr, Fair Oaks, CA 95628-3745 ·
@@ -24,7 +25,7 @@ trevor@trevorobeyinc.com · trevorobeyinc.com ("**Provider**").
 
 Defined terms not defined here (Order Form, Deliverable, Delivery Date, Business Day, Material Defect,
 Delivery Failure) have the meanings given in Provider's Refund Policy, *Refund Policy: the Citation-Audit
-SLA for research deliverables* (Exhibit A to the Order Form, version 2026-11-04).
+SLA for research deliverables* (Exhibit A to the Order Form, version 2026-11-06).
 
 ---
 
@@ -32,8 +33,8 @@ SLA for research deliverables* (Exhibit A to the Order Form, version 2026-11-04)
 
 | Service | Fee (USD, fixed, per Order Form) | Deliverables | Turnaround |
 |---|---|---|---|
-| Trial Design Benchmark Pack | **$4,950** | one sealed bundle | `[DECIDE: standard turnaround for the Trial Design Benchmark Pack]` |
-| Failed Trial Archaeology | **$14,950** | one sealed bundle | `[DECIDE: standard turnaround for Failed Trial Archaeology]` |
+| Trial Design Benchmark Pack | **$4,950** | one sealed bundle | 5 business days after the Agreed Question is confirmed |
+| Failed Trial Archaeology | **$14,950** | one sealed bundle | not offered yet |
 
 Fees are the canonical list prices in Provider's `OFFERINGS.md`. Each Order Form states the fee and the
 scheduled delivery date for that order. Each service is one Deliverable, invoiced once, with no deposit and
@@ -74,10 +75,11 @@ contact named in the Order Form.
 4.2 **No separate acceptance step.** Subject to Section 4.3, payment is not conditioned on a separate
 acceptance step. If a Deliverable has a problem, the Refund Policy is how Customer raises it: a Material
 Defect claim within 30 days of the Delivery Date, correction and redelivery within 15 Business Days, and a
-refund capped at the fee paid for that Deliverable if the correction fails.
+refund of the full fee paid for that Deliverable if the correction fails.
 
-4.3 **A pending claim and the due date.** As stated in the Order Form, section 6.
-`[DECIDE: does a pending Material Defect claim pause the due date of the invoice for the affected Deliverable? Option A (recommended for cash flow): no; payment stays due on Net 30, and if the correction fails Provider refunds or credits under the Refund Policy. Option B: Customer may withhold that one invoice, in good faith, while its claim is open, as Common Paper PSA §4.4 implies by requiring only undisputed amounts to be paid on time; the claim is then a §4.4 dispute, notified within the Payment Period. Record the answer in the Order Form, section 6, and here.]`
+4.3 **A pending claim and the due date.** A pending Material Defect claim does not pause the due date.
+Payment stays due on Net 30, and if the correction fails, Provider refunds or credits under the Refund
+Policy. The Order Form, section 6, says the same.
 
 4.4 **Other terms.** A payment period other than Net 30 applies only if the Order Form states it and
 Provider has signed it.
@@ -109,14 +111,12 @@ certificate before the invoice date.
 
 If Customer disagrees in good faith with an amount on an invoice, Customer tells Provider in writing before
 the due date, says what is disputed and why, and pays any undisputed amount on time. The parties then work
-to resolve the dispute promptly. A claim that a Deliverable has a Material Defect follows the Refund Policy,
-subject to the decision in Section 4.3.
+to resolve the dispute promptly. A claim that a Deliverable has a Material Defect follows the Refund Policy
+and, under Section 4.3, does not pause the invoice's due date.
 
 ## 8. Late payment
 
-8.1 **Interest.** `[DECIDE: late-payment interest, if any]` The Common Paper PSA v1.1 Standard Terms
-intentionally contain no late-payment charge (read 2026-11-04). Any rate must be checked with counsel
-against California limits before it is used.
+8.1 **Interest.** Provider charges no interest on late payments.
 
 8.2 **New orders.** While an undisputed invoice is overdue, Provider may decline to start work under a new
 Order Form.
@@ -129,16 +129,17 @@ Customer's payment terms are those of its AWS account.
 
 9.2 **The invoice date is fixed.** AWS invoices Customer at 00:00 UTC on the invoice dates set in the
 offer's payment schedule. That schedule is fixed when the offer is created and cannot be changed after
-Customer accepts. Provider is paid after AWS receives Customer's payment.
-`[DECIDE: AWS invoice date — the schedule cannot follow the actual Delivery Date; recommendation: one invoice dated to the scheduled delivery date in the Order Form]`
+Customer accepts. Provider is paid after AWS receives Customer's payment. If an AWS private offer is ever
+used for an order, its payment schedule has one invoice, dated to the scheduled delivery date in the Order
+Form.
 
 9.3 **Tax.** Tax on an AWS purchase is handled through AWS under Provider's AWS tax settings.
 
 9.4 **Refunds.** Refunds on an AWS purchase follow Section 8 of the Refund Policy. AWS processes only
 refunds that Provider authorizes.
 
-9.5 **Availability.** `[DECIDE: offer an AWS private-offer route for these services?]` No AWS listing or
-private-offer vehicle for them exists in the repo yet; until one does, this Section has no effect.
+9.5 **Availability.** Provider does not currently offer these services through an AWS private offer. Until it
+does, this Section has no effect.
 
 ## 10. Refunds
 
@@ -151,8 +152,8 @@ direct order.
 11.1 **Governing law.** California law governs these terms, without regard to its conflict-of-laws rules
 (operator decision 2026-11-04).
 
-11.2 **Disputes.** Disputes go to the forum stated in the agreement's key terms.
-`[DECIDE: venue / forum for disputes — on the counsel list]`
+11.2 **Disputes.** Disputes go to the state and federal courts located in Sacramento County, California, the
+forum stated in the agreement's key terms.
 
 ## 12. Nature of the services
 
@@ -161,6 +162,8 @@ and they are not validated for clinical decision support. Provider processes no 
 information (PHI), and Customer must not send any.
 
 ---
+
+*Sections 6 and 7 follow the structure of Sections 4.3 (Taxes) and 4.4 (Payment Dispute) of the Common Paper Professional Services Agreement, Version 1.1 Standard Terms (commonpaper.com, free to use under CC BY 4.0); they are reworded, not copied.*
 
 *Trevor Robey, INC. is the wordmark of Trevor Robey Intelligence Network Citations LLC, a California limited liability company.*
 
@@ -175,37 +178,42 @@ information (PHI), and Customer must not send any.
   deal"; 25/25/50 milestones for Net 60 buyers). The placeholder this file replaced carried that older
   proposal in its title.
 - Consequence: Provider pays for each run before any money arrives, and a buyer can raise a Material
-  Defect claim before paying. Section 4.3 is the open question that follows from it.
+  Defect claim before paying. Section 4.3 answers the question that follows from it (decided 2026-11-06).
 - Prices are copied verbatim from `OFFERINGS.md` (Trial Design Benchmark Pack $4,950; Failed Trial
   Archaeology $14,950). Nothing here computes, rounds or discounts them.
+- **2026-11-06, operator ("all picks" on `08-contracts-legal/decision-sheet-2026-11.md`):**
+  - this file is attached to every Order Form as Exhibit B, and the version moved to 2026-11-06;
+  - the Trial Design Benchmark Pack's turnaround is 5 business days after the Agreed Question is confirmed,
+    as in `OFFERINGS.md`; Failed Trial Archaeology is held, so it is "not offered yet" here;
+  - an open Material Defect claim does not pause the due date (Section 4.3), and a refund is the full fee;
+  - no late-payment interest (Section 8.1). The Common Paper PSA v1.1 Standard Terms intentionally contain no
+    late-payment charge (read 2026-11-04); any future rate must be checked with counsel against California
+    limits before it is used;
+  - no AWS private-offer route for these services for now: Section 9 stays dormant, and if a private offer is
+    ever used, its schedule has one invoice dated to the scheduled delivery date;
+  - disputes go to the Sacramento County courts (Section 11.2);
+  - status boxes stay on the operator's copies. The Common Paper attribution that used to sit only in the
+    status box now also travels, as a line above the entity disclosure.
 
 ### Open markers in this file
 
-- `[DECIDE: does the status box go to the counterparty too? One rule for the NDA, Order Form, Refund Policy and Payment Terms.]`
-- `[DECIDE: standard turnaround for the Trial Design Benchmark Pack]`
-- `[DECIDE: standard turnaround for Failed Trial Archaeology]`
 - `[PENDING: Form W-9 — federal tax classification and TIN to be decided with a tax preparer; EIN not yet issued]`
-- `[DECIDE: does a pending Material Defect claim pause the due date ...]` (same marker in the Order Form, section 6; neither option is pre-filled in either file)
 - `[PENDING: business bank account — blocked on EIN]`
 - `[PENDING: sales-tax determination for these services — confirm with a CPA before the first invoice ...]`
-- `[DECIDE: late-payment interest, if any]`
-- `[DECIDE: AWS invoice date — the schedule cannot follow the actual Delivery Date ...]`
-- `[DECIDE: offer an AWS private-offer route for these services?]`
-- `[DECIDE: venue / forum for disputes — on the counsel list]`
-- Whether this file is attached as Exhibit B at all is a `[DECIDE]` in the Order Form's intro.
 
 ### Questions for the counsel hour
 
 Required (the same three as the Refund Policy):
 
-1. Governing law (California, decided) and venue.
+1. Governing law (California) and venue (the Sacramento County courts), both decided; whether to add
+   arbitration.
 2. The refund cap and sole remedy, as they interact with Net 30 (a claim can be open while the invoice is
    unpaid).
 3. ChEMBL CC BY-SA share-alike.
 
 If time allows:
 
-4. Late-payment interest: whether to charge it at all, and California limits on the rate.
+4. Late-payment interest: none for now (decided 2026-11-06); if a rate is ever added, California limits on it.
 5. Whether Section 2.2 (purchase-order and supplier-portal terms do not apply) holds against a large
    buyer's portal click-through.
 6. Withholding tax if a non-U.S. buyer must withhold.

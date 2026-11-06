@@ -101,9 +101,9 @@ The first two passages can be checked against the benchmark CSV, NCT by NCT. The
 
 **What the gate covers.** The gate grades the identifiers cited in the model-written narrative report against the evidence retrieved in that same run. Of the 38, 20 are the cohort's own NCT records (tallied for this sample by matching the manifest against the CSV): the narrative names them, and the run fetched them itself, so they are grounded automatically. The other 18 are literature identifiers (11 DOI, 7 PMID), and all 18 were found in the retrieved evidence.
 
-**What carries no grade.** The benchmark table and the graveyard memo are rendered from registry records with no language model, so they carry no citation-integrity grade of their own. The table's scope note in this run's `design-benchmark.md` says the grade "scores the narrative report's cited claims, and no identifier below was counted in it". For this run both halves of that note are wrong. The grade scores cited identifiers, not claims (see below). And all 20 of the table's NCT ids were counted in it, because the narrative cites them, as the table above shows. Every table and memo row links to its registry record, so each can be checked directly.
+**What carries no grade.** The benchmark table and the graveyard memo are rendered from registry records with no language model, so they carry no citation-integrity grade of their own. The table's scope note in this run's `design-benchmark.md` says the grade "scores the narrative report's cited claims, and no identifier below was counted in it". For this run both halves of that note are wrong. The grade scores cited identifiers, not claims (see below). And all 20 of the table's NCT ids were counted in it, because the narrative cites them, as the table above shows. The note has since been corrected for new packs; it now reads: "The table itself is not graded. The grade in `citation-integrity.md` scores the identifiers the narrative report cites, not its claims; any NCT below that the narrative cites is counted in that grade." Every table and memo row links to its registry record, so each can be checked directly.
 
-**What neither check covers.** The gate confirms that a cited identifier was retrieved in the run. It does not check the sentence around it, the author names, or how a source is characterized. Re-resolution confirms that each identifier exists in its issuing registry, not that the source's conclusions are correct.
+**What the checks cover, and what they don't.** The gate confirms that a cited identifier was retrieved in the run. Re-resolution confirms that each identifier exists in its issuing registry, not that the source's conclusions are correct. A third check, added after this run was delivered, compares the author named beside a cited DOI or PMID with the registry record wherever that pairing can be read, and marks any mismatch in the report. This proof run predates it. None of the three checks the sentence around a citation, or how a source is characterized.
 
 ## 7. Search coverage
 
@@ -128,7 +128,7 @@ The first two passages can be checked against the benchmark CSV, NCT by NCT. The
 
 The ledger is rendered with no language model, straight from the run's search log, and it records zero-result and failed searches rather than hiding them. **Both Semantic Scholar searches failed.** The ledger classes a failure as a transport error (timeout, rate limit or outage), so it is inconclusive: it is not evidence that no relevant papers exist, and Semantic Scholar contributed nothing to this run. The two prior-research sources and the SEC filing search are used only as context and cannot ground a citation, and `findTool` returns tool descriptions. The 8 stopped-program records above are what the narrative roles were given; the memo in section 8 is rendered from the full registry walk for the condition term.
 
-[DECIDE: client-data reuse. In this run the prior-research read-back returned 6 records from the firm's own notes. State whether a client's deliverable is excluded from prior-research read-back and memory ingest, and put the same answer in the contract. Resolve before this sample goes out.]
+**Client runs leave this context out.** This proof run was an internal run, and its prior-research read-back returned 6 records from the firm's own notes (the `obsidian_prior_research` row above). A client's order is run with the engine's customer-run setting, which turns off the prior-research read-back, the research-memory priors and memory ingest, and publication to the firm's notes. No earlier work is read into a client's run, and nothing from it reaches a later one. The order form says the same.
 
 ---
 
@@ -168,9 +168,7 @@ The full pack is one sealed ZIP, handed over manually, with these files:
 - `reproducibility-manifest.md` and `reproducibility-manifest.json`: for every cited PMID, NCT and DOI, the re-resolution status, HTTP code, resolved URL and UTC timestamp.
 - `checksums.txt`: SHA-256 checksums for the files above.
 
-[DECIDE: buyer ZIP contents. The proof run's release bundle also carries files that must not reach a buyer: `store-copy.md` (marketplace copy whose sources list names a database the Deliverable excludes), `sample-preview.md`, `evidence-appendix.md`, `private-delivery-note.md`, `delivery-manifest.json`, `submission-metadata.json`, `offer.json`, `metadata.json`, `manifest.json`, `release-notes.md`, `release-approval.json` (a Datarade platform approval), `submission/` (Datarade listing files) and `submission-evidence/`, and its `checksums.txt` covers them. Before first send, build the buyer ZIP with only the files listed above and regenerate `checksums.txt` for them, or rebuild the packaging so those files never enter a buyer bundle. Two files in the list above also carry wrong or internal text; fix both before first send. (1) `design-benchmark.md`: its "Citation-integrity scope" note says the grade scores the narrative's claims and counted none of the table's identifiers, both wrong for this run (section 6). Fix the text in the generator, `openclaw-bridge/monetization/design-benchmark.js:166`, so it says the grade scores cited identifiers, not claims, and that cohort NCT ids enter the grade when the narrative cites them (for example: "The table itself is not graded; any of its NCT ids that the narrative cites are counted in the narrative's grade."). Then regenerate this run's file and update section 6 of this sample. (2) `report.md`: (a) it credits the fetch of the ClinicalTrials.gov records to ToolUniverse (report.md:25, :167, :257), while the order form says the Deliverable credits ClinicalTrials.gov (sow-template.md:89); the model copied that label from the fetcher text in `openclaw-bridge/core/tool-prefetch.js:310` ("Source: ToolUniverse SMCP") and the `tooluniverse://` path at :315, so fix it there, not in the packager; (b) internal labels: the tier line (:4), an internal source id (:5), "Research Output" section titles (:13-15, :21, :55, :159), task-id lines (:23, :57, :161), "Doc 5" / "Doc 12" references (:50, :63, :125, :133) and note-link markup `[[…]]` (for example :179-180, :238); (c) :253 says the prior vault and research-memory context "returned no results", but `search-coverage.md:17` in the same ZIP records 6 prior-research records; (d) :146-147 credit the 2022 Lancet and 2017 NEJM ALS reviews to "Chio et al." and "Paganoni et al.". Both are CONFIRMED misattributions (checked 2026-11-04): Crossref gives 10.1016/s0140-6736(22)01272-7 as Feldman et al., Lancet 2022, and NCBI gives 10.1056/NEJMra1603471 (PMID 28700839) as Brown & Al-Chalabi, NEJM 2017. The DOIs are real, retrieved and resolve, so neither the gate nor re-resolution caught the wrong author names; (e) :218 lists among "the largest completed-accrual controlled trials" an ESTIMATED enrollment that is still recruiting (NCT03127267) and a single-group study with no control arm (NCT05619783). For this proof run, edit or regenerate `report.md`. Until those defects are corrected or disclosed on the report's face, do not share run #7's `report.md` as a full sample, and do not attach the proof-run ZIP to any outbound email.]
-
-[DECIDE: the shipped graveyard memo's opening paragraph contains a sentence telling the reader how to use the memo in funding decisions, which reads as investment advice. Replace that sentence in the memo generator (`openclaw-bridge/monetization/graveyard-memo.js:98`) with neutral wording, for example "It records what each sponsor reported; it is not advice.", then regenerate this run's memo. Resolve before this sample goes out or any buyer ZIP is built.]
+Nothing else goes in the ZIP: it is built from these files only, with a fresh `checksums.txt` covering exactly them.
 
 ---
 
@@ -192,8 +190,47 @@ The full pack is one sealed ZIP, handed over manually, with these files:
 
 **SAMPLE — excerpt from an internal proof run on 2026-11-04, not a client deliverable.**
 
-Trial Design Benchmark Pack · **$4,950** · Turnaround: [DECIDE: turnaround] · trevor@trevorobeyinc.com · trevorobeyinc.com
+Trial Design Benchmark Pack · **$4,950** · Turnaround: 5 business days after the Agreed Question is confirmed · trevor@trevorobeyinc.com · trevorobeyinc.com
 
 *Trevor Robey, INC. is the wordmark of Trevor Robey Intelligence Network Citations LLC, a California limited liability company.*
 
 Powered by OpenClaw (open-source agent framework).
+
+---
+
+## Operator notes: REMOVE THIS PART BEFORE THE SAMPLE GOES TO A BUYER
+
+Decisions applied on 2026-11-06 (decision sheet `08-contracts-legal/decision-sheet-2026-11.md`, "all picks"):
+
+- **Buyer ZIP.** Build it with `node scripts/build-buyer-zip.js --offer-id <offer-…> --out <file.zip>`. It copies
+  only the section-9 files, writes a fresh `checksums.txt` over exactly those files, and refuses if a file is
+  missing or any file contains a ChEMBL identifier. Never send the engine's export ZIP: run #7's release bundle
+  also carries `store-copy.md` (marketplace copy whose sources list names a database the Deliverable excludes),
+  `sample-preview.md`, `evidence-appendix.md`, `private-delivery-note.md`, `delivery-manifest.json`,
+  `submission-metadata.json`, `offer.json`, `metadata.json`, `manifest.json`, `release-notes.md`,
+  `release-approval.json` (a Datarade platform approval), `submission/` (Datarade listing files) and
+  `submission-evidence/`, and its `checksums.txt` covers them.
+- **Client runs.** A client's order runs from the CLI with `node scripts/run-workflow.js … --customer-run`, never
+  through the Obsidian door. That switch turns off the prior-research read-back, the research-memory priors and
+  ingest, and vault publish for the run (section 7's client paragraph describes it to the buyer).
+- **Run #7's own files stay unshared, and were not regenerated.** Its sealed release is the engine's record. Its
+  `design-benchmark.md` still carries the old "Citation-integrity scope" note, and its `graveyard-memo.md` still
+  carries the old funding-advice sentence ("Use it to avoid re-funding a path others have already abandoned.");
+  both generators were corrected for new runs (decisions #6 and #7). Never attach the proof-run ZIP to an
+  outbound email, and never share run #7's `report.md` as a full sample. Its defects, found 2026-11-04:
+  - (a) it credits the fetch of the ClinicalTrials.gov records to ToolUniverse (report.md:25, :167, :257),
+    while the order form says the Deliverable credits ClinicalTrials.gov; the model copied the fetcher's
+    "Source: ToolUniverse SMCP" label, which the engine corrected for new runs (decision #6);
+  - (b) internal labels: the tier line (:4), an internal source id (:5), "Research Output" section titles
+    (:13-15, :21, :55, :159), task-id lines (:23, :57, :161), "Doc 5" / "Doc 12" references (:50, :63, :125,
+    :133) and note-link markup `[[…]]` (for example :179-180, :238);
+  - (c) :253 says the prior vault and research-memory context "returned no results", but
+    `search-coverage.md:17` in the same ZIP records 6 prior-research records;
+  - (d) :146-147 credit the 2022 Lancet and 2017 NEJM ALS reviews to "Chio et al." and "Paganoni et al.". Both
+    are CONFIRMED misattributions (checked 2026-11-04): Crossref gives 10.1016/s0140-6736(22)01272-7 as
+    Feldman et al., Lancet 2022, and NCBI gives 10.1056/NEJMra1603471 (PMID 28700839) as Brown & Al-Chalabi,
+    NEJM 2017. The DOIs are real, retrieved and resolve, so neither the gate nor re-resolution caught the wrong
+    author names. The 2026-11-04 attribution check, which this run predates, later found 6 misattributed works
+    in its reference table; under the 2026-11-06 refund policy, test (d), each would be a Material Defect;
+  - (e) :218 lists among "the largest completed-accrual controlled trials" an ESTIMATED enrollment that is still
+    recruiting (NCT03127267) and a single-group study with no control arm (NCT05619783).

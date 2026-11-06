@@ -1,3 +1,5 @@
+<!-- INTERNAL (operator decisions 2026-11-06, decision sheet 08-contracts-legal/decision-sheet-2026-11.md): build every buyer ZIP with `node scripts/build-buyer-zip.js --offer-id <offer-…> --out <file.zip>`; never attach a proof-run export ZIP to an email; never share run #7's report.md (its defects are listed in the ALS sample's operator notes). The design-benchmark generator's "Citation-integrity scope" note was corrected for new runs; run #7's sealed design-benchmark.md still carries the old note. -->
+
 # Trial Design Benchmark Pack
 
 **Trevor Robey, INC.** · Citation-traced biomedical research · trevor@trevorobeyinc.com · trevorobeyinc.com
@@ -5,7 +7,7 @@
 | | |
 |---|---|
 | **Price** | **$4,950** |
-| **Turnaround** | [DECIDE: turnaround] |
+| **Turnaround** | 5 business days after the Agreed Question is confirmed |
 | **You send** | One indication, named exactly as you want it searched |
 | **You receive** | One sealed ZIP, handed over manually |
 
@@ -33,7 +35,7 @@ Comparative Phase 3 structure analysis vs **up to 20** comparable programs — a
 
 You receive one sealed ZIP containing Markdown, CSV, the citation-integrity ledger, the search-coverage ledger, the reproducibility manifest and checksums.txt. It is handed over manually. There is no API, portal or data-warehouse delivery.
 
-[DECIDE: buyer ZIP contents. The proof run's release bundle also carries listing and packaging files that must not reach a buyer, among them `store-copy.md` and a Datarade platform approval; build the buyer ZIP with only the deliverable files, regenerate checksums.txt for them, and do not attach the proof-run ZIP to any outbound email until then. Before first send, also fix the "Citation-integrity scope" note in the generator, `openclaw-bridge/monetization/design-benchmark.js:166`: the shipped `design-benchmark.md` says the grade scores the narrative's claims and counted none of the table's identifiers, which contradicts the Limits below and the proof run's manifest (all 20 cohort NCT ids were counted). It must say the grade scores cited identifiers, not claims, and that cohort NCT ids enter the grade when the narrative cites them. The file list, and the `report.md` defects to correct before any copy reaches a buyer, are in the ALS sample, section 9.]
+The ZIP is built from the deliverable files only, with a fresh checksums.txt covering exactly those files.
 
 ## How to order
 
@@ -45,7 +47,7 @@ Email **trevor@trevorobeyinc.com** with the indication. Name it exactly as you w
 - **Comparable means registered for the same condition term at Phase 3 or Phase 2/3.** The pack takes one indication, so the cohort is not filtered by mechanism, modality or line of therapy. The ALS proof-run cohort mixes 15 randomized, parallel-group trials with five single-group studies whose primary endpoints are safety or feasibility, one of them a 15-participant study (NCT05568615).
 - **The citation grade covers only the identifiers cited in the narrative report.** The benchmark table and the graveyard memo are grounded by construction and are not graded. The cohort's NCT ids do enter the grade when the narrative cites them, as all 20 did in the proof run.
 - **The narrative is model-written and its prose is not graded.** Where the narrative and the benchmark table disagree, rely on the table: it is rendered directly from the registry records, with no language model.
-- **A grounded citation means the identifier was retrieved in the run; re-resolution means it resolves to a real record.** Neither checks the author names, the sentence around a citation, or whether the source's conclusions are right or characterized correctly.
+- **A grounded citation means the identifier was retrieved in the run; re-resolution means it resolves to a real record.** A third check at delivery compares the author named beside a cited DOI or PMID with the registry record, wherever that pairing can be read, and marks any mismatch in the report. None of them checks the sentence around a citation, or whether the source's conclusions are right or characterized correctly.
 - **Research artifact only.** It is not medical, investment, legal or regulatory advice, and no PHI is hosted, transmitted or processed.
 
 ---

@@ -49,7 +49,15 @@ The owner is in brackets. Prices come only from `OFFERINGS.md`; the feed numbers
    - **Payment:** Net 30 after delivery. The cash arrives about a month after delivery, and the business bank account must exist before the first invoice.
    - **Counsel:** deferred for lack of budget. Book the recommended hour, before a first signature, once funds allow; until then every document says it hasn't been reviewed by counsel, and no ChEMBL identifiers go in paid deliverables.
 
-   Drafting started 2026-11-04. **Decision sheet (2026-11-06):** `Trevor Robey Intelligence Network Citations/08-contracts-legal/decision-sheet-2026-11.md` turns the drafts' 132 `[DECIDE]` markers into 41 decisions, each listed once with my pick and every place it appears. Answer "all picks, except …" and Claude applies the answers.
+   Drafting started 2026-11-04. **Decision sheet (2026-11-06):** `Trevor Robey Intelligence Network Citations/08-contracts-legal/decision-sheet-2026-11.md` turns the drafts' 132 `[DECIDE]` markers into 41 decisions, each listed once with my pick and every place it appears. **You answered "all picks" on 2026-11-06, and every answer is applied** across the paper, the samples and `OFFERINGS.md` (no `[DECIDE]` left; prices unchanged). The main decisions:
+   - title Managing Member; Sacramento County courts;
+   - NDA: 1 year, with confidentiality 3 years from the last disclosure;
+   - payment terms attached as Exhibit B; an open claim doesn't pause the invoice; no late-payment interest; no AWS route yet;
+   - a misattributed author counts as a Material Defect, with no materiality test; a full-fee refund within 10 business days;
+   - liability capped at fees paid or payable; the licence covers affiliates, advisers and co-investors, and ends on a refund;
+   - Benchmark turnaround 5 business days (now in `OFFERINGS.md`); Failed Trial Archaeology held.
+   
+   Still open: the W-9 tax classification (a tax preparer) and the fictitious-business-name question (the counsel hour).
 4. **[Claude builds, you approve] Days 1–3: two samples and one honesty redline.**
    - Benchmark sample from run #6 (`workflow-6cc2f82c`). Never use `workflow-21d82407`: its memo prints "Amendment-risk: HIGH".
    - Archaeology sample from `workflow-72f0c288`, with its amendment section removed (it prints "MODERATE").
@@ -71,13 +79,13 @@ The owner is in brackets. Prices come only from `OFFERINGS.md`; the feed numbers
 
      **Guard built (2026-11-04, `d208f2d`):** delivery now compares the author and year written beside each DOI/PMID with the Crossref/NCBI record. A mismatch flags the report (DELIVER_WITH_FLAGS, your decision: flag plus an inline `[ATTRIBUTION MISMATCH: registry lists …]` mark, never block). Tests 1,394/1,394; adversarially reviewed. Run live over the 7 real reports, it found **6 of the 7 papers in run #7's reference table credited to the wrong authors**, with no false alarm elsewhere. **Root cause fixed too (2026-11-04, `d208f2d`):** the model now sees each paper's real authors, and the prompt and role instructions say to name authors only from that line. Prior-run bylines are withheld from context. Tests 1,412/1,412. Run #7's report itself is unchanged, so send the sample, not that report. The next real Benchmark run is the proof that the bylines come out right.
    - **Failed Trial Archaeology, as OFFERINGS describes it, isn't produced by the engine:** no phase filter, no mechanism filter, no pattern-matrix generator, and no template. Hold its sheet. Feed v1.1 (coded stop reasons plus phase and interventions) is the building block that makes it real.
-   - **Client confidentiality:** vault publish and research-memory ingest are on for every run (`config/vault-publish.json`), so a client's run would land in the vault and the shared memory. Customer runs need an off switch before the first client run.
-   - **Proof-run ZIPs carry internal files** (marketing copy that overclaims, Datarade packs). Build each buyer ZIP from the deliverable files only, with fresh checksums.
+   - **Client confidentiality: built 2026-11-06 (decision #4).** `run-workflow.js --customer-run`, CLI only, never the door. A client's run reads no prior-research read-back, no memory priors and no "Recent sessions" digest. That digest was a leak found the same day: earlier runs' topics went into every role prompt. The run leaves no session record, vault notes or memory pack, and `workflow.json` `customer_run: true` blocks every later backfill. One gap: don't start a customer run while a door run is in flight (the plugin's tracker can latch onto it).
+   - **Buyer ZIP: built 2026-11-06 (decision #5).** `scripts/build-buyer-zip.js` packs the deliverable files only, with a fresh `checksums.txt`. It refuses a missing or altered file, BLOCK or UNRESOLVED, any ChEMBL id, and wording retired that day (#6, the benchmark scope note and the ToolUniverse source label; #7, the memo's funding sentence, both fixed in the generators). So every bundle sealed before 2026-11-06 is refused, run #7's included: the first client delivery comes from a fresh run. Engine tests 1,439/1,439.
 5. **[Claude lists and drafts, you send] Week 2: 40 trigger-matched emails.** Claude builds a list of 30–40 small and mid-size sponsors and boutique firms from read-only CT.gov triggers: a Phase 3 registered in roughly the last 6 months, or a Phase 2 completed in roughly the last 12. It targets indications that match a sample, or whose cohort fills with already-run trials (ALS, IPF). Claude drafts each email. You find the person, send 8–10 a day from trevor@, follow up once on day 4, and log everything in `12-pipeline-tracking/`. Skip the giants for now.
 6. **[both] On the first yes: quote, get paid, deliver.**
    - Before you quote, Claude checks read-only that the buyer's indication fills a full cohort.
-   - Then: NDA if asked, order form, invoice from the business account, payment before the run. Once the feed is public, an AWS private offer is an alternative and uses the working AWS rail.
-   - You arm `openclaw`. Claude dispatches through the door and waits for `post_run_done`, citation PASS and zero UNRESOLVED. You deliver.
+   - Then: NDA if asked, then the order form. Invoice from the business account on delivery, Net 30 (decided 2026-11-04). Once the feed is public, an AWS private offer is an alternative and uses the working AWS rail (not set up for these services, decision #27).
+   - You arm `operator-approve`. Claude runs the order from the CLI with `--customer-run` (never through the door) and checks citation PASS and zero UNRESOLVED. `scripts/build-buyer-zip.js` builds what you send, and you deliver.
 7. **[Claude builds about 3 days, you list] In parallel: Feed v1.1, then list it.**
 
    First, lift the 2026-10-21 deferral and fill in a one-page decision sheet: breast cancer complete; which products; your 10-20 prices or not; durations; auto-renew (cannot be changed later).
