@@ -60,13 +60,14 @@ before asserting how the engine behaves.
   `bash /Users/myhome/TRINC/scripts/trinc-backup.sh --prune` (rewritten 2026-11-05: it writes both copies,
   verifies, compares them byte for byte, and moves superseded bundles to the Trash; the Drive snapshot and
   this line stay manual). A bundle carries no gitignored files.
-  **Current (2026-11-05):** `TRINC-FULL-backup-20261105-0229.bundle`, HEAD `e6a35f4`, sha256 `25cd7e0f…aefc`
-  (78,861,034 bytes), "records a complete history", 15 refs, in both places. The Drive copy of the same
-  commit is `TRINC/Monorepo-e6a35f4/`: 3,164 files + 4 symlinks, compared entry by entry (sha256, exec bits,
-  link targets) with 0 differences. **Operator, in the Drive web UI:** trash `Monorepo/` (4d8eff6), then
-  rename `Monorepo-e6a35f4/` to `Monorepo/`. The 11-04 bundles are in the Trash. Keep one version only (two
-  copies of it): superseded bundles go to the Trash once the new one is verified and mirrored, and a
-  superseded Drive snapshot is trashed in the Drive web UI.
+  **Current (2026-11-06):** `TRINC-FULL-backup-20261106-0042.bundle`, HEAD `bd9abf2` (GitHub was level: 0
+  ahead / 0 behind), sha256 `664b96ee…1c23` (78,986,209 bytes), "records a complete history", 15 refs, in
+  both places. The 11-05 pair (`…-20261105-0229`, HEAD `e6a35f4`) is in the Trash. The Drive copy is still the
+  11-05 snapshot `TRINC/Monorepo-e6a35f4/` (3,164 files + 4 symlinks, 0 differences); refreshing it is manual
+  and waits on Workspace billing (`STATUS.md` step 1). **Operator, in the Drive web UI:** trash `Monorepo/`
+  (4d8eff6), then rename `Monorepo-e6a35f4/` to `Monorepo/`. Keep one version only (two copies of it):
+  superseded bundles go to the Trash once the new one is verified and mirrored, and a superseded Drive
+  snapshot is trashed in the Drive web UI.
 - **One repo.** Do not split it back into sub-repos. The only submodule is
   `Trevor Robey Intelligence Network Citations/vendor/tooluniverse`; vendor anything else with an
   `UPSTREAM.md` instead of adding a submodule.
