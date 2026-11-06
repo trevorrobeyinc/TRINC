@@ -170,7 +170,7 @@ Which parts work with Obsidian **closed** (headless or terminal runs) and which 
 | Touchpoint | Obsidian closed? | Owner | Depends on |
 |---|---|---|---|
 | Engine run (`run-workflow.js`) | ✅ headless | engine | YubiKey `operator-approve` for a non-mock run |
-| Run notes into `OpenClaw/<template>/<date> <inputs>/` | ✅ headless, completed + citation-PASS + non-mock only | engine (`workflow-vault-publisher.js`) | vault folder allow-listed in `config/vault-publish.json` |
+| Run notes into `OpenClaw/<template>/<date> <inputs>/` | ✅ headless, completed + citation-PASS + non-mock only; never a `--customer-run` | engine (`workflow-vault-publisher.js`) | vault folder allow-listed in `config/vault-publish.json` |
 | Deliverables copied into the run folder | ✅ with the note write | engine | the sealed bundle |
 | `Graph Analysis.md` (deterministic) | ✅ in-process | engine | `Claude/Medical-Zettelkasten-MCP` |
 | Prior-research read-back (`obsidian_prior_research`) | ✅ via Miyo `:8743` | engine adapter | Miyo running; context only, never evidence |
@@ -196,6 +196,8 @@ The deep dive is `Trevor Robey Intelligence Network Citations/CLAUDE.md`.
 - **Run:** `node scripts/run-workflow.js --template <id> --inputs '<json>' --operator-approve --confirm`.
   `--operator-approve` is YubiKey-gated (`operator-approve-gate arm`, one-shot, 300 s); a `--provider mock`
   run is ungated. From Claude Code, prefer the door: a plugin-dispatched run also gets the post-run chain.
+  **A paying client's run is the exception (2026-11-06):** CLI only, with `--customer-run`, so no prior-run
+  context goes in and nothing is published or ingested out. Deliver it with `scripts/build-buyer-zip.js`.
 - **100% Claude:** scout, analyst and synthesizer on `claude-opus-4-8`, everything else on
   `claude-sonnet-4-6`, every fallback empty. Ollama is not an engine provider.
 - **Ten templates** (seven biomedical, three business with `research_profile: business`), one pipeline:

@@ -36,6 +36,7 @@ const path = require("node:path");
 const crypto = require("node:crypto");
 
 const defaultTimeProvider = require("../core/time-provider.js");
+const { CUSTOMER_RUN_PUBLISH_BLOCK } = require("../core/customer-run.js");
 
 const CONFIG_REL = path.join("config", "vault-publish.json");
 const OVERVIEW_NAME = "Overview";
@@ -407,6 +408,10 @@ function readAgentDataFrom(rootDir, missionId) {
 
 /** Why a run must not leave the workspace (vault note, memory pack), or null when it may. */
 function assessShippability(state, agentData, cfg = {}) {
+  // First, whatever its status: a customer run never leaves the workspace (core/customer-run.js).
+  // This one check covers the engine's post-run publish and ingest, `publish-workflow-to-vault.js
+  // --all`, `research-memory.js ingest` and the Command Center plugin's load-time backfill.
+  if (state && state.customer_run === true) return CUSTOMER_RUN_PUBLISH_BLOCK;
   if (!state || state.status !== "completed") {
     return `workflow status is '${state && state.status}' — only completed runs are published`;
   }

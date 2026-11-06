@@ -6,6 +6,7 @@ const fs = require("node:fs");
 const { buildResearchRuntime, createNoopLogger } = require("./_research-runtime.js");
 const { buildMonetizationRuntime } = require("./_monetization-runtime.js");
 const { createWorkflowEngine } = require("../openclaw-bridge/core/workflow-engine.js");
+const { excludedToolsFor } = require("../openclaw-bridge/core/customer-run.js");
 
 function readJson(filePath, fallback) {
   try {
@@ -198,6 +199,8 @@ async function buildWorkflowRuntime(options = {}) {
     researchRuntime.evidenceDesk = createEvidenceDesk({ logger });
     toolPrefetch = createToolPrefetch({
       toolUniverseMcp, logger, rootDir, timeProvider: options.timeProvider,
+      // Customer run (core/customer-run.js): the two prior-run sources are skipped, never called.
+      excludedTools: excludedToolsFor(options),
       localFetchers: {
         // PROMPT PATH ONLY. Forced census:false AND an independently clamped pageSize, so no edit
         // to config/tool-prefetch-map.json can push a census — or a 1000-record page — into an

@@ -95,7 +95,7 @@ function buildGraveyardMemo(stoppedTrials, opts = {}) {
   const lines = [
     "# Graveyard Memo — Prior Terminated Programs",
     "",
-    `Citation-traced record of clinical programs in **${indication}** that were terminated, withdrawn, or suspended, with the stop reason each sponsor reported. Every entry resolves to a real ClinicalTrials.gov record (NCT). Use it to avoid re-funding a path others have already abandoned.`,
+    `Citation-traced record of clinical programs in **${indication}** that were terminated, withdrawn, or suspended, with the stop reason each sponsor reported. Every entry resolves to a real ClinicalTrials.gov record (NCT). It records what each sponsor reported; it is not advice.`,
     ""
   ];
   lines.push(...coverageBlock(trials, stoppedTrials, indication));

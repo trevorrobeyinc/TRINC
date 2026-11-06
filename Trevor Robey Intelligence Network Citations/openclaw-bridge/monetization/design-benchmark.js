@@ -161,10 +161,10 @@ function buildDesignBenchmark(records, opts = {}) {
     "denominator — a field absent from a registry record is never counted as agreement.",
     "",
     "**Citation-integrity scope.** This benchmark is rendered deterministically from " +
-    "ClinicalTrials.gov records retrieved at runtime — no language model wrote any cell. It " +
-    "therefore carries no citation-integrity grade of its own: the grade in `citation-integrity.md` " +
-    "scores the narrative report's cited claims, and no identifier below was counted in it. Each " +
-    "NCT is verifiable directly at its linked record.",
+    "ClinicalTrials.gov records retrieved at runtime — no language model wrote any cell. The table " +
+    "itself is not graded. The grade in `citation-integrity.md` scores the identifiers the narrative " +
+    "report cites, not its claims; any NCT below that the narrative cites is counted in that grade. " +
+    "Each NCT is verifiable directly at its linked record.",
     "",
     "## Comparative structure",
     "",

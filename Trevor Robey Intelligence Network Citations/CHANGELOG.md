@@ -4,6 +4,35 @@ All notable changes to this repository are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2026-11-06] Customer runs, the buyer ZIP, and three wording fixes (operator decisions #4–#7)
+
+The operator answered `08-contracts-legal/decision-sheet-2026-11.md` with "all picks". Four of the picks are engine work.
+
+- **#4, customer runs (`--customer-run`).** A paying client's run reads nothing from earlier runs and leaves nothing behind for later ones. One switch, `node scripts/run-workflow.js … --operator-approve --customer-run --confirm`, from the CLI only (never the Obsidian door). The new `core/customer-run.js` holds the rules:
+  - **Inputs from earlier runs, all off:**
+    - `obsidian_prior_research` and `research_memory_priors` are never called. The tool-prefetch's new `excludedTools` option records each as a skipped search with its reason, not as a zero-result search.
+    - `role-router` leaves out the "Recent sessions" digest. That digest carried earlier runs' topics into every role prompt, and nothing could switch it off before. `agent-context-loader` takes `skipSessions`.
+  - **Traces left for later runs, all off:**
+    - No session record under `config/agents/<role>/sessions/`.
+    - No vault publish and no research-memory ingest, now or later. `workflow.json` carries `customer_run: true`, and `assessShippability` refuses such a run first. That one check covers the post-run steps, `publish-workflow-to-vault.js --all`, `research-memory.js ingest` and the Command Center plugin's load-time backfill.
+  - **Known gap (plugin side, not changed):** while a door-dispatched run is waiting, the Command Center tracker's fallback directory scan can latch onto any new workflow folder, a CLI customer run included, and write notes itself. Do not start a customer run while a door run is in flight. A plugin-side guard needs a deploy and an obsidianwatch bless.
+- **#5, buyer ZIP (`scripts/build-buyer-zip.js`).** It builds a ZIP that holds only the order form's section-4 files plus a fresh `checksums.txt` over exactly those files, with raw-byte sha256 that `shasum -a 256 -c` verifies. It refuses, writing nothing, when:
+  - a listed file is missing, or changed after the release was sealed;
+  - the delivery decision is not DELIVER or DELIVER_WITH_FLAGS, or an identifier is UNRESOLVED;
+  - any file carries a ChEMBL identifier or a `chemblId` field;
+  - a file still carries wording retired by #6 or #7.
+
+  So every bundle sealed before today is refused. Run #7's release is refused for its two retired sentences and nothing else.
+- **#6, two wording fixes.**
+  - `monetization/design-benchmark.js`'s "Citation-integrity scope" note now says the table itself is not graded, and that the grade scores the identifiers the narrative cites (not its claims), so a cohort NCT the narrative cites does count.
+  - `core/tool-prefetch.js` labels each local fetcher's records with its real public source (`LOCAL_SOURCE_LABELS`; for example "ClinicalTrials.gov API v2"). Run #7's report credited ClinicalTrials.gov records to "ToolUniverse". The `tooluniverse://` doc path stays as the internal live-data marker.
+- **#7, the graveyard memo** no longer opens with "Use it to avoid re-funding a path others have already abandoned." (funding advice). It now says "It records what each sponsor reported; it is not advice."
+- **Sealed releases are untouched.** Run #7's release keeps the old wording as the engine's record; it was never buyer-ready (its `report.md` has known defects).
+- **Tests:**
+  - new: `tests/core/customer-run.test.js` (8), `tests/scripts/build-buyer-zip.test.js` (14), `tests/core/design-benchmark-scope-note.test.js` (2);
+  - extended: `tests/core/tool-prefetch.test.js` (+2, including a guard that every fetcher the runtime registers has a source label) and `tests/core/graveyard-memo.test.js` (+1).
+  - `npm test` 1,412 → 1,439, 0 fail. Restricted-globals lint and the phase 18/19/29/30 and monetization policy gates pass.
+
 ## [2026-11-04] Root cause of the misattributions: the model now sees each paper's real authors
 
 The attribution check (next entry) found 6 of the 7 papers in run #7's reference table credited to the wrong authors. The cause: every literature source the engine queries returns author names, but no author name ever reached the prompt, so the model wrote bylines from memory. A live re-render of the four mis-credited PMIDs makes it concrete. Before, the writer saw no author line. Now it sees "Calvo A, Moglia C, Canosa A, Manera U, Zucchi E et al. (21 authors)", "Yin Y … (8 authors)", "Benatar M, Wuu J, Turner MR, Macklin EA" and "Uysal SP … (10 authors)"; the report had said "Rissanen", "Mazzini", "Al-Chalabi" and "Basiri".

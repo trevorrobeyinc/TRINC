@@ -30,6 +30,15 @@ describe("graveyard-memo", () => {
       assert.ok(memo.markdown.includes("**Protocol churn:** 12 versions"), "change-history surfaced when present");
     });
 
+    // 2026-11-06: the opening told the reader to "avoid re-funding a path others have already
+    // abandoned", which reads as funding advice; deliverables are research artifacts only.
+    it("opens with a neutral statement, never a funding recommendation", () => {
+      const memo = buildGraveyardMemo(TRIALS, { indication: "Bar disease" });
+      const opening = memo.markdown.split("\n").slice(0, 4).join("\n");
+      assert.ok(opening.includes("It records what each sponsor reported; it is not advice."), opening);
+      assert.ok(!/\bre-?fund|\bavoid\b|\binvestment\b/i.test(memo.markdown), "no funding or investment advice anywhere in the memo");
+    });
+
     it("states a stop reason was not given rather than fabricating one", () => {
       const memo = buildGraveyardMemo([TRIALS[1]]);
       assert.ok(memo.markdown.includes("none stated by sponsor"));

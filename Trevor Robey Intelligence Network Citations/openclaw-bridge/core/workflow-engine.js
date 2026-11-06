@@ -271,7 +271,9 @@ function createWorkflowEngine(options = {}) {
       toolPrefetch: researchRuntime.toolPrefetch || null,
       // Evidence Desk (business lane): writes the scout section deterministically (agent-engine.js).
       evidenceDesk: researchRuntime.evidenceDesk || null,
-      workflowInputs: enrichedInputs
+      workflowInputs: enrichedInputs,
+      // Customer run: role-router leaves out the "Recent sessions" digest and records no session.
+      customerRun: context.customerRun === true
     });
 
     // Slice 1 — report-level citation gate. Verify the assembled mission report against the
@@ -1049,7 +1051,10 @@ function createWorkflowEngine(options = {}) {
           status: "pending"
         }))
       },
-      artifacts: {}
+      artifacts: {},
+      // Customer run (2026-11-06, core/customer-run.js). Recorded so every later consumer (vault
+      // publish, research-memory ingest, any backfill) refuses this run, not just this process.
+      ...(context.customerRun === true ? { customer_run: true } : {})
     };
 
     writeWorkflowState(workflowId, state);

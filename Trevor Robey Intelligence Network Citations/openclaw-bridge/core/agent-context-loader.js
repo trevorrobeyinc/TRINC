@@ -51,7 +51,9 @@ function createAgentContextLoader(options = {}) {
   // `profileId` (core/research-profiles.js) picks the role's identity file: SOUL.md for the default
   // biomedical lane, SOUL.<profile>.md otherwise. A non-default profile with no file of its own gets
   // NO soul rather than the biomedical one — a business scout told to "find PMIDs" is worse than none.
-  function loadAgentContext(role, profileId) {
+  // `skipSessions` (customer runs, 2026-11-06): leave out the "Recent sessions" digest, which
+  // carries earlier runs' topics. The soul and AGENTS files are configuration, not run content.
+  function loadAgentContext(role, profileId, { skipSessions = false } = {}) {
     const r = safeStr(role);
     if (!r) return { agentIdentityPrefix: "" };
     const dir = agentDir(r);
@@ -61,7 +63,7 @@ function createAgentContextLoader(options = {}) {
 
     const soul = readFileSoft(path.join(dir, getResearchProfile(profileId).soulFile), MAX_SOUL_CHARS);
     const agents = readFileSoft(path.join(dir, "AGENTS.md"), MAX_AGENTS_CHARS);
-    const digest = sessionDigest(r);
+    const digest = skipSessions === true ? "" : sessionDigest(r);
 
     const parts = [];
     if (soul) parts.push(soul);

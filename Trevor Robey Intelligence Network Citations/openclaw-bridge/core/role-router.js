@@ -91,7 +91,10 @@ function createRoleRouter(options = {}) {
     // the handler context. resolveRoute precedence: role-provider-map[role] → existing
     // context provider/model (template/global default) → map default → claude-code.
     const route = providerRouter.resolveRoute(role, context);
-    const identity = contextLoader.loadAgentContext(role, (context.workflowInputs || {}).research_profile);
+    // Customer run (2026-11-06, core/customer-run.js): no earlier runs' topics in the prompt, and
+    // this run's topic is not recorded for later ones.
+    const customerRun = context.customerRun === true;
+    const identity = contextLoader.loadAgentContext(role, (context.workflowInputs || {}).research_profile, { skipSessions: customerRun });
     const enrichedContext = {
       ...context,
       provider: safeString(route.provider) || context.provider,
@@ -106,7 +109,12 @@ function createRoleRouter(options = {}) {
     logger.info({ event: "phase15_role_dispatch", role, action_type: actionType, agent_id: agentId, provider: enrichedContext.provider });
     const result = await handler(taskEnvelope, enrichedContext);
 
-    // Append a session record under config/agents/<role>/sessions/ (fail-soft).
+    // Append a session record under config/agents/<role>/sessions/ (fail-soft). Never for a
+    // customer run: the record carries the topic, and later runs read it as "Recent sessions".
+    if (customerRun) {
+      logger.info({ event: "agent_session_record_skipped_customer_run", role });
+      return canonicalize({ role, agent_id: agentId, action_type: actionType, result });
+    }
     try {
       sessionRecorder.recordSession(role, {
         agent_id: agentId,

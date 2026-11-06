@@ -27,6 +27,7 @@ const {
   formatMissingRequiredInputs
 } = require("../openclaw-bridge/core/workflow-schema.js");
 const { enforceOperatorGate } = require("./_operator-gate-cli.js");
+const { customerRunSkip } = require("../openclaw-bridge/core/customer-run.js");
 
 function parseArgs(argv) {
   const out = {
@@ -35,6 +36,7 @@ function parseArgs(argv) {
     operatorId: process.env.OPERATOR_ID || "operator-cli",
     confirm: false,
     operatorApprove: false,
+    customerRun: false,
     unknown: []
   };
 
@@ -51,6 +53,9 @@ function parseArgs(argv) {
     // IS the human the gate asks for. It does NOT weaken the gate for any other
     // caller — it only supplies approval through context for THIS run.
     if (token === "--operator-approve") { out.operatorApprove = true; continue; }
+    // A paying client's run (2026-11-06, openclaw-bridge/core/customer-run.js): reads nothing from
+    // earlier runs and leaves nothing for later ones. Customer runs start here, never through the door.
+    if (token === "--customer-run") { out.customerRun = true; continue; }
     out.unknown.push(token);
   }
 
@@ -60,11 +65,15 @@ function parseArgs(argv) {
 function usage() {
   return [
     "Usage:",
-    "  node scripts/run-workflow.js --template <template_id> --inputs '{\"key\":\"val\"}' [--operator-id <id>] [--operator-approve] --confirm",
+    "  node scripts/run-workflow.js --template <template_id> --inputs '{\"key\":\"val\"}' [--operator-id <id>] [--operator-approve] [--customer-run] --confirm",
     "",
     "  --operator-approve   Grant the operator's human approval for the Phase-15 autonomy gate so",
     "                       research missions can execute. Default OFF (fail-closed): without it the",
     "                       gate blocks every mission's execute_task. Only affects THIS run.",
+    "  --customer-run       A paying client's run: no prior-research read-back, no research-memory",
+    "                       priors or ingest, no \"Recent sessions\" digest or session record, no vault",
+    "                       publish, now or by any later backfill. Run customer orders this way, from",
+    "                       the CLI, never through the Obsidian door.",
     "",
     "Examples:",
     "  node scripts/run-workflow.js --template drug-discovery-full --inputs '{\"compound_name\":\"aspirin\",\"indication\":\"pain\"}' --operator-approve --confirm",
@@ -159,7 +168,7 @@ async function main() {
   });
 
   const result = await (async () => {
-    const runtime = await buildWorkflowRuntime({ logger });
+    const runtime = await buildWorkflowRuntime({ logger, customerRun: args.customerRun });
     const workflowDef = runtime.loadWorkflowTemplate(args.template);
 
     logger.info({
@@ -168,6 +177,7 @@ async function main() {
       inputs: Object.keys(inputs),
       auto_approve: workflowDef.auto_approve || false,
       operator_approve: args.operatorApprove,
+      customer_run: args.customerRun,
       pipeline_steps: (workflowDef.pipeline || []).length
     });
 
@@ -179,7 +189,8 @@ async function main() {
         // PHASE15_HUMAN_APPROVAL_REQUIRED must only ever be satisfied by a consumed one-shot
         // token. Threading the raw CLI flag would make the two approval layers dependent on the
         // same unverified input.
-        operatorApproved: gate.ceremonyVerified
+        operatorApproved: gate.ceremonyVerified,
+        customerRun: args.customerRun
       });
     } finally {
       // Tear down the ToolUniverse SMCP server (+ its health-check interval) so the
@@ -198,7 +209,12 @@ async function main() {
   // twice. Fail-soft and gated inside the publisher (completed + PASS + not mock + vault present);
   // a mock-provider run never reaches the vault, and no vault problem can fail a research run.
   // Config: config/vault-publish.json (or OPENCLAW_VAULT_PUBLISH=0 to switch it off).
-  if (result && result.ok && gate.provider !== "mock") {
+  // A customer run skips both post-run steps here; workflow.json's customer_run marker makes the
+  // publisher refuse it later too (any backfill, any plugin load).
+  if (result && result.ok && args.customerRun) {
+    result.vault_publish = customerRunSkip("vault publish");
+    result.research_memory_ingest = customerRunSkip("research-memory ingest");
+  } else if (result && result.ok && gate.provider !== "mock") {
     try {
       const { createWorkflowVaultPublisher } = require("../openclaw-bridge/vault/workflow-vault-publisher.js");
       const publisher = createWorkflowVaultPublisher({ rootDir: process.cwd(), logger });
@@ -217,7 +233,7 @@ async function main() {
   // is false. The spawn runs the store offline (EMBED_ALLOW_REMOTE=0): a run can never download the
   // embedding model — that is the operator's one-time `scripts/research-memory.js ingest
   // --allow-remote-model`.
-  if (result && result.ok && gate.provider !== "mock") {
+  if (result && result.ok && gate.provider !== "mock" && !args.customerRun) {
     try {
       const { createResearchMemory } = require("../openclaw-bridge/mcp/research-memory-mcp/index.js");
       result.research_memory_ingest = await createResearchMemory({ rootDir: process.cwd(), logger }).ingestWorkflow(result.workflow_id);

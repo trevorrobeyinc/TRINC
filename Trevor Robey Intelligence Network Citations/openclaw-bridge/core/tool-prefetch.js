@@ -22,6 +22,29 @@ const CONTEXT_ONLY_BANNER =
   "memory. Identifiers have been withheld; do not cite anything from this section. Cite only " +
   "identifiers that appear verbatim in the LIVE DATA documents.";
 
+// The public source behind each local fetcher (2026-11-06). Only a ToolUniverse tool is
+// "ToolUniverse SMCP"; a local fetcher calls its registry directly, and the model copies this
+// line into the report (run #7 credited its ClinicalTrials.gov records to ToolUniverse). The
+// `tooluniverse://` doc path stays: it is the internal live-data marker agent-engine routes on,
+// and the model never sees it.
+const LOCAL_SOURCE_LABELS = Object.freeze({
+  ctgov_stopped_trials: "ClinicalTrials.gov API v2",
+  ctgov_design_benchmark: "ClinicalTrials.gov API v2",
+  opentargets_target_intel: "Open Targets Platform",
+  opentargets_disease_intel: "Open Targets Platform",
+  sec_edgar_disclosures: "SEC EDGAR",
+  sec_filings_citable: "SEC EDGAR",
+  nih_reporter_funding: "NIH RePORTER",
+  europepmc_preprints: "Europe PMC",
+  web_evidence: "web pages (stored snapshots)",
+  worldbank_indicators: "World Bank",
+  openalex_works: "OpenAlex",
+  bls_series: "U.S. Bureau of Labor Statistics",
+  eurostat_series: "Eurostat",
+  census_business_patterns: "U.S. Census Bureau",
+  eia_energy_prices: "U.S. Energy Information Administration"
+});
+
 function redactIdentifiers(text) {
   let out = String(text || "");
   for (const { type, regex } of CITATION_PATTERNS) {
@@ -69,6 +92,9 @@ function createToolPrefetch(options = {}) {
   // routed to the local fetcher instead of ToolUniverse; its records flow through renderRecord
   // and into the citation gate's fetched_citation_ids exactly like ToolUniverse results.
   const localFetchers = isPlainObject(options.localFetchers) ? options.localFetchers : {};
+  // Customer runs (2026-11-06, core/customer-run.js): tools this run must not call, with the reason
+  // recorded on the skipped coverage entry. Never called, never cached, never in a prompt.
+  const excludedTools = isPlainObject(options.excludedTools) ? options.excludedTools : {};
   const logger = isPlainObject(options.logger) ? options.logger : { info() {}, warn() {}, error() {} };
   const rootDir = options.rootDir || process.cwd();
   const timeProvider = options.timeProvider && typeof options.timeProvider.nowMs === "function"
@@ -311,6 +337,13 @@ function createToolPrefetch(options = {}) {
     return 1;
   }
 
+  // A local fetcher names its own public source; anything else came through ToolUniverse.
+  function sourceLabel(toolName) {
+    if (Object.prototype.hasOwnProperty.call(LOCAL_SOURCE_LABELS, toolName)) return LOCAL_SOURCE_LABELS[toolName];
+    if (typeof localFetchers[toolName] === "function") return "public source (engine fetcher)";
+    return "ToolUniverse SMCP";
+  }
+
   function formatToolResult(toolName, result, query, { contextOnly = false } = {}) {
     const now = timeProvider.nowIso();
     let content = contextOnly
@@ -337,7 +370,7 @@ function createToolPrefetch(options = {}) {
 
     content += contextOnly
       ? `Source: prior research (context only, identifiers withheld) / ${toolName}\n`
-      : `Source: ToolUniverse SMCP / ${toolName}\n`;
+      : `Source: ${sourceLabel(toolName)} / ${toolName}\n`;
     content += `Query: ${query}\n`;
     content += `Retrieved: ${now}\n`;
 
@@ -402,14 +435,16 @@ function createToolPrefetch(options = {}) {
       const requires = Array.isArray(queryDef.requires) ? queryDef.requires : [];
       const missingInput = requires.find((key) => !safeString(workflowInputs && workflowInputs[key]));
       const unwiredLocal = queryDef.local_only === true && typeof localFetchers[safeString(queryDef.tool_name)] !== "function";
-      if (missingInput || unwiredLocal) {
-        logger.info({
-          event: "tool_prefetch_skipped_not_applicable",
-          role,
-          tool_name: covSource,
-          reason: missingInput ? `requires ${missingInput}` : "local fetcher not wired"
+      const excludedReason = Object.prototype.hasOwnProperty.call(excludedTools, safeString(queryDef.tool_name))
+        ? safeString(excludedTools[safeString(queryDef.tool_name)]) || "excluded for this run"
+        : "";
+      if (missingInput || unwiredLocal || excludedReason) {
+        const reason = excludedReason || (missingInput ? `requires ${missingInput}` : "local fetcher not wired");
+        logger.info({ event: "tool_prefetch_skipped_not_applicable", role, tool_name: covSource, reason });
+        coverage.push({
+          role, source: covSource, action, query: resolvedQuery, status: "skipped", records: 0,
+          ...(excludedReason ? { reason: excludedReason } : {})
         });
-        coverage.push({ role, source: covSource, action, query: resolvedQuery, status: "skipped", records: 0 });
         continue;
       }
 
@@ -550,5 +585,6 @@ function createToolPrefetch(options = {}) {
 }
 
 module.exports = {
-  createToolPrefetch
+  createToolPrefetch,
+  LOCAL_SOURCE_LABELS
 };

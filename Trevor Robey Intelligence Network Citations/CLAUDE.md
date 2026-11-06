@@ -81,8 +81,13 @@ npm run monetization:verify  # All monetization phases
 ### Commercial Operations
 
 ```bash
-# Generate a research pack for a client (arm the gate first: operator-approve-gate arm)
-node scripts/run-workflow.js --template pharmacovigilance-report --inputs '{"drug_class":"NSAID"}' --operator-approve --confirm
+# Generate a research pack for a client (arm the gate first: operator-approve-gate arm).
+# A paying client's run ALWAYS adds --customer-run (2026-11-06, core/customer-run.js): no prior-run
+# context in, no vault notes, memory pack or session record out. CLI only, never the Obsidian door.
+node scripts/run-workflow.js --template pharmacovigilance-report --inputs '{"drug_class":"NSAID"}' --operator-approve --customer-run --confirm
+# Build what the buyer receives: the order form's section-4 files + a fresh checksums.txt, refused on
+# a missing/altered file, BLOCK/UNRESOLVED, any ChEMBL id, or retired wording (2026-11-06).
+node scripts/build-buyer-zip.js --offer-id offer-XXX --out ~/Desktop/<client>-<date>.zip
 node scripts/generate-offer.js --source mission-XXX --product-line research_packs --tier standard --targets datarade --confirm
 node scripts/approve-release.js --offer-id offer-XXX --confirm
 node scripts/export-release.js --offer-id offer-XXX --format zip --confirm
@@ -188,7 +193,11 @@ Miyo-direct over `:8743`, `:8798` fallback) and memory priors (`research_memory_
 **context-only**: rendered with identifiers withheld and excluded from `fetched_citation_ids`
 (`tool-prefetch.js` / `agent-engine.js` `collectEvidenceContent`); `npm run audit:connectors` reports
 any vault-lane prefetch entry that is not. Lifecycle contract per touchpoint: root `CLAUDE.md`
-"Obsidian pipeline lifecycle". Tombstoned: `scripts/publish-to-vault.js`, `scripts/atlas-stub-creator.js`,
+"Obsidian pipeline lifecycle". **Customer runs (2026-11-06):** `run-workflow.js --customer-run` turns all of
+this off for one run, in both directions. No read-back, no memory priors and no "Recent sessions" digest go
+in. No vault notes, no memory pack and no session record come out, and `workflow.json` `customer_run: true`
+makes `assessShippability` refuse the run for every later backfill (`core/customer-run.js`,
+`tests/core/customer-run.test.js`). Never dispatch a client's run through the door. Tombstoned: `scripts/publish-to-vault.js`, `scripts/atlas-stub-creator.js`,
 the bridge's `Research-Output/` scheme.
 
 ### Citation Integrity Layer

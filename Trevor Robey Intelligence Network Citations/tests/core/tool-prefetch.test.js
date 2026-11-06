@@ -378,6 +378,67 @@ describe("tool-prefetch", () => {
     });
   });
 
+  // 2026-11-06: run #7's report credited its ClinicalTrials.gov records to "ToolUniverse",
+  // copied from this Source line. A local fetcher now names its own public source.
+  describe("source label", () => {
+    const { LOCAL_SOURCE_LABELS } = require("../../openclaw-bridge/core/tool-prefetch.js");
+
+    it("names the registry for a local fetcher and ToolUniverse only for a ToolUniverse tool", async () => {
+      const fs = require("node:fs");
+      const os = require("node:os");
+      const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "tool-prefetch-source-"));
+      try {
+        fs.mkdirSync(path.join(tmpRoot, "config"));
+        fs.writeFileSync(path.join(tmpRoot, "config", "tool-prefetch-map.json"), JSON.stringify({
+          role_mappings: {
+            fixture_role: [
+              { action: "executeTool", tool_name: "ctgov_design_benchmark", arguments: { condition: "{{indication}}" } },
+              { action: "executeTool", tool_name: "fixture_unlabelled_fetcher", arguments: { condition: "{{indication}}" } },
+              { action: "executeTool", tool_name: "PubMed_search_articles", arguments: { query: "{{indication}}" } }
+            ]
+          }
+        }));
+        const prefetch = createToolPrefetch({
+          toolUniverseMcp: createMockToolUniverseMcp([], { whenExhausted: [{ title: "A paper", pmid: "12345678" }] }),
+          logger,
+          rootDir: tmpRoot,
+          localFetchers: {
+            ctgov_design_benchmark: async () => [{ title: "Fixture trial", nctId: "NCT00000004" }],
+            fixture_unlabelled_fetcher: async () => [{ title: "Other row" }]
+          }
+        });
+        const docs = await prefetch.prefetchForRole("fixture_role", { indication: "fixture disease" });
+        const byTool = (name) => docs.find((d) => d.content.includes(`## Live Data: ${name}`));
+
+        const bench = byTool("ctgov_design_benchmark");
+        assert.ok(bench.content.includes("Source: ClinicalTrials.gov API v2 / ctgov_design_benchmark\n"), bench.content);
+        assert.ok(!/ToolUniverse/i.test(bench.content), "a ClinicalTrials.gov record must not be credited to ToolUniverse");
+        assert.ok(bench.path.startsWith("tooluniverse://"), "the internal live-data path marker is unchanged");
+
+        const unlabelled = byTool("fixture_unlabelled_fetcher");
+        assert.ok(unlabelled.content.includes("Source: public source (engine fetcher) / fixture_unlabelled_fetcher\n"),
+          "an unlisted local fetcher still never claims ToolUniverse");
+
+        const tu = byTool("PubMed_search_articles");
+        assert.ok(tu.content.includes("Source: ToolUniverse SMCP / PubMed_search_articles\n"), "a ToolUniverse tool keeps its label");
+      } finally {
+        fs.rmSync(tmpRoot, { recursive: true, force: true });
+      }
+    });
+
+    it("has a label for every evidence fetcher the workflow runtime registers", () => {
+      const fs = require("node:fs");
+      const runtime = fs.readFileSync(path.join(ROOT_DIR, "scripts", "_workflow-runtime.js"), "utf8");
+      const block = runtime.slice(runtime.indexOf("localFetchers: {"), runtime.indexOf("logger.info({ event: \"tool_prefetch_initialized\""));
+      const names = [...block.matchAll(/^\s*(?:\.\.\.\([a-z]+ \? \{ )?([a-z_]+): \(args\) =>/gm)].map((m) => m[1]);
+      // Context-only sources carry their own "prior research" label and never reach this one.
+      const evidence = names.filter((n) => n !== "obsidian_prior_research" && n !== "research_memory_priors");
+      assert.ok(evidence.length >= 15, `expected the full fetcher list, parsed: ${names.join(", ")}`);
+      const missing = evidence.filter((n) => !Object.prototype.hasOwnProperty.call(LOCAL_SOURCE_LABELS, n));
+      assert.deepEqual(missing, [], "add each new local fetcher's public source to LOCAL_SOURCE_LABELS");
+    });
+  });
+
   describe("clearCache", () => {
     it("clears cached results so next call re-queries ToolUniverse", async () => {
       const mcp = createMockToolUniverseMcp();
