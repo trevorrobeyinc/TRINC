@@ -297,6 +297,16 @@ stays first.
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 
+### 2026-11-07T04:25Z · Desktop Claude Code · **Business Drive cleaned: plugins backed up, March plans replaced by one current plan (uncommitted)**
+- **SCOPE NOTE:** the business Google Drive (`My Drive/TRINC/`), the offsite leg. Current focus unchanged.
+- **Did:**
+  - `TRINC/Skills-Integrations/` had been empty since before the 08-19 move. It now holds `trinc-local/`, a copy of `~/.claude/local-plugins/` (9 plugins, 24 skills), plus a README and `SHA256SUMS.txt`. Diff clean, checksums OK, all 35 files accepted by Google. Nothing else backed these plugins up.
+  - `TRINC/Research-Plans/` (two March Gemini reports) was trashed on the operator's call. The GTM report contradicted canon: retired "zero hallucination" wording, invented price tiers, and an `openclaw.io` contact. The "development plan" described the public OpenClaw project and a game remake.
+  - Its replacement is one Google Doc, `TRINC/Plans/Trevor Robey, INC. Strategy and Development Plan (2026-11)`, built only from `STATUS.md` and `OFFERINGS.md` at `25d5474`.
+  - The two old Monorepo snapshots are already gone from the Drive trash. `Backups/README-RESTORE.md` and the root `CLAUDE.md` backup line were updated to match.
+- **New lane:** the Google Drive and Google Docs claude.ai connectors were connected by the operator. They fall under the gate's catch-all `mcp-unclassified` scope (one touch); a dedicated scope is the Security Everything lane's call.
+- **Gotcha:** Drive's HTML-to-Doc import turns `$…($` spans into equations, which silently drops the text between them. Reword so no `($` follows another `$` in one paragraph, and check with a `text/plain` export.
+
 ### 2026-11-06T08:34Z · Desktop Claude Code (side session) · **All 41 picks applied; customer runs and the buyer-ZIP builder built and tested (committed `3b9689e` + documents)**
 - **Did:**
   - The operator's outstanding work was committed and signed as `2a82a3e` (the decision sheet). `main` is 4 ahead of GitHub (`4cce048`, `b8bd769`, `5ee2e18`, `2a82a3e`), and the push is the operator's. The untracked feed-refresh folder stays out of git, by the 10-21 decision.

@@ -65,8 +65,12 @@ before asserting how the engine behaves.
   both places. The 11-05 pair (`…-20261105-0229`, HEAD `e6a35f4`) is in the Trash. **Drive:** `TRINC/Monorepo/`
   is now the one snapshot, of the same commit `bd9abf2` (3,184 files + 4 symlinks; compared entry by entry with
   0 differences; every file accepted by Google; folder id `1L1sXyiO…yVpb`). The two older snapshots
-  (`Monorepo/` at 4d8eff6 and `Monorepo-e6a35f4/`) are in the Drive trash until about 2026-12-06, and
-  `Backups/README-RESTORE.md` + `SHA256SUMS.txt` name the new bundle. Keep one version only (two copies of it):
+  (`Monorepo/` at 4d8eff6 and `Monorepo-e6a35f4/`) were gone from the Drive trash by the evening of
+  2026-11-06, and `Backups/README-RESTORE.md` + `SHA256SUMS.txt` name the new bundle. The Drive's `TRINC/`
+  also holds `Skills-Integrations/trinc-local/`, the offsite copy of `~/.claude/local-plugins/` (the nine
+  `trinc-*` plugins live outside the repo, so no bundle covers them; snapshot 2026-11-06, refreshed by hand
+  after skill changes), and `Plans/`, the current strategy and development plan as a Google Doc built from
+  `STATUS.md` and `OFFERINGS.md` (the repo wins). Keep one version only (two copies of it):
   superseded bundles go to the Trash once the new one is verified and mirrored. A superseded Drive snapshot is
   trashed from the mount with ONE literal `mv <folder> ~/.Trash/<unique name>`. DriveFS's database then shows
   the folder `trashed=1` from a single client operation, as one trash item. Never `rm -rf`, which trashes file
