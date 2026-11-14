@@ -1,12 +1,13 @@
 # TRINC — rules for agents working in this repo
 
 > **Renamed 2026-10-23** from `TrevClaw-Obsidianodus` (TRINC = Trevor Robey Intelligence Network
-> Citations). The old path `/Users/myhome/TrevClaw-Obsidianodus` is a temporary compatibility symlink, to
-> be removed after 14 days of clean use (not before 2026-11-06), and only once the three things that still
-> need it are cleared: the Raycast fork's default bridge-config path (source in
-> `~/Code/raycast-obsidian-bridge-fork`, plus a rebuild), the Desktop folder preset "TrevClaw-Obsidianodus"
-> (fix it in the app's folder picker), and the Falcon Custom-IOA exfiltration rule whose pattern is
-> `.*TrevClaw-Obsidianodus.*` (Security Everything lane, propose-only). Runtime names that still say
+> Citations). The old-path compatibility symlink `/Users/myhome/TrevClaw-Obsidianodus` was **removed on
+> 2026-11-12**, after the Raycast fork's bridge-config path (`~/Code/raycast-obsidian-bridge-fork`) was
+> repointed to `/Users/myhome/TRINC` and rebuilt. If something still names the old path (the Desktop
+> folder preset "TrevClaw-Obsidianodus", a Raycast MCP entry), repoint it in that app rather than
+> recreating the symlink. The Falcon Custom-IOA exfiltration rule that matched `.*TrevClaw-Obsidianodus.*`
+> (rule 25, disabled, Detect-only) was deleted on 2026-11-12, and no live Falcon rule names the old path
+> (record: Security Everything's browser-session log, 2026-11-12). Runtime names that still say
 > `trevclaw` are kept on purpose, because launchd units, watchers and a secret depend on them:
 > `~/.local/share/trevclaw-tls-proxies/`, `~/Library/Logs/trevclaw/audit.jsonl` with `TREVCLAW_AUDIT_LOG`
 > and the `trevclaw_audit` event kind, and `~/.config/trevclaw/brevilabs-key`. Do not rename them.
@@ -118,7 +119,6 @@ Coordinated here; do not reassign one without updating this table.
 | 8743 → 8742 | Miyo semantic search: HTTPS proxy → plaintext upstream | launchd `com.trevorrobey.miyo-tls-proxy` / Miyo.app |
 | 6433 → 6333 | Qdrant: HTTPS proxy → plaintext upstream | launchd `com.trevorrobey.qdrant-tls-proxy` / Miyo's child |
 | 8891 → 8890 | SearXNG: HTTPS proxy → plaintext upstream | launchd `com.trevorrobey.searxng-tls-proxy` / `com.trevorrobey.searxng` |
-| 11435 → 11434 | Ollama: HTTPS proxy → plaintext upstream (no model installed) | launchd `com.trevorrobey.ollama-tls-proxy` / launchd `homebrew.mxcl.ollama` |
 | 4096 | `opencode serve` of the Copilot agent (password-locked by the operator) | Copilot plugin |
 
 All four Obsidian bridges die when Obsidian quits, so vault tools answer "not running" while it is
@@ -297,7 +297,8 @@ pair, fix env propagation or paths); the code must throw a useful error and refu
   only browser surface on this machine, which talks to its own local browser over loopback. Computer-use is
   disabled; if it is ever re-enabled, add it here in the same change.
 - **Third-party loopback services** are wrapped by single-file proxies in `Copilot-Everything/scripts/`
-  (`miyo-`, `qdrant-`, `searxng-`, `ollama-tls-proxy.mjs`), each owned by a launchd unit, each throwing on a
+  (`miyo-`, `qdrant-`, `searxng-tls-proxy.mjs`; Ollama and its `:11435` proxy were removed 2026-11-12, as were
+  LM Studio, Goose, Mistral Vibe and the local "Trevor" model: opencode is the only non-Claude agent platform), each owned by a launchd unit, each throwing on a
   certificate failure. Every consumer points at the HTTPS port. launchd runs **staged copies** in
   `~/.local/share/trevclaw-tls-proxies/`, so re-run `Copilot-Everything/scripts/install-tls-proxies.sh`
   after editing any proxy script.

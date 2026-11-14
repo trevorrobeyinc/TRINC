@@ -47,8 +47,10 @@ PLIST_BUDDY="/usr/libexec/PlistBuddy"
 # (lm-studio removed 2026-07-16 — LM Studio decommissioned. Ollama RE-ADDED 2026-08-12:
 #  Ollama.app was reinstalled and resumed serving plaintext :11434, which the transport
 #  lint still forbids; the :11435 wrap is restored so the Obsidian Copilot plugin can
-#  reach local qwen2.5-coder over TLS instead of plaintext loopback.)
-UNITS=(miyo qdrant searxng ollama)
+#  reach local qwen2.5-coder over TLS instead of plaintext loopback.
+#  Ollama REMOVED again 2026-11-12 by operator decision: opencode is the only non-Claude
+#  agent platform on this Mac. Do not re-add it; obsidian-exposure-audit treats :11434/:11435 as a tripwire.)
+UNITS=(miyo qdrant searxng)
 
 mkdir -p "$STAGE_DIR"
 

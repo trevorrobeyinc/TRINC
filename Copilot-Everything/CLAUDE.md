@@ -14,7 +14,7 @@ the repo-wide invariants are in the root [`../CLAUDE.md`](../CLAUDE.md).
 | Canonical vault bridge | `bridges/obsidian-copilot-bridge` | 8798 | The multi-client vault daemon, spawned by the `obsidian-bridge-launcher` plugin. **REST-only**: the Local REST API plugin (`:27124`) is its only backend, with no fallback. `/mcp/tool`'s optional `backendHint` accepts only `"restApi"` (a stale `"cli"` is rejected with HTTP 400). HTTPS with bearer token and replay guard. |
 | Stdio adapter | `bridges/obsidian-stdio-adapter` | — | One tool surface per client, profile required: `openclaw` is **Claude's one door** (`:8799` + `:8800`, see its README), `raycast` is Raycast chat's door. |
 | Copilot agent proxy | `bridges/openclaw-stdio-proxy` | — | Deployed inside the copilot plugin; carries the agent's tool calls to `:8799` and `:8800`. Tools must answer within its 8 s request timeout. |
-| HTTPS proxies | `scripts/{miyo,qdrant,searxng,ollama}-tls-proxy.mjs` | 8743, 6433, 8891, 11435 | Wrap Miyo `:8742`, Qdrant `:6333`, SearXNG `:8890` and Ollama `:11434`. launchd runs staged copies: re-run `scripts/install-tls-proxies.sh` after any edit. Ollama currently has **no model installed**. |
+| HTTPS proxies | `scripts/{miyo,qdrant,searxng}-tls-proxy.mjs` | 8743, 6433, 8891 | Wrap Miyo `:8742`, Qdrant `:6333` and SearXNG `:8890`. launchd runs staged copies: re-run `scripts/install-tls-proxies.sh` after any edit. The Ollama proxy (`:11435`) was retired 2026-11-12 with Ollama itself. |
 
 ## The fork: rules that keep it alive
 
