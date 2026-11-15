@@ -27,6 +27,7 @@ const { createCitationReresolver } = require("../mcp/citation-reresolver/citatio
 const { getResearchProfile } = require("./research-profiles.js");
 const { buildReproducibilityManifest, renderManifestMarkdown } = require("./reproducibility-manifest.js");
 const { annotateSubtaskAttributions } = require("./citation-attribution.js");
+const { writeMissionCitationRecord, failMissionCitationRecord } = require("./mission-citation-record.js");
 const { buildGraveyardMemo, buildAmendmentRisk } = require("../monetization/graveyard-memo.js");
 const { buildDesignBenchmark } = require("../monetization/design-benchmark.js");
 const { buildSearchCoverageLedger, collectSearchCoverage } = require("../monetization/search-coverage-ledger.js");
@@ -286,6 +287,19 @@ function createWorkflowEngine(options = {}) {
     // truth (an empty fetch can't fail here — that is surfaced as tool_prefetch_zero_docs).
     let citationVerification = null;
     let searchCoverageLedger = null; // Q5: the deterministic Search-Coverage Ledger (honest-zero deliverable)
+    // T1-1 (2026-11-14): the gate's verdict beside the mission (core/mission-citation-record.js), so the
+    // offer builder refuses a mission the gate did not pass on EVERY packaging path. pass:false is
+    // recorded before each throw below; a failed pass:false write is logged (the run is failing anyway).
+    const recordGateFailure = (err, verdict) => {
+      try {
+        writeMissionCitationRecord({
+          rootDir, missionId: missionEnvelope.mission_id, workflowId: context.workflowId, timeProvider,
+          pass: false, verdict, errorCode: err && err.code, citationVerification
+        });
+      } catch (recordErr) {
+        logger.error({ event: "mission_citation_record_write_failed", mission_id: missionEnvelope.mission_id, error: safeString(recordErr && recordErr.message) });
+      }
+    };
     if (missionResult && missionResult.ok && Array.isArray(missionResult.subtask_results)) {
       // Q7: the grounded floor is a required, config-owned value (config/agent-config.json). Fail
       // CLOSED — if it is missing or malformed, use the strict shared default and WARN loudly; never
@@ -413,6 +427,8 @@ function createWorkflowEngine(options = {}) {
         let reason;
         if (retractedCount > 0) {
           reason = `the report cites ${retractedCount} RETRACTED paper(s) (${retraction.retracted.join(", ")})`;
+        } else if (gate.verdict === "SECTION_UNREADABLE") {
+          reason = `${gate.unreadable_sections.length} section(s) could not be read (${gate.unreadable_sections.join(", ")}), so their citations cannot be verified`;
         } else if (gate.verdict === "INSUFFICIENT_EVIDENCE") {
           reason = "no runtime evidence was fetched (fetched_id_count=0) — the findings cannot be verified against any source, so this is a recorded honest-zero, not a silent pass. See search-coverage.md in the workflow dir for the per-source zero-result record";
         } else if (gate.verdict === "NO_CITATIONS") {
@@ -424,15 +440,17 @@ function createWorkflowEngine(options = {}) {
           `Citation gate failed [${gate.verdict}]: ${reason} — refusing to ship to protect the ` +
           `zero-fabrication / citation-integrity guarantee. Annotated report written to the workflow dir.`
         );
+        const VERDICT_CODES = {
+          SECTION_UNREADABLE: "PHASE30_CITATION_SECTION_UNREADABLE",
+          INSUFFICIENT_EVIDENCE: "PHASE30_CITATION_INSUFFICIENT_EVIDENCE",
+          NO_CITATIONS: "PHASE30_CITATION_NONE"
+        };
         err.code = retractedCount > 0
           ? "PHASE30_CITATION_RETRACTED"
-          : gate.verdict === "INSUFFICIENT_EVIDENCE"
-            ? "PHASE30_CITATION_INSUFFICIENT_EVIDENCE"
-            : gate.verdict === "NO_CITATIONS"
-              ? "PHASE30_CITATION_NONE"
-              : "PHASE30_CITATION_UNVERIFIED";
+          : VERDICT_CODES[gate.verdict] || "PHASE30_CITATION_UNVERIFIED";
         err.citation_verification = citationVerification;
         err.search_coverage = searchCoverageLedger ? searchCoverageLedger.summary : null;
+        recordGateFailure(err, retractedCount > 0 ? "RETRACTED" : gate.verdict);
         throw err;
       }
       // Passed, but some citations may still be ungrounded → annotate the shipped sections in place
@@ -449,6 +467,7 @@ function createWorkflowEngine(options = {}) {
         );
         err.code = "PHASE30_CITATION_ANNOTATE_FAILED";
         err.citation_verification = citationVerification;
+        recordGateFailure(err, "ANNOTATE_FAILED");
         throw err;
       }
 
@@ -580,6 +599,7 @@ function createWorkflowEngine(options = {}) {
             );
             err.code = "PHASE30_CITATION_UNRESOLVED";
             err.citation_verification = citationVerification;
+            recordGateFailure(err, "UNRESOLVED");
             throw err;
           }
         }
@@ -624,6 +644,7 @@ function createWorkflowEngine(options = {}) {
             );
             err.code = "PHASE30_CITATION_RERESOLUTION_ERROR";
             err.citation_verification = citationVerification;
+            recordGateFailure(err, "RERESOLUTION_ERROR");
             throw err;
           }
           try {
@@ -643,6 +664,24 @@ function createWorkflowEngine(options = {}) {
           citationVerification.reproducibility = fallback.summary;
           citationVerification.reproducibility_manifest = fallback;
         }
+      }
+
+      // T1-1: the gate passed. The pass:true record is written HERE, after the last rewrite of the
+      // shipped sections (the [UNVERIFIED] marks, then the attribution marks above), so the hashes it
+      // pins are of exactly the text that ships. It carries the manifest (T1-8 guarantees one). A
+      // failed write stops the run (fail-closed): without it the mission could never be packaged, and
+      // a stale record must never stand in for it.
+      try {
+        writeMissionCitationRecord({
+          rootDir, missionId: missionEnvelope.mission_id, workflowId: context.workflowId, timeProvider,
+          pass: true, verdict: gate.verdict, errorCode: null, citationVerification
+        });
+      } catch (recordErr) {
+        const err = new Error(`Citation gate passed, but its record could not be written beside the mission: ${safeString(recordErr && recordErr.message)}`);
+        err.code = "PHASE30_CITATION_RECORD_WRITE_FAILED";
+        err.citation_verification = citationVerification;
+        recordGateFailure(err, "RECORD_WRITE_FAILED");
+        throw err;
       }
     }
 
@@ -1300,6 +1339,19 @@ function createWorkflowEngine(options = {}) {
             code: error.code || "PHASE30_STEP_FAILED",
             message: String(error.message || error)
           };
+        }
+        // T1-1 (2026-11-14): a quality audit that fails AFTER the citation gate passed (density below
+        // threshold, or a section with zero primary-source coverage) turns the mission's citation
+        // record to pass:false, so generate-offer.js cannot package what this workflow refused.
+        if (step.type === "quality_audit" && state.artifacts.mission_id) {
+          try {
+            failMissionCitationRecord({
+              rootDir, missionId: state.artifacts.mission_id,
+              verdict: "QUALITY_AUDIT_FAILED", errorCode: error.code || "PHASE30_STEP_FAILED"
+            });
+          } catch (recordErr) {
+            logger.error({ event: "mission_citation_record_fail_failed", mission_id: state.artifacts.mission_id, error: String(recordErr && recordErr.message) });
+          }
         }
         logger.error({
           event: "phase30_workflow_step_failed",

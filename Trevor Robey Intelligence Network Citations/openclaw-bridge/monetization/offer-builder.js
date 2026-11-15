@@ -11,6 +11,7 @@ const {
   validateOfferDefinition,
   validatePlatformTargets
 } = require("./offer-schema.js");
+const { assertMissionCitationRecord, listMissionOutputs } = require("../core/mission-citation-record.js");
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
@@ -53,14 +54,6 @@ function relativeFromRoot(rootDir, filePath) {
   return path.relative(rootDir, filePath).split(path.sep).join("/");
 }
 
-function resolveSourceFile(rootDir, filePath) {
-  const rawPath = safeString(filePath);
-  if (!rawPath) {
-    return "";
-  }
-  return path.isAbsolute(rawPath) ? rawPath : path.resolve(rootDir, rawPath);
-}
-
 function createOfferBuilder(options = {}) {
   const rootDir = path.resolve(safeString(options.rootDir) || process.cwd());
   const monetizationMap = validateMonetizationMap(options.monetizationMap || {});
@@ -91,19 +84,21 @@ function createOfferBuilder(options = {}) {
       throw error;
     }
     const mission = readJson(missionPath);
+    // T1-1 (2026-11-14): a missing status.json, or one without "completed", no longer passes (it read
+    // as {} and slipped through).
     const status = fs.existsSync(statusPath) ? readJson(statusPath) : {};
     const summary = readJson(summaryPath);
-    if (safeString(status.status) && safeString(status.status) !== "completed") {
-      const error = new Error(`Mission '${missionId}' must be completed before offer generation`);
+    if (safeString(status.status) !== "completed") {
+      const error = new Error(`Mission '${missionId}' must be completed before offer generation (status: ${safeString(status.status) || "no status.json"})`);
       error.code = "PHASE19_MISSION_NOT_COMPLETED";
       throw error;
     }
+    // T1-1: only a mission the citation gate passed is packaged, on every path, and only while its
+    // text is exactly what the gate passed (core/mission-citation-record.js). Throws
+    // PHASE19_MISSION_CITATION_RECORD_MISSING / _GATE_FAILED / _RECORD_STALE.
+    const citationVerification = assertMissionCitationRecord(rootDir, missionId);
     const artifacts = [];
-    for (const result of Array.isArray(summary.subtask_results) ? summary.subtask_results : []) {
-      const outputPath = resolveSourceFile(rootDir, result.output_path);
-      if (!outputPath || !fs.existsSync(outputPath)) {
-        continue;
-      }
+    for (const outputPath of listMissionOutputs(rootDir, summary)) {
       const taskId = path.basename(path.dirname(outputPath));
       const taskDir = path.join(rootDir, "workspace", "research-output", taskId);
       const metadataPath = path.join(taskDir, "metadata.json");
@@ -135,7 +130,10 @@ function createOfferBuilder(options = {}) {
       mission,
       status,
       summary,
-      artifacts
+      artifacts,
+      // T1-1: the gate's own record, so a generate-offer.js bundle also ships citation-integrity.md and
+      // the reproducibility manifest. Not part of source_manifest_hash, so offer ids are unchanged.
+      citation_verification: citationVerification
     });
   }
 

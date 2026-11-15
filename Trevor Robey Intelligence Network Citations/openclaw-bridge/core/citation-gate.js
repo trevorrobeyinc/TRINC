@@ -108,12 +108,18 @@ function isDeskAuthoredSubtask(subtask, readFile = fs.readFileSync) {
   }
 }
 
-// Concatenate all subtask outputs into the assembled report text.
-function collectReportText(subtaskResults, readFile = fs.readFileSync) {
+// Concatenate all subtask outputs into the assembled report text. `unreadable` (T1-1), when given,
+// collects the sections that could not be read, so the gate can refuse them instead of reading an
+// unreadable section as an empty one (which the packager might later read and ship ungated).
+function collectReportText(subtaskResults, readFile = fs.readFileSync, unreadable = null) {
   const parts = [];
   for (const st of Array.isArray(subtaskResults) ? subtaskResults : []) {
     if (!st || !st.output_path) continue;
-    try { parts.push(readFile(st.output_path, "utf8")); } catch { /* fail-soft */ }
+    try {
+      parts.push(readFile(st.output_path, "utf8"));
+    } catch {
+      if (Array.isArray(unreadable)) unreadable.push(String(st.task_id || st.subtask_id || st.output_path));
+    }
   }
   return parts.join("\n\n");
 }
@@ -248,7 +254,8 @@ function verifyReportCitations(opts = {}) {
   const evidenceRequired = opts.evidenceRequired !== false; // Q1: default true — every shipping template needs evidence
   const fetchedIds = collectFetchedIds(subtaskResults, readFile);
   const fetchedKeys = collectFetchedKeys(subtaskResults, readFile); // T1-5: null = id-only fallback
-  const reportText = collectReportText(subtaskResults, readFile);
+  const unreadableSections = [];
+  const reportText = collectReportText(subtaskResults, readFile, unreadableSections);
   const list = Array.isArray(subtaskResults) ? subtaskResults : [];
   const deskSections = list.filter((st) => isDeskAuthoredSubtask(st, readFile));
   // The ratio is computed over model-written text; with no desk section this IS the full report.
@@ -260,7 +267,10 @@ function verifyReportCitations(opts = {}) {
   const hasCitations = x.total > 0;
   // Q1 three-state verdict — zero-evidence / zero-citation are RECORDED as non-shippable, not auto-passed.
   let verdict;
-  if (hasEvidence && hasCitations) {
+  if (unreadableSections.length > 0) {
+    // T1-1 (critic #3): a section that cannot be read cannot be verified — fail closed.
+    verdict = "SECTION_UNREADABLE";
+  } else if (hasEvidence && hasCitations) {
     verdict = meetsGroundedFloor(x.verified_count, x.total, threshold) ? "PASS" : "UNVERIFIED";
   } else if (!evidenceRequired) {
     verdict = "PASS"; // template explicitly declares evidence optional
@@ -283,6 +293,7 @@ function verifyReportCitations(opts = {}) {
     ungrounded_list: x.unverified,
     // T1-5: "type_and_id" when every readable sidecar carried TYPE:ID keys, else "id_only".
     grounding_match: x.grounding_match,
+    unreadable_sections: unreadableSections,
     desk_authored_sections: deskSections.map((st) => String(st.task_id || st.subtask_id || "")),
     fetchedIds,
     fetchedKeys,

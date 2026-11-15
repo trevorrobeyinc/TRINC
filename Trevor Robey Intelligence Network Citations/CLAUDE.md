@@ -43,7 +43,8 @@ npm run build:verify
 # receipt. A `--provider mock` run stays ungated (it cannot spend anything), which is why the
 # research-task example below needs no ceremony. Enforced in scripts/_operator-gate-cli.js.
 
-# Run a research task (mock — ungated, safe to copy/paste)
+# Run a research task (mock — ungated, safe to copy/paste). Its mission never goes through the citation
+# gate, so generate-offer.js refuses to package it (PHASE19_MISSION_CITATION_RECORD_MISSING, 2026-11-14).
 node scripts/run-research-task.js --task "..." --type summarize --input workspace/research-input/sample/ --output workspace/research-output/ --provider mock --confirm
 
 # Run a dataset mission — REFUSED as of 2026-07-29. This lane never threads operator approval into
@@ -57,7 +58,9 @@ node scripts/run-workflow.js --template drug-discovery-full --inputs '{"compound
 node scripts/run-workflow.js --template pharmacovigilance-report --inputs '{"drug_class":"NSAID"}' --operator-approve --confirm
 node scripts/run-workflow.js --template general-research-pack --inputs '{"topic":"AI governance"}' --operator-approve --confirm
 
-# Monetization flow (manual step-by-step)
+# Monetization flow (manual step-by-step). generate-offer.js packages only a run-workflow.js mission whose
+# citation gate passed: it requires the engine's record at workspace/missions/<id>/artifacts/
+# citation-verification.json and re-hashes the sections it pins (T1-1, 2026-11-14). Never hand-write one.
 node scripts/generate-offer.js --source mission-XXX --product-line research_packs --tier standard --targets datarade --confirm
 node scripts/approve-release.js --offer-id offer-XXX --confirm
 node scripts/export-release.js --offer-id offer-XXX --format zip --confirm

@@ -15,14 +15,16 @@ const {
   writeJson,
   writeTaskOutput
 } = require(path.join(root, "tests", "helpers", "phase20-fixtures.js"));
+const { writePassingCitationRecord } = require(path.join(root, "tests", "helpers", "mission-citation-record-fixture.js"));
+const { writeMissionCitationRecord } = require(path.join(root, "openclaw-bridge", "core", "mission-citation-record.js"));
 
 function readJson(relPath) {
   return JSON.parse(fs.readFileSync(path.join(root, relPath), "utf8"));
 }
 
-test("phase19 offer builder creates deterministic mission-backed offers", async () => {
+// A hand-built mission fixture: sections, mission.json, status.json and mission-summary.json.
+async function makeMission(missionId, { status = "completed" } = {}) {
   const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "openclaw-phase19-offer-builder-"));
-  const missionId = "mission-offer-builder-demo";
   const outputPath = writeTaskOutput(tmp, "task-offer-builder-1", "sample-research-output.md");
   const missionRoot = path.join(tmp, "workspace", "missions", missionId);
   fs.mkdirSync(path.join(missionRoot, "artifacts"), { recursive: true });
@@ -30,10 +32,12 @@ test("phase19 offer builder creates deterministic mission-backed offers", async 
     mission_id: missionId,
     description: "Research pack mission"
   });
-  writeJson(path.join(missionRoot, "status.json"), {
-    mission_id: missionId,
-    status: "completed"
-  });
+  if (status) {
+    writeJson(path.join(missionRoot, "status.json"), {
+      mission_id: missionId,
+      status
+    });
+  }
   writeJson(path.join(missionRoot, "artifacts", "mission-summary.json"), {
     mission_id: missionId,
     subtask_results: [
@@ -44,7 +48,6 @@ test("phase19 offer builder creates deterministic mission-backed offers", async 
       }
     ]
   });
-
   const builder = createOfferBuilder({
     rootDir: tmp,
     monetizationMap: readJson("config/monetization-map.json"),
@@ -52,6 +55,49 @@ test("phase19 offer builder creates deterministic mission-backed offers", async 
     directDeliveryTargets: readJson("config/direct-delivery-targets.json"),
     datasetOutputManager: createDatasetOutputManager({ rootDir: tmp })
   });
+  return { tmp, missionRoot, outputPath, builder };
+}
+
+const OFFER_INPUT = (source) => ({ source, product_line: "research_packs", tier: "standard", targets: ["datarade"] });
+const codeOf = (fn) => { try { fn(); } catch (error) { return error.code; } return "(no error)"; };
+
+// T1-1 (2026-11-14): only a mission the citation gate passed is packaged, on every path.
+test("phase19 offer builder refuses a mission with no citation-gate record (RECORD_MISSING)", async () => {
+  const { builder } = await makeMission("mission-no-record");
+  assert.equal(codeOf(() => builder.buildOffer(OFFER_INPUT("mission-no-record"))), "PHASE19_MISSION_CITATION_RECORD_MISSING");
+});
+
+test("phase19 offer builder refuses a mission the gate did not pass (GATE_FAILED)", async () => {
+  const { tmp, builder } = await makeMission("mission-gate-failed");
+  writeMissionCitationRecord({ rootDir: tmp, missionId: "mission-gate-failed", pass: false, verdict: "UNVERIFIED", errorCode: "PHASE30_CITATION_UNVERIFIED", citationVerification: { pass: false, verdict: "UNVERIFIED" } });
+  assert.equal(codeOf(() => builder.buildOffer(OFFER_INPUT("mission-gate-failed"))), "PHASE19_MISSION_CITATION_GATE_FAILED");
+});
+
+test("phase19 offer builder carries a passing record into source_context.citation_verification", async () => {
+  const { tmp, builder } = await makeMission("mission-gate-passed");
+  const record = writePassingCitationRecord(tmp, "mission-gate-passed");
+  const built = builder.buildOffer(OFFER_INPUT("mission-gate-passed"));
+  assert.deepEqual(built.source_context.citation_verification, record.citation_verification);
+  assert.ok(built.source_context.citation_verification.reproducibility_manifest.summary);
+});
+
+test("phase19 offer builder refuses a section edited after the gate passed (RECORD_STALE)", async () => {
+  const { tmp, outputPath, builder } = await makeMission("mission-edited");
+  writePassingCitationRecord(tmp, "mission-edited");
+  fs.appendFileSync(outputPath, "\nA paragraph added after the gate.\n");
+  assert.equal(codeOf(() => builder.buildOffer(OFFER_INPUT("mission-edited"))), "PHASE19_MISSION_CITATION_RECORD_STALE");
+});
+
+test("phase19 offer builder refuses a mission without status.json", async () => {
+  const { tmp, builder } = await makeMission("mission-no-status", { status: null });
+  writePassingCitationRecord(tmp, "mission-no-status");
+  assert.equal(codeOf(() => builder.buildOffer(OFFER_INPUT("mission-no-status"))), "PHASE19_MISSION_NOT_COMPLETED");
+});
+
+test("phase19 offer builder creates deterministic mission-backed offers", async () => {
+  const missionId = "mission-offer-builder-demo";
+  const { tmp, builder } = await makeMission(missionId);
+  writePassingCitationRecord(tmp, missionId);
 
   const first = builder.buildOffer({
     source: missionId,

@@ -166,7 +166,7 @@ node scripts/run-workflow.js \
 > regardless of flags. It now says so immediately rather than consuming a YubiKey touch for a run
 > that cannot complete. `run-workflow.js` is the mission lane that works.
 
-5. Generate a release bundle from a completed mission:
+5. Generate a release bundle from a mission the citation gate passed:
 ```bash
 node scripts/generate-offer.js \
   --source mission-EXAMPLE \
@@ -175,6 +175,13 @@ node scripts/generate-offer.js \
   --targets datarade \
   --confirm
 ```
+> **Only a `run-workflow.js` mission whose citation gate passed can be packaged (2026-11-14).** The
+> workflow engine writes the gate's verdict beside the mission
+> (`workspace/missions/<id>/artifacts/citation-verification.json`), and `generate-offer.js` refuses a
+> mission without a passing record (`PHASE19_MISSION_CITATION_RECORD_MISSING` / `_GATE_FAILED`) or
+> whose sections changed after the gate (`_RECORD_STALE`). A mission made by `run-research-task.js`
+> (step 2) never goes through the gate, so it cannot be packaged; nor can a mission sealed before this
+> date: re-run it through `run-workflow.js`. A record is never written by hand.
 
 6. Generate a release bundle from a completed dataset:
 ```bash

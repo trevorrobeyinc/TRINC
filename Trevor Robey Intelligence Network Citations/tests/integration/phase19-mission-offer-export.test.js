@@ -9,6 +9,7 @@ const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 
 const root = path.resolve(__dirname, "../..");
+const { writePassingCitationRecord } = require(path.join(root, "tests", "helpers", "mission-citation-record-fixture.js"));
 
 function writeJson(filePath, value) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -66,6 +67,7 @@ test("phase19 mission release flow generates, approves, and exports a bundle", a
       { subtask_id: "step-1", output_path: outputPath, status: "completed" }
     ]
   });
+  writePassingCitationRecord(fixtureRoot, missionId); // T1-1: what a gate-passed mission leaves
 
   const generated = runNode("scripts/generate-offer.js", [
     "--source", missionId,

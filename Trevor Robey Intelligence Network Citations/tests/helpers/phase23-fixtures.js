@@ -8,6 +8,7 @@ const { spawnSync } = require("node:child_process");
 
 const root = path.resolve(__dirname, "../..");
 const { copyMonetizationConfigs, writeJson, writeTaskOutput } = require("./phase20-fixtures.js");
+const { writePassingCitationRecord } = require("./mission-citation-record-fixture.js");
 
 function runNode(scriptRelPath, args, cwd) {
   return spawnSync("node", [path.join(root, scriptRelPath), ...args], {
@@ -45,6 +46,7 @@ function createMissionArtifact(fixtureRoot, missionId, fixtureName = "sample-res
       }
     ]
   });
+  writePassingCitationRecord(fixtureRoot, missionId); // T1-1: what a gate-passed mission leaves
 }
 
 function generateApprovedOffer(fixtureRoot, input = {}) {

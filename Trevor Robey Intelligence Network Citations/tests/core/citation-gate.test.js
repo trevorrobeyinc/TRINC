@@ -80,6 +80,23 @@ describe("citation-gate", () => {
       assert.equal(r.verdict, "PASS");
     });
 
+    // T1-1 (critic #3): a section the gate cannot read is a failure, never an empty section.
+    it("verdict SECTION_UNREADABLE (non-shippable) when a section cannot be read", () => {
+      const read = fakeReader({
+        m1: JSON.stringify({ fetched_citation_ids: ["12345678"] }),
+        o1: "Per PMID: 12345678.",
+        m2: JSON.stringify({ fetched_citation_ids: [] })
+        // o2 is missing: unreadable
+      });
+      const r = verifyReportCitations({
+        subtaskResults: [{ task_id: "t1", metadata_path: "m1", output_path: "o1" }, { task_id: "t2", metadata_path: "m2", output_path: "o2" }],
+        minGroundedRatio: 0.5, readFile: read
+      });
+      assert.equal(r.pass, false);
+      assert.equal(r.verdict, "SECTION_UNREADABLE");
+      assert.deepEqual(r.unreadable_sections, ["t2"]);
+    });
+
     // Q1 doctrine: evidence fetched but the report grounds nothing → NO_CITATIONS, non-shippable.
     it("verdict NO_CITATIONS (non-shippable) when evidence exists but the report cites nothing", () => {
       const read = fakeReader({
