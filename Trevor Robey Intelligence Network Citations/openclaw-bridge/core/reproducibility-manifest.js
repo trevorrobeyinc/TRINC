@@ -15,12 +15,14 @@
 //   BLOCK              — hard stop, does NOT ship: any UNRESOLVED citation (a live registry says the id
 //                        does not exist = the fabrication signature), any retracted DOI/PMID, or a
 //                        gate hard-fail.
-//   DELIVER_WITH_FLAGS — SHIPS with a restricted claim, for either (or both) of two flag_reasons:
-//                        "unchecked_over_threshold" — unchecked_ratio > max_unchecked_ratio: the report
-//                        is still fully GROUNDED, some ids just could not be re-resolved (network);
+//   DELIVER_WITH_FLAGS — SHIPS with a restricted claim, for any of three flag_reasons:
+//                        "unchecked_over_threshold" — unchecked_ratio > max_unchecked_ratio: some ids
+//                        could not be re-resolved (the reason is recorded per id);
 //                        "attribution_mismatch" (2026-11-04) — every id may be VERIFIED, but the
 //                        author or year written beside one or more of them is not the registry's
-//                        (citation-attribution.js). Operator decision: flag and mark inline, never block.
+//                        (citation-attribution.js). Operator decision: flag and mark inline, never block;
+//                        "retraction_screen_incomplete" (T1-7, 2026-11-14) — the retraction screen could
+//                        not screen every cited DOI and PMID; the unscreened ids are named.
 //   DELIVER            — SHIPS; the full-strength "every cited id independently re-resolved" claim is
 //                        allowed ONLY at 100% VERIFIED (0 unresolved, 0 unchecked, no retractions,
 //                        gate passes) AND no attribution mismatch.
@@ -145,6 +147,11 @@ function buildReproducibilityManifest(input = {}) {
       : counts.unchecked * 1000 > Math.round(thresholds.max_unchecked_ratio * 1000) * counts.total;
     if (uncheckedOverCeiling) flag_reasons.push("unchecked_over_threshold");
     if (attributionMismatches.length > 0) flag_reasons.push("attribution_mismatch");
+    // T1-7 (2026-11-14): a retraction screen that could not screen every cited DOI and PMID forfeits
+    // the full-strength DELIVER claim. It is a FLAG, never a block (fail-soft on coverage,
+    // SYSTEM-REALITY.md): the unscreened ids are named in the manifest and the integrity ledger.
+    // Only a screen result the caller passed is judged; a manifest built without one is unchanged.
+    if (input.retraction && input.retraction.checked === false) flag_reasons.push("retraction_screen_incomplete");
     delivery_decision = flag_reasons.length > 0 ? DECISION.DELIVER_WITH_FLAGS : DECISION.DELIVER;
   }
 
@@ -164,7 +171,14 @@ function buildReproducibilityManifest(input = {}) {
     delivery_decision,
     block_reasons,
     flag_reasons,
-    retraction_screen: { checked: Boolean(retraction.checked), retracted_dois, retracted_pmids },
+    retraction_screen: {
+      checked: Boolean(retraction.checked),
+      retracted_dois,
+      retracted_pmids,
+      // T1-7: which cited DOIs and PMIDs could not be screened, of how many.
+      ...(Array.isArray(retraction.unscreened_ids) ? { unscreened_ids: retraction.unscreened_ids } : {}),
+      ...(Number.isFinite(retraction.cited) ? { cited: retraction.cited } : {})
+    },
     gate_crosscheck: gate
       ? {
           cited: gate.cited == null ? null : gate.cited,
@@ -213,7 +227,9 @@ function renderManifestMarkdown(manifest) {
     + (Array.isArray(s.block_reasons) && s.block_reasons.length ? ` — blocked: ${s.block_reasons.join(", ")}` : "")
     + (Array.isArray(s.flag_reasons) && s.flag_reasons.length ? ` — flags: ${s.flag_reasons.join(", ")}` : ""));
   const flags = Array.isArray(s.flag_reasons) ? s.flag_reasons : [];
-  if (s.delivery_decision === "DELIVER_WITH_FLAGS" && (flags.includes("unchecked_over_threshold") || !flags.includes("attribution_mismatch"))) {
+  // The re-resolution explanation belongs to the unchecked flag only (T1-7: a flag may now come from
+  // the retraction screen instead, and that is not a re-resolution limit).
+  if (s.delivery_decision === "DELIVER_WITH_FLAGS" && flags.includes("unchecked_over_threshold")) {
     lines.push("> This report SHIPS. DELIVER_WITH_FLAGS means some cited identifiers could not be independently re-resolved at delivery time (a network/throttle limit at re-resolution, NOT a defect): the report remains fully GROUNDED — every cited id was present in the runtime-fetched evidence. Only an UNRESOLVED id (a live registry says it does not exist) or a retraction blocks delivery.");
   }
   if (s.delivery_decision === "DELIVER_WITH_FLAGS" && flags.includes("attribution_mismatch")) {
@@ -230,13 +246,21 @@ function renderManifestMarkdown(manifest) {
   if (s.as_of) lines.push(`As of: ${s.as_of}`);
   lines.push("");
   lines.push(`Citations re-resolved at delivery: **${c.verified} VERIFIED · ${c.unresolved} UNRESOLVED · ${c.unchecked} UNCHECKED** of ${c.total} (verified ratio ${s.verified_ratio}).`);
+  if (s.delivery_decision === "DELIVER_WITH_FLAGS" && flags.includes("retraction_screen_incomplete")) {
+    lines.push("> This report SHIPS with a flag: the retraction screen could not screen every cited DOI and PMID. The ones it could not screen are listed below and in the citation-integrity ledger; no retraction was found among those it did screen.");
+  }
   if (s.retraction_screen) {
-    const rd = (s.retraction_screen.retracted_dois || []).length;
-    const rp = (s.retraction_screen.retracted_pmids || []).length;
-    lines.push(
-      `Retraction screen: ${s.retraction_screen.checked ? "checked" : "INCOMPLETE — not every cited identifier could be screened"}; `
-      + `retracted DOIs: ${rd}; retracted PMIDs: ${rp}.`
-    );
+    const rs = s.retraction_screen;
+    const rd = (rs.retracted_dois || []).length;
+    const rp = (rs.retracted_pmids || []).length;
+    const unscreened = Array.isArray(rs.unscreened_ids) ? rs.unscreened_ids : null;
+    const incomplete = unscreened && Number.isFinite(rs.cited)
+      ? `INCOMPLETE — ${unscreened.length} of ${rs.cited} cited DOIs and PMIDs not screened`
+      : "INCOMPLETE — not every cited identifier could be screened";
+    lines.push(`Retraction screen: ${rs.checked ? "checked" : incomplete}; retracted DOIs: ${rd}; retracted PMIDs: ${rp}.`);
+    if (!rs.checked && unscreened && unscreened.length > 0) {
+      lines.push(`Not screened: ${unscreened.join(", ")}.`);
+    }
   }
   if (s.environment && s.environment.offline) lines.push("> NOTE: verification could not reach any registry this run (offline) — no identifier is reported VERIFIED.");
   if (s.attribution_check) {

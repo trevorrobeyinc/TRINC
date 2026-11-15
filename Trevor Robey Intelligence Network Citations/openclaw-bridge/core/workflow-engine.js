@@ -366,7 +366,12 @@ function createWorkflowEngine(options = {}) {
             dois_escalated_via_pmid: retraction.dois_escalated_via_pmid || 0,
             dois_cited: retraction.dois_cited || 0,
             pmids_cited: retraction.pmids_cited || 0,
-            unscreened: retraction.unscreened || 0
+            unscreened: retraction.unscreened || 0,
+            // T1-7: WHICH ids could not be screened, and the DOIs no retraction source holds.
+            unscreened_ids: retraction.unscreened_ids || [],
+            dois_without_retraction_source: retraction.dois_without_retraction_source || 0,
+            crossref_notice_dois: retraction.crossref_notice_dois || [],
+            editorial_flags: retraction.editorial_flags || []
           }, null, 2)
         );
         if (gate.ungrounded > 0 || retractedCount > 0) {
@@ -389,6 +394,14 @@ function createWorkflowEngine(options = {}) {
         // the sample preview and tables.csv, and the integrity ledger lists them all.
         ungrounded_ids: gate.ungrounded_list.map((c) => `${c.type}:${c.id}`),
         retracted: retraction.retracted,
+        // T1-7: the retraction screen's coverage travels with the report, so the manifest, the ledger
+        // and the bundle text say "retraction-screened" only when every cited DOI and PMID was screened.
+        retraction_screen_checked: Boolean(retraction.checked),
+        retraction_screen_cited: (retraction.dois_cited || 0) + (retraction.pmids_cited || 0),
+        unscreened: retraction.unscreened || 0,
+        unscreened_ids: retraction.unscreened_ids || [],
+        dois_without_retraction_source: retraction.dois_without_retraction_source || 0,
+        retraction_editorial_flags: retraction.editorial_flags || [],
         search_coverage: searchCoverageLedger ? searchCoverageLedger.summary : null
       };
       if (!gatePass) {
@@ -492,7 +505,10 @@ function createWorkflowEngine(options = {}) {
             retraction: {
               checked: Boolean(retraction.checked),
               retracted_dois: retraction.retracted_dois || [],
-              retracted_pmids: retraction.retracted_pmids || []
+              retracted_pmids: retraction.retracted_pmids || [],
+              // T1-7: an incomplete screen restricts the claim (flag), never blocks.
+              cited: (retraction.dois_cited || 0) + (retraction.pmids_cited || 0),
+              unscreened_ids: retraction.unscreened_ids || []
             },
             gate: {
               cited: gate.cited, grounded: gate.grounded, ungrounded: gate.ungrounded,

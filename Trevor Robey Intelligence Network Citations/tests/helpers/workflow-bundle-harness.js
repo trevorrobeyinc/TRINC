@@ -49,6 +49,16 @@ function makeResearchRuntime(rootDir, captured, extras = {}) {
       RESOLVER_TABLE_VERSION: "test",
       resolveAll: async (cites) => cites.map((c) => ({ ...c, status: "VERIFIED" }))
     },
+    // A production runtime always wires both retraction screens (scripts/_workflow-runtime.js). These
+    // answer "screened, not retracted" for every id, so a harness run is a complete screen unless a
+    // test replaces them (T1-7: an incomplete screen is a manifest flag, retraction_screen_incomplete).
+    crossrefRetraction: {
+      checkDois: async (dois) => dois.map((doi) => ({ doi, retracted: false, checked: true, in_crossref: true }))
+    },
+    pubmedRetraction: {
+      checkPmids: async (pmids) => pmids.map((pmid) => ({ pmid, retracted: false, is_notice: false, checked: true })),
+      resolveDoisToPmids: async (dois) => dois.map((doi) => ({ doi, pmids: [], resolved: true }))
+    },
     agentSpawner: {
       spawnMission: async (envelope) => {
         captured.envelope = envelope;

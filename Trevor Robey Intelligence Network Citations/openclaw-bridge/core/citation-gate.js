@@ -291,44 +291,53 @@ function verifyReportCitations(opts = {}) {
   };
 }
 
-// Per-screen cap: bounds the outbound request cost of a single gate run. Anything beyond the cap
-// is reported as `unscreened` rather than silently dropped (it used to be silently dropped while
-// `dois_checked` still reported the FULL cited count — the ledger overstated its own coverage).
-const MAX_IDS_PER_SCREEN = 50;
+// T1-7 (2026-11-14): EVERY cited id is screened, in chunks of SCREEN_CHUNK, up to a hard ceiling of
+// MAX_SCREEN_IDS_PER_CLASS per class that bounds the outbound request cost of one gate run. Until
+// this date the screen silently stopped at the first 50 ids per class (`slice(0, 50)`), and two of
+// six sealed manifests read "Retraction screen: INCOMPLETE" for it while their ledgers graded A.
+// Anything beyond the ceiling is counted, and NAMED, as unscreened — never silently dropped.
+const SCREEN_CHUNK = 50;
+const MAX_SCREEN_IDS_PER_CLASS = 500;
 
-// Run one retraction screen over one identifier class, fail-soft.
+// Run one retraction screen over one identifier class, fail-soft, chunk by chunk.
 //
-// `complete` means EVERY cited id of this class received a definitive verdict. It is NOT merely
-// "the checker did not throw" — the production checkers (crossref-retraction, pubmed-retraction)
-// are fail-soft by contract and NEVER throw: on a 429/503/timeout they RESOLVE with rows carrying
-// `checked:false`. Keying completeness off "didn't throw" therefore reported a screen as `checked`
-// while zero identifiers had actually been screened, and that boolean is rendered verbatim into
-// the customer-facing, checksum-sealed Reproducibility Manifest. Unknown must never read as clean.
-//
-// Incomplete for any of: absent checker, checker threw, source unreachable/rate-limited, or ids
-// dropped by the per-screen cap. A retraction found by a partially-complete screen still surfaces —
+// A row's `checked` means that id received a definitive verdict. It is NOT merely "the checker did
+// not throw" — the production checkers (crossref-retraction, pubmed-retraction) are fail-soft by
+// contract and NEVER throw: on a 429/503/timeout they RESOLVE with rows carrying `checked:false`.
+// Unknown must never read as clean. A chunk whose checker throws leaves its ids without a row
+// (unscreened); later chunks still run. A retraction found by a partial screen still surfaces —
 // incompleteness suppresses the CLAIM of coverage, never a real finding.
 async function runScreen(ids, checkFn, idKey) {
-  if (ids.length === 0) return { complete: true, retracted: [], checked_count: 0, unscreened: 0, rows: [] };
-  if (typeof checkFn !== "function") {
-    return { complete: false, retracted: [], checked_count: 0, unscreened: ids.length, rows: [] };
+  const inScope = ids.slice(0, MAX_SCREEN_IDS_PER_CLASS);
+  const rows = [];
+  if (typeof checkFn === "function") {
+    for (let i = 0; i < inScope.length; i += SCREEN_CHUNK) {
+      try {
+        const results = await checkFn(inScope.slice(i, i + SCREEN_CHUNK));
+        if (Array.isArray(results)) rows.push(...results.filter(Boolean));
+      } catch { /* fail-soft: this chunk stays unscreened */ }
+    }
   }
-  const batch = ids.slice(0, MAX_IDS_PER_SCREEN);
-  let results;
-  try {
-    results = await checkFn(batch);
-  } catch {
-    return { complete: false, retracted: [], checked_count: 0, unscreened: ids.length, rows: [] };
-  }
-  const rows = Array.isArray(results) ? results : [];
-  const checked_count = rows.filter((r) => r && r.checked).length;
+  const checked_count = rows.filter((r) => r.checked).length;
   return {
-    complete: checked_count === ids.length,
-    retracted: rows.filter((r) => r && r.retracted).map((r) => String(r[idKey])),
+    applicable: typeof checkFn === "function",
+    retracted: rows.filter((r) => r.retracted).map((r) => String(r[idKey])),
     checked_count,
-    unscreened: ids.length - checked_count,
     rows   // per-id verdict rows, so a caller can reuse a verdict instead of re-fetching it
   };
+}
+
+// Calls `fn` on `list` in chunks of SCREEN_CHUNK and concatenates the rows; a chunk that throws
+// contributes nothing (fail-soft). Used for the DOI→PMID lookup and the PMID verdicts behind it.
+async function inChunks(list, fn) {
+  const out = [];
+  for (let i = 0; i < list.length; i += SCREEN_CHUNK) {
+    try {
+      const rows = await fn(list.slice(i, i + SCREEN_CHUNK));
+      if (Array.isArray(rows)) out.push(...rows.filter(Boolean));
+    } catch { /* fail-soft: these stay unresolved */ }
+  }
+  return out;
 }
 
 // PubMed cross-screen for cited DOIs. Resolves EVERY cited DOI → PMID(s), checks their pubtypes,
@@ -345,57 +354,34 @@ async function runScreen(ids, checkFn, idKey) {
 // `knownVerdicts` (pmid → verdict row) lets the caller pass the directly-cited-PMID screen's rows
 // so a PMID that is both cited directly AND resolved from a DOI is not fetched from NCBI twice.
 async function screenDoisViaPubmed(dois, doiToPmid, checkPmids, knownVerdicts) {
-  const perDoi = new Map();
+  const perDoi = new Map(); // keyed by the lower-cased DOI (DOIs are case-insensitive)
   const known = knownVerdicts instanceof Map ? knownVerdicts : new Map();
   if (typeof doiToPmid !== "function" || typeof checkPmids !== "function") {
-    return { applicable: false, complete: true, perDoi, escalated: 0 };
+    return { applicable: false, perDoi, escalated: 0 };
   }
-  if (dois.length === 0) return { applicable: true, complete: true, perDoi, escalated: 0 };
-  const batch = dois.slice(0, MAX_IDS_PER_SCREEN);
-  let pairs;
-  try {
-    pairs = await doiToPmid(batch);
-  } catch {
-    return { applicable: true, complete: false, perDoi, escalated: 0 };
-  }
-  const rows = Array.isArray(pairs) ? pairs.filter((p) => p && p.doi) : [];
-  // Full coverage requires every candidate DOI to have definitively resolved (a DOI not in PubMed
-  // resolves to zero PMIDs but still counts as resolved) AND none dropped by the cap.
-  const allResolved = batch.length === dois.length
-    && rows.length === batch.length
-    && rows.every((r) => r.resolved === true);
+  const inScope = dois.slice(0, MAX_SCREEN_IDS_PER_CLASS);
+  if (inScope.length === 0) return { applicable: true, perDoi, escalated: 0 };
+  const rows = (await inChunks(inScope, doiToPmid)).filter((p) => p && p.doi);
 
   const doiPmids = new Map();
   const pmidSet = new Set();
   for (const r of rows) {
-    // Trust a row's PMIDs ONLY when the lookup DEFINITIVELY resolved. A `resolved:false` row is a
-    // transport failure; using its pmids could manufacture a retraction from an unverified mapping.
-    const ps = (r.resolved === true && Array.isArray(r.pmids)) ? r.pmids.map(String) : [];
-    doiPmids.set(r.doi, ps);
+    // Trust a row's PMIDs ONLY when the lookup DEFINITIVELY resolved (a DOI not in PubMed resolves
+    // to zero PMIDs and still counts as resolved). A `resolved:false` row is a transport failure;
+    // using its pmids could manufacture a retraction from an unverified mapping.
+    if (r.resolved !== true) continue;
+    const ps = Array.isArray(r.pmids) ? r.pmids.map(String) : [];
+    doiPmids.set(String(r.doi).toLowerCase(), ps);
     for (const p of ps) pmidSet.add(p);
   }
-  const escalated = rows.filter((r) => r.resolved === true).length;
+  const escalated = doiPmids.size;
 
   // Verdicts we already have (from the direct-PMID screen) need no second fetch.
   const vById = new Map(known);
-  const toCheck = [...pmidSet].filter((p) => !vById.has(p));
-  const cappedToCheck = toCheck.slice(0, MAX_IDS_PER_SCREEN);   // bound outbound cost like runScreen
-  const droppedByCap = toCheck.length > cappedToCheck.length;
-  if (cappedToCheck.length > 0) {
-    let verdicts;
-    try {
-      verdicts = await checkPmids(cappedToCheck);
-    } catch {
-      return { applicable: true, complete: false, perDoi, escalated };
-    }
-    for (const v of Array.isArray(verdicts) ? verdicts : []) {
-      if (v && v.pmid != null) vById.set(String(v.pmid), v);
-    }
+  const toCheck = [...pmidSet].filter((p) => !vById.has(p)).slice(0, MAX_SCREEN_IDS_PER_CLASS);
+  for (const v of await inChunks(toCheck, checkPmids)) {
+    if (v && v.pmid != null) vById.set(String(v.pmid), v);
   }
-  // Complete iff every DOI resolved, nothing was dropped by the cap, and every resolved PMID has a
-  // definitive verdict (reused-from-known or freshly fetched).
-  const pmidComplete = !droppedByCap
-    && [...pmidSet].every((p) => { const v = vById.get(p); return v && v.checked; });
 
   for (const [doi, ps] of doiPmids) {
     let retracted = false;
@@ -405,10 +391,17 @@ async function screenDoisViaPubmed(dois, doiToPmid, checkPmids, knownVerdicts) {
       if (v && v.retracted) retracted = true;
       if (v && v.is_notice) notice = true;
     }
-    // A record that is a retracted paper wins over the notice flag (defensive; they never co-occur).
-    perDoi.set(doi, { pubmedRetracted: retracted, pubmedNotice: notice && !retracted });
+    perDoi.set(doi, {
+      // A record that is a retracted paper wins over the notice flag (defensive; they never co-occur).
+      pubmedRetracted: retracted,
+      pubmedNotice: notice && !retracted,
+      // T1-7: PubMed screened this DOI only if it resolved to at least one PMID and every one of
+      // them has a definitive verdict.
+      screened: ps.length > 0 && ps.every((p) => { const v = vById.get(p); return Boolean(v && v.checked); }),
+      notInPubmed: ps.length === 0
+    });
   }
-  return { applicable: true, complete: allResolved && pmidComplete, perDoi, escalated };
+  return { applicable: true, perDoi, escalated };
 }
 
 // Literature-integrity check: extract the report's cited DOIs and PMIDs and decide which are
@@ -427,50 +420,87 @@ async function screenDoisViaPubmed(dois, doiToPmid, checkPmids, knownVerdicts) {
 // Crossref flag stands (fail-closed on the retraction axis).
 // `checkPmids` and `doiToPmid` are optional so existing 2-/3-argument callers keep prior behavior.
 async function checkRetractions(reportText, checkDois, checkPmids, doiToPmid) {
-  if (typeof checkDois !== "function" && typeof checkPmids !== "function") {
-    return { checked: false, retracted: [] };
-  }
+  const anyScreen = typeof checkDois === "function" || typeof checkPmids === "function";
   // deduplicateCitations compares DOIs case-insensitively (T1-4): "10.1056/NEJMoa…" and
   // "10.1056/nejmoa…" are one work, screened once.
   const cited = deduplicateCitations(extractCitations(String(reportText || "")));
   const dois = cited.filter((c) => c.type === "DOI").map((c) => c.id);
   const pmids = cited.filter((c) => c.type === "PMID").map((c) => c.id);
+  const lc = (doi) => String(doi).toLowerCase();
 
   const doiScreen = await runScreen(dois, checkDois, "doi");
   const pmidScreen = await runScreen(pmids, checkPmids, "pmid");
-  const crossFlagged = new Set(doiScreen.retracted);
+  const crossRows = new Map(doiScreen.rows.filter((r) => r.doi != null).map((r) => [lc(r.doi), r]));
+  const crossFlagged = new Set(doiScreen.retracted.map(lc));
+  const pmidRows = new Map(pmidScreen.rows.filter((r) => r.pmid != null).map((r) => [String(r.pmid), r]));
 
   // Reuse the direct-PMID verdicts so a PMID cited both directly and via a DOI is not fetched twice.
-  const directVerdicts = new Map(
-    (pmidScreen.rows || []).filter((r) => r && r.pmid != null).map((r) => [String(r.pmid), r])
-  );
-  const pubmed = await screenDoisViaPubmed(dois, doiToPmid, checkPmids, directVerdicts);
+  const pubmed = await screenDoisViaPubmed(dois, doiToPmid, checkPmids, pmidRows);
+  const pubmedFor = (doi) => pubmed.perDoi.get(lc(doi)) || {};
 
   const retracted_dois = dois.filter((doi) => {
-    const v = pubmed.perDoi.get(doi) || {};
-    return v.pubmedRetracted || (crossFlagged.has(doi) && !v.pubmedNotice);
+    const v = pubmedFor(doi);
+    return v.pubmedRetracted || (crossFlagged.has(lc(doi)) && !v.pubmedNotice);
   });
   // DOIs caught by the PubMed escalation that Crossref did not flag.
-  const retracted_dois_via_pmid = retracted_dois.filter((doi) => !crossFlagged.has(doi));
+  const retracted_dois_via_pmid = retracted_dois.filter((doi) => !crossFlagged.has(lc(doi)));
   // Crossref-flagged DOIs that PubMed positively identified as retraction notices → not retracted.
-  const unflagged_notice_dois = [...crossFlagged].filter((doi) => !retracted_dois.includes(doi));
+  const unflagged_notice_dois = dois.filter((doi) => crossFlagged.has(lc(doi)) && !retracted_dois.includes(doi));
+  // T1-7: records Crossref itself identifies as retraction NOTICES (their update-to names another work).
+  const crossref_notice_dois = dois.filter((doi) => { const r = crossRows.get(lc(doi)); return Boolean(r && r.is_notice); });
+  // Operator default D3: partial retraction, withdrawal and expression of concern are flagged in the
+  // integrity ledger and never block.
+  const editorial_flags = [];
+  for (const doi of dois) {
+    const r = crossRows.get(lc(doi));
+    for (const e of (r && Array.isArray(r.editorial_updates) ? r.editorial_updates : [])) {
+      editorial_flags.push({ id: `DOI:${doi}`, type: e.type, source: e.source || null });
+    }
+  }
+
+  // T1-7 coverage, per identifier, NAMED. A DOI counts as screened only if Crossref holds it (a 200
+  // with a definitive record), or if PubMed resolved it to at least one PMID with a definitive
+  // verdict. A Crossref 404 used to count as screened, so a DOI that no retraction source holds read
+  // as clean; it is now unscreened and counted in `dois_without_retraction_source` (operator default
+  // D2). A PMID counts as screened when PubMed gave it a definitive verdict. Ids beyond the ceiling
+  // have no verdict, so they are named here too.
+  const unscreened_ids = [];
+  let dois_without_retraction_source = 0;
+  for (const doi of dois) {
+    const r = crossRows.get(lc(doi));
+    const pm = pubmed.perDoi.get(lc(doi));
+    const byCrossref = Boolean(r && r.checked && r.in_crossref !== false);
+    const byPubmed = Boolean(pm && pm.screened);
+    if (byCrossref || byPubmed) continue;
+    unscreened_ids.push(`DOI:${doi}`);
+    if (r && r.checked && r.in_crossref === false && pm && pm.notInPubmed) dois_without_retraction_source++;
+  }
+  for (const pmid of pmids) {
+    const r = pmidRows.get(String(pmid));
+    if (!(r && r.checked)) unscreened_ids.push(`PMID:${pmid}`);
+  }
 
   return {
     // `checked` asserts full coverage of every cited identifier. A rate-limited or unreachable
-    // source yields `false` here, never a silent "clean". It is a REPORTING flag only — it does
-    // not gate delivery, so an outage degrades the claim, it does not block a passing report.
-    checked: doiScreen.complete && pmidScreen.complete && pubmed.complete,
+    // source, a DOI no retraction source holds, or an id beyond the ceiling yields `false` here,
+    // never a silent "clean". It is a REPORTING flag only — it never blocks delivery: the manifest
+    // turns it into the `retraction_screen_incomplete` flag (DELIVER_WITH_FLAGS), never a block.
+    checked: anyScreen && unscreened_ids.length === 0,
     retracted: [...retracted_dois, ...pmidScreen.retracted],
     retracted_dois,
     retracted_pmids: pmidScreen.retracted,
     retracted_dois_via_pmid,
     unflagged_notice_dois,
+    crossref_notice_dois,
+    editorial_flags,
     dois_checked: doiScreen.checked_count,
     pmids_checked: pmidScreen.checked_count,
     dois_escalated_via_pmid: pubmed.escalated,
     dois_cited: dois.length,
     pmids_cited: pmids.length,
-    unscreened: doiScreen.unscreened + pmidScreen.unscreened
+    unscreened: unscreened_ids.length,
+    unscreened_ids,
+    dois_without_retraction_source
   };
 }
 
@@ -487,5 +517,7 @@ module.exports = {
   annotateSubtaskOutputs,
   countUnmarkedUntraced,
   verifyReportCitations,
-  checkRetractions
+  checkRetractions,
+  SCREEN_CHUNK,
+  MAX_SCREEN_IDS_PER_CLASS
 };

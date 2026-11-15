@@ -65,6 +65,33 @@ describe("integrity-rating — buildIntegrityReport", () => {
     assert.doesNotMatch(buildIntegrityReport(base).markdown, /Matched on/);
   });
 
+  // T1-7: the ledger states the retraction screen's coverage and names what it could not screen.
+  it("shows a complete screen, or INCOMPLETE with every unscreened id listed", () => {
+    const base = { cited: 4, grounded: 4, grounded_ratio: 1, retracted: [] };
+    const complete = buildIntegrityReport({ ...base, retraction_screen_checked: true, retraction_screen_cited: 4, unscreened: 0 }).markdown;
+    assert.match(complete, /\| Retraction screen \| complete \|/);
+    assert.match(complete, /Every cited DOI and PMID was retraction-screened\./);
+    const partial = buildIntegrityReport({
+      ...base, retraction_screen_checked: false, retraction_screen_cited: 6, unscreened: 2,
+      unscreened_ids: ["DOI:10.4444/missing", "PMID:20000002"]
+    }).markdown;
+    assert.match(partial, /\| Retraction screen \| INCOMPLETE: 2 of 6 cited DOIs and PMIDs not screened \|/);
+    assert.match(partial, /Retraction screen: INCOMPLETE, 2 of 6 cited DOIs and PMIDs not screened/);
+    assert.match(partial, /- DOI:10\.4444\/missing\n- PMID:20000002/);
+    assert.doesNotMatch(partial, /was retraction-screened/);
+    const unknown = buildIntegrityReport(base).markdown;
+    assert.match(unknown, /\| Retraction screen \| not recorded for this report \|/);
+  });
+
+  it("lists partial retractions, withdrawals and expressions of concern as non-blocking notices (D3)", () => {
+    const md = buildIntegrityReport({
+      cited: 2, grounded: 2, grounded_ratio: 1, retracted: [], retraction_screen_checked: true,
+      retraction_editorial_flags: [{ id: "DOI:10.9/work", type: "expression_of_concern", source: "publisher" }]
+    }).markdown;
+    assert.match(md, /## Editorial notices on cited works \(not blocking\)/);
+    assert.match(md, /- DOI:10\.9\/work: expression of concern \(recorded by publisher\)/);
+  });
+
   it("handles empty/missing input gracefully", () => {
     const r = buildIntegrityReport();
     assert.equal(r.grade, "N/A");

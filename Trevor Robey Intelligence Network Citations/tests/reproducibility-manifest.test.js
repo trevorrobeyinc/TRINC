@@ -68,11 +68,29 @@ test("retracted PMID -> BLOCK, and is labeled a PMID (never merged into retracte
 });
 
 // An outage must degrade the CLAIM, not silently read as a clean screen, in the sealed manifest.
-test("retraction screen incomplete -> manifest says INCOMPLETE, and still DELIVERs", () => {
-  const m = buildReproducibilityManifest({ reresolved: [cit("PMID", "1", "VERIFIED")], retraction: { checked: false, retracted_dois: [], retracted_pmids: [] }, meta: META });
+// T1-7 (2026-11-14): an incomplete screen now forfeits the full-strength DELIVER (a flag), and it
+// still never blocks: block_reasons stays empty.
+test("retraction screen incomplete -> manifest says INCOMPLETE, flags it, and still ships (DELIVER_WITH_FLAGS)", () => {
+  const m = buildReproducibilityManifest({
+    reresolved: [cit("PMID", "1", "VERIFIED")],
+    retraction: { checked: false, retracted_dois: [], retracted_pmids: [], cited: 3, unscreened_ids: ["DOI:10.4/missing"] },
+    meta: META
+  });
   assert.equal(m.summary.retraction_screen.checked, false);
-  assert.equal(m.summary.delivery_decision, "DELIVER", "an unreachable source must never block a passing report");
-  assert.match(renderManifestMarkdown(m), /Retraction screen: INCOMPLETE/);
+  assert.equal(m.summary.delivery_decision, "DELIVER_WITH_FLAGS");
+  assert.deepEqual(m.summary.flag_reasons, ["retraction_screen_incomplete"]);
+  assert.deepEqual(m.summary.block_reasons, [], "an unreachable source must never block a passing report");
+  const md = renderManifestMarkdown(m);
+  assert.match(md, /Retraction screen: INCOMPLETE — 1 of 3 cited DOIs and PMIDs not screened/);
+  assert.match(md, /Not screened: DOI:10\.4\/missing\./);
+  assert.match(md, /This report SHIPS with a flag: the retraction screen could not screen every cited DOI and PMID/);
+  assert.doesNotMatch(md, /network\/throttle limit/, "a retraction-screen gap is not a re-resolution limit");
+});
+
+test("a complete retraction screen adds no flag", () => {
+  const m = buildReproducibilityManifest({ reresolved: [cit("PMID", "1", "VERIFIED")], retraction: { checked: true, retracted_dois: [], retracted_pmids: [] }, meta: META });
+  assert.equal(m.summary.delivery_decision, "DELIVER");
+  assert.match(renderManifestMarkdown(m), /Retraction screen: checked/);
 });
 
 test("gate hard-fail -> BLOCK", () => {

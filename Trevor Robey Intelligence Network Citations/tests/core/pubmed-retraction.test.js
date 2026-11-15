@@ -343,13 +343,18 @@ describe("citation-gate — checkRetractions with the PMID screen", () => {
     assert.deepEqual(out.retracted, []);
   });
 
-  it("reports unscreened overflow instead of silently dropping it", async () => {
+  // T1-7 (2026-11-14): every cited id is screened in chunks of 50; only ids beyond the 500-per-class
+  // ceiling go unscreened, and those are named (tests/core/retraction-coverage.test.js).
+  it("screens all 60 cited PMIDs (chunks of 50), none silently dropped", async () => {
     const many = Array.from({ length: 60 }, (_, i) => `PMID: ${100000 + i}`).join(" ");
-    const passthrough = async (ids) => ids.map((id) => ({ pmid: id, retracted: false, checked: true }));
+    const sizes = [];
+    const passthrough = async (ids) => { sizes.push(ids.length); return ids.map((id) => ({ pmid: id, retracted: false, checked: true })); };
     const out = await checkRetractions(many, null, passthrough);
     assert.equal(out.pmids_cited, 60);
-    assert.equal(out.pmids_checked, 50, "cap is 50 per screen");
-    assert.equal(out.unscreened, 10, "the overflow is reported, not hidden");
+    assert.deepEqual(sizes, [50, 10]);
+    assert.equal(out.pmids_checked, 60);
+    assert.equal(out.unscreened, 0);
+    assert.equal(out.checked, true);
   });
 });
 
@@ -445,16 +450,26 @@ describe("citation-gate — DOI→PMID escalation (the Wakefield class)", () => 
     assert.deepEqual(out.retracted_dois_via_pmid, [], "not escalated — Crossref already flagged it");
   });
 
-  it("escalation resolver throwing is fail-soft: checked:false, no false retraction, real hits still surface", async () => {
+  it("escalation resolver throwing is fail-soft: no false retraction, real hits still surface", async () => {
     const boomResolve = async () => { throw new Error("ECONNRESET"); };
-    const checkPmids = async () => [];
     // A separately-cited retracted PMID must still surface even though escalation failed.
     const checkPmidsWithHit = async (pmids) => (createPubmedRetraction({ fetchImpl: fetchEutils() })).checkPmids(pmids);
     const out = await checkRetractions(
       `doi: ${WAKEFIELD_DOI} and PMID: 9500320`, checkDoisCrossrefBlind, checkPmidsWithHit, boomResolve
     );
-    assert.equal(out.checked, false, "escalation could not run → coverage incomplete");
     assert.ok(out.retracted.includes("9500320"), "the directly-cited retracted PMID still surfaces");
+    // T1-7: a DOI Crossref holds is screened by Crossref, so the failed escalation leaves no gap here.
+    assert.equal(out.checked, true);
+  });
+
+  it("escalation resolver throwing on a DOI Crossref does NOT hold → coverage incomplete, the DOI named (T1-7)", async () => {
+    const boomResolve = async () => { throw new Error("ECONNRESET"); };
+    const crossref404 = async (dois) => dois.map((d) => ({ doi: d, retracted: false, checked: true, in_crossref: false }));
+    const out = await checkRetractions(`doi: ${WAKEFIELD_DOI}`, crossref404, async () => [], boomResolve);
+    assert.equal(out.checked, false, "no retraction source could screen it");
+    assert.deepEqual(out.unscreened_ids, [`DOI:${WAKEFIELD_DOI}`]);
+    assert.equal(out.dois_without_retraction_source, 0, "unknown, not 'held by none': PubMed never answered");
+    assert.deepEqual(out.retracted, []);
   });
 
   it("3-arg caller (no resolver) is unchanged: DOI-only Wakefield passes, escalation not applicable", async () => {
@@ -471,7 +486,12 @@ describe("citation-gate — DOI→PMID escalation (the Wakefield class)", () => 
     const checkPmids = async (pmids) => (createPubmedRetraction({ fetchImpl: fetchEutils() })).checkPmids(pmids);
     const out = await checkRetractions(`doi: ${CLEAN_DOI}`, checkDoisCrossrefBlind, checkPmids, badResolver);
     assert.deepEqual(out.retracted, [], "unverified DOI→PMID mapping must never flag a clean DOI");
-    assert.equal(out.checked, false, "the failed resolution is reported as incomplete");
+    // T1-7: Crossref holds this DOI, so it is screened even though the PubMed mapping failed.
+    assert.equal(out.checked, true);
+    const crossref404 = async (dois) => dois.map((d) => ({ doi: d, retracted: false, checked: true, in_crossref: false }));
+    const missing = await checkRetractions(`doi: ${CLEAN_DOI}`, crossref404, checkPmids, badResolver);
+    assert.deepEqual(missing.retracted, []);
+    assert.equal(missing.checked, false, "the failed resolution of a DOI Crossref lacks is reported as incomplete");
   });
 
   it("does not fetch a PMID twice when it is cited both directly and via a co-cited DOI (dedup)", async () => {
@@ -647,6 +667,8 @@ describe("citation-gate — retraction-NOTICE disambiguation (Crossref false-pos
     const { checkPmids } = realPmidStack();
     const out = await checkRetractions(`doi: ${NOTICE_DOI}`, checkDoisFlagsNotice, checkPmids, boom);
     assert.deepEqual(out.retracted_dois, [NOTICE_DOI], "conservative: block rather than risk shipping a retraction");
-    assert.equal(out.checked, false, "coverage is incomplete and says so");
+    // T1-7: Crossref holds the DOI (it answered with a definitive record), so it was screened; the
+    // PubMed outage only removed the chance to override the flag, which is why the flag stands.
+    assert.equal(out.checked, true);
   });
 });

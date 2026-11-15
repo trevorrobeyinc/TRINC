@@ -86,6 +86,9 @@ const PROFILE_COPY = Object.freeze({
     analysisStep: "2. **Deep Analysis** — Pharmacological, molecular, or safety signal analysis with quantitative data",
     identifierBullet: "- Every citation includes a verifiable identifier (PMID, NCT, CID, DOI, etc.)",
     retractionBullet: "- Cited DOIs and PMIDs are retraction-screened (Crossref for DOIs, PubMed for PMIDs, with a DOI→PMID cross-check); any retracted source blocks release",
+    // T1-7: the bullet when the screen did not cover every cited DOI and PMID (a count follows).
+    retractionBulletPartial: "- Cited DOIs and PMIDs are put through the retraction screen (Crossref for DOIs, PubMed for PMIDs, with a DOI→PMID cross-check); any retracted source found blocks release.",
+    retractionScopePartial: "cited DOIs and PMIDs are put through the retraction screen",
     dataSourcesIntro: "The pipeline queries the following authoritative biomedical databases:",
     dataSources: Object.freeze([
       "- **PubMed / MEDLINE** — Peer-reviewed biomedical literature (PMID identifiers)",
@@ -112,6 +115,8 @@ const PROFILE_COPY = Object.freeze({
     analysisStep: "2. **Deep Analysis** — Cost, market, competitive, or operational analysis with quantitative data",
     identifierBullet: "- Every citation includes a verifiable identifier (SEC accession, official statistics series id, World Bank indicator, DOI) or a WEB snapshot hash; every cited web page ships in `sources/`",
     retractionBullet: "- Cited DOIs are retraction-screened against Crossref; any retracted source blocks release",
+    retractionBulletPartial: "- Cited DOIs are put through the Crossref retraction screen; any retracted source found blocks release.",
+    retractionScopePartial: "cited DOIs are put through the retraction screen",
     dataSourcesIntro: "The pipeline queries the following sources:",
     dataSources: Object.freeze([
       "- **SEC EDGAR** — Public company filings: 10-K, 10-Q, 8-K (SEC accession identifiers)",
@@ -181,13 +186,37 @@ function createDeliverablePackager(options = {}) {
     };
   }
 
+  // T1-7 (2026-11-14): the retraction screen's coverage for THIS bundle. The bundle says
+  // "retraction-screened" only when every cited DOI and PMID was screened; otherwise it says how many
+  // could not be, and that the integrity ledger names them. `known:false` = a record that predates
+  // the coverage fields, so nothing is asserted about coverage either way.
+  function readRetractionCoverage(sourceContext) {
+    const cv = asPlainObject(asPlainObject(sourceContext).citation_verification);
+    if (typeof cv.retraction_screen_checked !== "boolean") return { known: false, complete: false };
+    const ids = Array.isArray(cv.unscreened_ids) ? cv.unscreened_ids : [];
+    return {
+      known: true,
+      complete: cv.retraction_screen_checked === true,
+      unscreened: Number.isFinite(cv.unscreened) ? cv.unscreened : ids.length,
+      cited: Number.isFinite(cv.retraction_screen_cited) ? cv.retraction_screen_cited : null
+    };
+  }
+  function retractionShortfall(coverage) {
+    return coverage.known
+      ? `For this report ${coverage.unscreened}${coverage.cited !== null ? ` of ${coverage.cited}` : ""} cited DOIs and PMIDs could not be screened; the citation-integrity ledger lists them.`
+      : "This bundle's record does not state whether every cited DOI and PMID could be screened.";
+  }
+  function retractionBulletFor(copy, coverage) {
+    return coverage.complete ? copy.retractionBullet : `${copy.retractionBulletPartial} ${retractionShortfall(coverage)}`;
+  }
+
   // The re-resolution CAPABILITY claim must never be softened to "grounding only" — the
   // per-identifier resolver is built, wired and verified (SYSTEM-REALITY.md §3 carries an explicit
   // copy-sweep warning that doing so is a false understatement). What varies per bundle is the
   // OUTCOME, which is read from the manifest instead of assumed. Claim strength therefore tracks
   // the same counts that produce delivery_decision: all-VERIFIED (DELIVER) reads at full strength,
   // anything else is stated with its real UNCHECKED / UNRESOLVED residue (DELIVER_WITH_FLAGS).
-  function renderResolutionSentence(res, copy = PROFILE_COPY.biomedical) {
+  function renderResolutionSentence(res, copy = PROFILE_COPY.biomedical, coverage = { known: false, complete: false }) {
     if (!res.present) {
       if (!res.gated) {
         // No citation-verification record at all — claim neither gate. Identifiers are still
@@ -196,7 +225,10 @@ function createDeliverablePackager(options = {}) {
       }
       // A per-bundle statement of fact, NOT the general softening SYSTEM-REALITY.md §3 forbids:
       // THIS bundle's gates ran but the fail-soft re-resolution pass produced no manifest.
-      return `Every cited identifier is cross-checked against the source records actually retrieved at runtime, and ${copy.retractionScope}. A per-identifier re-resolution manifest is not included with this bundle.`;
+      const screen = coverage.complete
+        ? `${copy.retractionScope}.`
+        : `${copy.retractionScopePartial}. ${retractionShortfall(coverage)}`;
+      return `Every cited identifier is cross-checked against the source records actually retrieved at runtime, and ${screen} A per-identifier re-resolution manifest is not included with this bundle.`;
     }
     // Registries actually dispatched to, per citation-reresolver.js hostFor(). DrugBank is a
     // recognised identifier type but has NO resolver host, and the literal string is banned in
@@ -254,6 +286,7 @@ function createDeliverablePackager(options = {}) {
     const title = safeString(offer.offer_title);
     const resolution = readResolutionSummary(sourceContext);
     const copy = profileCopy(sourceContext);
+    const coverage = readRetractionCoverage(sourceContext);
     const webSnapshots = Array.isArray(sourceContext.web_snapshots) ? sourceContext.web_snapshots : [];
 
     const lines = [
@@ -263,7 +296,7 @@ function createDeliverablePackager(options = {}) {
       "",
       "## Overview",
       "",
-      `This intelligence pack delivers citation-backed research synthesized from ${copy.sourcesSentence}. ${renderResolutionSentence(resolution, copy)}`,
+      `This intelligence pack delivers citation-backed research synthesized from ${copy.sourcesSentence}. ${renderResolutionSentence(resolution, copy, coverage)}`,
       "",
       resolution.present
         ? `The report spans **${pageEstimate}+ pages** of original analysis citing **${resolution.total} unique identifiers** (**${resolution.verified}** independently re-resolved VERIFIED) drawn from ${copy.drawnFrom}.`
@@ -304,7 +337,7 @@ function createDeliverablePackager(options = {}) {
       ...(resolution.gated
         ? [
           "- **The Zero-Fabrication Guarantee** — every cited identifier is cross-checked at generation time against the evidence actually retrieved for this report; identifiers not found in that evidence are flagged `[UNVERIFIED]` inline and are never presented as fact, and a report below the grounded-citation floor does not ship",
-          copy.retractionBullet
+          retractionBulletFor(copy, coverage)
         ]
         : ["- This bundle carries no citation-verification record: no grounding, retraction-screen, or re-resolution outcome is claimed for it"]),
       ""

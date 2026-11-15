@@ -230,7 +230,8 @@ function withResolution(fixture, summary) {
     artifacts: [{ task_id: "t1", output_rel: "workspace/research-output/t1/output.md", output_full: CITED_BODY }]
   };
   if (summary === "gated") {
-    ctx.citation_verification = { cited: 4, grounded: 4, ungrounded: 0 };
+    // T1-7: a gate record carries its retraction-screen coverage; this one screened all 4.
+    ctx.citation_verification = { cited: 4, grounded: 4, ungrounded: 0, retraction_screen_checked: true, retraction_screen_cited: 4, unscreened: 0 };
   } else if (summary) {
     ctx.citation_verification = {
       cited: 4, grounded: 4, ungrounded: 0,
@@ -373,6 +374,28 @@ test("store copy fail-softs when the gate ran but no manifest exists, without so
   // would be the "grounding only" softening SYSTEM-REALITY.md:93 forbids.
   assert.match(copy, /retraction-screened/, "retraction screening is still claimed");
   assert.match(copy, /retrieved at runtime/, "runtime grounding is still claimed");
+});
+
+// T1-7: "retraction-screened" is printed only when the screen covered every cited DOI and PMID.
+test("the store copy's retraction bullet follows the screen's coverage", async () => {
+  const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "openclaw-phase19-retraction-coverage-"));
+  const packager = createDeliverablePackager({ rootDir: tmp });
+  const render = (cv) => {
+    const fixture = createMissionFixture();
+    const ctx = withResolution(fixture, FLAGGED_SUMMARY);
+    Object.assign(ctx.citation_verification, cv);
+    const bundleDir = packager.createBundleWorkspace(`${fixture.offer.offer_id}-${Object.keys(cv).length}-${cv.unscreened || 0}`);
+    packager.writeDeliverables(bundleDir, fixture.offer, ctx);
+    return fs.readFileSync(path.join(bundleDir, "deliverables", "store-copy.md"), "utf8");
+  };
+  const complete = render({ retraction_screen_checked: true, retraction_screen_cited: 24, unscreened: 0 });
+  assert.match(complete, /Cited DOIs and PMIDs are retraction-screened \(Crossref for DOIs/);
+  const partial = render({ retraction_screen_checked: false, retraction_screen_cited: 24, unscreened: 3, unscreened_ids: ["DOI:10.4/a", "DOI:10.4/b", "PMID:1"] });
+  assert.doesNotMatch(partial, /retraction-screened/);
+  assert.match(partial, /For this report 3 of 24 cited DOIs and PMIDs could not be screened; the citation-integrity ledger lists them\./);
+  const unknown = render({});
+  assert.doesNotMatch(unknown, /retraction-screened/, "a record without coverage claims none");
+  assert.match(unknown, /does not state whether every cited DOI and PMID could be screened/);
 });
 
 test("the citation-integrity ledger claims only the retraction screens actually queried", () => {
