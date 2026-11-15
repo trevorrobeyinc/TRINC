@@ -1,0 +1,6 @@
+# Build requirements for the editable ToolUniverse install in scripts/setup-tooluniverse.sh (step 4):
+# the [build-system] requires of vendor/tooluniverse, copied by hand from f2006162 (v1.5.7) on
+# 2026-11-14. The script refuses to build when they differ from the submodule's. After changing
+# them, regenerate security/tooluniverse-build-constraints.txt with the command in step 4.
+setuptools
+wheel
