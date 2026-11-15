@@ -22,7 +22,10 @@ function buildIntegrityReport(citationVerification = {}, sectionCoverage = []) {
   const ungrounded = Math.max(0, Number(cv.ungrounded) || 0);
   const ratio = Number(cv.grounded_ratio) || 0;
   const retracted = Array.isArray(cv.retracted) ? cv.retracted : [];
-  const ungroundedSample = Array.isArray(cv.ungrounded_sample) ? cv.ungrounded_sample : [];
+  // T1-3 (2026-11-14): every untraced identifier (the full `ungrounded_ids` list), not a 25-item
+  // sample; a record that predates the full list falls back to its sample.
+  const ungroundedSample = Array.isArray(cv.ungrounded_ids) ? cv.ungrounded_ids
+    : Array.isArray(cv.ungrounded_sample) ? cv.ungrounded_sample : [];
 
   let grade;
   let verdict;

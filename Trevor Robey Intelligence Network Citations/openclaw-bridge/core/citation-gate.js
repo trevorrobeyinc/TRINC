@@ -23,7 +23,10 @@
 // Only PASS is shippable. A template may opt out with evidenceRequired:false (none do today).
 
 const fs = require("node:fs");
-const { extractCitations, deduplicateCitations, crossCheckCitations } = require("./citation-extractor.js");
+const {
+  extractCitations, extractCitationSpans, deduplicateCitations, crossCheckCitations, groundingKey
+} = require("./citation-extractor.js");
+const { insertionPoint } = require("./citation-attribution.js");
 
 // Q7: the grounded-citation floor. config/agent-config.json `minGroundedCitationRatio` is the source
 // of truth; this is the fail-CLOSED fallback (strict, not lax) used only when that config is absent
@@ -54,10 +57,6 @@ function effectiveGroundedFloor(raw) {
 function meetsGroundedFloor(verifiedCount, total, floor) {
   if (!(total > 0)) return false;
   return verifiedCount * 1000 >= Math.round(floor * 1000) * total;
-}
-
-function escapeRegExp(s) {
-  return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 // Union of live-fetched identifiers across every subtask's metadata sidecar.
@@ -119,46 +118,126 @@ function collectReportText(subtaskResults, readFile = fs.readFileSync) {
   return parts.join("\n\n");
 }
 
-// Inline-mark each ungrounded identifier with [UNVERIFIED] and append a verification summary.
+// ── [UNVERIFIED] marks (T1-3, 2026-11-14) ────────────────────────────────────────────────────────
+// Every mention of an untraced TYPE:ID gets one mark, anchored to the extractor's own span (so
+// "PMID: 5" never tags a bare 5, and an untraced 12345678 is never tagged inside "CID 112345678"),
+// placed after a whole wiki-link, markdown link or URL (citation-attribution.js insertionPoint).
+// Before this, only the FIRST raw-substring match per id was replaced, case-sensitively — the sealed
+// offer-7e373eb2de36a7a2e73e7c1c report marked 2 of an untraced DOI's 4 mentions, one inside the
+// wiki-link's brackets. A second pass changes nothing: a mention already followed by the mark (after
+// any attribution mark) is skipped, and the appended verification list is never re-marked.
+const UNVERIFIED_MARK = "[UNVERIFIED]";
+const VERIFICATION_HEADER = "\n\n## ⚠️ Citation Verification\n\n";
+const ALREADY_MARKED = /(?:[ \t]*\[ATTRIBUTION MISMATCH:[^\]\n]*\])*[ \t]*\[UNVERIFIED\]/y;
+
+// The appended verification lists (header, intro line, "- TYPE: ID" bullets). An assembled report
+// carries one per annotated section, mid-text, so only these blocks are skipped, never what follows.
+function verificationListRanges(text) {
+  const ranges = [];
+  let from = 0;
+  for (;;) {
+    const start = text.indexOf(VERIFICATION_HEADER, from);
+    if (start < 0) break;
+    let j = start + VERIFICATION_HEADER.length;
+    const introEnd = text.indexOf("\n", j);
+    j = introEnd < 0 ? text.length : introEnd + 1;
+    while (j < text.length && text[j] === "\n") j++;
+    while (j < text.length && text.startsWith("- ", j)) {
+      const e = text.indexOf("\n", j);
+      j = e < 0 ? text.length : e + 1;
+    }
+    ranges.push([start, j]);
+    from = j;
+  }
+  return ranges;
+}
+
+// Mentions in the body: every span outside the appended verification lists.
+function bodySpans(text) {
+  const lists = verificationListRanges(text);
+  return extractCitationSpans(text).filter((s) => !lists.some(([a, b]) => s.start >= a && s.start < b));
+}
+
+// The text index where a mention's mark belongs.
+function markPosition(text, span) {
+  const lineStart = text.lastIndexOf("\n", span.start - 1) + 1;
+  let lineEnd = text.indexOf("\n", span.start);
+  if (lineEnd < 0) lineEnd = text.length;
+  const line = text.slice(lineStart, lineEnd);
+  return lineStart + insertionPoint(line, span.start - lineStart, span.end - lineStart);
+}
+
+function isMarkedAt(text, at) {
+  ALREADY_MARKED.lastIndex = at;
+  return ALREADY_MARKED.test(text);
+}
+
+// Untraced mentions in the body that carry no mark. 0 after a successful annotation.
+function countUnmarkedUntraced(text, untracedKeys) {
+  const s = String(text || "");
+  let n = 0;
+  for (const span of bodySpans(s)) {
+    if (untracedKeys.has(groundingKey(span)) && !isMarkedAt(s, markPosition(s, span))) n++;
+  }
+  return n;
+}
+
+// Inline-mark every mention of each ungrounded identifier with [UNVERIFIED] and append a
+// verification summary (once).
 function annotateUngrounded(reportText, ungroundedList) {
   let out = String(reportText || "");
-  const seen = new Set();
-  for (const c of Array.isArray(ungroundedList) ? ungroundedList : []) {
-    const id = String(c.id);
-    if (seen.has(id)) continue;
-    seen.add(id);
-    out = out.replace(new RegExp(escapeRegExp(id) + "(?!\\s*\\[UNVERIFIED\\])"), `${id} [UNVERIFIED]`);
+  const list = Array.isArray(ungroundedList) ? ungroundedList : [];
+  if (list.length === 0) return out;
+  const untraced = new Set(list.map((c) => groundingKey(c)));
+  const positions = new Set();
+  for (const span of bodySpans(out)) {
+    if (untraced.has(groundingKey(span))) positions.add(markPosition(out, span));
   }
-  if (Array.isArray(ungroundedList) && ungroundedList.length > 0) {
-    out += "\n\n## ⚠️ Citation Verification\n\n" +
+  // Right to left, so an insertion never moves a position still to be marked.
+  for (const at of [...positions].sort((a, b) => b - a)) {
+    if (isMarkedAt(out, at)) continue;
+    out = `${out.slice(0, at)} ${UNVERIFIED_MARK}${out.slice(at)}`;
+  }
+  if (!out.includes(VERIFICATION_HEADER)) {
+    out += VERIFICATION_HEADER +
       "The following cited identifiers were NOT found in the evidence fetched at runtime and are flagged **UNVERIFIED**. " +
       "Per the zero-fabrication policy, treat each as unconfirmed until independently checked — they must not be presented as verified citations.\n\n" +
-      ungroundedList.map((c) => `- ${c.type}: ${c.id}`).join("\n") + "\n";
+      list.map((c) => `- ${c.type}: ${c.id}`).join("\n") + "\n";
   }
   return out;
 }
 
-// Annotate each subtask's output file in place so the SHIPPED bundle carries the [UNVERIFIED]
-// marks (each section checked against the union of fetched ids). Fail-soft; returns count.
-// `opts.fetchedKeys` (T1-5): the gate's TYPE:ID keys, so a section is marked by the same rule the
-// gate counted with (null or absent = id-only).
+// Annotate each subtask's output file in place so the SHIPPED bundle carries the [UNVERIFIED] marks
+// (each section checked against the union of fetched ids). `opts.fetchedKeys` (T1-5): the gate's
+// TYPE:ID keys, so a section is marked by the same rule the gate counted with (null = id-only).
+// FAIL-CLOSED (T1-3): after each write the file is re-read and every untraced mention must carry its
+// mark; a section with an unmarked mention, or any read or write error, is returned in `failed`, and
+// the engine refuses to ship (PHASE30_CITATION_ANNOTATE_FAILED). Write errors used to be swallowed.
 function annotateSubtaskOutputs(subtaskResults, fetchedIds, opts = {}) {
   const readFile = opts.readFile || fs.readFileSync;
   const writeFile = opts.writeFile || fs.writeFileSync;
   const knownKeys = Array.isArray(opts.fetchedKeys) ? opts.fetchedKeys : undefined;
   let annotated = 0;
+  const failed = [];
   for (const st of Array.isArray(subtaskResults) ? subtaskResults : []) {
     if (!st || !st.output_path) continue;
+    const label = String(st.task_id || st.subtask_id || st.output_path);
     try {
       const text = readFile(st.output_path, "utf8");
       const x = crossCheckCitations(text, fetchedIds, { knownKeys });
-      if (x.unverified_count > 0) {
-        writeFile(st.output_path, annotateUngrounded(text, x.unverified));
+      if (x.unverified_count === 0) continue;
+      const untraced = new Set(x.unverified.map((c) => groundingKey(c)));
+      const next = annotateUngrounded(text, x.unverified);
+      if (next !== text) {
+        writeFile(st.output_path, next);
         annotated++;
       }
-    } catch { /* fail-soft */ }
+      if (countUnmarkedUntraced(readFile(st.output_path, "utf8"), untraced) > 0) failed.push(label);
+    } catch {
+      failed.push(label);
+    }
   }
-  return annotated;
+  return { annotated, failed };
 }
 
 // Verify an assembled report's citations against the fetched ground-truth set.
@@ -406,6 +485,7 @@ module.exports = {
   isDeskAuthoredSubtask,
   annotateUngrounded,
   annotateSubtaskOutputs,
+  countUnmarkedUntraced,
   verifyReportCitations,
   checkRetractions
 };

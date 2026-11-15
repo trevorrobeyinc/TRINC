@@ -5,7 +5,9 @@ const os = require("node:os");
 const path = require("node:path");
 
 const { canonicalize, canonicalJson, safeString, sha256 } = require("../../workflows/governance-automation/common.js");
-const { extractCitations, deduplicateCitations, countByType, roleLabel } = require("../core/citation-extractor.js");
+const {
+  extractCitations, deduplicateCitations, countByType, roleLabel, citationKey, groundingKey
+} = require("../core/citation-extractor.js");
 const { buildIntegrityReport } = require("./integrity-rating.js");
 const { renderManifestMarkdown } = require("../core/reproducibility-manifest.js");
 const { PHASE21_RELEASE_METADATA_SCHEMA } = require("./publisher-adapter-contract.js");
@@ -272,7 +274,7 @@ function createDeliverablePackager(options = {}) {
       "| File | Description |",
       "| ---- | ----------- |",
       "| `report.md` | Full research report with literature review, deep analysis, and integrated synthesis |",
-      "| `tables.csv` | Citation index with identifier type, source task, and context |",
+      "| `tables.csv` | Citation index with identifier type, source task, context, and whether the identifier was found in the evidence retrieved for this report (`grounded_in_run`) |",
       "| `sample-preview.md` | Executive summary with key findings and citation highlights |",
       "| `evidence-appendix.md` | Source provenance and task-level artifact references |",
       ...(webSnapshots.length > 0 ? ["| `sources/` | The exact text of every cited web page, as read at retrieval time (one file per WEB identifier) |"] : []),
@@ -332,12 +334,26 @@ function createDeliverablePackager(options = {}) {
     return lines.join("\n");
   }
 
+  // T1-3 (2026-11-14): the citation gate's untraced identifiers as upper-cased TYPE:ID keys, so the
+  // Citation Summary, the sample preview and tables.csv flag them like the report text does. null when
+  // the bundle carries no gate record (nothing can be said either way, so nothing is marked "yes").
+  function readUntracedKeys(sourceContext) {
+    const cv = asPlainObject(asPlainObject(sourceContext).citation_verification);
+    const list = Array.isArray(cv.ungrounded_ids) ? cv.ungrounded_ids
+      : Array.isArray(cv.ungrounded_sample) ? cv.ungrounded_sample : null;
+    return list ? new Set(list.map((s) => String(s).toUpperCase())) : null;
+  }
+  function flagIfUntraced(c, untraced) {
+    return untraced && untraced.has(groundingKey(c)) ? `${c.id} [UNVERIFIED]` : c.id;
+  }
+
   function renderResearchReport(offer, sourceContext) {
     const artifacts = Array.isArray(sourceContext.artifacts) ? sourceContext.artifacts : [];
     const allText = artifacts.map((a) => a.output_full || a.output_excerpt || "").join("\n");
     const citations = extractCitations(allText);
     const uniqueCitations = deduplicateCitations(citations);
     const reportResolution = readResolutionSummary(sourceContext);
+    const untraced = readUntracedKeys(sourceContext);
 
     const lines = [
       `# ${safeString(offer.offer_title)}`,
@@ -402,7 +418,7 @@ function createDeliverablePackager(options = {}) {
     const byType = {};
     for (const c of uniqueCitations) {
       if (!byType[c.type]) byType[c.type] = [];
-      byType[c.type].push(c.id);
+      byType[c.type].push(flagIfUntraced(c, untraced));
     }
     for (const [type, ids] of Object.entries(byType).sort(([a], [b]) => a.localeCompare(b))) {
       lines.push(`- **${type}** (${ids.length}): ${ids.slice(0, 10).join(", ")}${ids.length > 10 ? `, ... (+${ids.length - 10} more)` : ""}`);
@@ -679,18 +695,22 @@ function createDeliverablePackager(options = {}) {
       const allArtifacts = Array.isArray(sourceContext.artifacts) ? sourceContext.artifacts : [];
       const allCitationText = allArtifacts.map((a) => a.output_full || a.output_excerpt || "").join("\n");
       const allCitations = extractCitations(allCitationText);
-      const csvRows = [["citation_type", "identifier", "source_task", "context_snippet"]];
+      // T1-3: grounded_in_run says whether the citation gate traced the identifier to evidence this run
+      // retrieved ("yes"), flagged it [UNVERIFIED] ("no"), or the bundle has no gate record ("unknown").
+      const untraced = readUntracedKeys(sourceContext);
+      const csvRows = [["citation_type", "identifier", "source_task", "context_snippet", "grounded_in_run"]];
       const seen = new Set();
       for (const artifact of allArtifacts) {
         const text = artifact.output_full || artifact.output_excerpt || "";
         const taskCitations = extractCitations(text);
         for (const c of taskCitations) {
-          const key = `${c.type}:${c.id}`;
+          const key = citationKey(c);
           if (seen.has(key)) continue;
           seen.add(key);
           const idx = text.indexOf(c.id);
           const snippet = idx >= 0 ? text.slice(Math.max(0, idx - 40), idx + c.id.length + 40).replace(/\n/g, " ").trim() : "";
-          csvRows.push([c.type, c.id, safeString(artifact.task_id), snippet]);
+          const grounded = untraced ? (untraced.has(groundingKey(c)) ? "no" : "yes") : "unknown";
+          csvRows.push([c.type, c.id, safeString(artifact.task_id), snippet, grounded]);
         }
       }
       writeText(tablesPath, renderCsv(csvRows));
@@ -709,7 +729,7 @@ function createDeliverablePackager(options = {}) {
         "",
         "## Sample Citations",
         "",
-        ...sampleCitations.map((c) => `- **${c.type}**: ${c.id}`),
+        ...sampleCitations.map((c) => `- **${c.type}**: ${flagIfUntraced(c, untraced)}`),
         "",
         "## Full Report Contents",
         "",

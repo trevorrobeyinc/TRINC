@@ -385,6 +385,9 @@ function createWorkflowEngine(options = {}) {
         grounding_match: gate.grounding_match,
         fetched_id_count: gate.fetched_id_count,
         ungrounded_sample: gate.ungrounded_list.slice(0, 25).map((c) => `${c.type}:${c.id}`),
+        // T1-3: the FULL untraced list (TYPE:ID). The packager marks each one in the Citation Summary,
+        // the sample preview and tables.csv, and the integrity ledger lists them all.
+        ungrounded_ids: gate.ungrounded_list.map((c) => `${c.type}:${c.id}`),
         retracted: retraction.retracted,
         search_coverage: searchCoverageLedger ? searchCoverageLedger.summary : null
       };
@@ -419,14 +422,21 @@ function createWorkflowEngine(options = {}) {
         err.search_coverage = searchCoverageLedger ? searchCoverageLedger.summary : null;
         throw err;
       }
-      // Passed, but some citations are still ungrounded → annotate the shipped sections in place
+      // Passed, but some citations may still be ungrounded → annotate the shipped sections in place
       // so the bundle itself carries the [UNVERIFIED] marks (honesty over completeness).
-      if (gate.ungrounded > 0) {
-        try {
-          annotateSubtaskOutputs(missionResult.subtask_results, gate.fetchedIds, { fetchedKeys: gate.fetchedKeys });
-        } catch (annotateError) {
-          logger.warn({ event: "citation_gate_annotate_failed", error: safeString(annotateError && annotateError.message) });
-        }
+      // T1-3 (2026-11-14): on EVERY pass (the old `gate.ungrounded > 0` guard skipped Evidence Desk
+      // sections, which the ratio does not judge), at every mention, and FAIL-CLOSED: a section whose
+      // marks cannot be written stops the run, because an untraced identifier must never ship unflagged.
+      const annotation = annotateSubtaskOutputs(missionResult.subtask_results, gate.fetchedIds, { fetchedKeys: gate.fetchedKeys });
+      if (annotation.failed.length > 0) {
+        logger.error({ event: "citation_gate_annotate_failed", mission_id: missionEnvelope.mission_id, failed: annotation.failed });
+        const err = new Error(
+          `Citation gate passed, but the [UNVERIFIED] marks could not be written to ${annotation.failed.length} section(s) ` +
+          `(${annotation.failed.join(", ")}) — refusing to ship a report whose untraced identifiers are not flagged at every mention.`
+        );
+        err.code = "PHASE30_CITATION_ANNOTATE_FAILED";
+        err.citation_verification = citationVerification;
+        throw err;
       }
 
       // Slice 4 — citation RE-RESOLUTION + Reproducibility Manifest. The gate proved the cited ids

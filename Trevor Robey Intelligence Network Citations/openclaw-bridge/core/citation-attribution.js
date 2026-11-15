@@ -84,8 +84,7 @@ const NON_NAMES = new Set([
 const DOI_SPAN = /\b10\.\d{4,9}\/[^\s|;,\])}>"']+/gi;
 const PMID_TAG = /\bPMID[\s:#-]*(\d{1,9})\b/gi;
 const URL_SPAN = /https?:\/\/[^\s)\]>]+/gi;
-const WIKILINK = /\[\[[^\]]*\]\]/g;
-const MD_LINK = /\[[^\]\n]*\]\([^)\n]*\)/g;
+const WIKILINK = /\[\[[^\]]*\]\]/g; // markdown links and URLs: markdownLinkRanges / urlRanges (balanced parens)
 const WIKILINK_TARGET = /\[\[[^\]|]*\|/g; // "[[DOI-10.1016_j.x.2019.12.005|" — the target half only
 const NCT_SPAN = /\bNCT\d{8}\b/gi;
 const LONG_DIGITS = /\b\d{6,9}\b/g;
@@ -348,16 +347,60 @@ function bibFromNcbiDocsum(rec) {
   return { authors, years };
 }
 
-// Where to put the mark: after the identifier, or — when the identifier sits inside a wiki-link, a
-// markdown link or a URL — after that whole construct, so no link is broken.
-function insertionPoint(line, hitIndex, hitEnd) {
-  for (const re of [WIKILINK, MD_LINK, URL_SPAN]) {
-    re.lastIndex = 0;
-    for (const m of line.matchAll(re)) {
-      const start = m.index;
-      const end = m.index + m[0].length;
-      if (hitIndex >= start && hitIndex < end) return end;
+// Markdown links "[text](target)", keeping the target's BALANCED parentheses (T1-3, 2026-11-14): a
+// Lancet-style DOI in a link target ("…/10.1016/S0140-6736(97)11096-0)") used to end the link at its
+// first ")", which put a mark inside the DOI.
+function markdownLinkRanges(line) {
+  const out = [];
+  const re = /\[[^\]\n]*\]\(/g;
+  let m;
+  while ((m = re.exec(line)) !== null) {
+    let depth = 1;
+    let i = m.index + m[0].length;
+    for (; i < line.length && depth > 0; i++) {
+      if (line[i] === "(") depth++;
+      else if (line[i] === ")") depth--;
     }
+    if (depth === 0) out.push([m.index, i]);
+  }
+  return out;
+}
+
+// Bare URLs with their balanced parentheses kept, and trailing sentence punctuation, markdown
+// emphasis or a wrapping ")" dropped (the extractor's DOI rule, citation-extractor.js normalizeDoiId).
+function urlRanges(line) {
+  const out = [];
+  for (const m of line.matchAll(/https?:\/\/[^\s\]>|]+/gi)) {
+    const s = m[0];
+    let open = 0;
+    let close = 0;
+    for (const ch of s) {
+      if (ch === "(") open++;
+      else if (ch === ")") close++;
+    }
+    let end = s.length;
+    while (end > 0) {
+      const ch = s[end - 1];
+      if (".,;:!?*~'\"".includes(ch)) { end--; continue; }
+      if (ch === ")" && close > open) { end--; close--; continue; }
+      break;
+    }
+    out.push([m.index, m.index + end]);
+  }
+  return out;
+}
+
+// Where to put a mark: after the identifier, or — when the identifier sits inside a wiki-link, a
+// markdown link or a URL — after that whole construct, so no link is broken. Never before the end of
+// the identifier itself. Shared by the attribution marks and the gate's [UNVERIFIED] marks (T1-3).
+function insertionPoint(line, hitIndex, hitEnd) {
+  const ranges = [
+    ...[...line.matchAll(WIKILINK)].map((m) => [m.index, m.index + m[0].length]),
+    ...markdownLinkRanges(line),
+    ...urlRanges(line)
+  ];
+  for (const [start, end] of ranges) {
+    if (hitIndex >= start && hitIndex < end) return Math.max(end, hitEnd);
   }
   return hitEnd;
 }
@@ -434,5 +477,6 @@ module.exports = {
   normName,
   annotateAttributionText,
   annotateSubtaskAttributions,
+  insertionPoint,
   ATTRIBUTION_MARK: MARK
 };

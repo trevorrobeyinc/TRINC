@@ -153,6 +153,14 @@ describe("citation-extractor — every written form (T1-4)", () => {
     assert.equal(doi.id, "10.1016/S0140-6736(97)11096-0", "the wrapping ')' and '.' fall outside the span");
     assert.equal(text[doi.end], ")");
   });
+
+  it("a DOI's span ends before a trimmed trailing period, and a PMID's covers only its digits", () => {
+    const text = "Per doi: 10.1038/nature12373. And PMID: 12345678.";
+    const [pmid] = extractCitationSpans(text).filter((s) => s.type === "PMID");
+    const [doi] = extractCitationSpans(text).filter((s) => s.type === "DOI");
+    assert.deepEqual([text.slice(doi.start, doi.end), text[doi.end]], ["10.1038/nature12373", "."]);
+    assert.deepEqual([text.slice(pmid.start, pmid.end), text[pmid.end]], ["12345678", "."]);
+  });
 });
 
 describe("citation-extractor", () => {

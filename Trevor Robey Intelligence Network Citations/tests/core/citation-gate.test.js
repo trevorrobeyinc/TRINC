@@ -5,8 +5,8 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const {
-  verifyReportCitations, annotateUngrounded, annotateSubtaskOutputs, collectFetchedIds, collectFetchedKeys,
-  checkRetractions, DEFAULT_MIN_GROUNDED_RATIO, resolveConfiguredGroundedFloor, meetsGroundedFloor
+  verifyReportCitations, annotateUngrounded, annotateSubtaskOutputs, countUnmarkedUntraced, collectFetchedIds,
+  collectFetchedKeys, checkRetractions, DEFAULT_MIN_GROUNDED_RATIO, resolveConfiguredGroundedFloor, meetsGroundedFloor
 } = require("../../openclaw-bridge/core/citation-gate.js");
 
 function fakeReader(map) {
@@ -187,6 +187,95 @@ describe("citation-gate", () => {
 
     it("is a no-op when nothing is ungrounded", () => {
       assert.equal(annotateUngrounded("Clean text.", []), "Clean text.");
+    });
+  });
+
+  // T1-3: [UNVERIFIED] at every mention, anchored to the extractor's spans, after a whole link.
+  describe("[UNVERIFIED] at every mention (T1-3)", () => {
+    const marks = (s) => s.split("[UNVERIFIED]").length - 1;
+    const body = (s) => s.split("\n\n## ⚠️ Citation Verification")[0];
+
+    it("an untraced id cited twice in one section gets two marks", () => {
+      const out = annotateUngrounded("First PMID: 12345678. Later, again (PMID: 12345678).", [{ type: "PMID", id: "12345678" }]);
+      assert.equal(marks(body(out)), 2);
+      assert.equal(body(out), "First PMID: 12345678 [UNVERIFIED]. Later, again (PMID: 12345678 [UNVERIFIED]).");
+    });
+
+    it("an untraced PMID is marked, never the same digits inside an earlier CID", () => {
+      const out = annotateUngrounded("Compound CID 112345678 binds; see PMID: 12345678.", [{ type: "PMID", id: "12345678" }]);
+      assert.equal(body(out), "Compound CID 112345678 binds; see PMID: 12345678 [UNVERIFIED].");
+    });
+
+    it("an untraced 'PMID: 5' leaves 'Phase 5' untouched", () => {
+      const out = annotateUngrounded("In Phase 5 trials (PMID: 5) the effect held.", [{ type: "PMID", id: "5" }]);
+      assert.equal(body(out), "In Phase 5 trials (PMID: 5 [UNVERIFIED]) the effect held.");
+    });
+
+    it("an upper-case EUROSTAT id is marked although its id is stored lower-cased", () => {
+      const out = annotateUngrounded("Prices per EUROSTAT: NRG_PC_205.", [{ type: "EUROSTAT", id: "nrg_pc_205" }]);
+      assert.equal(body(out), "Prices per EUROSTAT: NRG_PC_205 [UNVERIFIED].");
+    });
+
+    it("a doi.org markdown link and a wiki-link each get exactly one mark, after the link", () => {
+      const doi = { type: "DOI", id: "10.3389/fonc.2024.1422160" };
+      const md = annotateUngrounded("Pooled (see [Luo 2024](https://doi.org/10.3389/fonc.2024.1422160)).", [doi]);
+      assert.equal(body(md), "Pooled (see [Luo 2024](https://doi.org/10.3389/fonc.2024.1422160) [UNVERIFIED]).");
+      const wiki = annotateUngrounded("Cohort (doi: [[DOI-10.3389_fonc.2024.1422160|doi: 10.3389/fonc.2024.1422160]]).", [doi]);
+      assert.equal(body(wiki), "Cohort (doi: [[DOI-10.3389_fonc.2024.1422160|doi: 10.3389/fonc.2024.1422160]] [UNVERIFIED]).");
+    });
+
+    it("a Lancet DOI with balanced parens inside a markdown link is marked after the whole link", () => {
+      const out = annotateUngrounded("See [Wakefield](https://doi.org/10.1016/S0140-6736(97)11096-0).",
+        [{ type: "DOI", id: "10.1016/S0140-6736(97)11096-0" }]);
+      assert.equal(body(out), "See [Wakefield](https://doi.org/10.1016/S0140-6736(97)11096-0) [UNVERIFIED].");
+    });
+
+    it("annotating twice is a no-op", () => {
+      const list = [{ type: "PMID", id: "12345678" }, { type: "DOI", id: "10.1234/abc.567" }];
+      const once = annotateUngrounded("PMID: 12345678 and [x](https://doi.org/10.1234/abc.567); PMIDs: 12345678, 23456789.", list);
+      assert.equal(annotateUngrounded(once, list), once);
+      assert.equal(countUnmarkedUntraced(once, new Set(["PMID:12345678", "DOI:10.1234/ABC.567"])), 0);
+    });
+
+    it("a mention already carrying an attribution mark gets the [UNVERIFIED] mark too, once", () => {
+      const text = "Smith et al. (PMID: 12345678 [ATTRIBUTION MISMATCH: registry lists Jones, 2019]).";
+      const out = annotateUngrounded(text, [{ type: "PMID", id: "12345678" }]);
+      assert.equal(body(out), "Smith et al. (PMID: 12345678 [UNVERIFIED] [ATTRIBUTION MISMATCH: registry lists Jones, 2019]).");
+      assert.equal(annotateUngrounded(out, [{ type: "PMID", id: "12345678" }]), out);
+    });
+
+    it("the sealed offer-7e373eb2de36a7a2e73e7c1c excerpt: 2 of 4 mentions were marked; now 4 of 4, none inside a wiki-link", () => {
+      const sealed = fs.readFileSync(path.join(__dirname, "..", "fixtures", "unverified-marks-excerpt.md"), "utf8");
+      const doi = "10.3389/fonc.2024.1422160";
+      assert.equal(marks(sealed), 2, "the old annotator marked 2 of the DOI's 4 in-text mentions");
+      assert.ok(sealed.includes("1422160 [UNVERIFIED]]]"), "one old mark sat inside the wiki-link's brackets");
+      // Undo the old marks to get the sections as the model wrote them, then annotate them again.
+      const written = sealed.split(" [UNVERIFIED]").join("");
+      const out = annotateUngrounded(written, [{ type: "DOI", id: doi }]);
+      assert.equal(marks(out), 4, "every in-text mention is marked; the appended list is not");
+      assert.ok(!out.includes("[UNVERIFIED]]]"), "no mark inside a wiki-link");
+      assert.equal((out.match(/1422160\]\] \[UNVERIFIED\]/g) || []).length, 2, "both wiki-link mentions are marked after the link");
+      assert.match(out, /- DOI: 10\.3389\/fonc\.2024\.1422160\n/, "the appended list keeps its unmarked entry");
+      assert.equal(countUnmarkedUntraced(out, new Set([`DOI:${doi.toUpperCase()}`])), 0);
+    });
+
+    it("a section whose marks cannot be written is returned in `failed` (no longer swallowed)", () => {
+      const files = { o1: "See PMID: 12345678.", o2: "See PMID: 23456789." };
+      const r = annotateSubtaskOutputs([{ task_id: "t1", output_path: "o1" }, { task_id: "t2", output_path: "o2" }], ["23456789"], {
+        readFile: (p) => files[p],
+        writeFile: (p) => { if (p === "o1") throw new Error("EACCES"); }
+      });
+      assert.deepEqual(r.failed, ["t1"]);
+      assert.equal(r.annotated, 0);
+    });
+
+    it("a write that silently loses the marks is caught by the re-read", () => {
+      const files = { o1: "See PMID: 12345678." };
+      const r = annotateSubtaskOutputs([{ task_id: "t1", output_path: "o1" }], [], {
+        readFile: (p) => files[p],
+        writeFile: () => { /* claims success, writes nothing */ }
+      });
+      assert.deepEqual(r.failed, ["t1"]);
     });
   });
 
