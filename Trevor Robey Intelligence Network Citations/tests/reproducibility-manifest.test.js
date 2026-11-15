@@ -42,6 +42,16 @@ test("Q8: max_unchecked_ratio is honored when overridden — default 0 is the do
   assert.equal(buildReproducibilityManifest({ reresolved: cits, thresholds: { max_unchecked_ratio: 0.6 }, meta: META }).summary.delivery_decision, "DELIVER");
 });
 
+// T1-6: decided on integers. 1 of 2,500 is 0.0004, which rounds to 0.000 for display.
+test("1 UNCHECKED id of 2,500 -> DELIVER_WITH_FLAGS (rounding never earns the full-strength claim)", () => {
+  const cits = Array.from({ length: 2499 }, (_, i) => cit("PMID", String(1000 + i), "VERIFIED"));
+  cits.push(cit("PMID", "99999", "UNCHECKED", "rate_limited"));
+  const m = buildReproducibilityManifest({ reresolved: cits, meta: META });
+  assert.equal(m.summary.unchecked_ratio, 0, "the rounded ratio is display only");
+  assert.equal(m.summary.delivery_decision, "DELIVER_WITH_FLAGS");
+  assert.deepEqual(m.summary.flag_reasons, ["unchecked_over_threshold"]);
+});
+
 test("retracted DOI -> BLOCK", () => {
   const m = buildReproducibilityManifest({ reresolved: [cit("DOI", "10.x/y", "VERIFIED")], retraction: { checked: true, retracted_dois: ["10.x/y"] }, meta: META });
   assert.equal(m.summary.delivery_decision, "BLOCK");

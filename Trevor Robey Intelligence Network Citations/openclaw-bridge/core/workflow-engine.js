@@ -17,7 +17,10 @@ const { INTERACTION_LOG_SCHEMA_VERSION, CHAIN_ZERO_HASH } = require("./interacti
 const timeProviderModule = require("./time-provider.js");
 const { createDatasetBuilder } = require("../dataset/dataset-builder.js");
 const { createDatasetOutputManager } = require("../dataset/dataset-output-manager.js");
-const { verifyReportCitations, annotateSubtaskOutputs, checkRetractions, isDeskAuthoredSubtask, DEFAULT_MIN_GROUNDED_RATIO } = require("./citation-gate.js");
+const {
+  verifyReportCitations, annotateSubtaskOutputs, checkRetractions, isDeskAuthoredSubtask,
+  DEFAULT_MIN_GROUNDED_RATIO, resolveConfiguredGroundedFloor
+} = require("./citation-gate.js");
 const { toSearchQuery } = require("../mcp/business-sources/search-terms.js");
 const { extractCitations, deduplicateCitations } = require("./citation-extractor.js");
 const { createCitationReresolver } = require("../mcp/citation-reresolver/citation-reresolver.js");
@@ -287,14 +290,16 @@ function createWorkflowEngine(options = {}) {
       // Q7: the grounded floor is a required, config-owned value (config/agent-config.json). Fail
       // CLOSED — if it is missing or malformed, use the strict shared default and WARN loudly; never
       // silently fall back to a laxer number (the old 0.34 fallback quietly undercut the config).
-      const cfgRatio = Number(researchRuntime.config.minGroundedCitationRatio);
-      let minGroundedRatio = cfgRatio;
-      if (!Number.isFinite(cfgRatio)) {
-        minGroundedRatio = DEFAULT_MIN_GROUNDED_RATIO;
+      // T1-6 (2026-11-14): only a number from 0.75 to 1 is accepted, so configuration can tighten the
+      // floor but never loosen or switch it off (`Number(null)` and `0` used to switch it off).
+      const floor = resolveConfiguredGroundedFloor(researchRuntime.config.minGroundedCitationRatio);
+      const minGroundedRatio = floor.value;
+      if (!floor.accepted) {
         logger.warn({
           event: "min_grounded_ratio_unconfigured",
           using: DEFAULT_MIN_GROUNDED_RATIO,
-          note: "config/agent-config.json minGroundedCitationRatio missing/invalid — failing closed to the strict default"
+          rejected: floor.rejected,
+          note: "config/agent-config.json minGroundedCitationRatio missing, invalid or below the 0.75 floor — failing closed to the strict default"
         });
       }
       const gate = verifyReportCitations({ subtaskResults: missionResult.subtask_results, minGroundedRatio });

@@ -127,7 +127,14 @@ function buildReproducibilityManifest(input = {}) {
   if (block_reasons.length > 0) {
     delivery_decision = DECISION.BLOCK;
   } else {
-    if (unchecked_ratio > thresholds.max_unchecked_ratio) flag_reasons.push("unchecked_over_threshold");
+    // T1-6 (2026-11-14): decided on integers, like the citation gate. unchecked_ratio is rounded to
+    // three decimals for display, so comparing it read 1 UNCHECKED id in 2,001 or more as 0 and earned
+    // the full-strength DELIVER that Q8 says any UNCHECKED id forfeits. With the doctrine ceiling of 0
+    // this is exactly `counts.unchecked > 0`.
+    const uncheckedOverCeiling = thresholds.max_unchecked_ratio === 0
+      ? counts.unchecked > 0
+      : counts.unchecked * 1000 > Math.round(thresholds.max_unchecked_ratio * 1000) * counts.total;
+    if (uncheckedOverCeiling) flag_reasons.push("unchecked_over_threshold");
     if (attributionMismatches.length > 0) flag_reasons.push("attribution_mismatch");
     delivery_decision = flag_reasons.length > 0 ? DECISION.DELIVER_WITH_FLAGS : DECISION.DELIVER;
   }

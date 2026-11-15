@@ -5,7 +5,8 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const {
-  verifyReportCitations, annotateUngrounded, collectFetchedIds, DEFAULT_MIN_GROUNDED_RATIO
+  verifyReportCitations, annotateUngrounded, collectFetchedIds, DEFAULT_MIN_GROUNDED_RATIO,
+  resolveConfiguredGroundedFloor, meetsGroundedFloor
 } = require("../../openclaw-bridge/core/citation-gate.js");
 
 function fakeReader(map) {
@@ -120,6 +121,61 @@ describe("citation-gate", () => {
       assert.equal(r.pass, false);
       assert.equal(r.verdict, "UNVERIFIED");
     });
+
+    // T1-6: a floor of 0, a negative one or one above 1 cannot be meant; each is treated as absent.
+    for (const bad of [0, -1, 1.5, Number.NaN]) {
+      it(`a gate floor of ${bad} resolves to the strict 0.75`, () => {
+        const read = fakeReader({
+          m1: JSON.stringify({ fetched_citation_ids: ["12345678", "22222222", "33333333"] }),
+          o1: "Per PMID: 12345678 and PMID: 22222222, but also PMID: 99999999."
+        });
+        const r = verifyReportCitations({
+          subtaskResults: [{ metadata_path: "m1", output_path: "o1" }], minGroundedRatio: bad, readFile: read
+        });
+        assert.equal(r.min_grounded_ratio, 0.75);
+        assert.equal(r.verdict, "UNVERIFIED", "2 of 3 grounded is below 0.75");
+      });
+    }
+
+    // T1-6: PASS is decided on integers. 752 of 1003 is 0.74975, which displays as 0.75.
+    it("752 grounded of 1003 cited is UNVERIFIED although its ratio displays as 0.75", () => {
+      const ids = Array.from({ length: 1003 }, (_, i) => String(10000001 + i));
+      const read = fakeReader({
+        m1: JSON.stringify({ fetched_citation_ids: ids.slice(0, 752) }),
+        o1: ids.map((id) => `PMID: ${id}`).join("; ")
+      });
+      const r = verifyReportCitations({ subtaskResults: [{ metadata_path: "m1", output_path: "o1" }], readFile: read });
+      assert.equal(r.cited, 1003);
+      assert.equal(r.grounded, 752);
+      assert.equal(r.grounded_ratio, 0.75, "the rounded ratio is kept for display");
+      assert.equal(r.pass, false);
+      assert.equal(r.verdict, "UNVERIFIED");
+    });
+
+    it("meetsGroundedFloor compares exactly at the boundary", () => {
+      assert.equal(meetsGroundedFloor(750, 1000, 0.75), true);
+      assert.equal(meetsGroundedFloor(749, 1000, 0.75), false);
+      assert.equal(meetsGroundedFloor(3, 4, 0.75), true);
+      assert.equal(meetsGroundedFloor(752, 1003, 0.75), false);
+      assert.equal(meetsGroundedFloor(0, 0, 0.75), false, "nothing cited never meets a floor");
+    });
+  });
+
+  // T1-6: configuration can tighten the floor, never loosen or switch it off.
+  describe("resolveConfiguredGroundedFloor (T1-6)", () => {
+    for (const bad of [undefined, null, "", false, 0, 0.5, 0.7499, -1, 1.5, "0.9", Number.NaN, Infinity]) {
+      it(`rejects ${typeof bad === "string" ? JSON.stringify(bad) : String(bad)} and falls back to 0.75`, () => {
+        const f = resolveConfiguredGroundedFloor(bad);
+        assert.equal(f.value, 0.75);
+        assert.equal(f.accepted, false);
+        assert.ok("rejected" in f, "the rejected value is reported for the warning");
+      });
+    }
+    for (const good of [0.75, 0.9, 1]) {
+      it(`accepts ${good}`, () => {
+        assert.deepEqual(resolveConfiguredGroundedFloor(good), { value: good, accepted: true });
+      });
+    }
   });
 
   describe("annotateUngrounded", () => {

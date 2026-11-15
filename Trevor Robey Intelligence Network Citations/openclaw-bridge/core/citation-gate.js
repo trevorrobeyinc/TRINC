@@ -30,6 +30,32 @@ const { extractCitations, deduplicateCitations, crossCheckCitations } = require(
 // or malformed. Kept here so citation-gate and workflow-engine agree on ONE number by construction.
 const DEFAULT_MIN_GROUNDED_RATIO = 0.75;
 
+// T1-6 (2026-11-14): configuration may TIGHTEN the floor, never loosen or switch it off. Only a number
+// from DEFAULT_MIN_GROUNDED_RATIO to 1 is accepted; anything else (missing, null, "", false, 0, 0.5, a
+// string, 1.5) resolves to the strict default and is reported as rejected. `Number(null)`, `Number("")`
+// and `Number(false)` are all a FINITE 0, which is how a blanked config used to turn the floor off.
+function resolveConfiguredGroundedFloor(raw) {
+  const accepted = typeof raw === "number" && Number.isFinite(raw)
+    && raw >= DEFAULT_MIN_GROUNDED_RATIO && raw <= 1;
+  return accepted
+    ? { value: raw, accepted: true }
+    : { value: DEFAULT_MIN_GROUNDED_RATIO, accepted: false, rejected: raw === undefined ? "(missing)" : raw };
+}
+
+// The gate-level sanity check. Unit callers may pass a lower floor (the tests use 0.5); a floor that
+// is non-finite, zero, negative or above 1 cannot be meant and is treated as absent (strict default).
+function effectiveGroundedFloor(raw) {
+  return Number.isFinite(raw) && raw > 0 && raw <= 1 ? raw : DEFAULT_MIN_GROUNDED_RATIO;
+}
+
+// PASS is decided on integers: verified × 1000 ≥ round(floor × 1000) × total. The ratio is rounded to
+// three decimals for DISPLAY (citation-extractor.js), and comparing that rounded value let 752 grounded
+// of 1003 cited (0.74975, shown as 0.75) pass a 0.75 floor. Neither rounding nor float error decides it.
+function meetsGroundedFloor(verifiedCount, total, floor) {
+  if (!(total > 0)) return false;
+  return verifiedCount * 1000 >= Math.round(floor * 1000) * total;
+}
+
 function escapeRegExp(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -119,7 +145,7 @@ function annotateSubtaskOutputs(subtaskResults, fetchedIds, opts = {}) {
 function verifyReportCitations(opts = {}) {
   const subtaskResults = opts.subtaskResults;
   const readFile = opts.readFile;
-  const threshold = Number.isFinite(opts.minGroundedRatio) ? opts.minGroundedRatio : DEFAULT_MIN_GROUNDED_RATIO;
+  const threshold = effectiveGroundedFloor(opts.minGroundedRatio);
   const evidenceRequired = opts.evidenceRequired !== false; // Q1: default true — every shipping template needs evidence
   const fetchedIds = collectFetchedIds(subtaskResults, readFile);
   const reportText = collectReportText(subtaskResults, readFile);
@@ -135,7 +161,7 @@ function verifyReportCitations(opts = {}) {
   // Q1 three-state verdict — zero-evidence / zero-citation are RECORDED as non-shippable, not auto-passed.
   let verdict;
   if (hasEvidence && hasCitations) {
-    verdict = x.verified_ratio >= threshold ? "PASS" : "UNVERIFIED";
+    verdict = meetsGroundedFloor(x.verified_count, x.total, threshold) ? "PASS" : "UNVERIFIED";
   } else if (!evidenceRequired) {
     verdict = "PASS"; // template explicitly declares evidence optional
   } else if (!hasEvidence) {
@@ -345,6 +371,9 @@ async function checkRetractions(reportText, checkDois, checkPmids, doiToPmid) {
 
 module.exports = {
   DEFAULT_MIN_GROUNDED_RATIO,
+  resolveConfiguredGroundedFloor,
+  effectiveGroundedFloor,
+  meetsGroundedFloor,
   collectFetchedIds,
   collectReportText,
   isDeskAuthoredSubtask,

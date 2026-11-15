@@ -79,13 +79,14 @@ function makeResearchRuntime(rootDir, captured, extras = {}) {
 
 // `clock` is injected into BOTH the engine and the monetization runtime, the way a caller that owns
 // a clock would. `researchExtras` adds fetchers (ctgovSupplemental, ...) to the fake research runtime.
-async function makeEngine(captured, { clock, researchExtras } = {}) {
+// `logger` lets a test capture the engine's events; the default is silent.
+async function makeEngine(captured, { clock, researchExtras, logger } = {}) {
   const rootDir = await makeRoot();
   const monetizationRuntime = buildMonetizationRuntime({ rootDir, timeProvider: clock });
   const engine = createWorkflowEngine({
     researchRuntime: makeResearchRuntime(rootDir, captured, researchExtras),
     monetizationRuntime,
-    logger: silentLogger(),
+    logger: logger || silentLogger(),
     timeProvider: clock
   });
   return { engine, rootDir, monetizationRuntime };
