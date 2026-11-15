@@ -74,6 +74,23 @@ function collectFetchedIds(subtaskResults, readFile = fs.readFileSync) {
   return [...ids];
 }
 
+// T1-5 (2026-11-14): the union of the TYPE:ID keys of everything retrieved at runtime
+// (metadata.fetched_citation_keys), or null when ANY readable sidecar lacks the array — a resumed
+// mission, or one written before the keys existed. Then the whole report falls back to id-only
+// matching, and the gate result says so (grounding_match "id_only"): one untyped section cannot be
+// type-checked, and mixing the two rules would ground the same id differently in one report.
+function collectFetchedKeys(subtaskResults, readFile = fs.readFileSync) {
+  const keys = new Set();
+  for (const st of Array.isArray(subtaskResults) ? subtaskResults : []) {
+    if (!st || !st.metadata_path) continue;
+    let meta;
+    try { meta = JSON.parse(readFile(st.metadata_path, "utf8")); } catch { continue; /* unreadable: no ground truth either way */ }
+    if (!meta || !Array.isArray(meta.fetched_citation_keys)) return null;
+    for (const k of meta.fetched_citation_keys) keys.add(String(k).toUpperCase());
+  }
+  return [...keys];
+}
+
 // Evidence Desk (operator decision 2026-10-21). On the business lane the scout section is written
 // deterministically by the Evidence Desk (metadata `authored_by: "evidence-desk"`). It cites only
 // sources the run fetched, so it is grounded by construction — counting it would pad the grounded
@@ -123,15 +140,18 @@ function annotateUngrounded(reportText, ungroundedList) {
 
 // Annotate each subtask's output file in place so the SHIPPED bundle carries the [UNVERIFIED]
 // marks (each section checked against the union of fetched ids). Fail-soft; returns count.
+// `opts.fetchedKeys` (T1-5): the gate's TYPE:ID keys, so a section is marked by the same rule the
+// gate counted with (null or absent = id-only).
 function annotateSubtaskOutputs(subtaskResults, fetchedIds, opts = {}) {
   const readFile = opts.readFile || fs.readFileSync;
   const writeFile = opts.writeFile || fs.writeFileSync;
+  const knownKeys = Array.isArray(opts.fetchedKeys) ? opts.fetchedKeys : undefined;
   let annotated = 0;
   for (const st of Array.isArray(subtaskResults) ? subtaskResults : []) {
     if (!st || !st.output_path) continue;
     try {
       const text = readFile(st.output_path, "utf8");
-      const x = crossCheckCitations(text, fetchedIds);
+      const x = crossCheckCitations(text, fetchedIds, { knownKeys });
       if (x.unverified_count > 0) {
         writeFile(st.output_path, annotateUngrounded(text, x.unverified));
         annotated++;
@@ -148,6 +168,7 @@ function verifyReportCitations(opts = {}) {
   const threshold = effectiveGroundedFloor(opts.minGroundedRatio);
   const evidenceRequired = opts.evidenceRequired !== false; // Q1: default true — every shipping template needs evidence
   const fetchedIds = collectFetchedIds(subtaskResults, readFile);
+  const fetchedKeys = collectFetchedKeys(subtaskResults, readFile); // T1-5: null = id-only fallback
   const reportText = collectReportText(subtaskResults, readFile);
   const list = Array.isArray(subtaskResults) ? subtaskResults : [];
   const deskSections = list.filter((st) => isDeskAuthoredSubtask(st, readFile));
@@ -155,7 +176,7 @@ function verifyReportCitations(opts = {}) {
   const gatedText = deskSections.length > 0
     ? collectReportText(list.filter((st) => !deskSections.includes(st)), readFile)
     : reportText;
-  const x = crossCheckCitations(gatedText, fetchedIds);
+  const x = crossCheckCitations(gatedText, fetchedIds, { knownKeys: fetchedKeys || undefined });
   const hasEvidence = fetchedIds.length > 0;
   const hasCitations = x.total > 0;
   // Q1 three-state verdict — zero-evidence / zero-citation are RECORDED as non-shippable, not auto-passed.
@@ -181,8 +202,11 @@ function verifyReportCitations(opts = {}) {
     min_grounded_ratio: threshold,
     fetched_id_count: fetchedIds.length,
     ungrounded_list: x.unverified,
+    // T1-5: "type_and_id" when every readable sidecar carried TYPE:ID keys, else "id_only".
+    grounding_match: x.grounding_match,
     desk_authored_sections: deskSections.map((st) => String(st.task_id || st.subtask_id || "")),
     fetchedIds,
+    fetchedKeys,
     reportText,
     annotatedReport: annotateUngrounded(reportText, x.unverified)
   };
@@ -377,6 +401,7 @@ module.exports = {
   effectiveGroundedFloor,
   meetsGroundedFloor,
   collectFetchedIds,
+  collectFetchedKeys,
   collectReportText,
   isDeskAuthoredSubtask,
   annotateUngrounded,

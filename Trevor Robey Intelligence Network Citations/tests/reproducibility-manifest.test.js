@@ -99,6 +99,21 @@ test("grounded_in_run set from groundedIds", () => {
   assert.equal(byId["2"], false);
 });
 
+// T1-5: with TYPE:ID keys, grounded_in_run is decided by type as well as number.
+test("grounded_in_run by key: a retrieved CID 2244 does not ground PMID 2244", () => {
+  const m = buildReproducibilityManifest({
+    reresolved: [cit("PMID", "2244", "VERIFIED"), cit("PubChem CID", "2244", "VERIFIED")],
+    groundedIds: ["2244"],
+    groundedKeys: ["PUBCHEM CID:2244"],
+    meta: META
+  });
+  const byType = Object.fromEntries(m.citations.map((c) => [c.type, c.grounded_in_run]));
+  assert.equal(byType.PMID, false);
+  assert.equal(byType["PubChem CID"], true);
+  const idOnly = buildReproducibilityManifest({ reresolved: [cit("PMID", "2244", "VERIFIED")], groundedIds: ["2244"], meta: META });
+  assert.equal(idOnly.citations[0].grounded_in_run, true, "without keys the id alone is matched, as before");
+});
+
 test("markdown render includes decision + manifest header", () => {
   const m = buildReproducibilityManifest({ reresolved: [cit("PMID", "1", "VERIFIED")], meta: META });
   const md = renderManifestMarkdown(m);

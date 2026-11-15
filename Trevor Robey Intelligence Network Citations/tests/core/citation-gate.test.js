@@ -5,8 +5,8 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const {
-  verifyReportCitations, annotateUngrounded, collectFetchedIds, checkRetractions, DEFAULT_MIN_GROUNDED_RATIO,
-  resolveConfiguredGroundedFloor, meetsGroundedFloor
+  verifyReportCitations, annotateUngrounded, annotateSubtaskOutputs, collectFetchedIds, collectFetchedKeys,
+  checkRetractions, DEFAULT_MIN_GROUNDED_RATIO, resolveConfiguredGroundedFloor, meetsGroundedFloor
 } = require("../../openclaw-bridge/core/citation-gate.js");
 
 function fakeReader(map) {
@@ -210,6 +210,67 @@ describe("citation-gate", () => {
       assert.deepEqual(seen, ["10.1056/NEJMoa1911303"]);
       assert.equal(r.dois_cited, 1);
       assert.equal(r.checked, true);
+    });
+  });
+
+  // T1-5: a cited id is grounded only by a retrieved record of the same identifier type.
+  describe("grounding by type as well as number (T1-5)", () => {
+    const typed = JSON.stringify({ fetched_citation_ids: ["2244"], fetched_citation_keys: ["PUBCHEM CID:2244"] });
+    const untyped = JSON.stringify({ fetched_citation_ids: ["2244"] });
+    const run = (meta, text) => verifyReportCitations({
+      subtaskResults: [{ metadata_path: "m1", output_path: "o1" }], readFile: fakeReader({ m1: meta, o1: text })
+    });
+
+    it("a retrieved PubChem CID 2244 does not ground a written 'PMID: 2244'", () => {
+      const r = run(typed, "Aspirin's effect is reported in PMID: 2244.");
+      assert.equal(r.grounding_match, "type_and_id");
+      assert.equal(r.grounded, 0);
+      assert.deepEqual(r.ungrounded_list, [{ type: "PMID", id: "2244" }]);
+      assert.equal(r.verdict, "UNVERIFIED");
+    });
+
+    it("the same evidence record without keys (an older run) falls back to id-only and says so", () => {
+      const r = run(untyped, "Aspirin's effect is reported in PMID: 2244.");
+      assert.equal(r.grounding_match, "id_only");
+      assert.equal(r.grounded, 1);
+      assert.equal(r.verdict, "PASS");
+    });
+
+    it("'CID: 2244' is grounded by the retrieved PubChem CID 2244", () => {
+      const r = run(typed, "Aspirin is CID: 2244.");
+      assert.equal(r.grounding_match, "type_and_id");
+      assert.equal(r.grounded, 1);
+      assert.equal(r.verdict, "PASS");
+    });
+
+    it("one untyped sidecar puts the whole report on id-only matching (never two rules in one report)", () => {
+      const read = fakeReader({
+        m1: typed, o1: "Aspirin is CID: 2244.",
+        m2: JSON.stringify({ fetched_citation_ids: ["12345678"] }), o2: "See PMID: 12345678."
+      });
+      const subtaskResults = [{ metadata_path: "m1", output_path: "o1" }, { metadata_path: "m2", output_path: "o2" }];
+      assert.equal(collectFetchedKeys(subtaskResults, read), null);
+      assert.equal(verifyReportCitations({ subtaskResults, readFile: read }).grounding_match, "id_only");
+    });
+
+    it("collectFetchedKeys unions and upper-cases the keys; an unreadable sidecar contributes nothing", () => {
+      const read = fakeReader({
+        a: JSON.stringify({ fetched_citation_ids: ["2244"], fetched_citation_keys: ["PubChem CID:2244"] }),
+        b: JSON.stringify({ fetched_citation_ids: ["nct01776424"], fetched_citation_keys: ["nct:nct01776424", "PUBCHEM CID:2244"] })
+      });
+      const keys = collectFetchedKeys([{ metadata_path: "a" }, { metadata_path: "b" }, { metadata_path: "missing" }], read);
+      assert.deepEqual(keys.slice().sort(), ["NCT:NCT01776424", "PUBCHEM CID:2244"]);
+    });
+
+    it("the in-place annotation judges a section by the same typed rule the gate counted with", () => {
+      const files = { o1: "Aspirin is CID: 2244; see also PMID: 2244." };
+      const io = { readFile: (p) => files[p], writeFile: (p, t) => { files[p] = t; } };
+      annotateSubtaskOutputs([{ output_path: "o1" }], ["2244"], { fetchedKeys: ["PUBCHEM CID:2244"], ...io });
+      assert.match(files.o1, /- PMID: 2244\n/, "the untraced PMID is listed");
+      assert.doesNotMatch(files.o1, /- PubChem CID: 2244/, "the grounded CID is not");
+      const untyped = { o1: "Aspirin is CID: 2244; see also PMID: 2244." };
+      annotateSubtaskOutputs([{ output_path: "o1" }], ["2244"], { readFile: (p) => untyped[p], writeFile: (p, t) => { untyped[p] = t; } });
+      assert.equal(untyped.o1, "Aspirin is CID: 2244; see also PMID: 2244.", "id-only: nothing is untraced");
     });
   });
 

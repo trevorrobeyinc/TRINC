@@ -64,6 +64,14 @@ function buildIntegrityReport(citationVerification = {}, sectionCoverage = []) {
     `| Unverified (treat as unconfirmed) | ${ungrounded} |`,
     `| Retracted | ${retracted.length} |`
   ];
+  // T1-5 (2026-11-14): which matching rule grounded the citations. "type_and_id": a cited id counts as
+  // grounded only if a retrieved record has the same identifier type and number; "id_only": an evidence
+  // record from this run carried no identifier types, so numbers were matched alone.
+  if (cv.grounding_match === "type_and_id") {
+    lines.push("| Matched on | identifier type and number (type_and_id) |");
+  } else if (cv.grounding_match === "id_only") {
+    lines.push("| Matched on | identifier number only (id_only): an evidence record from this run carried no identifier types |");
+  }
   if (retracted.length > 0) {
     lines.push("", "## ⛔ Retracted sources (report blocked from release)", "", ...retracted.map((d) => `- ${d}`));
   }

@@ -6,7 +6,7 @@ const path = require("node:path");
 const { canonicalize, safeString } = require("../../workflows/governance-automation/common.js");
 const { validateTaskDefinition } = require("./task-definition-schema.js");
 const { enrichWithWikiLinks } = require("./wiki-link-enricher.js");
-const { extractCitations, deduplicateCitations, crossCheckCitations } = require("./citation-extractor.js");
+const { extractCitations, deduplicateCitations, crossCheckCitations, groundingKey } = require("./citation-extractor.js");
 const { getResearchProfile } = require("./research-profiles.js");
 
 const SYNTHESIZER_TASK_ID_PATTERN = /synth|report_generator|integrator/i;
@@ -406,6 +406,9 @@ function createAgentEngine(options = {}) {
       // citation gate (Slice 1). Persisted into this task's metadata so the workflow engine
       // can verify the assembled report against what was actually fetched at runtime.
       let fetchedCitationIds = [];
+      // T1-5 (2026-11-14): the same identifiers as TYPE:ID keys, so the gate grounds a cited id by
+      // type as well as number (a retrieved PubChem CID 2244 cannot ground a written "PMID: 2244").
+      let fetchedCitationKeys = [];
       let searchCoverage = []; // Q5: per-search outcome log for the deterministic Search-Coverage Ledger
       let prefetchedDocs = []; // this role's own prefetch docs (the Evidence Desk builds from these)
 
@@ -423,9 +426,9 @@ function createAgentEngine(options = {}) {
             // never enter the runtime-fetched set: their identifiers are from PRIOR runs, not from
             // a source-of-record fetched now. Until 2026-09-22 they did, so an identifier sitting
             // in an old vault note could satisfy the grounded floor without any live fetch.
-            fetchedCitationIds = deduplicateCitations(
-              extractCitations(collectEvidenceContent(toolDocs))
-            ).map((c) => String(c.id));
+            const fetchedCitations = deduplicateCitations(extractCitations(collectEvidenceContent(toolDocs)));
+            fetchedCitationIds = fetchedCitations.map((c) => String(c.id));
+            fetchedCitationKeys = [...new Set(fetchedCitations.map((c) => groundingKey(c)))];
             // Assign coverage only AFTER extraction so that if extraction ever threw, searchCoverage
             // stays empty and the honest-zero block below cannot double-fire with the catch's notice.
             searchCoverage = Array.isArray(toolDocs.coverage) ? toolDocs.coverage : [];
@@ -620,6 +623,7 @@ function createAgentEngine(options = {}) {
         provider_info: llmAdapter.getProviderInfo(),
         citation_verification: citationVerification,
         fetched_citation_ids: fetchedCitationIds,
+        fetched_citation_keys: fetchedCitationKeys,
         search_coverage: searchCoverage,
         ...authorship
       });
@@ -650,6 +654,7 @@ function createAgentEngine(options = {}) {
         provider_info: llmAdapter.getProviderInfo(),
         citation_verification: citationVerification,
         fetched_citation_ids: fetchedCitationIds,
+        fetched_citation_keys: fetchedCitationKeys,
         search_coverage: searchCoverage,
         ...authorship,
         rlhf_local_mirror_path: safeString(rlhfResult.local_mirror_path)

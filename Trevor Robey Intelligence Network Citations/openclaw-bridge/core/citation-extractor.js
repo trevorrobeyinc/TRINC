@@ -316,20 +316,35 @@ function countByType(citations) {
   return byType;
 }
 
+// The grounding key of a citation (T1-5, 2026-11-14): TYPE:ID, upper-cased ("PUBCHEM CID:2244",
+// "PMID:12345678", "DOI:10.1016/S0140-6736(97)11096-0"). agent-engine persists these for every
+// identifier retrieved at runtime (metadata.fetched_citation_keys), so a cited id is grounded only by a
+// retrieved record of the SAME type: PubChem CID 2244 cannot ground a model-written "PMID: 2244".
+function groundingKey(c) {
+  return `${c && c.type}:${c && c.id}`.toUpperCase();
+}
+
 // Cross-check a report's citations against the set of identifiers actually retrieved at runtime
 // (e.g. the PMIDs/NCTs/etc. in the tool-prefetch records). First building block of the citation
 // validator: it flags cited identifiers the run never actually fetched (i.e. likely introduced
 // from the model's parametric knowledge). It does NOT prove a citation resolves in the live
 // database — only whether it was present in the data this run grounded on.
-function crossCheckCitations(reportText, knownIds) {
+// `opts.knownKeys` (T1-5): when given, a cited id is grounded only if its TYPE:ID key was retrieved
+// (`grounding_match: "type_and_id"`). Without it, the id alone is matched, as before ("id_only") —
+// the fallback for evidence records written before the keys existed.
+function crossCheckCitations(reportText, knownIds, opts = {}) {
   const known = new Set(
     (Array.isArray(knownIds) ? knownIds : []).map((s) => String(s).toUpperCase())
   );
+  const knownKeys = opts && Array.isArray(opts.knownKeys)
+    ? new Set(opts.knownKeys.map((s) => String(s).toUpperCase()))
+    : null;
   const cited = deduplicateCitations(extractCitations(String(reportText || "")));
   const verified = [];
   const unverified = [];
   for (const c of cited) {
-    if (known.has(String(c.id).toUpperCase())) verified.push(c);
+    const grounded = knownKeys ? knownKeys.has(groundingKey(c)) : known.has(String(c.id).toUpperCase());
+    if (grounded) verified.push(c);
     else unverified.push(c);
   }
   return {
@@ -337,6 +352,7 @@ function crossCheckCitations(reportText, knownIds) {
     verified_count: verified.length,
     unverified_count: unverified.length,
     verified_ratio: cited.length > 0 ? Math.round((verified.length / cited.length) * 1000) / 1000 : 0,
+    grounding_match: knownKeys ? "type_and_id" : "id_only",
     unverified
   };
 }
@@ -358,6 +374,7 @@ module.exports = {
   deduplicateCitations,
   extractCitations,
   extractCitationSpans,
+  groundingKey,
   normalizeDoiId,
   roleLabel
 };

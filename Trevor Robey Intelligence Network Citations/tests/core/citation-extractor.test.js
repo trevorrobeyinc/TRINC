@@ -371,6 +371,18 @@ describe("citation-extractor", () => {
       assert.equal(result.unverified[0].id, "99999999");
     });
 
+    // T1-5: with knownKeys, type and number must both match.
+    it("with knownKeys, matches on TYPE:ID and reports grounding_match", () => {
+      const report = "Aspirin CID: 2244, cited as PMID: 2244 too, and trial NCT00012345.";
+      const typed = crossCheckCitations(report, ["2244", "NCT00012345"], { knownKeys: ["PUBCHEM CID:2244", "NCT:NCT00012345"] });
+      assert.equal(typed.grounding_match, "type_and_id");
+      assert.equal(typed.verified_count, 2);
+      assert.deepEqual(typed.unverified, [{ type: "PMID", id: "2244" }]);
+      const untyped = crossCheckCitations(report, ["2244", "NCT00012345"]);
+      assert.equal(untyped.grounding_match, "id_only");
+      assert.equal(untyped.verified_count, 3, "id-only matching cannot tell the PMID from the CID");
+    });
+
     it("ratio 0 and empty unverified when the report has no citations", () => {
       const r = crossCheckCitations("No citations here.", ["12345678"]);
       assert.equal(r.total, 0);

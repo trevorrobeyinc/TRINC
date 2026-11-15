@@ -332,6 +332,7 @@ function createWorkflowEngine(options = {}) {
         grounded: gate.grounded,
         ungrounded: gate.ungrounded,
         grounded_ratio: gate.grounded_ratio,
+        grounding_match: gate.grounding_match,
         fetched_id_count: gate.fetched_id_count,
         retracted: retractedCount,
         retraction_screen_checked: Boolean(retraction.checked),
@@ -349,6 +350,8 @@ function createWorkflowEngine(options = {}) {
             mission_id: missionEnvelope.mission_id,
             pass: gatePass, verdict: gate.verdict, cited: gate.cited, grounded: gate.grounded, ungrounded: gate.ungrounded,
             grounded_ratio: gate.grounded_ratio, min_grounded_ratio: gate.min_grounded_ratio,
+            // T1-5: "type_and_id", or "id_only" when an evidence record carried no TYPE:ID keys.
+            grounding_match: gate.grounding_match,
             fetched_id_count: gate.fetched_id_count, ungrounded_list: gate.ungrounded_list,
             // Sections the grounded ratio did NOT judge (Evidence Desk, written without a model).
             desk_authored_sections: gate.desk_authored_sections || [],
@@ -379,6 +382,7 @@ function createWorkflowEngine(options = {}) {
       citationVerification = {
         pass: gatePass, verdict: gate.verdict, cited: gate.cited, grounded: gate.grounded, ungrounded: gate.ungrounded,
         grounded_ratio: gate.grounded_ratio, min_grounded_ratio: gate.min_grounded_ratio,
+        grounding_match: gate.grounding_match,
         fetched_id_count: gate.fetched_id_count,
         ungrounded_sample: gate.ungrounded_list.slice(0, 25).map((c) => `${c.type}:${c.id}`),
         retracted: retraction.retracted,
@@ -419,7 +423,7 @@ function createWorkflowEngine(options = {}) {
       // so the bundle itself carries the [UNVERIFIED] marks (honesty over completeness).
       if (gate.ungrounded > 0) {
         try {
-          annotateSubtaskOutputs(missionResult.subtask_results, gate.fetchedIds);
+          annotateSubtaskOutputs(missionResult.subtask_results, gate.fetchedIds, { fetchedKeys: gate.fetchedKeys });
         } catch (annotateError) {
           logger.warn({ event: "citation_gate_annotate_failed", error: safeString(annotateError && annotateError.message) });
         }
@@ -485,6 +489,8 @@ function createWorkflowEngine(options = {}) {
               grounded_ratio: gate.grounded_ratio, min_grounded_ratio: gate.min_grounded_ratio, hardFail: false
             },
             groundedIds: gate.fetchedIds,
+            // T1-5: grounded_in_run by TYPE:ID when every evidence record carried keys.
+            groundedKeys: Array.isArray(gate.fetchedKeys) ? gate.fetchedKeys : null,
             meta: {
               reportId: missionEnvelope.mission_id,
               deliveryId: context.workflowId,

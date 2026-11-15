@@ -49,6 +49,15 @@ function buildReproducibilityManifest(input = {}) {
   const groundedIds = input.groundedIds
     ? new Set([...input.groundedIds].map((x) => String(x).toUpperCase()))
     : null;
+  // T1-5 (2026-11-14): TYPE:ID keys of the retrieved identifiers. When present, grounded_in_run is
+  // decided by type as well as number, the same rule the citation gate used; else by id alone.
+  const groundedKeys = Array.isArray(input.groundedKeys)
+    ? new Set(input.groundedKeys.map((x) => String(x).toUpperCase()))
+    : null;
+  const groundedInRun = (r) => {
+    if (groundedKeys) return groundedKeys.has(`${r.type}:${r.id}`.toUpperCase());
+    return groundedIds ? groundedIds.has(String(r.id).toUpperCase()) : null;
+  };
 
   // Attribution check (citation-attribution.js, 2026-11-04): optional, so a manifest built without it
   // is byte-identical to before. When present, each DOI/PMID carries what the report wrote beside it
@@ -71,7 +80,7 @@ function buildReproducibilityManifest(input = {}) {
       http_status: r.http_status == null ? null : r.http_status,
       checked_at: r.checked_at || null,
       evidence: r.evidence || {},
-      grounded_in_run: groundedIds ? groundedIds.has(String(r.id).toUpperCase()) : null,
+      grounded_in_run: groundedInRun(r),
       attempts: r.attempts || 1,
     };
     const a = attributionById.get(`${r.type}:${String(r.id).toUpperCase()}`);

@@ -55,6 +55,16 @@ describe("integrity-rating — buildIntegrityReport", () => {
     assert.match(r.markdown, /PMID:99999999/);
   });
 
+  // T1-5: the ledger records which matching rule grounded the citations.
+  it("states the grounding match, and omits the row for a record that predates it", () => {
+    const base = { cited: 4, grounded: 4, grounded_ratio: 1, retracted: [] };
+    assert.match(buildIntegrityReport({ ...base, grounding_match: "type_and_id" }).markdown,
+      /\| Matched on \| identifier type and number \(type_and_id\) \|/);
+    assert.match(buildIntegrityReport({ ...base, grounding_match: "id_only" }).markdown,
+      /\| Matched on \| identifier number only \(id_only\)/);
+    assert.doesNotMatch(buildIntegrityReport(base).markdown, /Matched on/);
+  });
+
   it("handles empty/missing input gracefully", () => {
     const r = buildIntegrityReport();
     assert.equal(r.grade, "N/A");
