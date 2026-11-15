@@ -87,6 +87,26 @@ test("retraction screen incomplete -> manifest says INCOMPLETE, flags it, and st
   assert.doesNotMatch(md, /network\/throttle limit/, "a retraction-screen gap is not a re-resolution limit");
 });
 
+// T1-8: the fallback manifest the engine builds when the re-resolution pass crashed.
+test("a crashed re-resolution pass: every id UNCHECKED (reresolution_error) ships flagged, never offline, says so", () => {
+  const m = buildReproducibilityManifest({
+    reresolved: [cit("PMID", "1", "UNCHECKED", "reresolution_error"), cit("NCT", "NCT01111111", "UNCHECKED", "reresolution_error")],
+    retraction: { checked: true, retracted_dois: [], retracted_pmids: [] },
+    reresolutionCompleted: false,
+    meta: META
+  });
+  assert.equal(m.summary.delivery_decision, "DELIVER_WITH_FLAGS");
+  assert.deepEqual(m.summary.block_reasons, []);
+  assert.equal(m.summary.environment.offline, false, "a crash is not an offline registry");
+  assert.equal(m.summary.reresolution_completed, false);
+  const md = renderManifestMarkdown(m);
+  assert.match(md, /Re-resolution did not complete this run; no identifier was looked up\./);
+  assert.doesNotMatch(md, /network\/throttle limit/, "a crash is not a network limit");
+  const normal = buildReproducibilityManifest({ reresolved: [cit("PMID", "1", "VERIFIED")], reresolutionCompleted: true, meta: META });
+  assert.equal(normal.summary.reresolution_completed, true);
+  assert.ok(!("reresolution_completed" in buildReproducibilityManifest({ reresolved: [], meta: META }).summary), "absent unless the caller says");
+});
+
 test("a complete retraction screen adds no flag", () => {
   const m = buildReproducibilityManifest({ reresolved: [cit("PMID", "1", "VERIFIED")], retraction: { checked: true, retracted_dois: [], retracted_pmids: [] }, meta: META });
   assert.equal(m.summary.delivery_decision, "DELIVER");

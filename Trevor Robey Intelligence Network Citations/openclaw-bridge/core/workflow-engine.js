@@ -457,10 +457,30 @@ function createWorkflowEngine(options = {}) {
       // source registry at delivery and records VERIFIED / UNRESOLVED / UNCHECKED in a manifest.
       // Fail-soft on infra (network/throttle => UNCHECKED, never a false VERIFIED); fail-CLOSED on
       // fabrication (a live "does-not-exist" => UNRESOLVED => BLOCK), mirroring the gate above.
+      // `checked` must reflect whether the screens actually covered every cited identifier —
+      // hardcoding `true` made the manifest claim a retraction screen that a rate-limited or
+      // unreachable source may have skipped entirely. DOI and PMID retractions stay in their own
+      // fields so a retracted PMID is never mislabeled as a DOI in the sealed manifest.
+      const manifestRetraction = {
+        checked: Boolean(retraction.checked),
+        retracted_dois: retraction.retracted_dois || [],
+        retracted_pmids: retraction.retracted_pmids || [],
+        // T1-7: an incomplete screen restricts the claim (flag), never blocks.
+        cited: (retraction.dois_cited || 0) + (retraction.pmids_cited || 0),
+        unscreened_ids: retraction.unscreened_ids || []
+      };
+      const manifestGate = {
+        cited: gate.cited, grounded: gate.grounded, ungrounded: gate.ungrounded,
+        grounded_ratio: gate.grounded_ratio, min_grounded_ratio: gate.min_grounded_ratio, hardFail: false
+      };
+      // T1-5: grounded_in_run by TYPE:ID when every evidence record carried keys.
+      const manifestGroundedKeys = Array.isArray(gate.fetchedKeys) ? gate.fetchedKeys : null;
+      let reresolutionStartedAt = null;
       try {
         const cites = deduplicateCitations(extractCitations(gate.reportText || ""));
         if (cites.length > 0) {
           const startedAt = timeProviderModule.nowIso();
+          reresolutionStartedAt = startedAt;
           // DI seam (mirrors researchRuntime.crossrefRetraction / pubmedRetraction / ctgovSupplemental
           // above): use an injected re-resolver when the runtime provides one, else construct the real
           // one. Production is IDENTICAL — nothing is injected, so createCitationReresolver still runs.
@@ -498,25 +518,11 @@ function createWorkflowEngine(options = {}) {
           const manifest = buildReproducibilityManifest({
             reresolved,
             attribution,
-            // `checked` must reflect whether the screens actually covered every cited identifier —
-            // hardcoding `true` made the manifest claim a retraction screen that a rate-limited or
-            // unreachable source may have skipped entirely. DOI and PMID retractions stay in their
-            // own fields so a retracted PMID is never mislabeled as a DOI in the sealed manifest.
-            retraction: {
-              checked: Boolean(retraction.checked),
-              retracted_dois: retraction.retracted_dois || [],
-              retracted_pmids: retraction.retracted_pmids || [],
-              // T1-7: an incomplete screen restricts the claim (flag), never blocks.
-              cited: (retraction.dois_cited || 0) + (retraction.pmids_cited || 0),
-              unscreened_ids: retraction.unscreened_ids || []
-            },
-            gate: {
-              cited: gate.cited, grounded: gate.grounded, ungrounded: gate.ungrounded,
-              grounded_ratio: gate.grounded_ratio, min_grounded_ratio: gate.min_grounded_ratio, hardFail: false
-            },
+            retraction: manifestRetraction,
+            gate: manifestGate,
             groundedIds: gate.fetchedIds,
-            // T1-5: grounded_in_run by TYPE:ID when every evidence record carried keys.
-            groundedKeys: Array.isArray(gate.fetchedKeys) ? gate.fetchedKeys : null,
+            groundedKeys: manifestGroundedKeys,
+            reresolutionCompleted: true,
             meta: {
               reportId: missionEnvelope.mission_id,
               deliveryId: context.workflowId,
@@ -582,6 +588,61 @@ function createWorkflowEngine(options = {}) {
         // blocks a report the gate already passed.
         if (reresolveError && reresolveError.code === "PHASE30_CITATION_UNRESOLVED") throw reresolveError;
         logger.warn({ event: "citation_reresolution_failed", error: safeString(reresolveError && reresolveError.message) });
+        // T1-8 (2026-11-14): the run stays fail-soft (operator default D1) but never seals a gated
+        // report without a manifest. Until this date a crash left none (sealed release
+        // offer-bcaf2746298f5280fde747f0 has no reproducibility manifest). The fallback lists every
+        // cited id UNCHECKED with reason `reresolution_error` and records reresolution_completed:false,
+        // so the bundle says nothing was looked up and delivery refuses it (build-buyer-zip.js,
+        // distribute.js, export-release.js). If even the fallback cannot be built, the run stops.
+        if (citationVerification && !citationVerification.reproducibility_manifest) {
+          let fallback;
+          try {
+            const checkedAt = timeProviderModule.nowIso();
+            fallback = buildReproducibilityManifest({
+              reresolved: deduplicateCitations(extractCitations(gate.reportText || "")).map((c) => ({
+                type: c.type, id: c.id, status: "UNCHECKED", resolver_type: "primary",
+                evidence: { reason: "reresolution_error" }, checked_at: checkedAt
+              })),
+              retraction: manifestRetraction,
+              gate: manifestGate,
+              groundedIds: gate.fetchedIds,
+              groundedKeys: manifestGroundedKeys,
+              reresolutionCompleted: false,
+              meta: {
+                reportId: missionEnvelope.mission_id,
+                deliveryId: context.workflowId,
+                resolverTableVersion: null,
+                asOf: checkedAt.slice(0, 10),
+                startedAt: reresolutionStartedAt || checkedAt,
+                completedAt: checkedAt
+              }
+            });
+          } catch (fallbackError) {
+            const err = new Error(
+              "Citation re-resolution crashed, and its fallback manifest could not be built either: " +
+              `${safeString(fallbackError && fallbackError.message)} — refusing to seal a gated report without a manifest.`
+            );
+            err.code = "PHASE30_CITATION_RERESOLUTION_ERROR";
+            err.citation_verification = citationVerification;
+            throw err;
+          }
+          try {
+            const mdir = getWorkflowDir(context.workflowId);
+            ensureDir(mdir);
+            fs.writeFileSync(path.join(mdir, "reproducibility-manifest.json"), JSON.stringify(fallback, null, 2));
+            fs.writeFileSync(path.join(mdir, "reproducibility-manifest.md"), renderManifestMarkdown(fallback));
+          } catch (persistErr) {
+            logger.warn({ event: "reproducibility_manifest_persist_failed", error: safeString(persistErr && persistErr.message) });
+          }
+          logger.warn({
+            event: "citation_reresolution_fallback_manifest",
+            mission_id: missionEnvelope.mission_id,
+            unchecked: fallback.summary.counts.unchecked,
+            decision: fallback.summary.delivery_decision
+          });
+          citationVerification.reproducibility = fallback.summary;
+          citationVerification.reproducibility_manifest = fallback;
+        }
       }
     }
 

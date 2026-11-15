@@ -262,9 +262,17 @@ const FLAGGED_SUMMARY = {
   delivery_decision: "DELIVER_WITH_FLAGS"
 };
 
+// A 100%-VERIFIED manifest (the full-strength DELIVER state).
+const CLEAN_SUMMARY = {
+  counts: { total: 12, verified: 12, unresolved: 0, unchecked: 0 },
+  by_type: { PMID: { total: 12, verified: 12, unresolved: 0, unchecked: 0 } },
+  verified_ratio: 1,
+  delivery_decision: "DELIVER"
+};
+
 test("store copy never ships the retired absolute no-hallucination claim (7801443 doctrine)", async () => {
   // Every state, including the ungated one, must be free of the retired claim.
-  for (const summary of [FLAGGED_SUMMARY, "gated", null]) {
+  for (const summary of [FLAGGED_SUMMARY, CLEAN_SUMMARY, null]) {
     const copy = await renderStoreCopyFor("no-halluc", summary);
     assert.ok(!/hallucinat/i.test(copy), "store copy must not make any hallucination claim");
     assert.ok(
@@ -273,7 +281,7 @@ test("store copy never ships the retired absolute no-hallucination claim (780144
     );
   }
   // The approved replacement term appears only where the gate actually ran.
-  for (const summary of [FLAGGED_SUMMARY, "gated"]) {
+  for (const summary of [FLAGGED_SUMMARY, CLEAN_SUMMARY]) {
     const copy = await renderStoreCopyFor("no-halluc-gated", summary);
     assert.match(copy, /Zero-Fabrication Guarantee/, "the approved OFFERINGS.md term replaces it");
   }
@@ -355,25 +363,24 @@ test("store copy reports the REAL re-resolution split, not an implied all-verifi
 });
 
 test("store copy reads at full strength only when the manifest is 100% VERIFIED", async () => {
-  const copy = await renderStoreCopyFor("clean", {
-    counts: { total: 12, verified: 12, unresolved: 0, unchecked: 0 },
-    by_type: { PMID: { total: 12, verified: 12, unresolved: 0, unchecked: 0 } },
-    verified_ratio: 1,
-    delivery_decision: "DELIVER"
-  });
+  const copy = await renderStoreCopyFor("clean", CLEAN_SUMMARY);
   assert.match(copy, /all 12 resolved VERIFIED/, "DELIVER earns the unqualified statement");
   assert.ok(!/UNCHECKED/.test(copy), "no residue to report at 100%");
 });
 
-test("store copy fail-softs when the gate ran but no manifest exists, without softening the capability", async () => {
-  const copy = await renderStoreCopyFor("failsoft", "gated");
-  // SYSTEM-REALITY.md §3: the re-resolution pass is fail-soft; a bundle may ship with no manifest.
-  assert.match(copy, /re-resolution manifest is not included with this bundle/, "says so plainly");
-  assert.ok(!/resolved VERIFIED/.test(copy), "must not assert an outcome it has no evidence for");
-  // The gate DID run here, so the grounding + retraction claims stay assertable — dropping them
-  // would be the "grounding only" softening SYSTEM-REALITY.md:93 forbids.
-  assert.match(copy, /retraction-screened/, "retraction screening is still claimed");
-  assert.match(copy, /retrieved at runtime/, "runtime grounding is still claimed");
+// T1-8 (2026-11-14): the engine always attaches a manifest (a fallback when the re-resolution pass
+// crashed), so a gate record without one means the manifest was lost; the bundle is refused.
+test("a gated bundle without a reproducibility manifest is refused before any file is written", async () => {
+  const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "openclaw-phase19-no-manifest-"));
+  const packager = createDeliverablePackager({ rootDir: tmp });
+  const fixture = createMissionFixture();
+  const bundleDir = packager.createBundleWorkspace(fixture.offer.offer_id);
+  assert.throws(
+    () => packager.writeDeliverables(bundleDir, fixture.offer, withResolution(fixture, "gated")),
+    (error) => error && error.code === "PHASE19_RERESOLUTION_MANIFEST_MISSING"
+  );
+  const deliverables = path.join(bundleDir, "deliverables");
+  assert.deepEqual(fs.existsSync(deliverables) ? fs.readdirSync(deliverables) : [], [], "nothing was written");
 });
 
 // T1-7: "retraction-screened" is printed only when the screen covered every cited DOI and PMID.

@@ -75,7 +75,6 @@ function copyIfExists(sourcePath, targetPath) {
 const PROFILE_COPY = Object.freeze({
   biomedical: Object.freeze({
     noRecordIdentifiers: "Citations carry public identifiers (PMID, NCT, PubChem CID, DOI) that resolve in their issuing registries and can be checked directly.",
-    retractionScope: "cited DOIs and PMIDs are retraction-screened",
     registries: "PMID → NCBI E-utilities, DOI → Crossref with a doi.org fallback, "
       + "NCT → ClinicalTrials.gov, PubChem CID → PubChem, ChEMBL → ChEMBL, UniProt → UniProt, RxNorm → RxNav",
     correctnessNote: "Re-resolution confirms an "
@@ -88,7 +87,6 @@ const PROFILE_COPY = Object.freeze({
     retractionBullet: "- Cited DOIs and PMIDs are retraction-screened (Crossref for DOIs, PubMed for PMIDs, with a DOI→PMID cross-check); any retracted source blocks release",
     // T1-7: the bullet when the screen did not cover every cited DOI and PMID (a count follows).
     retractionBulletPartial: "- Cited DOIs and PMIDs are put through the retraction screen (Crossref for DOIs, PubMed for PMIDs, with a DOI→PMID cross-check); any retracted source found blocks release.",
-    retractionScopePartial: "cited DOIs and PMIDs are put through the retraction screen",
     dataSourcesIntro: "The pipeline queries the following authoritative biomedical databases:",
     dataSources: Object.freeze([
       "- **PubMed / MEDLINE** — Peer-reviewed biomedical literature (PMID identifiers)",
@@ -102,7 +100,6 @@ const PROFILE_COPY = Object.freeze({
   }),
   business: Object.freeze({
     noRecordIdentifiers: "Citations carry public identifiers (SEC filing accession, World Bank indicator code, official statistics series id, DOI) or the content hash of the exact web page read (WEB), and can be checked directly.",
-    retractionScope: "cited DOIs are retraction-screened",
     registries: "SEC → SEC EDGAR filing index, WB → World Bank Indicators API, BLS → BLS Public Data API, "
       + "EUROSTAT → Eurostat SDMX dataflow, CENSUS → U.S. Census Bureau API, EIA → EIA API v2, DOI → Crossref with a doi.org fallback, "
       + "WEB → this run's stored page snapshot, re-hashed at delivery",
@@ -116,7 +113,6 @@ const PROFILE_COPY = Object.freeze({
     identifierBullet: "- Every citation includes a verifiable identifier (SEC accession, official statistics series id, World Bank indicator, DOI) or a WEB snapshot hash; every cited web page ships in `sources/`",
     retractionBullet: "- Cited DOIs are retraction-screened against Crossref; any retracted source blocks release",
     retractionBulletPartial: "- Cited DOIs are put through the Crossref retraction screen; any retracted source found blocks release.",
-    retractionScopePartial: "cited DOIs are put through the retraction screen",
     dataSourcesIntro: "The pipeline queries the following sources:",
     dataSources: Object.freeze([
       "- **SEC EDGAR** — Public company filings: 10-K, 10-Q, 8-K (SEC accession identifiers)",
@@ -148,17 +144,16 @@ function createDeliverablePackager(options = {}) {
   // on sourceContext — workflow-engine.js sets source_context.citation_verification, whose
   // reproducibility_manifest.summary carries per-identifier VERIFIED / UNRESOLVED / UNCHECKED.
   //
-  // { present:false } is a LEGITIMATE FAIL-SOFT STATE, not an error: per SYSTEM-REALITY.md §3 the
-  // re-resolution pass is fail-soft and a report may ship with no manifest.
+  // { present:false, gated:false } is the bundle that never went through the research path (dataset
+  // bundles, hand-fed source contexts). { present:false, gated:true } can no longer reach rendering
+  // (T1-8): writeDeliverables refuses a gated bundle without a manifest, because the engine always
+  // attaches one — a fallback when the re-resolution pass crashed.
   function readResolutionSummary(sourceContext) {
     const cv = asPlainObject(asPlainObject(sourceContext).citation_verification);
-    // `gated` separates TWO distinct absent-states that must not make the same claim:
-    //   (a) gated:true  — the citation gate + retraction screen ran, but the fail-soft
-    //                     re-resolution pass produced no manifest. Those gates ARE assertable.
-    //   (b) gated:false — this bundle never went through the research path at all (dataset
-    //                     bundles, hand-fed source contexts). renderStoreCopy is called for
-    //                     EVERY bundle, so asserting (a)'s guarantees here would be a fresh
-    //                     overclaim of exactly the class this module exists to prevent.
+    // `gated` separates the bundles that carry the citation gate's record from those that never
+    // went through the research path at all. renderStoreCopy is called for EVERY bundle, so
+    // asserting the gates' guarantees for an ungated one would be a fresh overclaim of exactly the
+    // class this module exists to prevent.
     const gated = Object.keys(cv).length > 0;
     const s = asPlainObject(asPlainObject(cv.reproducibility_manifest).summary);
     const counts = asPlainObject(s.counts);
@@ -216,19 +211,16 @@ function createDeliverablePackager(options = {}) {
   // OUTCOME, which is read from the manifest instead of assumed. Claim strength therefore tracks
   // the same counts that produce delivery_decision: all-VERIFIED (DELIVER) reads at full strength,
   // anything else is stated with its real UNCHECKED / UNRESOLVED residue (DELIVER_WITH_FLAGS).
-  function renderResolutionSentence(res, copy = PROFILE_COPY.biomedical, coverage = { known: false, complete: false }) {
+  function renderResolutionSentence(res, copy = PROFILE_COPY.biomedical) {
     if (!res.present) {
       if (!res.gated) {
         // No citation-verification record at all — claim neither gate. Identifiers are still
         // public and independently checkable, which is true of any bundle.
         return `${copy.noRecordIdentifiers} This bundle carries no citation-verification record, so no grounding, retraction-screen, or re-resolution outcome is asserted for it.`;
       }
-      // A per-bundle statement of fact, NOT the general softening SYSTEM-REALITY.md §3 forbids:
-      // THIS bundle's gates ran but the fail-soft re-resolution pass produced no manifest.
-      const screen = coverage.complete
-        ? `${copy.retractionScope}.`
-        : `${copy.retractionScopePartial}. ${retractionShortfall(coverage)}`;
-      return `Every cited identifier is cross-checked against the source records actually retrieved at runtime, and ${screen} A per-identifier re-resolution manifest is not included with this bundle.`;
+      // Gated with no usable manifest: unreachable (writeDeliverables refuses it, T1-8). Defensive
+      // only, so it asserts nothing either way.
+      return `${copy.noRecordIdentifiers} No re-resolution result is recorded for this bundle, so no re-resolution outcome is asserted for it.`;
     }
     // Registries actually dispatched to, per citation-reresolver.js hostFor(). DrugBank is a
     // recognised identifier type but has NO resolver host, and the literal string is banned in
@@ -296,7 +288,7 @@ function createDeliverablePackager(options = {}) {
       "",
       "## Overview",
       "",
-      `This intelligence pack delivers citation-backed research synthesized from ${copy.sourcesSentence}. ${renderResolutionSentence(resolution, copy, coverage)}`,
+      `This intelligence pack delivers citation-backed research synthesized from ${copy.sourcesSentence}. ${renderResolutionSentence(resolution, copy)}`,
       "",
       resolution.present
         ? `The report spans **${pageEstimate}+ pages** of original analysis citing **${resolution.total} unique identifiers** (**${resolution.verified}** independently re-resolved VERIFIED) drawn from ${copy.drawnFrom}.`
@@ -701,6 +693,18 @@ function createDeliverablePackager(options = {}) {
   }
 
   function writeDeliverables(bundleDir, offer, sourceContext) {
+    // T1-8 (2026-11-14): a gated bundle (it carries the citation gate's record) must carry its
+    // re-resolution manifest. The engine always attaches one — a fallback, with every id UNCHECKED and
+    // reresolution_completed:false, when the pass crashed — so a gate record without one means the
+    // manifest was lost on the way. Refused before any file is written. (Sealed release
+    // offer-bcaf2746298f5280fde747f0 shipped with no manifest before this.)
+    const gateRecord = asPlainObject(asPlainObject(sourceContext).citation_verification);
+    if (Object.keys(gateRecord).length > 0
+      && Object.keys(asPlainObject(asPlainObject(gateRecord.reproducibility_manifest).summary)).length === 0) {
+      const error = new Error("citation_verification is present but carries no reproducibility manifest; a gated bundle is never packaged without one");
+      error.code = "PHASE19_RERESOLUTION_MANIFEST_MISSING";
+      throw error;
+    }
     const deliverablesDir = path.join(bundleDir, "deliverables");
     ensureDir(deliverablesDir);
     const artifactRefs = {};

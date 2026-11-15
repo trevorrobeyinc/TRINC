@@ -190,6 +190,10 @@ function buildReproducibilityManifest(input = {}) {
       : null,
     thresholds,
     environment: { offline },
+    // T1-8 (2026-11-14): false only on the fallback manifest the engine builds when the re-resolution
+    // pass crashed (every id UNCHECKED, reason "reresolution_error"); delivery refuses it. Present only
+    // when the caller says, so a manifest built without it is unchanged (older manifests lack it).
+    ...(typeof input.reresolutionCompleted === "boolean" ? { reresolution_completed: input.reresolutionCompleted } : {}),
   };
   // Recorded when the check ran over at least one DOI / PMID, or when it could not run at all. A
   // report with no DOI or PMID (the business lane's WEB / SEC / statistics ids) gets no section.
@@ -227,9 +231,13 @@ function renderManifestMarkdown(manifest) {
     + (Array.isArray(s.block_reasons) && s.block_reasons.length ? ` — blocked: ${s.block_reasons.join(", ")}` : "")
     + (Array.isArray(s.flag_reasons) && s.flag_reasons.length ? ` — flags: ${s.flag_reasons.join(", ")}` : ""));
   const flags = Array.isArray(s.flag_reasons) ? s.flag_reasons : [];
+  // T1-8: a crashed re-resolution pass looked nothing up; say exactly that, never "a network limit".
+  if (s.reresolution_completed === false) {
+    lines.push("> Re-resolution did not complete this run; no identifier was looked up. Every cited identifier below is UNCHECKED (reason: reresolution_error), and this report is not cleared for delivery until the order is re-run.");
+  }
   // The re-resolution explanation belongs to the unchecked flag only (T1-7: a flag may now come from
   // the retraction screen instead, and that is not a re-resolution limit).
-  if (s.delivery_decision === "DELIVER_WITH_FLAGS" && flags.includes("unchecked_over_threshold")) {
+  if (s.delivery_decision === "DELIVER_WITH_FLAGS" && flags.includes("unchecked_over_threshold") && s.reresolution_completed !== false) {
     lines.push("> This report SHIPS. DELIVER_WITH_FLAGS means some cited identifiers could not be independently re-resolved at delivery time (a network/throttle limit at re-resolution, NOT a defect): the report remains fully GROUNDED — every cited id was present in the runtime-fetched evidence. Only an UNRESOLVED id (a live registry says it does not exist) or a retraction blocks delivery.");
   }
   if (s.delivery_decision === "DELIVER_WITH_FLAGS" && flags.includes("attribution_mismatch")) {

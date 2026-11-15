@@ -10,6 +10,7 @@
 // It refuses, and writes nothing, when:
 //   - a listed file is missing, or changed after the release was sealed (manifest.json);
 //   - the engine's delivery decision is not DELIVER / DELIVER_WITH_FLAGS, or an identifier is UNRESOLVED;
+//   - the re-resolution pass did not complete (the engine's fallback manifest, T1-8);
 //   - any file carries a ChEMBL identifier (excluded from paid deliverables until counsel answers
 //     the CC BY-SA 3.0 share-alike question);
 //   - a file still carries wording the operator retired on 2026-11-06 (decisions #6 and #7).
@@ -149,6 +150,10 @@ function buildBuyerZip({ offerId, outPath, sku, releasesDir = DEFAULT_RELEASES_D
       const unresolved = Number((summary.counts || {}).unresolved || 0);
       if (!SHIPPABLE_DECISIONS.has(decision)) problems.push(`delivery decision is ${decision || "missing"}, not DELIVER or DELIVER_WITH_FLAGS`);
       if (unresolved > 0) problems.push(`${unresolved} cited identifier(s) were UNRESOLVED at delivery`);
+      // T1-8 (2026-11-14): the fallback manifest of a crashed re-resolution pass. Its DELIVER_WITH_FLAGS
+      // would otherwise pass the check above, though no identifier was looked up. Older manifests lack
+      // the field and pass, as before.
+      if (summary.reresolution_completed === false) problems.push("re-resolution did not complete; re-run the order");
     } catch (err) {
       problems.push(`reproducibility-manifest.json is unreadable: ${err.message}`);
     }
