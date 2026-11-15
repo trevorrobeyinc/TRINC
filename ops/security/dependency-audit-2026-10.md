@@ -41,6 +41,143 @@ the named reviewer): **89 → 24** (2 critical, 10 high, 10 moderate, 2 low), 20
 
 Details in [2026-11-01 follow-up](#2026-11-01-follow-up-89--24).
 
+**Update, 2026-11-14 (after the push of `d37bbb1`):** GitHub reported **54** open alerts (2 critical, 2 high,
+41 moderate, 9 low). 42 were new hono and `@hono/node-server` advisories in six lockfiles. A lockfile-only
+refresh fixes them. The other 12 have no code fix and wait for the operator's dismissal on GitHub. Details in
+[2026-11-14 follow-up](#2026-11-14-follow-up-54--12).
+
+## 2026-11-14 follow-up: 54 → 12
+
+GitHub reported 54 open alerts after the operator pushed `main` at `d37bbb1`. `gh api` is refused by the
+read-only `gh` pin, and the `github` MCP has no Dependabot tool, so the list was rebuilt locally:
+- `npm audit --package-lock-only` ran on copies of the 11 committed lockfiles (`git show HEAD:…`);
+- OSV was queried for the one stale Python lockfile GitHub still holds.
+
+Counting one record per manifest × package × advisory, the totals match GitHub's, severity by severity:
+
+| Group | Alerts | c / h / m / l | Action |
+|---|---|---|---|
+| A. hono ×5 and `@hono/node-server` ×2, in six lockfiles | 42 | 0 / 0 / 36 / 6 | **fixed** here, lockfile only |
+| B. the fork's `minimatch`, `deepmerge`, `diff` | 3 | 0 / 0 / 1 / 2 | no fix in range; dismiss (operator) |
+| C. `scrape-sidecar/uv.lock`, deleted in `a148d9e` | 9 | 2 / 2 / 4 / 1 | stale manifest; dismiss (operator) |
+| **Total** | **54** | **2 / 2 / 41 / 9** | |
+
+Medical-Zettelkasten's four locutus advisories are not among the 54. They were dismissed before 11-01
+(decision 6), and the audit still finds the same four.
+
+**A: fixed.** All seven advisories arrived on 11-01 or later:
+
+| Package | Advisory | What it covers | Sev | First fixed |
+|---|---|---|---|---|
+| hono | `GHSA-4m76-xfj5-7975` | `mount()` path forwarding | moderate | 4.13.16 |
+| hono | `GHSA-h7mg-cq63-vhpq` | RegExpRouter wildcard middleware | moderate | 4.13.16 |
+| hono | `GHSA-46wx-v44x-9hh2` | `csrf()` and `text/ping` | moderate | 4.13.16 |
+| hono | `GHSA-4h7h-rv7c-7m2v` | `validator('form')` multipart | moderate | 4.13.16 |
+| hono | `GHSA-3gg2-335m-rxc6` | `css` helper | low | 4.13.16 |
+| `@hono/node-server` | `GHSA-qv5m-9pm6-hqp3` | ECONNRESET during a WebSocket upgrade | moderate | 2.1.6 |
+| `@hono/node-server` | `GHSA-jpvv-r467-5p4w` | backslash as a path separator | moderate | 2.1.6 |
+
+How they reach each tree:
+- Medical-Zettelkasten, searxng, research-memory and trinc-content: through MCP SDK 1.32.2, at runtime.
+- The `:8798` bridge: through its devDependency on the SDK. That tree is runtime for `openclaw-obsidian`,
+  through the adapter's `node_modules` symlink.
+- The fork: through the peer SDK of `@anthropic-ai/claude-agent-sdk` 0.3.206.
+
+None is reachable as used: the SDK loads hono only from `server/streamableHttp.js`, and every server here
+starts `StdioServerTransport`.
+
+The change is `npm update hono @hono/node-server --ignore-scripts` in each tree:
+- Each lockfile moves exactly two entries (version, resolved, integrity): hono 4.13.13 → **4.13.18** and
+  `@hono/node-server` 2.1.5 → **2.1.8**.
+- Both stay inside the SDK's own ranges (`^4.11.4`; `^1.19.9 || ^2.0.5`).
+- No `package.json`, source or bundle changed.
+
+Why 4.13.18 / 2.1.8 rather than the first patched 4.13.16 / 2.1.6: they also fix five advisories published on
+the hono repositories on 2026-11-11 that GitHub's reviewed database did not list yet (`github.com/advisories/<id>`
+answered 404):
+- `GHSA-74fm-fwc7-3fwp`, hono ≥ 4.13.11 ≤ 4.13.17;
+- `GHSA-92p4-j3wq-jmqx`, hono ≥ 4.5.1 ≤ 4.13.17;
+- `GHSA-39q9-qp46-w8xg` and `GHSA-h25j-2p75-qj33`, hono (from the 4.13.18 release notes);
+- `GHSA-fj57-4f93-cfw6`, `@hono/node-server` ≥ 2.1.3 < 2.1.7.
+
+The first patched releases would have re-opened up to 30 alerts once those are reviewed. The cost is no
+cooldown: the releases were 3 and 2 days old. Mitigations:
+- both carry SLSA provenance;
+- neither has an install script;
+- `npm audit signatures` verified every installed package in all seven trees.
+
+**B and C: no code fix; they need the operator's dismissal.**
+- **`minimatch` `GHSA-g3hv-75wg-m249`** (moderate). Dev-only: 8.0.7, 9.0.9 ×2 and 10.2.5 under ESLint plugins
+  and npm-run-all2. The first fix is 11.0.1, with no backport. Dismiss as "Risk is tolerable": the patterns
+  come from the repo's own config.
+- **`deepmerge` `GHSA-gcqx-w48m-w2h4`** (low). Dev-only, via `jest-config`. 4.3.1 (2023) is still the newest
+  release. Dismiss as "Risk is tolerable".
+- **`diff` `GHSA-73rr-hh4g-fpgx`** (low). Runtime, a direct `^7.0.0`. It is fixed in 8.0.3, a major that would
+  change `main.js`. Dismiss as "Vulnerable code is not actually used": the fork calls only `diffArrays` and
+  `diffTrimmedLines` and imports the `Change` type, never `parsePatch`/`applyPatch`.
+- **`scrape-sidecar/uv.lock` ×9**, checked on OSV against the file at `a148d9e^`. They are the same nine as on
+  11-01. Dismiss as "This alert is inaccurate or incorrect", noting "manifest deleted in a148d9e (2026-09-18)".
+
+  | Package | Advisory | Sev |
+  |---|---|---|
+  | anyio 4.13.0 | `GHSA-82r6-8w77-94w6` | critical |
+  | anyio 4.13.0 | `GHSA-5p39-cfhj-2xmp` | moderate |
+  | certifi 2026.4.22 | `GHSA-6q48-6c7w-9gw2` | critical |
+  | idna 3.13 | `GHSA-65pc-fj4g-8rjx` | moderate |
+  | starlette 1.0.0 | `GHSA-82w8-qh3p-5jfq` | high |
+  | starlette 1.0.0 | `GHSA-wqp7-x3pw-xc5r` | high |
+  | starlette 1.0.0 | `GHSA-86qp-5c8j-p5mr` | moderate |
+  | starlette 1.0.0 | `GHSA-x746-7m8f-x49c` | moderate |
+  | starlette 1.0.0 | `GHSA-jp82-jpqv-5vv3` | low |
+
+**Tests, before → after, in one worktree.** The new worktree had no submodule checkout and no
+`obsidian-cli-mcp.local.json`, so the first baseline:
+- failed the two Phase 29 startup-integrity tests;
+- stopped `build:verify` at Phase 29;
+- timed out the adapter's raycast profile.
+
+The baseline was re-taken with the submodule cloned locally at its recorded commit `f2006162`, and with
+`OBSIDIAN_MCP_CONFIG` pointing the adapter at a scratch config that holds a dummy token. Every after-run used
+the same environment.
+
+| Check | Before | After |
+|---|---|---|
+| engine `npm test` (Node 22.13.1) | 1438 / 1439, 1 skip | same |
+| engine `secrets:verify` | passed | passed |
+| engine `build:verify` | passed (Phase 29: all checks) | passed |
+| `scripts/lint-transport-monorepo.sh --strict` | 0 violations | 0 |
+| bridge `tsc`, vitest, `lint:transport` | OK, 49 / 49, OK | same |
+| adapter `test:profiles` | 43 PASS, 0 FAIL, 3 SKIP (Obsidian closed) | same |
+| Medical-Zettelkasten `npm test` | 120 / 121 (the known 12-vs-10 tool count) | same |
+| searxng `test:unit` | 57 / 57 | same |
+| research-memory `tsc`, vitest | OK, 36 / 36 (integration on its own `trevorobeyinc-packs-test` collection) | same |
+| trinc-content `npm test` | 55 / 56 (the known thumbnail test) | same |
+| fork build | `main.js` `4fdd73d9…`, `styles.css` `fe63f78b…` | byte-identical |
+| fork Jest | 5,831 / 5,831; 425 / 426 suites (`customCommandRegister.test.ts`) | same |
+| `npm audit` (records) | 49 | 7: the 4 dismissed locutus, plus B |
+
+**Not deployed.** The runtime trees keep their old hono until they are reinstalled:
+- the bridge, and so the adapter: `npm ci --ignore-scripts`, with Obsidian quit first;
+- Medical-Zettelkasten (in-process in the engine) and research-memory: `npm ci --ignore-scripts`;
+- the staged searxng and trinc-content copies: re-run their `install-connector.sh`.
+
+Nothing reaches the hono code, so this is hygiene, not urgency. The fork's bundle is unchanged, so there is
+nothing to deploy there.
+
+Found on the way: the 11-01 reinstall steps were not all run.
+- The staged searxng copy still runs `@hono/node-server` 1.19.17, and the staged trinc-content copy runs 2.1.1.
+- The repo's searxng and fork `node_modules` also hold 1.19.17.
+
+**Outside Dependabot's view.** `Trevor Robey Intelligence Network Citations/security/tooluniverse-venv.lock.txt`
+(106 pins) now matches four advisories on OSV:
+- dnspython 2.9.0, `GHSA-vvf4-9x63-8xvv` (high);
+- graphql-core 3.3.0, `GHSA-mpqx-q82w-9x46` (high);
+- soupsieve 3.0.4, `GHSA-mmhr-3c5m-f64f` (high);
+- opentelemetry-api 1.45.1, `GHSA-mf5v-w3w3-f6cg` (moderate).
+
+Dependabot does not read that file name. It was taken up as its own task on 2026-11-14, using decision 5's
+method.
+
 ## 2026-11-01 follow-up: 89 → 24
 
 Same method as 2026-10-24 (`npm audit`, one record per package × advisory, scripts off, scratch npm cache),
