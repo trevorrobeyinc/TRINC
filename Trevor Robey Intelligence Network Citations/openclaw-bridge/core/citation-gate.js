@@ -327,9 +327,11 @@ async function checkRetractions(reportText, checkDois, checkPmids, doiToPmid) {
   if (typeof checkDois !== "function" && typeof checkPmids !== "function") {
     return { checked: false, retracted: [] };
   }
-  const cited = extractCitations(String(reportText || ""));
-  const dois = [...new Set(cited.filter((c) => c.type === "DOI").map((c) => c.id))];
-  const pmids = [...new Set(cited.filter((c) => c.type === "PMID").map((c) => c.id))];
+  // deduplicateCitations compares DOIs case-insensitively (T1-4): "10.1056/NEJMoa…" and
+  // "10.1056/nejmoa…" are one work, screened once.
+  const cited = deduplicateCitations(extractCitations(String(reportText || "")));
+  const dois = cited.filter((c) => c.type === "DOI").map((c) => c.id);
+  const pmids = cited.filter((c) => c.type === "PMID").map((c) => c.id);
 
   const doiScreen = await runScreen(dois, checkDois, "doi");
   const pmidScreen = await runScreen(pmids, checkPmids, "pmid");

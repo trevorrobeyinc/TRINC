@@ -1,0 +1,40 @@
+{
+  "_comment": "Read-only probe of the public Crossref API and doi.org, 2026-11-14 (site-copy session strange-merkle-788825, crossref_agency_probe.py). Status codes and the control's agency body are copied from its output. An invented suffix on a real publisher prefix gets 404 from both Crossref routes and from doi.org, so the existence check does not work by prefix.",
+  "cases": [
+    {
+      "label": "control: real DOI (1998 Lancet paper, later retracted)",
+      "doi": "10.1016/S0140-6736(97)11096-0",
+      "crossref_agency": { "status": 200, "body": { "status": "ok", "message-type": "work-agency", "message-version": "1.0.0", "message": { "DOI": "10.1016/s0140-6736(97)11096-0", "agency": { "id": "crossref", "label": "Crossref" } } } },
+      "crossref_works_status": 200,
+      "doi_org_head_status": 200
+    },
+    {
+      "label": "invented suffix on the Elsevier prefix",
+      "doi": "10.1016/j.invented.2026.999999",
+      "crossref_agency": { "status": 404, "body": "Resource not found." },
+      "crossref_works_status": 404,
+      "doi_org_head_status": 404
+    },
+    {
+      "label": "invented suffix on the Springer prefix",
+      "doi": "10.1007/s99999-026-99999-z",
+      "crossref_agency": { "status": 404, "body": "Resource not found." },
+      "crossref_works_status": 404,
+      "doi_org_head_status": 404
+    },
+    {
+      "label": "invented suffix on the Wiley prefix",
+      "doi": "10.1002/invented.20269999",
+      "crossref_agency": { "status": 404, "body": "Resource not found." },
+      "crossref_works_status": 404,
+      "doi_org_head_status": 404
+    },
+    {
+      "label": "prefix that no agency registered",
+      "doi": "10.99999/invented-0000",
+      "crossref_agency": { "status": 404, "body": "Resource not found." },
+      "crossref_works_status": 404,
+      "doi_org_head_status": 404
+    }
+  ]
+}

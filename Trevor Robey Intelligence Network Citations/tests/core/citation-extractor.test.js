@@ -2,7 +2,158 @@
 
 const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
-const { extractCitations, deduplicateCitations, countByType, crossCheckCitations, roleLabel } = require("../../openclaw-bridge/core/citation-extractor.js");
+const fs = require("node:fs");
+const path = require("node:path");
+const {
+  extractCitations, extractCitationSpans, deduplicateCitations, countByType, crossCheckCitations, roleLabel
+} = require("../../openclaw-bridge/core/citation-extractor.js");
+
+const ids = (text, type) => extractCitations(text).filter((c) => !type || c.type === type).map((c) => c.id);
+const one = (text) => deduplicateCitations(extractCitations(text));
+
+// T1-4 (2026-11-14): every written form of a PMID, NCT or DOI is read.
+describe("citation-extractor — every written form (T1-4)", () => {
+  it("PubMed record links yield the PMID (both hosts, with or without www.)", () => {
+    assert.deepEqual(one("See https://pubmed.ncbi.nlm.nih.gov/12345678/ for the trial."), [{ type: "PMID", id: "12345678" }]);
+    assert.deepEqual(one("Archived at https://www.ncbi.nlm.nih.gov/pubmed/23456789."), [{ type: "PMID", id: "23456789" }]);
+    assert.deepEqual(one("ncbi.nlm.nih.gov/pubmed/34567890"), [{ type: "PMID", id: "34567890" }]);
+  });
+
+  it("a 'PubMed ID' or 'PubMed:' label yields the PMID; a bare 'PubMed 2019' does not", () => {
+    assert.deepEqual(one("PubMed ID: 12345678"), [{ type: "PMID", id: "12345678" }]);
+    assert.deepEqual(one("(PubMed ID 12345678)"), [{ type: "PMID", id: "12345678" }]);
+    assert.deepEqual(one("PubMed: 12345678"), [{ type: "PMID", id: "12345678" }]);
+    assert.deepEqual(ids("We searched PubMed 2019 to 2024.", "PMID"), []);
+  });
+
+  it("every item of a PMID or PMIDs list is read", () => {
+    assert.deepEqual(ids("PMIDs: 12345678, 23456789", "PMID"), ["12345678", "23456789"]);
+    assert.deepEqual(ids("(PMID: 12345678; 23456789; 34567890)", "PMID"), ["12345678", "23456789", "34567890"]);
+    assert.deepEqual(ids("PMID 12345678,23456789.", "PMID"), ["12345678", "23456789"]);
+  });
+
+  it("a list stops at prose: a percentage, a decimal or a number followed by a word is not a PMID", () => {
+    assert.deepEqual(ids("PMID: 12345678, 95% CI 1.2-3.4", "PMID"), ["12345678"]);
+    assert.deepEqual(ids("PMID: 12345678, 2.5 mg twice daily", "PMID"), ["12345678"]);
+    assert.deepEqual(ids("PMID: 12345678, 10 patients withdrew", "PMID"), ["12345678"]);
+  });
+
+  it("a list that already carries the engine's marks is still read in full", () => {
+    assert.deepEqual(ids("PMIDs: 12345678 [UNVERIFIED], 23456789", "PMID"), ["12345678", "23456789"]);
+    assert.deepEqual(
+      ids("PMID: 12345678 [ATTRIBUTION MISMATCH: registry lists Feldman et al., 2022], 23456789", "PMID"),
+      ["12345678", "23456789"], "the year inside a mark is never read as a PMID");
+  });
+
+  it("a PMID is never 0: the manifest's own 'retracted PMIDs: 0' is not a citation", () => {
+    assert.deepEqual(ids("Retraction screen: checked; retracted DOIs: 0; retracted PMIDs: 0.", "PMID"), []);
+    assert.deepEqual(ids("PMID: 0", "PMID"), []);
+  });
+
+  it("bare cells under a PMID or PMIDs column header are read; any other header yields nothing", () => {
+    const table = [
+      "| Study | PMID | n |",
+      "|---|---|---|",
+      "| Smith 2020 | 12345678 | 412 |",
+      "| Jones 2021 | 23456789 [UNVERIFIED] | 88 |",
+      "| Lee 2022 | — | 120 |"
+    ].join("\n");
+    assert.deepEqual(ids(table, "PMID"), ["12345678", "23456789"]);
+    const plural = "| **PMIDs** |\n|:---:|\n| 34567890; 45678901 |";
+    assert.deepEqual(ids(plural, "PMID"), ["34567890", "45678901"]);
+    const other = "| Study | Enrolled |\n|---|---|\n| Smith 2020 | 12345678 |\n| Jones 2021 | 412 |";
+    assert.deepEqual(ids(other), [], "a numeric column under another header is not a PMID column");
+    assert.deepEqual(ids("12345678 patients were screened across 412 sites."), [], "bare numbers in prose are never read");
+  });
+
+  it("the references-table fixture (offer-3dec35098e8e47e2d0a72012 report.md:394-407) yields its 10 PMIDs and 10 DOIs", () => {
+    const text = fs.readFileSync(path.join(__dirname, "..", "fixtures", "references-table-excerpt.md"), "utf8");
+    const got = deduplicateCitations(extractCitations(text)).map((c) => `${c.type}:${c.id}`).sort();
+    const want = [
+      "PMID:42529322", "PMID:42529345", "PMID:42529281", "PMID:42530663", "PMID:42497392",
+      "PMID:42497394", "PMID:42151668", "PMID:42503861", "PMID:42506599", "PMID:42530845",
+      "DOI:10.1016/j.jtocrr.2026.101029", "DOI:10.1016/j.jtocrr.2026.101036", "DOI:10.3389/fimmu.2026.1791664",
+      "DOI:10.1007/s10585-026-10417-x", "DOI:10.1097/ppo.0000000000000842", "DOI:10.1097/ppo.0000000000000838",
+      "DOI:10.1007/s40265-026-02331-z", "DOI:10.1002/ijc.70673", "DOI:10.3390/vaccines14070562",
+      "DOI:10.1245/s10434-026-20310-2"
+    ].sort();
+    assert.deepEqual(got, want);
+  });
+
+  it("an NCT number with a space or hyphen is read and normalized; a longer run is dropped, never cut", () => {
+    assert.deepEqual(one("trial NCT 01234567 and NCT-02345678"), [{ type: "NCT", id: "NCT01234567" }, { type: "NCT", id: "NCT02345678" }]);
+    assert.deepEqual(one("nct03456789"), [{ type: "NCT", id: "NCT03456789" }]);
+    assert.deepEqual(ids("NCT012345678"), [], "NCT012345678 is not NCT01234567");
+  });
+
+  it("a DOI is read bare, behind doi.org in every spelling, and inside a publisher URL", () => {
+    for (const text of [
+      "10.1234/abc.567",
+      "doi: 10.1234/abc.567",
+      "doi10.1234/abc.567",
+      "https://doi.org/10.1234/abc.567",
+      "http://dx.doi.org/10.1234/abc.567",
+      "https://www.doi.org/10.1234/abc.567",
+      "doi.org/10.1234/abc.567",
+      "https://onlinelibrary.wiley.com/doi/10.1234/abc.567",
+      "[Smith 2020](https://doi.org/10.1234/abc.567)"
+    ]) {
+      assert.deepEqual(one(text), [{ type: "DOI", id: "10.1234/abc.567" }], text);
+    }
+  });
+
+  it("https://doi.org/, dx.doi.org/ and a bare mention of one DOI de-duplicate to one", () => {
+    const text = "https://doi.org/10.1234/xyz, dx.doi.org/10.1234/xyz and 10.1234/xyz";
+    assert.equal(extractCitations(text).length, 3, "three mentions");
+    assert.deepEqual(one(text), [{ type: "DOI", id: "10.1234/xyz" }]);
+  });
+
+  it("DOIs de-duplicate case-insensitively, keeping the first mention as written", () => {
+    assert.deepEqual(one("doi: 10.1056/NEJMoa1911303 and 10.1056/nejmoa1911303"), [{ type: "DOI", id: "10.1056/NEJMoa1911303" }]);
+  });
+
+  it("a ?query or #fragment is cut from a DOI captured inside a URL", () => {
+    assert.deepEqual(one("https://www.publisher.example/doi/10.1234/abc.567?utm_source=x&utm_medium=y"), [{ type: "DOI", id: "10.1234/abc.567" }]);
+    assert.deepEqual(one("https://doi.org/10.1234/abc.567#sec-2"), [{ type: "DOI", id: "10.1234/abc.567" }]);
+  });
+
+  it("version strings, gene ids, decimals and prose numbers are not identifiers", () => {
+    assert.deepEqual(extractCitations("Upgrade to v10.1234/x now"), []);
+    assert.deepEqual(extractCitations("ENSG00000157764 (BRAF)"), []);
+    assert.deepEqual(extractCitations("Phase 10.5 of the build"), []);
+    assert.deepEqual(extractCitations("1.10.1234/x is a path"), []);
+    assert.deepEqual(extractCitations("Enrollment reached 12345678 across 30 sites in 2019."), []);
+  });
+
+  it("the digits of an NCT id or a DOI suffix never become a PMID", () => {
+    assert.deepEqual(ids("NCT01234567 and doi: 10.1371/journal.pone.0123456", "PMID"), []);
+  });
+
+  it("the wiki-link target half is not read; its alias half is", () => {
+    const text = "See [[DOI-10.3389_fonc.2024.1422160|doi: 10.3389/fonc.2024.1422160]] and [[PMID-42529345|PMID: 42529345]].";
+    assert.deepEqual(one(text).map((c) => `${c.type}:${c.id}`).sort(), ["DOI:10.3389/fonc.2024.1422160", "PMID:42529345"]);
+  });
+
+  it("CID needs an uppercase CID on a word boundary: 'amino acid 614' and 'acid 2019' are not CIDs", () => {
+    assert.deepEqual(ids("the amino acid 614 substitution", "PubChem CID"), []);
+    assert.deepEqual(ids("folic acid 2019 guidance", "PubChem CID"), []);
+    assert.deepEqual(ids("PubChem CID: 2244 and CID 5090", "PubChem CID"), ["2244", "5090"]);
+    assert.deepEqual(ids("CID: 1234567890123", "PubChem CID"), [], "a 13-digit run is dropped, never cut to 12");
+  });
+
+  it("extractCitationSpans gives each mention's position; the slice is the id as written", () => {
+    const text = "Per PMID: 12345678, trial NCT 01234567 and (doi: 10.1016/S0140-6736(97)11096-0).";
+    const spans = extractCitationSpans(text);
+    for (const s of spans) {
+      const written = text.slice(s.start, s.end);
+      if (s.type === "NCT") assert.equal(written.replace(/[ -]/g, "").toUpperCase(), s.id);
+      else assert.equal(written, s.id);
+    }
+    const doi = spans.find((s) => s.type === "DOI");
+    assert.equal(doi.id, "10.1016/S0140-6736(97)11096-0", "the wrapping ')' and '.' fall outside the span");
+    assert.equal(text[doi.end], ")");
+  });
+});
 
 describe("citation-extractor", () => {
   describe("extractCitations", () => {

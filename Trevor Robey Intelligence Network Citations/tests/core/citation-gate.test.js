@@ -5,7 +5,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const {
-  verifyReportCitations, annotateUngrounded, collectFetchedIds, DEFAULT_MIN_GROUNDED_RATIO,
+  verifyReportCitations, annotateUngrounded, collectFetchedIds, checkRetractions, DEFAULT_MIN_GROUNDED_RATIO,
   resolveConfiguredGroundedFloor, meetsGroundedFloor
 } = require("../../openclaw-bridge/core/citation-gate.js");
 
@@ -187,6 +187,29 @@ describe("citation-gate", () => {
 
     it("is a no-op when nothing is ungrounded", () => {
       assert.equal(annotateUngrounded("Clean text.", []), "Clean text.");
+    });
+  });
+
+  // T1-4: forms the extractor never read before now reach the gate and the retraction screen.
+  describe("every written form reaches the gate (T1-4)", () => {
+    it("a paper cited only as a PubMed URL and never retrieved is now ungrounded (it used to be invisible)", () => {
+      const read = fakeReader({
+        m1: JSON.stringify({ fetched_citation_ids: ["NCT01111111"] }),
+        o1: "Trial NCT01111111 showed benefit (https://pubmed.ncbi.nlm.nih.gov/23456789/)."
+      });
+      const r = verifyReportCitations({ subtaskResults: [{ metadata_path: "m1", output_path: "o1" }], minGroundedRatio: 0.5, readFile: read });
+      assert.equal(r.cited, 2);
+      assert.equal(r.ungrounded, 1);
+      assert.deepEqual(r.ungrounded_list, [{ type: "PMID", id: "23456789" }]);
+    });
+
+    it("checkRetractions hands a bare DOI to the Crossref screen, once per DOI whatever its case", async () => {
+      const seen = [];
+      const checkDois = async (batch) => { seen.push(...batch); return batch.map((doi) => ({ doi, checked: true, retracted: false })); };
+      const r = await checkRetractions("Primary source 10.1056/NEJMoa1911303; also https://doi.org/10.1056/nejmoa1911303.", checkDois);
+      assert.deepEqual(seen, ["10.1056/NEJMoa1911303"]);
+      assert.equal(r.dois_cited, 1);
+      assert.equal(r.checked, true);
     });
   });
 

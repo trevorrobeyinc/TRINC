@@ -1,5 +1,21 @@
 "use strict";
 
+// Marks the engine itself writes after an identifier: citation-gate's " [UNVERIFIED]" and
+// citation-attribution's " [ATTRIBUTION MISMATCH: registry lists …]". A PMID list or a PMID table cell
+// that already carries one is still read in full, so re-reading an annotated section finds the same
+// identifiers the gate counted (T1-4, 2026-11-14).
+const MARK_SOURCE = String.raw`\[(?:UNVERIFIED|ATTRIBUTION MISMATCH:[^\]\n]*)\]`;
+const MARKS_AFTER = String.raw`(?:[ \t]*${MARK_SOURCE})*`;
+
+// PMID list items (T1-4). The first item keeps the original width rule (below). A LATER list item must
+// also not be a percentage, a decimal or a number followed by a word ("PMID: 12345678, 95% CI",
+// "…, 2.5 mg", "…, 10 patients"), so ordinary prose after a citation is not read as a PMID. A year right
+// after a list ("PMID: 12345678, 2019.") is still read; it is flagged [UNVERIFIED] like any unretrieved
+// id, which is the self-correcting side of the width doctrine.
+const PMID_FIRST = String.raw`\d{1,10}(?!\d)`;
+const PMID_NEXT = String.raw`\d{1,10}(?!\d)(?![ \t]*%)(?!\.\d)(?![ \t]+[A-Za-z])`;
+const PMID_LIST = `${PMID_FIRST}${MARKS_AFTER}(?:[ \\t]*[,;][ \\t]*${PMID_NEXT}${MARKS_AFTER})*`;
+
 const CITATION_PATTERNS = [
   // PMIDs are sequential positive integers with NO fixed width: they start at 1 (PMID 1 is a real
   // 1975 paper) and the current max is ~41M (8 digits), growing. The old `\d{6,9}` both (a) MISSED
@@ -10,9 +26,22 @@ const CITATION_PATTERNS = [
   // and `(?!\d)` refuses to match a prefix of a longer digit run — an 11+ digit "PMID" is DROPPED,
   // never mis-captured. Lower bound 1 accepts a rare stray "PMID: 5"; that is self-correcting (an
   // unfetched id is flagged ungrounded, never silently trusted), whereas a missed retraction is not.
-  { type: "PMID", regex: /PMID[:\s]*(\d{1,10})(?!\d)/gi },
-  { type: "PubChem CID", regex: /(?:PubChem\s*)?CID[:\s]*(\d{3,12})/gi },
-  { type: "NCT", regex: /(NCT\d{8})/gi },
+  // T1-4: "PMIDs" is a label too, and every item of a comma- or semicolon-separated list after the
+  // label is read ("PMIDs: 12345678, 23456789"); before, only the first item of "PMID: a, b" was.
+  // The wiki-link target half "[[PMID-42529345|…" is not a label (no ":"/space before the digits).
+  { type: "PMID", form: "label", regex: new RegExp(String.raw`PMIDs?[:\s]*(` + PMID_LIST + ")", "gi") },
+  // T1-4: a "PubMed ID" or "PubMed:" label. A bare "PubMed 2019" (a search year in prose) is NOT a label.
+  { type: "PMID", form: "pubmed_label", regex: /\bPubMed(?:\s*IDs?\s*[:#]?|\s*[:#])\s*(\d{1,10})(?!\d)/gi },
+  // T1-4: PubMed record links, pubmed.ncbi.nlm.nih.gov/<id> and (www.)ncbi.nlm.nih.gov/pubmed/<id>.
+  { type: "PMID", form: "pubmed_url", regex: /\b(?:pubmed\.ncbi\.nlm\.nih\.gov\/|ncbi\.nlm\.nih\.gov\/pubmed\/)(\d{1,10})(?!\d)/gi },
+  // T1-4: an uppercase "CID" on a word boundary, no `i` flag. The old pattern had neither, so "amino
+  // acid 614" and "acid 2019" read as PubChem CIDs, and it had no `(?!\d)` guard, so a longer number was
+  // cut to a prefix. A longer digit run is now DROPPED, never mis-captured (the PMID rule).
+  { type: "PubChem CID", regex: /\b(?:PubChem\s*)?CID\b[:\s]*(\d{1,12})(?!\d)/g },
+  // T1-4: an optional space or hyphen after "NCT" ("NCT 01234567", "NCT-01234567"), normalized to
+  // NCT + 8 digits. `(?!\d)` refuses the first 8 digits of a longer run: NCT012345678 is a different
+  // (possibly real) trial NCT01234567, so it is dropped rather than mis-captured.
+  { type: "NCT", regex: /\bNCT[ -]?(\d{8})(?!\d)/gi },
   // UniProt: the id must be a real ACCESSION (UniProt's published grammar: 6 chars `[OPQ]\d[A-Z0-9]{3}\d`, or
   // `[A-NR-Z]\d` + one or two `[A-Z][A-Z0-9]{2}\d` groups = 6 or 10 chars). The old pattern,
   // `UniProt[:\s]*([A-Z0-9]{6,10})` with the `i` flag, captured ANY 6-10 letter word after the label, so a
@@ -29,14 +58,20 @@ const CITATION_PATTERNS = [
   { type: "UniProt", regex: /[Uu][Nn][Ii][Pp][Rr][Oo][Tt](?:KB)?[:\s]*\b([OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9](?:[A-Z][A-Z0-9]{2}[0-9]){1,2})\b/g },
   { type: "ChEMBL", regex: /(CHEMBL\d{2,10})/gi },
   { type: "DrugBank", regex: /(DB\d{5,7})/gi },
+  // DOIs in every written form (T1-4): "doi: 10.x/…", https://doi.org/, dx.doi.org/, www.doi.org/,
+  // scheme-less doi.org/, publisher URLs (…/doi/10.x/…) and a BARE "10.x/…" token. The left boundary
+  // rejects a preceding letter, digit or dot ("v10.1234/…", "1.10.1234/…"), except an attached "doi"
+  // label ("doi10.1234/…"). A wiki-link target half "[[DOI-10.3389_fonc…" has no "/" after the prefix,
+  // so it is never read; its alias half "|doi: 10.3389/fonc…]]" is.
   // Stop the DOI suffix at whitespace and at punctuation that is clearly NOT part of a DOI but
   // commonly trails one in prose/markdown — `, ; ] [ } { < > " ' |` — so wiki-link/markdown
   // artifacts (e.g. `10.3389/fphar.2026.1787936]]`, `10.54097/5hr7dp28;`) aren't captured into
   // the identifier (which inflated/duplicated the "unverified" set and deflated the grounded ratio).
   // NB: `(` and `)` are NOT excluded — Elsevier/Lancet legacy SICI DOIs contain BALANCED parens
   // (e.g. 10.1016/S0140-6736(97)11096-0). Excluding `)` truncated them to a malformed id that no
-  // registry could screen. Unbalanced trailing `)` from prose wrapping is trimmed post-capture.
-  { type: "DOI", regex: /(?:doi[:\s]*|https?:\/\/doi\.org\/)(10\.\d{4,9}\/[^\s,;\]\[}{<>"'|]+)/gi },
+  // registry could screen. Unbalanced trailing `)` from prose wrapping is trimmed post-capture, and a
+  // `?query` or `#fragment` is cut from a DOI captured inside a URL (extractCitationSpans).
+  { type: "DOI", regex: /(?:(?<=[Dd][Oo][Ii])|(?<![A-Za-z0-9.]))(10\.\d{4,9}\/[^\s,;\]\[}{<>"'|]+)/g },
   // ── Business research lane (2026-10-21, core/research-profiles.js) ─────────────────────────────
   // Each needs a literal UPPERCASE prefix, so no biomedical text is newly captured: the sec-edgar
   // context fetcher renders "Accession 0001…" (never "SEC: <cik>/<accession>"), and nothing else in
@@ -102,22 +137,174 @@ function normalizeDoiId(raw) {
   return s.slice(0, end);
 }
 
-function extractCitations(text) {
-  const citations = [];
-  for (const { type, regex } of CITATION_PATTERNS) {
-    let match;
-    while ((match = regex.exec(text)) !== null) {
-      let id = match[1] || match[0];
-      if (type === "DOI") id = normalizeDoiId(id);
-      if (type === "EUROSTAT") id = id.toLowerCase();
-      citations.push({ type, id });
-    }
-  }
-  return citations;
+// A DOI with an empty suffix after normalization ("10.1234/.") is not an identifier.
+const DOI_SHAPE = /^10\.\d{4,9}\/./;
+
+// True when the DOI starting at `start` sits inside a URL token (https://…, www.…, doi.org/…), where a
+// trailing `?query` or `#fragment` belongs to the URL, not to the DOI.
+function inUrlContext(text, start) {
+  let i = start;
+  while (i > 0 && !/\s/.test(text[i - 1])) i--;
+  return /(?:https?:\/\/|www\.|doi\.org\/)/i.test(text.slice(i, start));
 }
 
+// PMIDs start at 1, so an all-zero number is never one. Found by the T1-4 replay (2026-11-14): the
+// manifest's own count line "retracted PMIDs: 0" read as PMID 0 once "PMIDs" became a label.
+const NOT_A_PMID = /^0+$/;
+
+// Each item of a PMID list (or of a PMID table cell), skipping any mark between items. `offset` is the
+// list's position in the full text, so every item gets its own span.
+function listItems(listText, offset) {
+  const out = [];
+  const re = new RegExp(`${MARK_SOURCE}|(\\d{1,10})`, "gi");
+  let m;
+  while ((m = re.exec(listText)) !== null) {
+    if (m[1] === undefined) continue; // a mark, not an item
+    if (NOT_A_PMID.test(m[1])) continue;
+    out.push({ id: m[1], start: offset + m.index, end: offset + m.index + m[1].length });
+  }
+  return out;
+}
+
+// Split one markdown table row into cells with their offsets in the line. A "|" inside a wiki-link
+// ("[[target|alias]]") or escaped ("\|") does not split. Returns null when the line has no cell pipe.
+function splitTableRow(line) {
+  const src = String(line);
+  const cells = [];
+  let i = 0;
+  while (i < src.length && (src[i] === " " || src[i] === "\t")) i++;
+  let pipes = 0;
+  if (src[i] === "|") { i++; pipes++; }
+  let cellStart = i;
+  let depth = 0;
+  for (; i < src.length; i++) {
+    const ch = src[i];
+    if (ch === "\\") { i++; continue; }
+    if (ch === "[" && src[i + 1] === "[") { depth++; i++; continue; }
+    if (ch === "]" && src[i + 1] === "]" && depth > 0) { depth--; i++; continue; }
+    if (ch === "|" && depth === 0) {
+      cells.push({ text: src.slice(cellStart, i), start: cellStart });
+      cellStart = i + 1;
+      pipes++;
+    }
+  }
+  if (pipes === 0) return null;
+  const tail = src.slice(cellStart);
+  if (tail.replace(/\r$/, "").trim() !== "") cells.push({ text: tail, start: cellStart });
+  return cells;
+}
+
+// A header cell is "exactly PMID or PMIDs" once whitespace and wrapping markdown emphasis are removed.
+const PMID_HEADER = /^PMIDs?$/;
+function headerText(cell) {
+  return cell.trim().replace(/^(\*\*|__|\*|_)(.*)\1$/, "$2").trim();
+}
+const SEPARATOR_CELL = /^\s*:?-+:?\s*$/;
+const PMID_CELL = new RegExp(String.raw`^[ \t]*(${PMID_FIRST}${MARKS_AFTER}(?:[ \t]*[,;][ \t]*${PMID_FIRST}${MARKS_AFTER})*)[ \t]*\r?$`, "d");
+
+// T1-4: bare numbers in a markdown table column whose header cell is exactly "PMID" or "PMIDs" — the
+// references-table form (offer-3dec35098e8e47e2d0a72012 report.md:396-407), which nothing read before.
+// This is the ONLY place a bare number is read as a PMID: never in prose, and never under any other
+// header (the UniProt false-capture lesson above). A cell that is not wholly a number (or a list of
+// numbers) is left alone; a labelled "PMID: n" cell is already read by the label pattern.
+function pmidTableCellSpans(text) {
+  if (!text.includes("PMID")) return [];
+  const out = [];
+  const lines = [];
+  let pos = 0;
+  for (const line of text.split("\n")) {
+    lines.push({ line, start: pos });
+    pos += line.length + 1;
+  }
+  for (let i = 0; i + 1 < lines.length; i++) {
+    const header = splitTableRow(lines[i].line);
+    if (!header || header.length === 0) continue;
+    const sep = splitTableRow(lines[i + 1].line);
+    if (!sep || sep.length === 0 || !sep.every((c) => SEPARATOR_CELL.test(c.text))) continue;
+    const cols = [];
+    header.forEach((c, idx) => { if (PMID_HEADER.test(headerText(c.text))) cols.push(idx); });
+    let j = i + 2;
+    for (; j < lines.length; j++) {
+      const row = splitTableRow(lines[j].line);
+      if (!row) break;
+      for (const col of cols) {
+        const cell = row[col];
+        if (!cell) continue;
+        const m = PMID_CELL.exec(cell.text);
+        if (!m) continue;
+        for (const item of listItems(m[1], lines[j].start + cell.start + m.indices[1][0])) {
+          out.push({ type: "PMID", ...item });
+        }
+      }
+    }
+    i = j - 1; // the table's rows were just read
+  }
+  return out;
+}
+
+// Every identifier with its position: { type, id, start, end }, where text.slice(start, end) is the
+// identifier as written (end is exclusive). The id is normalized (NCT upper-cased with no separator,
+// a DOI without trailing punctuation, a ?query or a wrapping ")", EUROSTAT lower-cased), so a trimmed
+// ")", "." or "**" falls outside the span. Order: pattern by pattern, in text order within a pattern,
+// with PMID table cells after the other PMID forms — the order extractCitations has always returned.
+function extractCitationSpans(text) {
+  const s = String(text == null ? "" : text);
+  const spans = [];
+  let tableCellsDone = false;
+  for (const p of CITATION_PATTERNS) {
+    if (p.type !== "PMID" && !tableCellsDone) {
+      spans.push(...pmidTableCellSpans(s));
+      tableCellsDone = true;
+    }
+    const flags = p.regex.flags.includes("d") ? p.regex.flags : `${p.regex.flags}d`;
+    const re = new RegExp(p.regex.source, flags); // a fresh copy: no lastIndex shared between callers
+    let m;
+    while ((m = re.exec(s)) !== null) {
+      if (m[0] === "") { re.lastIndex += 1; continue; }
+      const raw = m[1] !== undefined ? m[1] : m[0];
+      const [gStart, gEnd] = m.indices[1] || [m.index, m.index + m[0].length];
+      if (p.type === "PMID" && p.form === "label") {
+        for (const item of listItems(raw, gStart)) spans.push({ type: "PMID", ...item });
+        continue;
+      }
+      if (p.type === "NCT") {
+        spans.push({ type: "NCT", id: `NCT${m[1]}`, start: m.index, end: m.index + m[0].length });
+        continue;
+      }
+      if (p.type === "DOI") {
+        const cut = inUrlContext(s, gStart) ? raw.replace(/[?#].*$/, "") : raw;
+        const id = normalizeDoiId(cut);
+        if (!DOI_SHAPE.test(id)) continue;
+        spans.push({ type: "DOI", id, start: gStart, end: gStart + id.length });
+        continue;
+      }
+      if (p.type === "PMID" && NOT_A_PMID.test(raw)) continue;
+      spans.push({ type: p.type, id: p.type === "EUROSTAT" ? raw.toLowerCase() : raw, start: gStart, end: gEnd });
+    }
+  }
+  if (!tableCellsDone) spans.push(...pmidTableCellSpans(s));
+  return spans;
+}
+
+function extractCitations(text) {
+  return extractCitationSpans(text).map(({ type, id }) => ({ type, id }));
+}
+
+// The identity of a citation: type plus id, with DOIs compared case-insensitively (a DOI is
+// case-insensitive by definition, so "10.1056/NEJMoa…" and "10.1056/nejmoa…" are one work).
+function citationKey(c) {
+  const id = String(c && c.id);
+  return `${c && c.type}:${c && c.type === "DOI" ? id.toLowerCase() : id}`;
+}
+
+// De-duplicate by citationKey, keeping the FIRST mention as written.
 function deduplicateCitations(citations) {
-  return [...new Map(citations.map((c) => [`${c.type}:${c.id}`, c])).values()];
+  const byKey = new Map();
+  for (const c of Array.isArray(citations) ? citations : []) {
+    const k = citationKey(c);
+    if (!byKey.has(k)) byKey.set(k, c);
+  }
+  return [...byKey.values()];
 }
 
 function countByType(citations) {
@@ -164,9 +351,13 @@ function roleLabel(taskId) {
 
 module.exports = {
   CITATION_PATTERNS,
+  MARK_SOURCE,
+  citationKey,
   countByType,
   crossCheckCitations,
   deduplicateCitations,
   extractCitations,
+  extractCitationSpans,
+  normalizeDoiId,
   roleLabel
 };
