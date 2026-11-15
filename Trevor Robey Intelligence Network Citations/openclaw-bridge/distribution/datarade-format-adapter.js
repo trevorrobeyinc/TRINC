@@ -28,11 +28,15 @@ function transform(workflowOutput, options = {}) {
 
   const listingFields = {
     title: `Biomedical Research Intelligence Pack — ${workflowOutput.templateId || "General"}`,
-    description: `Citation-backed research intelligence with ${citationCount}+ verified database identifiers. Every claim traces to a primary source (PMID, NCT, PubChem CID, UniProt, ChEMBL, DOI). Produced by deterministic 3-agent pipeline with automated quality audit.`,
+    // T1-9 (2026-11-14): the count is of CITED identifiers (the citation index), not verified ones;
+    // no per-claim tracing exists; the role calls are unseeded model calls, so the pipeline is not
+    // deterministic.
+    description: `Citation-backed research intelligence citing ${citationCount} database identifiers (PMID, NCT, PubChem CID, UniProt, DOI), each checked against the records retrieved for the report. Produced by a 3-agent pipeline with an automated quality audit.`,
     data_categories: ["Healthcare", "Life Sciences", "Pharmacovigilance", "Drug Safety"],
     geographic_coverage: "Global",
     update_frequency: "On-demand",
-    delivery_method: "API / Download",
+    // T1-9: no research API is deployed; delivery is a manual download.
+    delivery_method: "Download (manual delivery)",
     pricing: priceRange,
     tier,
     format: "Markdown report + CSV citation index + JSON metadata",
@@ -54,16 +58,16 @@ function transform(workflowOutput, options = {}) {
     "",
     "## What's Included",
     "- **Full Research Report**: Multi-section analysis with inline citations",
-    `- **Citation Index CSV**: ${citationCount}+ verified identifiers across 7 types`,
+    `- **Citation Index CSV**: the ${citationCount} identifiers the report cites, each marked with whether it was found in the evidence retrieved for the report`,
     "- **Executive Summary**: Key findings and strategic implications",
     "- **Methodology Statement**: Agent pipeline, data sources, quality metrics",
     "- **Schema Definition**: Machine-readable field definitions",
     "",
     "## Data Quality",
-    "- Every factual claim backed by verifiable database identifiers",
     "- Automated quality audit with citation density scoring",
-    "- Deterministic 3-agent pipeline (scout → analyst → synthesizer)",
-    "- Citation-integrity gated: every cited identifier is cross-checked against the evidence fetched at runtime and screened for retractions; anything unverifiable is flagged [UNVERIFIED], never silently shipped",
+    "- 3-agent pipeline (scout → analyst → synthesizer)",
+    // T1-9: aligned with T1-3 (marks at every mention) and T1-7 (the screen names what it could not screen).
+    "- Citation-integrity gated: every cited identifier is checked against the evidence retrieved for the report, and one not found there is flagged [UNVERIFIED] at every mention; a report in which fewer than 75% of cited identifiers trace is not released. Cited DOIs and PMIDs are put through a retraction screen; a retraction found stops the report, and any paper it could not screen is named in the report's integrity ledger",
     "",
     `## Pricing`,
     `- Research Intelligence Pack: $2,500 - $4,950 per report`,

@@ -24,6 +24,9 @@ describe("integrity-rating — buildIntegrityReport", () => {
     assert.match(withCov, /\| subtask 1 \| Comprehensive \| 4 \|/);
     assert.match(withCov, /\| subtask 2 \| Moderate \| 2 \|/);
     assert.match(withCov, /\| subtask 3 \| not checked \| — \|/);
+    // T1-9: the tiers count search hits; they never claim the sources support the section.
+    assert.doesNotMatch(withCov, /corroborat/i);
+    assert.match(withCov, /this does not check that they support the section/);
     // backward compatible: no arg (or empty) → no coverage section
     assert.doesNotMatch(buildIntegrityReport(cv).markdown, /Source coverage by section/);
     assert.doesNotMatch(buildIntegrityReport(cv, []).markdown, /Source coverage by section/);

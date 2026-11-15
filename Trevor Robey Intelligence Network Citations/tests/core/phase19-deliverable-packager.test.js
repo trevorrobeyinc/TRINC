@@ -229,12 +229,13 @@ function withResolution(fixture, summary) {
     ...fixture.sourceContext,
     artifacts: [{ task_id: "t1", output_rel: "workspace/research-output/t1/output.md", output_full: CITED_BODY }]
   };
+  // A real gate record always carries `pass` (T1-9: gate sentences print only for pass === true).
   if (summary === "gated") {
     // T1-7: a gate record carries its retraction-screen coverage; this one screened all 4.
-    ctx.citation_verification = { cited: 4, grounded: 4, ungrounded: 0, retraction_screen_checked: true, retraction_screen_cited: 4, unscreened: 0 };
+    ctx.citation_verification = { pass: true, cited: 4, grounded: 4, ungrounded: 0, retraction_screen_checked: true, retraction_screen_cited: 4, unscreened: 0 };
   } else if (summary) {
     ctx.citation_verification = {
-      cited: 4, grounded: 4, ungrounded: 0,
+      pass: true, cited: 4, grounded: 4, ungrounded: 0,
       reproducibility_manifest: { summary, citations: [] }
     };
   }
@@ -299,7 +300,19 @@ test("NO deliverable in the bundle reintroduces retired or extraction-as-verifie
     /\bverified research\b/i,
     // Retraction Watch may ONLY appear as the documented coverage bound ("…is not used"),
     // never as a screen we claim to run.
-    /Retraction Watch(?! bulk dataset is not used)/i
+    /Retraction Watch(?! bulk dataset is not used)/i,
+    // T1-9 (2026-11-14): every sentence a bundle says about itself is true.
+    /chain-hash/i,
+    /append-only/i,
+    /every claim/i,
+    /RxNorm/,
+    /operator review before release/i,
+    /per 1,000 characters/i,
+    /never presented as fact/i,
+    /deterministic multi-agent/i,
+    /cross-validat/i,
+    /Every citation includes a verifiable identifier/i,
+    /at delivery/i
   ];
   const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "openclaw-phase19-banned-"));
   const packager = createDeliverablePackager({ rootDir: tmp });
@@ -349,7 +362,9 @@ test("the primary deliverable's header reports the real split, not the extractio
   const bundleDir = packager.createBundleWorkspace(fixture.offer.offer_id);
   packager.writeDeliverables(bundleDir, fixture.offer, withResolution(fixture, FLAGGED_SUMMARY));
   const report = fs.readFileSync(path.join(bundleDir, "deliverables", "report.md"), "utf8");
-  assert.match(report, /\*\*Citations\*\*: 34 cited · 29 VERIFIED · 0 UNRESOLVED · 5 UNCHECKED at delivery/);
+  // T1-9: re-resolution runs when the report is assembled, not at delivery.
+  assert.match(report, /\*\*Citations\*\*: 34 cited · 29 VERIFIED · 0 UNRESOLVED · 5 UNCHECKED when this report was assembled/);
+  assert.doesNotMatch(report, /at delivery/);
   assert.ok(!/\*\*Verified Citations\*\*/.test(report), "the old mislabelled header must not return");
 });
 
@@ -403,6 +418,44 @@ test("the store copy's retraction bullet follows the screen's coverage", async (
   const unknown = render({});
   assert.doesNotMatch(unknown, /retraction-screened/, "a record without coverage claims none");
   assert.match(unknown, /does not state whether every cited DOI and PMID could be screened/);
+});
+
+// T1-9: gate sentences only for a record that passed (the dataset-scoped sentence is pinned in
+// tests/core/verifiability-copy.test.js; a dataset bundle needs real dataset files to package).
+test("the store copy's gate bullets follow the record: passed or not passed", async () => {
+  const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "openclaw-phase19-gate-bullets-"));
+  const packager = createDeliverablePackager({ rootDir: tmp });
+  const render = (label, mutate) => {
+    const fixture = createMissionFixture();
+    const ctx = withResolution(fixture, CLEAN_SUMMARY);
+    mutate(ctx);
+    const bundleDir = packager.createBundleWorkspace(`${fixture.offer.offer_id}-${label}`);
+    packager.writeDeliverables(bundleDir, fixture.offer, ctx);
+    return fs.readFileSync(path.join(bundleDir, "deliverables", "store-copy.md"), "utf8");
+  };
+  const passed = render("passed", () => {});
+  assert.match(passed, /Zero-Fabrication Guarantee/);
+  assert.match(passed, /flagged `\[UNVERIFIED\]` at every mention and in the citation index/);
+  const failed = render("failed", (ctx) => { ctx.citation_verification.pass = false; });
+  assert.doesNotMatch(failed, /Zero-Fabrication Guarantee/);
+  assert.match(failed, /did not pass the citation gate/);
+});
+
+test("the methodology statement describes the bundle seal and the real density rule", async () => {
+  const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "openclaw-phase19-methodology-"));
+  const packager = createDeliverablePackager({ rootDir: tmp });
+  const fixture = createMissionFixture();
+  const offer = { ...fixture.offer, tier: "premium" }; // the statement ships with premium / enterprise tiers
+  const bundleDir = packager.createBundleWorkspace(offer.offer_id);
+  packager.writeDeliverables(bundleDir, offer, withResolution(fixture, CLEAN_SUMMARY));
+  const found = fs.readdirSync(path.join(bundleDir, "deliverables"))
+    .map((f) => fs.readFileSync(path.join(bundleDir, "deliverables", f), "utf8"))
+    .find((t) => t.includes("# Methodology Statement"));
+  assert.ok(found, "a methodology statement is written");
+  assert.match(found, /## Bundle Seal/);
+  assert.match(found, /at least 5 such lines/);
+  assert.match(found, /a report below the citation-density threshold does not ship/);
+  assert.doesNotMatch(found, /Provenance Chain/);
 });
 
 test("the citation-integrity ledger claims only the retraction screens actually queried", () => {

@@ -54,6 +54,31 @@ const adapters = [
   { name: "data-and-sons", mod: dataAndSons }
 ];
 
+// T1-9 (2026-11-14): nothing a marketplace file says about the product may be false.
+const BANNED = [
+  /every claim/i,
+  /every factual claim/i,
+  /chain-hash/i,
+  /S3 bucket/i,
+  /provenance chain/i,
+  /verified database identifiers/i,
+  /\d+\+? verified identifiers/i,
+  /deterministic (?:multi|\d)-agent/i,
+  /cross-validat/i,
+  /API \/ Download/
+];
+
+describe("format adapters — no false self-description (T1-9)", () => {
+  for (const { name, mod } of adapters) {
+    it(`${name} output carries none of the retired claims`, () => {
+      const result = mod.transform(SAMPLE_OUTPUT);
+      for (const file of result.files) {
+        for (const re of BANNED) assert.doesNotMatch(String(file.content), re, `${name}/${file.name} carries ${re}`);
+      }
+    });
+  }
+});
+
 describe("format adapters", () => {
   for (const { name, mod } of adapters) {
     describe(name, () => {

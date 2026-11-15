@@ -30,13 +30,15 @@ function transform(workflowOutput, options = {}) {
 
   const datasetMetadata = {
     title: `Biomedical Research Intelligence: ${templateId}`,
-    subtitle: `Citation-backed research dataset with verified database identifiers`,
-    description: `Research intelligence produced by OpenClaw's deterministic 3-agent pipeline. Every claim is backed by verifiable identifiers (PMID, NCT, PubChem CID, UniProt, ChEMBL, DOI). ${WATERMARK}`,
+    // T1-9 (2026-11-14): the citation index lists CITED identifiers, no per-claim backing exists, and
+    // the role calls are unseeded model calls.
+    subtitle: `Citation-backed research dataset with its citation index`,
+    description: `Research intelligence produced by OpenClaw's 3-agent pipeline. The identifiers the report cites (PMID, NCT, PubChem CID, UniProt, DOI) were each checked against the records retrieved for the report. ${WATERMARK}`,
     id: `trevorrobeyinc/${templateId}-${workflowId}`.slice(0, 100),
     licenses: [{ name: "CC-BY-NC-4.0" }],
-    keywords: ["biomedical", "pharmacovigilance", "drug-safety", "verified-citations", "research-intelligence"],
+    keywords: ["biomedical", "pharmacovigilance", "drug-safety", "citation-traced", "research-intelligence"],
     resources: [
-      { path: "data.csv", description: "Citation index with verified identifiers" },
+      { path: "data.csv", description: "Citation index of the identifiers the report cites" },
       { path: "findings.jsonl", description: "Research findings as structured JSON" }
     ]
   };
@@ -50,7 +52,7 @@ function transform(workflowOutput, options = {}) {
     `This dataset contains citation-backed biomedical research produced by OpenClaw Research Intelligence.`,
     "",
     "## Data Files",
-    "- **data.csv**: Citation index with verified database identifiers",
+    "- **data.csv**: Citation index of the database identifiers the report cites",
     "- **findings.jsonl**: Research findings as structured JSON objects",
     "",
     "## Schema",

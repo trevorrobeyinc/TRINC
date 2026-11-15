@@ -236,9 +236,28 @@ function renderManifestMarkdown(manifest) {
     lines.push("> Re-resolution did not complete this run; no identifier was looked up. Every cited identifier below is UNCHECKED (reason: reresolution_error), and this report is not cleared for delivery until the order is re-run.");
   }
   // The re-resolution explanation belongs to the unchecked flag only (T1-7: a flag may now come from
-  // the retraction screen instead, and that is not a re-resolution limit).
+  // the retraction screen instead, and that is not a re-resolution limit). T1-9 (2026-11-14): it
+  // names the real reasons, and says "fully GROUNDED" only when no cited id was left untraced; it used
+  // to print both unconditionally.
   if (s.delivery_decision === "DELIVER_WITH_FLAGS" && flags.includes("unchecked_over_threshold") && s.reresolution_completed !== false) {
-    lines.push("> This report SHIPS. DELIVER_WITH_FLAGS means some cited identifiers could not be independently re-resolved at delivery time (a network/throttle limit at re-resolution, NOT a defect): the report remains fully GROUNDED — every cited id was present in the runtime-fetched evidence. Only an UNRESOLVED id (a live registry says it does not exist) or a retraction blocks delivery.");
+    const reasons = {};
+    for (const cit of (m.citations || [])) {
+      if (cit.status !== "VERIFIED" && cit.status !== "UNRESOLVED") {
+        const reason = (cit.evidence && cit.evidence.reason) || "unknown";
+        reasons[reason] = (reasons[reason] || 0) + 1;
+      }
+    }
+    const allNetwork = Object.keys(reasons).every((r) => NETWORK_UNCHECKED.has(r));
+    const why = allNetwork
+      ? "some cited identifiers could not be independently re-resolved when this report was assembled (a network/throttle limit at re-resolution, NOT a defect)."
+      : `some cited identifiers could not be independently re-resolved when this report was assembled. UNCHECKED by reason: ${Object.entries(reasons).sort(([a], [b]) => a.localeCompare(b)).map(([r, n]) => `${r}: ${n}`).join(", ")}.`;
+    const gc = s.gate_crosscheck || null;
+    const grounding = !gc || !Number.isFinite(gc.ungrounded)
+      ? ""
+      : gc.ungrounded === 0
+        ? " The report remains fully GROUNDED — every cited id was present in the runtime-fetched evidence."
+        : ` ${gc.ungrounded} of ${gc.cited} cited identifiers were not found in the retrieved evidence and are flagged [UNVERIFIED] in the report.`;
+    lines.push(`> This report SHIPS. DELIVER_WITH_FLAGS means ${why}${grounding} Only an UNRESOLVED id (a live registry says it does not exist) or a retraction blocks delivery.`);
   }
   if (s.delivery_decision === "DELIVER_WITH_FLAGS" && flags.includes("attribution_mismatch")) {
     const ac = s.attribution_check || {};
@@ -253,7 +272,7 @@ function renderManifestMarkdown(manifest) {
   }
   if (s.as_of) lines.push(`As of: ${s.as_of}`);
   lines.push("");
-  lines.push(`Citations re-resolved at delivery: **${c.verified} VERIFIED · ${c.unresolved} UNRESOLVED · ${c.unchecked} UNCHECKED** of ${c.total} (verified ratio ${s.verified_ratio}).`);
+  lines.push(`Citations re-resolved when this report was assembled${s.as_of ? ` (as of ${s.as_of})` : ""}: **${c.verified} VERIFIED · ${c.unresolved} UNRESOLVED · ${c.unchecked} UNCHECKED** of ${c.total} (verified ratio ${s.verified_ratio}).`);
   if (s.delivery_decision === "DELIVER_WITH_FLAGS" && flags.includes("retraction_screen_incomplete")) {
     lines.push("> This report SHIPS with a flag: the retraction screen could not screen every cited DOI and PMID. The ones it could not screen are listed below and in the citation-integrity ledger; no retraction was found among those it did screen.");
   }
@@ -304,7 +323,7 @@ function renderManifestMarkdown(manifest) {
     lines.push(`| ${cit.type} | ${cit.id} | ${cit.status} | ${cit.http_status == null ? "" : cit.http_status} | ${cit.resolved_url || ""} | ${cit.checked_at || ""} |`);
   }
   lines.push("");
-  lines.push("_Each VERIFIED identifier resolved to an existing record in its issuing public registry at the time shown. Verification confirms the identifier RESOLVES — not the scientific correctness of the source. UNCHECKED = no definitive answer this run (network/throttle); never treated as verified._");
+  lines.push("_Each VERIFIED identifier resolved to an existing record in its issuing public registry at the time shown. Verification confirms the identifier RESOLVES — not the scientific correctness of the source. UNCHECKED = no definitive answer this run (reason recorded per identifier); never treated as verified._");
   return lines.join("\n");
 }
 

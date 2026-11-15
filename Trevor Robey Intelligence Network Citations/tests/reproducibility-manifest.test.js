@@ -52,6 +52,44 @@ test("1 UNCHECKED id of 2,500 -> DELIVER_WITH_FLAGS (rounding never earns the fu
   assert.deepEqual(m.summary.flag_reasons, ["unchecked_over_threshold"]);
 });
 
+// T1-9 (2026-11-14): the flag explanation names the real reasons, and "fully GROUNDED" only when true.
+test("ungrounded ids + a rate-limited UNCHECKED: no 'fully GROUNDED', the untraced count instead", () => {
+  const m = buildReproducibilityManifest({
+    reresolved: [cit("PMID", "1", "VERIFIED"), cit("PMID", "2", "UNCHECKED", "rate_limited")],
+    gate: { cited: 6, grounded: 4, ungrounded: 2, grounded_ratio: 0.667, min_grounded_ratio: 0.5 },
+    meta: META
+  });
+  const md = renderManifestMarkdown(m);
+  assert.doesNotMatch(md, /fully GROUNDED/);
+  assert.match(md, /2 of 6 cited identifiers were not found in the retrieved evidence and are flagged \[UNVERIFIED\] in the report/);
+  assert.match(md, /network\/throttle limit/, "every UNCHECKED reason here is a network one");
+});
+
+test("a no_resolver UNCHECKED: no network/throttle sentence, the reason is listed", () => {
+  const m = buildReproducibilityManifest({
+    reresolved: [cit("PMID", "1", "VERIFIED"), cit("CENSUS", "cbp/2023/493", "UNCHECKED", "no_resolver")],
+    gate: { cited: 2, grounded: 2, ungrounded: 0, grounded_ratio: 1, min_grounded_ratio: 0.75 },
+    meta: META
+  });
+  const md = renderManifestMarkdown(m);
+  assert.doesNotMatch(md, /network\/throttle/);
+  assert.match(md, /UNCHECKED by reason: no_resolver: 1/);
+  assert.match(md, /The report remains fully GROUNDED/);
+  assert.match(md, /UNCHECKED = no definitive answer this run \(reason recorded per identifier\)/);
+});
+
+test("all-network UNCHECKED with nothing untraced keeps the original explanation", () => {
+  const m = buildReproducibilityManifest({
+    reresolved: [cit("PMID", "1", "VERIFIED"), cit("NCT", "NCT1", "UNCHECKED", "timeout")],
+    gate: { cited: 2, grounded: 2, ungrounded: 0, grounded_ratio: 1, min_grounded_ratio: 0.75 },
+    meta: META
+  });
+  const md = renderManifestMarkdown(m);
+  assert.match(md, /This report SHIPS\. DELIVER_WITH_FLAGS means some cited identifiers could not be independently re-resolved when this report was assembled \(a network\/throttle limit at re-resolution, NOT a defect\)\. The report remains fully GROUNDED/);
+  assert.match(md, /Citations re-resolved when this report was assembled \(as of 2026-06-19\)/);
+  assert.doesNotMatch(md, /at delivery/);
+});
+
 test("retracted DOI -> BLOCK", () => {
   const m = buildReproducibilityManifest({ reresolved: [cit("DOI", "10.x/y", "VERIFIED")], retraction: { checked: true, retracted_dois: ["10.x/y"] }, meta: META });
   assert.equal(m.summary.delivery_decision, "BLOCK");

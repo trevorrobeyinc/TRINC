@@ -30,6 +30,7 @@
 // openclaw-bridge/ and none are used.
 
 const { canonicalize, safeString } = require("../../../workflows/governance-automation/common.js");
+const { verifiabilitySentence } = require("../verifiability-copy.js");
 
 // Verbatim, from REVENUE_PLAYBOOK.md:22 and the repo CLAUDE.md. Cal. Bus. & Prof. Code
 // §17910.5(a) is why this is required on customer-facing material, so it is a constant here
@@ -38,7 +39,10 @@ const ENTITY_DISCLOSURE =
   "Trevor Robey, INC. is the wordmark of Trevor Robey Intelligence Network Citations LLC, " +
   "a California limited liability company.";
 
-const COMPANY_TAGLINE = "Every claim, sourced. Every risk, named. In days, not weeks.";
+// T1-9 (2026-11-14): "Every claim, sourced." is dropped from the generated copy — no sentence-level
+// support check exists, so it is false as worded. The rest of the brand line stays; the final wording
+// of the tagline is the operator's (OFFERINGS.md, open question 2 of the 2026-11-14 change list).
+const COMPANY_TAGLINE = "Every risk, named. In days, not weeks.";
 const FOUNDER_LOCKUP = "Truth Seeker, Receipt Keeper. — Real data beats sweet hallucination. You decide.";
 
 // Deliberately small and stable. Trend-chasing tags would be invention of a different kind,
@@ -109,7 +113,7 @@ function buildCopyBlocks(platformTarget, voice, offer, sourceContext) {
 
   const hook = isFounderVoice
     ? `Most people never ask what happened to the drugs that failed. I went and looked.`
-    : `${title} — every claim traced to a source you can open yourself.`;
+    : `${title} — the identifiers it cites are public records you can open yourself.`;
 
   const script = [
     `[HOOK] ${hook}`,
@@ -138,18 +142,23 @@ function buildCopyBlocks(platformTarget, voice, offer, sourceContext) {
       + `[VERIFY:1] cited identifiers checked against the source records actually retrieved.`
       + `\n\n${COMPANY_TAGLINE}`;
 
+  // T1-9 (2026-11-14): the gate and retraction sentence is decided by this bundle's own gate record
+  // (monetization/verifiability-copy.js), and the file list names only what this bundle carries.
+  const ctx = asPlainObject(sourceContext);
+  const inBundle = [
+    "the full report",
+    ...(Object.keys(asPlainObject(ctx.citation_verification)).length > 0 ? ["a citation-integrity ledger"] : []),
+    ...(asPlainObject(ctx.graveyard_memo).markdown ? ["a graveyard memo of prior failed programs in the indication"] : []),
+    ...(asPlainObject(ctx.search_coverage_ledger).markdown
+      ? ["a search-coverage ledger that records what each source returned including the sources that returned nothing"]
+      : [])
+  ];
   const description = [
     title,
     "",
-    `${productLine}, ${tierName} tier. ${lengthClause} of analysis in which every cited `
-      + `identifier — PubMed, ClinicalTrials.gov, ChEMBL, DOI — is cross-checked at generation `
-      + `time against the evidence actually retrieved for the report. Identifiers that are not `
-      + `found in that evidence are flagged [UNVERIFIED] inline rather than presented as fact, `
-      + `and cited DOIs and PMIDs are retraction-screened.`,
+    `${productLine}, ${tierName} tier. ${lengthClause} of analysis. ${verifiabilitySentence(ctx)}`,
     "",
-    `In the bundle: the full report, a citation-integrity ledger, a graveyard memo of prior `
-      + `failed programs in the indication, a search-coverage ledger that records what each `
-      + `source returned including the sources that returned nothing, and a citation index.`,
+    `In the bundle: ${inBundle.join(", ")}, and a citation index.`,
     "",
     ENTITY_DISCLOSURE
   ].join("\n");

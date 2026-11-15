@@ -77,7 +77,7 @@ function buildIntegrityReport(citationVerification = {}, sectionCoverage = []) {
     // retraction entry, which is where Crossref serves the Retraction Watch data, read since T1-7)
     // plus PubMed pubtype for PMIDs, with a DOI→PMID escalation. The Retraction Watch database itself
     // is not queried. Never name a source we do not query.
-    "Every identifier cited in this report is checked, at generation time, against the source records actually retrieved for it. A citation is **grounded** only if it appears in evidence this report fetched; identifiers not in that set are flagged **unverified**; any source flagged **retracted** (Crossref for DOIs, PubMed for PMIDs, with a DOI→PMID cross-check) blocks the report. "
+    "Every identifier cited in this report is checked, at generation time, against the records retrieved for this report. A citation is **grounded** only if it appears in evidence this report fetched; identifiers not in that set are flagged **unverified**; any source flagged **retracted** (Crossref for DOIs, PubMed for PMIDs, with a DOI→PMID cross-check) blocks the report. "
       + `${coverageSentence} Coverage bound: the Retraction Watch bulk dataset is not used; Crossref's own retraction entries, including those it carries from that dataset, are read for every DOI Crossref holds, so a retraction recorded in neither Crossref nor PubMed would not be caught. This ledger is the audit trail — the report's defensible spine.`,
     "",
     "| Metric | Value |",
@@ -139,7 +139,9 @@ function buildIntegrityReport(citationVerification = {}, sectionCoverage = []) {
       "",
       "## Source coverage by section",
       "",
-      "Independent primary-source coverage retrieved for each report section at generation time. **Sparse / Moderate / Comprehensive** reflects how many distinct primary sources corroborate the section; a section marked *not checked* could not be verified against live search (e.g. the search backend was unreachable) and was not failed on that basis.",
+      // T1-9 (2026-11-14): the section gate counts distinct primary-source hits for a web search on
+      // the section's key terms (searxng-mcp/section-gate.js); it never checks that they support it.
+      "Independent primary-source coverage retrieved for each report section at generation time. **Sparse / Moderate / Comprehensive** reflects how many distinct primary sources a web search on the section's key terms returned; this does not check that they support the section. A section marked *not checked* could not be searched (e.g. the search backend was unreachable) and was not failed on that basis.",
       "",
       "| Section | Coverage | Distinct primary sources |",
       "| --- | --- | --- |"

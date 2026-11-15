@@ -19,7 +19,8 @@ function transform(workflowOutput, options = {}) {
 
   const listing = {
     title: `Biomedical Research Intelligence: ${templateId}`,
-    description: `Citation-backed research dataset with ${citationCount}+ verified identifiers. Deterministic 3-agent pipeline output with automated quality audit. ${WATERMARK}`,
+    // T1-9 (2026-11-14): a count of CITED identifiers, and an unseeded (not deterministic) pipeline.
+    description: `Citation-backed research dataset citing ${citationCount} identifiers, each checked against the records retrieved for the report. 3-agent pipeline output with automated quality audit. ${WATERMARK}`,
     price: "$2,500",
     category: "Healthcare & Life Sciences",
     format: "CSV + Markdown + JSON",
