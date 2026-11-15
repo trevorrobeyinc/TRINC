@@ -10,7 +10,7 @@
 
 | Tier | SKU | Description | ICP | Price |
 |---|---|---|---|---|
-| **Primary** | **Investor Pre-Mortem** | Per-asset risk dossier — trial design + comparable failures + KOL sentiment + IP runway. Every claim PMID/NCT/ChEMBL-traced. 5–10 business days, written Speed SLA. | Biotech hedge funds, biotech-specialist VC, pharma BD/licensing | **$9,950 / $14,950 / $19,950 (+ KOL primary)** |
+| **Primary** | **Investor Pre-Mortem** | Per-asset risk dossier — trial design + comparable failures + KOL sentiment + IP runway. Every cited PMID, NCT and DOI checked against the evidence retrieved for the report; cited papers screened for retraction, with any the screen could not reach named. 5–10 business days, written Speed SLA. | Biotech hedge funds, biotech-specialist VC, pharma BD/licensing | **$9,950 / $14,950 / $19,950 (+ KOL primary)** |
 | **Flanking primary** | **Failed Trial Archaeology** | Structured post-mortem of Phase 2/3 terminations in a single mechanism. NCT-indexed failure pattern matrix. | Pharma R&D CI, biotech VC diligence | **$14,950** |
 | Tactical | Conference Synthesis Brief | 500+ ASCO/ESMO/AACR abstracts synthesized in 24–48 hours. | Pharma R&D, investors, BD | **$4,950 / conference** |
 | Tactical | Trial Design Benchmark Pack | Comparative Phase 3 structure analysis vs **up to 20** comparable programs — allocation, masking, intervention model, arms, enrollment, primary endpoints, sponsor class. Cohort is reported as **N of M eligible** under a stated selection rule; where an indication has fewer than 20 eligible programs the pack covers the **entire** eligible population and says so. Turnaround: 5 business days after the Agreed Question is confirmed. | Biotech R&D, pharma CI | **$4,950** |
@@ -68,24 +68,28 @@
 
 ## Brand Commitments
 
-- **The Zero-Fabrication Guarantee — only the truth.** Findings are never fabricated to fit what the research is looking for. Every cited identifier is grounded in real evidence actually retrieved for the report, or it is flagged `[UNVERIFIED]` and never presented as fact; if the evidence isn't there, the report says so rather than inventing a result. A report whose citations can't be traced to retrieved evidence does not ship. This is **enforced by the engine at generation time**, not a promise on paper — see the Citation-Integrity Gate below.
+- **The Zero-Fabrication Guarantee — only the truth.** Findings are never fabricated to fit what the research is looking for. Every cited identifier is checked against the evidence retrieved for the report, and one not found there is flagged `[UNVERIFIED]` at every mention; if the evidence isn't there, the report says so rather than inventing a result. A report does not ship if fewer than 75% of its cited identifiers trace to retrieved evidence, if it cites none, if the run retrieved no evidence, or if a cited paper is found retracted. This is **enforced by the engine at generation time**, not a promise on paper — see the Citation-Integrity Gate below. *(2026-11-14: "never presented as fact" dropped, operator default D4 — an untraced identifier's sentence still ships, flagged.)*
 - **Citation-Audit SLA** on every deliverable — refund-backed. The buyer reports a defect within 30 days of delivery; we correct and redeliver within 15 business days; if the deliverable is still defective, we refund the full fee for the affected deliverable, and that refund is the sole remedy. *(Operator rule 2026-11-04, applied 2026-11-06; the order form's Exhibit A, the refund policy, holds the definitions.)*
 - **Scope of the two commitments above (2026-07-30).** Both describe what the **engine enforces at
-  generation time** on an engine-generated deliverable. The citation engine recognizes seven identifier
-  types — PMID, PubChem CID, NCT, UniProt, ChEMBL, DrugBank, DOI. Evidence carrying none of them is
-  **never extracted as a citation at all**: it is not graded, not counted in the grounded ratio, and not
-  retraction-screened — so it is neither improved nor penalised by the Gate, it is invisible to it.
-  **Patent evidence is the live instance of this** (a patent number matches none of the seven). *(The
-  business research lane adds its own identifier types and its own scope statement; see "Business research
-  (any field)" above.)* Two
+  generation time** on an engine-generated deliverable. The citation engine reads these identifier types
+  for citation — PMID, PubChem CID, NCT, UniProt, ChEMBL, DOI — in every written form a report uses
+  (2026-11-14): labels and lists ("PMIDs: a, b"), PubMed record URLs, DOIs bare, behind `doi:` or a
+  doi.org link, and inside publisher URLs, and bare cells under a table column headed PMID. PMCIDs are not
+  read. (It reads one more type, from a source this business holds no redistribution licence for; an
+  identifier of that type anywhere in a bundle blocks shipment.) Evidence carrying
+  none of them is **never extracted as a citation at all**: it is not graded, not counted in the grounded
+  ratio, and not retraction-screened — so it is neither improved nor penalised by the Gate, it is
+  invisible to it. **Patent evidence is the live instance of this** (a patent number matches none of
+  them). *(The business research lane adds its own identifier types and its own scope statement; see
+  "Business research (any field)" above.)* Two
   consequences, stated here so no deliverable has to imply otherwise: (a) any section built on evidence
-  outside those seven types sits outside the Guarantee and outside this SLA, and must say so on its face;
-  (b) a bundle's Citation Integrity grade covers only its PMID/NCT/ChEMBL/DOI-traced sections — the
+  outside those types sits outside the Guarantee and outside this SLA, and must say so on its face;
+  (b) a bundle's Citation Integrity grade covers only its identifier-traced sections — the
   deterministic post-gate artifacts (`graveyard-memo.md`, `search-coverage.md`) are grounded **by
   construction**, rendered with no LLM straight from the records fetched at runtime, but they are **not
   counted in the ratio that produced that grade**. A hand-assembled deliverable that never ran through the
   engine claims none of this.
-- **Citation-Integrity Gate** — every cited identifier in the assembled report is cross-checked against the source records actually retrieved at runtime; citations are graded "grounded" (present in retrieved evidence) vs "ungrounded" (likely model-introduced). The report refuses to ship when the grounded ratio falls below threshold, and surviving ungrounded cites are annotated inline `[UNVERIFIED]`. Cited DOIs are screened against Crossref for retractions, and any report citing a retracted paper hard-stops. Every cited PMID, NCT and DOI is then re-resolved against its issuing public registry at delivery, each result recorded in the bundle's reproducibility manifest (VERIFIED / UNRESOLVED / UNCHECKED; any UNRESOLVED identifier blocks delivery). Re-resolution confirms an identifier resolves to a real source record; it does not validate the source's scientific conclusions.
+- **Citation-Integrity Gate** — every cited identifier in the assembled report is cross-checked against the source records actually retrieved at runtime; citations are graded "grounded" (present in retrieved evidence) vs "ungrounded" (likely model-introduced). The report refuses to ship when fewer than 75% of its cited identifiers are grounded (configuration cannot lower that floor), and every remaining ungrounded identifier is flagged inline `[UNVERIFIED]` at every mention. Cited DOIs are screened for retraction against Crossref and, through a DOI→PMID cross-check, PubMed; cited PMIDs against PubMed. Any report citing a retracted paper hard-stops, and any cited paper the screen could not reach is named in the integrity ledger. Every cited PMID, NCT and DOI is then re-resolved against its issuing public registry before release, when the report is assembled, each result recorded in the bundle's reproducibility manifest (VERIFIED / UNRESOLVED / UNCHECKED); any UNRESOLVED identifier blocks delivery, and so does a re-resolution pass that did not complete. Re-resolution confirms an identifier resolves to a real source record; it does not validate the source's scientific conclusions.
 - **Speed SLA**: 5–10 business days for Investor Pre-Mortem (written guarantee)
 
 ### Bundle deliverables (shipped)
@@ -100,7 +104,7 @@ Every mission bundle now seals two audit-trail artifacts alongside the report:
 - Research artifacts only — not validated for clinical decision support
 - No PHI hosted, transmitted, or processed
 - Manual-only external actions — no autonomous publishing, posting, or login
-- Citation traceability quality gate — every row carries a real PMID, NCT, ChEMBL CID, or DOI; a report-level gate cross-checks every cited identifier against the records actually retrieved at runtime (grounded vs ungrounded) and refuses to ship below the grounded-ratio threshold, cited DOIs are screened against Crossref for retractions, and every cited PMID, NCT and DOI is re-resolved against its issuing public registry at delivery with the result recorded in a reproducibility manifest (re-resolution confirms the identifier resolves to a real source record, not that the source's conclusions are correct)
+- Citation traceability quality gate — a report-level gate cross-checks every cited identifier against the records actually retrieved at runtime (grounded vs ungrounded) and refuses to ship below the 75% grounded floor; cited DOIs and PMIDs are screened for retraction against Crossref and PubMed, with any paper the screen could not reach named; and every cited PMID, NCT and DOI is re-resolved against its issuing public registry before release, with the result recorded in a reproducibility manifest (re-resolution confirms the identifier resolves to a real source record, not that the source's conclusions are correct)
 
 ## Engine credit
 
