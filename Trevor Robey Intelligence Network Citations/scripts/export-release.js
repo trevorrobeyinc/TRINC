@@ -6,9 +6,27 @@ const path = require("node:path");
 
 const { buildMonetizationRuntime } = require("./_monetization-runtime.js");
 const { buildDeterministicZip, copyDir } = require("./_export-zip-util.js");
+const { contentProblems, manifestProblems } = require("./_delivery-checks.js");
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
+}
+
+// T1-11 (2026-11-14): this export also records delivery evidence for direct delivery targets, so for a
+// research (mission) bundle it refuses what the buyer ZIP refuses (scripts/_delivery-checks.js): no
+// reproducibility manifest, a delivery decision that does not allow shipping, an UNRESOLVED identifier,
+// a re-resolution pass that did not complete (T1-8), and any ChEMBL identifier. Before this it checked
+// only the release approval. Dataset bundles never carry a manifest and are exported as before.
+function researchExportProblems(bundleDir, offer) {
+  if (String(offer.source_kind || "") !== "mission") return [];
+  const deliverablesDir = path.join(bundleDir, "deliverables");
+  const names = fs.existsSync(deliverablesDir)
+    ? fs.readdirSync(deliverablesDir).filter((name) => /\.(md|csv|json|txt)$/i.test(name)).sort()
+    : [];
+  return [
+    ...manifestProblems(deliverablesDir, { requireManifest: true }).problems,
+    ...contentProblems(deliverablesDir, names, { retiredWording: false })
+  ];
 }
 
 function parseArgs(argv) {
@@ -45,6 +63,12 @@ async function main() {
   const validated = runtime.releaseApprovalManager.validateApprovedRelease(args.offerId);
   const bundleDir = validated.bundle_dir;
   const offer = readJson(path.join(bundleDir, "offer.json"));
+  const problems = researchExportProblems(bundleDir, offer);
+  if (problems.length > 0) {
+    // Refused before anything is copied, zipped or recorded as exported or delivered.
+    process.stderr.write(`Release export refused, nothing written:\n- ${problems.join("\n- ")}\n`);
+    process.exit(2);
+  }
   const directDeliveryTargets = Array.isArray(offer.direct_delivery_targets)
     ? offer.direct_delivery_targets
     : [];

@@ -17,7 +17,9 @@ const { buildReproducibilityManifest } = require("../../openclaw-bridge/core/rep
 
 const FIXTURE_CLOCK = Object.freeze({ nowIso: () => "2026-03-05T00:00:00.000Z" });
 
-function passingCitationVerification(rootDir, missionId) {
+// `reresolutionCompleted: false` models the engine's T1-8 fallback: the gate passed, the re-resolution
+// pass crashed, so every cited id is UNCHECKED (reresolution_error) and the pass is marked incomplete.
+function passingCitationVerification(rootDir, missionId, { reresolutionCompleted = true } = {}) {
   const summary = JSON.parse(fs.readFileSync(
     path.join(rootDir, "workspace", "missions", missionId, "artifacts", "mission-summary.json"), "utf8"));
   const text = listMissionOutputs(rootDir, summary).map((p) => fs.readFileSync(p, "utf8")).join("\n\n");
@@ -25,11 +27,13 @@ function passingCitationVerification(rootDir, missionId) {
   const screened = cites.filter((c) => c.type === "DOI" || c.type === "PMID").length;
   const now = FIXTURE_CLOCK.nowIso();
   const manifest = buildReproducibilityManifest({
-    reresolved: cites.map((c) => ({ ...c, status: "VERIFIED", resolver_type: "primary", checked_at: now })),
+    reresolved: cites.map((c) => (reresolutionCompleted
+      ? { ...c, status: "VERIFIED", resolver_type: "primary", checked_at: now }
+      : { ...c, status: "UNCHECKED", resolver_type: "primary", evidence: { reason: "reresolution_error" }, checked_at: now })),
     retraction: { checked: true, retracted_dois: [], retracted_pmids: [], cited: screened, unscreened_ids: [] },
     gate: { cited: cites.length, grounded: cites.length, ungrounded: 0, grounded_ratio: 1, min_grounded_ratio: 0.75, hardFail: false },
     groundedIds: cites.map((c) => c.id),
-    reresolutionCompleted: true,
+    reresolutionCompleted,
     meta: { reportId: missionId, deliveryId: "workflow-fixture", resolverTableVersion: "fixture", asOf: now.slice(0, 10), startedAt: now, completedAt: now }
   });
   return {
@@ -42,11 +46,11 @@ function passingCitationVerification(rootDir, missionId) {
   };
 }
 
-function writePassingCitationRecord(rootDir, missionId) {
+function writePassingCitationRecord(rootDir, missionId, options = {}) {
   return writeMissionCitationRecord({
     rootDir, missionId, workflowId: "workflow-fixture", timeProvider: FIXTURE_CLOCK,
     pass: true, verdict: "PASS", errorCode: null,
-    citationVerification: passingCitationVerification(rootDir, missionId)
+    citationVerification: passingCitationVerification(rootDir, missionId, options)
   });
 }
 
