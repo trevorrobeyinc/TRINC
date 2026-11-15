@@ -47,7 +47,7 @@
 | Wordmark + disclosure | "Trevor Robey, INC." + *"…is the wordmark of Trevor Robey Intelligence Network Citations LLC, a California limited liability company."* | same §Brand wordmark |
 | EIN | **none yet** (open TODO — not required for Workspace signup) | `llc/ein-confirmation.md` (placeholder) |
 | Business phone | none exists (not required for signup) | repo-wide sweep, no hits |
-| Domain | trevorobeyinc.com — **Cloudflare Registrar + Cloudflare DNS**, account `f3b10bacc7e94c72e445b078433aa1d4` (login trevoralexanderrobey@gmail.com); registered 2026-04-25, expires 2027-04-25; site = Worker `shy-grass-fccd` | whois + `CLAUDE.md:320` + `wrangler whoami` |
+| Domain | trevorobeyinc.com — **Cloudflare Registrar + Cloudflare DNS**, account `f3b10bacc7e94c72e445b078433aa1d4` (login then: the operator's old personal Gmail, deleted 2026-11-14); registered 2026-04-25, expires 2027-04-25; site = Worker `shy-grass-fccd` | whois + `CLAUDE.md:320` + `wrangler whoami` |
 | Live DNS (dig 2026-07-21) | MX → `mx/mx2/mx3.zoho.com` (10/20/50) · SPF `v=spf1 include:zoho.com ~all` · DKIM at `zoho._domainkey` (rsa) · DMARC `p=none; rua=mailto:trevor@trevorobeyinc.com` · `zoho-verification` TXT · **no `google-site-verification`** | dig |
 | Email host | **Zoho Mail** — trevor@trevorobeyinc.com LIVE and embedded everywhere (AWS seller/legal contact, Datarade, Gumroad, outbound templates, 10+ engine code files as API contact email) | email-infra sweep 2026-07-21 |
 | Existing Google footprint | none owned — 1 Business Profile cover photo (no documented account), no GCP/API keys/site-verification; engine-side Google Drive connector deliberately REMOVED 2026-07-01 (decision stands) | google-footprint sweep 2026-07-21 |
@@ -64,7 +64,7 @@
   after). Upgradeable in-console any time.
 - **D3 — Identities.** Admin user: **trevor@trevorobeyinc.com** (same string as the Zoho address —
   different systems, no conflict). "Current email" during signup + recovery:
-  **trevoralexanderrobey@gmail.com**. Business name field: the full legal LLC name.
+  **the operator's old personal Gmail** (deleted 2026-11-14; recovery now `trevorrobeyinc@gmail.com`). Business name field: the full legal LLC name.
 
 ## 2 · Signup (🔑 OPERATOR-ONLY, ~10 min, browser)
 
@@ -77,7 +77,7 @@ At <https://workspace.google.com> → *Get started*. Claude cannot do any of thi
 | Number of employees | Just you |
 | Region | United States |
 | Your name | Trevor Robey |
-| Current email | trevoralexanderrobey@gmail.com |
+| Current email | the operator's old personal Gmail (deleted 2026-11-14) |
 | Domain | *"Yes, I have one I can use"* → **trevorobeyinc.com** |
 | Admin username | trevor@trevorobeyinc.com |
 | Password | operator-only — generate in password manager; YubiKey 2SV comes in §4 |

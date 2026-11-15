@@ -37,8 +37,9 @@ Three findings from the 2026-07-23 architecture survey drive everything below:
 >
 > **Re-read 2026-10-21 (fresh reload): 12 live filters** = the 11 business filters of
 > `gmail-filters.xml`, unchanged, plus one personal-mail filter that is deliberately NOT in the XML
-> (`deliveredto:trevoralexanderrobey@gmail.com` → `still-on-OLD`, added 2026-10-16 for the
-> personal-Gmail phase-out and slated for deletion by the operator; `google-workspace.md` §8). The
+> (a `deliveredto:` match on the old personal Gmail → `still-on-OLD`, added 2026-10-16 for the
+> personal-Gmail phase-out and slated for deletion by the operator; dead since that account was
+> deleted 2026-11-14; `google-workspace.md` §8). The
 > 12th XML filter, `Via-Strayer`, was **deleted 2026-10-21** on the operator's decision to retire
 > the Strayer forward (§1b).
 >
@@ -213,7 +214,7 @@ Ordered by urgency:
 | ~~Now~~ | ~~DMARC `p=none` → `p=quarantine`~~ — **DONE 2026-10-21** (operator, Cloudflare; `dig`-verified 17:23 PDT) | — |
 | **~2026-11-04** | Read the DMARC aggregate reports (search `"Report domain: trevorobeyinc.com"`): any legitimate sender failing? `p=reject` is a separate later decision | A missed legitimate sender's mail lands in spam |
 | **2026-08-15** — PAST DUE | **$800 CA Franchise Tax to FTB** — not done as of 2026-10-21 (operator-confirmed); authoritative tracker: `00-business-formation/compliance/compliance-calendar.md` | State penalties + interest; LLC in bad standing |
-| **~2026-09-16** — PAST DUE | **Statement of Information (Form LLC-12, $20)** — within 90 days of 2026-06-18 approval; not done as of 2026-10-21 | $250 penalty; suspension risk |
+| **2026-08-04** — PAST DUE | **Statement of Information (Form LLC-12, $20)** — within 90 days of the 2026-05-06 filing (bizfile; this row said ~2026-09-16, counted from approval, until 2026-11-06); not filed as of 2026-11-06 (bizfile history); authoritative tracker: `00-business-formation/compliance/compliance-calendar.md` | $250 penalty; suspension risk |
 | Q4 2026 | India PE tax declaration | Paid India sales suspended |
 | Open | **EIN** (free, instant) | Blocks business banking + AWS legal-entity update |
 | Recurring | **Monthly** data refresh (high-velocity: pharmacovigilance, CT.gov feeds) | Breaks a published cadence commitment |

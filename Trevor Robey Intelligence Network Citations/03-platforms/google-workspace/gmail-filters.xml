@@ -88,7 +88,7 @@
 
   <!-- ============ LEGAL / COMPLIANCE ============
        Hard deadlines live here: CA Franchise Tax 2026-08-15, Statement of Information
-       ~2026-09-16, EIN. State/federal mail must never be spam-filtered. -->
+       2026-08-04 (90 days after filing), EIN. State/federal mail must never be spam-filtered. -->
 
   <entry>
     <category term='filter'></category>
@@ -143,8 +143,9 @@
        check were deleted (verified from fresh loads), so the entry is removed here too.
        History: workspace-operations.md section 1b.
 
-       NOT in this file on purpose: the live personal-mail filter
-       deliveredto:trevoralexanderrobey@gmail.com (label still-on-OLD), added 2026-10-16 for the
-       personal Gmail phase-out and slated for deletion. It is not business routing. -->
+       NOT in this file on purpose: the live personal-mail filter, a
+       deliveredto: match on the old personal Gmail (label still-on-OLD), added 2026-10-16 for the
+       personal Gmail phase-out; that account was deleted 2026-11-14, so the filter is dead and
+       slated for deletion. It is not business routing. -->
 
 </feed>

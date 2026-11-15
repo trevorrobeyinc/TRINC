@@ -22,9 +22,32 @@
 | # | Risk | Why it matters | Fix |
 |---|---|---|---|
 | **R1** ✅ **CLOSED 2026-10-21** | ~~**AWS root email is `Trevor.Robey@my.strayer.edu`**~~ — a *university student* address — on account `833390816446`, which owns the entire AWS Marketplace revenue channel | Student email addresses are revoked after graduation/withdrawal. Losing it means losing root recovery on the account holding your seller listing and future disbursements. This was the single most fragile binding in the business. | **Done 2026-10-21:** root email → **`aws@trevorobeyinc.com`**, a Google **Group** (owner/member trevor@), not an alias. The operator signed in as root and typed the password and code; verified in Organizations (management account email) and Marketplace → Settings → Notifications. Billing + Operations alternate contacts → `aws@`; Security stays `trevor@`. Runbook + record: [`aws-data-exchange/account-access.md`](./aws-data-exchange/account-access.md). |
-| **R2** | **Cloudflare is logged in as `trevoralexanderrobey@gmail.com`** (personal Gmail), account `f3b10bacc7e94c72e445b078433aa1d4` | That one personal account controls the **domain registration, all DNS (including the MX/SPF/DKIM that make business mail work), and the Worker serving trevorobeyinc.com**. Lose or compromise it and the business's web + mail presence goes with it. | Add `trevor@trevorobeyinc.com` as a Cloudflare account **Member (Super Administrator)**, then optionally transfer ownership. Do NOT simply move the domain — adding a business admin is reversible and non-disruptive. |
+| **R2** (login ✅ 2026-11-14) | ~~**Cloudflare is logged in with the old personal Gmail**~~, account `f3b10bacc7e94c72e445b078433aa1d4`. That Gmail was hacked and deleted 2026-11-14; **the login moved the same day to `trevorrobeyinc@gmail.com`** (the operator's choice, operator-reported) | That one personal account controls the **domain registration, all DNS (including the MX/SPF/DKIM that make business mail work), and the Worker serving trevorobeyinc.com**. Lose or compromise it and the business's web + mail presence goes with it. | **Done 2026-11-14:** the operator changed the user email (My Profile → Email Address → Change Email Address) to `trevorrobeyinc@gmail.com` in their own Chrome. Cloudflare's bot check fails in the Claude Browser pane, so this is operator-reported. It is the same user, so the DNS token `cf-dns-trevorobeyinc` keeps working. A login outside the domain it hosts means a DNS outage cannot block a reset. **Still open (optional):** business ownership. Add `trevor@trevorobeyinc.com` as a Cloudflare account **Member (Super Administrator)**. Do NOT simply move the domain. |
 | **R3** | **Customer-facing collateral links to a personal portfolio** — Datarade provider application, Kaggle + HuggingFace setup docs still point at `trevorrobeyinc.github.io` | That URL is the operator's **personal** portfolio ("Trevor Robey — AI Systems & Digital Marketing Portfolio", live HTTP 200) — not the business site. Prospects clicking a business email land on a personal résumé page. Spelling trap: business = `trevorobeyinc.com` (one r), personal = `trevorrobeyinc` (two r's). | **`07-outbound/` FIXED 2026-07-22** (7 links across 4 cold-email + LinkedIn templates → `trevorobeyinc.com`). `REVENUE_PLAYBOOK.md:385` fixed earlier. **Still to fix:** `03-platforms/datarade/provider-setup-guide.md`, `03-platforms/kaggle-seo-breadcrumb/setup-guide.md`, `03-platforms/huggingface/setup-guide.md`. |
 | **R4** | **The entire engine runs on one personal Claude Max 20× subscription** with no fallback (all OSS/local providers removed 2026-07-16) | 100% of scout/analyst/synthesizer compute. If that individual subscription lapses or hits its ceiling, the revenue-producing engine stops. No business/team Anthropic account exists. | Decide: keep personal-plan (accept risk) vs. open a business Anthropic account. Contingency plan already written in the engine `CLAUDE.md` (Token Efficiency §Phase 1 restores a local scout lane). |
+
+### Old personal Gmail hacked and deleted (2026-11-14): account sweep
+
+The operator's old personal Gmail was hacked and then deleted on 2026-11-14. Google never reissues a deleted
+address, so the risk it leaves is lockout: resets sent there go nowhere. Each account that named it was checked live
+the same day in the Claude Browser pane, with the operator doing every sign-in and edit (record: Security
+Everything browser-session log, 2026-11-14).
+- **bizfile:** login and recovery moved to `trevor@trevorobeyinc.com` (§2). The history holds only the 05/06 Initial
+  Filing, and the operator is the only user (Full access). Nothing was filed or added while the Gmail was compromised.
+- **Google Workspace:** recovery email and org Secondary email moved to `trevorrobeyinc@gmail.com`
+  (`google-workspace/google-workspace.md` §1). The 7-day sign-in log is all from the operator's home IP. The 28-day
+  security activity shows only the operator's devices; one password change on Oct 22 is for the operator to confirm.
+- **Domain:** DNS on both Cloudflare nameservers matches the 2026-10-21 snapshot. The registry record is unchanged
+  since registration (last changed 2026-04-25, transfer lock on).
+- **Cloudflare:** the login moved to `trevorrobeyinc@gmail.com`. That was the operator's choice, made in their own
+  Chrome because Cloudflare's bot check fails in the pane. Reviewed the same day from the operator's screenshots,
+  which show the new address as the member and as the actor of the change:
+  - **Members:** one member (the operator, 2FA on).
+  - **API tokens:** one (`gws-dns-trevorobeyinc`, last used about three months earlier).
+  - **Audit log:** only the email change and Cloudflare's own certificate renewal on 11-12 (System actor: two
+    temporary DNS records created and deleted 80 s apart).
+  - **Login events:** every one comes from the operator's Comcast line, and there are none between 10-21 and
+    11-14. 73.66.220.74 is the operator's home line: Cloudflare's trace endpoint returned it for this Mac.
 
 ### Live AWS console check (2026-07-22) — the `trevorrobeyinc@gmail.com` premise did NOT hold
 
@@ -104,11 +127,11 @@ Legend — **B** = business-owned · **P** = personal-owned (entanglement) · **
 
 | Service | Purpose | Bound identity | | Crit. |
 |---|---|---|---|---|
-| **Google Workspace** | primary mailbox + identity | `trevor@trevorobeyinc.com` (super-admin) — *but recovery = personal Gmail; password in personal Bitwarden* | **B** | HIGH |
+| **Google Workspace** | primary mailbox + identity | `trevor@trevorobeyinc.com` (super-admin) — *recovery email and org Secondary email = `trevorrobeyinc@gmail.com` since 2026-11-14 (were the old personal Gmail, hacked and deleted that day); password in personal Bitwarden* | **B** | HIGH |
 | ~~**Zoho Mail**~~ | **CLOSED 2026-10-21** (operator decision): Mail Lite cancelled, domain and org deleted, Zoho mailed "Your Zoho account is closed" at 04:55; DNS cleaned (SPF Google-only, no Zoho DKIM or verification TXT). **Gmail does NOT hold the full Zoho history:** the 07-22 import reported 1,251/1,251, but a 10-21 check found only 17 pre-cutover conversations in Gmail, and the Sent-only threads were let go by the operator. Record: `~/Security Everything/docs/browser-session-history/2026-10.md`, entry 2026-10-21 04:14. | — (was `trevor@trevorobeyinc.com` on Mail Lite) | **B** | — |
-| **Cloudflare** | registrar + DNS + Worker hosting the live site | `trevoralexanderrobey@gmail.com` | **P** | HIGH |
+| **Cloudflare** | registrar + DNS + Worker hosting the live site | `trevorrobeyinc@gmail.com` since 2026-11-14 (operator-reported; was the old personal Gmail, hacked and deleted that day) | **P** | HIGH |
 | **AWS** (acct `833390816446`) | Marketplace seller channel | root = **`aws@trevorobeyinc.com`** (Workspace group, since 2026-10-21; was the Strayer `.edu`); SSO user `Trevoralexanderrobey` + 2 YubiKeys; seller *contact* = trevor@ (business); alternate contacts Billing/Operations = aws@, Security = trevor@ | **B** | HIGH |
-| **CA SOS bizfileOnline** | LLC system of record; Statement of Information + future filings | **An account exists; its login email is not recorded.** The Articles were filed online 2026-05-06, and the Welcome Letter, Filing Acknowledgment and certified-copy zip in `~/Documents` were all downloaded from the signed-in portal on 2026-06-18 ~22:56–23:01 PDT (file download metadata, read 2026-10-21). Per the SOS *Account Setup and User Access Guide* (v8.22.24), the submitter of an online initial filing gets Full Access to the entity record — which the LLC-12 now needs (User Access required since 2026-08-01). Find the login: search Bitwarden for `sos.ca.gov`, then record the email here. | **?** | HIGH |
+| **CA SOS bizfileOnline** | LLC system of record; Statement of Information + future filings | Login (Okta username **and** primary email) = **`trevor@trevorobeyinc.com`** since 2026-11-14. It was the old personal Gmail, hacked and deleted that day. The operator changed it at idm.sos.ca.gov → Settings → Personal Information and confirmed it by mail; it was verified from a fresh load. Password only: the SOS offers no MFA. This login has Full Access to B20260217250 and is its only user; the LLC-12 needs User Access (required since 2026-08-01). The Articles were filed online from it on 2026-05-06, and the Welcome Letter, Filing Acknowledgment and certified-copy zip in `~/Documents` were downloaded from it on 2026-06-18. | **B** | HIGH |
 | **CA FTB** | $800 annual LLC tax (Form 3522), Form 568 | No MyFTB account recorded. Web Pay for Businesses needs no account: entity ID = the 11 digits of the SOS number (`20260217250`), not the EIN (FTB Tax News, June 2025). | **?** | HIGH |
 | **GitHub `trevoralexanderrobey`** | CODEOWNER of the engine; predecessor repo (deleted) | personal username | **P** | HIGH |
 | **GitHub `trevorrobeyinc`** | hosts `trevorrobeyinc.github.io` — the **personal portfolio** | personal (business-sounding handle — a trap) | **P** | MED |
@@ -142,7 +165,7 @@ so the browsing surface is separated, and track the ownership fix separately (§
 - [ ] **HuggingFace** — sign in; create the `trevorrobeyinc` **org** and transfer/publish under it
 - [ ] **LinkedIn** — personal profile stays personal, but consider a **company page** for the LLC
 - [ ] **Datarade**, **Gumroad**, **Kaggle** — sign in here when next touched; record the identity in this file
-- [ ] **CA SOS bizfileOnline** — the account exists (used 2026-06-18); find its login email in Bitwarden (`sos.ca.gov`), record it in §2, sign in here (needed for the Statement of Information)
+- [x] **CA SOS bizfileOnline** — login moved to `trevor@trevorobeyinc.com` on 2026-11-14 (§2); sign in here for the Statement of Information
 - [ ] **Bitwarden** — install in this profile; consider a separate business vault/collection
 - [ ] Chrome: set this profile's sync to the Workspace account; bookmark the business consoles
 
@@ -158,7 +181,7 @@ confirmation.)
 | # | Obligation | Due | Status 2026-10-21 | Cost |
 |---|---|---|---|---|
 | 1 | IRS EIN | no statutory deadline; blocks the bank account and the AWS "Legal business name" | not applied for | free |
-| 2 | Statement of Information, Form LLC-12 (CA SOS) | 2026-09-16 | **not filed, 35 days past due** | $20 |
+| 2 | Statement of Information, Form LLC-12 (CA SOS) | 2026-08-04 (90 days after the 2026-05-06 filing; this cell said 2026-09-16 until 2026-11-06) | **not filed, 78 days past due** | $20 |
 | 3 | $800 annual LLC tax, Form FTB 3522 | 2026-08-15 (a Saturday, so 2026-08-17 without penalty) | **not paid, 67 days past due** | $800 + penalty and interest as billed |
 | — | ~~AWS Seller-Operations escalation letter~~ | — | **moot 2026-07-22** (disbursement cleared without it; do not send) | — |
 
@@ -178,11 +201,37 @@ as `trevor@trevorobeyinc.com` by the operator): ZERO agency mail.**
   history was only partly imported. It also says nothing about the bizfile account's own email or
   `trevorrobeyinc@gmail.com` (not searched). FTB and SOS notices come by **post**, so the paper mail at
   8161 Oahu Dr remains the place a penalty notice would be.
-- The bizfile login email is therefore still unknown: Bitwarden (`sos.ca.gov`) is the next place to look.
+- ~~The bizfile login email is therefore still unknown~~ **Resolved 2026-11-06:** the bizfile login was the operator's
+  old personal Gmail; it filed the Articles and has User Access (below). **Moved to `trevor@trevorobeyinc.com` on
+  2026-11-14** after that Gmail was hacked and deleted (§2).
 - Earlier the same afternoon the `gmail` connector route (it reaches `trevorrobeyinc@gmail.com` only)
   was armed once and stopped at `client_malformed` (an email address sealed where the Google client
   ID belongs); no token, no mail read. Fixing it is the operator's re-seal (Security Everything
   `gmail-mcp/gmail_setup.py --seal-client --replace`), not needed for this check.
+
+**Live standing and mail check, 2026-11-06 (~22:30–22:55 PST; checklist item 3, operator's go; Claude Browser pane,
+the operator doing every sign-in and bizfile's Imperva human check):**
+- **bizfile:** Status **Active**; Standing - SOS, FTB, Agent and VCFCF all **Good** (not suspended); Statement of Info
+  Due Date **08/04/2026**, in red. Signed in: the history holds only the Initial Filing (05/06/2026, filed by
+  the login, then the old personal Gmail); My Work Queue is empty; the record offers File Statement of Information and Manage
+  User Access, so the login has **User Access** and no PIN is needed.
+- **Due date corrected:** 90 days after the **filing**, not the approval. bizfile shows 08/04/2026, and the 2026-06-18
+  approval letter says "within 90 days of the initial filing". The repo's 2026-09-16 had been counted from approval.
+  The letter: `~/Documents/Business Entity Filing Acknowledgment_B20260217250.pdf`.
+- **`trevorrobeyinc@gmail.com`:** this search found no messages; a control search of the same shape returned results.
+  `in:anywhere {from:sos.ca.gov from:ftb.ca.gov from:irs.gov B20260217250 bizfile "Franchise Tax Board" "Statement of Information"} after:2026/05/01`
+  This mailbox also gets forwarded copies of `trevor@` (since 2026-10-16) and of the personal Gmail. `deliveredto:`
+  presence checks found no personal-Gmail copies dated 2026-05-01 to 09-01, so that forwarding began after 2026-09-01.
+  No message was opened.
+- **Personal Gmail** (the bizfile login): the operator searched it for "bizfile": nothing. It holds mail only from
+  August 2026; earlier mail there, including any bizfile email from the May filing, is gone.
+- **Not covered:** the personal Gmail before August and `trevor@` while on Zoho (May–July). The Articles carry no
+  notification email, so besides the login's email the state reaches the LLC by post. **Paper mail (the operator,
+  2026-11-07): no FTB or SOS notice has ever arrived.**
+- **Identity note (superseded 2026-11-14):** the login is now the business identity (`trevor@trevorobeyinc.com`),
+  moved after the old personal Gmail was hacked and deleted (§2). The LLC-12's "Email for notices" can also point
+  state reminders at `trevor@`
+  ([`filing-walkthrough-2026-10.md`](../00-business-formation/compliance/filing-walkthrough-2026-10.md) §2).
 
 ## 5 · Notes
 
