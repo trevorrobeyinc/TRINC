@@ -202,8 +202,10 @@ memory priors are `context_only` and never count as citations.
 The deep dive is `Trevor Robey Intelligence Network Citations/CLAUDE.md`.
 
 - **Run:** `node scripts/run-workflow.js --template <id> --inputs '<json>' --operator-approve --confirm`.
-  `--operator-approve` is YubiKey-gated (`operator-approve-gate arm`, one-shot, 300 s); a `--provider mock`
-  run is ungated. From Claude Code, prefer the door: a plugin-dispatched run also gets the post-run chain.
+  `--operator-approve` is YubiKey-gated (`operator-approve-gate arm`, one-shot, 300 s). The runner has no
+  `--provider` flag and the role map pins the research roles to `claude-code`, so every workflow run is real;
+  the ungated mock lane is `run-research-task.js --provider mock`, which never reaches the citation gate.
+  From Claude Code, prefer the door: a plugin-dispatched run also gets the post-run chain.
   **A paying client's run is the exception (2026-11-06):** CLI only, with `--customer-run`, so no prior-run
   context goes in and nothing is published or ingested out. Deliver it with `scripts/build-buyer-zip.js`.
 - **100% Claude:** scout, analyst and synthesizer on `claude-opus-4-8`, everything else on

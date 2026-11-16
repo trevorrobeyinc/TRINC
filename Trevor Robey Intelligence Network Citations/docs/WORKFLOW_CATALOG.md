@@ -11,9 +11,11 @@ operator-approve-gate arm      # YubiKey PIN + touch; one run, 300 s
 node scripts/run-workflow.js --template <template-id> --inputs '<json>' --operator-approve --confirm
 ```
 
-A `--provider mock` run needs no approval and spends nothing. From Claude Code, start runs through the
-`openclaw-obsidian` door (`obsidian_openclaw_run_workflow`) so the Command Center post-run chain also runs;
-`dry_run: true` checks a template and its inputs without spending the token.
+Every template run is real: `run-workflow.js` has no `--provider` flag and the role map pins the research
+roles to `claude-code`, so each run needs the armed token. The free practice lane is
+`scripts/run-research-task.js --provider mock`, which never reaches the citation gate. From Claude Code,
+start runs through the `openclaw-obsidian` door (`obsidian_openclaw_run_workflow`) so the Command Center
+post-run chain also runs; `dry_run: true` checks a template and its inputs without spending the token.
 
 ## What every template shares
 

@@ -91,9 +91,14 @@ node scripts/run-workflow.js --template <template_id> --inputs '<json>' [--opera
 ```
 
 - `--confirm` is mandatory; the runner exits 1 without it.
-- Any non-mock run needs `--operator-approve`, honoured only against a fresh one-shot token minted by
+- Every run needs `--operator-approve`, honoured only against a fresh one-shot token minted by
   `operator-approve-gate arm` (YubiKey PIN plus a physical touch, 300 s, consumed before anything spawns).
-  A `--provider mock` run is ungated because it cannot spend model capacity.
+  The runner has no `--provider` flag (an unknown flag prints the usage text and exits 1). Its gate asks
+  `config/role-provider-map.json`, which pins scout, analyst and synthesizer to `claude-code`, so with the
+  shipped configuration every workflow run spends model capacity; only a test configuration that routes every
+  role, and the default provider, to `mock` exempts one (`scripts/_operator-gate-cli.js`). The ungated practice
+  lane is `scripts/run-research-task.js ... --provider mock`, which never reaches the citation gate and cannot
+  be packaged. (Corrected 2026-11-16: this line used to promise an ungated `--provider mock` workflow run.)
 - The script re-execs itself once with `NODE_EXTRA_CA_CERTS` set to the mkcert root CA so the HTTPS
   loopback proxies validate.
 - From Claude Code, start runs through the door instead (`obsidian_openclaw_run_workflow`): a
