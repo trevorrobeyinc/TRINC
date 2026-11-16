@@ -16,15 +16,25 @@
 // or Europe PMC source "PPR") grades B. Type names and DOI normalization follow the old connector's
 // citation-grammar.js (lower-case types, lower-cased DOIs), so rows cluster as before.
 //
-// Failure contract (the section gate depends on it):
-//   * BOTH sources failing (network error, timeout, non-2xx) throws, so the gate marks the section
-//     UNCHECKED (infra) and never fails it on that basis;
-//   * one source failing still returns the other source's rows;
-//   * both answering with no hits returns [] — a genuine zero, which the gate fails closed on.
-// Deterministic for the same responses: no wall-clock or RNG globals (forbidden under openclaw-bridge/).
+// Failure contract (the section gate depends on it; fixed by the S1 review, 2026-11-15):
+//   * a genuine zero is ONLY both sources answering, well-formed, with no hits: [] — the gate fails
+//     the section closed on it;
+//   * anything less throws, so the gate marks the section UNCHECKED and never fails it on that basis:
+//     an empty query, both sources failing (network error, timeout, non-2xx, a body without its result
+//     list), and one source failing or skipped while the other answered with no hits;
+//   * one source failing while the other returns rows returns those rows, and `sources` names the
+//     failure, which the gate records on the section (source_errors) and the ledger marks.
+// Errors carry `searched`, so an UNCHECKED section still records what it would have searched.
+// Deterministic for the same responses: no wall-clock or RNG globals (forbidden under openclaw-bridge/);
+// the Crossref pacing reads the injected clock of core/ncbi-pacing.js.
+
+const { createNcbiPacing } = require("../../core/ncbi-pacing.js");
 
 const EUROPE_PMC_SEARCH = "https://www.ebi.ac.uk/europepmc/webservices/rest/search";
 const CROSSREF_WORKS = "https://api.crossref.org/works";
+
+// What the section coverage record and the buyer's ledger name as the search (integrity-rating.js).
+const SEARCHED = "Europe PMC and Crossref";
 
 // DOI prefixes of preprint registrants: the same list as Claude/searxng-search-mcp/src/citation-grammar.js
 // PREPRINT_DOI_PREFIXES (kept in sync by hand; the gate never requires the connector's grammar).
@@ -64,11 +74,20 @@ function rankScore(index, total) {
 // title or abstract, AND any one of the section's key terms there, over PubMed records and preprints
 // only (SRC:MED / SRC:PPR). The subject comes from the section gate (params.primary_subject); with
 // none, any key term in the title or abstract.
+//
+// The gate's breadth retry (opts.broad, sent as params.breadth_retry) cannot broaden this query by
+// dropping the section query's last word, as reformulate.js does: the words are OR-ed, so one fewer can
+// only narrow it, and past 8 words the query does not change at all (S1 review, 2026-11-15). So the
+// retry searches the key terms in ANY field of the record (full text included, where Europe PMC holds
+// it) while the subject stays in the title or abstract, and the subject alone anywhere when there are
+// no key terms.
 const EPMC_SOURCES = "(SRC:MED OR SRC:PPR)";
 function cleanTerm(s) {
   return String(s || "").replace(/["()\\]/g, " ").replace(/\s+/g, " ").trim();
 }
-function europePmcQuery(query, subject) {
+function europePmcQuery(query, subject, opts = {}) {
+  const broad = opts.broad === true;
+  const field = broad ? "" : "TITLE_ABS:";
   const subj = cleanTerm(subject);
   const text = cleanTerm(query);
   const rest = subj && text.toLowerCase().startsWith(subj.toLowerCase())
@@ -77,19 +96,26 @@ function europePmcQuery(query, subject) {
       ? text.split(" ").filter((w) => !subj.toLowerCase().split(" ").includes(w.toLowerCase())).join(" ")
       : text;
   const terms = [...new Set(rest.split(" ").filter((w) => w.length >= 3).map((w) => w.toLowerCase()))].slice(0, 8);
-  const anyTerm = terms.length ? `(${terms.map((t) => `TITLE_ABS:"${t}"`).join(" OR ")})` : "";
+  const anyTerm = terms.length ? `(${terms.map((t) => `${field}"${t}"`).join(" OR ")})` : "";
   if (subj && anyTerm) return `TITLE_ABS:"${subj}" AND ${anyTerm} AND ${EPMC_SOURCES}`;
-  if (subj) return `TITLE_ABS:"${subj}" AND ${EPMC_SOURCES}`;
+  if (subj) return `${field}"${subj}" AND ${EPMC_SOURCES}`;
   if (anyTerm) return `${anyTerm} AND ${EPMC_SOURCES}`;
   return "";
 }
 
-// Crossref record types that are a citable work. Crossref's relevance search also returns grants
-// (untitled), "report" items (news pieces), peer-review records and datasets for the same words.
+// The Crossref record types kept: journal articles, preprints ("posted-content"), proceedings articles
+// and book chapters. Everything else is dropped. Crossref's relevance search returns other types for the
+// same words: untitled grants, peer-review records, datasets, and "report" items, which for a biomedical
+// query were explainer pieces (seen live 2026-11-15) but are mostly technical and agency reports (OSTI,
+// DTIC, NBER, USGS). Dissertations, books, monographs, reference entries and standards are dropped too,
+// though they are citable works: whether any of them should count for a business section is the
+// operator's call, open since the S1 review (2026-11-15).
 const CROSSREF_WORK_TYPES = new Set(["journal-article", "posted-content", "proceedings-article", "book-chapter"]);
 
-// Europe PMC "lite" hits → gate rows. A PubMed id links to its PubMed record; otherwise a DOI to doi.org;
-// otherwise the Europe PMC article page.
+// Europe PMC "lite" hits → gate rows. A DOI links to doi.org, the URL of Crossref's copy of the same
+// work, so the gate's clustering (cluster.js, by canonical URL) counts the two once, also when they come
+// back in different passes; otherwise a PubMed id links to its PubMed record; otherwise the Europe PMC
+// article page.
 function europePmcRows(body) {
   const hits = body && body.resultList && Array.isArray(body.resultList.result) ? body.resultList.result : [];
   return hits.map((hit, i) => {
@@ -106,10 +132,10 @@ function europePmcRows(body) {
     }
     if (pmcid) citations.push({ type: "pmcid", id: pmcid, source: "metadata" });
     if (preprint) for (const c of citations) c.subtype = "preprint";
-    const url = pmid
-      ? `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`
-      : doi
-        ? `https://doi.org/${doi}`
+    const url = doi
+      ? `https://doi.org/${doi}`
+      : pmid
+        ? `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`
         : `https://europepmc.org/article/${encodeURIComponent(String(hit.source || "MED"))}/${encodeURIComponent(String(hit.id || ""))}`;
     return {
       title: String(hit.title || "").trim(),
@@ -175,59 +201,111 @@ function mergeRows(lists, max) {
   return out;
 }
 
+// An error the section gate turns into an UNCHECKED section; it names what would have been searched.
+function searchError(message) {
+  const err = new Error(message);
+  err.searched = SEARCHED;
+  return err;
+}
+
+const EPMC_SKIPPED = "skipped (no term of 3 or more characters to search)";
+
 function createScholarlySearch(options = {}) {
   const httpImpl = options.httpImpl || (typeof fetch === "function" ? fetch : null);
   const timeoutMs = Number(options.timeoutMs) || 15_000;
-  // A generic client name on purpose: no business name or contact address goes out with a search
-  // (Crossref then answers from its public pool, which is plenty for one search per section).
+  // A generic client name on purpose: no business name or contact address goes out with a search, so
+  // Crossref answers from its public pool, which allows ONE request per second, one at a time (its
+  // x-rate-limit headers, live 2026-11-15). A request sent 0.6 s after the previous one drew HTTP 429
+  // in the S1 review. So the Crossref leg is paced (1 s apart by default) and retried once on a 429,
+  // with the NCBI politeness policy (core/ncbi-pacing.js), which is exactly that rule. `nowMs` and
+  // `sleep` are injectable, so a test proves the spacing without real delays.
   const userAgent = String(options.userAgent || "scholarly-search/1.0");
+  const crossrefPacing = createNcbiPacing({
+    minRequestIntervalMs: Number.isFinite(options.crossrefIntervalMs) ? options.crossrefIntervalMs : 1_000,
+    maxRetryAfterMs: 3_000,
+    nowMs: options.nowMs,
+    sleep: options.sleep
+  });
 
-  async function getJson(url) {
+  async function getJson(url, pacing) {
     if (typeof httpImpl !== "function") throw new Error("no HTTP client available");
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const res = await httpImpl(url, { signal: controller.signal, headers: { Accept: "application/json", "User-Agent": userAgent } });
+      const send = () => httpImpl(url, { signal: controller.signal, headers: { Accept: "application/json", "User-Agent": userAgent } });
+      const res = pacing ? (await pacing.request(send)).out : await send();
       if (!res || !res.ok) throw new Error(`HTTP ${res ? res.status : "no response"}`);
       return await res.json();
+    } catch (err) {
+      if (controller.signal.aborted) throw new Error(`timed out after ${timeoutMs} ms`);
+      throw err;
     } finally {
       clearTimeout(timer);
     }
   }
+
+  // Each leg resolves to its rows, or rejects. A 200 whose body lacks the result list is a failure of
+  // that source, never a zero: both APIs answer a query with no hits with an empty list (checked live
+  // 2026-11-15: Europe PMC resultList.result [], Crossref message.items []).
+  async function europePmcLeg(url) {
+    const body = await getJson(url);
+    if (!(body && body.resultList && Array.isArray(body.resultList.result))) throw new Error("unexpected response: no resultList.result");
+    return europePmcRows(body);
+  }
+  async function crossrefLeg(url) {
+    const body = await getJson(url, crossrefPacing);
+    if (!(body && body.message && Array.isArray(body.message.items))) throw new Error("unexpected response: no message.items");
+    return crossrefRows(body);
+  }
+  const settle = (leg, skipped) => (leg
+    ? leg.then((rows) => ({ ok: true, rows, status: "ok" }), (err) => ({ ok: false, rows: [], status: String((err && err.message) || err) }))
+    : Promise.resolve({ ok: false, rows: [], status: skipped }));
 
   /**
    * @param {object} params
    * @param {string} params.query
    * @param {number} [params.max_results=8]
    * @param {string} [params.primary_subject] the report's subject (the section gate passes it)
-   * @returns {Promise<{results: object[], sources: object}>}
+   * @param {boolean} [params.breadth_retry] true on the gate's breadth retry: the broad Europe PMC form
+   * @returns {Promise<{results: object[], sources: object, searched: string}>}
    */
   async function search(params = {}) {
     const query = String(params.query || "").trim();
+    if (!query) throw searchError("scholarly search: empty query, nothing to search");
     const max = Math.max(1, Math.min(50, Number(params.max_results) || 8));
-    const epmcQuery = europePmcQuery(query, params.primary_subject);
-    if (!query || !epmcQuery) return { results: [], sources: {} };
-    const epmcUrl = `${EUROPE_PMC_SEARCH}?${new URLSearchParams({ query: epmcQuery, format: "json", pageSize: String(max), resultType: "lite" })}`;
-    // Twice the rows, because the work-type filter drops grants, news items and the like.
+    const epmcQuery = europePmcQuery(query, params.primary_subject, { broad: params.breadth_retry === true });
+    const epmcUrl = epmcQuery
+      ? `${EUROPE_PMC_SEARCH}?${new URLSearchParams({ query: epmcQuery, format: "json", pageSize: String(max), resultType: "lite" })}`
+      : null;
+    // Twice the rows, because the work-type filter drops grants, reports and the like.
     const crossrefUrl = `${CROSSREF_WORKS}?${new URLSearchParams({ "query.bibliographic": query, rows: String(Math.min(50, max * 2)), select: "DOI,title,container-title,issued,type" })}`;
-    const [epmc, crossref] = await Promise.allSettled([getJson(epmcUrl), getJson(crossrefUrl)]);
-    if (epmc.status === "rejected" && crossref.status === "rejected") {
-      throw new Error(`scholarly search unreachable: europepmc: ${String(epmc.reason && epmc.reason.message)}; crossref: ${String(crossref.reason && crossref.reason.message)}`);
+    const [epmc, crossref] = await Promise.all([
+      settle(epmcUrl ? europePmcLeg(epmcUrl) : null, EPMC_SKIPPED),
+      settle(crossrefLeg(crossrefUrl))
+    ]);
+    const sources = { europepmc: epmc.status, crossref: crossref.status };
+    if (!epmc.ok && !crossref.ok) {
+      throw searchError(`scholarly search unreachable: europepmc: ${epmc.status}; crossref: ${crossref.status}`);
     }
-    const lists = [
-      epmc.status === "fulfilled" ? europePmcRows(epmc.value) : [],
-      crossref.status === "fulfilled" ? crossrefRows(crossref.value) : []
-    ];
-    return {
-      results: mergeRows(lists, max),
-      sources: {
-        europepmc: epmc.status === "fulfilled" ? "ok" : String(epmc.reason && epmc.reason.message),
-        crossref: crossref.status === "fulfilled" ? "ok" : String(crossref.reason && crossref.reason.message)
-      }
-    };
+    const results = mergeRows([epmc.rows, crossref.rows], max);
+    if (results.length === 0 && !(epmc.ok && crossref.ok)) {
+      // One source answered with no hits while the other failed or was skipped: not a genuine zero.
+      const [down, up] = epmc.ok ? [["crossref", crossref], "europepmc"] : [["europepmc", epmc], "crossref"];
+      throw searchError(`scholarly search incomplete: ${down[0]}: ${down[1].status}; ${up} answered with no hits`);
+    }
+    return { results, sources, searched: SEARCHED };
   }
 
   return Object.freeze({ search });
 }
 
-module.exports = { createScholarlySearch, europePmcRows, crossrefRows, europePmcQuery, mergeRows, normalizeDoi, PREPRINT_DOI_PREFIXES };
+module.exports = {
+  createScholarlySearch,
+  europePmcRows,
+  crossrefRows,
+  europePmcQuery,
+  mergeRows,
+  normalizeDoi,
+  PREPRINT_DOI_PREFIXES,
+  SEARCHED
+};

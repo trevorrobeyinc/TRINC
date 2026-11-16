@@ -5,9 +5,12 @@
  *
  * One `runCitationGate` call per report section (= one `subtask_results[]` element), on a query
  * derived from THAT section's output text + the workflow's primary subject. A section "fails" only
- * when its search ran and returned zero distinct primary sources (even after the breadth retry); infra
- * failures (for `science`, both scholarly sources unreachable; for another topic, the SearXNG connector
- * missing or SearXNG unreachable; see searchfn.js) mark the section UNCHECKED and never fail it.
+ * when its search ran in full and returned zero distinct primary sources (even after the breadth
+ * retry); a search that could not run in full and found nothing (for `science`, an empty query, both
+ * scholarly sources unreachable, or one unreachable while the other found nothing; for another topic,
+ * the SearXNG connector missing or SearXNG unreachable; see searchfn.js) marks the section UNCHECKED
+ * and never fails it. A section searched on one source alone is recorded with `source_errors` and a
+ * warning, and the buyer's ledger marks it (integrity-rating.js).
  * The step fails closed (throws) only if at least one section genuinely returned zero coverage.
  *
  * Pure/injectable (searchFn, runGate, readFile, log are all passed in) so it is offline-testable, and
@@ -206,6 +209,8 @@ async function runSectionGate({ subtasks, primarySubject, searchFn, runGate, rea
     }
     seenQueries.add(qKey);
 
+    // Whether the search was anchored on the report's subject (the ledger names it when it was).
+    const subjectAnchored = String(primarySubject || "").trim().length > 0;
     try {
       // primary_subject lets the scholarly search (2026-11-15) anchor its Europe PMC query on the
       // report's subject; the SearXNG connector path drops it (searchfn.js).
@@ -213,7 +218,7 @@ async function runSectionGate({ subtasks, primarySubject, searchFn, runGate, rea
         { query, step_type: "breadth", section_id: sectionId, topic, max_results: maxResults, search_params: { primary_subject: String(primarySubject || "") } },
         gateDeps
       );
-      section_coverage.push({
+      const entry = {
         section_id: sectionId,
         query,
         checked: true,
@@ -221,13 +226,30 @@ async function runSectionGate({ subtasks, primarySubject, searchFn, runGate, rea
         gate_reason: out.gate_reason || null,
         coverage_tier: out.coverage_tier || null,
         distinct_source_count: out.distinct_source_count,
-      });
+      };
+      if (out.searched) {
+        entry.searched = out.searched;
+        entry.subject_anchored = subjectAnchored;
+      }
+      const sourceErrors = Array.isArray(out.source_errors) ? out.source_errors : [];
+      if (sourceErrors.length > 0) {
+        // A partial search (S1 review, 2026-11-15): recorded and logged. When a source answered on no
+        // pass, `unanswered_sources` names it and the ledger marks the section, so a count from one
+        // source never reads as a full search.
+        entry.source_errors = sourceErrors;
+        const unanswered = Array.isArray(out.unanswered_sources) ? out.unanswered_sources : [];
+        if (unanswered.length > 0) entry.unanswered_sources = unanswered;
+        if (log && typeof log.warn === "function") {
+          log.warn({ event: "section_gate_partial_search", section_id: sectionId, source_errors: sourceErrors, unanswered_sources: unanswered });
+        }
+      }
+      section_coverage.push(entry);
       if (out.gate_status === "fail") {
         failing.push({ section_id: sectionId, query, gate_reason: out.gate_reason || null });
       }
     } catch (err) {
-      // Infra (the search unreachable: both scholarly sources, or SearXNG for a non-science topic):
-      // UNCHECKED — do NOT fail on this basis.
+      // Infra (the search could not run in full and found nothing; see the header): UNCHECKED — do
+      // NOT fail on this basis.
       if (log && typeof log.warn === "function") {
         log.warn({
           event: "searxng_section_gate_infra_skip",
@@ -235,12 +257,17 @@ async function runSectionGate({ subtasks, primarySubject, searchFn, runGate, rea
           error: String((err && err.message) || err),
         });
       }
-      section_coverage.push({
+      const entry = {
         section_id: sectionId,
         query,
         checked: false,
         skip_reason: String((err && err.message) || err),
-      });
+      };
+      if (err && typeof err.searched === "string" && err.searched) {
+        entry.searched = err.searched;
+        entry.subject_anchored = subjectAnchored;
+      }
+      section_coverage.push(entry);
     }
   }
 

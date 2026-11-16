@@ -30,6 +30,32 @@ describe("integrity-rating — buildIntegrityReport", () => {
     // backward compatible: no arg (or empty) → no coverage section
     assert.doesNotMatch(buildIntegrityReport(cv).markdown, /Source coverage by section/);
     assert.doesNotMatch(buildIntegrityReport(cv, []).markdown, /Source coverage by section/);
+    // A record without `searched` (before 2026-11-15, or SearXNG) keeps the web-search wording.
+    assert.match(withCov, /a web search on the section's key terms returned/);
+    assert.doesNotMatch(withCov, /†/);
+  });
+
+  it("names the scholarly search the run used, and marks a section counted from one source (S1 review)", () => {
+    const cv = { cited: 20, grounded: 20, grounded_ratio: 1, retracted: [] };
+    const sc = [
+      { section_id: "m:subtask:1", checked: true, gate_status: "pass", coverage_tier: "Comprehensive", distinct_source_count: 8, searched: "Europe PMC and Crossref", subject_anchored: true },
+      { section_id: "m:subtask:2", checked: true, gate_status: "pass", coverage_tier: "Sparse", distinct_source_count: 1, searched: "Europe PMC and Crossref", subject_anchored: true,
+        source_errors: ["crossref: HTTP 503", "retry crossref: HTTP 503"], unanswered_sources: ["crossref"] },
+      { section_id: "m:subtask:3", checked: true, gate_status: "pass", coverage_tier: "Moderate", distinct_source_count: 2, searched: "Europe PMC and Crossref", subject_anchored: true,
+        source_errors: ["crossref: HTTP 429"] }, // answered on the retry: no mark
+      { section_id: "m:subtask:4", checked: false, skip_reason: "scholarly search unreachable: …", searched: "Europe PMC and Crossref", subject_anchored: true }
+    ];
+    const md = buildIntegrityReport(cv, sc).markdown;
+    assert.match(md, /reflects how many distinct primary sources a search of Europe PMC and Crossref on the report's subject and the section's key terms returned; this does not check that they support the section/);
+    assert.doesNotMatch(md, /web search/);
+    assert.match(md, /\| subtask 1 \| Comprehensive \| 8 \|/);
+    assert.match(md, /\| subtask 2 \| Sparse † \| 1 \|/);
+    assert.match(md, /\| subtask 3 \| Moderate \| 2 \|/);
+    assert.match(md, /\| subtask 4 \| not checked \| — \|/);
+    assert.match(md, /† Only one of the two sources \(Europe PMC, Crossref\) could be searched for this section, so its count comes from that source alone\./);
+    // No subject (a template with none in the subject chain): the sentence does not claim one.
+    const bare = sc.slice(0, 1).map((s) => ({ ...s, subject_anchored: false }));
+    assert.match(buildIntegrityReport(cv, bare).markdown, /a search of Europe PMC and Crossref on the section's key terms returned/);
   });
 
   it("grades B / C / D by grounded ratio", () => {

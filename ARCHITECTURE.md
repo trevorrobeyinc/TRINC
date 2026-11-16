@@ -160,9 +160,13 @@ Hard gates in `openclaw-bridge/core/workflow-engine.js`; logic in `citation-gate
 - **Section coverage (quality audit):** once the density check passes, one search per report section
   (`section-gate.js`). A source grades A (a record's own id, not a preprint), B (a preprint, or an id only
   mentioned in text), C (a host on the primary-domain allowlist) or D (dropped). The step fails closed
-  (`PHASE30_CITATION_COVERAGE_ZERO`) only when a section's search ran and found no A–C source; an
-  unreachable search marks the section UNCHECKED. The `science` topic queries Europe PMC + Crossref
-  directly (`openclaw-bridge/mcp/scholarly-search/`, since 2026-11-15), not SearXNG.
+  (`PHASE30_CITATION_COVERAGE_ZERO`) only when a section's search ran in full and found no A–C source; a
+  search that could not run in full and found nothing marks the section UNCHECKED. The `science` topic
+  queries Europe PMC + Crossref directly (`openclaw-bridge/mcp/scholarly-search/`, since 2026-11-15), not
+  SearXNG: a genuine zero is only both answering with no hits, one source down while the other found
+  nothing is UNCHECKED, and a section counted from one source is recorded (`source_errors`,
+  `unanswered_sources`) and marked † in `citation-integrity.md`. Crossref's public pool allows one request
+  per second, so that leg is paced and retries a 429 once.
 
 Blocking codes are all `PHASE30_*`. There are no `PHASE29_*` codes; Phase 29 is a label.
 

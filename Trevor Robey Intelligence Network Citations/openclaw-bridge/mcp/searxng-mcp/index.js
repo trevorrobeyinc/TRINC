@@ -67,6 +67,14 @@ const GateOutput = z.object({
   section_id: z.string(),
   results: z.array(GradedResult),
   dropped: z.array(GradedResult),
+  // S1 review (2026-11-15): a partial search is visible. Each entry is "<source>: <reason>" for a source
+  // the back end reported as not answering, "retry <source>: <reason>" for one on the breadth retry, and
+  // "retry: <reason>" when the retry itself threw (pass 1 is kept). Empty when every source answered.
+  source_errors: z.array(z.string()),
+  // The sources that answered on NO pass, so the count came without them (the ledger marks the section).
+  unanswered_sources: z.array(z.string()),
+  // What the back end says it searched (the scholarly search: "Europe PMC and Crossref"), or null.
+  searched: z.string().nullable(),
 });
 
 /* -------------------------------- helpers -------------------------------- */
@@ -102,15 +110,29 @@ function normalizeAndGrade(raw, config) {
   return row;
 }
 
-/** One connector call → { rawCount, graded[] }. */
-async function runSearch(searchFn, query, topic, input, config) {
+/**
+ * One connector call → { rawCount, graded[], sourceErrors[], failedSources[], answeredSources[], searched }.
+ * A back end MAY report per-source status as `sources: { <name>: "ok" | <reason> }` (the scholarly
+ * search does) and what it searched as `searched`; the SearXNG connector reports neither.
+ */
+async function runSearch(searchFn, query, topic, input, config, extraParams = {}) {
   const res = await searchFn(query, {
     topic,
     max_results: input.max_results,
     ...(input.search_params || {}),
+    ...extraParams,
   });
   const rows = Array.isArray(res && res.results) ? res.results : [];
-  return { rawCount: rows.length, graded: rows.map((r) => normalizeAndGrade(r, config)) };
+  const sources = Object.entries(res && res.sources && typeof res.sources === "object" ? res.sources : {});
+  const failed = sources.filter(([, status]) => status !== "ok");
+  return {
+    rawCount: rows.length,
+    graded: rows.map((r) => normalizeAndGrade(r, config)),
+    sourceErrors: failed.map(([name, status]) => `${name}: ${String(status)}`),
+    failedSources: failed.map(([name]) => name),
+    answeredSources: sources.filter(([, status]) => status === "ok").map(([name]) => name),
+    searched: res && typeof res.searched === "string" && res.searched ? res.searched : null,
+  };
 }
 
 /**
@@ -165,6 +187,8 @@ async function runCitationGate(rawInput, deps = {}) {
   let rawCount = pass1.rawCount;
   let graded = pass1.graded;
   let part = partitionAndCluster(graded);
+  const source_errors = [...pass1.sourceErrors];
+  let unanswered = [...pass1.failedSources];
 
   // Breadth reformulation retry — exactly one, only when THIN, and fail-soft.
   let retried = false;
@@ -175,12 +199,18 @@ async function runCitationGate(rawInput, deps = {}) {
     try {
       const newQuery = reformulateFn(input.query);
       reformulated_query = newQuery;
-      const pass2 = await runSearch(searchFn, newQuery, topic, input, config);
+      // `breadth_retry` tells a back end whose query cannot be broadened by dropping a word (the
+      // scholarly search ORs its key terms) to broaden its own way; searchfn.js strips it for SearXNG.
+      const pass2 = await runSearch(searchFn, newQuery, topic, input, config, { breadth_retry: true });
       rawCount += pass2.rawCount;
       graded = graded.concat(pass2.graded);
       part = partitionAndCluster(graded); // merge + re-cluster + re-count
-    } catch {
+      for (const e of pass2.sourceErrors) source_errors.push(`retry ${e}`);
+      // A source down on pass 1 that answered on the retry did contribute to the count.
+      unanswered = unanswered.filter((name) => !pass2.answeredSources.includes(name));
+    } catch (err) {
       /* fail-soft: keep pass-1 results; retried stays true */
+      source_errors.push(`retry: ${String((err && err.message) || err)}`);
     }
   }
 
@@ -196,6 +226,9 @@ async function runCitationGate(rawInput, deps = {}) {
     section_id: input.section_id,
     results: part.results,
     dropped: part.dropped,
+    source_errors,
+    unanswered_sources: unanswered,
+    searched: pass1.searched,
   };
   return GateOutput.parse(output);
 }

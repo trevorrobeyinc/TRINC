@@ -194,4 +194,48 @@ test("T9  reformulation is fail-soft (retry search throws) → keep pass-1, no t
   assert.equal(out.retried, true);
   assert.equal(reformulateFn.count, 1);
   assert.equal(out.gate_status, "pass");
+  assert.deepEqual(out.source_errors, ["retry: reformulated search failed"], "the failed retry is recorded");
+});
+
+/* -------- S1 review (2026-11-15): the retry flag and per-source status -------- */
+
+test("the retry pass carries breadth_retry; a source down on pass 1 that answers on the retry is not unanswered", async () => {
+  const seen = [];
+  const searchFn = async (q, params) => {
+    seen.push(params);
+    if (seen.length === 1) {
+      return { results: [A("https://pubmed.ncbi.nlm.nih.gov/1/", "1")], sources: { a: "ok", b: "HTTP 503" }, searched: "A and B" };
+    }
+    return { results: [], sources: { a: "ok", b: "ok" } };
+  };
+  const out = await runCitationGate(input({ step_type: "breadth", search_params: { primary_subject: "kras" } }), { searchFn, reformulateFn: makeReformulate() });
+  assert.equal(seen[0].breadth_retry, undefined);
+  assert.equal(seen[0].primary_subject, "kras");
+  assert.equal(seen[1].breadth_retry, true);
+  assert.equal(seen[1].primary_subject, "kras");
+  assert.deepEqual(out.source_errors, ["b: HTTP 503"]);
+  assert.deepEqual(out.unanswered_sources, []);
+  assert.equal(out.searched, "A and B");
+});
+
+test("a source down on both passes, or with the retry throwing, stays unanswered; a SearXNG-shaped answer reports none", async () => {
+  const both = makeSearch([
+    { results: [A("https://pubmed.ncbi.nlm.nih.gov/1/", "1")], sources: { a: "ok", b: "timed out after 15000 ms" } },
+    { results: [], sources: { a: "ok", b: "HTTP 429" } },
+  ]);
+  const out = await runCitationGate(input({ step_type: "breadth" }), { searchFn: both, reformulateFn: makeReformulate() });
+  assert.deepEqual(out.source_errors, ["b: timed out after 15000 ms", "retry b: HTTP 429"]);
+  assert.deepEqual(out.unanswered_sources, ["b"]);
+  const thrown = makeSearch([
+    { results: [A("https://pubmed.ncbi.nlm.nih.gov/1/", "1")], sources: { a: "ok", b: "HTTP 503" } },
+    new Error("boom"),
+  ]);
+  const out2 = await runCitationGate(input({ step_type: "breadth" }), { searchFn: thrown, reformulateFn: makeReformulate() });
+  assert.deepEqual(out2.source_errors, ["b: HTTP 503", "retry: boom"]);
+  assert.deepEqual(out2.unanswered_sources, ["b"]);
+  const plain = makeSearch([{ results: [A("https://pubmed.ncbi.nlm.nih.gov/1/", "1"), A("https://pubmed.ncbi.nlm.nih.gov/2/", "2")] }]);
+  const out3 = await runCitationGate(input({ step_type: "breadth" }), { searchFn: plain, reformulateFn: makeReformulate() });
+  assert.deepEqual(out3.source_errors, []);
+  assert.deepEqual(out3.unanswered_sources, []);
+  assert.equal(out3.searched, null);
 });

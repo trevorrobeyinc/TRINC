@@ -284,7 +284,10 @@ only** (metadata `authored_by: "evidence-desk"`); the business section gate sear
 until a general-web engine exists (Brave's Search API, P3, now needs a card: its free tier ended in
 2026). **Since 2026-11-15 the `science` topic of every section gate is Europe PMC + Crossref, queried
 directly** (`openclaw-bridge/mcp/scholarly-search/`, free and keyless), not SearXNG, whose science
-engines all stalled at once; SearXNG still serves the business lane's general-web evidence search.
+engines all stalled at once; SearXNG still serves the business lane's general-web evidence search. A
+genuine zero there is only both sources answering with no hits: one source down while the other found
+nothing marks the section UNCHECKED, and a section counted from one source is marked † in
+`citation-integrity.md` (S1 review, 2026-11-15).
 Tests: `tests/core/evidence-desk.test.js` and `tests/core/scholarly-search.test.js`. The live run
 still needs the operator's explicit go and a freshly armed `operator-approve` token; the recommended
 inputs are in the lane doc. What the pre-flight found and fixed:

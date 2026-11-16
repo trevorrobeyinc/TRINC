@@ -9,12 +9,19 @@
 // integrity claim is itself verifiable.
 
 const { MAX_SCREEN_IDS_PER_CLASS } = require("../core/citation-gate.js");
+// What a section searched since 2026-11-15, as the scholarly search names it ("Europe PMC and Crossref").
+const { SEARCHED: SCHOLARLY_SEARCH } = require("../mcp/scholarly-search/scholarly-search.js");
 
 /** "mission-abc:subtask:1" → "subtask 1"; plain ids pass through. */
 function shortSection(id) {
   const s = String(id || "section");
   const parts = s.split(":");
   return parts.length > 1 ? parts.slice(1).join(" ") : s;
+}
+
+/** True when a source of the section's search answered on no pass (section-gate.js unanswered_sources). */
+function searchedOnOneSource(s) {
+  return Array.isArray(s && s.unanswered_sources) && s.unanswered_sources.length > 0;
 }
 
 function buildIntegrityReport(citationVerification = {}, sectionCoverage = []) {
@@ -146,17 +153,27 @@ function buildIntegrityReport(citationVerification = {}, sectionCoverage = []) {
   // "how well-corroborated is each section" is a selling point, not just an internal artifact.
   const coverage = Array.isArray(sectionCoverage) ? sectionCoverage : [];
   if (coverage.length > 0) {
+    // T1-9 (2026-11-14): the section gate counts distinct primary-source hits for a search on the
+    // section's key terms (searxng-mcp/section-gate.js); it never checks that they support it.
+    // S1 review (2026-11-15): the sentence names the search the run actually used. Every section
+    // records it (`searched`, "Europe PMC and Crossref" since 2026-11-15); a run without that record
+    // (before that date, or a non-science topic on SearXNG) keeps the web-search wording.
+    const labels = new Set(coverage.map((s) => (s && typeof s.searched === "string" ? s.searched : "")));
+    const scholarly = labels.size === 1 && labels.has(SCHOLARLY_SEARCH);
+    const anchored = coverage.some((s) => s && s.subject_anchored === true);
+    const how = scholarly
+      ? `a search of Europe PMC and Crossref on ${anchored ? "the report's subject and " : ""}the section's key terms`
+      : "a web search on the section's key terms";
     lines.push(
       "",
       "## Source coverage by section",
       "",
-      // T1-9 (2026-11-14): the section gate counts distinct primary-source hits for a web search on
-      // the section's key terms (searxng-mcp/section-gate.js); it never checks that they support it.
-      "Independent primary-source coverage retrieved for each report section at generation time. **Sparse / Moderate / Comprehensive** reflects how many distinct primary sources a web search on the section's key terms returned; this does not check that they support the section. A section marked *not checked* could not be searched (e.g. the search backend was unreachable) and was not failed on that basis.",
+      `Independent primary-source coverage retrieved for each report section at generation time. **Sparse / Moderate / Comprehensive** reflects how many distinct primary sources ${how} returned; this does not check that they support the section. A section marked *not checked* could not be searched (e.g. the search backend was unreachable) and was not failed on that basis.`,
       "",
       "| Section | Coverage | Distinct primary sources |",
       "| --- | --- | --- |"
     );
+    let anyPartial = false;
     for (const s of coverage) {
       const label = shortSection(s && s.section_id);
       if (s && s.checked === false) {
@@ -164,8 +181,16 @@ function buildIntegrityReport(citationVerification = {}, sectionCoverage = []) {
       } else {
         const tier = (s && s.coverage_tier) || (s && s.gate_status === "fail" ? "None" : "—");
         const n = s && Number.isFinite(s.distinct_source_count) ? s.distinct_source_count : 0;
-        lines.push(`| ${label} | ${tier} | ${n} |`);
+        const mark = searchedOnOneSource(s) ? " †" : "";
+        if (mark) anyPartial = true;
+        lines.push(`| ${label} | ${tier}${mark} | ${n} |`);
       }
+    }
+    if (anyPartial) {
+      lines.push(
+        "",
+        "† Only one of the two sources (Europe PMC, Crossref) could be searched for this section, so its count comes from that source alone."
+      );
     }
   }
 

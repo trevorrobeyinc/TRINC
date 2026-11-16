@@ -457,12 +457,30 @@
         "extract",
         "map"
       ],
-      "purpose": "Free, local, no-key open-web + scholarly search/extraction \u2014 the key-free replacement for Tavily's no-hallucinations gate. Tuned to biomedical engines (PubMed/Semantic Scholar/Crossref/OpenAlex/OpenAIRE/arXiv via topic:'science') and returns an additive citations[] array (pmid/doi/nct/pmcid/chembl/drugbank/uniprot) on each result, so the gate can assert every external claim maps to >=1 grounded citation id using the same grammar as openclaw-bridge/core/citation-extractor.js. In-house connector at Claude/searxng-search-mcp.",
+      "purpose": "Free, local, no-key open-web + scholarly search/extraction \u2014 the key-free replacement for Tavily's no-hallucinations gate. Returns an additive citations[] array (pmid/doi/nct/pmcid/chembl/drugbank/uniprot) on each result, using the same grammar as openclaw-bridge/core/citation-extractor.js. Since 2026-11-15 it no longer serves the quality_check section gate's science search, which goes to scholarly-search (Europe PMC + Crossref, queried directly; commit c98c155) after every SearXNG science engine stalled at once; its quality_check bindings moved there. It still serves the business lane's general-web evidence search (business-sources/web-evidence.js), a section gate on any non-science topic (searchfn.js), and Claude-host search. In-house connector at Claude/searxng-search-mcp.",
       "bound_roles": [
         "scout",
         "quality_auditor",
         "report_generator"
       ],
+      "bound_workflow_steps": [],
+      "business_value": "load-bearing",
+      "adapter_status": "wired",
+      "adapter_priority": "n/a",
+      "suggested_adapter_path": "openclaw-bridge/mcp/searxng-mcp/",
+      "health_check": "search({query: 'FDA approval pembrolizumab 2024', topic: 'general', max_results: 1}) returns at least one result with URL (general web is Bing-only and poor since 2026-10-21; the science category stalled on 2026-11-15)",
+      "lane": "research"
+    },
+    "scholarly-search": {
+      "tool_prefix": "openclaw-bridge/mcp/scholarly-search/",
+      "execution_surface": "subprocess-mcp",
+      "lane": "research",
+      "auth": "none (free, keyless public REST APIs: Europe PMC and Crossref; a generic User-Agent with no contact address, so Crossref answers from its public pool, 1 request per second, which the module paces to and retries once on HTTP 429)",
+      "tools": [
+        "scholarly_search"
+      ],
+      "purpose": "The search behind the quality_check section citation-coverage gate for the science topic, which every template uses, since 2026-11-15 (operator decision; commit c98c155). Europe PMC REST (the report's subject in title/abstract AND any section key term, over PubMed records and preprints) plus a Crossref works search, merged and de-duplicated into record-identity rows the gate grades. A genuine zero is only both sources answering with no hits; anything less marks the section UNCHECKED, and a section counted from one source is recorded (source_errors, unanswered_sources) and marked in citation-integrity.md. Consumed in-process by openclaw-bridge/mcp/searxng-mcp/searchfn.js, not via role prefetch.",
+      "bound_roles": [],
       "bound_workflow_steps": [
         {
           "workflow_template_id": "drug-discovery-full",
@@ -487,14 +505,31 @@
         {
           "workflow_template_id": "general-research-pack",
           "step_id": "quality_check"
+        },
+        {
+          "workflow_template_id": "trial-design-benchmark",
+          "step_id": "quality_check"
+        },
+        {
+          "workflow_template_id": "business-research-pack",
+          "step_id": "quality_check"
+        },
+        {
+          "workflow_template_id": "cost-reduction-analysis",
+          "step_id": "quality_check"
+        },
+        {
+          "workflow_template_id": "market-landscape",
+          "step_id": "quality_check"
         }
       ],
       "business_value": "load-bearing",
       "adapter_status": "wired",
       "adapter_priority": "n/a",
-      "suggested_adapter_path": "openclaw-bridge/mcp/searxng-mcp/",
-      "health_check": "search({query: 'FDA approval pembrolizumab 2024', topic: 'science', max_results: 1}) returns at least one result with URL",
-      "lane": "research"
+      "suggested_adapter_path": "openclaw-bridge/mcp/scholarly-search/",
+      "health_check": "search({query: 'heart failure', primary_subject: 'heart failure', max_results: 1}) returns a row with sources {europepmc: 'ok', crossref: 'ok'}; live end to end: node scripts/diag/searxng-section-gate-e2e.mjs",
+      "binding_status": "gate-consumed-not-prefetched",
+      "binding_rationale": "Citation-gate infrastructure (the quality audit's section gate). Correctly absent from tool-prefetch-map.json; must not be flagged as unbound drift."
     },
     "open-targets-graphql": {
       "tool_prefix": "openclaw-bridge/mcp/open-targets-graphql/",
@@ -2301,5 +2336,5 @@
     "reconciled": "2026-10-21"
   },
   "last_reconciled": "2026-10-21",
-  "reconciliation_note": "2026-07-24 pass: added lane taxonomy to every entry; declared ctgov-supplemental (was used in prefetch, declared nowhere); registered scholar-sidekick (host-auth 2026-07-10, missed the 7-day rule) and consensus; registered the three citation-gate modules as gate-consumed-not-prefetched; tombstoned AdisInsight as declined-no-public-api; added operator_surfaces as the complete non-research ledger; declared report_generator/quality_auditor prefetch-exempt. 2026-07-24 second pass (plugin weave): added plugin_surfaces \u2014 the 13 operator-selected plugins bound to the business via config/plugin-bindings.json, 2 installed-not-bound recorded as decisions, and bio-research flagged as a Claude-host duplicate of six already-registered research connectors so it never double-registers or enters prefetch. 2026-08-27 targeted pass (not a full reconciliation): tombstoned scholar-sidekick as RETIRED EVERYWHERE per operator direction (leaked API key; rotation failed twice service-side) \u2014 business_value 'superseded', adapter_status 'retired-never-built', history kept in place per registry convention; citation-verification guidance in config/plugin-bindings.json + PLUGIN-BINDINGS.md repointed to the surviving lanes (PubMed metadata title-vs-record checks, searxng-search topic:'science' for Crossref/OpenAlex, in-engine crossref-retraction.js/pubmed-retraction.js); FEAT-20260724-001 annotated MOOT. Canonical record: ~/Security Everything/docs/scholar-sidekick-removal-2026-08-27.md. 2026-10-21 pass (connector registry + plugin bindings reconciliation): registered the business research profile's four local fetchers (web-evidence, sec-filings-citable, world-bank-indicators, openalex-works; lane research, research_profile business, prefetch_map tool-prefetch-map.business.json, commit 6ca9d78) and recorded their resolvers on citation-reresolver and sec-edgar; lanes text names the second prefetch map and the business-research-vs-business-lane naming trap; operator_surfaces made complete against all three host configs (added openclaw-obsidian, opencode, perseus-vault, perseus-business, miyo, FilesystemPlus, klsense-btt, phone-gate, the claude.ai documents/visualize connectors; trinc-content source + gate, gmail out of service since 09-05, falcon MCP retired 10-09, term-bridge retired 07-28, computer-use disabled 07-26, Zoho account closed + DNS clean); needs_host_auth replaced with the 2026-10-21 host list; plugin_surfaces: the seven plugins uninstalled 2026-08-12 moved to removed (tombstones, verified absent), math-olympiad and both output-style plugins recorded as installed-not-bound, needs-auth counts corrected for empty-url placeholders. 2026-11-04 targeted pass (not a full reconciliation): the seven project adapter folders chembl-mcp, clinicaltrials-mcp, pubmed-mcp, huggingface-mcp, npi-mcp, icd10-mcp and owkin-mcp under openclaw-bridge/mcp/ were removed (operator-approved cleanup; added 2026-04-27 in 7b1ca04 and never required by any code, prefetch entry or test). pubmed and clinicaltrials-gov were corrected to tooluniverse-tool, which is how their prefetch tools always ran; chembl, huggingface-metadata, npi-registry, icd10 and owkin were tombstoned in place (business_value 'superseded', adapter_status 'retired', unbound); pubmed-fulltext, clinicaltrials-enriched, icd10-host-enriched, npi-host-validate, huggingface-host-rich, synthesize-bio, needs_host_auth and the bio-research plugin_surfaces entry no longer describe the removed adapters as existing."
+  "reconciliation_note": "2026-07-24 pass: added lane taxonomy to every entry; declared ctgov-supplemental (was used in prefetch, declared nowhere); registered scholar-sidekick (host-auth 2026-07-10, missed the 7-day rule) and consensus; registered the three citation-gate modules as gate-consumed-not-prefetched; tombstoned AdisInsight as declined-no-public-api; added operator_surfaces as the complete non-research ledger; declared report_generator/quality_auditor prefetch-exempt. 2026-07-24 second pass (plugin weave): added plugin_surfaces \u2014 the 13 operator-selected plugins bound to the business via config/plugin-bindings.json, 2 installed-not-bound recorded as decisions, and bio-research flagged as a Claude-host duplicate of six already-registered research connectors so it never double-registers or enters prefetch. 2026-08-27 targeted pass (not a full reconciliation): tombstoned scholar-sidekick as RETIRED EVERYWHERE per operator direction (leaked API key; rotation failed twice service-side) \u2014 business_value 'superseded', adapter_status 'retired-never-built', history kept in place per registry convention; citation-verification guidance in config/plugin-bindings.json + PLUGIN-BINDINGS.md repointed to the surviving lanes (PubMed metadata title-vs-record checks, searxng-search topic:'science' for Crossref/OpenAlex, in-engine crossref-retraction.js/pubmed-retraction.js); FEAT-20260724-001 annotated MOOT. Canonical record: ~/Security Everything/docs/scholar-sidekick-removal-2026-08-27.md. 2026-10-21 pass (connector registry + plugin bindings reconciliation): registered the business research profile's four local fetchers (web-evidence, sec-filings-citable, world-bank-indicators, openalex-works; lane research, research_profile business, prefetch_map tool-prefetch-map.business.json, commit 6ca9d78) and recorded their resolvers on citation-reresolver and sec-edgar; lanes text names the second prefetch map and the business-research-vs-business-lane naming trap; operator_surfaces made complete against all three host configs (added openclaw-obsidian, opencode, perseus-vault, perseus-business, miyo, FilesystemPlus, klsense-btt, phone-gate, the claude.ai documents/visualize connectors; trinc-content source + gate, gmail out of service since 09-05, falcon MCP retired 10-09, term-bridge retired 07-28, computer-use disabled 07-26, Zoho account closed + DNS clean); needs_host_auth replaced with the 2026-10-21 host list; plugin_surfaces: the seven plugins uninstalled 2026-08-12 moved to removed (tombstones, verified absent), math-olympiad and both output-style plugins recorded as installed-not-bound, needs-auth counts corrected for empty-url placeholders. 2026-11-04 targeted pass (not a full reconciliation): the seven project adapter folders chembl-mcp, clinicaltrials-mcp, pubmed-mcp, huggingface-mcp, npi-mcp, icd10-mcp and owkin-mcp under openclaw-bridge/mcp/ were removed (operator-approved cleanup; added 2026-04-27 in 7b1ca04 and never required by any code, prefetch entry or test). pubmed and clinicaltrials-gov were corrected to tooluniverse-tool, which is how their prefetch tools always ran; chembl, huggingface-metadata, npi-registry, icd10 and owkin were tombstoned in place (business_value 'superseded', adapter_status 'retired', unbound); pubmed-fulltext, clinicaltrials-enriched, icd10-host-enriched, npi-host-validate, huggingface-host-rich, synthesize-bio, needs_host_auth and the bio-research plugin_surfaces entry no longer describe the removed adapters as existing. 2026-11-15 targeted pass (not a full reconciliation): registered scholarly-search (Europe PMC + Crossref, queried directly) as gate-consumed-not-prefetched, bound to the quality_check step of all ten templates, because since c98c155 it is the section gate's science search; searxng-search lost those quality_check bindings and now describes what it still serves (the business lane's general-web evidence search, a non-science section gate, Claude-host search). Found by the S1 review."
 }

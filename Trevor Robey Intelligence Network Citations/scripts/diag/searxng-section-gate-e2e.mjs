@@ -1,14 +1,18 @@
 /**
  * DIAGNOSTIC (read-only, NOT wired into any workflow) — live end-to-end sanity check of the
- * section-level citation-coverage gate against the REAL SearXNG at 127.0.0.1 (port 8890).
+ * section-level citation-coverage gate against its REAL search back end. Since 2026-11-15 the
+ * `science` topic the gate uses is Europe PMC + Crossref, queried directly
+ * (openclaw-bridge/mcp/scholarly-search/); SearXNG is not involved. The file name is historical.
  *
  * It runs the section gate exactly as the engine's executeQualityAuditStep does — same
- * `deriveSectionQuery` (from section-gate.js), same `runCitationGate` invocation, same
- * infra/zero-coverage classification — but NEVER calls assertCoverageOrThrow: a "fail" is DATA to
- * inspect, not a throw. The per-section runGate call is inlined (identical to runSectionGate's loop
- * body in section-gate.js) ONLY so we can also surface the graded results runSectionGate discards.
+ * `deriveSectionQuery` (from section-gate.js), same `runCitationGate` input (the report's subject
+ * as `search_params.primary_subject`), same infra/zero-coverage classification — but NEVER calls
+ * assertCoverageOrThrow: a "fail" is DATA to inspect, not a throw. The per-section runGate call is
+ * inlined (identical to runSectionGate's loop body in section-gate.js) ONLY so we can also surface
+ * the graded results runSectionGate discards.
  *
- * Mutates nothing. Sequential (one section at a time) to respect the connector's real throttling.
+ * Mutates nothing. Sequential (one section at a time), as the gate runs; the Crossref leg paces
+ * itself to Crossref's public pool (one request per second).
  * Run: node scripts/diag/searxng-section-gate-e2e.mjs
  */
 import { createRequire } from "node:module";
@@ -21,15 +25,8 @@ const ENGINE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", 
 const MCP = path.join(ENGINE, "openclaw-bridge", "mcp", "searxng-mcp");
 const { deriveSectionQuery } = require(path.join(MCP, "section-gate.js"));
 const { runCitationGate } = require(path.join(MCP, "index.js"));
-const { searchFn } = require(path.join(MCP, "searchfn.js"));
+const { searchFn, getScholarlySearch } = require(path.join(MCP, "searchfn.js"));
 
-// Liveness ping of the raw SearXNG process (plaintext upstream still listens on port 8890).
-// The section gate itself reaches SearXNG through the connector, which as of 2026-07-06 uses
-// the HTTPS TLS proxy at https://127.0.0.1:8891 (see Claude/searxng-search-mcp/src/config.js).
-// The raw-upstream probe below is PERMANENT by design (not migration debt, no deadline): it
-// deliberately isolates upstream-process liveness from the proxy/connector layer; routing it
-// via :8891 would test a different thing and require mkcert CA trust in this diagnostic.
-const SEARXNG = "http://127.0.0.1:8890"; // lint-transport: outbound-carve-out
 const PRIMARY_SUBJECT = "heart failure"; // therapeutic_area from the real run (clinical-trial-landscape)
 const MAX_RESULTS = 8; // engine default (step.max_results || 8)
 
@@ -43,19 +40,12 @@ const SUBTASKS = [
 
 const line = (n = 78) => console.log("─".repeat(n));
 
-async function confirmSearxngUp() {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 15000);
-  try {
-    const res = await fetch(`${SEARXNG}/search?q=heart+failure&format=json&categories=science`, { signal: ctrl.signal });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    const n = Array.isArray(data.results) ? data.results.length : 0;
-    console.log(`SearXNG UP @ ${SEARXNG} — probe returned ${n} results (e.g. ${(data.results?.[0]?.url || "").slice(0, 60)})`);
-    if (n === 0) throw new Error("probe returned 0 results");
-  } finally {
-    clearTimeout(t);
-  }
+// One scholarly search on the subject alone, through the same module the gate uses: shows whether
+// each source answers before the sections run. It throws (and the diagnostic aborts) only when the
+// search cannot run in full and finds nothing, which is when the gate would mark sections UNCHECKED.
+async function confirmSearchUp() {
+  const out = await getScholarlySearch().search({ query: PRIMARY_SUBJECT, primary_subject: PRIMARY_SUBJECT, max_results: 1 });
+  console.log(`Scholarly search (${out.searched}) — Europe PMC: ${out.sources.europepmc}; Crossref: ${out.sources.crossref}; e.g. ${(out.results[0]?.url || "").slice(0, 60)}`);
 }
 
 function topResults(out, k = 3) {
@@ -65,8 +55,8 @@ function topResults(out, k = 3) {
 }
 
 async function main() {
-  console.log("\n=== SearXNG section-gate LIVE e2e diagnostic (read-only) ===\n");
-  await confirmSearxngUp();
+  console.log("\n=== Section-gate LIVE e2e diagnostic, Europe PMC + Crossref (read-only) ===\n");
+  await confirmSearchUp();
   console.log(`Primary subject: "${PRIMARY_SUBJECT}"  |  sections: ${SUBTASKS.length}  |  max_results: ${MAX_RESULTS}\n`);
 
   const report = [];
@@ -80,7 +70,7 @@ async function main() {
     let rec;
     try {
       const out = await runCitationGate(
-        { query, step_type: "breadth", section_id: st.subtask_id, topic: "science", max_results: MAX_RESULTS },
+        { query, step_type: "breadth", section_id: st.subtask_id, topic: "science", max_results: MAX_RESULTS, search_params: { primary_subject: PRIMARY_SUBJECT } },
         { searchFn }
       );
       const ms = Date.now() - t0;
@@ -90,6 +80,7 @@ async function main() {
         gate_status: out.gate_status, gate_reason: out.gate_reason || null,
         coverage_tier: out.coverage_tier || null, distinct_source_count: out.distinct_source_count,
         retried: out.retried, reformulated_query: out.reformulated_query || null,
+        source_errors: out.source_errors || [], unanswered_sources: out.unanswered_sources || [],
         ms, topLabel: label, top: rows, resultCount: (out.results || []).length, droppedCount: (out.dropped || []).length,
       };
     } catch (err) {
@@ -111,6 +102,9 @@ async function main() {
     console.log(`  coverage_tier: ${rec.coverage_tier}`);
     console.log(`  distinct_src : ${rec.distinct_source_count}   (results A/B/C=${rec.resultCount}, dropped D=${rec.droppedCount})`);
     console.log(`  retried      : ${rec.retried}${rec.reformulated_query ? `  → "${rec.reformulated_query}"` : ""}`);
+    if (rec.source_errors.length) {
+      console.log(`  source errors: ${rec.source_errors.join(" | ")}${rec.unanswered_sources.length ? `  (count without: ${rec.unanswered_sources.join(", ")})` : ""}`);
+    }
     console.log(`  top 3 (${rec.topLabel}):`);
     if (!rec.top.length) console.log("     (none)");
     for (const r of rec.top) {
@@ -159,6 +153,6 @@ async function main() {
 
 main().catch((e) => {
   console.error("\nDIAGNOSTIC ABORTED:", e && e.message || e);
-  console.error("If SearXNG is down, start it: launchctl kickstart -k gui/$(id -u)/com.trevorrobey.searxng");
+  console.error("The scholarly search could not run in full and found nothing: check this Mac's network to www.ebi.ac.uk and api.crossref.org. The gate marks sections UNCHECKED in that state; it does not fail them.");
   process.exit(1);
 });

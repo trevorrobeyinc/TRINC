@@ -45,7 +45,8 @@ function getConnectorSearch() {
 // (mcp/scholarly-search, operator decision 2026-11-15) instead of SearXNG's science category, which
 // only relayed to those sources and stalled. Any other topic (the general web) still uses the
 // SearXNG connector. Both sides keep the contract: rows in the connector's shape, and a throw on an
-// infra failure so the section is UNCHECKED rather than zero-coverage.
+// infra failure so the section is UNCHECKED rather than zero-coverage (for the scholarly search, also
+// one source down while the other found nothing; scholarly-search.js has the whole contract).
 let _scholarly = null;
 function getScholarlySearch() {
   if (!_scholarly) {
@@ -67,9 +68,9 @@ function createSearchFn(deps = {}) {
   return async function routedSearchFn(query, params = {}) {
     const topic = String(params.topic || "science");
     if (topic === "science") return scholarly().search({ query, ...params });
-    // The connector's search() takes the parameters it always had: primary_subject is for the
-    // scholarly search only.
-    const { primary_subject: _subject, ...connectorParams } = params;
+    // The connector's search() takes the parameters it always had: primary_subject and the gate's
+    // breadth_retry flag are for the scholarly search only.
+    const { primary_subject: _subject, breadth_retry: _retry, ...connectorParams } = params;
     const search = connector();
     return search({ query, ...connectorParams });
   };
@@ -77,8 +78,9 @@ function createSearchFn(deps = {}) {
 
 /**
  * Adapter-shaped searchFn: `(query, params) => Promise<{results:[...]}>`.
- * Throws on infra failure (both scholarly sources unreachable, or the connector missing / SearXNG
- * unreachable) so the section gate can classify the section as UNCHECKED rather than as zero-coverage.
+ * Throws on infra failure (the scholarly search unable to search in full and finding nothing, or the
+ * connector missing / SearXNG unreachable) so the section gate can classify the section as UNCHECKED
+ * rather than as zero-coverage.
  *
  * @param {string} query
  * @param {object} [params] topic / max_results / … ("science" when absent, the gate's default)

@@ -132,11 +132,19 @@ The quality-audit section gate searched SearXNG `general` for business sections,
 junk; junk grades D, and a section with zero A/B/C sources throws `PHASE30_CITATION_COVERAGE_ZERO`
 **after** every role call has been paid for. The business profile now uses `science`, with the question
 reduced to its content words (`toSearchQuery`), the same grading and the same thresholds. `science` was
-SearXNG's science category (Crossref, OpenAlex, Semantic Scholar, arXiv) until 2026-11-15, when every one
-of those engines stalled at once; it is now Europe PMC + Crossref queried directly
+SearXNG's science category until 2026-11-15 (its engines: PubMed, Europe PMC, Semantic Scholar, Crossref,
+OpenAlex, eLife and OpenAIRE among them; arXiv had been disabled since 2026-09-19), when every one of its
+engines timed out at once; it is now Europe PMC + Crossref queried directly
 (`openclaw-bridge/mcp/scholarly-search/`, free and keyless). For a business section Crossref carries the
-load, since Europe PMC indexes the life sciences only. Revert to `general` once a general-web engine is
-live (Brave's Search API, P3, now needs a card: its free tier ended in 2026).
+load, since Europe PMC indexes the life sciences only. Two consequences (S1 review, 2026-11-15):
+- a Crossref outage cannot fail a business section: one source down while the other found nothing marks
+  the section UNCHECKED, never zero coverage;
+- Crossref's kept work types are journal articles, preprints, proceedings articles and book chapters, so
+  agency technical reports (OSTI, NBER and the like), dissertations and books do not count toward a
+  business section's coverage. Whether they should is an open operator decision.
+
+Revert to `general` once a general-web engine is live (Brave's Search API, P3, now needs a card: its free
+tier ended in 2026).
 
 ## P2 activation (when the operator registers the keys)
 1. Register the free keys: Census (api.census.gov/data/key_signup.html), EIA (eia.gov/opendata), and
