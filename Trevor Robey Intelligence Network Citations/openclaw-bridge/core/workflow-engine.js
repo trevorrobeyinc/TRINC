@@ -57,6 +57,48 @@ function generateWorkflowId(templateId, timeProvider) {
   return `workflow-${sha256(`workflow-${templateId}-${timestamp}-${random}`).slice(0, 24)}`;
 }
 
+// T2-6 (2026-11-16): every identifier a mission bundle ships, for ONE re-resolution pass: the report's own,
+// then the NCT numbers of the graveyard memo and the design benchmark (deterministic files rendered from
+// registry records this run retrieved). Each is tagged with the sections it appears in, so the manifest
+// keeps per-section counts. An NCT only the memo or the benchmark carries counts as retrieved in this run
+// (those fetchers retrieved it); an NCT the report cites keeps the gate's verdict. With no memo and no
+// benchmark nothing is tagged, so the manifest is exactly what it was before.
+const SECTION_REPORT = "report";
+const SECTION_MEMO = "graveyard-memo";
+const SECTION_BENCHMARK = "design-benchmark";
+
+function collectSectionCitations(reportText, graveyardMemo, amendmentRisk, designBenchmark) {
+  const sections = new Map(); // TYPE:ID -> Set of sections
+  const cites = [];
+  const key = (c) => `${c.type}:${c.id}`.toUpperCase();
+  const add = (list, section) => {
+    for (const c of list) {
+      const k = key(c);
+      if (!sections.has(k)) {
+        sections.set(k, new Set());
+        cites.push({ type: c.type, id: c.id });
+      }
+      sections.get(k).add(section);
+    }
+  };
+  const read = (text) => deduplicateCitations(extractCitations(String(text || "")));
+  add(read(reportText), SECTION_REPORT);
+  if (graveyardMemo && graveyardMemo.markdown) {
+    add(read(`${graveyardMemo.markdown}\n${(amendmentRisk && amendmentRisk.markdown) || ""}`).filter((c) => c.type === "NCT"), SECTION_MEMO);
+  }
+  if (designBenchmark && designBenchmark.markdown) {
+    add(read(designBenchmark.markdown).filter((c) => c.type === "NCT"), SECTION_BENCHMARK);
+  }
+  const tagged = cites.some((c) => sections.get(key(c)).size > 1 || !sections.get(key(c)).has(SECTION_REPORT));
+  const outsideReport = cites.filter((c) => !sections.get(key(c)).has(SECTION_REPORT));
+  return {
+    cites,
+    tag: (rows) => (tagged ? rows.map((r) => ({ ...r, sections: [...(sections.get(key(r)) || [SECTION_REPORT])] })) : rows),
+    groundedIds: (ids) => (Array.isArray(ids) ? [...ids, ...outsideReport.map((c) => c.id)] : ids),
+    groundedKeys: (keys) => (Array.isArray(keys) ? [...keys, ...outsideReport.map(key)] : keys)
+  };
+}
+
 function createWorkflowEngine(options = {}) {
   const researchRuntime = options.researchRuntime;
   const monetizationRuntime = options.monetizationRuntime;
@@ -300,6 +342,11 @@ function createWorkflowEngine(options = {}) {
         logger.error({ event: "mission_citation_record_write_failed", mission_id: missionEnvelope.mission_id, error: safeString(recordErr && recordErr.message) });
       }
     };
+    // The deterministic deliverables buildPostGateArtifacts (end of this function) fills in (T2-6).
+    let graveyardMemo = null;
+    let amendmentRisk = null;
+    let designBenchmark = null;
+    let postGateArtifactsBuilt = false;
     if (missionResult && missionResult.ok && Array.isArray(missionResult.subtask_results)) {
       // Q7: the grounded floor is a required, config-owned value (config/agent-config.json). Fail
       // CLOSED — if it is missing or malformed, use the strict shared default and WARN loudly; never
@@ -492,6 +539,10 @@ function createWorkflowEngine(options = {}) {
       // hardcoding `true` made the manifest claim a retraction screen that a rate-limited or
       // unreachable source may have skipped entirely. DOI and PMID retractions stay in their own
       // fields so a retracted PMID is never mislabeled as a DOI in the sealed manifest.
+      // T2-6: the memo and the benchmark are built now, so the NCT numbers they ship are re-resolved and
+      // recorded with the report's identifiers (an UNRESOLVED one blocks like any other).
+      await buildPostGateArtifacts();
+      const sectionCitations = collectSectionCitations(gate.reportText || "", graveyardMemo, amendmentRisk, designBenchmark);
       const manifestRetraction = {
         checked: Boolean(retraction.checked),
         retracted_dois: retraction.retracted_dois || [],
@@ -506,10 +557,11 @@ function createWorkflowEngine(options = {}) {
         grounded_ratio: gate.grounded_ratio, min_grounded_ratio: gate.min_grounded_ratio, hardFail: false
       };
       // T1-5: grounded_in_run by TYPE:ID when every evidence record carried keys.
-      const manifestGroundedKeys = Array.isArray(gate.fetchedKeys) ? gate.fetchedKeys : null;
+      const manifestGroundedKeys = sectionCitations.groundedKeys(Array.isArray(gate.fetchedKeys) ? gate.fetchedKeys : null);
+      const manifestGroundedIds = sectionCitations.groundedIds(gate.fetchedIds);
       let reresolutionStartedAt = null;
       try {
-        const cites = deduplicateCitations(extractCitations(gate.reportText || ""));
+        const cites = sectionCitations.cites;
         if (cites.length > 0) {
           const startedAt = timeProviderModule.nowIso();
           reresolutionStartedAt = startedAt;
@@ -548,11 +600,11 @@ function createWorkflowEngine(options = {}) {
             }
           }
           const manifest = buildReproducibilityManifest({
-            reresolved,
+            reresolved: sectionCitations.tag(reresolved),
             attribution,
             retraction: manifestRetraction,
             gate: manifestGate,
-            groundedIds: gate.fetchedIds,
+            groundedIds: manifestGroundedIds,
             groundedKeys: manifestGroundedKeys,
             reresolutionCompleted: true,
             meta: {
@@ -632,13 +684,13 @@ function createWorkflowEngine(options = {}) {
           try {
             const checkedAt = timeProviderModule.nowIso();
             fallback = buildReproducibilityManifest({
-              reresolved: deduplicateCitations(extractCitations(gate.reportText || "")).map((c) => ({
+              reresolved: sectionCitations.tag(sectionCitations.cites.map((c) => ({
                 type: c.type, id: c.id, status: "UNCHECKED", resolver_type: "primary",
                 evidence: { reason: "reresolution_error" }, checked_at: checkedAt
-              })),
+              }))),
               retraction: manifestRetraction,
               gate: manifestGate,
-              groundedIds: gate.fetchedIds,
+              groundedIds: manifestGroundedIds,
               groundedKeys: manifestGroundedKeys,
               reresolutionCompleted: false,
               meta: {
@@ -704,15 +756,38 @@ function createWorkflowEngine(options = {}) {
       }
     }
 
+    // The memo and the benchmark: built by buildPostGateArtifacts (below), before re-resolution when the
+    // citation gate ran (T2-6), else here for an ungated run. Either way at most once per mission.
+    if (missionResult && missionResult.ok) await buildPostGateArtifacts();
+
+    return {
+      ok: Boolean(missionResult && missionResult.ok),
+      mission_id: missionEnvelope.mission_id,
+      mission_result: missionResult,
+      citation_verification: citationVerification,
+      graveyard_memo: graveyardMemo,
+      amendment_risk: amendmentRisk,
+      design_benchmark: designBenchmark,
+      search_coverage_ledger: searchCoverageLedger
+    };
+
+    // T2-6 (2026-11-16): the graveyard memo and the design benchmark, built BEFORE re-resolution so the NCT
+    // numbers they ship are re-resolved with the report's identifiers and recorded in the manifest, each
+    // tagged with the sections it appears in. Until this date re-resolution read the report's text alone and
+    // these files were built afterwards (the order form says they "are not separately re-resolved at
+    // delivery"). Still fully fail-soft and bounded: an absent fetcher, an empty indication or a fetch error
+    // omits them and can never block a report that cleared the citation gate. (A function declaration, so
+    // it is in scope above; it closes over this mission's inputs.)
+    async function buildPostGateArtifacts() {
+      if (postGateArtifactsBuilt) return;
+      postGateArtifactsBuilt = true;
     // Slice 3 v2 — structured kill-memo deliverables. For a passing mission, re-fetch the
     // indication's stopped trials (a session-cache hit from the scout prefetch's call, so no extra
     // CT.gov round-trip) and render the graveyard memo + protocol amendment-risk signal
     // DETERMINISTICALLY from the records (NCT-traced, no LLM — the data IS the artifact). Fully
     // fail-soft + bounded: an absent fetcher, an empty indication, or a fetch error simply omits
     // the memos; it can never block a report that already cleared the citation gate.
-    let graveyardMemo = null;
-    let amendmentRisk = null;
-    if (missionResult && missionResult.ok) {
+    {
       try {
         const ctgov = researchRuntime.ctgovSupplemental;
         const condition = safeString(
@@ -761,12 +836,11 @@ function createWorkflowEngine(options = {}) {
 
     // Trial Design Benchmark Pack — the comparative Phase 3 structure matrix. Same discipline as
     // the graveyard memo above and deliberately placed after it, i.e. AFTER verifyReportCitations
-    // and the re-resolution gate: a thin cohort or a fetch error must never block a report that
-    // already cleared the citation gate. The cohort re-fetch is a session-cache hit from the
-    // competitive_intel_analyst prefetch, so it costs no extra CT.gov round-trip, and the memo
-    // renders from exactly the records the analyst was grounded on.
-    let designBenchmark = null;
-    if (missionResult && missionResult.ok) {
+    // (and, since T2-6, before re-resolution, which now checks its NCTs too): a thin cohort or a fetch
+    // error must never block a report that already cleared the citation gate. The cohort re-fetch is a
+    // session-cache hit from the competitive_intel_analyst prefetch, so it costs no extra CT.gov
+    // round-trip, and the memo renders from exactly the records the analyst was grounded on.
+    {
       try {
         const bench = researchRuntime.ctgovDesignBenchmark;
         const condition = safeString(
@@ -812,17 +886,7 @@ function createWorkflowEngine(options = {}) {
         logger.warn({ event: "design_benchmark_failed", error: safeString(benchErr && benchErr.message) });
       }
     }
-
-    return {
-      ok: Boolean(missionResult && missionResult.ok),
-      mission_id: missionEnvelope.mission_id,
-      mission_result: missionResult,
-      citation_verification: citationVerification,
-      graveyard_memo: graveyardMemo,
-      amendment_risk: amendmentRisk,
-      design_benchmark: designBenchmark,
-      search_coverage_ledger: searchCoverageLedger
-    };
+    }
   }
 
   async function executeDatasetStep(step, workflowDef, inputs, stepResults) {

@@ -629,6 +629,54 @@ function createCitationReresolver(options = {}) {
     return Boolean(r && r.status === STATUS.UNCHECKED && RETRYABLE_REASONS.has((r.evidence && r.evidence.reason) || ""));
   }
 
+  // T2-6 (2026-11-16): NCT numbers are asked in batches. The graveyard memo lists every stopped trial the
+  // census walk found: 1,420 NCT numbers in the NSCLC releases, which one request each would take many
+  // minutes and would invite throttling. ClinicalTrials.gov answers many numbers in one request
+  // (`filter.ids`; read live 2026-11-16: 300 numbers in a 4,288-character URL answered 200 in 0.41 s,
+  // each echoed back; tests/fixtures/registry-probe-2026-11-15/). A number the batch echoes back EXACTLY
+  // is VERIFIED. One it does not echo goes to the one-study request (resolveNCT), whose 404 stays the only
+  // UNRESOLVED, so a batch's silence never blocks a run (the API pads a short number: NCT1234 came back as
+  // NCT00001234). A batch the registry did not answer leaves its numbers UNCHECKED with the transport
+  // reason, and the deferred retry asks them again, in batches. Any other answer (an unexpected status,
+  // an unparseable body) sends the batch's numbers to the one-study path. resolveOne() alone never batches.
+  const NCT_BATCH_SIZE = 200;
+  const cacheKey = (c) => `${c.type}:${String(c.id).toUpperCase()}`;
+  // The one-number form of the batch request: the address that re-checks this number the same way.
+  const nctFilterUrl = (id) => `https://clinicaltrials.gov/api/v2/studies?filter.ids=${encodeURIComponent(id)}&fields=NCTId&format=json`;
+
+  async function prefetchNctBatches(list) {
+    const pending = list.filter((c) => c && String(c.id || "").trim() && !cache.has(cacheKey(c)));
+    for (let i = 0; i < pending.length; i += NCT_BATCH_SIZE) {
+      const chunk = pending.slice(i, i + NCT_BATCH_SIZE);
+      const ids = chunk.map((c) => String(c.id).trim().toUpperCase());
+      const url = `https://clinicaltrials.gov/api/v2/studies?filter.ids=${encodeURIComponent(ids.join(","))}&fields=NCTId&pageSize=${ids.length}&format=json`;
+      const res = await doFetch(url);
+      const checkedAt = nowIso();
+      const row = (c, fields) => ({ id: c.id, type: c.type, resolver_type: "primary", attempts: 1, checked_at: checkedAt, ...fields });
+      const t = classifyTransport(res);
+      if (t) {
+        for (const c of chunk) {
+          cache.set(cacheKey(c), row(c, { status: STATUS.UNCHECKED, http_status: res.status || null, resolved_url: nctFilterUrl(c.id), evidence: { ...t, batch_size: chunk.length } }));
+        }
+        continue;
+      }
+      if (Number(res.status) !== 200) continue;
+      const body = await safeJson(res);
+      if (!body || !Array.isArray(body.studies)) continue;
+      const echoed = new Set();
+      for (const s of body.studies) {
+        const n = s && s.protocolSection && s.protocolSection.identificationModule && s.protocolSection.identificationModule.nctId;
+        if (n) echoed.add(String(n).toUpperCase());
+      }
+      for (const c of chunk) {
+        const id = String(c.id).trim().toUpperCase();
+        if (echoed.has(id)) {
+          cache.set(cacheKey(c), row(c, { status: STATUS.VERIFIED, http_status: 200, resolved_url: nctFilterUrl(c.id), evidence: { nctId_echo: id, batch_size: chunk.length } }));
+        }
+      }
+    }
+  }
+
   // Dedup by type+ID; one in-flight request PER HOST (polite, never trips a registry limit),
   // hosts processed concurrently. Cache makes duplicate citations resolve once per run.
   async function resolveAll(citations) {
@@ -647,7 +695,8 @@ function createCitationReresolver(options = {}) {
       byHost.get(h).push(c);
     }
     const results = [];
-    await Promise.all([...byHost.values()].map(async (list) => {
+    await Promise.all([...byHost.entries()].map(async ([host, list]) => {
+      if (host === "ctgov") await prefetchNctBatches(list); // T2-6
       for (const c of list) results.push(await resolveOne(c));
     }));
     // T2-1: the deferred retry (see RETRYABLE_REASONS above).
@@ -660,9 +709,10 @@ function createCitationReresolver(options = {}) {
         if (!retryByHost.has(h)) retryByHost.set(h, []);
         retryByHost.get(h).push(prev);
       }
-      await Promise.all([...retryByHost.values()].map(async (list) => {
+      await Promise.all([...retryByHost.entries()].map(async ([host, list]) => {
+        for (const prev of list) cache.delete(`${prev.type}:${String(prev.id).toUpperCase()}`);
+        if (host === "ctgov") await prefetchNctBatches(list); // T2-6: the retry asks in batches too
         for (const prev of list) {
-          cache.delete(`${prev.type}:${String(prev.id).toUpperCase()}`);
           const next = await resolveOne({ type: prev.type, id: prev.id });
           const merged = { ...next, attempts: (prev.attempts || 1) + (next.attempts || 1) };
           cache.set(`${prev.type}:${String(prev.id).toUpperCase()}`, merged);

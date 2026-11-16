@@ -179,24 +179,57 @@ function createDeliverablePackager(options = {}) {
     // asserting the gates' guarantees for an ungated one would be a fresh overclaim of exactly the
     // class this module exists to prevent.
     const gated = Object.keys(cv).length > 0;
-    const s = asPlainObject(asPlainObject(cv.reproducibility_manifest).summary);
-    const counts = asPlainObject(s.counts);
-    if (!Number.isFinite(counts.total) || counts.total < 1) return { present: false, gated, byType: {} };
+    const manifest = asPlainObject(cv.reproducibility_manifest);
+    const s = asPlainObject(manifest.summary);
+    const allCounts = asPlainObject(s.counts);
+    if (!Number.isFinite(allCounts.total) || allCounts.total < 1) return { present: false, gated, byType: {} };
     const num = (v) => (Number.isFinite(v) ? v : 0);
+    // T2-6 (2026-11-16): since the memo's and the benchmark's NCT numbers are re-resolved with the
+    // report's identifiers, the manifest counts every row and records per-deliverable counts. Every
+    // sentence below speaks of the report, so it reads the report's own figures (and its own per-type
+    // breakdown, from the rows tagged "report"); the other deliverables get a sentence of their own. A
+    // manifest without per-deliverable counts is read exactly as before.
+    const bySection = asPlainObject(s.by_section);
+    const sectioned = Object.keys(bySection).length > 0;
+    const reportCounts = sectioned ? asPlainObject(bySection.report) : allCounts;
+    let byType = asPlainObject(s.by_type);
+    if (sectioned) {
+      byType = {};
+      for (const row of Array.isArray(manifest.citations) ? manifest.citations : []) {
+        const secs = Array.isArray(row && row.sections) ? row.sections : ["report"];
+        if (!secs.includes("report")) continue;
+        const bucket = row.status === "VERIFIED" ? "verified" : row.status === "UNRESOLVED" ? "unresolved" : "unchecked";
+        if (!byType[row.type]) byType[row.type] = { total: 0, verified: 0, unresolved: 0, unchecked: 0 };
+        byType[row.type].total += 1;
+        byType[row.type][bucket] += 1;
+      }
+    }
+    const deliverables = sectioned
+      ? Object.keys(bySection).filter((k) => k !== "report").sort().map((k) => ({
+        section: k,
+        total: num(asPlainObject(bySection[k]).total),
+        verified: num(asPlainObject(bySection[k]).verified),
+        unresolved: num(asPlainObject(bySection[k]).unresolved),
+        unchecked: num(asPlainObject(bySection[k]).unchecked)
+      })).filter((d) => d.total > 0)
+      : [];
     return {
       present: true,
       gated: true,
       // Tier 1 review (2026-11-14): false for the T1-8 fallback manifest — the pass crashed and no
       // identifier was looked up, so no sentence may say the identifiers were submitted or resolved.
       completed: s.reresolution_completed !== false,
-      total: counts.total,
-      verified: num(counts.verified),
-      unresolved: num(counts.unresolved),
-      unchecked: num(counts.unchecked),
+      total: num(reportCounts.total),
+      verified: num(reportCounts.verified),
+      unresolved: num(reportCounts.unresolved),
+      unchecked: num(reportCounts.unchecked),
+      // Every row (the report's and the other deliverables'); the decision is made over these.
+      all: { total: allCounts.total, verified: num(allCounts.verified), unresolved: num(allCounts.unresolved), unchecked: num(allCounts.unchecked) },
+      deliverables,
       decision: safeString(s.delivery_decision),
       // T1-9: re-resolution runs when the report is assembled, not at delivery; its date is stated.
       asOf: safeString(s.as_of) || "",
-      byType: asPlainObject(s.by_type),
+      byType,
       // Attribution check (2026-11-04): cited WORKS (a "PMID: …; doi: …" pair is one) that resolve but
       // carry the wrong author/year in the report, and whether marks actually reached the sections.
       attributionMismatches: (() => {
@@ -291,8 +324,12 @@ function createDeliverablePackager(options = {}) {
     const registries = copy.registries;
     const when = `when the report is assembled${res.asOf ? ` (as of ${res.asOf})` : ""}`;
     if (res.decision === "BLOCK") {
+      // T2-6: the decision judges every row, so the count it names does too.
+      const counted = res.deliverables && res.deliverables.length > 0 && res.all
+        ? `${res.all.unresolved} of ${res.all.total} UNRESOLVED, counting the NCT numbers the other deliverables list`
+        : `${res.unresolved} of ${res.total} UNRESOLVED`;
       return `Every cited identifier is submitted for independent re-resolution against its issuing public registry (${registries}) ${when}. `
-        + `For this report the pass returned a BLOCKING result (${res.unresolved} of ${res.total} UNRESOLVED): this bundle is NOT cleared for delivery. `
+        + `For this report the pass returned a BLOCKING result (${counted}): this bundle is NOT cleared for delivery. `
         + `See ${manifestRef}.`;
     }
     const residue = [];
@@ -314,8 +351,27 @@ function createDeliverablePackager(options = {}) {
       attribution = ` Of the VERIFIED, ${n} cited work${n === 1 ? "" : "s"} ${n === 1 ? "carries" : "carry"} an author or year in the report that does not match the registry record`
         + `${res.attributionMarked ? ` and ${n === 1 ? "is" : "are"} marked [ATTRIBUTION MISMATCH] in the report` : ""}.`;
     }
-    return `Every cited identifier is submitted for independent re-resolution against its issuing public registry (${registries}) ${when}. ${outcome}${attribution} `
+    return `Every cited identifier is submitted for independent re-resolution against its issuing public registry (${registries}) ${when}. ${outcome}${attribution}${renderDeliverablesResolution(res)} `
       + `Per-identifier results are recorded in ${manifestRef}. ` + copy.correctnessNote;
+  }
+
+  // T2-6 (2026-11-16): the NCT numbers the graveyard memo and the design benchmark list, re-resolved in
+  // the same pass as the report's identifiers (an UNRESOLVED one blocks the bundle like any other id).
+  // Empty for a manifest that records no per-deliverable counts.
+  const DELIVERABLE_LABELS = { "graveyard-memo": "the graveyard memo", "design-benchmark": "the design benchmark" };
+  function renderDeliverablesResolution(res) {
+    const list = Array.isArray(res.deliverables) ? res.deliverables : [];
+    if (list.length === 0) return "";
+    const parts = list.map((d) => {
+      const residue = [];
+      if (d.unchecked > 0) residue.push(`${d.unchecked} UNCHECKED`);
+      if (d.unresolved > 0) residue.push(`${d.unresolved} UNRESOLVED`);
+      const label = DELIVERABLE_LABELS[d.section] || d.section;
+      return residue.length > 0
+        ? `${label} lists ${d.total}, of which ${d.verified} resolved VERIFIED and ${residue.join(" and ")}`
+        : `${label} lists ${d.total}, all VERIFIED`;
+    });
+    return ` The NCT numbers listed in the bundle's other deliverables were re-resolved in the same pass: ${parts.join("; ")}.`;
   }
 
   // Per-type breakdown from the manifest when present; a plain cited count otherwise. Never
@@ -519,6 +575,12 @@ function createDeliverablePackager(options = {}) {
         + `${reportResolution.attributionMismatches > 0
           ? ` · ${reportResolution.attributionMismatches} cited work${reportResolution.attributionMismatches === 1 ? "" : "s"} with an author/year that does not match the registry (see the Reproducibility Manifest)`
           : ""}`);
+      // T2-6: the figures above are this report's own; the other deliverables' NCT numbers follow.
+      const others = renderDeliverablesResolution(reportResolution).trim();
+      if (others) {
+        lines.push("");
+        lines.push(`${others} Each is listed in the Reproducibility Manifest.`);
+      }
     }
     lines.push("");
 

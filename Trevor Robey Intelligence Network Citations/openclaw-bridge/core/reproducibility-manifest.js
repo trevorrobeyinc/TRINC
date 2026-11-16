@@ -85,6 +85,9 @@ function buildReproducibilityManifest(input = {}) {
       grounded_in_run: groundedInRun(r),
       attempts: r.attempts || 1,
     };
+    // T2-6 (2026-11-16): the deliverables the identifier appears in ("report", "graveyard-memo",
+    // "design-benchmark"), when the engine tagged them. Absent on an untagged row, as before.
+    if (Array.isArray(r.sections) && r.sections.length > 0) c.sections = r.sections.map(String);
     const a = attributionById.get(`${r.type}:${String(r.id).toUpperCase()}`);
     if (a) {
       c.attribution = {
@@ -105,6 +108,22 @@ function buildReproducibilityManifest(input = {}) {
     if (!by_type[c.type]) by_type[c.type] = { total: 0, verified: 0, unresolved: 0, unchecked: 0 };
     by_type[c.type].total += 1;
     by_type[c.type][bucket] += 1;
+  }
+  // T2-6: the same counts per deliverable, so the report's own figures stay report-only while the
+  // decision below still judges every row (an UNRESOLVED memo NCT blocks like any other id). An
+  // identifier in more than one deliverable is counted in each; an untagged row counts as the report's.
+  // Present only when some row carries sections, so every manifest built without them is unchanged.
+  let by_section = null;
+  if (citations.some((c) => Array.isArray(c.sections))) {
+    by_section = {};
+    for (const c of citations) {
+      const bucket = c.status === "VERIFIED" ? "verified" : c.status === "UNRESOLVED" ? "unresolved" : "unchecked";
+      for (const sec of (Array.isArray(c.sections) ? c.sections : ["report"])) {
+        if (!by_section[sec]) by_section[sec] = { total: 0, verified: 0, unresolved: 0, unchecked: 0 };
+        by_section[sec].total += 1;
+        by_section[sec][bucket] += 1;
+      }
+    }
   }
 
   const verified_ratio = counts.total ? round3(counts.verified / counts.total) : 0;
@@ -168,6 +187,7 @@ function buildReproducibilityManifest(input = {}) {
     verification_completed_at: meta.completedAt || null,
     counts,
     by_type,
+    ...(by_section ? { by_section } : {}),
     verified_ratio,
     unresolved_ratio,
     unchecked_ratio,
@@ -280,6 +300,14 @@ function renderManifestMarkdown(manifest) {
   if (s.as_of) lines.push(`As of: ${s.as_of}`);
   lines.push("");
   lines.push(`Citations re-resolved when this report was assembled${s.as_of ? ` (as of ${s.as_of})` : ""}: **${c.verified} VERIFIED · ${c.unresolved} UNRESOLVED · ${c.unchecked} UNCHECKED** of ${c.total} (verified ratio ${s.verified_ratio}).`);
+  // T2-6: where the identifiers appear, when the engine recorded it.
+  if (s.by_section && typeof s.by_section === "object") {
+    lines.push("");
+    lines.push(`By deliverable: ${sectionOrder(s.by_section).map((sec) => {
+      const b = s.by_section[sec] || {};
+      return `${sectionLabel(sec)} ${b.total || 0} (${b.verified || 0} VERIFIED · ${b.unresolved || 0} UNRESOLVED · ${b.unchecked || 0} UNCHECKED)`;
+    }).join("; ")}. An identifier that appears in more than one deliverable is counted in each.`);
+  }
   // Not after a crashed re-resolution pass: that report is not cleared for delivery (the line above),
   // so it must not also say it ships (Tier 1 review, 2026-11-14).
   if (s.delivery_decision === "DELIVER_WITH_FLAGS" && flags.includes("retraction_screen_incomplete") && s.reresolution_completed !== false) {
@@ -327,14 +355,36 @@ function renderManifestMarkdown(manifest) {
     }
   }
   lines.push("");
-  lines.push("| Type | Identifier | Status | HTTP | Resolved URL | Checked (UTC) |");
-  lines.push("|---|---|---|---|---|---|");
+  // T2-6: a column naming the deliverables each identifier appears in, only when they were recorded.
+  const sectioned = Boolean(s.by_section && typeof s.by_section === "object");
+  lines.push(`| Type | Identifier | Status | HTTP | Resolved URL | Checked (UTC) |${sectioned ? " Appears in |" : ""}`);
+  lines.push(`|---|---|---|---|---|---|${sectioned ? "---|" : ""}`);
   for (const cit of (m.citations || [])) {
-    lines.push(`| ${cit.type} | ${cit.id} | ${cit.status} | ${cit.http_status == null ? "" : cit.http_status} | ${cit.resolved_url || ""} | ${cit.checked_at || ""} |`);
+    const appears = sectioned
+      ? ` ${(Array.isArray(cit.sections) ? cit.sections : ["report"]).map(sectionLabel).join(", ")} |`
+      : "";
+    lines.push(`| ${cit.type} | ${cit.id} | ${cit.status} | ${cit.http_status == null ? "" : cit.http_status} | ${cit.resolved_url || ""} | ${cit.checked_at || ""} |${appears}`);
   }
   lines.push("");
   lines.push("_Each VERIFIED identifier resolved to an existing record in its issuing public registry at the time shown. Verification confirms the identifier RESOLVES — not the scientific correctness of the source. UNCHECKED = no definitive answer this run (reason recorded per identifier); never treated as verified._");
   return lines.join("\n");
 }
 
-module.exports = { buildReproducibilityManifest, renderManifestMarkdown, DECISION };
+// T2-6: the deliverables an identifier can appear in, in reading order; any other name sorts after them.
+const SECTION_LABELS = { report: "report", "graveyard-memo": "graveyard memo", "design-benchmark": "design benchmark" };
+
+function sectionLabel(sec) {
+  return SECTION_LABELS[sec] || String(sec);
+}
+
+function sectionOrder(bySection) {
+  const known = Object.keys(SECTION_LABELS);
+  return Object.keys(bySection).sort((a, b) => {
+    const ia = known.indexOf(a);
+    const ib = known.indexOf(b);
+    if (ia !== -1 || ib !== -1) return (ia === -1 ? known.length : ia) - (ib === -1 ? known.length : ib);
+    return a.localeCompare(b);
+  });
+}
+
+module.exports = { buildReproducibilityManifest, renderManifestMarkdown, DECISION, sectionLabel, sectionOrder };

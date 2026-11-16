@@ -28,3 +28,16 @@ A paced probe the same day found no PubMed marker that sets a partial retraction
 types "Partial Retraction" and "Retraction of Publication" and the filter "haspartialretractionin" all
 return nothing, while "hasretractionin" returns 35,624 records whose samples all carry "Retracted
 Publication". So a "Retraction in" link on a record not marked retracted is a ledger flag, never a block.
+
+**T2-6 (NCT numbers in batches), saved 2026-11-16, whole answers (the opaque `nextPageToken` cursor trimmed):**
+
+| File | Request | What it pins |
+|---|---|---|
+| `ctgov-batch-real-plus-invented.json` | `clinicaltrials.gov/api/v2/studies?filter.ids=NCT04381936,NCT99999998&fields=NCTId&pageSize=2&format=json` | a batch echoes each real number and leaves an invented one out, with no error |
+| `ctgov-batch-short-number-padded.json` | the same for `NCT04381936,NCT1234` | the API pads a short number: `NCT1234` came back as `NCT00001234`, so only an EXACT echo counts |
+
+The same paced probe sent the 110 NCT numbers of a shipped graveyard memo in one request (a
+1,641-character URL: all 110 echoed, 0.28 s) and 300 of the 1,420 in another shipped memo (4,288
+characters: all 300 echoed, 0.41 s). No rate-limit header was returned. A full page carries a
+`nextPageToken` even when every number asked for came back, so the resolver never reads the cursor:
+a number missing from the echo goes to the one-study request instead.

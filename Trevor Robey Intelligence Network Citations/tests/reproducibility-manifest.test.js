@@ -303,3 +303,50 @@ test("no attribution input -> the manifest is exactly as before (no new keys)", 
   assert.ok(!("attribution" in m.citations[0]));
   assert.doesNotMatch(renderManifestMarkdown(m), /Attribution check/);
 });
+
+// T2-6 (2026-11-16): the engine tags each identifier with the deliverables it appears in, and the
+// manifest keeps per-deliverable counts beside the totals; the decision still judges every row.
+const tagged = (c, sections) => ({ ...c, sections });
+
+test("T2-6: per-deliverable counts, an identifier in two deliverables counted in each", () => {
+  const m = buildReproducibilityManifest({
+    reresolved: [
+      tagged(cit("PMID", "1", "VERIFIED"), ["report"]),
+      tagged(cit("NCT", "NCT01111111", "VERIFIED"), ["report", "graveyard-memo"]),
+      tagged(cit("NCT", "NCT02222222", "UNCHECKED", "rate_limited"), ["graveyard-memo"]),
+      tagged(cit("NCT", "NCT03333333", "VERIFIED"), ["design-benchmark"])
+    ],
+    meta: META
+  });
+  assert.deepEqual(m.summary.by_section, {
+    report: { total: 2, verified: 2, unresolved: 0, unchecked: 0 },
+    "graveyard-memo": { total: 2, verified: 1, unresolved: 0, unchecked: 1 },
+    "design-benchmark": { total: 1, verified: 1, unresolved: 0, unchecked: 0 }
+  });
+  assert.equal(m.summary.counts.total, 4, "the totals count each row once");
+  assert.deepEqual(m.citations[1].sections, ["report", "graveyard-memo"]);
+  assert.equal(m.summary.delivery_decision, "DELIVER_WITH_FLAGS", "a memo row's UNCHECKED forfeits DELIVER (Q8)");
+  const md = renderManifestMarkdown(m);
+  assert.match(md, /By deliverable: report 2 \(2 VERIFIED · 0 UNRESOLVED · 0 UNCHECKED\); graveyard memo 2 \(1 VERIFIED · 0 UNRESOLVED · 1 UNCHECKED\); design benchmark 1 \(1 VERIFIED · 0 UNRESOLVED · 0 UNCHECKED\)\. An identifier that appears in more than one deliverable is counted in each\./);
+  assert.match(md, /\| Type \| Identifier \| Status \| HTTP \| Resolved URL \| Checked \(UTC\) \| Appears in \|/);
+  assert.match(md, /\| NCT \| NCT01111111 \| VERIFIED \| 200 \| https:\/\/x \| 2026-06-19T00:00:00Z \| report, graveyard memo \|/);
+});
+
+test("T2-6: an UNRESOLVED memo-only NCT blocks like any other id (D15)", () => {
+  const m = buildReproducibilityManifest({
+    reresolved: [tagged(cit("PMID", "1", "VERIFIED"), ["report"]), tagged(cit("NCT", "NCT02222222", "UNRESOLVED", "nct_not_found"), ["graveyard-memo"])],
+    meta: META
+  });
+  assert.equal(m.summary.delivery_decision, "BLOCK");
+  assert.ok(m.summary.block_reasons.includes("unresolved_present"));
+  assert.deepEqual(m.summary.by_section.report, { total: 1, verified: 1, unresolved: 0, unchecked: 0 });
+});
+
+test("T2-6: untagged rows -> no per-deliverable counts, no column, the manifest exactly as before", () => {
+  const m = buildReproducibilityManifest({ reresolved: [cit("PMID", "1", "VERIFIED"), cit("NCT", "NCT00000102", "VERIFIED")], meta: META });
+  assert.ok(!("by_section" in m.summary));
+  assert.ok(!("sections" in m.citations[0]));
+  const md = renderManifestMarkdown(m);
+  assert.doesNotMatch(md, /By deliverable|Appears in/);
+  assert.match(md, /\| Type \| Identifier \| Status \| HTTP \| Resolved URL \| Checked \(UTC\) \|\n\|---\|---\|---\|---\|---\|---\|\n/);
+});

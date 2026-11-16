@@ -419,3 +419,104 @@ test("T2-1: a 404 and a no-resolver id are answers, never retried, and no pause 
   assert.equal(none[0].evidence.reason, "no_resolver");
   assert.deepEqual(pauses, []);
 });
+
+// T2-6 (2026-11-16): NCT numbers are asked in batches (`filter.ids`), because a graveyard memo can list
+// 1,420 of them. Only an exact echo is VERIFIED; a number the batch leaves out goes to the one-study
+// request, whose 404 is the only UNRESOLVED. Answers from tests/fixtures/registry-probe-2026-11-15/.
+const BATCH_FIXTURES = require("node:path").join(__dirname, "fixtures", "registry-probe-2026-11-15");
+const batchFixture = (name) => JSON.parse(require("node:fs").readFileSync(require("node:path").join(BATCH_FIXTURES, name), "utf8"));
+const nctStudies = (ids) => ({ studies: ids.map((nctId) => ({ protocolSection: { identificationModule: { nctId } } })) });
+const idsInBatch = (url) => decodeURIComponent((/[?&]filter\.ids=([^&]+)/.exec(url) || [])[1] || "").split(",").filter(Boolean);
+
+function nctResolver(answer, calls, pauses = []) {
+  const fetchImpl = async (url) => {
+    calls.push(url);
+    const step = answer(url);
+    if (step.abort) { const e = new Error("aborted"); e.name = "AbortError"; throw e; }
+    return { status: step.status, json: async () => step.body, text: async () => JSON.stringify(step.body) };
+  };
+  return createCitationReresolver({ fetchImpl, nowIso: NOW, sleep: async (ms) => { pauses.push(ms); } });
+}
+
+test("T2-6: one batch request answers every NCT number, each VERIFIED from an exact echo", async () => {
+  const calls = [];
+  const ids = ["NCT00000102", "NCT00000105", "NCT04381936"];
+  const out = await nctResolver((url) => ({ status: 200, body: nctStudies(idsInBatch(url)) }), calls)
+    .resolveAll(ids.map((id) => ({ type: "NCT", id })));
+  assert.deepEqual(out.map((o) => o.status), ["VERIFIED", "VERIFIED", "VERIFIED"]);
+  assert.equal(calls.length, 1, "one request, not one per number");
+  assert.match(calls[0], /^https:\/\/clinicaltrials\.gov\/api\/v2\/studies\?filter\.ids=NCT00000102%2CNCT00000105%2CNCT04381936&fields=NCTId&pageSize=3&format=json$/);
+  assert.deepEqual(out[2].evidence, { nctId_echo: "NCT04381936", batch_size: 3 });
+  assert.equal(out[2].resolved_url, "https://clinicaltrials.gov/api/v2/studies?filter.ids=NCT04381936&fields=NCTId&format=json");
+  assert.equal(out[2].resolver_type, "primary");
+});
+
+test("T2-6: a number the batch leaves out goes to the one-study request, whose 404 is UNRESOLVED (the real answer)", async () => {
+  const calls = [];
+  const out = await nctResolver((url) => (url.includes("filter.ids=")
+    ? { status: 200, body: batchFixture("ctgov-batch-real-plus-invented.json") }
+    : { status: 404, body: {} }), calls)
+    .resolveAll([{ type: "NCT", id: "NCT04381936" }, { type: "NCT", id: "NCT99999998" }]);
+  assert.equal(out.find((o) => o.id === "NCT04381936").status, "VERIFIED");
+  const invented = out.find((o) => o.id === "NCT99999998");
+  assert.equal(invented.status, "UNRESOLVED");
+  assert.equal(invented.evidence.reason, "nct_not_found");
+  assert.equal(calls.length, 2);
+  assert.match(calls[1], /\/api\/v2\/studies\/NCT99999998\?format=json$/);
+});
+
+test("T2-6: a padded echo is not an echo: NCT1234 came back as NCT00001234, so the one-study request decides", async () => {
+  const calls = [];
+  const out = await nctResolver((url) => (url.includes("filter.ids=")
+    ? { status: 200, body: batchFixture("ctgov-batch-short-number-padded.json") }
+    : { status: 400, body: {} }), calls)
+    .resolveAll([{ type: "NCT", id: "NCT04381936" }, { type: "NCT", id: "NCT1234" }]);
+  const short = out.find((o) => o.id === "NCT1234");
+  assert.equal(short.status, "UNRESOLVED");
+  assert.equal(short.evidence.reason, "bad_format");
+  assert.equal(out.find((o) => o.id === "NCT04381936").status, "VERIFIED");
+});
+
+test("T2-6: a memo's worth of numbers goes in batches of 200", async () => {
+  const calls = [];
+  const ids = Array.from({ length: 450 }, (_, i) => `NCT${String(10000000 + i)}`);
+  const out = await nctResolver((url) => ({ status: 200, body: nctStudies(idsInBatch(url)) }), calls)
+    .resolveAll(ids.map((id) => ({ type: "NCT", id })));
+  assert.equal(out.length, 450);
+  assert.ok(out.every((o) => o.status === "VERIFIED"));
+  assert.deepEqual(calls.map((u) => idsInBatch(u).length), [200, 200, 50]);
+});
+
+test("T2-6: a throttled batch leaves its numbers UNCHECKED, and the deferred retry asks them again in one batch", async () => {
+  const calls = []; const pauses = [];
+  let n = 0;
+  const out = await nctResolver((url) => {
+    n += 1;
+    return n === 1 ? { status: 429, body: {} } : { status: 200, body: nctStudies(idsInBatch(url)) };
+  }, calls, pauses).resolveAll([{ type: "NCT", id: "NCT00000102" }, { type: "NCT", id: "NCT00000105" }]);
+  assert.deepEqual(out.map((o) => o.status), ["VERIFIED", "VERIFIED"]);
+  assert.deepEqual(out.map((o) => o.attempts), [2, 2]);
+  assert.deepEqual(pauses, [2000]);
+  assert.equal(calls.length, 2, "two batch requests, no one-study requests");
+});
+
+test("T2-6: a throttle that outlasts the retry stays UNCHECKED rate_limited, never a false VERIFIED", async () => {
+  const calls = []; const pauses = [];
+  const out = await nctResolver(() => ({ status: 429, body: {} }), calls, pauses)
+    .resolveAll([{ type: "NCT", id: "NCT00000102" }]);
+  assert.equal(out[0].status, "UNCHECKED");
+  assert.equal(out[0].evidence.reason, "rate_limited");
+  assert.equal(out[0].attempts, 2);
+  assert.equal(calls.length, 2);
+});
+
+test("T2-6: an unparseable batch answer sends its numbers to the one-study request", async () => {
+  const calls = [];
+  const out = await nctResolver((url) => (url.includes("filter.ids=")
+    ? { status: 200, body: { unexpected: true } }
+    : { status: 200, body: { protocolSection: { identificationModule: { nctId: url.match(/NCT\d{8}/)[0] } } } }), calls)
+    .resolveAll([{ type: "NCT", id: "NCT00000102" }]);
+  assert.equal(out[0].status, "VERIFIED");
+  assert.deepEqual(out[0].evidence, { nctId_echo: "NCT00000102" });
+  assert.equal(calls.length, 2);
+});
