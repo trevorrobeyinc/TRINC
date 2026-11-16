@@ -27,7 +27,8 @@ const {
 } = require("../../core/citation-attribution.js");
 
 const STATUS = Object.freeze({ VERIFIED: "VERIFIED", UNRESOLVED: "UNRESOLVED", UNCHECKED: "UNCHECKED" });
-const RESOLVER_TABLE_VERSION = "2026-06-19";
+// 2026-11-16 (T2-16): PMCID, ISRCTN and EudraCT resolvers added.
+const RESOLVER_TABLE_VERSION = "2026-11-16";
 
 function normType(type) {
   const t = String(type == null ? "" : type).trim().toUpperCase();
@@ -39,6 +40,10 @@ function normType(type) {
   if (t === "DRUGBANK") return "DrugBank";
   if (t === "PUBCHEM CID" || t === "CID" || t === "PUBCHEM") return "PubChem CID";
   if (t === "RXNORM" || t === "RXCUI") return "RxNorm";
+  // T2-16 (2026-11-16): trial registrations and PMC full texts.
+  if (t === "PMCID") return "PMCID";
+  if (t === "ISRCTN") return "ISRCTN";
+  if (t === "EUDRACT") return "EudraCT";
   // Business research lane (2026-10-21) — see core/research-profiles.js.
   if (t === "SEC") return "SEC";
   if (t === "WEB") return "WEB";
@@ -54,6 +59,10 @@ function normType(type) {
 function hostFor(normalizedType) {
   switch (normalizedType) {
     case "PMID": return "eutils";
+    // T2-16: a PMCID shares the PMID lane, so every NCBI request keeps one in-flight call and the pacing.
+    case "PMCID": return "eutils";
+    case "ISRCTN": return "isrctn";
+    case "EudraCT": return "euctr";
     case "DOI": return "crossref";
     case "PubChem CID": return "pubchem";
     case "NCT": return "ctgov";
@@ -294,6 +303,75 @@ function createCitationReresolver(options = {}) {
     return { status: STATUS.UNCHECKED, http_status: res.status, resolved_url: url, evidence: { reason: "unexpected_status" } };
   }
 
+  // ---- trial registrations and PMC full texts (T2-16, 2026-11-16) ----
+  // Each success criterion below was read from the live registry, read-only, on 2026-11-15
+  // (tests/fixtures/registry-probe-2026-11-15/): a bare HTTP 200 is never sufficient.
+
+  // PMCID: NCBI esummary db=pmc, paced like a PMID (same eutils host). A real record echoes its PMCID in
+  // `articleids`; an id PMC never issued answers the docsum error "cannot get document summary", the same
+  // definitive "does not exist" a PMID gets (:183).
+  async function resolvePMCID(id) {
+    const m = /^PMC(\d{1,9})$/i.exec(String(id));
+    if (!m) return { status: STATUS.UNRESOLVED, http_status: null, resolved_url: null, evidence: { reason: "bad_format" } };
+    const digits = m[1];
+    const keyParam = ncbiApiKey ? `&api_key=${ncbiApiKey}` : "";
+    const url = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pmc&id=${encodeURIComponent(digits)}&retmode=json&tool=TRINC-citation-reresolver&email=${encodeURIComponent(contactEmail)}${keyParam}`;
+    const resolved_url = url.replace(/&api_key=[^&]+/, "&api_key=***");
+    const { res, attempts } = await ncbiFetch(url);
+    const t = classifyTransport(res);
+    if (t) return { status: STATUS.UNCHECKED, http_status: res.status || null, resolved_url, evidence: t, attempts };
+    if (res.status !== 200) return { status: STATUS.UNCHECKED, http_status: res.status, resolved_url, evidence: { reason: "unexpected_status" }, attempts };
+    const body = await safeJson(res);
+    const rec = body && body.result && body.result[digits];
+    if (!rec) return { status: STATUS.UNCHECKED, http_status: 200, resolved_url, evidence: { reason: "unparseable" }, attempts };
+    if (rec.error) return { status: STATUS.UNRESOLVED, http_status: 200, resolved_url, evidence: { reason: "cannot_get_document_summary" }, attempts };
+    const echo = (Array.isArray(rec.articleids) ? rec.articleids : [])
+      .find((a) => a && a.idtype === "pmcid" && String(a.value).toUpperCase() === `PMC${digits}`);
+    if (echo) return { status: STATUS.VERIFIED, http_status: 200, resolved_url, evidence: { pmcid_echo: echo.value }, attempts };
+    return { status: STATUS.UNCHECKED, http_status: 200, resolved_url, evidence: { reason: "unparseable" }, attempts };
+  }
+
+  // ISRCTN: the registry's query API, never the record page (it answers 200 with the same page for a real
+  // and an invented id). A well-formed answer with totalCount 0 is the registry saying the trial does not
+  // exist (UNRESOLVED, operator default D7); a trial is VERIFIED only when its public id echoes the one cited.
+  async function resolveISRCTN(id) {
+    const m = /^ISRCTN(\d{8})$/i.exec(String(id));
+    if (!m) return { status: STATUS.UNRESOLVED, http_status: null, resolved_url: null, evidence: { reason: "bad_format" } };
+    const url = `https://www.isrctn.com/api/query/format/default?q=ISRCTN${m[1]}`;
+    const res = await doFetch(url, { accept: "application/xml" });
+    const t = classifyTransport(res);
+    if (t) return { status: STATUS.UNCHECKED, http_status: res.status || null, resolved_url: url, evidence: t };
+    if (res.status !== 200) return { status: STATUS.UNCHECKED, http_status: res.status, resolved_url: url, evidence: { reason: "unexpected_status" } };
+    const text = await safeText(res);
+    const root = typeof text === "string" ? /<allTrials\b[^>]*\btotalCount="(\d+)"/.exec(text) : null;
+    if (!root) return { status: STATUS.UNCHECKED, http_status: 200, resolved_url: url, evidence: { reason: "unparseable" } };
+    if (Number(root[1]) === 0) return { status: STATUS.UNRESOLVED, http_status: 200, resolved_url: url, evidence: { reason: "isrctn_not_found" } };
+    if (text.includes(`publicIdentifierCanonical="ISRCTN${m[1]}"`)) {
+      return { status: STATUS.VERIFIED, http_status: 200, resolved_url: url, evidence: { isrctn_echo: `ISRCTN${m[1]}` } };
+    }
+    return { status: STATUS.UNCHECKED, http_status: 200, resolved_url: url, evidence: { reason: "unparseable" } };
+  }
+
+  // EudraCT: the EU Clinical Trials Register's text download. A record echoes "EudraCT Number: <n>". An
+  // empty answer is NOT a "does not exist": the register does not publish every EudraCT trial (adult
+  // phase I trials, for one), so it is UNCHECKED and never UNRESOLVED (operator default D7). The register
+  // has no documented API, so any other shape is UNCHECKED too.
+  async function resolveEudraCT(id) {
+    const m = /^((?:19|20)\d{2}-\d{6}-\d{2})$/.exec(String(id));
+    if (!m) return { status: STATUS.UNRESOLVED, http_status: null, resolved_url: null, evidence: { reason: "bad_format" } };
+    const url = `https://www.clinicaltrialsregister.eu/ctr-search/rest/download/summary?query=${encodeURIComponent(m[1])}&mode=current_page`;
+    const res = await doFetch(url, { accept: "text/plain" });
+    const t = classifyTransport(res);
+    if (t) return { status: STATUS.UNCHECKED, http_status: res.status || null, resolved_url: url, evidence: t };
+    if (res.status !== 200) return { status: STATUS.UNCHECKED, http_status: res.status, resolved_url: url, evidence: { reason: "unexpected_status" } };
+    const text = await safeText(res);
+    if (typeof text !== "string") return { status: STATUS.UNCHECKED, http_status: 200, resolved_url: url, evidence: { reason: "unparseable" } };
+    if (new RegExp(`EudraCT Number:[ \\t]*${m[1]}(?![\\d-])`).test(text)) {
+      return { status: STATUS.VERIFIED, http_status: 200, resolved_url: url, evidence: { eudract_echo: m[1] } };
+    }
+    return { status: STATUS.UNCHECKED, http_status: 200, resolved_url: url, evidence: { reason: "registry_no_definitive_answer" } };
+  }
+
   // ---- business research lane (2026-10-21) ----
 
   // SEC: "<CIK>/<accession>". The filing's EDGAR directory listing answers 200 with a JSON
@@ -477,6 +555,9 @@ function createCitationReresolver(options = {}) {
       case "RxNorm": return resolveRxNorm;
       case "ChEMBL": return resolveChEMBL;
       case "UniProt": return resolveUniProt;
+      case "PMCID": return resolvePMCID;
+      case "ISRCTN": return resolveISRCTN;
+      case "EudraCT": return resolveEudraCT;
       case "SEC": return resolveSEC;
       case "WB": return resolveWB;
       case "WEB": return resolveWEB;

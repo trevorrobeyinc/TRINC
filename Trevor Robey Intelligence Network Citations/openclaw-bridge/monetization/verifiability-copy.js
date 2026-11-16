@@ -22,9 +22,11 @@ function asPlainObject(value) {
 
 const PROFILE_SENTENCES = Object.freeze({
   biomedical: Object.freeze({
-    identifiers: "Every cited identifier (PubMed, ClinicalTrials.gov, PubChem, DOI)",
-    complete: "Cited DOIs and PMIDs are retraction-screened against Crossref and PubMed.",
-    partial: "Cited DOIs and PMIDs are put through the Crossref and PubMed retraction screen; any paper it could not screen is named in the citation-integrity ledger.",
+    // T2-16 (2026-11-16): PMC full texts and the ISRCTN and EU trial registers are read too, and
+    // UniProt, read since T1-4, was missing from this list.
+    identifiers: "Every cited identifier (PubMed, PubMed Central, ClinicalTrials.gov, the ISRCTN and EU trial registers, PubChem, UniProt, DOI)",
+    complete: "Cited DOIs, PMIDs and PMCIDs are retraction-screened against Crossref and PubMed.",
+    partial: "Cited DOIs, PMIDs and PMCIDs are put through the Crossref and PubMed retraction screen; any paper it could not screen is named in the citation-integrity ledger.",
     mentionsPubmed: true
   }),
   business: Object.freeze({

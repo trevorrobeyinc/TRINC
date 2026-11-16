@@ -115,16 +115,19 @@ function buildReproducibilityManifest(input = {}) {
     && counts.unchecked === counts.total
     && citations.every((c) => NETWORK_UNCHECKED.has((c.evidence && c.evidence.reason) || ""));
 
-  // Retractions are screened per identifier class (DOIs via Crossref, PMIDs via PubMed). Keep the
-  // classes distinct: merging them into `retracted_dois` mislabels a retracted PMID as a DOI in a
-  // customer-facing, checksum-sealed document. Either class blocks delivery.
+  // Retractions are screened per identifier class (DOIs via Crossref, PMIDs via PubMed, and since T2-16
+  // PMCIDs through their PMC record's PMID or DOI). Keep the classes distinct: merging them into
+  // `retracted_dois` mislabels a retracted PMID as a DOI in a customer-facing, checksum-sealed document.
+  // Any class blocks delivery.
   const retracted_dois = Array.isArray(retraction.retracted_dois) ? retraction.retracted_dois : [];
   const retracted_pmids = Array.isArray(retraction.retracted_pmids) ? retraction.retracted_pmids : [];
+  const retracted_pmcids = Array.isArray(retraction.retracted_pmcids) ? retraction.retracted_pmcids : [];
   const block_reasons = [];
   const flag_reasons = []; // Q8: soft disclosures that RESTRICT the claim but still SHIP (never block)
   if (thresholds.block_on_unresolved && counts.unresolved > 0) block_reasons.push("unresolved_present");
   if (retracted_dois.length > 0) block_reasons.push("retracted_doi");
   if (retracted_pmids.length > 0) block_reasons.push("retracted_pmid");
+  if (retracted_pmcids.length > 0) block_reasons.push("retracted_pmcid");
   if (gate && gate.hardFail) block_reasons.push("gate_fail");
 
   // An attribution mismatch is a soft disclosure (operator decision 2026-11-04: flag and mark inline,
@@ -175,7 +178,9 @@ function buildReproducibilityManifest(input = {}) {
       checked: Boolean(retraction.checked),
       retracted_dois,
       retracted_pmids,
-      // T1-7: which cited DOIs and PMIDs could not be screened, of how many.
+      // T2-16: present only when a cited PMCID was found retracted, so every other manifest is unchanged.
+      ...(retracted_pmcids.length > 0 ? { retracted_pmcids } : {}),
+      // T1-7: which cited DOIs, PMIDs and (T2-16) PMCIDs could not be screened, of how many.
       ...(Array.isArray(retraction.unscreened_ids) ? { unscreened_ids: retraction.unscreened_ids } : {}),
       ...(Number.isFinite(retraction.cited) ? { cited: retraction.cited } : {})
     },
@@ -278,17 +283,18 @@ function renderManifestMarkdown(manifest) {
   // Not after a crashed re-resolution pass: that report is not cleared for delivery (the line above),
   // so it must not also say it ships (Tier 1 review, 2026-11-14).
   if (s.delivery_decision === "DELIVER_WITH_FLAGS" && flags.includes("retraction_screen_incomplete") && s.reresolution_completed !== false) {
-    lines.push("> The engine's decision lets this report ship with a flag: the retraction screen could not screen every cited DOI and PMID. The ones it could not screen are listed below and in the citation-integrity ledger; no retraction was found among those it did screen.");
+    lines.push("> The engine's decision lets this report ship with a flag: the retraction screen could not screen every cited DOI, PMID and PMCID. The ones it could not screen are listed below and in the citation-integrity ledger; no retraction was found among those it did screen.");
   }
   if (s.retraction_screen) {
     const rs = s.retraction_screen;
     const rd = (rs.retracted_dois || []).length;
     const rp = (rs.retracted_pmids || []).length;
+    const rpmc = (rs.retracted_pmcids || []).length;
     const unscreened = Array.isArray(rs.unscreened_ids) ? rs.unscreened_ids : null;
     const incomplete = unscreened && Number.isFinite(rs.cited)
-      ? `INCOMPLETE — ${unscreened.length} of ${rs.cited} cited DOIs and PMIDs not screened`
+      ? `INCOMPLETE — ${unscreened.length} of ${rs.cited} cited DOIs, PMIDs and PMCIDs not screened`
       : "INCOMPLETE — not every cited identifier could be screened";
-    lines.push(`Retraction screen: ${rs.checked ? "checked" : incomplete}; retracted DOIs: ${rd}; retracted PMIDs: ${rp}.`);
+    lines.push(`Retraction screen: ${rs.checked ? "checked" : incomplete}; retracted DOIs: ${rd}; retracted PMIDs: ${rp}${rpmc > 0 ? `; retracted PMCIDs: ${rpmc}` : ""}.`);
     if (!rs.checked && unscreened && unscreened.length > 0) {
       lines.push(`Not screened: ${unscreened.join(", ")}.`);
     }

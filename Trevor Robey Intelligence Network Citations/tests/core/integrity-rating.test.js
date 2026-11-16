@@ -99,13 +99,13 @@ describe("integrity-rating — buildIntegrityReport", () => {
     const base = { cited: 4, grounded: 4, grounded_ratio: 1, retracted: [] };
     const complete = buildIntegrityReport({ ...base, retraction_screen_checked: true, retraction_screen_cited: 4, unscreened: 0 }).markdown;
     assert.match(complete, /\| Retraction screen \| complete \|/);
-    assert.match(complete, /Every cited DOI and PMID was retraction-screened\./);
+    assert.match(complete, /Every cited DOI, PMID and PMCID was retraction-screened\./);
     const partial = buildIntegrityReport({
       ...base, retraction_screen_checked: false, retraction_screen_cited: 6, unscreened: 2,
       unscreened_ids: ["DOI:10.4444/missing", "PMID:20000002"]
     }).markdown;
-    assert.match(partial, /\| Retraction screen \| INCOMPLETE: 2 of 6 cited DOIs and PMIDs not screened \|/);
-    assert.match(partial, /Retraction screen: INCOMPLETE, 2 of 6 cited DOIs and PMIDs not screened/);
+    assert.match(partial, /\| Retraction screen \| INCOMPLETE: 2 of 6 cited DOIs, PMIDs and PMCIDs not screened \|/);
+    assert.match(partial, /Retraction screen: INCOMPLETE, 2 of 6 cited DOIs, PMIDs and PMCIDs not screened/);
     assert.match(partial, /- DOI:10\.4444\/missing\n- PMID:20000002/);
     assert.doesNotMatch(partial, /was retraction-screened/);
     const unknown = buildIntegrityReport(base).markdown;

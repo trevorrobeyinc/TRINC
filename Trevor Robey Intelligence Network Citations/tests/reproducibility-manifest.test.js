@@ -123,9 +123,9 @@ test("retraction screen incomplete -> manifest says INCOMPLETE, flags it, and st
   assert.deepEqual(m.summary.flag_reasons, ["retraction_screen_incomplete"]);
   assert.deepEqual(m.summary.block_reasons, [], "an unreachable source must never block a passing report");
   const md = renderManifestMarkdown(m);
-  assert.match(md, /Retraction screen: INCOMPLETE — 1 of 3 cited DOIs and PMIDs not screened/);
+  assert.match(md, /Retraction screen: INCOMPLETE — 1 of 3 cited DOIs, PMIDs and PMCIDs not screened/);
   assert.match(md, /Not screened: DOI:10\.4\/missing\./);
-  assert.match(md, /The engine's decision lets this report ship with a flag: the retraction screen could not screen every cited DOI and PMID/);
+  assert.match(md, /The engine's decision lets this report ship with a flag: the retraction screen could not screen every cited DOI, PMID and PMCID/);
   assert.doesNotMatch(md, /network\/throttle limit/, "a retraction-screen gap is not a re-resolution limit");
 });
 

@@ -1,0 +1,14 @@
+
+
+EudraCT Number:          2020-001113-21
+Sponsor Protocol Number: NDPHRECOVERY
+Sponsor Name:            University of Oxford
+Full Title:              Randomised Evaluation of COVID-19 Therapy (RECOVERY)
+Start Date:              2020-03-17
+Medical condition:       COVID-19 (infection with SARS-CoV-2 virus)
+Disease:                 Version: 21.1, SOC Term: 10021881 - Infections and infestations, Classification Code: 10035737, Term: Pneumonia viral, Level: PT
+Disease:                 Version: 20.1, SOC Term: 10021881 - Infections and infestations, Classification Code: 10061982, Term: Severe acute respiratory syndrome, Level: PT
+Population Age:          Preterm newborn infants, Newborns, Infants and toddlers, Children, Adolescents, Under 18, Adults, Elderly
+Gender:                  Male, Female
+Trial protocol:          GB(GB - no longer in EU/EEA) 
+Link:                    https://www.clinicaltrialsregister.eu/ctr-search/search?query=eudract_number:2020-001113-21

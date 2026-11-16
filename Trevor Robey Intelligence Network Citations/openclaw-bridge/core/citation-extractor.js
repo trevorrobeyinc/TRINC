@@ -82,6 +82,26 @@ const CITATION_PATTERNS = [
   // ("distinct 12345678") must not read, but an id after "_" or a digit must, as it did at bb4299d —
   // "_NCT01234567_" is markdown italics (Tier 1 review, 2026-11-14).
   { type: "NCT", regex: /(?<![A-Za-z])NCT[ -]?(\d{8})(?!\d)/gi },
+  // ── Trial registrations and PMC full texts (T2-16, 2026-11-16) ───────────────────────────────────
+  // SYSTEM-REALITY.md's tagline row named EudraCT and ISRCTN trial ids and PMCIDs among the citation
+  // forms that were not checked at all. Each is now read, grounded by type (T1-5), marked, re-resolved
+  // at its registry (citation-reresolver.js) and, for a PMCID, retraction-screened through the PMID its
+  // PMC record lists (citation-gate.js). No stored report cited one (the 2026-11-15 count), so no past
+  // ratio moves. No prompt asks for these types (operator default D5).
+  // ISRCTN: "ISRCTN" and 8 digits, uppercase, an optional space or hyphen (normalized away), never after a
+  // letter or digit, and never the first 8 digits of a longer run (the NCT rule). isrctn.com URLs carry it.
+  { type: "ISRCTN", regex: /(?<![A-Za-z0-9])ISRCTN[ -]?(\d{8})(?!\d)/g },
+  // EudraCT: YYYY-NNNNNN-NN, only after an "EudraCT" label or inside a clinicaltrialsregister.eu URL,
+  // never as a bare dash number in prose (operator default D6). It is never followed by "-" or a digit, so
+  // an EU CT number (2023-503456-12-00, the CTIS successor format, not read yet) is never cut into one.
+  { type: "EudraCT", regex: /\bEudra[Cc][Tt](?:[ \t]+(?:[Nn]umber|[Nn]o\.?|[Nn]r\.?|ID|[Ii]dentifier))?[:\s#,.]*((?:19|20)\d{2}-\d{6}-\d{2})(?![\d-])/g },
+  { type: "EudraCT", regex: /clinicaltrialsregister\.eu\/ctr-search\/(?:trial\/|search\?query=)((?:19|20)\d{2}-\d{6}-\d{2})(?![\d-])/gi },
+  // PMCID: "PMC" and 1-9 digits, uppercase, no space, never after a letter or digit and never a prefix of
+  // a longer run (the PMID width doctrine), normalized to PMC + digits. The record URLs on
+  // pmc.ncbi.nlm.nih.gov, ncbi.nlm.nih.gov/pmc and europepmc.org carry the token. A "PMCID:" label with a
+  // bare number reads too. A PMCID and its paper's PMID are different keys: one never grounds the other.
+  { type: "PMCID", regex: /(?<![A-Za-z0-9])PMC(\d{1,9})(?!\d)/g },
+  { type: "PMCID", form: "pmcid_label", regex: /\bPMCID[:\s]*(\d{1,9})(?!\d)/gi },
   // UniProt: the id must be a real ACCESSION (UniProt's published grammar: 6 chars `[OPQ]\d[A-Z0-9]{3}\d`, or
   // `[A-NR-Z]\d` + one or two `[A-Z][A-Z0-9]{2}\d` groups = 6 or 10 chars). The old pattern,
   // `UniProt[:\s]*([A-Z0-9]{6,10})` with the `i` flag, captured ANY 6-10 letter word after the label, so a
@@ -335,6 +355,15 @@ function extractCitationSpans(text) {
       }
       if (p.type === "NCT") {
         spans.push({ type: "NCT", id: `NCT${m[1]}`, start: m.index, end: m.index + m[0].length });
+        continue;
+      }
+      // T2-16: ISRCTN and PMCID ids normalized to their prefix + digits; an all-zero number is a
+      // placeholder, never an id (the PMID 0 rule).
+      if (p.type === "ISRCTN" || p.type === "PMCID") {
+        if (NOT_A_PMID.test(m[1])) continue;
+        const id = `${p.type === "ISRCTN" ? "ISRCTN" : "PMC"}${m[1]}`;
+        if (p.form === "pmcid_label") spans.push({ type: p.type, id, start: gStart, end: gEnd });
+        else spans.push({ type: p.type, id, start: m.index, end: m.index + m[0].length });
         continue;
       }
       if (p.type === "DOI") {

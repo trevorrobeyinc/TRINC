@@ -335,7 +335,9 @@ function createWorkflowEngine(options = {}) {
         researchRuntime.crossrefRetraction && researchRuntime.crossrefRetraction.checkDois,
         researchRuntime.pubmedRetraction && researchRuntime.pubmedRetraction.checkPmids,
         // DOI→PMID escalation closes Crossref's blind spot for DOI-only citations (Wakefield class).
-        researchRuntime.pubmedRetraction && researchRuntime.pubmedRetraction.resolveDoisToPmids
+        researchRuntime.pubmedRetraction && researchRuntime.pubmedRetraction.resolveDoisToPmids,
+        // T2-16: a cited PMCID is screened through the PMID (or DOI) its PMC record lists.
+        researchRuntime.pubmedRetraction && researchRuntime.pubmedRetraction.resolvePmcidsToIds
       );
       const retractedCount = retraction.retracted.length;
       const gatePass = gate.pass && retractedCount === 0;
@@ -372,6 +374,10 @@ function createWorkflowEngine(options = {}) {
             retracted: retraction.retracted,
             retracted_dois: retraction.retracted_dois || [],
             retracted_pmids: retraction.retracted_pmids || [],
+            // T2-16: cited PMCIDs, screened through their PMC record's PMID or DOI.
+            retracted_pmcids: retraction.retracted_pmcids || [],
+            pmcids_checked: retraction.pmcids_checked || 0,
+            pmcids_cited: retraction.pmcids_cited || 0,
             retracted_dois_via_pmid: retraction.retracted_dois_via_pmid || [],
             unflagged_notice_dois: retraction.unflagged_notice_dois || [],
             retraction_screen_checked: Boolean(retraction.checked),
@@ -413,7 +419,7 @@ function createWorkflowEngine(options = {}) {
         // T1-7: the retraction screen's coverage travels with the report, so the manifest, the ledger
         // and the bundle text say "retraction-screened" only when every cited DOI and PMID was screened.
         retraction_screen_checked: Boolean(retraction.checked),
-        retraction_screen_cited: (retraction.dois_cited || 0) + (retraction.pmids_cited || 0),
+        retraction_screen_cited: (retraction.dois_cited || 0) + (retraction.pmids_cited || 0) + (retraction.pmcids_cited || 0),
         unscreened: retraction.unscreened || 0,
         unscreened_ids: retraction.unscreened_ids || [],
         dois_without_retraction_source: retraction.dois_without_retraction_source || 0,
@@ -488,8 +494,9 @@ function createWorkflowEngine(options = {}) {
         checked: Boolean(retraction.checked),
         retracted_dois: retraction.retracted_dois || [],
         retracted_pmids: retraction.retracted_pmids || [],
+        retracted_pmcids: retraction.retracted_pmcids || [],
         // T1-7: an incomplete screen restricts the claim (flag), never blocks.
-        cited: (retraction.dois_cited || 0) + (retraction.pmids_cited || 0),
+        cited: (retraction.dois_cited || 0) + (retraction.pmids_cited || 0) + (retraction.pmcids_cited || 0),
         unscreened_ids: retraction.unscreened_ids || []
       };
       const manifestGate = {

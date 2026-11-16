@@ -69,12 +69,12 @@ function buildIntegrityReport(citationVerification = {}, sectionCoverage = []) {
     ? "not recorded for this report"
     : screenComplete
       ? "complete"
-      : `INCOMPLETE: ${unscreenedCount}${screenCited !== null ? ` of ${screenCited}` : ""} cited DOIs and PMIDs not screened`;
+      : `INCOMPLETE: ${unscreenedCount}${screenCited !== null ? ` of ${screenCited}` : ""} cited DOIs, PMIDs and PMCIDs not screened`;
   const coverageSentence = !screenKnown
-    ? "This report's record does not state whether every cited DOI and PMID could be screened."
+    ? "This report's record does not state whether every cited DOI, PMID and PMCID could be screened."
     : screenComplete
-      ? "Every cited DOI and PMID was retraction-screened."
-      : `${unscreenedCount}${screenCited !== null ? ` of ${screenCited}` : ""} cited DOIs and PMIDs could not be screened; they are listed under "Retraction screen" below.`;
+      ? "Every cited DOI, PMID and PMCID was retraction-screened."
+      : `${unscreenedCount}${screenCited !== null ? ` of ${screenCited}` : ""} cited DOIs, PMIDs and PMCIDs could not be screened; they are listed under "Retraction screen" below.`;
   // Tier 1 review (2026-11-14): DOIs Crossref holds whose PubMed cross-check reached no verdict count as
   // screened (the spec's rule), but against Crossref alone, so the ledger says so.
   const crossrefOnly = Number.isFinite(cv.retraction_dois_crossref_only) ? cv.retraction_dois_crossref_only : 0;
@@ -92,11 +92,11 @@ function buildIntegrityReport(citationVerification = {}, sectionCoverage = []) {
     // retraction entry, which is where Crossref serves the Retraction Watch data, read since T1-7)
     // plus PubMed pubtype for PMIDs, with a DOI→PMID escalation. The Retraction Watch database itself
     // is not queried. Never name a source we do not query.
-    "Every identifier cited in this report is checked, at generation time, against the records retrieved for this report. A citation is **grounded** only if it appears in evidence this report fetched; identifiers not in that set are flagged **unverified**; any source flagged **retracted** (Crossref for DOIs, PubMed for PMIDs, with a DOI→PMID cross-check) blocks the report. "
+    "Every identifier cited in this report is checked, at generation time, against the records retrieved for this report. A citation is **grounded** only if it appears in evidence this report fetched; identifiers not in that set are flagged **unverified**; any source flagged **retracted** (Crossref for DOIs, PubMed for PMIDs, with a DOI→PMID cross-check, and a PMCID through the PMID or DOI its PMC record lists) blocks the report. "
       // Tier 1 review (2026-11-14): the bound states the screen's real limits. Cited PMIDs go to PubMed
       // only (there is no PMID→DOI leg), so a retraction only Crossref records is missed for a paper
       // cited by PMID alone; and an identifier listed as not screened was not checked at all.
-      + `${coverageSentence}${crossrefOnlySentence} Coverage bound: the Retraction Watch bulk dataset is not used. Crossref's own retraction entries, including those it carries from that dataset, are read for each cited DOI that Crossref holds, and cited PMIDs are checked in PubMed only. A retraction recorded in neither place, or recorded only in Crossref for a paper cited by PMID alone, would not be caught, and an identifier listed as not screened was not checked at all. This ledger is the audit trail — the report's defensible spine.`,
+      + `${coverageSentence}${crossrefOnlySentence} Coverage bound: the Retraction Watch bulk dataset is not used. Crossref's own retraction entries, including those it carries from that dataset, are read for each cited DOI that Crossref holds, and cited PMIDs are checked in PubMed only; a cited PMCID is checked through the PMID its PMC record lists (or, with none, its DOI). A retraction recorded in neither place, or recorded only in Crossref for a paper cited by PMID alone, would not be caught, and an identifier listed as not screened was not checked at all. Trial registrations (NCT, ISRCTN and EudraCT numbers) carry no retraction record and are not screened. This ledger is the audit trail — the report's defensible spine.`,
     "",
     "| Metric | Value |",
     "| --- | --- |",
@@ -122,7 +122,7 @@ function buildIntegrityReport(citationVerification = {}, sectionCoverage = []) {
       "",
       "## Retraction screen: not screened",
       "",
-      `Retraction screen: INCOMPLETE, ${unscreenedCount}${screenCited !== null ? ` of ${screenCited}` : ""} cited DOIs and PMIDs not screened. Each one below could not be checked against a retraction source (the source was unreachable, holds no record of it, or the id was past the screen's ${MAX_SCREEN_IDS_PER_CLASS}-per-type limit); none is known to be retracted:`,
+      `Retraction screen: INCOMPLETE, ${unscreenedCount}${screenCited !== null ? ` of ${screenCited}` : ""} cited DOIs, PMIDs and PMCIDs not screened. Each one below could not be checked against a retraction source (the source was unreachable, holds no record of it, or the id was past the screen's ${MAX_SCREEN_IDS_PER_CLASS}-per-type limit); none is known to be retracted:`,
       "",
       ...unscreenedIds.map((s) => `- ${s}`)
     );

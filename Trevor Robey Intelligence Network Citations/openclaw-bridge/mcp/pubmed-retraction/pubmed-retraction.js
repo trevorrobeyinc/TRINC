@@ -218,12 +218,53 @@ function createPubmedRetraction(options = {}) {
     return out;
   }
 
+  // T2-16 (2026-11-16): PMCID → the PMID and DOI its PMC record lists, so the gate can screen a cited
+  // PMCID through PubMed (or, with no PMID, Crossref). esummary db=pmc, batched and paced like every
+  // eutils call. One row per input PMCID: { pmcid, pmid, doi, resolved, in_pmc }. `resolved:false` is a
+  // transport failure (fail-soft, never a fabricated mapping); `in_pmc:false` is PMC's definitive
+  // "cannot get document summary" (verified live 2026-11-15, tests/fixtures/registry-probe-2026-11-15/).
+  async function resolvePmcidsToIds(pmcids) {
+    const list = Array.isArray(pmcids)
+      ? [...new Set(pmcids.map((p) => String(p).trim().toUpperCase()).filter((p) => /^PMC\d{1,9}$/.test(p)))]
+      : [];
+    if (list.length === 0) return [];
+    const none = (pmcid) => ({ pmcid, pmid: null, doi: null, resolved: false, in_pmc: null });
+    if (typeof fetchImpl !== "function") return list.map(none);
+    const keyParam = ncbiApiKey ? `&api_key=${encodeURIComponent(ncbiApiKey)}` : "";
+    const out = [];
+    for (const batch of chunk(list, batchSize)) {
+      const url = `${EUTILS_ESUMMARY}?db=pmc&id=${batch.map((p) => p.slice(3)).join(",")}`
+        + `&retmode=json&tool=TRINC-pubmed-retraction&email=${encodeURIComponent(contactEmail)}${keyParam}`;
+      let result = null;
+      try {
+        const { res, body } = await eutilsGet(url);
+        if (res && res.ok && body && body.result && typeof body.result === "object") result = body.result;
+        else logger.warn({ event: "pmc_id_resolve_failed", status: res && res.status, ids: batch.length });
+      } catch (err) {
+        logger.warn({ event: "pmc_id_resolve_failed", ids: batch.length, error: String(err && err.message) });
+      }
+      for (const pmcid of batch) {
+        const rec = result && result[pmcid.slice(3)];
+        if (!rec) { out.push(none(pmcid)); continue; }
+        if (rec.error) { out.push({ pmcid, pmid: null, doi: null, resolved: true, in_pmc: false }); continue; }
+        const ids = Array.isArray(rec.articleids) ? rec.articleids : [];
+        const value = (type) => {
+          const a = ids.find((x) => x && x.idtype === type && x.value);
+          return a ? String(a.value).trim() : null;
+        };
+        const pmid = value("pmid");
+        out.push({ pmcid, pmid: pmid && /^[1-9]\d{0,9}$/.test(pmid) ? pmid : null, doi: value("doi"), resolved: true, in_pmc: true });
+      }
+    }
+    return out;
+  }
+
   async function checkPmid(pmid) {
     const [r] = await checkPmids([pmid]);
     return r || unchecked(pmid);
   }
 
-  return Object.freeze({ checkPmid, checkPmids, resolveDoisToPmids });
+  return Object.freeze({ checkPmid, checkPmids, resolveDoisToPmids, resolvePmcidsToIds });
 }
 
 module.exports = {

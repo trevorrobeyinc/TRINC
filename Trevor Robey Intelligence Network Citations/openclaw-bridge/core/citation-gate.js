@@ -419,6 +419,52 @@ async function screenDoisViaPubmed(dois, doiToPmid, checkPmids, knownVerdicts) {
   return { applicable: true, perDoi, escalated };
 }
 
+// T2-16 (2026-11-16): a cited PMCID is screened through the PMID its PMC record lists (PubMed), or, when
+// the record lists no PMID, through its DOI (Crossref). A verdict this report's PMID or DOI screen already
+// has is reused, never fetched twice. A PMCID counts as screened only when that leg reached a definitive
+// verdict; every other one is named unscreened (T1-7's coverage rule, operator default D8), within the
+// same per-class ceiling. `pmcidToIds` (pubmed-retraction.js resolvePmcidsToIds) is optional: unwired,
+// every cited PMCID is named unscreened.
+async function screenPmcids(pmcids, pmcidToIds, checkPmids, checkDois, knownPmidRows, knownDoiRows) {
+  const out = { retracted: [], unscreened: [], checked_count: 0 };
+  if (pmcids.length === 0) return out;
+  const inScope = pmcids.slice(0, MAX_SCREEN_IDS_PER_CLASS);
+  out.unscreened.push(...pmcids.slice(MAX_SCREEN_IDS_PER_CLASS));
+  if (typeof pmcidToIds !== "function") {
+    out.unscreened.push(...inScope);
+    return out;
+  }
+  const lc = (doi) => String(doi).toLowerCase();
+  const maps = new Map((await inChunks(inScope, pmcidToIds))
+    .filter((r) => r && r.pmcid && r.resolved === true && r.in_pmc === true)
+    .map((r) => [String(r.pmcid).toUpperCase(), r]));
+  const pmidVerdicts = new Map(knownPmidRows);
+  const doiVerdicts = new Map(knownDoiRows);
+  const needPmids = [...new Set([...maps.values()].filter((r) => r.pmid && !pmidVerdicts.has(String(r.pmid))).map((r) => String(r.pmid)))];
+  if (needPmids.length > 0 && typeof checkPmids === "function") {
+    for (const v of await inChunks(needPmids, checkPmids)) if (v && v.pmid != null) pmidVerdicts.set(String(v.pmid), v);
+  }
+  const needDois = [...new Set([...maps.values()].filter((r) => !r.pmid && r.doi && !doiVerdicts.has(lc(r.doi))).map((r) => r.doi))];
+  if (needDois.length > 0 && typeof checkDois === "function") {
+    for (const v of await inChunks(needDois, checkDois)) if (v && v.doi != null) doiVerdicts.set(lc(v.doi), v);
+  }
+  for (const id of inScope) {
+    const map = maps.get(String(id).toUpperCase());
+    let verdict = null;
+    if (map && map.pmid) {
+      const v = pmidVerdicts.get(String(map.pmid));
+      if (v && v.checked) verdict = Boolean(v.retracted);
+    } else if (map && map.doi) {
+      const v = doiVerdicts.get(lc(map.doi));
+      if (v && v.checked && v.in_crossref !== false) verdict = Boolean(v.retracted);
+    }
+    if (verdict === null) { out.unscreened.push(id); continue; }
+    out.checked_count += 1;
+    if (verdict) out.retracted.push(id);
+  }
+  return out;
+}
+
 // Literature-integrity check: extract the report's cited DOIs and PMIDs and decide which are
 // retracted. Fail-soft — any error yields no NEW retractions, so a network problem can never
 // wrongly flag the report. A confirmed-retracted citation is a critical integrity failure (the
@@ -433,14 +479,16 @@ async function screenDoisViaPubmed(dois, doiToPmid, checkPmids, knownVerdicts) {
 // Per-DOI rule: retracted = pubmedRetracted OR (crossFlagged AND NOT pubmedNotice). PubMed's
 // notice identification is the ONLY thing that overrides a Crossref flag; under a PubMed outage a
 // Crossref flag stands (fail-closed on the retraction axis).
-// `checkPmids` and `doiToPmid` are optional so existing 2-/3-argument callers keep prior behavior.
-async function checkRetractions(reportText, checkDois, checkPmids, doiToPmid) {
+// `checkPmids` and `doiToPmid` are optional so existing 2-/3-argument callers keep prior behavior, and so
+// is `pmcidToIds` (T2-16: cited PMCIDs are screened through their PMC record's PMID or DOI).
+async function checkRetractions(reportText, checkDois, checkPmids, doiToPmid, pmcidToIds) {
   const anyScreen = typeof checkDois === "function" || typeof checkPmids === "function";
   // deduplicateCitations compares DOIs case-insensitively (T1-4): "10.1056/NEJMoa…" and
   // "10.1056/nejmoa…" are one work, screened once.
   const cited = deduplicateCitations(extractCitations(String(reportText || "")));
   const dois = cited.filter((c) => c.type === "DOI").map((c) => c.id);
   const pmids = cited.filter((c) => c.type === "PMID").map((c) => c.id);
+  const pmcids = cited.filter((c) => c.type === "PMCID").map((c) => c.id);
   const lc = (doi) => String(doi).toLowerCase();
 
   const doiScreen = await runScreen(dois, checkDois, "doi");
@@ -452,6 +500,7 @@ async function checkRetractions(reportText, checkDois, checkPmids, doiToPmid) {
   // Reuse the direct-PMID verdicts so a PMID cited both directly and via a DOI is not fetched twice.
   const pubmed = await screenDoisViaPubmed(dois, doiToPmid, checkPmids, pmidRows);
   const pubmedFor = (doi) => pubmed.perDoi.get(lc(doi)) || {};
+  const pmc = await screenPmcids(pmcids, pmcidToIds, checkPmids, checkDois, pmidRows, crossRows);
 
   const retracted_dois = dois.filter((doi) => {
     const v = pubmedFor(doi);
@@ -500,6 +549,7 @@ async function checkRetractions(reportText, checkDois, checkPmids, doiToPmid) {
     const r = pmidRows.get(String(pmid));
     if (!(r && r.checked)) unscreened_ids.push(`PMID:${pmid}`);
   }
+  for (const pmcid of pmc.unscreened) unscreened_ids.push(`PMCID:${pmcid}`);
 
   return {
     // `checked` asserts full coverage of every cited identifier. A rate-limited or unreachable
@@ -507,9 +557,13 @@ async function checkRetractions(reportText, checkDois, checkPmids, doiToPmid) {
     // never a silent "clean". It is a REPORTING flag only — it never blocks delivery: the manifest
     // turns it into the `retraction_screen_incomplete` flag (DELIVER_WITH_FLAGS), never a block.
     checked: anyScreen && unscreened_ids.length === 0,
-    retracted: [...retracted_dois, ...pmidScreen.retracted],
+    retracted: [...retracted_dois, ...pmidScreen.retracted, ...pmc.retracted],
     retracted_dois,
     retracted_pmids: pmidScreen.retracted,
+    // T2-16: cited PMCIDs found retracted through their PMC record's PMID or DOI.
+    retracted_pmcids: pmc.retracted,
+    pmcids_checked: pmc.checked_count,
+    pmcids_cited: pmcids.length,
     retracted_dois_via_pmid,
     unflagged_notice_dois,
     crossref_notice_dois,

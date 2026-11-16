@@ -93,8 +93,10 @@ const PROFILE_COPY = Object.freeze({
     noRecordIdentifiers: "Citations carry public identifiers (PMID, NCT, PubChem CID, DOI) that resolve in their issuing registries and can be checked directly.",
     // T1-9 (2026-11-14): the registries a cited identifier can actually reach. RxNorm was listed here,
     // but no extractor pattern ever yields an RxNorm id, so nothing is re-resolved against RxNav.
-    registries: "PMID → NCBI E-utilities, DOI → Crossref with a doi.org fallback, "
-      + "NCT → ClinicalTrials.gov, PubChem CID → PubChem, ChEMBL → ChEMBL, UniProt → UniProt",
+    // T2-16 (2026-11-16): PMCID, ISRCTN and EudraCT ids are read and re-resolved too.
+    registries: "PMID → NCBI E-utilities, PMCID → PubMed Central (NCBI E-utilities), DOI → Crossref with a doi.org fallback, "
+      + "NCT → ClinicalTrials.gov, ISRCTN → the ISRCTN registry, EudraCT → the EU Clinical Trials Register, "
+      + "PubChem CID → PubChem, ChEMBL → ChEMBL, UniProt → UniProt",
     correctnessNote: "Re-resolution confirms an "
       + "identifier resolves to a source record — it does not assess the scientific correctness of the source.",
     sourcesSentence: "peer-reviewed biomedical literature, clinical trial registries, and pharmacological databases",
@@ -105,9 +107,9 @@ const PROFILE_COPY = Object.freeze({
     identifierBullet: "- Identifiers cited in the report (PMID, NCT number, PubChem CID, DOI) are public records in their issuing registries, and every one is listed in `tables.csv`",
     // Tier 1 review (2026-11-14): a dataset-sourced bundle ships no tables.csv.
     identifierBulletDataset: "- Identifiers cited in the source report (PMID, NCT number, PubChem CID, DOI) are public records in their issuing registries",
-    retractionBullet: "- Cited DOIs and PMIDs are retraction-screened (Crossref for DOIs, PubMed for PMIDs, with a DOI→PMID cross-check); any retracted source blocks release",
-    // T1-7: the bullet when the screen did not cover every cited DOI and PMID (a count follows).
-    retractionBulletPartial: "- Cited DOIs and PMIDs are put through the retraction screen (Crossref for DOIs, PubMed for PMIDs, with a DOI→PMID cross-check); any retracted source found blocks release.",
+    retractionBullet: "- Cited DOIs, PMIDs and PMCIDs are retraction-screened (Crossref for DOIs, PubMed for PMIDs, with a DOI→PMID cross-check, and a PMCID through the PMID or DOI its PMC record lists); any retracted source blocks release",
+    // T1-7: the bullet when the screen did not cover every cited DOI, PMID and PMCID (a count follows).
+    retractionBulletPartial: "- Cited DOIs, PMIDs and PMCIDs are put through the retraction screen (Crossref for DOIs, PubMed for PMIDs, with a DOI→PMID cross-check, and a PMCID through the PMID or DOI its PMC record lists); any retracted source found blocks release.",
     dataSourcesIntro: "The pipeline queries the following authoritative biomedical databases:",
     dataSources: Object.freeze([
       "- **PubMed / MEDLINE** — Peer-reviewed biomedical literature (PMID identifiers)",
@@ -227,8 +229,8 @@ function createDeliverablePackager(options = {}) {
   }
   function retractionShortfall(coverage) {
     return coverage.known
-      ? `For this report ${coverage.unscreened}${coverage.cited !== null ? ` of ${coverage.cited}` : ""} cited DOIs and PMIDs could not be screened; the citation-integrity ledger lists them.`
-      : "This bundle's record does not state whether every cited DOI and PMID could be screened.";
+      ? `For this report ${coverage.unscreened}${coverage.cited !== null ? ` of ${coverage.cited}` : ""} cited DOIs, PMIDs and PMCIDs could not be screened; the citation-integrity ledger lists them.`
+      : "This bundle's record does not state whether every cited DOI, PMID and PMCID could be screened.";
   }
   function retractionBulletFor(copy, coverage) {
     const base = coverage.complete ? copy.retractionBullet : `${copy.retractionBulletPartial} ${retractionShortfall(coverage)}`;
