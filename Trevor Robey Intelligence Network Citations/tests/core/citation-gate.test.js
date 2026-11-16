@@ -319,6 +319,59 @@ describe("citation-gate", () => {
     });
   });
 
+  // Tier 1 review F1 (2026-11-14): a synthesizer or report_generator section is saved AFTER the vault
+  // enricher links its first labelled PMID ("PMID: [[PMID-a|PMID: a]], b"). Every later list item must
+  // still reach the gate, the retraction screen and the marks. These tests run the real enricher.
+  describe("an enriched PMID list reaches the gate, the screen and the marks (review F1)", () => {
+    const { enrichWithWikiLinks } = require("../../openclaw-bridge/core/wiki-link-enricher.js");
+    const written = "Two randomized trials (PMID: 31111111, 32222222) reported a survival benefit.";
+    const enriched = enrichWithWikiLinks(written).markdown;
+
+    it("the gate counts both PMIDs, so an untraced later item fails a report it used to pass", () => {
+      const read = fakeReader({ m1: JSON.stringify({ fetched_citation_ids: ["31111111"] }), o1: enriched });
+      const r = verifyReportCitations({ subtaskResults: [{ metadata_path: "m1", output_path: "o1" }], minGroundedRatio: 0.75, readFile: read });
+      assert.equal(r.cited, 2);
+      assert.equal(r.grounded, 1);
+      assert.deepEqual(r.ungrounded_list, [{ type: "PMID", id: "32222222" }]);
+      assert.equal(r.verdict, "UNVERIFIED");
+    });
+
+    it("the retraction screen is handed both PMIDs and blocks on the later one", async () => {
+      const seen = [];
+      const checkPmids = async (pmids) => {
+        seen.push(...pmids);
+        return pmids.map((pmid) => ({ pmid, retracted: pmid === "32222222", is_notice: false, checked: true }));
+      };
+      const out = await checkRetractions(enriched, null, checkPmids);
+      assert.deepEqual(seen, ["31111111", "32222222"]);
+      assert.deepEqual(out.retracted_pmids, ["32222222"]);
+    });
+
+    it("the untraced later item is marked in place, and the section passes the fail-closed re-read", () => {
+      const files = { o1: enriched };
+      const r = annotateSubtaskOutputs([{ task_id: "synth", output_path: "o1" }], ["31111111"], {
+        readFile: (p) => files[p],
+        writeFile: (p, text) => { files[p] = text; }
+      });
+      assert.deepEqual(r.failed, []);
+      assert.match(files.o1, /PMID: \[\[PMID-31111111\|PMID: 31111111\]\], 32222222 \[UNVERIFIED\]\) reported/);
+      assert.equal(annotateUngrounded(files.o1, [{ type: "PMID", id: "32222222" }]), files.o1, "a second pass changes nothing");
+    });
+  });
+
+  // Tier 1 review (2026-11-14): only the engine's own appended block is exempt from marks.
+  describe("a verification block the model wrote is not the engine's (review)", () => {
+    const modelBlock = "Findings (PMID: 12345678).\n\n## ⚠️ Citation Verification\n\nAll sources were checked.\n\n- PMID: 23456789\n";
+
+    it("its ids are marked like any mention, and the engine still appends its own list", () => {
+      const out = annotateUngrounded(modelBlock, [{ type: "PMID", id: "23456789" }]);
+      assert.match(out, /- PMID: 23456789 \[UNVERIFIED\]\n/, "the model's bullet is a mention, so it is marked");
+      assert.match(out, /The following cited identifiers were NOT found[^\n]*\n\n- PMID: 23456789\n$/, "the engine's own list is appended");
+      assert.equal(countUnmarkedUntraced(out, new Set(["PMID:23456789"])), 0);
+      assert.equal(annotateUngrounded(out, [{ type: "PMID", id: "23456789" }]), out, "a second pass changes nothing");
+    });
+  });
+
   // T1-5: a cited id is grounded only by a retrieved record of the same identifier type.
   describe("grounding by type as well as number (T1-5)", () => {
     const typed = JSON.stringify({ fetched_citation_ids: ["2244"], fetched_citation_keys: ["PUBCHEM CID:2244"] });

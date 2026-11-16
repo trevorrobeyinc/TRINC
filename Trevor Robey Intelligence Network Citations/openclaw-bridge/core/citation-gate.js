@@ -134,6 +134,11 @@ function collectReportText(subtaskResults, readFile = fs.readFileSync, unreadabl
 // any attribution mark) is skipped, and the appended verification list is never re-marked.
 const UNVERIFIED_MARK = "[UNVERIFIED]";
 const VERIFICATION_HEADER = "\n\n## ⚠️ Citation Verification\n\n";
+const VERIFICATION_INTRO = "The following cited identifiers were NOT found in the evidence fetched at runtime and are flagged **UNVERIFIED**. ";
+// The engine's own block starts with the header AND this exact intro. A section in which the model wrote
+// the same header itself is not the engine's list: its ids are marked like any other mention, and the
+// engine still appends its own list (Tier 1 review, 2026-11-14; before, the bare header exempted them).
+const ENGINE_VERIFICATION_BLOCK = VERIFICATION_HEADER + VERIFICATION_INTRO;
 const ALREADY_MARKED = /(?:[ \t]*\[ATTRIBUTION MISMATCH:[^\]\n]*\])*[ \t]*\[UNVERIFIED\]/y;
 
 // The appended verification lists (header, intro line, "- TYPE: ID" bullets). An assembled report
@@ -142,7 +147,7 @@ function verificationListRanges(text) {
   const ranges = [];
   let from = 0;
   for (;;) {
-    const start = text.indexOf(VERIFICATION_HEADER, from);
+    const start = text.indexOf(ENGINE_VERIFICATION_BLOCK, from);
     if (start < 0) break;
     let j = start + VERIFICATION_HEADER.length;
     const introEnd = text.indexOf("\n", j);
@@ -204,9 +209,8 @@ function annotateUngrounded(reportText, ungroundedList) {
     if (isMarkedAt(out, at)) continue;
     out = `${out.slice(0, at)} ${UNVERIFIED_MARK}${out.slice(at)}`;
   }
-  if (!out.includes(VERIFICATION_HEADER)) {
-    out += VERIFICATION_HEADER +
-      "The following cited identifiers were NOT found in the evidence fetched at runtime and are flagged **UNVERIFIED**. " +
+  if (!out.includes(ENGINE_VERIFICATION_BLOCK)) {
+    out += ENGINE_VERIFICATION_BLOCK +
       "Per the zero-fabrication policy, treat each as unconfirmed until independently checked — they must not be presented as verified citations.\n\n" +
       list.map((c) => `- ${c.type}: ${c.id}`).join("\n") + "\n";
   }

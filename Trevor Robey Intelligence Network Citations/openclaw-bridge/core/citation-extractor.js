@@ -14,7 +14,16 @@ const MARKS_AFTER = String.raw`(?:[ \t]*${MARK_SOURCE})*`;
 // id, which is the self-correcting side of the width doctrine.
 const PMID_FIRST = String.raw`\d{1,10}(?!\d)`;
 const PMID_NEXT = String.raw`\d{1,10}(?!\d)(?![ \t]*%)(?!\.\d)(?![ \t]+[A-Za-z])`;
-const PMID_LIST = `${PMID_FIRST}${MARKS_AFTER}(?:[ \\t]*[,;][ \\t]*${PMID_NEXT}${MARKS_AFTER})*`;
+// A link that closes right after a list item: the end of a wiki-link alias ("…|PMID: 31111111]]") or of
+// a markdown link ("[PMID: 31111111](https://…)"). The vault enricher (wiki-link-enricher.js) links the
+// FIRST labelled PMID of "PMID: a, b" in every synthesizer and report_generator section before it is
+// saved, so without this the list stopped at the alias's "]]" and every later item went unread: not
+// counted, not marked, not retraction-screened, not re-resolved (Tier 1 review finding F1, 2026-11-14;
+// sealed offer-7e373eb2de36a7a2e73e7c1c report.md:332 lost four PMIDs this way). listItems skips the
+// whole token, so a digit inside the link's URL is never read as an item.
+const LINK_CLOSE_SOURCE = String.raw`\]\]|\]\([^)\s]*\)`;
+const AFTER_ITEM = `${MARKS_AFTER}(?:(?:${LINK_CLOSE_SOURCE})${MARKS_AFTER})?`;
+const PMID_LIST = `${PMID_FIRST}${AFTER_ITEM}(?:[ \\t]*[,;][ \\t]*${PMID_NEXT}${AFTER_ITEM})*`;
 
 const CITATION_PATTERNS = [
   // PMIDs are sequential positive integers with NO fixed width: they start at 1 (PMID 1 is a real
@@ -30,8 +39,10 @@ const CITATION_PATTERNS = [
   // label is read ("PMIDs: 12345678, 23456789"); before, only the first item of "PMID: a, b" was.
   // The wiki-link target half "[[PMID-42529345|…" is not a label (no ":"/space before the digits).
   { type: "PMID", form: "label", regex: new RegExp(String.raw`PMIDs?[:\s]*(` + PMID_LIST + ")", "gi") },
-  // T1-4: a "PubMed ID" or "PubMed:" label. A bare "PubMed 2019" (a search year in prose) is NOT a label.
-  { type: "PMID", form: "pubmed_label", regex: /\bPubMed(?:\s*IDs?\s*[:#]?|\s*[:#])\s*(\d{1,10})(?!\d)/gi },
+  // T1-4: a "PubMed ID" or "PubMed:" label. A bare "PubMed 2019" (a search year in prose) is NOT a label,
+  // and neither is "PubMed: 2019" or "PubMed: 2015–2025" (a search span in a methods line): a label with
+  // no "ID" needs a number of 5 or more digits (Tier 1 review, 2026-11-14). "PubMed ID: 123" is still read.
+  { type: "PMID", form: "pubmed_label", regex: /\bPubMed(?:\s*IDs?\s*[:#]?|\s*[:#](?=\s*\d{5}))\s*(\d{1,10})(?!\d)/gi },
   // T1-4: PubMed record links, pubmed.ncbi.nlm.nih.gov/<id> and (www.)ncbi.nlm.nih.gov/pubmed/<id>.
   { type: "PMID", form: "pubmed_url", regex: /\b(?:pubmed\.ncbi\.nlm\.nih\.gov\/|ncbi\.nlm\.nih\.gov\/pubmed\/)(\d{1,10})(?!\d)/gi },
   // T1-4: an uppercase "CID" on a word boundary, no `i` flag. The old pattern had neither, so "amino
@@ -40,8 +51,11 @@ const CITATION_PATTERNS = [
   { type: "PubChem CID", regex: /\b(?:PubChem\s*)?CID\b[:\s]*(\d{1,12})(?!\d)/g },
   // T1-4: an optional space or hyphen after "NCT" ("NCT 01234567", "NCT-01234567"), normalized to
   // NCT + 8 digits. `(?!\d)` refuses the first 8 digits of a longer run: NCT012345678 is a different
-  // (possibly real) trial NCT01234567, so it is dropped rather than mis-captured.
-  { type: "NCT", regex: /\bNCT[ -]?(\d{8})(?!\d)/gi },
+  // (possibly real) trial NCT01234567, so it is dropped rather than mis-captured. The left guard is "no
+  // letter before", not `\b`: with the `i` flag and the optional separator, a word ending in "nct"
+  // ("distinct 12345678") must not read, but an id after "_" or a digit must, as it did at bb4299d —
+  // "_NCT01234567_" is markdown italics (Tier 1 review, 2026-11-14).
+  { type: "NCT", regex: /(?<![A-Za-z])NCT[ -]?(\d{8})(?!\d)/gi },
   // UniProt: the id must be a real ACCESSION (UniProt's published grammar: 6 chars `[OPQ]\d[A-Z0-9]{3}\d`, or
   // `[A-NR-Z]\d` + one or two `[A-Z][A-Z0-9]{2}\d` groups = 6 or 10 chars). The old pattern,
   // `UniProt[:\s]*([A-Z0-9]{6,10})` with the `i` flag, captured ANY 6-10 letter word after the label, so a
@@ -152,11 +166,12 @@ function inUrlContext(text, start) {
 // manifest's own count line "retracted PMIDs: 0" read as PMID 0 once "PMIDs" became a label.
 const NOT_A_PMID = /^0+$/;
 
-// Each item of a PMID list (or of a PMID table cell), skipping any mark between items. `offset` is the
-// list's position in the full text, so every item gets its own span.
+// Each item of a PMID list (or of a PMID table cell), skipping any mark and any closing link between
+// items (so the digits of a link's URL are never items). `offset` is the list's position in the full
+// text, so every item gets its own span.
 function listItems(listText, offset) {
   const out = [];
-  const re = new RegExp(`${MARK_SOURCE}|(\\d{1,10})`, "gi");
+  const re = new RegExp(`${MARK_SOURCE}|${LINK_CLOSE_SOURCE}|(\\d{1,10})`, "gi");
   let m;
   while ((m = re.exec(listText)) !== null) {
     if (m[1] === undefined) continue; // a mark, not an item

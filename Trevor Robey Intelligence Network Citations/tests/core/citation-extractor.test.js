@@ -163,6 +163,49 @@ describe("citation-extractor — every written form (T1-4)", () => {
   });
 });
 
+// Tier 1 review (2026-11-14): forms the T1-4 patterns still missed or over-read.
+describe("citation-extractor — review fixes (2026-11-14)", () => {
+  const { enrichWithWikiLinks } = require("../../openclaw-bridge/core/wiki-link-enricher.js");
+
+  it("F1: a PMID list whose first item the vault enricher linked is read in full", () => {
+    const enriched = enrichWithWikiLinks("Two trials (PMID: 31111111, 32222222; 33333333) agreed.").markdown;
+    assert.match(enriched, /PMID: \[\[PMID-31111111\|PMID: 31111111\]\], 32222222; 33333333/, "the enricher links only the first item");
+    assert.deepEqual(ids(enriched, "PMID"), ["31111111", "32222222", "33333333"]);
+  });
+
+  it("F1: the same list after its marks were written is still read in full", () => {
+    const marked = "(PMID: [[PMID-31111111|PMID: 31111111]] [UNVERIFIED], 32222222 [UNVERIFIED], 33333333)";
+    assert.deepEqual(ids(marked, "PMID"), ["31111111", "32222222", "33333333"]);
+  });
+
+  it("F1: a list continues after a markdown link around its first item, and the link's URL digits are never items", () => {
+    const text = "Trials ([PMID: 31111111](https://pubmed.ncbi.nlm.nih.gov/31111111/), 32222222) and "
+      + "([PMID: 34444444](https://example.org/a/2019/55), 35555555).";
+    const got = ids(text, "PMID");
+    assert.deepEqual([...new Set(got)], ["31111111", "32222222", "34444444", "35555555"]);
+    assert.ok(!got.includes("2019") && !got.includes("55"), "digits inside a link's URL are not PMIDs");
+  });
+
+  it("F1: the sealed report line that lost four PMIDs (fixture line 98) yields all five", () => {
+    const line = fs.readFileSync(path.join(__dirname, "..", "fixtures", "unverified-marks-excerpt.md"), "utf8").split("\n")[97];
+    assert.deepEqual(ids(line, "PMID"), ["42840625", "42840427", "42840361", "42839779", "42838626"]);
+  });
+
+  it("an NCT id after an underscore or a digit is read (markdown italics), a word ending in 'nct' is not", () => {
+    assert.deepEqual(ids("_NCT01234567_ enrolled 40.", "NCT"), ["NCT01234567"]);
+    assert.deepEqual(ids("see trial_NCT02345678 and 3NCT03456789", "NCT"), ["NCT02345678", "NCT03456789"]);
+    assert.deepEqual(ids("a distinct 12345678 subgroup", "NCT"), []);
+  });
+
+  it("a bare 'PubMed:' label needs 5+ digits: a search year or span is not a PMID; 'PubMed ID: 123' still is", () => {
+    assert.deepEqual(ids("Databases searched — PubMed: 2019.", "PMID"), []);
+    assert.deepEqual(ids("PubMed: 2015–2025, Embase: 2015–2025", "PMID"), []);
+    assert.deepEqual(ids("PubMed: 31111111", "PMID"), ["31111111"]);
+    assert.deepEqual(ids("PubMed #45678", "PMID"), ["45678"]);
+    assert.deepEqual(ids("PubMed ID: 123", "PMID"), ["123"]);
+  });
+});
+
 describe("citation-extractor", () => {
   describe("extractCitations", () => {
     it("extracts PMID citations", () => {
