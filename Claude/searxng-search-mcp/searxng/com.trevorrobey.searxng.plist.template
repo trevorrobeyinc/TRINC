@@ -33,8 +33,16 @@
     <true/>
     <key>KeepAlive</key>
     <true/>
+    <!--
+      Standard, not Background (operator's go, 2026-11-15). Background put SearXNG in macOS's
+      throttled band: scheduler priority 4, throttled disk and network I/O (setpriority(2)). On a
+      loaded Mac the whole process stopped running: on 2026-11-15 every engine missed its 6-10 s
+      deadline by about 48 s, all in the same second, and a restart spent 61 s loading. It answers
+      while a caller waits (the searxng-search MCP, the business lane's web evidence), so it runs
+      in the same class as the TLS proxy in front of it (no ProcessType, which is Standard).
+    -->
     <key>ProcessType</key>
-    <string>Background</string>
+    <string>Standard</string>
 
     <key>StandardOutPath</key>
     <string>__HOME__/.local/share/searxng/searxng.log</string>
