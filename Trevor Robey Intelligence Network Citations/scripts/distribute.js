@@ -5,9 +5,30 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { parseArgs } = require("node:util");
 
-const { extractCitations, deduplicateCitations } = require("../openclaw-bridge/core/citation-extractor.js");
+const { manifestProblems, sealProblems } = require("./_delivery-checks.js");
 
 const ROOT_DIR = path.resolve(__dirname, "..");
+
+// T1-2 (2026-11-14): the report and citation index in marketplace files come ONLY from the workflow's
+// sealed release, and only when that release passed the citation gate: it must hold the integrity
+// ledger and a complete reproducibility manifest (shippable decision, nothing UNRESOLVED, re-resolution
+// completed — T1-8), and every file read must match the release seal (the seal and manifest checks of
+// scripts/_delivery-checks.js; the buyer ZIP's ChEMBL and retired-wording checks are not run here).
+// Not from the release: the workflow, template and offer ids, the quality score from workflow.json,
+// and nothing else of it (Tier 1 review: it carries local paths, run inputs and every step's result).
+// Before this, the staged report was the longest .md in the mission folder or in ANY research-output
+// folder whose name started with "task-", so it could come from a different run, gated or not; and a
+// branch read workspace/offer-bundles/, a folder the packager never writes.
+const RELEASE_FILES = Object.freeze(["report.md", "tables.csv", "citation-integrity.md", "reproducibility-manifest.json"]);
+
+class DistributionRefusedError extends Error {
+  constructor(workflowId, problems) {
+    super(`distribution refused for workflow '${workflowId}', nothing written:\n- ${problems.join("\n- ")}`);
+    this.name = "DistributionRefusedError";
+    this.code = "PHASE30_DISTRIBUTION_REFUSED";
+    this.problems = problems;
+  }
+}
 
 const ADAPTER_MAP = {
   datarade: "../openclaw-bridge/distribution/datarade-format-adapter.js",
@@ -23,23 +44,16 @@ function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
-function readTextSafe(filePath) {
-  try {
-    return fs.readFileSync(filePath, "utf8");
-  } catch {
-    return "";
-  }
-}
-
 function ensureDir(dirPath) {
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
   }
 }
 
-function findWorkflowFiles(workflowId) {
-  // Check workflow state first
-  const workflowDir = path.join(ROOT_DIR, "workspace", "workflows", workflowId);
+// The staged report and citation index come from the workflow's sealed, gate-passed release, or the
+// workflow is refused (DistributionRefusedError) and nothing is staged.
+function findWorkflowFiles(workflowId, { rootDir = ROOT_DIR } = {}) {
+  const workflowDir = path.join(rootDir, "workspace", "workflows", workflowId);
   const workflowJsonPath = path.join(workflowDir, "workflow.json");
 
   if (!fs.existsSync(workflowJsonPath)) {
@@ -47,90 +61,28 @@ function findWorkflowFiles(workflowId) {
   }
 
   const state = readJson(workflowJsonPath);
-  const missionId = state.artifacts && state.artifacts.mission_id;
   const offerId = state.artifacts && state.artifacts.offer_id;
-
-  // Find report and citations from mission output
-  let report = "";
-  let citations = "";
-
-  if (missionId) {
-    const missionDir = path.join(ROOT_DIR, "workspace", "missions", missionId);
-    if (fs.existsSync(missionDir)) {
-      // Look for report files in mission directory
-      const files = fs.readdirSync(missionDir, { recursive: true }).sort();
-      for (const file of files) {
-        const fullPath = path.join(missionDir, file);
-        if (!fs.statSync(fullPath).isFile()) continue;
-        const content = readTextSafe(fullPath);
-        if (file.endsWith(".md") && content.length > report.length) {
-          report = content;
-        }
-        if ((file.includes("table") || file.includes("citation")) && file.endsWith(".csv")) {
-          citations = content;
-        }
-      }
-    }
-
-    // Also check research output
-    const outputDir = path.join(ROOT_DIR, "workspace", "research-output");
-    if (fs.existsSync(outputDir)) {
-      const taskDirs = fs.readdirSync(outputDir).filter((d) => d.includes(missionId) || d.startsWith("task-"));
-      for (const taskDir of taskDirs) {
-        const taskPath = path.join(outputDir, taskDir);
-        if (!fs.statSync(taskPath).isDirectory()) continue;
-        const taskFiles = fs.readdirSync(taskPath);
-        for (const file of taskFiles) {
-          const fullPath = path.join(taskPath, file);
-          if (!fs.statSync(fullPath).isFile()) continue;
-          const content = readTextSafe(fullPath);
-          if (file === "output.md" && content.length > report.length) {
-            report = content;
-          }
-        }
-      }
-    }
+  if (!offerId) {
+    throw new DistributionRefusedError(workflowId, ["the workflow sealed no release (workflow.json names no artifacts.offer_id): only a sealed, gate-passed release is distributed"]);
   }
-
-  // Check offer bundle for packaged deliverables
-  if (offerId) {
-    const bundleDir = path.join(ROOT_DIR, "workspace", "offer-bundles", offerId);
-    if (fs.existsSync(bundleDir)) {
-      const bundleFiles = fs.readdirSync(bundleDir, { recursive: true }).sort();
-      for (const file of bundleFiles) {
-        const fullPath = path.join(bundleDir, file);
-        if (!fs.statSync(fullPath).isFile()) continue;
-        const content = readTextSafe(fullPath);
-        if (file.endsWith("report.md") && content.length > report.length) {
-          report = content;
-        }
-        if (file.endsWith("tables.csv") && content.length > citations.length) {
-          citations = content;
-        }
-      }
-    }
+  const releaseDir = path.join(rootDir, "workspace", "releases", String(offerId));
+  const deliverablesDir = path.join(releaseDir, "deliverables");
+  if (!fs.existsSync(deliverablesDir)) {
+    throw new DistributionRefusedError(workflowId, [`no sealed release at ${releaseDir}`]);
   }
+  const seal = sealProblems(releaseDir, RELEASE_FILES);
+  const problems = [...seal.problems, ...manifestProblems(deliverablesDir, { requireManifest: true }).problems];
+  if (problems.length > 0) throw new DistributionRefusedError(workflowId, problems);
 
-  // Extract citations from report markdown if no CSV file was found
-  if (!citations && report) {
-    const extracted = deduplicateCitations(extractCitations(report));
-    if (extracted.length > 0) {
-      const csvLines = ["type,id,context"];
-      for (const cit of extracted) {
-        const ctx = (cit.context || "").replace(/"/g, '""').slice(0, 200);
-        csvLines.push(`${cit.type},${cit.id},"${ctx}"`);
-      }
-      citations = csvLines.join("\n");
-    }
-  }
-
-  // Count citations
-  const citationCount = citations
-    ? citations.split("\n").filter((l) => l.trim() && !l.startsWith("type")).length
-    : 0;
+  const report = fs.readFileSync(path.join(deliverablesDir, "report.md"), "utf8");
+  const citations = fs.readFileSync(path.join(deliverablesDir, "tables.csv"), "utf8");
+  // One row per identifier after the header line (the header used to be counted as a citation).
+  const citationCount = citations.split("\n").slice(1).filter((l) => l.trim()).length;
 
   return {
     workflowId,
+    offerId,
+    releaseDir,
     templateId: state.template_id || "unknown",
     outputDir: workflowDir,
     report,
@@ -139,7 +91,7 @@ function findWorkflowFiles(workflowId) {
     qualityScore: state.artifacts && state.artifacts.quality_report
       ? state.artifacts.quality_report.overall_confidence
       : null,
-    metadata: state
+    metadata: { workflow_id: workflowId, template_id: state.template_id || "unknown", offer_id: String(offerId) }
   };
 }
 
@@ -225,18 +177,33 @@ function main() {
     ? ALL_TARGETS
     : values.targets.split(",").map((t) => t.trim());
 
+  try {
+    runDistribution({ workflowId, targetList });
+  } catch (error) {
+    if (error instanceof DistributionRefusedError) {
+      console.error(error.message);
+      process.exit(2);
+    }
+    throw error;
+  }
+}
+
+// Stage the marketplace files for one workflow. Refuses (DistributionRefusedError) before writing
+// anything unless the workflow's release is sealed and gate-passed (findWorkflowFiles).
+function runDistribution({ workflowId, targetList = ALL_TARGETS, rootDir = ROOT_DIR }) {
   console.log(`\nDistribution Pipeline`);
   console.log(`Workflow: ${workflowId}`);
   console.log(`Targets: ${targetList.join(", ")}`);
   console.log(`---`);
 
-  const workflowOutput = findWorkflowFiles(workflowId);
+  const workflowOutput = findWorkflowFiles(workflowId, { rootDir });
+  console.log(`Release: ${workflowOutput.offerId}`);
   console.log(`Report: ${workflowOutput.report.length} chars`);
   console.log(`Citations: ${workflowOutput.citationCount} identifiers`);
   console.log(`Template: ${workflowOutput.templateId}`);
   console.log(`---`);
 
-  const outputBase = path.join(ROOT_DIR, "workspace", "distribution");
+  const outputBase = path.join(rootDir, "workspace", "distribution");
   ensureDir(outputBase);
 
   for (const target of targetList) {
@@ -250,6 +217,9 @@ function main() {
   console.log(`\n--- Distribution complete ---`);
   console.log(`Output: ${outputBase}`);
   console.log(`NOTE: Files are prepared for manual review and upload. Nothing was submitted.`);
+  return { workflowOutput, outputBase };
 }
 
-main();
+if (require.main === module) main();
+
+module.exports = { ALL_TARGETS, DistributionRefusedError, RELEASE_FILES, findWorkflowFiles, runDistribution };

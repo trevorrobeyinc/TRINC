@@ -21,15 +21,19 @@ function sealHash(text) {
   return crypto.createHash("sha256").update(text).digest("hex");
 }
 
-function reproManifest({ decision = "DELIVER", unresolved = 0, flags = [] } = {}) {
+function reproManifest({ decision = "DELIVER", unresolved = 0, flags = [], reresolutionCompleted } = {}) {
   return JSON.stringify({
     citations: [],
-    summary: { delivery_decision: decision, flag_reasons: flags, block_reasons: [], counts: { total: 3, verified: 3 - unresolved, unresolved, unchecked: 0 } }
+    summary: {
+      delivery_decision: decision, flag_reasons: flags, block_reasons: [], counts: { total: 3, verified: 3 - unresolved, unresolved, unchecked: 0 },
+      // T1-8: absent on manifests sealed before 2026-11-14.
+      ...(typeof reresolutionCompleted === "boolean" ? { reresolution_completed: reresolutionCompleted } : {})
+    }
   }, null, 2);
 }
 
 // A sealed release in the engine's layout: deliverables/ + manifest.json listing deliverables/<file>.
-function writeRelease(root, { benchmark = true, overrides = {}, omit = [], decision, unresolved, flags } = {}) {
+function writeRelease(root, { benchmark = true, overrides = {}, omit = [], decision, unresolved, flags, reresolutionCompleted } = {}) {
   const releaseDir = path.join(root, OFFER);
   const deliverables = path.join(releaseDir, "deliverables");
   fs.mkdirSync(deliverables, { recursive: true });
@@ -40,7 +44,7 @@ function writeRelease(root, { benchmark = true, overrides = {}, omit = [], decis
     "citation-integrity.md": "# Citation integrity\n\nGrade A.\n",
     "search-coverage.md": "# Search coverage\n",
     "reproducibility-manifest.md": "# Reproducibility manifest\n",
-    "reproducibility-manifest.json": reproManifest({ decision, unresolved, flags }),
+    "reproducibility-manifest.json": reproManifest({ decision, unresolved, flags, reresolutionCompleted }),
     ...(benchmark ? {
       "design-benchmark.md": "# Trial Design Benchmark\n\nThe table itself is not graded.\n",
       "design-benchmark.csv": "nct_id\nNCT00000011\n"
@@ -122,6 +126,14 @@ describe("build-buyer-zip", () => {
     assert.deepEqual([...readStoredZip(out).keys()].sort(), [...COMMON_FILES, "checksums.txt"].sort());
   });
 
+  it("builds from a completed re-resolution pass, and from a manifest sealed before the field existed", () => {
+    writeRelease(root, { reresolutionCompleted: true });
+    assert.equal(buildBuyerZip({ offerId: OFFER, outPath: out, releasesDir: root }).decision, "DELIVER");
+    fs.rmSync(path.join(root, OFFER), { recursive: true, force: true });
+    writeRelease(root);
+    assert.equal(buildBuyerZip({ offerId: OFFER, outPath: path.join(root, "out", "older.zip"), releasesDir: root }).decision, "DELIVER");
+  });
+
   it("reports a flagged delivery without refusing it", () => {
     writeRelease(root, { decision: "DELIVER_WITH_FLAGS", flags: ["attribution_mismatch"] });
     const result = buildBuyerZip({ offerId: OFFER, outPath: out, releasesDir: root });
@@ -132,6 +144,8 @@ describe("build-buyer-zip", () => {
     ["a listed file is missing", { omit: ["search-coverage.md"] }, /missing: search-coverage\.md/],
     ["the delivery decision is BLOCK", { decision: "BLOCK" }, /delivery decision is BLOCK/],
     ["an identifier was UNRESOLVED", { unresolved: 1 }, /1 cited identifier\(s\) were UNRESOLVED/],
+    // T1-8: the engine's fallback manifest after a crashed re-resolution pass (DELIVER_WITH_FLAGS, all UNCHECKED).
+    ["the re-resolution pass did not complete", { decision: "DELIVER_WITH_FLAGS", flags: ["unchecked_over_threshold"], reresolutionCompleted: false }, /re-resolution did not complete; re-run the order/],
     ["a ChEMBL identifier is present", { overrides: { "tables.csv": "id,type\nCHEMBL25,ChEMBL\n" } }, /ChEMBL identifier in tables\.csv:2 \("CHEMBL25"\)/],
     ["a ChEMBL-derived field is present", { overrides: { "reproducibility-manifest.md": "| chemblId | x |\n" } }, /ChEMBL identifier in reproducibility-manifest\.md:1/],
     ["the memo keeps the retired funding sentence", { overrides: { "graveyard-memo.md": "Use it to avoid re-funding a path others have already abandoned.\n" } }, /graveyard-memo\.md still says "re-funding a path"/],

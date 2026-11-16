@@ -10,6 +10,7 @@
 // It refuses, and writes nothing, when:
 //   - a listed file is missing, or changed after the release was sealed (manifest.json);
 //   - the engine's delivery decision is not DELIVER / DELIVER_WITH_FLAGS, or an identifier is UNRESOLVED;
+//   - the re-resolution pass did not complete (the engine's fallback manifest, T1-8);
 //   - any file carries a ChEMBL identifier (excluded from paid deliverables until counsel answers
 //     the CC BY-SA 3.0 share-alike question);
 //   - a file still carries wording the operator retired on 2026-11-06 (decisions #6 and #7).
@@ -23,6 +24,10 @@ const os = require("node:os");
 const path = require("node:path");
 
 const { buildDeterministicZip } = require("./_export-zip-util.js");
+// Steps 1-3 live in one shared module since T1-11 (2026-11-14). export-release.js runs its manifest and
+// ChEMBL checks, and distribute.js its seal and manifest checks; only this builder runs all three,
+// with the retired-wording check (scripts/_delivery-checks.js lists who runs what).
+const { RETIRED_WORDING, contentProblems, manifestProblems, sealProblems } = require("./_delivery-checks.js");
 
 const DEFAULT_RELEASES_DIR = path.resolve(__dirname, "..", "workspace", "releases");
 
@@ -43,26 +48,12 @@ const SKU_FILES = Object.freeze({
 });
 const SKU_NAMES = Object.freeze({ benchmark: "Trial Design Benchmark Pack", archaeology: "Failed Trial Archaeology" });
 
-const SHIPPABLE_DECISIONS = new Set(["DELIVER", "DELIVER_WITH_FLAGS"]);
-const CHEMBL_PATTERNS = Object.freeze([/CHEMBL\d+/, /chembl_?id/i]);
-// Text the generators no longer write. A bundle sealed before the fix still carries it, so it is
-// refused rather than shipped: run the order again on the current engine.
-const RETIRED_WORDING = Object.freeze([
-  { file: "graveyard-memo.md", text: "re-funding a path", decision: "#7 (the memo read as funding advice)" },
-  { file: "design-benchmark.md", text: "no identifier below was counted", decision: "#6 (the scope note misstated the grade)" }
-]);
-
 class BuyerZipError extends Error {
   constructor(problems) {
     super(`buyer ZIP refused, nothing written:\n- ${problems.join("\n- ")}`);
     this.name = "BuyerZipError";
     this.problems = problems;
   }
-}
-
-// The engine seals the UTF-8 text of each file (finalizeBundle), so the seal check hashes the same way.
-function sealHash(filePath) {
-  return crypto.createHash("sha256").update(fs.readFileSync(filePath, "utf8")).digest("hex");
 }
 
 // The buyer's checksums.txt hashes raw bytes, so `shasum -a 256 -c checksums.txt` verifies it.
@@ -83,21 +74,6 @@ function chooseSku(deliverablesDir, requested) {
   return { error: `only ${present.join(", ")} of the two design-benchmark files is present; pass --sku to say which service this is` };
 }
 
-function firstMatch(text, patterns) {
-  const lines = text.split("\n");
-  for (let index = 0; index < lines.length; index += 1) {
-    for (const pattern of patterns) {
-      const match = lines[index].match(pattern);
-      if (match) return { line: index + 1, match: match[0] };
-    }
-  }
-  return null;
-}
-
-function readJson(filePath) {
-  return JSON.parse(fs.readFileSync(filePath, "utf8"));
-}
-
 function buildBuyerZip({ offerId, outPath, sku, releasesDir = DEFAULT_RELEASES_DIR } = {}) {
   if (!/^offer-[0-9a-f]+$/.test(String(offerId || ""))) {
     throw new BuyerZipError([`--offer-id must look like offer-<hex>, got "${offerId || ""}"`]);
@@ -115,58 +91,19 @@ function buildBuyerZip({ offerId, outPath, sku, releasesDir = DEFAULT_RELEASES_D
   const chosen = chooseSku(deliverablesDir, sku);
   if (chosen.error) throw new BuyerZipError([chosen.error]);
   const files = SKU_FILES[chosen.sku];
-  const problems = [];
 
   // 1. Every listed file is present and unchanged since the release was sealed.
-  let sealed = null;
-  try {
-    sealed = new Map((readJson(path.join(releaseDir, "manifest.json")).files || []).map((entry) => [entry.file, entry.sha256]));
-  } catch (err) {
-    problems.push(`the release seal (manifest.json) is unreadable: ${err.message}`);
-  }
-  const present = [];
-  for (const name of files) {
-    const filePath = path.join(deliverablesDir, name);
-    if (!fs.existsSync(filePath)) {
-      problems.push(`missing: ${name}`);
-      continue;
-    }
-    present.push(name);
-    if (!sealed) continue;
-    const expected = sealed.get(`deliverables/${name}`);
-    if (!expected) problems.push(`not covered by the release seal: ${name}`);
-    else if (sealHash(filePath) !== expected) problems.push(`changed after the release was sealed: ${name}`);
-  }
+  const seal = sealProblems(releaseDir, files);
+  const problems = [...seal.problems];
 
-  // 2. The engine's own delivery decision allows shipping, and nothing is UNRESOLVED.
-  let decision = null;
-  let flags = [];
-  if (present.includes("reproducibility-manifest.json")) {
-    try {
-      const summary = readJson(path.join(deliverablesDir, "reproducibility-manifest.json")).summary || {};
-      decision = summary.delivery_decision || null;
-      flags = Array.isArray(summary.flag_reasons) ? summary.flag_reasons : [];
-      const unresolved = Number((summary.counts || {}).unresolved || 0);
-      if (!SHIPPABLE_DECISIONS.has(decision)) problems.push(`delivery decision is ${decision || "missing"}, not DELIVER or DELIVER_WITH_FLAGS`);
-      if (unresolved > 0) problems.push(`${unresolved} cited identifier(s) were UNRESOLVED at delivery`);
-    } catch (err) {
-      problems.push(`reproducibility-manifest.json is unreadable: ${err.message}`);
-    }
-  }
+  // 2. The engine's own delivery decision allows shipping, nothing is UNRESOLVED, and the
+  //    re-resolution pass completed. (A missing manifest was reported in step 1.)
+  const verdict = manifestProblems(deliverablesDir);
+  problems.push(...verdict.problems);
+  const { decision, flags } = verdict;
 
   // 3. No ChEMBL identifier, and no retired wording, in anything the buyer receives.
-  for (const name of present) {
-    const text = fs.readFileSync(path.join(deliverablesDir, name), "utf8");
-    const chembl = firstMatch(text, CHEMBL_PATTERNS);
-    if (chembl) {
-      problems.push(`ChEMBL identifier in ${name}:${chembl.line} ("${chembl.match}"); ChEMBL is excluded from paid deliverables until counsel answers the share-alike question`);
-    }
-    for (const retired of RETIRED_WORDING) {
-      if (retired.file === name && text.includes(retired.text)) {
-        problems.push(`${name} still says "${retired.text}", retired on 2026-11-06 by decision ${retired.decision}; run the order on the current engine`);
-      }
-    }
-  }
+  problems.push(...contentProblems(deliverablesDir, seal.present));
 
   if (problems.length > 0) throw new BuyerZipError(problems);
 

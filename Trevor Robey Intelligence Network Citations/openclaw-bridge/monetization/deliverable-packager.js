@@ -5,7 +5,9 @@ const os = require("node:os");
 const path = require("node:path");
 
 const { canonicalize, canonicalJson, safeString, sha256 } = require("../../workflows/governance-automation/common.js");
-const { extractCitations, deduplicateCitations, countByType, roleLabel } = require("../core/citation-extractor.js");
+const {
+  extractCitations, deduplicateCitations, countByType, roleLabel, citationKey, groundingKey
+} = require("../core/citation-extractor.js");
 const { buildIntegrityReport } = require("./integrity-rating.js");
 const { renderManifestMarkdown } = require("../core/reproducibility-manifest.js");
 const { PHASE21_RELEASE_METADATA_SCHEMA } = require("./publisher-adapter-contract.js");
@@ -42,6 +44,22 @@ function shortText(value, length = 800) {
   return String(value || "").trim().slice(0, length);
 }
 
+// The sample preview's executive summary: whole lines, up to about `limit` characters. A cut is made
+// only at a line end, so an identifier is never separated from its [UNVERIFIED] mark (T1-3 puts the
+// mark on the identifier's own line, right after it or its link). If the last line end before the
+// limit would leave less than half of it, the line that crosses the limit is kept whole instead
+// (Tier 1 review, 2026-11-14; a raw 1500-character slice could cut between an id and its mark).
+function previewExcerpt(text, limit) {
+  const s = String(text || "");
+  if (s.length <= limit) return s.trim();
+  let cut = s.lastIndexOf("\n", limit);
+  if (cut < limit / 2) {
+    const end = s.indexOf("\n", limit);
+    cut = end < 0 ? s.length : end;
+  }
+  return s.slice(0, cut).trim();
+}
+
 function relativeFrom(baseDir, filePath) {
   return path.relative(baseDir, filePath).split(path.sep).join("/");
 }
@@ -73,17 +91,23 @@ function copyIfExists(sourcePath, targetPath) {
 const PROFILE_COPY = Object.freeze({
   biomedical: Object.freeze({
     noRecordIdentifiers: "Citations carry public identifiers (PMID, NCT, PubChem CID, DOI) that resolve in their issuing registries and can be checked directly.",
-    retractionScope: "cited DOIs and PMIDs are retraction-screened",
+    // T1-9 (2026-11-14): the registries a cited identifier can actually reach. RxNorm was listed here,
+    // but no extractor pattern ever yields an RxNorm id, so nothing is re-resolved against RxNav.
     registries: "PMID → NCBI E-utilities, DOI → Crossref with a doi.org fallback, "
-      + "NCT → ClinicalTrials.gov, PubChem CID → PubChem, ChEMBL → ChEMBL, UniProt → UniProt, RxNorm → RxNav",
+      + "NCT → ClinicalTrials.gov, PubChem CID → PubChem, ChEMBL → ChEMBL, UniProt → UniProt",
     correctnessNote: "Re-resolution confirms an "
       + "identifier resolves to a source record — it does not assess the scientific correctness of the source.",
     sourcesSentence: "peer-reviewed biomedical literature, clinical trial registries, and pharmacological databases",
     drawnFrom: "PubMed, ClinicalTrials.gov, PubChem, UniProt, ChEMBL, and other authoritative sources",
     reviewStep: "1. **Literature Review** — Systematic scan of peer-reviewed sources with citation extraction",
     analysisStep: "2. **Deep Analysis** — Pharmacological, molecular, or safety signal analysis with quantitative data",
-    identifierBullet: "- Every citation includes a verifiable identifier (PMID, NCT, CID, DOI, etc.)",
+    // T1-9: nothing enforces an identifier on every citation, so the bullet says what is true of them.
+    identifierBullet: "- Identifiers cited in the report (PMID, NCT number, PubChem CID, DOI) are public records in their issuing registries, and every one is listed in `tables.csv`",
+    // Tier 1 review (2026-11-14): a dataset-sourced bundle ships no tables.csv.
+    identifierBulletDataset: "- Identifiers cited in the source report (PMID, NCT number, PubChem CID, DOI) are public records in their issuing registries",
     retractionBullet: "- Cited DOIs and PMIDs are retraction-screened (Crossref for DOIs, PubMed for PMIDs, with a DOI→PMID cross-check); any retracted source blocks release",
+    // T1-7: the bullet when the screen did not cover every cited DOI and PMID (a count follows).
+    retractionBulletPartial: "- Cited DOIs and PMIDs are put through the retraction screen (Crossref for DOIs, PubMed for PMIDs, with a DOI→PMID cross-check); any retracted source found blocks release.",
     dataSourcesIntro: "The pipeline queries the following authoritative biomedical databases:",
     dataSources: Object.freeze([
       "- **PubMed / MEDLINE** — Peer-reviewed biomedical literature (PMID identifiers)",
@@ -97,10 +121,9 @@ const PROFILE_COPY = Object.freeze({
   }),
   business: Object.freeze({
     noRecordIdentifiers: "Citations carry public identifiers (SEC filing accession, World Bank indicator code, official statistics series id, DOI) or the content hash of the exact web page read (WEB), and can be checked directly.",
-    retractionScope: "cited DOIs are retraction-screened",
     registries: "SEC → SEC EDGAR filing index, WB → World Bank Indicators API, BLS → BLS Public Data API, "
       + "EUROSTAT → Eurostat SDMX dataflow, CENSUS → U.S. Census Bureau API, EIA → EIA API v2, DOI → Crossref with a doi.org fallback, "
-      + "WEB → this run's stored page snapshot, re-hashed at delivery",
+      + "WEB → this run's stored page snapshot, re-hashed when the report was assembled",
     correctnessNote: "Re-resolution confirms an "
       + "identifier resolves to a source record — it does not assess the correctness of the source. For WEB citations it confirms "
       + "the stored text is exactly what was read from that URL at retrieval time, not that the page is still live.",
@@ -108,8 +131,10 @@ const PROFILE_COPY = Object.freeze({
     drawnFrom: "SEC EDGAR, official statistics agencies (U.S. Bureau of Labor Statistics, Eurostat, the World Bank), OpenAlex / Crossref, and archived web pages",
     reviewStep: "1. **Source Review** — Systematic scan of filings, official statistics, scholarly works and web sources with citation extraction",
     analysisStep: "2. **Deep Analysis** — Cost, market, competitive, or operational analysis with quantitative data",
-    identifierBullet: "- Every citation includes a verifiable identifier (SEC accession, official statistics series id, World Bank indicator, DOI) or a WEB snapshot hash; every cited web page ships in `sources/`",
+    identifierBullet: "- Identifiers cited in the report (SEC accession, official statistics series id, World Bank indicator, DOI) are public records, and a WEB identifier is the hash of a stored page snapshot; every cited web page ships in `sources/`",
+    identifierBulletDataset: "- Identifiers cited in the source report (SEC accession, official statistics series id, World Bank indicator, DOI) are public records, and a WEB identifier is the hash of a stored page snapshot",
     retractionBullet: "- Cited DOIs are retraction-screened against Crossref; any retracted source blocks release",
+    retractionBulletPartial: "- Cited DOIs are put through the Crossref retraction screen; any retracted source found blocks release.",
     dataSourcesIntro: "The pipeline queries the following sources:",
     dataSources: Object.freeze([
       "- **SEC EDGAR** — Public company filings: 10-K, 10-Q, 8-K (SEC accession identifiers)",
@@ -141,17 +166,16 @@ function createDeliverablePackager(options = {}) {
   // on sourceContext — workflow-engine.js sets source_context.citation_verification, whose
   // reproducibility_manifest.summary carries per-identifier VERIFIED / UNRESOLVED / UNCHECKED.
   //
-  // { present:false } is a LEGITIMATE FAIL-SOFT STATE, not an error: per SYSTEM-REALITY.md §3 the
-  // re-resolution pass is fail-soft and a report may ship with no manifest.
+  // { present:false, gated:false } is the bundle that never went through the research path (dataset
+  // bundles, hand-fed source contexts). { present:false, gated:true } can no longer reach rendering
+  // (T1-8): writeDeliverables refuses a gated bundle without a manifest, because the engine always
+  // attaches one — a fallback when the re-resolution pass crashed.
   function readResolutionSummary(sourceContext) {
     const cv = asPlainObject(asPlainObject(sourceContext).citation_verification);
-    // `gated` separates TWO distinct absent-states that must not make the same claim:
-    //   (a) gated:true  — the citation gate + retraction screen ran, but the fail-soft
-    //                     re-resolution pass produced no manifest. Those gates ARE assertable.
-    //   (b) gated:false — this bundle never went through the research path at all (dataset
-    //                     bundles, hand-fed source contexts). renderStoreCopy is called for
-    //                     EVERY bundle, so asserting (a)'s guarantees here would be a fresh
-    //                     overclaim of exactly the class this module exists to prevent.
+    // `gated` separates the bundles that carry the citation gate's record from those that never
+    // went through the research path at all. renderStoreCopy is called for EVERY bundle, so
+    // asserting the gates' guarantees for an ungated one would be a fresh overclaim of exactly the
+    // class this module exists to prevent.
     const gated = Object.keys(cv).length > 0;
     const s = asPlainObject(asPlainObject(cv.reproducibility_manifest).summary);
     const counts = asPlainObject(s.counts);
@@ -160,11 +184,16 @@ function createDeliverablePackager(options = {}) {
     return {
       present: true,
       gated: true,
+      // Tier 1 review (2026-11-14): false for the T1-8 fallback manifest — the pass crashed and no
+      // identifier was looked up, so no sentence may say the identifiers were submitted or resolved.
+      completed: s.reresolution_completed !== false,
       total: counts.total,
       verified: num(counts.verified),
       unresolved: num(counts.unresolved),
       unchecked: num(counts.unchecked),
       decision: safeString(s.delivery_decision),
+      // T1-9: re-resolution runs when the report is assembled, not at delivery; its date is stated.
+      asOf: safeString(s.as_of) || "",
       byType: asPlainObject(s.by_type),
       // Attribution check (2026-11-04): cited WORKS (a "PMID: …; doi: …" pair is one) that resolve but
       // carry the wrong author/year in the report, and whether marks actually reached the sections.
@@ -179,32 +208,90 @@ function createDeliverablePackager(options = {}) {
     };
   }
 
+  // T1-7 (2026-11-14): the retraction screen's coverage for THIS bundle. The bundle says
+  // "retraction-screened" only when every cited DOI and PMID was screened; otherwise it says how many
+  // could not be, and that the integrity ledger names them. `known:false` = a record that predates
+  // the coverage fields, so nothing is asserted about coverage either way.
+  function readRetractionCoverage(sourceContext) {
+    const cv = asPlainObject(asPlainObject(sourceContext).citation_verification);
+    if (typeof cv.retraction_screen_checked !== "boolean") return { known: false, complete: false };
+    const ids = Array.isArray(cv.unscreened_ids) ? cv.unscreened_ids : [];
+    return {
+      known: true,
+      complete: cv.retraction_screen_checked === true,
+      unscreened: Number.isFinite(cv.unscreened) ? cv.unscreened : ids.length,
+      cited: Number.isFinite(cv.retraction_screen_cited) ? cv.retraction_screen_cited : null,
+      // Tier 1 review: DOIs screened against Crossref alone (their PubMed cross-check reached no verdict).
+      crossrefOnly: Number.isFinite(cv.retraction_dois_crossref_only) ? cv.retraction_dois_crossref_only : 0
+    };
+  }
+  function retractionShortfall(coverage) {
+    return coverage.known
+      ? `For this report ${coverage.unscreened}${coverage.cited !== null ? ` of ${coverage.cited}` : ""} cited DOIs and PMIDs could not be screened; the citation-integrity ledger lists them.`
+      : "This bundle's record does not state whether every cited DOI and PMID could be screened.";
+  }
+  function retractionBulletFor(copy, coverage) {
+    const base = coverage.complete ? copy.retractionBullet : `${copy.retractionBulletPartial} ${retractionShortfall(coverage)}`;
+    // Tier 1 review (2026-11-14, operator pick D2-wording): the bullet names PubMed, so say which DOIs
+    // were screened against Crossref alone.
+    const n = coverage.crossrefOnly || 0;
+    if (n === 0 || !copy.retractionBullet.includes("PubMed")) return base;
+    return `${base}${coverage.complete ? "." : ""} For ${n} cited DOI${n === 1 ? "" : "s"} the PubMed cross-check reached no verdict, so ${n === 1 ? "it was" : "they were"} screened against Crossref alone.`;
+  }
+
+  // T1-9: the store copy's gate and retraction bullets, by what this bundle's record says.
+  const NO_RECORD_BULLET = "- This bundle carries no citation-verification record: no grounding, retraction-screen, or re-resolution outcome is claimed for it";
+  function storeCopyGateBullets(sourceContext, copy, coverage) {
+    const cv = asPlainObject(asPlainObject(sourceContext).citation_verification);
+    if (Object.keys(cv).length === 0) return [NO_RECORD_BULLET];
+    if (cv.pass !== true) return ["- This bundle's citation-verification record did not pass the citation gate, so no grounding, retraction-screen, or re-resolution outcome is claimed for it"];
+    if (safeString(asPlainObject(sourceContext).source_kind) === "dataset") {
+      return ["- This dataset was built from a research report that passed the citation gate; the gate checked that report's cited identifiers, not each dataset row"];
+    }
+    return [
+      "- **The Zero-Fabrication Guarantee** — every cited identifier is cross-checked at generation time against the evidence retrieved for this report; an identifier not found in that evidence is flagged `[UNVERIFIED]` at every mention and in the citation index, and a report in which fewer than 75% of cited identifiers trace does not ship",
+      retractionBulletFor(copy, coverage)
+    ];
+  }
+
   // The re-resolution CAPABILITY claim must never be softened to "grounding only" — the
   // per-identifier resolver is built, wired and verified (SYSTEM-REALITY.md §3 carries an explicit
   // copy-sweep warning that doing so is a false understatement). What varies per bundle is the
   // OUTCOME, which is read from the manifest instead of assumed. Claim strength therefore tracks
   // the same counts that produce delivery_decision: all-VERIFIED (DELIVER) reads at full strength,
   // anything else is stated with its real UNCHECKED / UNRESOLVED residue (DELIVER_WITH_FLAGS).
-  function renderResolutionSentence(res, copy = PROFILE_COPY.biomedical) {
+  function renderResolutionSentence(res, copy = PROFILE_COPY.biomedical, opts = {}) {
+    // Tier 1 review (2026-11-14): a dataset-sourced bundle carries the source report's record but not
+    // its manifest, so it must not point to "the accompanying" one.
+    const manifestShips = opts.manifestShips !== false;
+    const manifestRef = manifestShips
+      ? "the accompanying Reproducibility Manifest"
+      : "the source report's Reproducibility Manifest, which this dataset bundle does not include";
+    if (res.present && res.completed === false) {
+      // The T1-8 fallback: the pass crashed and looked nothing up (its manifest says so too).
+      return `${copy.noRecordIdentifiers} Re-resolution did not complete for this bundle: no cited identifier was looked up in its registry, `
+        + `and the bundle is not cleared for delivery until the order is re-run. See ${manifestRef}.`;
+    }
     if (!res.present) {
       if (!res.gated) {
         // No citation-verification record at all — claim neither gate. Identifiers are still
         // public and independently checkable, which is true of any bundle.
         return `${copy.noRecordIdentifiers} This bundle carries no citation-verification record, so no grounding, retraction-screen, or re-resolution outcome is asserted for it.`;
       }
-      // A per-bundle statement of fact, NOT the general softening SYSTEM-REALITY.md §3 forbids:
-      // THIS bundle's gates ran but the fail-soft re-resolution pass produced no manifest.
-      return `Every cited identifier is cross-checked against the source records actually retrieved at runtime, and ${copy.retractionScope}. A per-identifier re-resolution manifest is not included with this bundle.`;
+      // Gated with no usable manifest: unreachable (writeDeliverables refuses it, T1-8). Defensive
+      // only, so it asserts nothing either way.
+      return `${copy.noRecordIdentifiers} No re-resolution result is recorded for this bundle, so no re-resolution outcome is asserted for it.`;
     }
     // Registries actually dispatched to, per citation-reresolver.js hostFor(). DrugBank is a
     // recognised identifier type but has NO resolver host, and the literal string is banned in
     // shipped content by the license allowlist — finalizeBundle would hard-fail the seal. Never
     // add it to this list.
     const registries = copy.registries;
+    const when = `when the report is assembled${res.asOf ? ` (as of ${res.asOf})` : ""}`;
     if (res.decision === "BLOCK") {
-      return `Every cited identifier is submitted at delivery for independent re-resolution against its issuing public registry (${registries}). `
+      return `Every cited identifier is submitted for independent re-resolution against its issuing public registry (${registries}) ${when}. `
         + `For this report the pass returned a BLOCKING result (${res.unresolved} of ${res.total} UNRESOLVED): this bundle is NOT cleared for delivery. `
-        + "See the accompanying Reproducibility Manifest.";
+        + `See ${manifestRef}.`;
     }
     const residue = [];
     if (res.unchecked > 0) residue.push(`${res.unchecked} returned no definitive answer and are recorded UNCHECKED`);
@@ -225,8 +312,8 @@ function createDeliverablePackager(options = {}) {
       attribution = ` Of the VERIFIED, ${n} cited work${n === 1 ? "" : "s"} ${n === 1 ? "carries" : "carry"} an author or year in the report that does not match the registry record`
         + `${res.attributionMarked ? ` and ${n === 1 ? "is" : "are"} marked [ATTRIBUTION MISMATCH] in the report` : ""}.`;
     }
-    return `Every cited identifier is submitted at delivery for independent re-resolution against its issuing public registry (${registries}). ${outcome}${attribution} `
-      + "Per-identifier results are recorded in the accompanying Reproducibility Manifest. " + copy.correctnessNote;
+    return `Every cited identifier is submitted for independent re-resolution against its issuing public registry (${registries}) ${when}. ${outcome}${attribution} `
+      + `Per-identifier results are recorded in ${manifestRef}. ` + copy.correctnessNote;
   }
 
   // Per-type breakdown from the manifest when present; a plain cited count otherwise. Never
@@ -252,7 +339,13 @@ function createDeliverablePackager(options = {}) {
     const title = safeString(offer.offer_title);
     const resolution = readResolutionSummary(sourceContext);
     const copy = profileCopy(sourceContext);
+    const coverage = readRetractionCoverage(sourceContext);
     const webSnapshots = Array.isArray(sourceContext.web_snapshots) ? sourceContext.web_snapshots : [];
+    // Tier 1 review (2026-11-14): a dataset-sourced bundle ships the dataset files only (no report,
+    // citation index, ledger or manifest), and a bundle whose record did not pass states no gate result.
+    const isMission = safeString(sourceContext.source_kind) === "mission";
+    const missionPassed = isMission && asPlainObject(sourceContext.citation_verification).pass === true;
+    const resolutionTotalsKnown = resolution.present && resolution.completed !== false;
 
     const lines = [
       `# ${title}`,
@@ -261,21 +354,32 @@ function createDeliverablePackager(options = {}) {
       "",
       "## Overview",
       "",
-      `This intelligence pack delivers citation-backed research synthesized from ${copy.sourcesSentence}. ${renderResolutionSentence(resolution, copy)}`,
+      `This intelligence pack delivers citation-backed research synthesized from ${copy.sourcesSentence}. ${renderResolutionSentence(resolution, copy, { manifestShips: isMission })}`,
       "",
-      resolution.present
+      resolutionTotalsKnown
         ? `The report spans **${pageEstimate}+ pages** of original analysis citing **${resolution.total} unique identifiers** (**${resolution.verified}** independently re-resolved VERIFIED) drawn from ${copy.drawnFrom}.`
-        : `The report spans **${pageEstimate}+ pages** of original analysis citing **${uniqueCitations.length} unique identifiers** drawn from ${copy.drawnFrom}.`,
+        : `The report spans **${pageEstimate}+ pages** of original analysis citing **${resolution.present ? resolution.total : uniqueCitations.length} unique identifiers** drawn from ${copy.drawnFrom}.`,
       "",
       "## What's Included",
       "",
       "| File | Description |",
       "| ---- | ----------- |",
-      "| `report.md` | Full research report with literature review, deep analysis, and integrated synthesis |",
-      "| `tables.csv` | Citation index with identifier type, source task, and context |",
-      "| `sample-preview.md` | Executive summary with key findings and citation highlights |",
-      "| `evidence-appendix.md` | Source provenance and task-level artifact references |",
-      ...(webSnapshots.length > 0 ? ["| `sources/` | The exact text of every cited web page, as read at retrieval time (one file per WEB identifier) |"] : []),
+      ...(isMission
+        ? [
+          "| `report.md` | Full research report with literature review, deep analysis, and integrated synthesis |",
+          "| `tables.csv` | Citation index with identifier type, source task, context, and whether the identifier was found in the evidence retrieved for this report (`grounded_in_run`) |",
+          "| `sample-preview.md` | Executive summary with key findings and citation highlights |",
+          "| `evidence-appendix.md` | Source provenance and task-level artifact references |",
+          ...(webSnapshots.length > 0 ? ["| `sources/` | The exact text of every cited web page, as read at retrieval time (one file per WEB identifier) |"] : [])
+        ]
+        : [
+          "| `dataset.jsonl` | The dataset rows |",
+          "| `schema.json` | The dataset's schema |",
+          "| `dataset-card.md` | What the dataset covers, where its rows come from, and its limits |",
+          "| `build-report.json` | How the dataset was built |",
+          "| `sample-preview.jsonl` | The first rows of the dataset |",
+          "| other `*-report.json` and `provenance.json` files | Validation, de-duplication, quality, licence and provenance records, when the build produced them |"
+        ]),
       "",
       "## Research Methodology",
       "",
@@ -283,14 +387,19 @@ function createDeliverablePackager(options = {}) {
       "",
       copy.reviewStep,
       copy.analysisStep,
-      "3. **Integrated Synthesis** — Cross-validated findings with contradiction resolution and citation-density scoring",
+      // T1-9 (2026-11-14): no cross-validation module exists, and the evidence ledger is not
+      // chain-hashed; the bundle's real integrity mechanism is its per-file SHA-256 seal.
+      "3. **Integrated Synthesis** — The sections combined into one report, with citation-density scoring",
       "",
-      "All outputs pass automated quality auditing that enforces citation density thresholds and cross-reference verification before release.",
-      "",
+      // Tier 1 review: only for a research bundle whose record passed; Provenance & Trust below states
+      // what any other bundle's record says.
+      ...(missionPassed
+        ? ["Every report passes the citation gate (each cited identifier checked against the evidence retrieved for the report) before release, and each workflow template adds a citation-density audit that a report must also pass.", ""]
+        : []),
       "## Provenance & Trust",
       "",
-      copy.identifierBullet,
-      "- Append-only evidence ledger with chain-hashed integrity verification",
+      isMission ? copy.identifierBullet : copy.identifierBulletDataset,
+      "- Every file in this bundle is listed with its SHA-256 checksum in checksums.txt and manifest.json",
       // Retired 2026-07-13 (OFFERINGS.md, commit 7801443): the absolute "Zero hallucination
       // architecture — claims without citations are flagged and excluded" claim overstated twice
       // over. Ungrounded identifiers are NOT excluded: citation-gate.js annotateSubtaskOutputs
@@ -298,13 +407,11 @@ function createDeliverablePackager(options = {}) {
       // reintroduce an absolute no-hallucination claim here.
       // Gate-dependent: these two bullets describe the citation gate and the retraction screen.
       // A bundle with no citation-verification record never ran either, so claiming them there
-      // would reintroduce the overclaim at a different line.
-      ...(resolution.gated
-        ? [
-          "- **The Zero-Fabrication Guarantee** — every cited identifier is cross-checked at generation time against the evidence actually retrieved for this report; identifiers not found in that evidence are flagged `[UNVERIFIED]` inline and are never presented as fact, and a report below the grounded-citation floor does not ship",
-          copy.retractionBullet
-        ]
-        : ["- This bundle carries no citation-verification record: no grounding, retraction-screen, or re-resolution outcome is claimed for it"]),
+      // would reintroduce the overclaim at a different line. T1-9 (2026-11-14): they print only for
+      // a record that PASSED, and a dataset-sourced bundle says what the gate did and did not check
+      // (it checked the source report's identifiers, not the dataset's rows). "Never presented as
+      // fact" is dropped (operator default D4): an untraced identifier's sentence still ships, flagged.
+      ...storeCopyGateBullets(sourceContext, copy, coverage),
       ""
     ];
 
@@ -332,12 +439,26 @@ function createDeliverablePackager(options = {}) {
     return lines.join("\n");
   }
 
+  // T1-3 (2026-11-14): the citation gate's untraced identifiers as upper-cased TYPE:ID keys, so the
+  // Citation Summary, the sample preview and tables.csv flag them like the report text does. null when
+  // the bundle carries no gate record (nothing can be said either way, so nothing is marked "yes").
+  function readUntracedKeys(sourceContext) {
+    const cv = asPlainObject(asPlainObject(sourceContext).citation_verification);
+    const list = Array.isArray(cv.ungrounded_ids) ? cv.ungrounded_ids
+      : Array.isArray(cv.ungrounded_sample) ? cv.ungrounded_sample : null;
+    return list ? new Set(list.map((s) => String(s).toUpperCase())) : null;
+  }
+  function flagIfUntraced(c, untraced) {
+    return untraced && untraced.has(groundingKey(c)) ? `${c.id} [UNVERIFIED]` : c.id;
+  }
+
   function renderResearchReport(offer, sourceContext) {
     const artifacts = Array.isArray(sourceContext.artifacts) ? sourceContext.artifacts : [];
     const allText = artifacts.map((a) => a.output_full || a.output_excerpt || "").join("\n");
     const citations = extractCitations(allText);
     const uniqueCitations = deduplicateCitations(citations);
     const reportResolution = readResolutionSummary(sourceContext);
+    const untraced = readUntracedKeys(sourceContext);
 
     const lines = [
       `# ${safeString(offer.offer_title)}`,
@@ -348,7 +469,7 @@ function createDeliverablePackager(options = {}) {
       // report.md is the PRIMARY deliverable. This header labelled the regex extraction tally
       // "Verified Citations" — the shipped bundle read 34 while its manifest said 29 VERIFIED.
       `**Citations**: ${reportResolution.present
-        ? `${reportResolution.total} cited · ${reportResolution.verified} VERIFIED · ${reportResolution.unresolved} UNRESOLVED · ${reportResolution.unchecked} UNCHECKED at delivery`
+        ? `${reportResolution.total} cited · ${reportResolution.verified} VERIFIED · ${reportResolution.unresolved} UNRESOLVED · ${reportResolution.unchecked} UNCHECKED when this report was assembled${reportResolution.asOf ? ` (as of ${reportResolution.asOf})` : ""}`
         : `${uniqueCitations.length} cited identifiers`}`,
       `**Generated**: ${safeString(sourceContext.created_at).split("T")[0] || "N/A"}`,
       "",
@@ -390,7 +511,7 @@ function createDeliverablePackager(options = {}) {
     lines.push(`Total cited identifiers: **${uniqueCitations.length}**`);
     if (reportResolution.present) {
       lines.push("");
-      lines.push(`Independently re-resolved at delivery: **${reportResolution.verified} VERIFIED** of ${reportResolution.total}`
+      lines.push(`Independently re-resolved when this report was assembled${reportResolution.asOf ? ` (as of ${reportResolution.asOf})` : ""}: **${reportResolution.verified} VERIFIED** of ${reportResolution.total}`
         + `${reportResolution.unchecked > 0 ? ` · ${reportResolution.unchecked} UNCHECKED` : ""}`
         + `${reportResolution.unresolved > 0 ? ` · ${reportResolution.unresolved} UNRESOLVED` : ""}`
         + `${reportResolution.attributionMismatches > 0
@@ -402,7 +523,7 @@ function createDeliverablePackager(options = {}) {
     const byType = {};
     for (const c of uniqueCitations) {
       if (!byType[c.type]) byType[c.type] = [];
-      byType[c.type].push(c.id);
+      byType[c.type].push(flagIfUntraced(c, untraced));
     }
     for (const [type, ids] of Object.entries(byType).sort(([a], [b]) => a.localeCompare(b))) {
       lines.push(`- **${type}** (${ids.length}): ${ids.slice(0, 10).join(", ")}${ids.length > 10 ? `, ... (+${ids.length - 10} more)` : ""}`);
@@ -424,6 +545,15 @@ function createDeliverablePackager(options = {}) {
     }
     const agentRoles = artifacts.map((a) => `- **${roleLabel(a.task_id)}** (${safeString(a.task_id)})`);
     const copy = profileCopy(sourceContext);
+    // Tier 1 review (2026-11-14): the gate lines describe a research report that passed the gate; a
+    // dataset-sourced bundle or one without a passing record says what was and was not checked.
+    const isMission = safeString(sourceContext.source_kind) === "mission";
+    const gatePassed = asPlainObject(sourceContext.citation_verification).pass === true;
+    const gateLine = isMission && gatePassed
+      ? "Each agent works on the records retrieved for its role; every identifier the finished report cites is then checked against the records retrieved for this report (the citation gate below)."
+      : !isMission && gatePassed
+        ? "Each agent works on the records retrieved for its role. The identifiers the source report cites were checked against the records retrieved for it; this dataset's rows were not checked one by one."
+        : "Each agent works on the records retrieved for its role. This bundle carries no passing citation-gate record, so no grounding result is stated for it.";
 
     return [
       `# Methodology Statement`,
@@ -437,11 +567,13 @@ function createDeliverablePackager(options = {}) {
       "",
       "## Multi-Agent Research Pipeline",
       "",
-      "This intelligence product is synthesized through a deterministic multi-agent pipeline where each agent role contributes a distinct research phase:",
+      // T1-9 (2026-11-14): role calls are unseeded model calls, so the pipeline is not deterministic,
+      // and no cross-validation step exists; the citation gate below is what checks the output.
+      "This intelligence product is synthesized through a multi-agent pipeline in which each agent role contributes a distinct research phase:",
       "",
       ...agentRoles,
       "",
-      "Each agent operates independently on the source material, producing traceable outputs that are then cross-validated during the synthesis phase.",
+      gateLine,
       "",
       "## Data Sources",
       "",
@@ -461,21 +593,21 @@ function createDeliverablePackager(options = {}) {
       "",
       "All outputs pass automated quality auditing before release:",
       "",
-      "- **Citation density threshold**: Minimum citations per 1,000 characters of output",
-      "- **Cross-reference verification (grounding)**: every identifier cited in the report is checked against the source records actually retrieved for it — the truth-based gate, graded in the Citation Integrity ledger (grounded_ratio).",
-      "- **Citation-density score**: a separate, shape-based heuristic — the fraction of content lines carrying a citation-shaped reference. It measures how citation-dense the writing is, NOT whether the identifiers were verified (that is the grounding gate above).",
-      "- **Quality gate**: reports below the citation-density threshold are flagged for operator review before release.",
+      // T1-9: the rule the quality audit actually applies (workflow-engine.js executeQualityAuditStep).
+      "- **Citation density threshold**: a share of the report's content lines, set by the workflow template, must carry a citation-shaped reference, and there must be at least 5 such lines",
+      ...(isMission && gatePassed
+        ? ["- **Cross-reference verification (grounding)**: every identifier cited in the report is checked against the records retrieved for this report — the truth-based gate, graded in the Citation Integrity ledger (grounded_ratio)."]
+        : []),
+      "- **Citation-density score**: a separate, shape-based heuristic — the fraction of content lines carrying a citation-shaped reference. It measures how citation-dense the writing is, NOT whether the identifiers were verified (that is the citation gate's job, not this score's).",
+      "- **Quality gate**: a report below the citation-density threshold does not ship.",
       "",
-      "## Provenance Chain",
+      // T1-9: this was a "Provenance Chain" with a per-record link to the preceding record. The bundle
+      // has no such chain; what it has is the flat per-file SHA-256 seal finalizeBundle writes.
+      "## Bundle Seal",
       "",
-      "Every artifact in this bundle is tracked through an append-only, chain-hashed evidence ledger (Phase 28). Each record includes:",
+      "Every file in this bundle is listed in manifest.json and checksums.txt with the SHA-256 checksum of its content, written when the bundle is sealed. The seal files themselves, and the approval and delivery records added after sealing, are not listed.",
       "",
-      "- SHA-256 hash of the artifact content",
-      "- Reference to the preceding record in the chain",
-      "- Timestamp and operator context",
-      "- Source task identifier and agent role",
-      "",
-      "This provides tamper-evident provenance from raw input through final deliverable.",
+      "A file changed after sealing no longer matches its checksum, and the buyer ZIP refuses a changed file.",
       "",
       "## Disclaimer",
       "",
@@ -509,21 +641,24 @@ function createDeliverablePackager(options = {}) {
           file: "report.md",
           description: "Full multi-section research report with embedded citations"
         },
+        // Tier 1 review (2026-11-14): all five tables.csv columns, grounded_in_run included (T1-3).
         citation_index: {
           format: "csv",
           file: "tables.csv",
-          description: "Citation index with type, identifier, source task, and context",
+          description: "Citation index with type, identifier, source task, context, and whether the identifier was found in the evidence retrieved for this report",
           columns: [
-            { name: "citation_type", type: "string", description: "Citation identifier type (PMID, NCT, CID, DOI, UniProt, ChEMBL)", nullable: false },
+            { name: "citation_type", type: "string", description: "Identifier type as the engine names it (for example PMID, NCT, PubChem CID, DOI, UniProt)", nullable: false },
             { name: "identifier", type: "string", description: "The citation identifier value", nullable: false },
             { name: "source_task", type: "string", description: "Agent task ID that produced this citation", nullable: false },
-            { name: "context_snippet", type: "string", description: "Surrounding text context for the citation", nullable: true }
+            { name: "context_snippet", type: "string", description: "Surrounding text context for the citation", nullable: true },
+            { name: "grounded_in_run", type: "string", description: "yes: the citation gate found this identifier in the evidence retrieved for this report; no: it did not, and the report flags it [UNVERIFIED]; unknown: the bundle carries no gate record", nullable: false }
           ],
           example_record: {
             citation_type: sampleCitation.type,
             identifier: sampleCitation.id,
             source_task: "literature_reviewer",
-            context_snippet: "...surrounding text context..."
+            context_snippet: "...surrounding text context...",
+            grounded_in_run: "yes"
           }
         },
         executive_summary: {
@@ -542,14 +677,12 @@ function createDeliverablePackager(options = {}) {
           description: "Research pipeline methodology, data sources, and quality audit criteria"
         }
       },
-      structured_json_payload: {
-        description: "Structured JSON representation of research findings (available via API)",
-        fields: [
-          { name: "findings", type: "array", description: "Array of research sections with role, content, and citations" },
-          { name: "citations_summary", type: "object", description: "Citation counts by type and total unique identifiers" },
-          { name: "citation_density", type: "object", description: "Citation-density score (a shape-based heuristic: fraction of content lines carrying a citation-shaped reference) and pass/fail. This is NOT identifier verification — see the Citation Integrity ledger (grounded_ratio) for grounding." },
-          { name: "provenance", type: "object", description: "Chain hash, interaction count, and agent roles" }
-        ]
+      // Tier 1 review (2026-11-14): the "structured_json_payload" entry described a findings payload
+      // "available via API" with "Chain hash" provenance. The bundle holds no such file, no research API
+      // is deployed and nothing is chain-hashed, so the entry is gone; the bundle's integrity record is
+      // its per-file SHA-256 seal (manifest.json and checksums.txt).
+      bundle_seal: {
+        description: "Every file in this bundle is listed in manifest.json and checksums.txt with the SHA-256 checksum of its content, written when the bundle is sealed"
       },
       statistics: {
         total_citations: uniqueCitations.length,
@@ -652,6 +785,18 @@ function createDeliverablePackager(options = {}) {
   }
 
   function writeDeliverables(bundleDir, offer, sourceContext) {
+    // T1-8 (2026-11-14): a gated bundle (it carries the citation gate's record) must carry its
+    // re-resolution manifest. The engine always attaches one — a fallback, with every id UNCHECKED and
+    // reresolution_completed:false, when the pass crashed — so a gate record without one means the
+    // manifest was lost on the way. Refused before any file is written. (Sealed release
+    // offer-bcaf2746298f5280fde747f0 shipped with no manifest before this.)
+    const gateRecord = asPlainObject(asPlainObject(sourceContext).citation_verification);
+    if (Object.keys(gateRecord).length > 0
+      && Object.keys(asPlainObject(asPlainObject(gateRecord.reproducibility_manifest).summary)).length === 0) {
+      const error = new Error("citation_verification is present but carries no reproducibility manifest; a gated bundle is never packaged without one");
+      error.code = "PHASE19_RERESOLUTION_MANIFEST_MISSING";
+      throw error;
+    }
     const deliverablesDir = path.join(bundleDir, "deliverables");
     ensureDir(deliverablesDir);
     const artifactRefs = {};
@@ -679,18 +824,22 @@ function createDeliverablePackager(options = {}) {
       const allArtifacts = Array.isArray(sourceContext.artifacts) ? sourceContext.artifacts : [];
       const allCitationText = allArtifacts.map((a) => a.output_full || a.output_excerpt || "").join("\n");
       const allCitations = extractCitations(allCitationText);
-      const csvRows = [["citation_type", "identifier", "source_task", "context_snippet"]];
+      // T1-3: grounded_in_run says whether the citation gate traced the identifier to evidence this run
+      // retrieved ("yes"), flagged it [UNVERIFIED] ("no"), or the bundle has no gate record ("unknown").
+      const untraced = readUntracedKeys(sourceContext);
+      const csvRows = [["citation_type", "identifier", "source_task", "context_snippet", "grounded_in_run"]];
       const seen = new Set();
       for (const artifact of allArtifacts) {
         const text = artifact.output_full || artifact.output_excerpt || "";
         const taskCitations = extractCitations(text);
         for (const c of taskCitations) {
-          const key = `${c.type}:${c.id}`;
+          const key = citationKey(c);
           if (seen.has(key)) continue;
           seen.add(key);
           const idx = text.indexOf(c.id);
           const snippet = idx >= 0 ? text.slice(Math.max(0, idx - 40), idx + c.id.length + 40).replace(/\n/g, " ").trim() : "";
-          csvRows.push([c.type, c.id, safeString(artifact.task_id), snippet]);
+          const grounded = untraced ? (untraced.has(groundingKey(c)) ? "no" : "yes") : "unknown";
+          csvRows.push([c.type, c.id, safeString(artifact.task_id), snippet, grounded]);
         }
       }
       writeText(tablesPath, renderCsv(csvRows));
@@ -698,7 +847,7 @@ function createDeliverablePackager(options = {}) {
       const uniqueAllCitations = deduplicateCitations(allCitations);
       const synthArtifact = allArtifacts.find((a) => roleLabel(a.task_id) === "Integrated Synthesis") || allArtifacts[allArtifacts.length - 1];
       const synthText = synthArtifact ? (synthArtifact.output_full || synthArtifact.output_excerpt || "") : "";
-      const execSummary = synthText.slice(0, 1500).trim();
+      const execSummary = previewExcerpt(synthText, 1500);
       const sampleCitations = uniqueAllCitations.slice(0, 5);
       const previewLines = [
         `# ${safeString(offer.offer_title)} — Executive Summary`,
@@ -709,7 +858,7 @@ function createDeliverablePackager(options = {}) {
         "",
         "## Sample Citations",
         "",
-        ...sampleCitations.map((c) => `- **${c.type}**: ${c.id}`),
+        ...sampleCitations.map((c) => `- **${c.type}**: ${flagIfUntraced(c, untraced)}`),
         "",
         "## Full Report Contents",
         "",
@@ -876,9 +1025,19 @@ function createDeliverablePackager(options = {}) {
       const methodologyPath = path.join(deliverablesDir, "methodology-statement.md");
       const schemaDefPath = path.join(deliverablesDir, "schema-definition.json");
       writeText(methodologyPath, renderMethodologyStatement(offer, sourceContext));
-      writeJson(schemaDefPath, renderSchemaDefinition(offer, sourceContext));
       artifactRefs.methodology_statement = relativeFrom(bundleDir, methodologyPath);
-      artifactRefs.schema_definition = relativeFrom(bundleDir, schemaDefPath);
+      // Always rendered, because rendering runs the licence scan (Q37). Written only for a research
+      // bundle: it defines report.md, tables.csv and the other research files, which a dataset-sourced
+      // bundle does not have (it ships its own schema.json; Tier 1 review, 2026-11-14).
+      const schemaDefinition = renderSchemaDefinition(offer, sourceContext);
+      if (safeString(sourceContext.source_kind) === "mission") {
+        writeJson(schemaDefPath, schemaDefinition);
+        artifactRefs.schema_definition = relativeFrom(bundleDir, schemaDefPath);
+      } else {
+        // The premium and enterprise tiers require a schema_definition slot (config/monetization-map.json);
+        // a dataset bundle's own schema.json IS its field definition, so the slot points there.
+        artifactRefs.schema_definition = artifactRefs.structured_support;
+      }
     }
 
     const storeCopyPath = path.join(deliverablesDir, "store-copy.md");

@@ -1,5 +1,7 @@
 "use strict";
 
+const { researchText } = require("./release-content.js");
+
 const WATERMARK = "Produced by OpenClaw Research Intelligence — https://trevorobeyinc.com";
 
 function extractTrainingSamples(reportMarkdown) {
@@ -35,7 +37,7 @@ function transform(workflowOutput, options = {}) {
     "- biomedical",
     "- pharmacovigilance",
     "- drug-safety",
-    "- verified-citations",
+    "- citation-traced",
     "- research-intelligence",
     "size_categories:",
     "- 1K<n<10K",
@@ -50,13 +52,14 @@ function transform(workflowOutput, options = {}) {
     WATERMARK,
     "",
     "## Dataset Description",
-    "Citation-backed biomedical research produced by OpenClaw's deterministic 3-agent pipeline.",
-    "Every claim is backed by verifiable database identifiers (PMID, NCT, PubChem CID, UniProt, ChEMBL, DOI).",
+    // T1-9 (2026-11-14): no per-claim backing exists, and the role calls are unseeded model calls.
+    "Citation-backed biomedical research produced by OpenClaw's 3-agent pipeline.",
+    "The identifiers the report cites (PMID, NCT, PubChem CID, UniProt, DOI) were each checked against the records retrieved for the report.",
     "",
     "## Dataset Structure",
     "### Data Fields",
     "- `text`: Research content paragraph",
-    "- `has_citations`: Whether the paragraph contains verified identifiers",
+    "- `has_citations`: Whether the paragraph contains a citation identifier",
     "",
     "## Citation Types",
     "| Type | Example | Database |",
@@ -74,7 +77,8 @@ function transform(workflowOutput, options = {}) {
     "Trevor Robey | trevor@trevorobeyinc.com | https://trevorobeyinc.com"
   ].join("\n");
 
-  const samples = extractTrainingSamples(workflowOutput.report);
+  // The research sections only: not the packager's title block, contents or citation summary.
+  const samples = extractTrainingSamples(researchText(workflowOutput.report));
   const trainJsonl = samples.map((s) => JSON.stringify(s)).join("\n");
 
   const datasetInfo = {

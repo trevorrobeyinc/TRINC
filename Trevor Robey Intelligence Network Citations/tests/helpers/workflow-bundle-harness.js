@@ -49,6 +49,16 @@ function makeResearchRuntime(rootDir, captured, extras = {}) {
       RESOLVER_TABLE_VERSION: "test",
       resolveAll: async (cites) => cites.map((c) => ({ ...c, status: "VERIFIED" }))
     },
+    // A production runtime always wires both retraction screens (scripts/_workflow-runtime.js). These
+    // answer "screened, not retracted" for every id, so a harness run is a complete screen unless a
+    // test replaces them (T1-7: an incomplete screen is a manifest flag, retraction_screen_incomplete).
+    crossrefRetraction: {
+      checkDois: async (dois) => dois.map((doi) => ({ doi, retracted: false, checked: true, in_crossref: true }))
+    },
+    pubmedRetraction: {
+      checkPmids: async (pmids) => pmids.map((pmid) => ({ pmid, retracted: false, is_notice: false, checked: true })),
+      resolveDoisToPmids: async (dois) => dois.map((doi) => ({ doi, pmids: [], resolved: true }))
+    },
     agentSpawner: {
       spawnMission: async (envelope) => {
         captured.envelope = envelope;
@@ -79,13 +89,14 @@ function makeResearchRuntime(rootDir, captured, extras = {}) {
 
 // `clock` is injected into BOTH the engine and the monetization runtime, the way a caller that owns
 // a clock would. `researchExtras` adds fetchers (ctgovSupplemental, ...) to the fake research runtime.
-async function makeEngine(captured, { clock, researchExtras } = {}) {
+// `logger` lets a test capture the engine's events; the default is silent.
+async function makeEngine(captured, { clock, researchExtras, logger } = {}) {
   const rootDir = await makeRoot();
   const monetizationRuntime = buildMonetizationRuntime({ rootDir, timeProvider: clock });
   const engine = createWorkflowEngine({
     researchRuntime: makeResearchRuntime(rootDir, captured, researchExtras),
     monetizationRuntime,
-    logger: silentLogger(),
+    logger: logger || silentLogger(),
     timeProvider: clock
   });
   return { engine, rootDir, monetizationRuntime };

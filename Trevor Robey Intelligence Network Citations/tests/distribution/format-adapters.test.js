@@ -32,19 +32,77 @@ const SAMPLE_OUTPUT = {
     "ChEMBL compound CHEMBL3137343 shows selective binding to PD-L1.",
     "The interaction between PD-1 and PD-L1 (doi: 10.1038/nature12345) is well-characterized."
   ].join("\n"),
+  // Since T1-2 the citation index is the sealed release's own tables.csv (scripts/distribute.js).
   citations: [
-    "type,id,context",
-    "PMID,30232222,ICI myocarditis",
-    "PMID,29566243,nivolumab myocarditis fatality",
-    "NCT,NCT03299946,combination ICI safety",
-    "PubChem CID,2244,aspirin prophylactic",
-    "UniProt,Q15116,PD-1",
-    "ChEMBL,CHEMBL3137343,PD-L1 binding"
+    "citation_type,identifier,source_task,context_snippet,grounded_in_run",
+    "PMID,30232222,scout,ICI myocarditis,yes",
+    "PMID,29566243,analyst,\"nivolumab myocarditis, fatality\",yes",
+    "NCT,NCT03299946,analyst,combination ICI safety,yes",
+    "PubChem CID,2244,analyst,aspirin prophylactic,no",
+    "UniProt,Q15116,analyst,PD-1,yes",
+    "ChEMBL,CHEMBL3137343,analyst,PD-L1 binding,yes"
   ].join("\n"),
   citationCount: 6,
   qualityScore: 0.95,
-  metadata: { status: "completed" }
+  offerId: "offer-test-001",
+  metadata: { workflow_id: "workflow-test-001", template_id: "pharmacovigilance-report", offer_id: "offer-test-001" }
 };
+
+// The shape of a sealed report.md (deliverable-packager.js renderResearchReport): a title block, a
+// Table of Contents, anchored sections with "*Task: …*" lines, the engine's verification list and a
+// closing Citation Summary.
+const PACKAGED_REPORT = [
+  "# Packaged Pack", "", "**Product Line**: research packs", "", "---", "",
+  "## Table of Contents", "", "1. [Literature Review](#section-1)", "2. [Citation Summary](#citation-summary)", "", "---", "",
+  "<a id=\"section-1\"></a>", "## 1. Literature Review", "", "*Task: scout*", "",
+  "Checkpoint inhibitors raise the risk of myocarditis in a minority of treated patients (PMID: 30232222).",
+  "", "## ⚠️ Citation Verification", "",
+  "The following cited identifiers were NOT found in the evidence fetched at runtime and are flagged **UNVERIFIED**. Per the zero-fabrication policy, treat each as unconfirmed.",
+  "", "- PubChem CID: 2244", "", "---", "",
+  "<a id=\"citation-summary\"></a>", "## 2. Citation Summary", "", "Total cited identifiers: **2**", "",
+  "- **PMID** (1): 30232222, a long enough line to count as a finding body in the old extractor", ""
+].join("\n");
+
+describe("format adapters — the sealed release's files (Tier 1 review, 2026-11-14)", () => {
+  const COLUMNS = ["citation_type", "identifier", "source_task", "context_snippet", "grounded_in_run"];
+
+  it("Kaggle, Data & Sons and AWS document the real tables.csv columns, grounded_in_run included", () => {
+    const readme = kaggle.transform(SAMPLE_OUTPUT).files.find((f) => f.name === "README.md").content;
+    const dictionary = dataAndSons.transform(SAMPLE_OUTPUT).files.find((f) => f.name === "data-dictionary.md").content;
+    for (const col of COLUMNS) {
+      assert.match(readme, new RegExp(`\\| ${col} \\|`), `the Kaggle README documents ${col}`);
+      assert.match(dictionary, new RegExp(`\\| ${col} \\|`), `the data dictionary documents ${col}`);
+    }
+    assert.doesNotMatch(readme, /\| type \| Identifier type/);
+    const schema = JSON.parse(aws.transform(SAMPLE_OUTPUT).files.find((f) => f.name === "schema.json").content);
+    assert.equal(schema.properties.citations.type, "string", "the data file holds the CSV text");
+    for (const col of COLUMNS) assert.match(schema.properties.citations.description, new RegExp(col));
+  });
+
+  it("AWS research-output.json carries only the ids, never the unsealed workflow.json", () => {
+    const leaky = { ...SAMPLE_OUTPUT, metadata: { workflow_id: "workflow-test-001", outputDir: "/Users/someone/workspace/x", inputs: { compound_name: "secret" } } };
+    const data = JSON.parse(aws.transform(leaky).files.find((f) => f.name === "data/research-output.json").content);
+    assert.deepEqual(data.metadata, { workflow_id: "workflow-test-001", template_id: "pharmacovigilance-report", offer_id: "offer-test-001" });
+  });
+
+  it("Kaggle findings and Hugging Face samples come from the research sections only", () => {
+    const packaged = { ...SAMPLE_OUTPUT, report: PACKAGED_REPORT };
+    const findings = kaggle.transform(packaged).files.find((f) => f.name === "findings.jsonl").content
+      .split("\n").filter(Boolean).map((l) => JSON.parse(l).section);
+    assert.deepEqual(findings, ["1. Literature Review"]);
+    const samples = huggingface.transform(packaged).files.find((f) => f.name === "data/train.jsonl").content;
+    assert.doesNotMatch(samples, /Table of Contents|Citation Summary|following cited identifiers were NOT found/);
+    assert.match(samples, /myocarditis in a minority of treated patients/);
+  });
+
+  it("Datarade counts citation rows without the header, and marks the premium-only files", () => {
+    const listing = datarade.transform({ ...SAMPLE_OUTPUT, citationCount: undefined });
+    assert.equal(JSON.parse(listing.files.find((f) => f.name === "listing-fields.json").content).citation_count, 6);
+    const description = listing.files.find((f) => f.name === "product-description.md").content;
+    assert.match(description, /\*\*Methodology Statement\*\* \(premium and enterprise tiers\)/);
+    assert.match(description, /\*\*Schema Definition\*\* \(premium and enterprise tiers\)/);
+  });
+});
 
 const adapters = [
   { name: "datarade", mod: datarade },
@@ -53,6 +111,31 @@ const adapters = [
   { name: "aws-data-exchange", mod: aws },
   { name: "data-and-sons", mod: dataAndSons }
 ];
+
+// T1-9 (2026-11-14): nothing a marketplace file says about the product may be false.
+const BANNED = [
+  /every claim/i,
+  /every factual claim/i,
+  /chain-hash/i,
+  /S3 bucket/i,
+  /provenance chain/i,
+  /verified database identifiers/i,
+  /\d+\+? verified identifiers/i,
+  /deterministic (?:multi|\d)-agent/i,
+  /cross-validat/i,
+  /API \/ Download/
+];
+
+describe("format adapters — no false self-description (T1-9)", () => {
+  for (const { name, mod } of adapters) {
+    it(`${name} output carries none of the retired claims`, () => {
+      const result = mod.transform(SAMPLE_OUTPUT);
+      for (const file of result.files) {
+        for (const re of BANNED) assert.doesNotMatch(String(file.content), re, `${name}/${file.name} carries ${re}`);
+      }
+    });
+  }
+});
 
 describe("format adapters", () => {
   for (const { name, mod } of adapters) {

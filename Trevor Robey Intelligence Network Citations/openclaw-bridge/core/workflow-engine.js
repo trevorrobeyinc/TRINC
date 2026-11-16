@@ -17,13 +17,17 @@ const { INTERACTION_LOG_SCHEMA_VERSION, CHAIN_ZERO_HASH } = require("./interacti
 const timeProviderModule = require("./time-provider.js");
 const { createDatasetBuilder } = require("../dataset/dataset-builder.js");
 const { createDatasetOutputManager } = require("../dataset/dataset-output-manager.js");
-const { verifyReportCitations, annotateSubtaskOutputs, checkRetractions, isDeskAuthoredSubtask, DEFAULT_MIN_GROUNDED_RATIO } = require("./citation-gate.js");
+const {
+  verifyReportCitations, annotateSubtaskOutputs, checkRetractions, isDeskAuthoredSubtask,
+  DEFAULT_MIN_GROUNDED_RATIO, resolveConfiguredGroundedFloor
+} = require("./citation-gate.js");
 const { toSearchQuery } = require("../mcp/business-sources/search-terms.js");
 const { extractCitations, deduplicateCitations } = require("./citation-extractor.js");
 const { createCitationReresolver } = require("../mcp/citation-reresolver/citation-reresolver.js");
 const { getResearchProfile } = require("./research-profiles.js");
 const { buildReproducibilityManifest, renderManifestMarkdown } = require("./reproducibility-manifest.js");
 const { annotateSubtaskAttributions } = require("./citation-attribution.js");
+const { writeMissionCitationRecord, failMissionCitationRecord, passMissionQualityAudit } = require("./mission-citation-record.js");
 const { buildGraveyardMemo, buildAmendmentRisk } = require("../monetization/graveyard-memo.js");
 const { buildDesignBenchmark } = require("../monetization/design-benchmark.js");
 const { buildSearchCoverageLedger, collectSearchCoverage } = require("../monetization/search-coverage-ledger.js");
@@ -283,18 +287,33 @@ function createWorkflowEngine(options = {}) {
     // truth (an empty fetch can't fail here — that is surfaced as tool_prefetch_zero_docs).
     let citationVerification = null;
     let searchCoverageLedger = null; // Q5: the deterministic Search-Coverage Ledger (honest-zero deliverable)
+    // T1-1 (2026-11-14): the gate's verdict beside the mission (core/mission-citation-record.js), so the
+    // offer builder refuses a mission the gate did not pass on EVERY packaging path. pass:false is
+    // recorded before each throw below; a failed pass:false write is logged (the run is failing anyway).
+    const recordGateFailure = (err, verdict) => {
+      try {
+        writeMissionCitationRecord({
+          rootDir, missionId: missionEnvelope.mission_id, workflowId: context.workflowId, timeProvider,
+          pass: false, verdict, errorCode: err && err.code, citationVerification
+        });
+      } catch (recordErr) {
+        logger.error({ event: "mission_citation_record_write_failed", mission_id: missionEnvelope.mission_id, error: safeString(recordErr && recordErr.message) });
+      }
+    };
     if (missionResult && missionResult.ok && Array.isArray(missionResult.subtask_results)) {
       // Q7: the grounded floor is a required, config-owned value (config/agent-config.json). Fail
       // CLOSED — if it is missing or malformed, use the strict shared default and WARN loudly; never
       // silently fall back to a laxer number (the old 0.34 fallback quietly undercut the config).
-      const cfgRatio = Number(researchRuntime.config.minGroundedCitationRatio);
-      let minGroundedRatio = cfgRatio;
-      if (!Number.isFinite(cfgRatio)) {
-        minGroundedRatio = DEFAULT_MIN_GROUNDED_RATIO;
+      // T1-6 (2026-11-14): only a number from 0.75 to 1 is accepted, so configuration can tighten the
+      // floor but never loosen or switch it off (`Number(null)` and `0` used to switch it off).
+      const floor = resolveConfiguredGroundedFloor(researchRuntime.config.minGroundedCitationRatio);
+      const minGroundedRatio = floor.value;
+      if (!floor.accepted) {
         logger.warn({
           event: "min_grounded_ratio_unconfigured",
           using: DEFAULT_MIN_GROUNDED_RATIO,
-          note: "config/agent-config.json minGroundedCitationRatio missing/invalid — failing closed to the strict default"
+          rejected: floor.rejected,
+          note: "config/agent-config.json minGroundedCitationRatio missing, invalid or below the 0.75 floor — failing closed to the strict default"
         });
       }
       const gate = verifyReportCitations({ subtaskResults: missionResult.subtask_results, minGroundedRatio });
@@ -327,6 +346,7 @@ function createWorkflowEngine(options = {}) {
         grounded: gate.grounded,
         ungrounded: gate.ungrounded,
         grounded_ratio: gate.grounded_ratio,
+        grounding_match: gate.grounding_match,
         fetched_id_count: gate.fetched_id_count,
         retracted: retractedCount,
         retraction_screen_checked: Boolean(retraction.checked),
@@ -344,6 +364,8 @@ function createWorkflowEngine(options = {}) {
             mission_id: missionEnvelope.mission_id,
             pass: gatePass, verdict: gate.verdict, cited: gate.cited, grounded: gate.grounded, ungrounded: gate.ungrounded,
             grounded_ratio: gate.grounded_ratio, min_grounded_ratio: gate.min_grounded_ratio,
+            // T1-5: "type_and_id", or "id_only" when an evidence record carried no TYPE:ID keys.
+            grounding_match: gate.grounding_match,
             fetched_id_count: gate.fetched_id_count, ungrounded_list: gate.ungrounded_list,
             // Sections the grounded ratio did NOT judge (Evidence Desk, written without a model).
             desk_authored_sections: gate.desk_authored_sections || [],
@@ -358,7 +380,14 @@ function createWorkflowEngine(options = {}) {
             dois_escalated_via_pmid: retraction.dois_escalated_via_pmid || 0,
             dois_cited: retraction.dois_cited || 0,
             pmids_cited: retraction.pmids_cited || 0,
-            unscreened: retraction.unscreened || 0
+            unscreened: retraction.unscreened || 0,
+            // T1-7: WHICH ids could not be screened, and the DOIs no retraction source holds.
+            unscreened_ids: retraction.unscreened_ids || [],
+            dois_without_retraction_source: retraction.dois_without_retraction_source || 0,
+            // Tier 1 review: DOIs screened against Crossref alone (their PubMed cross-check reached no verdict).
+            dois_crossref_only: retraction.dois_crossref_only || 0,
+            crossref_notice_dois: retraction.crossref_notice_dois || [],
+            editorial_flags: retraction.editorial_flags || []
           }, null, 2)
         );
         if (gate.ungrounded > 0 || retractedCount > 0) {
@@ -374,9 +403,23 @@ function createWorkflowEngine(options = {}) {
       citationVerification = {
         pass: gatePass, verdict: gate.verdict, cited: gate.cited, grounded: gate.grounded, ungrounded: gate.ungrounded,
         grounded_ratio: gate.grounded_ratio, min_grounded_ratio: gate.min_grounded_ratio,
+        grounding_match: gate.grounding_match,
         fetched_id_count: gate.fetched_id_count,
         ungrounded_sample: gate.ungrounded_list.slice(0, 25).map((c) => `${c.type}:${c.id}`),
+        // T1-3: the FULL untraced list (TYPE:ID). The packager marks each one in the Citation Summary,
+        // the sample preview and tables.csv, and the integrity ledger lists them all.
+        ungrounded_ids: gate.ungrounded_list.map((c) => `${c.type}:${c.id}`),
         retracted: retraction.retracted,
+        // T1-7: the retraction screen's coverage travels with the report, so the manifest, the ledger
+        // and the bundle text say "retraction-screened" only when every cited DOI and PMID was screened.
+        retraction_screen_checked: Boolean(retraction.checked),
+        retraction_screen_cited: (retraction.dois_cited || 0) + (retraction.pmids_cited || 0),
+        unscreened: retraction.unscreened || 0,
+        unscreened_ids: retraction.unscreened_ids || [],
+        dois_without_retraction_source: retraction.dois_without_retraction_source || 0,
+        // Tier 1 review: cited DOIs screened against Crossref alone, so no copy names PubMed for them.
+        retraction_dois_crossref_only: retraction.dois_crossref_only || 0,
+        retraction_editorial_flags: retraction.editorial_flags || [],
         search_coverage: searchCoverageLedger ? searchCoverageLedger.summary : null
       };
       if (!gatePass) {
@@ -388,6 +431,8 @@ function createWorkflowEngine(options = {}) {
         let reason;
         if (retractedCount > 0) {
           reason = `the report cites ${retractedCount} RETRACTED paper(s) (${retraction.retracted.join(", ")})`;
+        } else if (gate.verdict === "SECTION_UNREADABLE") {
+          reason = `${gate.unreadable_sections.length} section(s) could not be read (${gate.unreadable_sections.join(", ")}), so their citations cannot be verified`;
         } else if (gate.verdict === "INSUFFICIENT_EVIDENCE") {
           reason = "no runtime evidence was fetched (fetched_id_count=0) — the findings cannot be verified against any source, so this is a recorded honest-zero, not a silent pass. See search-coverage.md in the workflow dir for the per-source zero-result record";
         } else if (gate.verdict === "NO_CITATIONS") {
@@ -399,25 +444,35 @@ function createWorkflowEngine(options = {}) {
           `Citation gate failed [${gate.verdict}]: ${reason} — refusing to ship to protect the ` +
           `zero-fabrication / citation-integrity guarantee. Annotated report written to the workflow dir.`
         );
+        const VERDICT_CODES = {
+          SECTION_UNREADABLE: "PHASE30_CITATION_SECTION_UNREADABLE",
+          INSUFFICIENT_EVIDENCE: "PHASE30_CITATION_INSUFFICIENT_EVIDENCE",
+          NO_CITATIONS: "PHASE30_CITATION_NONE"
+        };
         err.code = retractedCount > 0
           ? "PHASE30_CITATION_RETRACTED"
-          : gate.verdict === "INSUFFICIENT_EVIDENCE"
-            ? "PHASE30_CITATION_INSUFFICIENT_EVIDENCE"
-            : gate.verdict === "NO_CITATIONS"
-              ? "PHASE30_CITATION_NONE"
-              : "PHASE30_CITATION_UNVERIFIED";
+          : VERDICT_CODES[gate.verdict] || "PHASE30_CITATION_UNVERIFIED";
         err.citation_verification = citationVerification;
         err.search_coverage = searchCoverageLedger ? searchCoverageLedger.summary : null;
+        recordGateFailure(err, retractedCount > 0 ? "RETRACTED" : gate.verdict);
         throw err;
       }
-      // Passed, but some citations are still ungrounded → annotate the shipped sections in place
+      // Passed, but some citations may still be ungrounded → annotate the shipped sections in place
       // so the bundle itself carries the [UNVERIFIED] marks (honesty over completeness).
-      if (gate.ungrounded > 0) {
-        try {
-          annotateSubtaskOutputs(missionResult.subtask_results, gate.fetchedIds);
-        } catch (annotateError) {
-          logger.warn({ event: "citation_gate_annotate_failed", error: safeString(annotateError && annotateError.message) });
-        }
+      // T1-3 (2026-11-14): on EVERY pass (the old `gate.ungrounded > 0` guard skipped Evidence Desk
+      // sections, which the ratio does not judge), at every mention, and FAIL-CLOSED: a section whose
+      // marks cannot be written stops the run, because an untraced identifier must never ship unflagged.
+      const annotation = annotateSubtaskOutputs(missionResult.subtask_results, gate.fetchedIds, { fetchedKeys: gate.fetchedKeys });
+      if (annotation.failed.length > 0) {
+        logger.error({ event: "citation_gate_annotate_failed", mission_id: missionEnvelope.mission_id, failed: annotation.failed });
+        const err = new Error(
+          `Citation gate passed, but the [UNVERIFIED] marks could not be written to ${annotation.failed.length} section(s) ` +
+          `(${annotation.failed.join(", ")}) — refusing to ship a report whose untraced identifiers are not flagged at every mention.`
+        );
+        err.code = "PHASE30_CITATION_ANNOTATE_FAILED";
+        err.citation_verification = citationVerification;
+        recordGateFailure(err, "ANNOTATE_FAILED");
+        throw err;
       }
 
       // Slice 4 — citation RE-RESOLUTION + Reproducibility Manifest. The gate proved the cited ids
@@ -425,10 +480,30 @@ function createWorkflowEngine(options = {}) {
       // source registry at delivery and records VERIFIED / UNRESOLVED / UNCHECKED in a manifest.
       // Fail-soft on infra (network/throttle => UNCHECKED, never a false VERIFIED); fail-CLOSED on
       // fabrication (a live "does-not-exist" => UNRESOLVED => BLOCK), mirroring the gate above.
+      // `checked` must reflect whether the screens actually covered every cited identifier —
+      // hardcoding `true` made the manifest claim a retraction screen that a rate-limited or
+      // unreachable source may have skipped entirely. DOI and PMID retractions stay in their own
+      // fields so a retracted PMID is never mislabeled as a DOI in the sealed manifest.
+      const manifestRetraction = {
+        checked: Boolean(retraction.checked),
+        retracted_dois: retraction.retracted_dois || [],
+        retracted_pmids: retraction.retracted_pmids || [],
+        // T1-7: an incomplete screen restricts the claim (flag), never blocks.
+        cited: (retraction.dois_cited || 0) + (retraction.pmids_cited || 0),
+        unscreened_ids: retraction.unscreened_ids || []
+      };
+      const manifestGate = {
+        cited: gate.cited, grounded: gate.grounded, ungrounded: gate.ungrounded,
+        grounded_ratio: gate.grounded_ratio, min_grounded_ratio: gate.min_grounded_ratio, hardFail: false
+      };
+      // T1-5: grounded_in_run by TYPE:ID when every evidence record carried keys.
+      const manifestGroundedKeys = Array.isArray(gate.fetchedKeys) ? gate.fetchedKeys : null;
+      let reresolutionStartedAt = null;
       try {
         const cites = deduplicateCitations(extractCitations(gate.reportText || ""));
         if (cites.length > 0) {
           const startedAt = timeProviderModule.nowIso();
+          reresolutionStartedAt = startedAt;
           // DI seam (mirrors researchRuntime.crossrefRetraction / pubmedRetraction / ctgovSupplemental
           // above): use an injected re-resolver when the runtime provides one, else construct the real
           // one. Production is IDENTICAL — nothing is injected, so createCitationReresolver still runs.
@@ -466,20 +541,11 @@ function createWorkflowEngine(options = {}) {
           const manifest = buildReproducibilityManifest({
             reresolved,
             attribution,
-            // `checked` must reflect whether the screens actually covered every cited identifier —
-            // hardcoding `true` made the manifest claim a retraction screen that a rate-limited or
-            // unreachable source may have skipped entirely. DOI and PMID retractions stay in their
-            // own fields so a retracted PMID is never mislabeled as a DOI in the sealed manifest.
-            retraction: {
-              checked: Boolean(retraction.checked),
-              retracted_dois: retraction.retracted_dois || [],
-              retracted_pmids: retraction.retracted_pmids || []
-            },
-            gate: {
-              cited: gate.cited, grounded: gate.grounded, ungrounded: gate.ungrounded,
-              grounded_ratio: gate.grounded_ratio, min_grounded_ratio: gate.min_grounded_ratio, hardFail: false
-            },
+            retraction: manifestRetraction,
+            gate: manifestGate,
             groundedIds: gate.fetchedIds,
+            groundedKeys: manifestGroundedKeys,
+            reresolutionCompleted: true,
             meta: {
               reportId: missionEnvelope.mission_id,
               deliveryId: context.workflowId,
@@ -537,6 +603,7 @@ function createWorkflowEngine(options = {}) {
             );
             err.code = "PHASE30_CITATION_UNRESOLVED";
             err.citation_verification = citationVerification;
+            recordGateFailure(err, "UNRESOLVED");
             throw err;
           }
         }
@@ -545,6 +612,86 @@ function createWorkflowEngine(options = {}) {
         // blocks a report the gate already passed.
         if (reresolveError && reresolveError.code === "PHASE30_CITATION_UNRESOLVED") throw reresolveError;
         logger.warn({ event: "citation_reresolution_failed", error: safeString(reresolveError && reresolveError.message) });
+        // T1-8 (2026-11-14): the run stays fail-soft (operator default D1) but never seals a gated
+        // report without a manifest. Until this date a crash left none (sealed release
+        // offer-bcaf2746298f5280fde747f0 has no reproducibility manifest). The fallback lists every
+        // cited id UNCHECKED with reason `reresolution_error` and records reresolution_completed:false,
+        // so the bundle says nothing was looked up and delivery refuses it (build-buyer-zip.js,
+        // distribute.js, export-release.js). If even the fallback cannot be built, the run stops.
+        if (citationVerification && !citationVerification.reproducibility_manifest) {
+          let fallback;
+          try {
+            const checkedAt = timeProviderModule.nowIso();
+            fallback = buildReproducibilityManifest({
+              reresolved: deduplicateCitations(extractCitations(gate.reportText || "")).map((c) => ({
+                type: c.type, id: c.id, status: "UNCHECKED", resolver_type: "primary",
+                evidence: { reason: "reresolution_error" }, checked_at: checkedAt
+              })),
+              retraction: manifestRetraction,
+              gate: manifestGate,
+              groundedIds: gate.fetchedIds,
+              groundedKeys: manifestGroundedKeys,
+              reresolutionCompleted: false,
+              meta: {
+                reportId: missionEnvelope.mission_id,
+                deliveryId: context.workflowId,
+                resolverTableVersion: null,
+                asOf: checkedAt.slice(0, 10),
+                startedAt: reresolutionStartedAt || checkedAt,
+                completedAt: checkedAt
+              }
+            });
+          } catch (fallbackError) {
+            const err = new Error(
+              "Citation re-resolution crashed, and its fallback manifest could not be built either: " +
+              `${safeString(fallbackError && fallbackError.message)} — refusing to seal a gated report without a manifest.`
+            );
+            err.code = "PHASE30_CITATION_RERESOLUTION_ERROR";
+            err.citation_verification = citationVerification;
+            recordGateFailure(err, "RERESOLUTION_ERROR");
+            throw err;
+          }
+          try {
+            const mdir = getWorkflowDir(context.workflowId);
+            ensureDir(mdir);
+            fs.writeFileSync(path.join(mdir, "reproducibility-manifest.json"), JSON.stringify(fallback, null, 2));
+            fs.writeFileSync(path.join(mdir, "reproducibility-manifest.md"), renderManifestMarkdown(fallback));
+          } catch (persistErr) {
+            logger.warn({ event: "reproducibility_manifest_persist_failed", error: safeString(persistErr && persistErr.message) });
+          }
+          logger.warn({
+            event: "citation_reresolution_fallback_manifest",
+            mission_id: missionEnvelope.mission_id,
+            unchecked: fallback.summary.counts.unchecked,
+            decision: fallback.summary.delivery_decision
+          });
+          citationVerification.reproducibility = fallback.summary;
+          citationVerification.reproducibility_manifest = fallback;
+        }
+      }
+
+      // T1-1: the gate passed. The pass:true record is written HERE, after the last rewrite of the
+      // shipped sections (the [UNVERIFIED] marks, then the attribution marks above), so the hashes it
+      // pins are of exactly the text that ships. It carries the manifest (T1-8 guarantees one). A
+      // failed write stops the run (fail-closed): without it the mission could never be packaged, and
+      // a stale record must never stand in for it.
+      // Tier 1 review (2026-11-14, operator pick D1): the record waits for the workflow's quality audit
+      // ("pending" until that step passes), so a run stopped between here and the audit cannot be
+      // packaged by generate-offer.js with a density audit that never ran.
+      const hasQualityAudit = Array.isArray(workflowDef && workflowDef.pipeline)
+        && workflowDef.pipeline.some((s) => s && s.type === "quality_audit");
+      try {
+        writeMissionCitationRecord({
+          rootDir, missionId: missionEnvelope.mission_id, workflowId: context.workflowId, timeProvider,
+          pass: true, verdict: gate.verdict, errorCode: null, citationVerification,
+          qualityAudit: hasQualityAudit ? "pending" : "not_applicable"
+        });
+      } catch (recordErr) {
+        const err = new Error(`Citation gate passed, but its record could not be written beside the mission: ${safeString(recordErr && recordErr.message)}`);
+        err.code = "PHASE30_CITATION_RECORD_WRITE_FAILED";
+        err.citation_verification = citationVerification;
+        recordGateFailure(err, "RECORD_WRITE_FAILED");
+        throw err;
       }
     }
 
@@ -1171,6 +1318,17 @@ function createWorkflowEngine(options = {}) {
               error.code = "PHASE30_QUALITY_BELOW_THRESHOLD";
               throw error;
             }
+            // Tier 1 review (2026-11-14): only now is the mission packageable ("pending" -> "passed").
+            // A failed write fails this step, which turns the record to pass:false (the catch below).
+            if (state.artifacts.mission_id) {
+              try {
+                passMissionQualityAudit({ rootDir, missionId: state.artifacts.mission_id });
+              } catch (recordErr) {
+                const error = new Error(`Quality audit passed, but the mission's citation record could not be updated: ${String(recordErr && recordErr.message)}`);
+                error.code = "PHASE30_QUALITY_RECORD_WRITE_FAILED";
+                throw error;
+              }
+            }
             break;
           case "offer":
             result = executeOfferStep(step, validated, inputs, stepResults);
@@ -1202,6 +1360,20 @@ function createWorkflowEngine(options = {}) {
             code: error.code || "PHASE30_STEP_FAILED",
             message: String(error.message || error)
           };
+        }
+        // T1-1 (2026-11-14): a quality audit that fails AFTER the citation gate passed (density below
+        // threshold, or a section with zero primary-source coverage) turns the mission's citation
+        // record to pass:false, so generate-offer.js cannot package what this workflow refused.
+        if (step.type === "quality_audit" && state.artifacts.mission_id) {
+          try {
+            failMissionCitationRecord({
+              rootDir, missionId: state.artifacts.mission_id,
+              verdict: "QUALITY_AUDIT_FAILED", errorCode: error.code || "PHASE30_STEP_FAILED",
+              qualityAudit: "failed"
+            });
+          } catch (recordErr) {
+            logger.error({ event: "mission_citation_record_fail_failed", mission_id: state.artifacts.mission_id, error: String(recordErr && recordErr.message) });
+          }
         }
         logger.error({
           event: "phase30_workflow_step_failed",

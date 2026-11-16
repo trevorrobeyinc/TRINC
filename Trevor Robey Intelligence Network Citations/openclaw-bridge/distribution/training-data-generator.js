@@ -4,14 +4,20 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { extractCitations, deduplicateCitations } = require("../core/citation-extractor.js");
 const timeProvider = require("../core/time-provider.js");
+const { researchText, untracedKeysFromIndex, citesUntraced } = require("./release-content.js");
 
 /**
  * Training data generator for Outlier.ai and Mindrift.ai.
  *
- * Transforms verified research reports into:
+ * Transforms the research text of a sealed, gate-passed release (scripts/distribute.js) into:
  * - Q&A pairs (Outlier: Biomedical Q&A creation, $25-65/hr)
  * - Evaluation rubrics (Outlier: AI response evaluation, $15-40/hr)
  * - Factuality assessments (Mindrift: factuality assessment, $20-50/hr)
+ *
+ * Tier 1 review (2026-11-14): only the research sections are read (never the packager's Table of
+ * Contents or Citation Summary), and a sentence that cites an identifier the citation gate could not
+ * trace (tables.csv grounded_in_run "no", or an [UNVERIFIED] mark) is never a claim, so it is never
+ * labelled is_factual, never an answer and never a required identifier.
  */
 
 function splitSections(markdown) {
@@ -31,7 +37,7 @@ function splitSections(markdown) {
   return sections;
 }
 
-function extractFactualClaims(text) {
+function extractFactualClaims(text, untracedKeys) {
   const sentences = text
     .replace(/\n+/g, " ")
     .split(/(?<=[.!?])\s+/)
@@ -39,6 +45,7 @@ function extractFactualClaims(text) {
 
   const claims = [];
   for (const sentence of sentences) {
+    if (citesUntraced(sentence, untracedKeys)) continue;
     const citations = extractCitations(sentence);
     if (citations.length > 0) {
       claims.push({
@@ -85,11 +92,12 @@ function generateQuestionFromClaim(claim, sectionTitle) {
 }
 
 function generateQAPairs(reportMarkdown, citationsCsv) {
-  const sections = splitSections(reportMarkdown);
+  const sections = splitSections(researchText(reportMarkdown));
+  const untraced = untracedKeysFromIndex(citationsCsv);
   const pairs = [];
 
   for (const section of sections) {
-    const claims = extractFactualClaims(section.body);
+    const claims = extractFactualClaims(section.body, untraced);
 
     for (let i = 0; i < claims.length; i += 2) {
       const claim = claims[i];
@@ -123,11 +131,12 @@ function generateQAPairs(reportMarkdown, citationsCsv) {
 }
 
 function generateEvaluationRubrics(reportMarkdown, citationsCsv) {
-  const sections = splitSections(reportMarkdown);
+  const sections = splitSections(researchText(reportMarkdown));
+  const untraced = untracedKeysFromIndex(citationsCsv);
   const rubrics = [];
 
   for (const section of sections) {
-    const claims = extractFactualClaims(section.body);
+    const claims = extractFactualClaims(section.body, untraced);
     if (claims.length === 0) continue;
 
     const allCitations = deduplicateCitations(
@@ -227,11 +236,12 @@ function degradeClaim(claim) {
 }
 
 function generateFactualityAssessments(reportMarkdown, citationsCsv) {
-  const sections = splitSections(reportMarkdown);
+  const sections = splitSections(researchText(reportMarkdown));
+  const untraced = untracedKeysFromIndex(citationsCsv);
   const assessments = [];
 
   for (const section of sections) {
-    const claims = extractFactualClaims(section.body);
+    const claims = extractFactualClaims(section.body, untraced);
 
     for (const claim of claims) {
       // Correct version

@@ -8,6 +8,8 @@
 // provenance, so this ledger is the moat. It is DETERMINISTIC (no LLM narration), so the
 // integrity claim is itself verifiable.
 
+const { MAX_SCREEN_IDS_PER_CLASS } = require("../core/citation-gate.js");
+
 /** "mission-abc:subtask:1" → "subtask 1"; plain ids pass through. */
 function shortSection(id) {
   const s = String(id || "section");
@@ -22,7 +24,10 @@ function buildIntegrityReport(citationVerification = {}, sectionCoverage = []) {
   const ungrounded = Math.max(0, Number(cv.ungrounded) || 0);
   const ratio = Number(cv.grounded_ratio) || 0;
   const retracted = Array.isArray(cv.retracted) ? cv.retracted : [];
-  const ungroundedSample = Array.isArray(cv.ungrounded_sample) ? cv.ungrounded_sample : [];
+  // T1-3 (2026-11-14): every untraced identifier (the full `ungrounded_ids` list), not a 25-item
+  // sample; a record that predates the full list falls back to its sample.
+  const ungroundedSample = Array.isArray(cv.ungrounded_ids) ? cv.ungrounded_ids
+    : Array.isArray(cv.ungrounded_sample) ? cv.ungrounded_sample : [];
 
   let grade;
   let verdict;
@@ -46,26 +51,85 @@ function buildIntegrityReport(citationVerification = {}, sectionCoverage = []) {
     verdict = "Low integrity — many citations not grounded in fetched evidence";
   }
 
+  // T1-7 (2026-11-14): the retraction screen's coverage. `retraction_screen_checked` is absent only on
+  // a record that predates it, in which case coverage is unknown and nothing is claimed either way.
+  const screenKnown = typeof cv.retraction_screen_checked === "boolean";
+  const screenComplete = cv.retraction_screen_checked === true;
+  const unscreenedIds = Array.isArray(cv.unscreened_ids) ? cv.unscreened_ids : [];
+  const screenCited = Number.isFinite(cv.retraction_screen_cited) ? cv.retraction_screen_cited : null;
+  const unscreenedCount = Number.isFinite(cv.unscreened) ? cv.unscreened : unscreenedIds.length;
+  const screenRow = !screenKnown
+    ? "not recorded for this report"
+    : screenComplete
+      ? "complete"
+      : `INCOMPLETE: ${unscreenedCount}${screenCited !== null ? ` of ${screenCited}` : ""} cited DOIs and PMIDs not screened`;
+  const coverageSentence = !screenKnown
+    ? "This report's record does not state whether every cited DOI and PMID could be screened."
+    : screenComplete
+      ? "Every cited DOI and PMID was retraction-screened."
+      : `${unscreenedCount}${screenCited !== null ? ` of ${screenCited}` : ""} cited DOIs and PMIDs could not be screened; they are listed under "Retraction screen" below.`;
+  // Tier 1 review (2026-11-14): DOIs Crossref holds whose PubMed cross-check reached no verdict count as
+  // screened (the spec's rule), but against Crossref alone, so the ledger says so.
+  const crossrefOnly = Number.isFinite(cv.retraction_dois_crossref_only) ? cv.retraction_dois_crossref_only : 0;
+  const crossrefOnlySentence = crossrefOnly > 0
+    ? ` For ${crossrefOnly} cited DOI${crossrefOnly === 1 ? "" : "s"} the PubMed cross-check reached no verdict, so ${crossrefOnly === 1 ? "it was" : "they were"} screened against Crossref alone.`
+    : "";
+
   const pct = cited > 0 ? Math.round(ratio * 100) : 0;
   const lines = [
     "# Citation Integrity & Provenance",
     "",
     `**Integrity grade: ${grade}** — ${verdict}`,
     "",
-    // Retraction Watch is NOT screened anywhere in this engine — its bulk dataset is recorded in
-    // SYSTEM-REALITY.md as an unbuilt residual gap. The live screen is Crossref for DOIs plus
-    // PubMed pubtype for PMIDs, with a DOI→PMID escalation. Never name a source we do not query.
-    "Every identifier cited in this report is checked, at generation time, against the source records actually retrieved for it. A citation is **grounded** only if it appears in evidence this report fetched; identifiers not in that set are flagged **unverified**; any source flagged **retracted** (Crossref for DOIs, PubMed for PMIDs, with a DOI→PMID cross-check) blocks the report. Coverage bound: the Retraction Watch bulk dataset is not used, so a retraction recorded only there would not be caught. This ledger is the audit trail — the report's defensible spine.",
+    // The live screen is Crossref for DOIs (a work's own retraction relation, or an `updated-by`
+    // retraction entry, which is where Crossref serves the Retraction Watch data, read since T1-7)
+    // plus PubMed pubtype for PMIDs, with a DOI→PMID escalation. The Retraction Watch database itself
+    // is not queried. Never name a source we do not query.
+    "Every identifier cited in this report is checked, at generation time, against the records retrieved for this report. A citation is **grounded** only if it appears in evidence this report fetched; identifiers not in that set are flagged **unverified**; any source flagged **retracted** (Crossref for DOIs, PubMed for PMIDs, with a DOI→PMID cross-check) blocks the report. "
+      // Tier 1 review (2026-11-14): the bound states the screen's real limits. Cited PMIDs go to PubMed
+      // only (there is no PMID→DOI leg), so a retraction only Crossref records is missed for a paper
+      // cited by PMID alone; and an identifier listed as not screened was not checked at all.
+      + `${coverageSentence}${crossrefOnlySentence} Coverage bound: the Retraction Watch bulk dataset is not used. Crossref's own retraction entries, including those it carries from that dataset, are read for each cited DOI that Crossref holds, and cited PMIDs are checked in PubMed only. A retraction recorded in neither place, or recorded only in Crossref for a paper cited by PMID alone, would not be caught, and an identifier listed as not screened was not checked at all. This ledger is the audit trail — the report's defensible spine.`,
     "",
     "| Metric | Value |",
     "| --- | --- |",
     `| Citations | ${cited} |`,
     `| Grounded in fetched evidence | ${grounded} (${pct}%) |`,
     `| Unverified (treat as unconfirmed) | ${ungrounded} |`,
-    `| Retracted | ${retracted.length} |`
+    `| Retracted | ${retracted.length} |`,
+    `| Retraction screen | ${screenRow} |`
   ];
+  // T1-5 (2026-11-14): which matching rule grounded the citations. "type_and_id": a cited id counts as
+  // grounded only if a retrieved record has the same identifier type and number; "id_only": an evidence
+  // record from this run carried no identifier types, so numbers were matched alone.
+  if (cv.grounding_match === "type_and_id") {
+    lines.push("| Matched on | identifier type and number (type_and_id) |");
+  } else if (cv.grounding_match === "id_only") {
+    lines.push("| Matched on | identifier number only (id_only): an evidence record from this run carried no identifier types |");
+  }
   if (retracted.length > 0) {
     lines.push("", "## ⛔ Retracted sources (report blocked from release)", "", ...retracted.map((d) => `- ${d}`));
+  }
+  if (screenKnown && !screenComplete && unscreenedIds.length > 0) {
+    lines.push(
+      "",
+      "## Retraction screen: not screened",
+      "",
+      `Retraction screen: INCOMPLETE, ${unscreenedCount}${screenCited !== null ? ` of ${screenCited}` : ""} cited DOIs and PMIDs not screened. Each one below could not be checked against a retraction source (the source was unreachable, holds no record of it, or the id was past the screen's ${MAX_SCREEN_IDS_PER_CLASS}-per-type limit); none is known to be retracted:`,
+      "",
+      ...unscreenedIds.map((s) => `- ${s}`)
+    );
+  }
+  // Operator default D3 (2026-11-14): a partial retraction, withdrawal or expression of concern on a
+  // cited work is recorded here and never blocks; only an exact retraction blocks.
+  const editorial = Array.isArray(cv.retraction_editorial_flags) ? cv.retraction_editorial_flags : [];
+  if (editorial.length > 0) {
+    lines.push(
+      "",
+      "## Editorial notices on cited works (not blocking)",
+      "",
+      ...editorial.map((e) => `- ${e.id}: ${String(e.type).replace(/_/g, " ")}${e.source ? ` (recorded by ${e.source === "retraction-watch" ? "Crossref" : e.source})` : ""}`)
+    );
   }
   if (ungroundedSample.length > 0) {
     lines.push(
@@ -86,7 +150,9 @@ function buildIntegrityReport(citationVerification = {}, sectionCoverage = []) {
       "",
       "## Source coverage by section",
       "",
-      "Independent primary-source coverage retrieved for each report section at generation time. **Sparse / Moderate / Comprehensive** reflects how many distinct primary sources corroborate the section; a section marked *not checked* could not be verified against live search (e.g. the search backend was unreachable) and was not failed on that basis.",
+      // T1-9 (2026-11-14): the section gate counts distinct primary-source hits for a web search on
+      // the section's key terms (searxng-mcp/section-gate.js); it never checks that they support it.
+      "Independent primary-source coverage retrieved for each report section at generation time. **Sparse / Moderate / Comprehensive** reflects how many distinct primary sources a web search on the section's key terms returned; this does not check that they support the section. A section marked *not checked* could not be searched (e.g. the search backend was unreachable) and was not failed on that basis.",
       "",
       "| Section | Coverage | Distinct primary sources |",
       "| --- | --- | --- |"

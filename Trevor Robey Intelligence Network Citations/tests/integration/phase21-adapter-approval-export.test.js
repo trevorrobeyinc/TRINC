@@ -12,6 +12,7 @@ const { spawnSync } = require("node:child_process");
 const root = path.resolve(__dirname, "../..");
 const { canonicalize } = require(path.join(root, "workflows", "governance-automation", "common.js"));
 const { copyMonetizationConfigs, writeJson, writeTaskOutput } = require(path.join(root, "tests", "helpers", "phase20-fixtures.js"));
+const { writePassingCitationRecord } = require(path.join(root, "tests", "helpers", "mission-citation-record-fixture.js"));
 
 async function createRepoFixture() {
   const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "openclaw-phase21-adapter-export-"));
@@ -99,6 +100,7 @@ test("phase21 export fails when adapter contract validation fails even with refr
       { subtask_id: "step-1", output_path: outputPath, status: "completed" }
     ]
   });
+  writePassingCitationRecord(fixtureRoot, missionId); // T1-1: what a gate-passed mission leaves
 
   const generated = runNode("scripts/generate-offer.js", [
     "--source", missionId,

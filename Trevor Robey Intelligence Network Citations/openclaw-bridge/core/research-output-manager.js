@@ -166,6 +166,14 @@ function createResearchOutputManager(options = {}) {
       search_coverage: Array.isArray(metadata.search_coverage)
         ? metadata.search_coverage.map((entry) => (isPlainObject(entry) ? canonicalize(entry) : entry))
         : [],
+      // T1-5 (2026-11-14): the same retrieved identifiers as TYPE:ID keys, so the gate grounds by type
+      // as well as number. Allowlisted for the same reason as search_coverage (an unlisted key is
+      // silently dropped). Present ONLY when the caller passed the array: a sidecar written without it
+      // (an older run, or a path that never typed its evidence) must stay recognisable as untyped, so
+      // the gate falls back to id-only matching instead of treating it as "retrieved nothing".
+      ...(Array.isArray(metadata.fetched_citation_keys)
+        ? { fetched_citation_keys: metadata.fetched_citation_keys.map((x) => String(x)) }
+        : {}),
       // Evidence Desk (2026-10-21): "evidence-desk" marks a section written without a model; the
       // citation gate and the density audit read it to judge model-written text only. Allowlisted
       // here for the same reason as search_coverage above — an unlisted key is silently dropped.

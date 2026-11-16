@@ -31,7 +31,11 @@ test("UNCHECKED over default 0 tolerance -> DELIVER_WITH_FLAGS (a soft FLAG, not
   assert.deepEqual(m.summary.block_reasons, [], "a report that SHIPS must carry no block_reasons");
   const md = renderManifestMarkdown(m);
   assert.match(md, /flags: unchecked_over_threshold/);
-  assert.match(md, /This report SHIPS/);
+  assert.match(md, /The engine's decision lets this report ship with flags/);
+  // Tier 1 review (2026-11-14): the delivery tools refuse this very manifest (it carries a ChEMBL id),
+  // so it no longer says what alone "blocks delivery", and it names that the tools check more.
+  assert.doesNotMatch(md, /blocks delivery/);
+  assert.match(md, /the delivery tools run their own checks as well \(for example, they refuse any ChEMBL identifier\)/);
 });
 
 test("Q8: max_unchecked_ratio is honored when overridden — default 0 is the doctrine-required floor", () => {
@@ -40,6 +44,54 @@ test("Q8: max_unchecked_ratio is honored when overridden — default 0 is the do
   assert.equal(buildReproducibilityManifest({ reresolved: cits, meta: META }).summary.delivery_decision, "DELIVER_WITH_FLAGS");
   // A deliberate override is respected (0.5 <= 0.6) — but a production value > 0 would overclaim (see header).
   assert.equal(buildReproducibilityManifest({ reresolved: cits, thresholds: { max_unchecked_ratio: 0.6 }, meta: META }).summary.delivery_decision, "DELIVER");
+});
+
+// T1-6: decided on integers. 1 of 2,500 is 0.0004, which rounds to 0.000 for display.
+test("1 UNCHECKED id of 2,500 -> DELIVER_WITH_FLAGS (rounding never earns the full-strength claim)", () => {
+  const cits = Array.from({ length: 2499 }, (_, i) => cit("PMID", String(1000 + i), "VERIFIED"));
+  cits.push(cit("PMID", "99999", "UNCHECKED", "rate_limited"));
+  const m = buildReproducibilityManifest({ reresolved: cits, meta: META });
+  assert.equal(m.summary.unchecked_ratio, 0, "the rounded ratio is display only");
+  assert.equal(m.summary.delivery_decision, "DELIVER_WITH_FLAGS");
+  assert.deepEqual(m.summary.flag_reasons, ["unchecked_over_threshold"]);
+});
+
+// T1-9 (2026-11-14): the flag explanation names the real reasons, and "fully GROUNDED" only when true.
+test("ungrounded ids + a rate-limited UNCHECKED: no 'fully GROUNDED', the untraced count instead", () => {
+  const m = buildReproducibilityManifest({
+    reresolved: [cit("PMID", "1", "VERIFIED"), cit("PMID", "2", "UNCHECKED", "rate_limited")],
+    gate: { cited: 6, grounded: 4, ungrounded: 2, grounded_ratio: 0.667, min_grounded_ratio: 0.5 },
+    meta: META
+  });
+  const md = renderManifestMarkdown(m);
+  assert.doesNotMatch(md, /fully GROUNDED/);
+  assert.match(md, /2 of 6 cited identifiers were not found in the retrieved evidence and are flagged \[UNVERIFIED\] in the report/);
+  assert.match(md, /network\/throttle limit/, "every UNCHECKED reason here is a network one");
+});
+
+test("a no_resolver UNCHECKED: no network/throttle sentence, the reason is listed", () => {
+  const m = buildReproducibilityManifest({
+    reresolved: [cit("PMID", "1", "VERIFIED"), cit("CENSUS", "cbp/2023/493", "UNCHECKED", "no_resolver")],
+    gate: { cited: 2, grounded: 2, ungrounded: 0, grounded_ratio: 1, min_grounded_ratio: 0.75 },
+    meta: META
+  });
+  const md = renderManifestMarkdown(m);
+  assert.doesNotMatch(md, /network\/throttle/);
+  assert.match(md, /UNCHECKED by reason: no_resolver: 1/);
+  assert.match(md, /The report remains fully GROUNDED/);
+  assert.match(md, /UNCHECKED = no definitive answer this run \(reason recorded per identifier\)/);
+});
+
+test("all-network UNCHECKED with nothing untraced keeps the original explanation", () => {
+  const m = buildReproducibilityManifest({
+    reresolved: [cit("PMID", "1", "VERIFIED"), cit("NCT", "NCT1", "UNCHECKED", "timeout")],
+    gate: { cited: 2, grounded: 2, ungrounded: 0, grounded_ratio: 1, min_grounded_ratio: 0.75 },
+    meta: META
+  });
+  const md = renderManifestMarkdown(m);
+  assert.match(md, /The engine's decision lets this report ship with flags\. DELIVER_WITH_FLAGS means some cited identifiers could not be independently re-resolved when this report was assembled \(a network\/throttle limit at re-resolution, NOT a defect\)\. The report remains fully GROUNDED/);
+  assert.match(md, /Citations re-resolved when this report was assembled \(as of 2026-06-19\)/);
+  assert.doesNotMatch(md, /at delivery/);
 });
 
 test("retracted DOI -> BLOCK", () => {
@@ -58,11 +110,65 @@ test("retracted PMID -> BLOCK, and is labeled a PMID (never merged into retracte
 });
 
 // An outage must degrade the CLAIM, not silently read as a clean screen, in the sealed manifest.
-test("retraction screen incomplete -> manifest says INCOMPLETE, and still DELIVERs", () => {
-  const m = buildReproducibilityManifest({ reresolved: [cit("PMID", "1", "VERIFIED")], retraction: { checked: false, retracted_dois: [], retracted_pmids: [] }, meta: META });
+// T1-7 (2026-11-14): an incomplete screen now forfeits the full-strength DELIVER (a flag), and it
+// still never blocks: block_reasons stays empty.
+test("retraction screen incomplete -> manifest says INCOMPLETE, flags it, and still ships (DELIVER_WITH_FLAGS)", () => {
+  const m = buildReproducibilityManifest({
+    reresolved: [cit("PMID", "1", "VERIFIED")],
+    retraction: { checked: false, retracted_dois: [], retracted_pmids: [], cited: 3, unscreened_ids: ["DOI:10.4/missing"] },
+    meta: META
+  });
   assert.equal(m.summary.retraction_screen.checked, false);
-  assert.equal(m.summary.delivery_decision, "DELIVER", "an unreachable source must never block a passing report");
-  assert.match(renderManifestMarkdown(m), /Retraction screen: INCOMPLETE/);
+  assert.equal(m.summary.delivery_decision, "DELIVER_WITH_FLAGS");
+  assert.deepEqual(m.summary.flag_reasons, ["retraction_screen_incomplete"]);
+  assert.deepEqual(m.summary.block_reasons, [], "an unreachable source must never block a passing report");
+  const md = renderManifestMarkdown(m);
+  assert.match(md, /Retraction screen: INCOMPLETE — 1 of 3 cited DOIs and PMIDs not screened/);
+  assert.match(md, /Not screened: DOI:10\.4\/missing\./);
+  assert.match(md, /The engine's decision lets this report ship with a flag: the retraction screen could not screen every cited DOI and PMID/);
+  assert.doesNotMatch(md, /network\/throttle limit/, "a retraction-screen gap is not a re-resolution limit");
+});
+
+// T1-8: the fallback manifest the engine builds when the re-resolution pass crashed.
+test("a crashed re-resolution pass: every id UNCHECKED (reresolution_error) ships flagged, never offline, says so", () => {
+  const m = buildReproducibilityManifest({
+    reresolved: [cit("PMID", "1", "UNCHECKED", "reresolution_error"), cit("NCT", "NCT01111111", "UNCHECKED", "reresolution_error")],
+    retraction: { checked: true, retracted_dois: [], retracted_pmids: [] },
+    reresolutionCompleted: false,
+    meta: META
+  });
+  assert.equal(m.summary.delivery_decision, "DELIVER_WITH_FLAGS");
+  assert.deepEqual(m.summary.block_reasons, []);
+  assert.equal(m.summary.environment.offline, false, "a crash is not an offline registry");
+  assert.equal(m.summary.reresolution_completed, false);
+  const md = renderManifestMarkdown(m);
+  assert.match(md, /Re-resolution did not complete this run; no identifier was looked up\./);
+  assert.doesNotMatch(md, /network\/throttle limit/, "a crash is not a network limit");
+  const normal = buildReproducibilityManifest({ reresolved: [cit("PMID", "1", "VERIFIED")], reresolutionCompleted: true, meta: META });
+  assert.equal(normal.summary.reresolution_completed, true);
+  assert.ok(!("reresolution_completed" in buildReproducibilityManifest({ reresolved: [], meta: META }).summary), "absent unless the caller says");
+});
+
+// Tier 1 review (2026-11-14): a crashed pass whose retraction screen was ALSO incomplete said "not
+// cleared for delivery" and, two lines later, that the report ships with a flag.
+test("a crashed re-resolution pass with an incomplete screen never also says the report ships", () => {
+  const m = buildReproducibilityManifest({
+    reresolved: [cit("PMID", "1", "UNCHECKED", "reresolution_error")],
+    retraction: { checked: false, retracted_dois: [], retracted_pmids: [], cited: 2, unscreened_ids: ["DOI:10.4/missing"] },
+    reresolutionCompleted: false,
+    meta: META
+  });
+  const md = renderManifestMarkdown(m);
+  assert.match(md, /not cleared for delivery until the order is re-run/);
+  assert.doesNotMatch(md, /ship with/);
+  assert.doesNotMatch(md, /SHIPS/);
+  assert.match(md, /Not screened: DOI:10\.4\/missing\./, "the unscreened ids are still listed");
+});
+
+test("a complete retraction screen adds no flag", () => {
+  const m = buildReproducibilityManifest({ reresolved: [cit("PMID", "1", "VERIFIED")], retraction: { checked: true, retracted_dois: [], retracted_pmids: [] }, meta: META });
+  assert.equal(m.summary.delivery_decision, "DELIVER");
+  assert.match(renderManifestMarkdown(m), /Retraction screen: checked/);
 });
 
 test("gate hard-fail -> BLOCK", () => {
@@ -87,6 +193,21 @@ test("grounded_in_run set from groundedIds", () => {
   const byId = Object.fromEntries(m.citations.map((c) => [c.id, c.grounded_in_run]));
   assert.equal(byId["1"], true);
   assert.equal(byId["2"], false);
+});
+
+// T1-5: with TYPE:ID keys, grounded_in_run is decided by type as well as number.
+test("grounded_in_run by key: a retrieved CID 2244 does not ground PMID 2244", () => {
+  const m = buildReproducibilityManifest({
+    reresolved: [cit("PMID", "2244", "VERIFIED"), cit("PubChem CID", "2244", "VERIFIED")],
+    groundedIds: ["2244"],
+    groundedKeys: ["PUBCHEM CID:2244"],
+    meta: META
+  });
+  const byType = Object.fromEntries(m.citations.map((c) => [c.type, c.grounded_in_run]));
+  assert.equal(byType.PMID, false);
+  assert.equal(byType["PubChem CID"], true);
+  const idOnly = buildReproducibilityManifest({ reresolved: [cit("PMID", "2244", "VERIFIED")], groundedIds: ["2244"], meta: META });
+  assert.equal(idOnly.citations[0].grounded_in_run, true, "without keys the id alone is matched, as before");
 });
 
 test("markdown render includes decision + manifest header", () => {

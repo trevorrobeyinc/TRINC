@@ -15,12 +15,14 @@
 //   BLOCK              — hard stop, does NOT ship: any UNRESOLVED citation (a live registry says the id
 //                        does not exist = the fabrication signature), any retracted DOI/PMID, or a
 //                        gate hard-fail.
-//   DELIVER_WITH_FLAGS — SHIPS with a restricted claim, for either (or both) of two flag_reasons:
-//                        "unchecked_over_threshold" — unchecked_ratio > max_unchecked_ratio: the report
-//                        is still fully GROUNDED, some ids just could not be re-resolved (network);
+//   DELIVER_WITH_FLAGS — SHIPS with a restricted claim, for any of three flag_reasons:
+//                        "unchecked_over_threshold" — unchecked_ratio > max_unchecked_ratio: some ids
+//                        could not be re-resolved (the reason is recorded per id);
 //                        "attribution_mismatch" (2026-11-04) — every id may be VERIFIED, but the
 //                        author or year written beside one or more of them is not the registry's
-//                        (citation-attribution.js). Operator decision: flag and mark inline, never block.
+//                        (citation-attribution.js). Operator decision: flag and mark inline, never block;
+//                        "retraction_screen_incomplete" (T1-7, 2026-11-14) — the retraction screen could
+//                        not screen every cited DOI and PMID; the unscreened ids are named.
 //   DELIVER            — SHIPS; the full-strength "every cited id independently re-resolved" claim is
 //                        allowed ONLY at 100% VERIFIED (0 unresolved, 0 unchecked, no retractions,
 //                        gate passes) AND no attribution mismatch.
@@ -49,6 +51,15 @@ function buildReproducibilityManifest(input = {}) {
   const groundedIds = input.groundedIds
     ? new Set([...input.groundedIds].map((x) => String(x).toUpperCase()))
     : null;
+  // T1-5 (2026-11-14): TYPE:ID keys of the retrieved identifiers. When present, grounded_in_run is
+  // decided by type as well as number, the same rule the citation gate used; else by id alone.
+  const groundedKeys = Array.isArray(input.groundedKeys)
+    ? new Set(input.groundedKeys.map((x) => String(x).toUpperCase()))
+    : null;
+  const groundedInRun = (r) => {
+    if (groundedKeys) return groundedKeys.has(`${r.type}:${r.id}`.toUpperCase());
+    return groundedIds ? groundedIds.has(String(r.id).toUpperCase()) : null;
+  };
 
   // Attribution check (citation-attribution.js, 2026-11-04): optional, so a manifest built without it
   // is byte-identical to before. When present, each DOI/PMID carries what the report wrote beside it
@@ -71,7 +82,7 @@ function buildReproducibilityManifest(input = {}) {
       http_status: r.http_status == null ? null : r.http_status,
       checked_at: r.checked_at || null,
       evidence: r.evidence || {},
-      grounded_in_run: groundedIds ? groundedIds.has(String(r.id).toUpperCase()) : null,
+      grounded_in_run: groundedInRun(r),
       attempts: r.attempts || 1,
     };
     const a = attributionById.get(`${r.type}:${String(r.id).toUpperCase()}`);
@@ -127,8 +138,20 @@ function buildReproducibilityManifest(input = {}) {
   if (block_reasons.length > 0) {
     delivery_decision = DECISION.BLOCK;
   } else {
-    if (unchecked_ratio > thresholds.max_unchecked_ratio) flag_reasons.push("unchecked_over_threshold");
+    // T1-6 (2026-11-14): decided on integers, like the citation gate. unchecked_ratio is rounded to
+    // three decimals for display, so comparing it read 1 UNCHECKED id in 2,001 or more as 0 and earned
+    // the full-strength DELIVER that Q8 says any UNCHECKED id forfeits. With the doctrine ceiling of 0
+    // this is exactly `counts.unchecked > 0`.
+    const uncheckedOverCeiling = thresholds.max_unchecked_ratio === 0
+      ? counts.unchecked > 0
+      : counts.unchecked * 1000 > Math.round(thresholds.max_unchecked_ratio * 1000) * counts.total;
+    if (uncheckedOverCeiling) flag_reasons.push("unchecked_over_threshold");
     if (attributionMismatches.length > 0) flag_reasons.push("attribution_mismatch");
+    // T1-7 (2026-11-14): a retraction screen that could not screen every cited DOI and PMID forfeits
+    // the full-strength DELIVER claim. It is a FLAG, never a block (fail-soft on coverage,
+    // SYSTEM-REALITY.md): the unscreened ids are named in the manifest and the integrity ledger.
+    // Only a screen result the caller passed is judged; a manifest built without one is unchanged.
+    if (input.retraction && input.retraction.checked === false) flag_reasons.push("retraction_screen_incomplete");
     delivery_decision = flag_reasons.length > 0 ? DECISION.DELIVER_WITH_FLAGS : DECISION.DELIVER;
   }
 
@@ -148,7 +171,14 @@ function buildReproducibilityManifest(input = {}) {
     delivery_decision,
     block_reasons,
     flag_reasons,
-    retraction_screen: { checked: Boolean(retraction.checked), retracted_dois, retracted_pmids },
+    retraction_screen: {
+      checked: Boolean(retraction.checked),
+      retracted_dois,
+      retracted_pmids,
+      // T1-7: which cited DOIs and PMIDs could not be screened, of how many.
+      ...(Array.isArray(retraction.unscreened_ids) ? { unscreened_ids: retraction.unscreened_ids } : {}),
+      ...(Number.isFinite(retraction.cited) ? { cited: retraction.cited } : {})
+    },
     gate_crosscheck: gate
       ? {
           cited: gate.cited == null ? null : gate.cited,
@@ -160,6 +190,10 @@ function buildReproducibilityManifest(input = {}) {
       : null,
     thresholds,
     environment: { offline },
+    // T1-8 (2026-11-14): false only on the fallback manifest the engine builds when the re-resolution
+    // pass crashed (every id UNCHECKED, reason "reresolution_error"); delivery refuses it. Present only
+    // when the caller says, so a manifest built without it is unchanged (older manifests lack it).
+    ...(typeof input.reresolutionCompleted === "boolean" ? { reresolution_completed: input.reresolutionCompleted } : {}),
   };
   // Recorded when the check ran over at least one DOI / PMID, or when it could not run at all. A
   // report with no DOI or PMID (the business lane's WEB / SEC / statistics ids) gets no section.
@@ -197,8 +231,35 @@ function renderManifestMarkdown(manifest) {
     + (Array.isArray(s.block_reasons) && s.block_reasons.length ? ` — blocked: ${s.block_reasons.join(", ")}` : "")
     + (Array.isArray(s.flag_reasons) && s.flag_reasons.length ? ` — flags: ${s.flag_reasons.join(", ")}` : ""));
   const flags = Array.isArray(s.flag_reasons) ? s.flag_reasons : [];
-  if (s.delivery_decision === "DELIVER_WITH_FLAGS" && (flags.includes("unchecked_over_threshold") || !flags.includes("attribution_mismatch"))) {
-    lines.push("> This report SHIPS. DELIVER_WITH_FLAGS means some cited identifiers could not be independently re-resolved at delivery time (a network/throttle limit at re-resolution, NOT a defect): the report remains fully GROUNDED — every cited id was present in the runtime-fetched evidence. Only an UNRESOLVED id (a live registry says it does not exist) or a retraction blocks delivery.");
+  // T1-8: a crashed re-resolution pass looked nothing up; say exactly that, never "a network limit".
+  if (s.reresolution_completed === false) {
+    lines.push("> Re-resolution did not complete this run; no identifier was looked up. Every cited identifier below is UNCHECKED (reason: reresolution_error), and this report is not cleared for delivery until the order is re-run.");
+  }
+  // The re-resolution explanation belongs to the unchecked flag only (T1-7: a flag may now come from
+  // the retraction screen instead, and that is not a re-resolution limit). T1-9 (2026-11-14): it
+  // names the real reasons, and says "fully GROUNDED" only when no cited id was left untraced; it used
+  // to print both unconditionally.
+  if (s.delivery_decision === "DELIVER_WITH_FLAGS" && flags.includes("unchecked_over_threshold") && s.reresolution_completed !== false) {
+    const reasons = {};
+    for (const cit of (m.citations || [])) {
+      if (cit.status !== "VERIFIED" && cit.status !== "UNRESOLVED") {
+        const reason = (cit.evidence && cit.evidence.reason) || "unknown";
+        reasons[reason] = (reasons[reason] || 0) + 1;
+      }
+    }
+    const allNetwork = Object.keys(reasons).every((r) => NETWORK_UNCHECKED.has(r));
+    const why = allNetwork
+      ? "some cited identifiers could not be independently re-resolved when this report was assembled (a network/throttle limit at re-resolution, NOT a defect)."
+      : `some cited identifiers could not be independently re-resolved when this report was assembled. UNCHECKED by reason: ${Object.entries(reasons).sort(([a], [b]) => a.localeCompare(b)).map(([r, n]) => `${r}: ${n}`).join(", ")}.`;
+    const gc = s.gate_crosscheck || null;
+    const grounding = !gc || !Number.isFinite(gc.ungrounded)
+      ? ""
+      : gc.ungrounded === 0
+        ? " The report remains fully GROUNDED — every cited id was present in the runtime-fetched evidence."
+        : ` ${gc.ungrounded} of ${gc.cited} cited identifiers were not found in the retrieved evidence and are flagged [UNVERIFIED] in the report.`;
+    // Tier 1 review (2026-11-14): this is the ENGINE's decision. The delivery tools apply checks of
+    // their own (scripts/_delivery-checks.js), so the line no longer says what alone "blocks delivery".
+    lines.push(`> The engine's decision lets this report ship with flags. DELIVER_WITH_FLAGS means ${why}${grounding} In the engine's decision only an UNRESOLVED id (a live registry says it does not exist) or a retraction blocks; the delivery tools run their own checks as well (for example, they refuse any ChEMBL identifier).`);
   }
   if (s.delivery_decision === "DELIVER_WITH_FLAGS" && flags.includes("attribution_mismatch")) {
     const ac = s.attribution_check || {};
@@ -209,18 +270,28 @@ function renderManifestMarkdown(manifest) {
     const where = Number.isFinite(ac.marked_lines) && ac.marked_lines > 0
       ? "marked [ATTRIBUTION MISMATCH] in the report and listed"
       : "listed";
-    lines.push(`> This report SHIPS with a flag: ${n} cited work${n === 1 ? "" : "s"} resolve${n === 1 ? "s" : ""} to a real record, but the author or year written beside ${n === 1 ? "it" : "them"} is not the record's. ${n === 1 ? "It is" : "Each is"} ${where} under "Attribution check" below; correct the attribution before relying on it.`);
+    lines.push(`> The engine's decision lets this report ship with a flag: ${n} cited work${n === 1 ? "" : "s"} resolve${n === 1 ? "s" : ""} to a real record, but the author or year written beside ${n === 1 ? "it" : "them"} is not the record's. ${n === 1 ? "It is" : "Each is"} ${where} under "Attribution check" below; correct the attribution before relying on it.`);
   }
   if (s.as_of) lines.push(`As of: ${s.as_of}`);
   lines.push("");
-  lines.push(`Citations re-resolved at delivery: **${c.verified} VERIFIED · ${c.unresolved} UNRESOLVED · ${c.unchecked} UNCHECKED** of ${c.total} (verified ratio ${s.verified_ratio}).`);
+  lines.push(`Citations re-resolved when this report was assembled${s.as_of ? ` (as of ${s.as_of})` : ""}: **${c.verified} VERIFIED · ${c.unresolved} UNRESOLVED · ${c.unchecked} UNCHECKED** of ${c.total} (verified ratio ${s.verified_ratio}).`);
+  // Not after a crashed re-resolution pass: that report is not cleared for delivery (the line above),
+  // so it must not also say it ships (Tier 1 review, 2026-11-14).
+  if (s.delivery_decision === "DELIVER_WITH_FLAGS" && flags.includes("retraction_screen_incomplete") && s.reresolution_completed !== false) {
+    lines.push("> The engine's decision lets this report ship with a flag: the retraction screen could not screen every cited DOI and PMID. The ones it could not screen are listed below and in the citation-integrity ledger; no retraction was found among those it did screen.");
+  }
   if (s.retraction_screen) {
-    const rd = (s.retraction_screen.retracted_dois || []).length;
-    const rp = (s.retraction_screen.retracted_pmids || []).length;
-    lines.push(
-      `Retraction screen: ${s.retraction_screen.checked ? "checked" : "INCOMPLETE — not every cited identifier could be screened"}; `
-      + `retracted DOIs: ${rd}; retracted PMIDs: ${rp}.`
-    );
+    const rs = s.retraction_screen;
+    const rd = (rs.retracted_dois || []).length;
+    const rp = (rs.retracted_pmids || []).length;
+    const unscreened = Array.isArray(rs.unscreened_ids) ? rs.unscreened_ids : null;
+    const incomplete = unscreened && Number.isFinite(rs.cited)
+      ? `INCOMPLETE — ${unscreened.length} of ${rs.cited} cited DOIs and PMIDs not screened`
+      : "INCOMPLETE — not every cited identifier could be screened";
+    lines.push(`Retraction screen: ${rs.checked ? "checked" : incomplete}; retracted DOIs: ${rd}; retracted PMIDs: ${rp}.`);
+    if (!rs.checked && unscreened && unscreened.length > 0) {
+      lines.push(`Not screened: ${unscreened.join(", ")}.`);
+    }
   }
   if (s.environment && s.environment.offline) lines.push("> NOTE: verification could not reach any registry this run (offline) — no identifier is reported VERIFIED.");
   if (s.attribution_check) {
@@ -256,7 +327,7 @@ function renderManifestMarkdown(manifest) {
     lines.push(`| ${cit.type} | ${cit.id} | ${cit.status} | ${cit.http_status == null ? "" : cit.http_status} | ${cit.resolved_url || ""} | ${cit.checked_at || ""} |`);
   }
   lines.push("");
-  lines.push("_Each VERIFIED identifier resolved to an existing record in its issuing public registry at the time shown. Verification confirms the identifier RESOLVES — not the scientific correctness of the source. UNCHECKED = no definitive answer this run (network/throttle); never treated as verified._");
+  lines.push("_Each VERIFIED identifier resolved to an existing record in its issuing public registry at the time shown. Verification confirms the identifier RESOLVES — not the scientific correctness of the source. UNCHECKED = no definitive answer this run (reason recorded per identifier); never treated as verified._");
   return lines.join("\n");
 }
 

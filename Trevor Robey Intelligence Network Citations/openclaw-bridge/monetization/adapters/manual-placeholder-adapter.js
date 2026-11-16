@@ -1,6 +1,7 @@
 "use strict";
 
 const { canonicalize, safeString } = require("../../../workflows/governance-automation/common.js");
+const { verifiabilitySentence } = require("../verifiability-copy.js");
 
 function asPlainObject(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
@@ -22,30 +23,53 @@ function createManualPlaceholderAdapter(options = {}) {
     const pageEstimate = Math.max(1, Math.round(totalChars / 2000));
     const productLine = safeString(offer.product_line).replace(/_/g, " ");
     const tierName = safeString(offer.tier);
+    // Tier 1 review (2026-11-14): a business-lane bundle (research_profile "business") is described by
+    // the sources and identifiers it actually cites, as the packager's PROFILE_COPY does.
+    const business = safeString(sourceContext.research_profile) === "business";
+    const lane = business
+      ? {
+        intro: "Comprehensive, citation-backed business intelligence synthesized from public company filings, official economic statistics, scholarly literature, and archived web sources.",
+        pipeline: "systematic source review, deep cost, market or competitive analysis, and integrated synthesis",
+        kind: "business",
+        title: "Business",
+        registries: "SEC EDGAR filings, official statistics series, World Bank indicators, DOI-registered works and stored web-page snapshots"
+      }
+      : {
+        intro: "Comprehensive, citation-backed biomedical intelligence synthesized from peer-reviewed literature, clinical trial registries, and pharmacological databases.",
+        pipeline: "systematic literature review, deep pharmacological analysis, and integrated synthesis",
+        kind: "biomedical",
+        title: "Biomedical",
+        registries: "PubMed, ClinicalTrials.gov, PubChem, UniProt and DOI-registered works"
+      };
 
     const descriptionParts = [
-      `Comprehensive, citation-backed biomedical intelligence synthesized from peer-reviewed literature, clinical trial registries, and pharmacological databases.`,
+      lane.intro,
       "",
-      `This ${productLine} (${tierName} tier) delivers ${pageEstimate}+ pages of original analysis produced through a multi-stage research pipeline: systematic literature review, deep pharmacological analysis, and integrated synthesis with cross-validation.`,
+      // T1-9 (2026-11-14): no cross-validation step exists.
+      `This ${productLine} (${tierName} tier) delivers ${pageEstimate}+ pages of original analysis produced through a multi-stage research pipeline: ${lane.pipeline}.`,
       "",
       // Retired 2026-07-13 (OFFERINGS.md, commit 7801443): "No hallucinated references. No
       // fabricated data." was an absolute overclaim, and "every claim is traceable" overstated a
-      // gate that admits an ungrounded residue below the floor. State the enforced behaviour.
-      `Cited identifiers — PubMed IDs, ClinicalTrials.gov identifiers, PubChem compound IDs, and DOIs — are embedded throughout and cross-checked at generation time against the evidence actually retrieved for the report. Identifiers not found in that evidence are flagged [UNVERIFIED] inline and are never presented as fact; cited DOIs and PMIDs are retraction-screened.`,
+      // gate that admits an ungrounded residue below the floor. State the enforced behaviour —
+      // decided by this bundle's own gate record (T1-9, monetization/verifiability-copy.js).
+      verifiabilitySentence(sourceContext),
       "",
-      `Includes: full research report, citation index CSV, executive summary preview, and evidence provenance appendix. All outputs pass automated quality auditing with citation density verification before release.`
+      safeString(sourceContext.source_kind) === "mission"
+        ? `Includes: full research report, citation index CSV, executive summary preview, and evidence provenance appendix. Each workflow template runs a citation-density audit that the report must pass before release.`
+        : "Includes the files listed in the bundle's manifest."
     ];
 
     return canonicalize({
       title: safeString(offer.offer_title),
-      subtitle: `${productLine} — ${tierName} tier | Citation-backed biomedical intelligence`,
+      subtitle: `${productLine} — ${tierName} tier | Citation-backed ${lane.kind} intelligence`,
       description: descriptionParts.join("\n"),
       dataset_summary: safeString(sourceContext.metadata && sourceContext.metadata.dataset_type),
       sample_summary: `${pageEstimate}+ pages of citation-traced research from ${safeString(sourceContext.source_kind)} ${safeString(sourceContext.source_id)}`,
-      delivery_notes: "Digital delivery. Full research pack available immediately after purchase.",
+      // T1-9: delivery is manual (the order form), never instant.
+      delivery_notes: "Manual delivery after purchase, by email or a secure download link.",
       tier_name: tierName,
-      tier_summary: `${safeString(offer.offer_title)} — Citation-Traced Biomedical Intelligence`,
-      tier_description: `${productLine} (${tierName} tier) with traceable citations from PubMed, ClinicalTrials.gov, PubChem, UniProt, and ChEMBL.`
+      tier_summary: `${safeString(offer.offer_title)} — Citation-Traced ${lane.title} Intelligence`,
+      tier_description: `${productLine} (${tierName} tier) with traceable citations to ${lane.registries}.`
     });
   }
 
