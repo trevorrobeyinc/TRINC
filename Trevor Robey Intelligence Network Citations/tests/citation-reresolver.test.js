@@ -104,14 +104,33 @@ test("NCT: 404 -> UNRESOLVED", async () => {
   assert.equal(r.status, "UNRESOLVED");
 });
 
-test("ChEMBL: id echo match -> VERIFIED (id only)", async () => {
-  const r = await rr([{ match: "chembl", status: 200, body: { molecule_chembl_id: "CHEMBL25" } }]).resolveOne({ type: "ChEMBL", id: "CHEMBL25" });
-  assert.equal(r.status, "VERIFIED");
-  assert.deepEqual(Object.keys(r.evidence), ["molecule_chembl_id"]); // no data values harvested
+// T2-3 (2026-11-16): ChEMBL ids go through chembl_id_lookup (bodies as read live on 2026-11-15).
+test("ChEMBL: an ACTIVE compound and an ACTIVE target are VERIFIED (id and entity type only)", async () => {
+  const compound = await rr([{ match: "chembl_id_lookup", status: 200, body: { chembl_id: "CHEMBL25", entity_type: "COMPOUND", status: "ACTIVE", resource_url: "/chembl/api/data/molecule/CHEMBL25" } }]).resolveOne({ type: "ChEMBL", id: "CHEMBL25" });
+  assert.equal(compound.status, "VERIFIED");
+  assert.deepEqual(Object.keys(compound.evidence).sort(), ["chembl_id", "entity_type"]); // no data values harvested
+  const target = await rr([{ match: "chembl_id_lookup", status: 200, body: { chembl_id: "CHEMBL203", entity_type: "TARGET", last_active: 28, resource_url: "/chembl/api/data/target/CHEMBL203", status: "ACTIVE" } }]).resolveOne({ type: "ChEMBL", id: "CHEMBL203" });
+  assert.equal(target.status, "VERIFIED", "a real target id no longer blocks the run");
+  assert.equal(target.evidence.entity_type, "TARGET");
 });
-test("ChEMBL: 404 -> UNRESOLVED", async () => {
-  const r = await rr([{ match: "chembl", status: 404, body: {} }]).resolveOne({ type: "ChEMBL", id: "CHEMBL00000" });
+test("ChEMBL: INACTIVE -> UNRESOLVED (D13); an undocumented status -> UNCHECKED; a lookup 404 -> UNRESOLVED", async () => {
+  const inactive = await rr([{ match: "chembl_id_lookup", status: 200, body: { chembl_id: "CHEMBL9999", entity_type: "COMPOUND", status: "INACTIVE" } }]).resolveOne({ type: "ChEMBL", id: "CHEMBL9999" });
+  assert.equal(inactive.status, "UNRESOLVED");
+  assert.equal(inactive.evidence.reason, "chembl_inactive");
+  const odd = await rr([{ match: "chembl_id_lookup", status: 200, body: { chembl_id: "CHEMBL9999", entity_type: "COMPOUND", status: "OBS" } }]).resolveOne({ type: "ChEMBL", id: "CHEMBL9999" });
+  assert.equal(odd.status, "UNCHECKED");
+  const missing = await rr([{ match: "chembl_id_lookup", status: 404, body: {} }]).resolveOne({ type: "ChEMBL", id: "CHEMBL00000" });
+  assert.equal(missing.status, "UNRESOLVED");
+});
+test("UniProt: a never-issued accession answers 404 -> UNRESOLVED (T2-3)", async () => {
+  const r = await rr([{ match: "uniprot", status: 404, body: { url: "http://rest.uniprot.org/uniprotkb/Z9ZZZ9", messages: ["Resource not found"] } }]).resolveOne({ type: "UniProt", id: "Z9ZZZ9" });
   assert.equal(r.status, "UNRESOLVED");
+  assert.equal(r.evidence.reason, "uniprot_not_found");
+});
+test("PubChem: a 503 throttle is rate_limited, not http_5xx (T2-3)", async () => {
+  const r = await rr([{ match: "pubchem", status: 503, body: { Fault: { Code: "PUGREST.ServerBusy" } } }]).resolveOne({ type: "PubChem CID", id: "2244" });
+  assert.equal(r.status, "UNCHECKED");
+  assert.equal(r.evidence.reason, "rate_limited");
 });
 
 test("DrugBank: no live resolver -> UNCHECKED no_resolver (no fetch call)", async () => {

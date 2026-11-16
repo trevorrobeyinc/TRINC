@@ -27,7 +27,8 @@ const {
 } = require("../../core/citation-attribution.js");
 
 const STATUS = Object.freeze({ VERIFIED: "VERIFIED", UNRESOLVED: "UNRESOLVED", UNCHECKED: "UNCHECKED" });
-// 2026-11-16 (T2-16): PMCID, ISRCTN and EudraCT resolvers added.
+// 2026-11-16 (Tier 2): PMCID, ISRCTN and EudraCT resolvers added (T2-16); ChEMBL through its id lookup,
+// a UniProt 404 UNRESOLVED and a PubChem 503 rate_limited (T2-3).
 const RESOLVER_TABLE_VERSION = "2026-11-16";
 
 function normType(type) {
@@ -226,9 +227,14 @@ function createCitationReresolver(options = {}) {
   async function resolvePubChemCID(id) {
     const url = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${encodeURIComponent(id)}/JSON`;
     const res = await doFetch(url);
+    // T2-3 (2026-11-16): PubChem answers 503 when it throttles (PUGREST.ServerBusy). This test used to sit
+    // after classifyTransport, which files every status from 500 as http_5xx first, so it never ran. A
+    // throttle is recorded as rate_limited, which the deferred retry (T2-1) tries again.
+    if (res && !res.networkError && Number(res.status) === 503) {
+      return { status: STATUS.UNCHECKED, http_status: 503, resolved_url: url, evidence: { reason: "rate_limited" } };
+    }
     const t = classifyTransport(res);
     if (t) return { status: STATUS.UNCHECKED, http_status: res.status || null, resolved_url: url, evidence: t };
-    if (res.status === 503) return { status: STATUS.UNCHECKED, http_status: 503, resolved_url: url, evidence: { reason: "rate_limited" } };
     if (res.status === 200) {
       const body = await safeJson(res);
       const cid = body && Array.isArray(body.PC_Compounds) && body.PC_Compounds[0] && body.PC_Compounds[0].id && body.PC_Compounds[0].id.id && body.PC_Compounds[0].id.id.cid;
@@ -269,16 +275,26 @@ function createCitationReresolver(options = {}) {
     return { status: STATUS.VERIFIED, http_status: 200, resolved_url: url, evidence: { rxnorm_status: st } };
   }
 
+  // T2-3 (2026-11-16): ChEMBL's id lookup, which knows every ChEMBL id. The molecule endpoint used here
+  // before knows compounds only: /molecule/CHEMBL203.json answers 404 for a real, active TARGET
+  // (chembl_id_lookup/CHEMBL203.json: entity_type TARGET, status ACTIVE; read live 2026-11-15), so a
+  // correct target, assay or document id was UNRESOLVED and blocked the run. An id ChEMBL lists as
+  // INACTIVE is UNRESOLVED, as an inactive UniProt entry is (operator default D13); a status the lookup
+  // does not document is UNCHECKED. Identifier and entity type only: no data values are read.
   async function resolveChEMBL(id) {
-    const url = `https://www.ebi.ac.uk/chembl/api/data/molecule/${encodeURIComponent(id)}.json`;
+    const url = `https://www.ebi.ac.uk/chembl/api/data/chembl_id_lookup/${encodeURIComponent(id)}.json`;
     const res = await doFetch(url);
     const t = classifyTransport(res);
     if (t) return { status: STATUS.UNCHECKED, http_status: res.status || null, resolved_url: url, evidence: t };
     if (res.status === 200) {
       const body = await safeJson(res);
-      const cid = body && body.molecule_chembl_id; // identifier ONLY — no data values read
-      if (String(cid).toUpperCase() === String(id).toUpperCase()) return { status: STATUS.VERIFIED, http_status: 200, resolved_url: url, evidence: { molecule_chembl_id: cid } };
-      return { status: STATUS.UNCHECKED, http_status: 200, resolved_url: url, evidence: { reason: "unparseable" } };
+      const echoed = body && String(body.chembl_id || "").toUpperCase() === String(id).toUpperCase();
+      if (!echoed) return { status: STATUS.UNCHECKED, http_status: 200, resolved_url: url, evidence: { reason: "unparseable" } };
+      const evidence = { chembl_id: body.chembl_id, entity_type: body.entity_type || null };
+      const lookupStatus = String(body.status || "").toUpperCase();
+      if (lookupStatus === "ACTIVE") return { status: STATUS.VERIFIED, http_status: 200, resolved_url: url, evidence };
+      if (lookupStatus === "INACTIVE") return { status: STATUS.UNRESOLVED, http_status: 200, resolved_url: url, evidence: { reason: "chembl_inactive", ...evidence } };
+      return { status: STATUS.UNCHECKED, http_status: 200, resolved_url: url, evidence: { reason: "chembl_status_unknown", lookup_status: lookupStatus || null, ...evidence } };
     }
     if (res.status === 404) return { status: STATUS.UNRESOLVED, http_status: 404, resolved_url: url, evidence: { reason: "chembl_404" } };
     return { status: STATUS.UNCHECKED, http_status: res.status, resolved_url: url, evidence: { reason: "unexpected_status" } };
@@ -300,6 +316,9 @@ function createCitationReresolver(options = {}) {
       return { status: STATUS.UNCHECKED, http_status: 200, resolved_url: url, evidence: { reason: "unparseable" } };
     }
     if (res.status === 400) return { status: STATUS.UNRESOLVED, http_status: 400, resolved_url: url, evidence: { reason: "bad_format" } };
+    // T2-3 (2026-11-16): an accession UniProt never issued answers 404 "Resource not found" (Z9ZZZ9 and
+    // A0A0A0A0A0, read live 2026-11-15). It used to fall through to UNCHECKED and never block.
+    if (res.status === 404) return { status: STATUS.UNRESOLVED, http_status: 404, resolved_url: url, evidence: { reason: "uniprot_not_found" } };
     return { status: STATUS.UNCHECKED, http_status: res.status, resolved_url: url, evidence: { reason: "unexpected_status" } };
   }
 
