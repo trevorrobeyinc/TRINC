@@ -384,6 +384,8 @@ function createWorkflowEngine(options = {}) {
             // T1-7: WHICH ids could not be screened, and the DOIs no retraction source holds.
             unscreened_ids: retraction.unscreened_ids || [],
             dois_without_retraction_source: retraction.dois_without_retraction_source || 0,
+            // Tier 1 review: DOIs screened against Crossref alone (their PubMed cross-check reached no verdict).
+            dois_crossref_only: retraction.dois_crossref_only || 0,
             crossref_notice_dois: retraction.crossref_notice_dois || [],
             editorial_flags: retraction.editorial_flags || []
           }, null, 2)
@@ -415,6 +417,8 @@ function createWorkflowEngine(options = {}) {
         unscreened: retraction.unscreened || 0,
         unscreened_ids: retraction.unscreened_ids || [],
         dois_without_retraction_source: retraction.dois_without_retraction_source || 0,
+        // Tier 1 review: cited DOIs screened against Crossref alone, so no copy names PubMed for them.
+        retraction_dois_crossref_only: retraction.dois_crossref_only || 0,
         retraction_editorial_flags: retraction.editorial_flags || [],
         search_coverage: searchCoverageLedger ? searchCoverageLedger.summary : null
       };

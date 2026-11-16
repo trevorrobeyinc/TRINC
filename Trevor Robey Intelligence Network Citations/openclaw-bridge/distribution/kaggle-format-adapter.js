@@ -1,5 +1,7 @@
 "use strict";
 
+const { researchText } = require("./release-content.js");
+
 const WATERMARK = "Produced by OpenClaw Research Intelligence — https://trevorobeyinc.com";
 
 function extractFindings(reportMarkdown) {
@@ -56,12 +58,16 @@ function transform(workflowOutput, options = {}) {
     "- **findings.jsonl**: Research findings as structured JSON objects",
     "",
     "## Schema",
+    // Tier 1 review (2026-11-14): data.csv is the sealed release's tables.csv (scripts/distribute.js),
+    // so its real columns are documented here, including grounded_in_run.
     "### Citation Index (data.csv)",
     "| Column | Description |",
     "|--------|-------------|",
-    "| type | Identifier type (PMID, NCT, CID, etc.) |",
-    "| id | Database identifier value |",
-    "| context | Surrounding text where the citation appears |",
+    "| citation_type | Identifier type as the engine names it (PMID, NCT, PubChem CID, UniProt, DOI, …) |",
+    "| identifier | The identifier as cited |",
+    "| source_task | The report section (agent task) that first cites it |",
+    "| context_snippet | Text around the first mention |",
+    "| grounded_in_run | yes: found in the evidence retrieved for the report; no: not found, and flagged [UNVERIFIED] in the report; unknown: the release carries no citation-gate record |",
     "",
     "### Findings (findings.jsonl)",
     "Each line is a JSON object with: `section`, `content`, `has_citations`",
@@ -73,7 +79,8 @@ function transform(workflowOutput, options = {}) {
     "Trevor Robey | trevor@trevorobeyinc.com | https://trevorobeyinc.com"
   ].join("\n");
 
-  const findings = extractFindings(workflowOutput.report);
+  // The research sections only: not the packager's title block, contents or citation summary.
+  const findings = extractFindings(researchText(workflowOutput.report));
   const findingsJsonl = findings.map((f) => JSON.stringify(f)).join("\n");
 
   return {

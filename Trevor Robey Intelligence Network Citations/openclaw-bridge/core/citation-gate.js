@@ -481,11 +481,17 @@ async function checkRetractions(reportText, checkDois, checkPmids, doiToPmid) {
   // have no verdict, so they are named here too.
   const unscreened_ids = [];
   let dois_without_retraction_source = 0;
+  // Tier 1 review (2026-11-14, operator pick D2-wording): a DOI Crossref holds still counts as screened
+  // when its PubMed cross-check reached no verdict (an NCBI error or throttle, or the leg not wired),
+  // which is the spec's rule; it was screened against Crossref ALONE, and this count lets the bundle,
+  // the ledger and the listings say so instead of naming PubMed for it. "Not in PubMed" is a verdict.
+  let dois_crossref_only = 0;
   for (const doi of dois) {
     const r = crossRows.get(lc(doi));
     const pm = pubmed.perDoi.get(lc(doi));
     const byCrossref = Boolean(r && r.checked && r.in_crossref !== false);
     const byPubmed = Boolean(pm && pm.screened);
+    if (byCrossref && !byPubmed && !(pm && pm.notInPubmed)) dois_crossref_only++;
     if (byCrossref || byPubmed) continue;
     unscreened_ids.push(`DOI:${doi}`);
     if (r && r.checked && r.in_crossref === false && pm && pm.notInPubmed) dois_without_retraction_source++;
@@ -515,7 +521,8 @@ async function checkRetractions(reportText, checkDois, checkPmids, doiToPmid) {
     pmids_cited: pmids.length,
     unscreened: unscreened_ids.length,
     unscreened_ids,
-    dois_without_retraction_source
+    dois_without_retraction_source,
+    dois_crossref_only
   };
 }
 

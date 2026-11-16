@@ -145,20 +145,26 @@ function buildCopyBlocks(platformTarget, voice, offer, sourceContext) {
   // T1-9 (2026-11-14): the gate and retraction sentence is decided by this bundle's own gate record
   // (monetization/verifiability-copy.js), and the file list names only what this bundle carries.
   const ctx = asPlainObject(sourceContext);
-  const inBundle = [
-    "the full report",
-    ...(Object.keys(asPlainObject(ctx.citation_verification)).length > 0 ? ["a citation-integrity ledger"] : []),
-    ...(asPlainObject(ctx.graveyard_memo).markdown ? ["a graveyard memo of prior failed programs in the indication"] : []),
-    ...(asPlainObject(ctx.search_coverage_ledger).markdown
-      ? ["a search-coverage ledger that records what each source returned including the sources that returned nothing"]
-      : [])
-  ];
+  // Tier 1 review (2026-11-14): a dataset-sourced bundle carries the dataset files, not the report, the
+  // ledger or the citation index (deliverable-packager.js writeDeliverables, dataset branch).
+  const isMission = safeString(ctx.source_kind) === "mission";
+  const inBundle = isMission
+    ? [
+      "the full report",
+      ...(Object.keys(asPlainObject(ctx.citation_verification)).length > 0 ? ["a citation-integrity ledger"] : []),
+      ...(asPlainObject(ctx.graveyard_memo).markdown ? ["a graveyard memo of prior failed programs in the indication"] : []),
+      ...(asPlainObject(ctx.search_coverage_ledger).markdown
+        ? ["a search-coverage ledger that records what each source returned including the sources that returned nothing"]
+        : []),
+      "and a citation index"
+    ]
+    : ["the dataset rows", "its schema", "and a dataset card"];
   const description = [
     title,
     "",
     `${productLine}, ${tierName} tier. ${lengthClause} of analysis. ${verifiabilitySentence(ctx)}`,
     "",
-    `In the bundle: ${inBundle.join(", ")}, and a citation index.`,
+    `In the bundle: ${inBundle.join(", ")}.`,
     "",
     ENTITY_DISCLOSURE
   ].join("\n");

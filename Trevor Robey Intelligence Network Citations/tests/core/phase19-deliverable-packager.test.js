@@ -466,3 +466,128 @@ test("the citation-integrity ledger claims only the retraction screens actually 
   assert.doesNotMatch(md, /Retraction Watch(?! bulk dataset is not used)/i);
   assert.match(md, /Retraction Watch bulk dataset is not used/, "states the residual coverage gap");
 });
+
+// ── Tier 1 review fixes (2026-11-14) ─────────────────────────────────────────────────────────────
+
+test("review: a PREMIUM bundle (methodology + schema files) reintroduces no retired claim, and the schema declares grounded_in_run", async () => {
+  const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "openclaw-phase19-premium-banned-"));
+  const packager = createDeliverablePackager({ rootDir: tmp });
+  const fixture = createMissionFixture();
+  const offer = { ...fixture.offer, tier: "premium" };
+  const bundleDir = packager.createBundleWorkspace(offer.offer_id);
+  packager.writeDeliverables(bundleDir, offer, withResolution(fixture, FLAGGED_SUMMARY));
+  const dir = path.join(bundleDir, "deliverables");
+  const files = fs.readdirSync(dir);
+  assert.ok(files.includes("methodology-statement.md") && files.includes("schema-definition.json"), "the premium-only files are written");
+  for (const file of files) {
+    const body = fs.readFileSync(path.join(dir, file), "utf8");
+    for (const re of [/chain[- ]hash/i, /via API/i, /append-only/i, /deterministic multi-agent/i, /cross-validat/i, /at delivery/i]) {
+      assert.doesNotMatch(body, re, `${file} carries ${re}`);
+    }
+  }
+  const schema = JSON.parse(fs.readFileSync(path.join(dir, "schema-definition.json"), "utf8"));
+  const columns = schema.output_formats.citation_index.columns.map((c) => c.name);
+  assert.deepEqual(columns, ["citation_type", "identifier", "source_task", "context_snippet", "grounded_in_run"]);
+  assert.equal(schema.output_formats.citation_index.example_record.grounded_in_run, "yes");
+  assert.ok(!("structured_json_payload" in schema), "no payload the bundle does not hold");
+  const header = fs.readFileSync(path.join(dir, "tables.csv"), "utf8").split("\n")[0];
+  assert.equal(header, columns.join(","), "the schema matches the file it describes");
+});
+
+test("review: the sample preview never cuts an untraced identifier off from its [UNVERIFIED] mark", async () => {
+  const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "openclaw-phase19-preview-cut-"));
+  const packager = createDeliverablePackager({ rootDir: tmp });
+  const fixture = createMissionFixture();
+  // The id ends at character 1500 of a long line: the old 1500-character slice kept the id and cut
+  // its mark off.
+  const head = "Executive summary.\n";
+  const lead = head + "x".repeat(1486 - head.length);
+  const synthesis = `${lead}PMID: 99999999 [UNVERIFIED] is the key paper.\nSecond paragraph.`;
+  assert.equal(synthesis.indexOf("99999999") + "99999999".length, 1500, "sanity: the id ends exactly at the old cut");
+  assert.doesNotMatch(synthesis.slice(0, 1500), /\[UNVERIFIED\]/, "sanity: the old cut lost the mark");
+  const ctx = withResolution(fixture, CLEAN_SUMMARY);
+  ctx.artifacts = [{ task_id: "synthesizer", output_rel: "workspace/research-output/s/output.md", output_full: synthesis }];
+  ctx.citation_verification.ungrounded_ids = ["PMID:99999999"];
+  const bundleDir = packager.createBundleWorkspace(fixture.offer.offer_id);
+  packager.writeDeliverables(bundleDir, fixture.offer, ctx);
+  const preview = fs.readFileSync(path.join(bundleDir, "deliverables", "sample-preview.md"), "utf8");
+  const summary = preview.split("\n---\n")[0];
+  assert.match(summary, /PMID: 99999999 \[UNVERIFIED\] is the key paper\./, "the whole line, mark included");
+  assert.doesNotMatch(summary, /Second paragraph/, "the cut is still bounded at a line end");
+});
+
+test("review: after a crashed re-resolution pass the store copy says nothing was looked up", async () => {
+  const copy = await renderStoreCopyFor("fallback", {
+    counts: { total: 4, verified: 0, unresolved: 0, unchecked: 4 },
+    by_type: { PMID: { total: 4, verified: 0, unresolved: 0, unchecked: 4 } },
+    verified_ratio: 0,
+    delivery_decision: "DELIVER_WITH_FLAGS",
+    reresolution_completed: false
+  });
+  assert.match(copy, /Re-resolution did not complete for this bundle: no cited identifier was looked up in its registry/);
+  assert.match(copy, /not cleared for delivery until the order is re-run/);
+  assert.doesNotMatch(copy, /submitted for independent re-resolution/);
+  assert.doesNotMatch(copy, /independently re-resolved VERIFIED/);
+});
+
+test("review: the retraction bullet says which cited DOIs were screened against Crossref alone", async () => {
+  const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "openclaw-phase19-crossref-only-"));
+  const packager = createDeliverablePackager({ rootDir: tmp });
+  const fixture = createMissionFixture();
+  const ctx = withResolution(fixture, CLEAN_SUMMARY);
+  Object.assign(ctx.citation_verification, { retraction_screen_checked: true, retraction_screen_cited: 4, unscreened: 0, retraction_dois_crossref_only: 2 });
+  const bundleDir = packager.createBundleWorkspace(fixture.offer.offer_id);
+  packager.writeDeliverables(bundleDir, fixture.offer, ctx);
+  const copy = fs.readFileSync(path.join(bundleDir, "deliverables", "store-copy.md"), "utf8");
+  assert.match(copy, /any retracted source blocks release\. For 2 cited DOIs the PubMed cross-check reached no verdict, so they were screened against Crossref alone\./);
+});
+
+function writeDatasetFiles(dir) {
+  fs.mkdirSync(dir, { recursive: true });
+  const datasetPath = path.join(dir, "dataset.jsonl");
+  const schemaPath = path.join(dir, "schema.json");
+  const buildReportPath = path.join(dir, "build-report.json");
+  fs.writeFileSync(datasetPath, "{\"row\":1}\n{\"row\":2}\n");
+  fs.writeFileSync(schemaPath, JSON.stringify({ type: "object", properties: { row: { type: "integer" } } }));
+  fs.writeFileSync(buildReportPath, JSON.stringify({ ok: true }));
+  return { dataset_path: datasetPath, schema_path: schemaPath, build_report_path: buildReportPath };
+}
+
+test("review: a dataset-sourced bundle names its own files and states only what its record says", async () => {
+  const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "openclaw-phase19-dataset-"));
+  const packager = createDeliverablePackager({ rootDir: tmp });
+  const offer = { ...createMissionFixture().offer, offer_id: "offer-dataset-demo", source_kind: "dataset", tier: "premium" };
+  const base = {
+    source_kind: "dataset",
+    source_id: "dataset-demo",
+    build_id: "build-demo",
+    metadata: { dataset_type: "trial_records", row_count: 2 },
+    artifacts: [],
+    ...writeDatasetFiles(path.join(tmp, "dataset-src"))
+  };
+  const render = (label, cv) => {
+    const bundleDir = packager.createBundleWorkspace(`${offer.offer_id}-${label}`);
+    packager.writeDeliverables(bundleDir, offer, cv ? { ...base, citation_verification: cv } : base);
+    const dir = path.join(bundleDir, "deliverables");
+    return { dir, files: fs.readdirSync(dir), read: (f) => fs.readFileSync(path.join(dir, f), "utf8") };
+  };
+
+  const gated = render("gated", { pass: true, cited: 12, grounded: 12, ungrounded: 0, reproducibility_manifest: { summary: CLEAN_SUMMARY, citations: [] } });
+  const copy = gated.read("store-copy.md");
+  assert.match(copy, /\| `dataset\.jsonl` \| The dataset rows \|/);
+  assert.doesNotMatch(copy, /`report\.md`|`tables\.csv`|listed in `tables\.csv`/, "no research file the bundle lacks");
+  assert.doesNotMatch(copy, /Every report passes the citation gate/);
+  assert.match(copy, /the source report's Reproducibility Manifest, which this dataset bundle does not include/);
+  assert.match(copy, /the gate checked that report's cited identifiers, not each dataset row/);
+  const methodology = gated.read("methodology-statement.md");
+  assert.match(methodology, /this dataset's rows were not checked one by one/);
+  assert.doesNotMatch(methodology, /Cross-reference verification \(grounding\)/);
+  assert.ok(!gated.files.includes("schema-definition.json"), "the research schema file is not shipped with a dataset");
+  assert.ok(gated.files.includes("schema.json"), "the dataset's own schema is");
+
+  const ungated = render("ungated", null);
+  const plain = ungated.read("store-copy.md");
+  assert.match(plain, /carries no citation-verification record/);
+  assert.doesNotMatch(plain, /Every report passes the citation gate/);
+  assert.match(ungated.read("methodology-statement.md"), /no passing citation-gate record, so no grounding result is stated/);
+});

@@ -11,9 +11,12 @@ function parseCsvRows(csvContent, maxRows) {
   return lines;
 }
 
+// Rows after the header line. The citation index is the sealed release's tables.csv, whose header
+// starts "citation_type" (the old "type" header check counted it as a citation; Tier 1 review).
 function countCitations(csvContent) {
   if (!csvContent) return 0;
-  return csvContent.split("\n").filter((l) => l.trim() && !l.startsWith("type")).length;
+  const lines = csvContent.split("\n").filter((l) => l.trim());
+  return /^(?:citation_type|type),/.test(lines[0] || "") ? lines.length - 1 : lines.length;
 }
 
 const formatId = "datarade";
@@ -60,8 +63,9 @@ function transform(workflowOutput, options = {}) {
     "- **Full Research Report**: Multi-section analysis with inline citations",
     `- **Citation Index CSV**: the ${citationCount} identifiers the report cites, each marked with whether it was found in the evidence retrieved for the report`,
     "- **Executive Summary**: Key findings and strategic implications",
-    "- **Methodology Statement**: Agent pipeline, data sources, quality metrics",
-    "- **Schema Definition**: Machine-readable field definitions",
+    // Tier 1 review (2026-11-14): the packager writes these two only for premium and enterprise tiers.
+    "- **Methodology Statement** (premium and enterprise tiers): Agent pipeline, data sources, quality metrics",
+    "- **Schema Definition** (premium and enterprise tiers): Machine-readable field definitions",
     "",
     "## Data Quality",
     "- Automated quality audit with citation density scoring",

@@ -257,7 +257,9 @@ function renderManifestMarkdown(manifest) {
       : gc.ungrounded === 0
         ? " The report remains fully GROUNDED — every cited id was present in the runtime-fetched evidence."
         : ` ${gc.ungrounded} of ${gc.cited} cited identifiers were not found in the retrieved evidence and are flagged [UNVERIFIED] in the report.`;
-    lines.push(`> This report SHIPS. DELIVER_WITH_FLAGS means ${why}${grounding} Only an UNRESOLVED id (a live registry says it does not exist) or a retraction blocks delivery.`);
+    // Tier 1 review (2026-11-14): this is the ENGINE's decision. The delivery tools apply checks of
+    // their own (scripts/_delivery-checks.js), so the line no longer says what alone "blocks delivery".
+    lines.push(`> The engine's decision lets this report ship with flags. DELIVER_WITH_FLAGS means ${why}${grounding} In the engine's decision only an UNRESOLVED id (a live registry says it does not exist) or a retraction blocks; the delivery tools run their own checks as well (for example, they refuse any ChEMBL identifier).`);
   }
   if (s.delivery_decision === "DELIVER_WITH_FLAGS" && flags.includes("attribution_mismatch")) {
     const ac = s.attribution_check || {};
@@ -273,8 +275,10 @@ function renderManifestMarkdown(manifest) {
   if (s.as_of) lines.push(`As of: ${s.as_of}`);
   lines.push("");
   lines.push(`Citations re-resolved when this report was assembled${s.as_of ? ` (as of ${s.as_of})` : ""}: **${c.verified} VERIFIED · ${c.unresolved} UNRESOLVED · ${c.unchecked} UNCHECKED** of ${c.total} (verified ratio ${s.verified_ratio}).`);
-  if (s.delivery_decision === "DELIVER_WITH_FLAGS" && flags.includes("retraction_screen_incomplete")) {
-    lines.push("> This report SHIPS with a flag: the retraction screen could not screen every cited DOI and PMID. The ones it could not screen are listed below and in the citation-integrity ledger; no retraction was found among those it did screen.");
+  // Not after a crashed re-resolution pass: that report is not cleared for delivery (the line above),
+  // so it must not also say it ships (Tier 1 review, 2026-11-14).
+  if (s.delivery_decision === "DELIVER_WITH_FLAGS" && flags.includes("retraction_screen_incomplete") && s.reresolution_completed !== false) {
+    lines.push("> The engine's decision lets this report ship with a flag: the retraction screen could not screen every cited DOI and PMID. The ones it could not screen are listed below and in the citation-integrity ledger; no retraction was found among those it did screen.");
   }
   if (s.retraction_screen) {
     const rs = s.retraction_screen;

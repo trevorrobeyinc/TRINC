@@ -31,7 +31,11 @@ test("UNCHECKED over default 0 tolerance -> DELIVER_WITH_FLAGS (a soft FLAG, not
   assert.deepEqual(m.summary.block_reasons, [], "a report that SHIPS must carry no block_reasons");
   const md = renderManifestMarkdown(m);
   assert.match(md, /flags: unchecked_over_threshold/);
-  assert.match(md, /This report SHIPS/);
+  assert.match(md, /The engine's decision lets this report ship with flags/);
+  // Tier 1 review (2026-11-14): the delivery tools refuse this very manifest (it carries a ChEMBL id),
+  // so it no longer says what alone "blocks delivery", and it names that the tools check more.
+  assert.doesNotMatch(md, /blocks delivery/);
+  assert.match(md, /the delivery tools run their own checks as well \(for example, they refuse any ChEMBL identifier\)/);
 });
 
 test("Q8: max_unchecked_ratio is honored when overridden — default 0 is the doctrine-required floor", () => {
@@ -85,7 +89,7 @@ test("all-network UNCHECKED with nothing untraced keeps the original explanation
     meta: META
   });
   const md = renderManifestMarkdown(m);
-  assert.match(md, /This report SHIPS\. DELIVER_WITH_FLAGS means some cited identifiers could not be independently re-resolved when this report was assembled \(a network\/throttle limit at re-resolution, NOT a defect\)\. The report remains fully GROUNDED/);
+  assert.match(md, /The engine's decision lets this report ship with flags\. DELIVER_WITH_FLAGS means some cited identifiers could not be independently re-resolved when this report was assembled \(a network\/throttle limit at re-resolution, NOT a defect\)\. The report remains fully GROUNDED/);
   assert.match(md, /Citations re-resolved when this report was assembled \(as of 2026-06-19\)/);
   assert.doesNotMatch(md, /at delivery/);
 });
@@ -121,7 +125,7 @@ test("retraction screen incomplete -> manifest says INCOMPLETE, flags it, and st
   const md = renderManifestMarkdown(m);
   assert.match(md, /Retraction screen: INCOMPLETE — 1 of 3 cited DOIs and PMIDs not screened/);
   assert.match(md, /Not screened: DOI:10\.4\/missing\./);
-  assert.match(md, /This report SHIPS with a flag: the retraction screen could not screen every cited DOI and PMID/);
+  assert.match(md, /The engine's decision lets this report ship with a flag: the retraction screen could not screen every cited DOI and PMID/);
   assert.doesNotMatch(md, /network\/throttle limit/, "a retraction-screen gap is not a re-resolution limit");
 });
 
@@ -143,6 +147,22 @@ test("a crashed re-resolution pass: every id UNCHECKED (reresolution_error) ship
   const normal = buildReproducibilityManifest({ reresolved: [cit("PMID", "1", "VERIFIED")], reresolutionCompleted: true, meta: META });
   assert.equal(normal.summary.reresolution_completed, true);
   assert.ok(!("reresolution_completed" in buildReproducibilityManifest({ reresolved: [], meta: META }).summary), "absent unless the caller says");
+});
+
+// Tier 1 review (2026-11-14): a crashed pass whose retraction screen was ALSO incomplete said "not
+// cleared for delivery" and, two lines later, that the report ships with a flag.
+test("a crashed re-resolution pass with an incomplete screen never also says the report ships", () => {
+  const m = buildReproducibilityManifest({
+    reresolved: [cit("PMID", "1", "UNCHECKED", "reresolution_error")],
+    retraction: { checked: false, retracted_dois: [], retracted_pmids: [], cited: 2, unscreened_ids: ["DOI:10.4/missing"] },
+    reresolutionCompleted: false,
+    meta: META
+  });
+  const md = renderManifestMarkdown(m);
+  assert.match(md, /not cleared for delivery until the order is re-run/);
+  assert.doesNotMatch(md, /ship with/);
+  assert.doesNotMatch(md, /SHIPS/);
+  assert.match(md, /Not screened: DOI:10\.4\/missing\./, "the unscreened ids are still listed");
 });
 
 test("a complete retraction screen adds no flag", () => {

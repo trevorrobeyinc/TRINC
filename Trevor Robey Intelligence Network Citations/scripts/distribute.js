@@ -9,10 +9,13 @@ const { manifestProblems, sealProblems } = require("./_delivery-checks.js");
 
 const ROOT_DIR = path.resolve(__dirname, "..");
 
-// T1-2 (2026-11-14): marketplace files are built ONLY from the workflow's sealed release, and only when
-// that release passed the citation gate: it must hold the integrity ledger and a complete reproducibility
-// manifest (shippable decision, nothing UNRESOLVED, re-resolution completed — T1-8), and every file read
-// must match the release seal, the same check build-buyer-zip.js makes (scripts/_delivery-checks.js).
+// T1-2 (2026-11-14): the report and citation index in marketplace files come ONLY from the workflow's
+// sealed release, and only when that release passed the citation gate: it must hold the integrity
+// ledger and a complete reproducibility manifest (shippable decision, nothing UNRESOLVED, re-resolution
+// completed — T1-8), and every file read must match the release seal (the seal and manifest checks of
+// scripts/_delivery-checks.js; the buyer ZIP's ChEMBL and retired-wording checks are not run here).
+// Not from the release: the workflow, template and offer ids, the quality score from workflow.json,
+// and nothing else of it (Tier 1 review: it carries local paths, run inputs and every step's result).
 // Before this, the staged report was the longest .md in the mission folder or in ANY research-output
 // folder whose name started with "task-", so it could come from a different run, gated or not; and a
 // branch read workspace/offer-bundles/, a folder the packager never writes.
@@ -88,7 +91,7 @@ function findWorkflowFiles(workflowId, { rootDir = ROOT_DIR } = {}) {
     qualityScore: state.artifacts && state.artifacts.quality_report
       ? state.artifacts.quality_report.overall_confidence
       : null,
-    metadata: state
+    metadata: { workflow_id: workflowId, template_id: state.template_id || "unknown", offer_id: String(offerId) }
   };
 }
 

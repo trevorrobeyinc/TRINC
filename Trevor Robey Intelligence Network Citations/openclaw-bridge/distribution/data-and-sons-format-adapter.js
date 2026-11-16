@@ -33,12 +33,15 @@ function transform(workflowOutput, options = {}) {
   const dataDictionary = [
     `# Data Dictionary: ${templateId}`,
     "",
+    // Tier 1 review (2026-11-14): the citation index is the sealed release's tables.csv.
     "## Citation Index (data.csv)",
     "| Field | Type | Description |",
     "|-------|------|-------------|",
-    "| type | string | Identifier type: PMID, NCT, CID, UniProt, ChEMBL, DOI |",
-    "| id | string | Database identifier value |",
-    "| context | string | Surrounding text where the citation appears |",
+    "| citation_type | string | Identifier type as the engine names it (PMID, NCT, PubChem CID, UniProt, DOI, …) |",
+    "| identifier | string | The identifier as cited |",
+    "| source_task | string | The report section (agent task) that first cites it |",
+    "| context_snippet | string | Text around the first mention |",
+    "| grounded_in_run | string | yes: found in the evidence retrieved for the report; no: not found, and flagged [UNVERIFIED] in the report; unknown: no citation-gate record |",
     "",
     "## Research Report (report.md)",
     "Multi-section markdown analysis with inline citations.",

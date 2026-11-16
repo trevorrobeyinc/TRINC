@@ -43,6 +43,19 @@ describe("verifiabilitySentence (T1-9)", () => {
     }
   });
 
+  // Tier 1 review (2026-11-14).
+  it("a business-lane bundle names its own identifier types and its Crossref-only screen", () => {
+    const s = verifiabilitySentence({ source_kind: "mission", research_profile: "business", citation_verification: PASSED });
+    assert.match(s, /SEC filing, official statistics series, World Bank indicator, DOI/);
+    assert.doesNotMatch(s, /PubMed|ClinicalTrials\.gov|PubChem/);
+    assert.match(s, /Cited DOIs are retraction-screened against Crossref\./);
+  });
+
+  it("says which cited DOIs were screened against Crossref alone", () => {
+    const s = verifiabilitySentence({ source_kind: "mission", citation_verification: { ...PASSED, retraction_dois_crossref_only: 3 } });
+    assert.match(s, /retraction-screened against Crossref and PubMed\. For 3 cited DOIs the PubMed cross-check reached no verdict, so they were screened against Crossref alone\./);
+  });
+
   it("scopes a dataset-sourced bundle to what the gate checked", () => {
     const s = verifiabilitySentence({ source_kind: "dataset", citation_verification: PASSED });
     assert.match(s, /the gate checked that report's cited identifiers, not each dataset row/);
@@ -85,4 +98,20 @@ describe("the marketplace and social adapters carry no retired claim (T1-9)", ()
       }
     });
   }
+
+  // Tier 1 review (2026-11-14).
+  it("social copy for a dataset-sourced bundle lists the dataset files, not a report or citation index", () => {
+    const adapter = createSocialContentAdapter({ platform_target: "youtube" });
+    const out = emitAll(adapter, { source_kind: "dataset", source_id: "dataset-t", citation_verification: PASSED, artifacts: [] }, platformTargetsConfig.platform_targets.youtube);
+    assert.match(out, /In the bundle: the dataset rows, its schema, and a dataset card\./);
+    assert.doesNotMatch(out, /In the bundle: the full report/);
+  });
+
+  it("the manual listing for a business-lane bundle names business sources, not biomedical registries", () => {
+    const adapter = createManualPlaceholderAdapter({ platform_target: "datarade" });
+    const out = emitAll(adapter, { source_kind: "mission", source_id: "mission-t", research_profile: "business", citation_verification: PASSED, artifacts: [] }, { manual_only: true });
+    assert.match(out, /citation-backed business intelligence/);
+    assert.match(out, /SEC EDGAR filings, official statistics series, World Bank indicators/);
+    assert.doesNotMatch(out, /PubMed|ClinicalTrials\.gov|PubChem/);
+  });
 });

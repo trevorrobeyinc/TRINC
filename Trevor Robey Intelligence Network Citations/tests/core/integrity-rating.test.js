@@ -95,6 +95,28 @@ describe("integrity-rating — buildIntegrityReport", () => {
     assert.match(md, /- DOI:10\.9\/work: expression of concern \(recorded by publisher\)/);
   });
 
+  // Tier 1 review (2026-11-14): the coverage bound states the screen's real limits.
+  it("the coverage bound says cited PMIDs are checked in PubMed only and unscreened ids were not checked", () => {
+    const md = buildIntegrityReport({ cited: 2, grounded: 2, grounded_ratio: 1, retracted: [], retraction_screen_checked: true }).markdown;
+    assert.match(md, /cited PMIDs are checked in PubMed only/);
+    assert.match(md, /or recorded only in Crossref for a paper cited by PMID alone, would not be caught/);
+    assert.match(md, /an identifier listed as not screened was not checked at all/);
+    assert.doesNotMatch(md, /every DOI Crossref holds/);
+    assert.match(md, /Retraction Watch bulk dataset is not used/);
+  });
+
+  it("names the DOIs screened against Crossref alone, and the per-type limit among the not-screened reasons", () => {
+    const one = buildIntegrityReport({ cited: 3, grounded: 3, grounded_ratio: 1, retracted: [], retraction_screen_checked: true, retraction_dois_crossref_only: 1 }).markdown;
+    assert.match(one, /For 1 cited DOI the PubMed cross-check reached no verdict, so it was screened against Crossref alone\./);
+    const none = buildIntegrityReport({ cited: 3, grounded: 3, grounded_ratio: 1, retracted: [], retraction_screen_checked: true }).markdown;
+    assert.doesNotMatch(none, /screened against Crossref alone/);
+    const partial = buildIntegrityReport({
+      cited: 2, grounded: 2, grounded_ratio: 1, retracted: [], retraction_screen_checked: false,
+      retraction_screen_cited: 2, unscreened: 1, unscreened_ids: ["PMID:1"]
+    }).markdown;
+    assert.match(partial, /past the screen's 500-per-type limit/);
+  });
+
   it("handles empty/missing input gracefully", () => {
     const r = buildIntegrityReport();
     assert.equal(r.grade, "N/A");

@@ -72,6 +72,19 @@ describe("retraction screen coverage (T1-7)", () => {
     assert.deepEqual(out.unscreened_ids, ["PMID:20000002"]);
   });
 
+  // Tier 1 review (2026-11-14, operator pick D2-wording): the spec's coverage rule stands (a DOI Crossref
+  // holds counts as screened), and the screen counts those whose PubMed cross-check reached no verdict,
+  // so no copy names PubMed for them.
+  it("counts the Crossref-held DOIs whose PubMed cross-check reached no verdict; 'not in PubMed' is a verdict", async () => {
+    const outage = async () => { throw new Error("NCBI 503"); };
+    const out = await checkRetractions(report(["10.4444/a", "10.4444/b"]), async (batch) => crossrefHolds(batch), outage, outage);
+    assert.equal(out.checked, true, "the spec's rule: Crossref holds both, so both count as screened");
+    assert.equal(out.dois_crossref_only, 2);
+    const notIndexed = async (dois) => dois.map((doi) => ({ doi, pmids: [], resolved: true }));
+    const answered = await checkRetractions(report(["10.4444/a"]), async (batch) => crossrefHolds(batch), async () => [], notIndexed);
+    assert.equal(answered.dois_crossref_only, 0, "PubMed answered: it does not index the DOI");
+  });
+
   it("a chunk whose checker throws leaves its ids unscreened; the other chunks still run", async () => {
     let call = 0;
     const checkDois = async (batch) => { call += 1; if (call === 2) throw new Error("timeout"); return crossrefHolds(batch); };

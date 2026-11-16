@@ -1,5 +1,7 @@
 "use strict";
 
+const { researchText } = require("./release-content.js");
+
 const WATERMARK = "Produced by OpenClaw Research Intelligence — https://trevorobeyinc.com";
 
 function extractTrainingSamples(reportMarkdown) {
@@ -75,7 +77,8 @@ function transform(workflowOutput, options = {}) {
     "Trevor Robey | trevor@trevorobeyinc.com | https://trevorobeyinc.com"
   ].join("\n");
 
-  const samples = extractTrainingSamples(workflowOutput.report);
+  // The research sections only: not the packager's title block, contents or citation summary.
+  const samples = extractTrainingSamples(researchText(workflowOutput.report));
   const trainJsonl = samples.map((s) => JSON.stringify(s)).join("\n");
 
   const datasetInfo = {

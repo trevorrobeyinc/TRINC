@@ -1,9 +1,9 @@
 "use strict";
 
 // _delivery-checks.js — T1-11 (2026-11-14): the refusals a sealed research release must clear before
-// anything leaves it, in ONE place. Moved out of build-buyer-zip.js (its steps 1-3, unchanged) so every
-// delivery path refuses the same things:
-//   * build-buyer-zip.js — the order form's delivery path (all three checks);
+// anything leaves it, in ONE place. Moved out of build-buyer-zip.js (its steps 1-3, unchanged). Each
+// delivery path runs the checks listed beside it, so the paths do NOT all refuse the same things:
+//   * build-buyer-zip.js — the order form's delivery path (all three checks, with retired wording);
 //   * export-release.js  — the engine's export, which also records delivery evidence (the manifest and
 //                          ChEMBL checks; before this it checked only the release approval);
 //   * distribute.js      — marketplace staging (the seal and the manifest checks, T1-2).

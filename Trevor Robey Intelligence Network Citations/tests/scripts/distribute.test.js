@@ -66,6 +66,18 @@ describe("distribute.js stages only from a sealed, gate-passed release (T1-2)", 
     refusedWith(() => findWorkflowFiles(workflowId, { rootDir }), /changed after the release was sealed: report\.md/);
   });
 
+  // Tier 1 review (2026-11-14): workflow.json is not sealed and carries local paths, run inputs and
+  // every step's result, so only the ids leave it.
+  it("the staged AWS data file carries only the workflow, template and offer ids from workflow.json", async () => {
+    const { rootDir, workflowId } = await sealedWorkflow();
+    const staged = findWorkflowFiles(workflowId, { rootDir });
+    assert.deepEqual(Object.keys(staged.metadata).sort(), ["offer_id", "template_id", "workflow_id"]);
+    const { outputBase } = quiet(() => runDistribution({ workflowId, targetList: ["aws-data-exchange"], rootDir }));
+    const data = fs.readFileSync(path.join(outputBase, "aws-data-exchange", workflowId, "data", "research-output.json"), "utf8");
+    assert.ok(!data.includes(rootDir), "no local path from the workflow state");
+    assert.deepEqual(Object.keys(JSON.parse(data).metadata).sort(), ["offer_id", "template_id", "workflow_id"]);
+  });
+
   it("a release whose re-resolution pass did not complete (T1-8) is refused", async () => {
     const crashing = { RESOLVER_TABLE_VERSION: "test", resolveAll: async () => { throw new Error("resolver bug"); } };
     const { rootDir, workflowId } = await sealedWorkflow({ citationReresolver: crashing });

@@ -24,8 +24,9 @@ const os = require("node:os");
 const path = require("node:path");
 
 const { buildDeterministicZip } = require("./_export-zip-util.js");
-// Steps 1-3 live in one shared module since T1-11 (2026-11-14), so export-release.js and
-// distribute.js refuse exactly what this builder refuses.
+// Steps 1-3 live in one shared module since T1-11 (2026-11-14). export-release.js runs its manifest and
+// ChEMBL checks, and distribute.js its seal and manifest checks; only this builder runs all three,
+// with the retired-wording check (scripts/_delivery-checks.js lists who runs what).
 const { RETIRED_WORDING, contentProblems, manifestProblems, sealProblems } = require("./_delivery-checks.js");
 
 const DEFAULT_RELEASES_DIR = path.resolve(__dirname, "..", "workspace", "releases");

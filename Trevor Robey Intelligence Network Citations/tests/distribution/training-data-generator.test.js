@@ -180,3 +180,46 @@ describe("training-data-generator", () => {
     });
   });
 });
+
+// Tier 1 review (2026-11-14): only the research sections of a sealed report.md are read, and a
+// sentence citing an identifier the citation gate could not trace (tables.csv grounded_in_run "no", or
+// an [UNVERIFIED] mark) never becomes a factual record, an answer or a required identifier.
+describe("training-data-generator — untraced ids and packager sections (review)", () => {
+  const REPORT = [
+    "# Packaged Pack", "", "---", "",
+    "## Table of Contents", "", "1. [Safety](#section-1) and more navigation text so it is long enough", "", "---", "",
+    "<a id=\"section-1\"></a>", "## 1. Safety", "", "*Task: analyst*", "",
+    "Myocarditis occurred in one percent of treated patients across the pooled trials (PMID: 30232222).",
+    "A second cohort reported higher rates of hepatitis among older patients (PMID: 99999999 [UNVERIFIED]).",
+    "A third analysis found pericarditis in a small subgroup of the same trials (PMID: 88888888).", "",
+    "<a id=\"citation-summary\"></a>", "## 2. Citation Summary", "", "Total cited identifiers: **3**", "",
+    "- **PMID** (3): 30232222, 99999999 [UNVERIFIED], 88888888 and enough padding to be a long sentence.", ""
+  ].join("\n");
+  const CSV = [
+    "citation_type,identifier,source_task,context_snippet,grounded_in_run",
+    "PMID,30232222,analyst,\"pooled, trials\",yes",
+    "PMID,99999999,analyst,second cohort,no",
+    "PMID,88888888,analyst,third analysis,no"
+  ].join("\n");
+  const untracedIds = /99999999|88888888/;
+
+  it("no factual assessment, answer or required identifier comes from an untraced sentence", () => {
+    const assessments = generateFactualityAssessments(REPORT, CSV);
+    const factual = assessments.filter((a) => a.is_factual);
+    assert.equal(factual.length, 1);
+    assert.match(factual[0].text, /PMID: 30232222/);
+    for (const a of assessments) assert.doesNotMatch(a.text, untracedIds);
+    for (const pair of generateQAPairs(REPORT, CSV)) {
+      assert.deepEqual(pair.citations, ["PMID:30232222"]);
+      assert.doesNotMatch(pair.answer, untracedIds);
+    }
+    const rubrics = generateEvaluationRubrics(REPORT, CSV);
+    assert.equal(rubrics.length, 1);
+    assert.deepEqual(rubrics[0].rubric.required_identifiers, ["PMID:30232222"]);
+  });
+
+  it("the packager's Table of Contents and Citation Summary are not research sections", () => {
+    const text = JSON.stringify([generateQAPairs(REPORT, CSV), generateEvaluationRubrics(REPORT, CSV)]);
+    assert.doesNotMatch(text, /Table of Contents|Citation Summary|Total cited identifiers/i);
+  });
+});
