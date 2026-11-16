@@ -1,8 +1,8 @@
 # trevor-robey-inc — Offerings (canonical, 2026-04-30)
 
-> *Every claim, sourced. Every risk, named. In days, not weeks.*
+> *Every citation, checked. Every risk, named. In days, not weeks.*
 >
-> Citation-traced biomedical due diligence for biotech investors and pharma BD. Five days. Every citation grounded and retraction-screened. Audit trail included.
+> Citation-traced biomedical due diligence for biotech investors and pharma BD. Five days. Every cited paper and trial checked twice, against the evidence retrieved and at its registry, with retractions screened and anything unconfirmed flagged. Audit trail included.
 >
 > Powered by OpenClaw (open-source agent framework).
 

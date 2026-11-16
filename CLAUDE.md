@@ -232,10 +232,12 @@ The deep dive is `Trevor Robey Intelligence Network Citations/CLAUDE.md`.
   Intelligence Network Citations LLC, a California limited liability company."* (Cal. Corp. Code
   §17701.08(e) bars "Inc." in an LLC's name; Cal. Bus. & Prof. Code §17910.5(a) is why the disclosure is
   required.) Domain `trevorobeyinc.com`, contact `trevor@trevorobeyinc.com`, slug `trevor-robey-inc`.
-- **Tagline:** *Every claim, sourced. Every risk, named. In days, not weeks.* **Elevator** (canonical,
+- **Tagline:** *Every citation, checked. Every risk, named. In days, not weeks.* **Elevator** (canonical,
   `OFFERINGS.md:5`): *Citation-traced biomedical due diligence for biotech investors and pharma BD. Five
-  days. Every citation grounded and retraction-screened. Audit trail included.* "Zero hallucinations" was
-  retired on 2026-07-13 and must not come back.
+  days. Every cited paper and trial checked twice, against the evidence retrieved and at its registry,
+  with retractions screened and anything unconfirmed flagged. Audit trail included.* Both chosen by the
+  operator on 2026-11-15. "Zero hallucinations" (retired 2026-07-13) and "Every claim, sourced." (false
+  as worded: no sentence-level support check exists) must not come back.
 - **Prices and offers come only from `OFFERINGS.md`.** Never compute, round or invent one.
 - **Engine credit:** "Powered by OpenClaw", the open-source agent framework, not a brand the operator owns.
   The homebrew `openclaw.ai` consumer assistant is unrelated.

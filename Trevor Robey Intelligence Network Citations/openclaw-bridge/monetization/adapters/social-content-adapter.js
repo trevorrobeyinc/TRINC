@@ -39,10 +39,11 @@ const ENTITY_DISCLOSURE =
   "Trevor Robey, INC. is the wordmark of Trevor Robey Intelligence Network Citations LLC, " +
   "a California limited liability company.";
 
-// T1-9 (2026-11-14): "Every claim, sourced." is dropped from the generated copy — no sentence-level
-// support check exists, so it is false as worded. The rest of the brand line stays; the final wording
-// of the tagline is the operator's (OFFERINGS.md, open question 2 of the 2026-11-14 change list).
-const COMPANY_TAGLINE = "Every risk, named. In days, not weeks.";
+// The tagline, verbatim from OFFERINGS.md:3 (operator decision 2026-11-15). T1-9 (2026-11-14) dropped
+// "Every claim, sourced." from the generated copy, because no sentence-level support check exists, so
+// it was false as worded. "Every citation, checked." is true as worded: every cited id is checked
+// against the evidence retrieved, screened for retraction and re-resolved at its registry.
+const COMPANY_TAGLINE = "Every citation, checked. Every risk, named. In days, not weeks.";
 const FOUNDER_LOCKUP = "Truth Seeker, Receipt Keeper. — Real data beats sweet hallucination. You decide.";
 
 // Deliberately small and stable. Trend-chasing tags would be invention of a different kind,
