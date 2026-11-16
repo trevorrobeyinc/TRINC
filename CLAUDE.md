@@ -61,17 +61,22 @@ before asserting how the engine behaves.
   `bash /Users/myhome/TRINC/scripts/trinc-backup.sh --prune` (rewritten 2026-11-05: it writes both copies,
   verifies, compares them byte for byte, and moves superseded bundles to the Trash; the Drive snapshot and
   this line stay manual). A bundle carries no gitignored files.
-  **Current (2026-11-06):** `TRINC-FULL-backup-20261106-0042.bundle`, HEAD `bd9abf2` (GitHub was level: 0
-  ahead / 0 behind), sha256 `664b96ee…1c23` (78,986,209 bytes), "records a complete history", 15 refs, in
-  both places. The 11-05 pair (`…-20261105-0229`, HEAD `e6a35f4`) is in the Trash. **Drive:** `TRINC/Monorepo/`
-  is now the one snapshot, of the same commit `bd9abf2` (3,184 files + 4 symlinks; compared entry by entry with
-  0 differences; every file accepted by Google; folder id `1L1sXyiO…yVpb`). The two older snapshots
-  (`Monorepo/` at 4d8eff6 and `Monorepo-e6a35f4/`) were gone from the Drive trash by the evening of
-  2026-11-06, and `Backups/README-RESTORE.md` + `SHA256SUMS.txt` name the new bundle. The Drive's `TRINC/`
-  also holds `Skills-Integrations/trinc-local/`, the offsite copy of `~/.claude/local-plugins/` (the nine
-  `trinc-*` plugins live outside the repo, so no bundle covers them; snapshot 2026-11-06, refreshed by hand
-  after skill changes), and `Plans/`, the current strategy and development plan as a Google Doc built from
-  `STATUS.md` and `OFFERINGS.md` (the repo wins). Keep one version only (two copies of it):
+  **Current (2026-11-16):** `TRINC-FULL-backup-20261116-0229.bundle`, HEAD `0132d36`, sha256 `03d70f8f…9567`
+  (79,779,964 bytes), "records a complete history", 25 refs, byte-identical in both places. The 11-06 pair
+  (`…-20261106-0042`, HEAD `bd9abf2`) is in the Trash. **Drive:** `TRINC/Monorepo/` is the one snapshot, of the
+  same commit `0132d36` (3,226 files + 4 symlinks, exported with `git archive` into a new folder; compared entry
+  by entry with the commit, content by SHA-256, 138 executable bits and symlink targets, with 0 differences;
+  every file accepted by Google before the `bd9abf2` snapshot was trashed with one `mv`), and
+  `Backups/README-RESTORE.md` + `SHA256SUMS.txt` were rewritten as new files naming the new bundle. Prove
+  acceptance on NEW files: a file rewritten in place can upload and still lack Google's item id locally
+  (`stillPending:xattrs`). The Drive's `TRINC/` also holds `Skills-Integrations/trinc-local/`, the offsite copy
+  of `~/.claude/local-plugins/` (the nine `trinc-*` plugins live outside the repo, so no bundle covers them;
+  refreshed by hand after skill changes, last on 2026-11-16), `Plans/`, the strategy and development plan as a
+  Google Doc built from `STATUS.md` and `OFFERINGS.md` on 2026-11-06 (the repo wins), and `NotebookLM/`, the
+  operator's self-teaching manual for NotebookLM (seven Word chapters plus `Source-documents/`, Word copies of
+  six canon files; written from `c4db018` on 2026-11-16). **Refresh `NotebookLM/` in place**, overwriting each
+  file at its own path: NotebookLM binds a source to one Drive file, so a trashed-and-recreated file leaves a
+  dead source in the operator's notebook. Keep one bundle version only (two copies of it):
   superseded bundles go to the Trash once the new one is verified and mirrored. A superseded Drive snapshot is
   trashed from the mount with ONE literal `mv <folder> ~/.Trash/<unique name>`. DriveFS's database then shows
   the folder `trashed=1` from a single client operation, as one trash item. Never `rm -rf`, which trashes file
