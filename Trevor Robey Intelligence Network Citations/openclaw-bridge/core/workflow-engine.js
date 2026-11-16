@@ -973,6 +973,33 @@ function createWorkflowEngine(options = {}) {
     const validated = monetizationRuntime.releaseApprovalManager.validateApprovedRelease(offerStep.offer_id);
     const bundleDir = validated.bundle_dir;
 
+    // T2-14 (2026-11-16): a research (mission) bundle clears the same checks export-release.js runs
+    // (scripts/_delivery-checks.js researchExportProblems: a reproducibility manifest whose decision allows
+    // shipping, nothing UNRESOLVED, a completed re-resolution pass, no ChEMBL identifier) before anything
+    // is copied, zipped or recorded as exported. Before this the step checked only the approval, so the
+    // armed proof run workflow-e255cb68727f683268c754db zipped and recorded an export of a release that
+    // export-release.js refuses (two ChEMBL ids). A refusal writes and records nothing, and the run still
+    // completes, so a run that passed every citation check keeps its vault notes and post-run chain
+    // (operator default D1); workflow.json names the problems under artifacts.export_refused.
+    const { researchExportProblems } = require("../../scripts/_delivery-checks.js");
+    let exportProblems;
+    try {
+      const offer = JSON.parse(fs.readFileSync(path.join(bundleDir, "offer.json"), "utf8"));
+      exportProblems = researchExportProblems(bundleDir, offer);
+    } catch (checkError) {
+      exportProblems = [`the release could not be checked before export: ${safeString(checkError && checkError.message)}`];
+    }
+    if (exportProblems.length > 0) {
+      logger.warn({ event: "phase30_export_refused", offer_id: offerStep.offer_id, format, problems: exportProblems });
+      return {
+        ok: true,
+        offer_id: offerStep.offer_id,
+        exported: false,
+        export_refused: exportProblems,
+        format
+      };
+    }
+
     if (format === "zip") {
       const zipPath = path.join(rootDir, "workspace", "releases", `${offerStep.offer_id}-export.zip`);
       if (fs.existsSync(zipPath)) {
@@ -995,6 +1022,7 @@ function createWorkflowEngine(options = {}) {
       return {
         ok: true,
         offer_id: offerStep.offer_id,
+        exported: true,
         export_path: zipPath,
         format: "zip"
       };
@@ -1009,6 +1037,7 @@ function createWorkflowEngine(options = {}) {
     return {
       ok: true,
       offer_id: offerStep.offer_id,
+      exported: true,
       export_path: targetDir,
       format: "folder"
     };
@@ -1340,6 +1369,8 @@ function createWorkflowEngine(options = {}) {
           case "export":
             result = await executeExportStep(step, validated, inputs, stepResults, enrichedContext);
             if (result.export_path) state.artifacts.export_path = result.export_path;
+            // T2-14: an export the delivery checks refused leaves no export_path, only the reasons.
+            if (Array.isArray(result.export_refused)) state.artifacts.export_refused = result.export_refused;
             break;
           default:
             throw new Error(`Unknown step type '${step.type}'`);
