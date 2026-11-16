@@ -1238,9 +1238,46 @@ function createDeliverablePackager(options = {}) {
     });
   }
 
+  // T2-12 (2026-11-16): the records a committed release gathers after it is sealed. Offer ids are
+  // deterministic, so packaging the same source again used to `rmSync` the release folder and these with
+  // it: the approval, the submission-evidence ledger (export events) and the delivery-evidence ledger.
+  const RELEASE_RECORDS = Object.freeze(["release-approval.json", "submission-evidence", "delivery-evidence"]);
+
+  function releaseRecordsHeld(releaseDir) {
+    return RELEASE_RECORDS.filter((name) => fs.existsSync(path.join(releaseDir, name)));
+  }
+
+  // Move an existing release aside WHOLE (deliverables, seal, approval and evidence together), never
+  // deleting it: releases/_superseded/<offer_id>-<n>/, on the same volume as the releases folder.
+  // Returns the new path, or null when there is no release to move. Only an explicit operator step
+  // calls this (generate-offer.js --supersede); nothing calls it implicitly.
+  function supersedeRelease(offerId) {
+    const finalBundleDir = path.join(releasesDir, offerId);
+    if (!fs.existsSync(finalBundleDir)) return null;
+    const supersededDir = path.join(releasesDir, "_superseded");
+    ensureDir(supersededDir);
+    let n = 1;
+    while (fs.existsSync(path.join(supersededDir, `${offerId}-${n}`))) n += 1;
+    const target = path.join(supersededDir, `${offerId}-${n}`);
+    fs.renameSync(finalBundleDir, target);
+    return target;
+  }
+
   function commitBundle(tempBundleDir, offerId) {
     const finalBundleDir = path.join(releasesDir, offerId);
     if (fs.existsSync(finalBundleDir)) {
+      // T2-12: a release that holds an approval or any evidence is never deleted to make room.
+      const held = releaseRecordsHeld(finalBundleDir);
+      if (held.length > 0) {
+        try { fs.rmSync(tempBundleDir, { recursive: true, force: true }); } catch { /* best effort */ }
+        const err = new Error(
+          `Release '${offerId}' already holds ${held.join(", ")}, which re-packaging would delete. ` +
+          "Move the old release aside whole first (node scripts/generate-offer.js ... --supersede), or package a new run."
+        );
+        err.code = "PHASE19_RELEASE_HAS_EVIDENCE";
+        err.release_records = held;
+        throw err;
+      }
       fs.rmSync(finalBundleDir, { recursive: true, force: true });
     }
     ensureDir(path.dirname(finalBundleDir));
@@ -1279,6 +1316,8 @@ function createDeliverablePackager(options = {}) {
     writeBundleRoot,
     finalizeBundle,
     commitBundle,
+    supersedeRelease,
+    RELEASE_RECORDS,
     releasesDir
   });
 }
