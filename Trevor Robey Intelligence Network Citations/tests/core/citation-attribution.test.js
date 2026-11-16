@@ -262,6 +262,38 @@ describe("citation-attribution — marking the shipped text", () => {
     assert.ok(url.includes("https://pubmed.ncbi.nlm.nih.gov/42937037/ [ATTRIBUTION MISMATCH"), url);
   });
 
+  // T2-19 (2026-11-16), review marks:5: an [UNVERIFIED] mark between the author and the identifier
+  // used to push the author past the 200-character window on the marked line, so the manifest flagged
+  // the work while its line carried no inline mark.
+  it("measures the author's distance without the engine's marks, so the detector and the marker agree", () => {
+    const filler = "and the cohort was then followed for several years while the outcomes were recorded ".repeat(3).slice(0, 195);
+    const untraced = `In the extension, PMID: 31234567${filler}Smith et al. (2019) reported the primary outcome.`;
+    const marked = untraced.replace("PMID: 31234567", "PMID: 31234567 [UNVERIFIED]");
+    assert.ok(marked.indexOf("Smith") - (marked.indexOf("31234567") + 8) > 200, "the mark pushes the raw distance past the window");
+    const cite = [{ type: "PMID", id: "31234567" }];
+    const before = A.findWrittenAttributions(untraced, cite).get("PMID:31234567");
+    const after = A.findWrittenAttributions(marked, cite).get("PMID:31234567");
+    assert.deepEqual(before.checkable.map((c) => c.name), ["Smith"], "the detector, on the report text");
+    assert.deepEqual(after.checkable.map((c) => c.name), ["Smith"], "the same verdict on the marked section line");
+    const jones = { id: "31234567", type: "PMID", registry_label: "Jones et al., 2019", registry_full: { authors: ["Jones", "Patel"], years: [2019] } };
+    assert.equal(A.compareAttribution(before.checkable[0], jones.registry_full).status, "author_mismatch", "flagged");
+    const out = A.annotateAttributionText(marked, [jones]);
+    // The attribution mark goes right after the identifier, ahead of the gate's mark: the order the
+    // gate's own re-read accepts (citation-gate.js ALREADY_MARKED), so the mention still counts as marked.
+    assert.ok(out.includes("PMID: 31234567 [ATTRIBUTION MISMATCH: registry lists Jones et al., 2019] [UNVERIFIED]"), out);
+    assert.equal(A.annotateAttributionText(out, [jones]), out, "a second pass changes nothing");
+    const { countUnmarkedUntraced } = require("../../openclaw-bridge/core/citation-gate.js");
+    assert.equal(countUnmarkedUntraced(untraced, new Set(["PMID:31234567"])), 1, "control: the unmarked line counts as unmarked");
+    assert.equal(countUnmarkedUntraced(out, new Set(["PMID:31234567"])), 0, "the [UNVERIFIED] mark still reads as placed");
+  });
+
+  it("never reads a name inside the engine's own marks", () => {
+    const line = "PMID: 31234567 [ATTRIBUTION MISMATCH: registry lists Feldman et al., 2022] was cited.";
+    const r = A.findWrittenAttributions(line, [{ type: "PMID", id: "31234567" }]).get("PMID:31234567");
+    assert.deepEqual(r.checkable, []);
+    assert.equal(r.skipped[0].reason, "no_author_named");
+  });
+
   it("rewrites section files in place, counts marked lines, and survives an unreadable one", () => {
     const files = { "/a.md": TABLE, "/b.md": "nothing cited here" };
     const marked = A.annotateSubtaskAttributions(

@@ -29,6 +29,8 @@
 // Everything else is "not_checked" with a reason, never a guess.
 
 const fs = require("node:fs");
+// The marks the engine writes after an identifier ([UNVERIFIED], [ATTRIBUTION MISMATCH: …]).
+const { MARK_SOURCE } = require("./citation-extractor.js");
 
 const PARTICLES = ["van", "von", "der", "den", "de", "del", "della", "di", "da", "du", "dos", "das", "le", "la", "ten", "ter"];
 const PARTICLE_ALT = PARTICLES.map((p) => `[${p[0]}${p[0].toUpperCase()}]${p.slice(1)}`).join("|");
@@ -248,17 +250,26 @@ function clip(s, max = 200) {
   return t.length > max ? `${t.slice(0, max - 1)}…` : t;
 }
 
+// T2-19 (2026-11-16): the engine's own marks are not the report's text. The detector reads the report
+// before any mark is written; the marker re-reads each section line after the [UNVERIFIED] pass wrote
+// into it. Both now read a line without the marks: names are found with them blanked (positions kept),
+// and the author-to-identifier distance counts the report's own characters only. Before this, a mark
+// between the two could push the author past NEAR_CHARS on the marked line, so the manifest flagged
+// attribution_mismatch while the line carried no inline mark.
+const ENGINE_MARKS = new RegExp(String.raw`[ \t]*${MARK_SOURCE}`, "g");
+
 // One line, one cited identifier → a checkable { name, year } or a reason it cannot be checked.
 function evaluateLine(line, citation) {
   const hit = idPattern(citation.type, String(citation.id)).exec(line);
   if (!hit) return null;
   if (worksOnLine(line) > 1) return { reason: "several_works_on_line" };
-  const names = namesOnLine(line);
+  const names = namesOnLine(blank(line, ENGINE_MARKS));
   if (names.length === 0) return { reason: "no_author_named" };
   if (names.length > 1) return { reason: "several_authors_named" };
   const n = names[0];
   if (!isTableRow(line)) {
-    const gap = hit.index >= n.end ? hit.index - n.end : n.start - (hit.index + hit[0].length);
+    const between = hit.index >= n.end ? line.slice(n.end, hit.index) : line.slice(hit.index + hit[0].length, n.start);
+    const gap = between.replace(ENGINE_MARKS, "").length;
     if (gap > NEAR_CHARS) return { reason: "author_not_near_identifier" };
   }
   return { name: n.name, year: Number.isFinite(n.year) ? n.year : null };
