@@ -352,8 +352,11 @@ flowchart TD
    identifiers actually retrieved. At least **75%** must match ("grounded"), or the report is blocked. If no
    evidence was retrieved at all, it is blocked too. Detail in `04`.
 6. **Retraction screen and re-resolution.** Cited papers are checked against Crossref and PubMed for
-   retractions (one retraction blocks the report), and every PMID, NCT and DOI is looked up again at its
-   issuing registry (any that does not resolve blocks delivery).
+   retractions (one retraction blocks the report), and every cited PMID, PMCID, NCT, ISRCTN and EudraCT
+   number, DOI, PubChem CID, UniProt accession and ChEMBL id is looked up again at its issuing registry (any
+   reported UNRESOLVED blocks delivery; the EU register does not publish every trial, so a EudraCT number it
+   returns nothing for is UNCHECKED instead). [src: `ENGINE/OFFERINGS.md` → Citation-Integrity Gate;
+   `ENGINE/SYSTEM-REALITY.md` → "GAP CLOSED"]
 7. **The rest of the pipeline.** Every template runs the same six steps: `research` → `quality_check` →
    `build_dataset` → `package` → `approve` → `export`. [src: `ENGINE/docs/WORKFLOW_CATALOG.md`]
 8. **A sealed bundle.** The ZIP holds the report and the audit files (list in `04`), each with a checksum,
@@ -432,7 +435,7 @@ flowchart LR
 |---|---|---|---|
 | 1 | **Zero-fabrication instruction** | Every role is told never to invent a PMID, NCT or DOI and to write `[no verifiable citation found]` instead. | — (an instruction, not a check) |
 | 2 | **Grounding gate** | Every identifier cited in the assembled report is compared with the identifiers actually retrieved during the run. A match is "grounded"; a miss is "ungrounded" and is marked `[UNVERIFIED]` inline. | Below **75%** grounded → `UNVERIFIED`; nothing retrieved at all → `INSUFFICIENT_EVIDENCE`; no citations → `NO_CITATIONS`. Only `PASS` ships. The 75% floor is read fail-closed: a missing setting means the strict value. |
-| 3 | **Retraction screen** | Cited DOIs are checked against Crossref, cited PMIDs against PubMed, and every DOI is also mapped to its PMID and checked in PubMed. | Any retracted paper → hard stop (`RETRACTED`). |
+| 3 | **Retraction screen** | Cited DOIs are checked against Crossref, cited PMIDs against PubMed, and every DOI is also mapped to its PMID and checked in PubMed; a cited PMCID is screened through the PMID or DOI its PMC record lists. | Any retracted paper → hard stop (`RETRACTED`). |
 | 4 | **Re-resolution when the report is assembled** | Every cited PMID, PMCID, NCT, ISRCTN and EudraCT number, DOI, PubChem CID, UniProt accession and ChEMBL id is looked up again at the registry that issued it (NCBI, ClinicalTrials.gov, the ISRCTN registry, the EU Clinical Trials Register, Crossref, PubChem, UniProt, ChEMBL) and stamped VERIFIED, UNRESOLVED or UNCHECKED in the reproducibility manifest; the bundle states the date. | Any UNRESOLVED id → `BLOCK`. `DELIVER` needs 100% VERIFIED; otherwise `DELIVER_WITH_FLAGS`. |
 | 5 | **Shipment licence check** | Content from sources the business holds no redistribution licence for is refused at packaging. | A banned source name or id anywhere in the bundle. |
 
@@ -451,8 +454,8 @@ Every bundle seals these files beside the report, and **code, not a model, write
 - **`search-coverage.md`**: every search the run made and what each returned. A search that honestly found
   nothing is listed apart from a source that could not be reached, because "zero results" and "failed" are
   different facts. A zero-evidence run still ships this ledger rather than a padded report.
-- **`reproducibility-manifest.md`**: how every cited PMID, NCT and DOI re-resolved, with HTTP status, URL and
-  time.
+- **`reproducibility-manifest.md`**: how every cited PMID, PMCID, NCT, ISRCTN and EudraCT number, DOI,
+  PubChem CID, UniProt accession and ChEMBL id re-resolved, with HTTP status, URL and time.
 - For the trial-design benchmark: **`design-benchmark.md` / `.csv`**, a comparison matrix rendered straight
   from registry records.
 - **`checksums.txt`**: one checksum per file, so any later change is detectable.
@@ -779,7 +782,10 @@ item 7 this pack `02` §C; items 8–9 `STATUS.md`]
 | Id | Stands for | Where it points |
 |---|---|---|
 | **PMID** | PubMed ID | An article record in PubMed (NCBI) |
+| **PMCID** | PubMed Central id, e.g. `PMC7383595` | A full-text article record in PubMed Central (NCBI) |
 | **NCT** | ClinicalTrials.gov number, e.g. `NCT07388524` | A registered clinical trial |
+| **ISRCTN** | ISRCTN registry number, e.g. `ISRCTN50189673` | A registered clinical trial (the ISRCTN registry) |
+| **EudraCT number** | EU trial number, e.g. `2020-001113-21` | A trial in the EU Clinical Trials Register; read only after an `EudraCT` label or in a register URL |
 | **DOI** | Digital Object Identifier | A published work (journal article, dataset) |
 | **ChEMBL id** | ChEMBL compound or target id | EMBL-EBI's database of bioactive molecules |
 | **PubChem CID** | PubChem compound id | NCBI's chemistry database |
@@ -1049,7 +1055,7 @@ says should be filed before any paid product goes public.
 |---|---|---|---|
 | 1 | **Every citation, checked.** | Stat tiles from one real run (non-small cell lung cancer, 2026-10-08): **45 of 45** citations re-resolved VERIFIED when the report was assembled · **0** retracted papers · **1,412 of 1,412** stopped-trial records retrieved for the registry query "non-small cell lung cancer" (complete for that query term, not for every name of the disease) · **20 of 675** comparable Phase 3 programs benchmarked. Subline: the tagline. | `04` exhibit |
 | 2 | A claim you cannot trace is a risk you cannot price. | The job: diligence on someone else's science, fast. Plain framing only; **no market statistics** (they are unverified, `01`). | `01` |
-| 3 | The gate, not a warning | Three checks as a left-to-right diagram: grounded in what was retrieved (≥75% or blocked) → retraction screen (one retraction blocks) → every cited PMID, PMCID, NCT, ISRCTN and EudraCT number, DOI, PubChem CID, UniProt accession and ChEMBL id re-resolved when the report is assembled (any unresolved blocks). Footnote: re-resolution proves the record exists, not that its conclusions are right. | `04` |
+| 3 | The gate, not a warning | Three checks as a left-to-right diagram: grounded in what was retrieved (≥75% or blocked) → retraction screen (one retraction blocks) → every cited PMID, PMCID, NCT, ISRCTN and EudraCT number, DOI, PubChem CID, UniProt accession and ChEMBL id re-resolved when the report is assembled (any UNRESOLVED blocks). Footnote: re-resolution proves the record exists, not that its conclusions are right. | `04` |
 | 4 | What lands on your desk | The sealed bundle: report, citation-integrity grade, graveyard memo, search-coverage ledger, reproducibility manifest, checksums. One line each. | `04` |
 | 5 | Has anyone tried this and stopped? | The graveyard memo: real stop reasons, quoted, each linked to its NCT record. Show three entries from run #6 (e.g. NCT02710396, "Frontline pembrolizumab approved in NSCLC … new standard of care"). Note: the amendment-risk band is paused; do not show it. | `04`; run #6 memo |
 | 6 | The ladder | Rows verbatim from `02` A for this buyer: **Investor Pre-Mortem** $9,950 / $14,950 / $19,950 (+ KOL primary) · **Failed Trial Archaeology** $14,950 · **Trial Design Benchmark Pack** $4,950 · **Scoped Research Pack** $4,950. Leave out the Conference Synthesis Brief (no code yet, `02` C). | `02` |
@@ -1070,7 +1076,7 @@ the banner to make the deck look ready.
 |---|---|---|---|
 | 1 | Every citation, checked. Every risk, named. In days, not weeks. | Title; wordmark; one line: research reports in which every cited claim traces to a public record | `01`, `09` |
 | 2 | Proof, from one real run | The same four stat tiles as B1, labelled "flagship lane: biomedical due diligence" | `04` |
-| 3 | How a report is made | Simplified flow: question agreed → evidence retrieved first → written by Claude → checked against what was retrieved → every cited PMID, NCT and DOI re-resolved at its registry → sealed bundle | `03` |
+| 3 | How a report is made | Simplified flow: question agreed → evidence retrieved first → written by Claude → checked against what was retrieved → every cited PMID, PMCID, NCT, ISRCTN and EudraCT number, DOI, PubChem CID, UniProt accession and ChEMBL id re-resolved at its registry → sealed bundle | `03` |
 | 4 | Checked, not just written | "A claim without a verifiable identifier fails a gate rather than passing with a warning." Plus the honest zero: a search that finds nothing is reported as nothing. | `04` |
 | 5 | One engine, two lanes | Biomedical due diligence (the flagship) · business research in any field (also available). Same gate. | `01` |
 | 6 | Biomedical reports | The core ladder from `02` A: Pre-Mortem, Failed Trial Archaeology, Trial Design Benchmark Pack, Scoped Research Pack, Pharmacovigilance Pack. Leave out the two ❌ SKUs (`02` C). | `02` |
@@ -1105,7 +1111,7 @@ type, with a **reduced-motion version** that shows the end state. Every number o
 | 0–6 s | Left: shelf of retrieved ids. Right: a report with highlighted citations | "Did we actually read it?" |
 | 6–16 s | Each cited id flies to the shelf and matches; a ratio bar fills to **0.978** past a fixed line at **0.75** | "Grounded: 44 of 45. Below 75%, nothing ships." |
 | 16–24 s | A scanner sweeps the papers; each gets a small "not retracted" tick | "Retraction screen: 0 retracted." |
-| 24–32 s | Each id sends a ping to its registry (NCBI, ClinicalTrials.gov, Crossref) and a VERIFIED tick returns | "Every PMID, NCT and DOI looked up again at its registry." |
+| 24–32 s | Each id sends a ping to its registry (NCBI, ClinicalTrials.gov, Crossref) and a VERIFIED tick returns | "Every cited PMID, PMCID, NCT, ISRCTN and EudraCT number, DOI, PubChem CID, UniProt accession and ChEMBL id looked up again at its registry." |
 | 32–35 s | Counter lands on **45 VERIFIED · 0 UNRESOLVED · 0 UNCHECKED** | "It proves the record exists — not that its conclusions are right." |
 
 The last caption is mandatory (it is the claim's bound, `04`).

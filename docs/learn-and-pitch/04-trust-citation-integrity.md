@@ -9,7 +9,7 @@
 |---|---|---|---|
 | 1 | **Zero-fabrication instruction** | Every role is told never to invent a PMID, NCT or DOI and to write `[no verifiable citation found]` instead. | — (an instruction, not a check) |
 | 2 | **Grounding gate** | Every identifier cited in the assembled report is compared with the identifiers actually retrieved during the run. A match is "grounded"; a miss is "ungrounded" and is marked `[UNVERIFIED]` inline. | Below **75%** grounded → `UNVERIFIED`; nothing retrieved at all → `INSUFFICIENT_EVIDENCE`; no citations → `NO_CITATIONS`. Only `PASS` ships. The 75% floor is read fail-closed: a missing setting means the strict value. |
-| 3 | **Retraction screen** | Cited DOIs are checked against Crossref, cited PMIDs against PubMed, and every DOI is also mapped to its PMID and checked in PubMed. | Any retracted paper → hard stop (`RETRACTED`). |
+| 3 | **Retraction screen** | Cited DOIs are checked against Crossref, cited PMIDs against PubMed, and every DOI is also mapped to its PMID and checked in PubMed; a cited PMCID is screened through the PMID or DOI its PMC record lists. | Any retracted paper → hard stop (`RETRACTED`). |
 | 4 | **Re-resolution when the report is assembled** | Every cited PMID, PMCID, NCT, ISRCTN and EudraCT number, DOI, PubChem CID, UniProt accession and ChEMBL id is looked up again at the registry that issued it (NCBI, ClinicalTrials.gov, the ISRCTN registry, the EU Clinical Trials Register, Crossref, PubChem, UniProt, ChEMBL) and stamped VERIFIED, UNRESOLVED or UNCHECKED in the reproducibility manifest; the bundle states the date. | Any UNRESOLVED id → `BLOCK`. `DELIVER` needs 100% VERIFIED; otherwise `DELIVER_WITH_FLAGS`. |
 | 5 | **Shipment licence check** | Content from sources the business holds no redistribution licence for is refused at packaging. | A banned source name or id anywhere in the bundle. |
 
@@ -28,8 +28,8 @@ Every bundle seals these files beside the report, and **code, not a model, write
 - **`search-coverage.md`**: every search the run made and what each returned. A search that honestly found
   nothing is listed apart from a source that could not be reached, because "zero results" and "failed" are
   different facts. A zero-evidence run still ships this ledger rather than a padded report.
-- **`reproducibility-manifest.md`**: how every cited PMID, NCT and DOI re-resolved, with HTTP status, URL and
-  time.
+- **`reproducibility-manifest.md`**: how every cited PMID, PMCID, NCT, ISRCTN and EudraCT number, DOI,
+  PubChem CID, UniProt accession and ChEMBL id re-resolved, with HTTP status, URL and time.
 - For the trial-design benchmark: **`design-benchmark.md` / `.csv`**, a comparison matrix rendered straight
   from registry records.
 - **`checksums.txt`**: one checksum per file, so any later change is detectable.

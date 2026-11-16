@@ -46,8 +46,11 @@ flowchart TD
    identifiers actually retrieved. At least **75%** must match ("grounded"), or the report is blocked. If no
    evidence was retrieved at all, it is blocked too. Detail in `04`.
 6. **Retraction screen and re-resolution.** Cited papers are checked against Crossref and PubMed for
-   retractions (one retraction blocks the report), and every PMID, NCT and DOI is looked up again at its
-   issuing registry (any that does not resolve blocks delivery).
+   retractions (one retraction blocks the report), and every cited PMID, PMCID, NCT, ISRCTN and EudraCT
+   number, DOI, PubChem CID, UniProt accession and ChEMBL id is looked up again at its issuing registry (any
+   reported UNRESOLVED blocks delivery; the EU register does not publish every trial, so a EudraCT number it
+   returns nothing for is UNCHECKED instead). [src: `ENGINE/OFFERINGS.md` → Citation-Integrity Gate;
+   `ENGINE/SYSTEM-REALITY.md` → "GAP CLOSED"]
 7. **The rest of the pipeline.** Every template runs the same six steps: `research` → `quality_check` →
    `build_dataset` → `package` → `approve` → `export`. [src: `ENGINE/docs/WORKFLOW_CATALOG.md`]
 8. **A sealed bundle.** The ZIP holds the report and the audit files (list in `04`), each with a checksum,

@@ -5,7 +5,10 @@
 | Id | Stands for | Where it points |
 |---|---|---|
 | **PMID** | PubMed ID | An article record in PubMed (NCBI) |
+| **PMCID** | PubMed Central id, e.g. `PMC7383595` | A full-text article record in PubMed Central (NCBI) |
 | **NCT** | ClinicalTrials.gov number, e.g. `NCT07388524` | A registered clinical trial |
+| **ISRCTN** | ISRCTN registry number, e.g. `ISRCTN50189673` | A registered clinical trial (the ISRCTN registry) |
+| **EudraCT number** | EU trial number, e.g. `2020-001113-21` | A trial in the EU Clinical Trials Register; read only after an `EudraCT` label or in a register URL |
 | **DOI** | Digital Object Identifier | A published work (journal article, dataset) |
 | **ChEMBL id** | ChEMBL compound or target id | EMBL-EBI's database of bioactive molecules |
 | **PubChem CID** | PubChem compound id | NCBI's chemistry database |

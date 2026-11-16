@@ -69,7 +69,7 @@ says should be filed before any paid product goes public.
 |---|---|---|---|
 | 1 | **Every citation, checked.** | Stat tiles from one real run (non-small cell lung cancer, 2026-10-08): **45 of 45** citations re-resolved VERIFIED when the report was assembled · **0** retracted papers · **1,412 of 1,412** stopped-trial records retrieved for the registry query "non-small cell lung cancer" (complete for that query term, not for every name of the disease) · **20 of 675** comparable Phase 3 programs benchmarked. Subline: the tagline. | `04` exhibit |
 | 2 | A claim you cannot trace is a risk you cannot price. | The job: diligence on someone else's science, fast. Plain framing only; **no market statistics** (they are unverified, `01`). | `01` |
-| 3 | The gate, not a warning | Three checks as a left-to-right diagram: grounded in what was retrieved (≥75% or blocked) → retraction screen (one retraction blocks) → every cited PMID, PMCID, NCT, ISRCTN and EudraCT number, DOI, PubChem CID, UniProt accession and ChEMBL id re-resolved when the report is assembled (any unresolved blocks). Footnote: re-resolution proves the record exists, not that its conclusions are right. | `04` |
+| 3 | The gate, not a warning | Three checks as a left-to-right diagram: grounded in what was retrieved (≥75% or blocked) → retraction screen (one retraction blocks) → every cited PMID, PMCID, NCT, ISRCTN and EudraCT number, DOI, PubChem CID, UniProt accession and ChEMBL id re-resolved when the report is assembled (any UNRESOLVED blocks). Footnote: re-resolution proves the record exists, not that its conclusions are right. | `04` |
 | 4 | What lands on your desk | The sealed bundle: report, citation-integrity grade, graveyard memo, search-coverage ledger, reproducibility manifest, checksums. One line each. | `04` |
 | 5 | Has anyone tried this and stopped? | The graveyard memo: real stop reasons, quoted, each linked to its NCT record. Show three entries from run #6 (e.g. NCT02710396, "Frontline pembrolizumab approved in NSCLC … new standard of care"). Note: the amendment-risk band is paused; do not show it. | `04`; run #6 memo |
 | 6 | The ladder | Rows verbatim from `02` A for this buyer: **Investor Pre-Mortem** $9,950 / $14,950 / $19,950 (+ KOL primary) · **Failed Trial Archaeology** $14,950 · **Trial Design Benchmark Pack** $4,950 · **Scoped Research Pack** $4,950. Leave out the Conference Synthesis Brief (no code yet, `02` C). | `02` |
@@ -90,7 +90,7 @@ the banner to make the deck look ready.
 |---|---|---|---|
 | 1 | Every citation, checked. Every risk, named. In days, not weeks. | Title; wordmark; one line: research reports in which every cited claim traces to a public record | `01`, `09` |
 | 2 | Proof, from one real run | The same four stat tiles as B1, labelled "flagship lane: biomedical due diligence" | `04` |
-| 3 | How a report is made | Simplified flow: question agreed → evidence retrieved first → written by Claude → checked against what was retrieved → every cited PMID, NCT and DOI re-resolved at its registry → sealed bundle | `03` |
+| 3 | How a report is made | Simplified flow: question agreed → evidence retrieved first → written by Claude → checked against what was retrieved → every cited PMID, PMCID, NCT, ISRCTN and EudraCT number, DOI, PubChem CID, UniProt accession and ChEMBL id re-resolved at its registry → sealed bundle | `03` |
 | 4 | Checked, not just written | "A claim without a verifiable identifier fails a gate rather than passing with a warning." Plus the honest zero: a search that finds nothing is reported as nothing. | `04` |
 | 5 | One engine, two lanes | Biomedical due diligence (the flagship) · business research in any field (also available). Same gate. | `01` |
 | 6 | Biomedical reports | The core ladder from `02` A: Pre-Mortem, Failed Trial Archaeology, Trial Design Benchmark Pack, Scoped Research Pack, Pharmacovigilance Pack. Leave out the two ❌ SKUs (`02` C). | `02` |
@@ -125,7 +125,7 @@ type, with a **reduced-motion version** that shows the end state. Every number o
 | 0–6 s | Left: shelf of retrieved ids. Right: a report with highlighted citations | "Did we actually read it?" |
 | 6–16 s | Each cited id flies to the shelf and matches; a ratio bar fills to **0.978** past a fixed line at **0.75** | "Grounded: 44 of 45. Below 75%, nothing ships." |
 | 16–24 s | A scanner sweeps the papers; each gets a small "not retracted" tick | "Retraction screen: 0 retracted." |
-| 24–32 s | Each id sends a ping to its registry (NCBI, ClinicalTrials.gov, Crossref) and a VERIFIED tick returns | "Every PMID, NCT and DOI looked up again at its registry." |
+| 24–32 s | Each id sends a ping to its registry (NCBI, ClinicalTrials.gov, Crossref) and a VERIFIED tick returns | "Every cited PMID, PMCID, NCT, ISRCTN and EudraCT number, DOI, PubChem CID, UniProt accession and ChEMBL id looked up again at its registry." |
 | 32–35 s | Counter lands on **45 VERIFIED · 0 UNRESOLVED · 0 UNCHECKED** | "It proves the record exists — not that its conclusions are right." |
 
 The last caption is mandatory (it is the claim's bound, `04`).
