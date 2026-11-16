@@ -10,7 +10,7 @@
 | 1 | **Zero-fabrication instruction** | Every role is told never to invent a PMID, NCT or DOI and to write `[no verifiable citation found]` instead. | — (an instruction, not a check) |
 | 2 | **Grounding gate** | Every identifier cited in the assembled report is compared with the identifiers actually retrieved during the run. A match is "grounded"; a miss is "ungrounded" and is marked `[UNVERIFIED]` inline. | Below **75%** grounded → `UNVERIFIED`; nothing retrieved at all → `INSUFFICIENT_EVIDENCE`; no citations → `NO_CITATIONS`. Only `PASS` ships. The 75% floor is read fail-closed: a missing setting means the strict value. |
 | 3 | **Retraction screen** | Cited DOIs are checked against Crossref, cited PMIDs against PubMed, and every DOI is also mapped to its PMID and checked in PubMed. | Any retracted paper → hard stop (`RETRACTED`). |
-| 4 | **Re-resolution at delivery** | Every cited PMID, NCT and DOI is looked up again at the registry that issued it (NCBI, ClinicalTrials.gov, Crossref) and stamped VERIFIED, UNRESOLVED or UNCHECKED in the reproducibility manifest. | Any UNRESOLVED id → `BLOCK`. `DELIVER` needs 100% VERIFIED; otherwise `DELIVER_WITH_FLAGS`. |
+| 4 | **Re-resolution when the report is assembled** | Every cited PMID, PMCID, NCT, ISRCTN and EudraCT number, DOI, PubChem CID, UniProt accession and ChEMBL id is looked up again at the registry that issued it (NCBI, ClinicalTrials.gov, the ISRCTN registry, the EU Clinical Trials Register, Crossref, PubChem, UniProt, ChEMBL) and stamped VERIFIED, UNRESOLVED or UNCHECKED in the reproducibility manifest; the bundle states the date. | Any UNRESOLVED id → `BLOCK`. `DELIVER` needs 100% VERIFIED; otherwise `DELIVER_WITH_FLAGS`. |
 | 5 | **Shipment licence check** | Content from sources the business holds no redistribution licence for is refused at packaging. | A banned source name or id anywhere in the bundle. |
 
 [src: `ENGINE/CLAUDE.md` → "Citation Integrity Layer" and "Instructions must not contradict the shipment gate";
@@ -61,9 +61,12 @@ the run did not retrieve, so the run itself cannot vouch for it. The two checks 
 - "Every cited paper and trial checked twice, against the evidence retrieved and at its registry, with
   retractions screened and anything unconfirmed flagged. Audit trail included."
   [src: `ENGINE/OFFERINGS.md`, elevator]
-- "Every cited identifier is grounded in real evidence actually retrieved for the report, or it is flagged
-  `[UNVERIFIED]` and never presented as fact." [src: `ENGINE/OFFERINGS.md` → Brand Commitments]
-- "Every cited PMID, NCT and DOI is re-resolved against its issuing public registry at delivery."
+- "Every cited identifier is checked against the evidence retrieved for the report, and one not found there
+  is flagged `[UNVERIFIED]` at every mention; if the evidence isn't there, the report says so rather than
+  inventing a result." [src: `ENGINE/OFFERINGS.md` → Brand Commitments]
+- "Every cited PMID, PMCID, NCT, ISRCTN and EudraCT number, DOI, PubChem CID, UniProt accession and ChEMBL id
+  is re-resolved against its issuing public registry when the report is assembled, and the bundle states the
+  date." [src: `ENGINE/OFFERINGS.md` → Citation-Integrity Gate; `ENGINE/SYSTEM-REALITY.md` → "Honest framing"]
 - "A claim without a verifiable identifier fails a gate rather than passing with a warning."
   [src: `ENGINE/01-brand-system/brand-identity-2026-07-29.md` §1]
 

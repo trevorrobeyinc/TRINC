@@ -226,10 +226,10 @@ The business lane's buyer, in the operator's words: "any buyer [who] needs any r
 
 | Tier | SKU | Description | ICP | Price |
 |---|---|---|---|---|
-| **Primary** | **Investor Pre-Mortem** | Per-asset risk dossier — trial design + comparable failures + KOL sentiment + IP runway. Every claim PMID/NCT/ChEMBL-traced. 5–10 business days, written Speed SLA. | Biotech hedge funds, biotech-specialist VC, pharma BD/licensing | **$9,950 / $14,950 / $19,950 (+ KOL primary)** |
+| **Primary** | **Investor Pre-Mortem** | Per-asset risk dossier — trial design + comparable failures + KOL sentiment + IP runway. Every cited PMID, NCT and DOI checked against the evidence retrieved for the report; cited papers screened for retraction, with any the screen could not reach named. 5–10 business days, written Speed SLA. | Biotech hedge funds, biotech-specialist VC, pharma BD/licensing | **$9,950 / $14,950 / $19,950 (+ KOL primary)** |
 | **Flanking primary** | **Failed Trial Archaeology** | Structured post-mortem of Phase 2/3 terminations in a single mechanism. NCT-indexed failure pattern matrix. | Pharma R&D CI, biotech VC diligence | **$14,950** |
 | Tactical | Conference Synthesis Brief | 500+ ASCO/ESMO/AACR abstracts synthesized in 24–48 hours. | Pharma R&D, investors, BD | **$4,950 / conference** |
-| Tactical | Trial Design Benchmark Pack | Comparative Phase 3 structure analysis vs **up to 20** comparable programs — allocation, masking, intervention model, arms, enrollment, primary endpoints, sponsor class. Cohort is reported as **N of M eligible** under a stated selection rule; where an indication has fewer than 20 eligible programs the pack covers the **entire** eligible population and says so. | Biotech R&D, pharma CI | **$4,950** |
+| Tactical | Trial Design Benchmark Pack | Comparative Phase 3 structure analysis vs **up to 20** comparable programs — allocation, masking, intervention model, arms, enrollment, primary endpoints, sponsor class. Cohort is reported as **N of M eligible** under a stated selection rule; where an indication has fewer than 20 eligible programs the pack covers the **entire** eligible population and says so. Turnaround: 5 business days after the Agreed Question is confirmed. | Biotech R&D, pharma CI | **$4,950** |
 | Tactical | **Scoped Research Pack** | One agreed **biomedical** research question, scoped in writing before the run and answered through the **full citation-integrity gate** — same guarantee as every other gated SKU. Bounded to a **single question at fixed depth**; the bound is what makes a flat price honest. If the evidence does not exist, the bundle ships the **search-coverage ledger documenting exactly that**, never a padded report. | Medical-startup founders (SBIR/STTR Phase I), investors with a question outside the standard SKUs | **$4,950** |
 | Tactical | Cross-Silo Connector Report | Hidden mechanistic links across ChEMBL/PubMed/CT.gov as repurposing opportunities. | Pharma R&D, biotech partnerships | **$9,950 – $24,950** |
 | Tactical | Plain-Language Patient Brief | Regulatory-compliant PLS at 8th-grade health-literacy level (EU CTR 536/2014). | Patient Advocacy Groups, trial sponsors | **$2,500** |
@@ -281,8 +281,9 @@ A price on the ladder is not proof the engine can produce the SKU. This table is
 ## D. The commitments, in short
 
 - **Zero-Fabrication Guarantee.** Findings are never fabricated to fit what the research is looking for.
-  Every cited identifier is grounded in evidence actually retrieved for the report, or it is flagged
-  `[UNVERIFIED]` and never presented as fact; if the evidence isn't there, the report says so.
+  Every cited identifier is checked against the evidence retrieved for the report, and one not found there
+  is flagged `[UNVERIFIED]` at every mention; if the evidence isn't there, the report says so rather than
+  inventing a result.
 - **Citation-Audit SLA**, refund-backed, on every deliverable.
 - **Speed SLA:** 5–10 business days for Investor Pre-Mortem (written guarantee).
 - **Scope:** both commitments cover what the engine enforces on an engine-generated deliverable, and only
@@ -432,7 +433,7 @@ flowchart LR
 | 1 | **Zero-fabrication instruction** | Every role is told never to invent a PMID, NCT or DOI and to write `[no verifiable citation found]` instead. | — (an instruction, not a check) |
 | 2 | **Grounding gate** | Every identifier cited in the assembled report is compared with the identifiers actually retrieved during the run. A match is "grounded"; a miss is "ungrounded" and is marked `[UNVERIFIED]` inline. | Below **75%** grounded → `UNVERIFIED`; nothing retrieved at all → `INSUFFICIENT_EVIDENCE`; no citations → `NO_CITATIONS`. Only `PASS` ships. The 75% floor is read fail-closed: a missing setting means the strict value. |
 | 3 | **Retraction screen** | Cited DOIs are checked against Crossref, cited PMIDs against PubMed, and every DOI is also mapped to its PMID and checked in PubMed. | Any retracted paper → hard stop (`RETRACTED`). |
-| 4 | **Re-resolution at delivery** | Every cited PMID, NCT and DOI is looked up again at the registry that issued it (NCBI, ClinicalTrials.gov, Crossref) and stamped VERIFIED, UNRESOLVED or UNCHECKED in the reproducibility manifest. | Any UNRESOLVED id → `BLOCK`. `DELIVER` needs 100% VERIFIED; otherwise `DELIVER_WITH_FLAGS`. |
+| 4 | **Re-resolution when the report is assembled** | Every cited PMID, PMCID, NCT, ISRCTN and EudraCT number, DOI, PubChem CID, UniProt accession and ChEMBL id is looked up again at the registry that issued it (NCBI, ClinicalTrials.gov, the ISRCTN registry, the EU Clinical Trials Register, Crossref, PubChem, UniProt, ChEMBL) and stamped VERIFIED, UNRESOLVED or UNCHECKED in the reproducibility manifest; the bundle states the date. | Any UNRESOLVED id → `BLOCK`. `DELIVER` needs 100% VERIFIED; otherwise `DELIVER_WITH_FLAGS`. |
 | 5 | **Shipment licence check** | Content from sources the business holds no redistribution licence for is refused at packaging. | A banned source name or id anywhere in the bundle. |
 
 [src: `ENGINE/CLAUDE.md` → "Citation Integrity Layer" and "Instructions must not contradict the shipment gate";
@@ -483,9 +484,12 @@ the run did not retrieve, so the run itself cannot vouch for it. The two checks 
 - "Every cited paper and trial checked twice, against the evidence retrieved and at its registry, with
   retractions screened and anything unconfirmed flagged. Audit trail included."
   [src: `ENGINE/OFFERINGS.md`, elevator]
-- "Every cited identifier is grounded in real evidence actually retrieved for the report, or it is flagged
-  `[UNVERIFIED]` and never presented as fact." [src: `ENGINE/OFFERINGS.md` → Brand Commitments]
-- "Every cited PMID, NCT and DOI is re-resolved against its issuing public registry at delivery."
+- "Every cited identifier is checked against the evidence retrieved for the report, and one not found there
+  is flagged `[UNVERIFIED]` at every mention; if the evidence isn't there, the report says so rather than
+  inventing a result." [src: `ENGINE/OFFERINGS.md` → Brand Commitments]
+- "Every cited PMID, PMCID, NCT, ISRCTN and EudraCT number, DOI, PubChem CID, UniProt accession and ChEMBL id
+  is re-resolved against its issuing public registry when the report is assembled, and the bundle states the
+  date." [src: `ENGINE/OFFERINGS.md` → Citation-Integrity Gate; `ENGINE/SYSTEM-REALITY.md` → "Honest framing"]
 - "A claim without a verifiable identifier fails a gate rather than passing with a warning."
   [src: `ENGINE/01-brand-system/brand-identity-2026-07-29.md` §1]
 
@@ -801,7 +805,7 @@ carrying it is blocked. That database is deliberately not named in this pack; ne
 | **Grounded ratio** | Grounded ÷ cited. The floor is 0.75. |
 | **PASS / UNVERIFIED / INSUFFICIENT_EVIDENCE / NO_CITATIONS** | The gate's verdicts. Only PASS ships. |
 | **Retraction screen** | Checking every cited paper against Crossref and PubMed for retraction |
-| **Re-resolution** | Looking each PMID, NCT and DOI up again at its issuing registry at delivery |
+| **Re-resolution** | Looking each cited PMID, PMCID, NCT, ISRCTN and EudraCT number, DOI, PubChem CID, UniProt accession and ChEMBL id up again at its issuing registry when the report is assembled (the bundle states the date) |
 | **VERIFIED / UNRESOLVED / UNCHECKED** | Re-resolution results. Any UNRESOLVED blocks delivery. |
 | **DELIVER / DELIVER_WITH_FLAGS / BLOCK** | The delivery decision. DELIVER needs 100% VERIFIED. |
 | **Honest zero** | A search that ran and truly found nothing, recorded as such rather than hidden |
@@ -1043,9 +1047,9 @@ says should be filed before any paid product goes public.
 
 | # | Headline | Content | From |
 |---|---|---|---|
-| 1 | **Every citation, checked.** | Stat tiles from one real run (non-small cell lung cancer, 2026-10-08): **45 of 45** citations re-resolved VERIFIED at delivery · **0** retracted papers · **1,412 of 1,412** stopped-trial records retrieved for the registry query "non-small cell lung cancer" (complete for that query term, not for every name of the disease) · **20 of 675** comparable Phase 3 programs benchmarked. Subline: the tagline. | `04` exhibit |
+| 1 | **Every citation, checked.** | Stat tiles from one real run (non-small cell lung cancer, 2026-10-08): **45 of 45** citations re-resolved VERIFIED when the report was assembled · **0** retracted papers · **1,412 of 1,412** stopped-trial records retrieved for the registry query "non-small cell lung cancer" (complete for that query term, not for every name of the disease) · **20 of 675** comparable Phase 3 programs benchmarked. Subline: the tagline. | `04` exhibit |
 | 2 | A claim you cannot trace is a risk you cannot price. | The job: diligence on someone else's science, fast. Plain framing only; **no market statistics** (they are unverified, `01`). | `01` |
-| 3 | The gate, not a warning | Three checks as a left-to-right diagram: grounded in what was retrieved (≥75% or blocked) → retraction screen (one retraction blocks) → every PMID/NCT/DOI re-resolved at delivery (any unresolved blocks). Footnote: re-resolution proves the record exists, not that its conclusions are right. | `04` |
+| 3 | The gate, not a warning | Three checks as a left-to-right diagram: grounded in what was retrieved (≥75% or blocked) → retraction screen (one retraction blocks) → every cited PMID, PMCID, NCT, ISRCTN and EudraCT number, DOI, PubChem CID, UniProt accession and ChEMBL id re-resolved when the report is assembled (any unresolved blocks). Footnote: re-resolution proves the record exists, not that its conclusions are right. | `04` |
 | 4 | What lands on your desk | The sealed bundle: report, citation-integrity grade, graveyard memo, search-coverage ledger, reproducibility manifest, checksums. One line each. | `04` |
 | 5 | Has anyone tried this and stopped? | The graveyard memo: real stop reasons, quoted, each linked to its NCT record. Show three entries from run #6 (e.g. NCT02710396, "Frontline pembrolizumab approved in NSCLC … new standard of care"). Note: the amendment-risk band is paused; do not show it. | `04`; run #6 memo |
 | 6 | The ladder | Rows verbatim from `02` A for this buyer: **Investor Pre-Mortem** $9,950 / $14,950 / $19,950 (+ KOL primary) · **Failed Trial Archaeology** $14,950 · **Trial Design Benchmark Pack** $4,950 · **Scoped Research Pack** $4,950. Leave out the Conference Synthesis Brief (no code yet, `02` C). | `02` |

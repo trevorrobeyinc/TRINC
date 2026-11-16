@@ -31,7 +31,7 @@ carrying it is blocked. That database is deliberately not named in this pack; ne
 | **Grounded ratio** | Grounded ÷ cited. The floor is 0.75. |
 | **PASS / UNVERIFIED / INSUFFICIENT_EVIDENCE / NO_CITATIONS** | The gate's verdicts. Only PASS ships. |
 | **Retraction screen** | Checking every cited paper against Crossref and PubMed for retraction |
-| **Re-resolution** | Looking each PMID, NCT and DOI up again at its issuing registry at delivery |
+| **Re-resolution** | Looking each cited PMID, PMCID, NCT, ISRCTN and EudraCT number, DOI, PubChem CID, UniProt accession and ChEMBL id up again at its issuing registry when the report is assembled (the bundle states the date) |
 | **VERIFIED / UNRESOLVED / UNCHECKED** | Re-resolution results. Any UNRESOLVED blocks delivery. |
 | **DELIVER / DELIVER_WITH_FLAGS / BLOCK** | The delivery decision. DELIVER needs 100% VERIFIED. |
 | **Honest zero** | A search that ran and truly found nothing, recorded as such rather than hidden |

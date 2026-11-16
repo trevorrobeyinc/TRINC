@@ -9,10 +9,10 @@
 
 | Tier | SKU | Description | ICP | Price |
 |---|---|---|---|---|
-| **Primary** | **Investor Pre-Mortem** | Per-asset risk dossier — trial design + comparable failures + KOL sentiment + IP runway. Every claim PMID/NCT/ChEMBL-traced. 5–10 business days, written Speed SLA. | Biotech hedge funds, biotech-specialist VC, pharma BD/licensing | **$9,950 / $14,950 / $19,950 (+ KOL primary)** |
+| **Primary** | **Investor Pre-Mortem** | Per-asset risk dossier — trial design + comparable failures + KOL sentiment + IP runway. Every cited PMID, NCT and DOI checked against the evidence retrieved for the report; cited papers screened for retraction, with any the screen could not reach named. 5–10 business days, written Speed SLA. | Biotech hedge funds, biotech-specialist VC, pharma BD/licensing | **$9,950 / $14,950 / $19,950 (+ KOL primary)** |
 | **Flanking primary** | **Failed Trial Archaeology** | Structured post-mortem of Phase 2/3 terminations in a single mechanism. NCT-indexed failure pattern matrix. | Pharma R&D CI, biotech VC diligence | **$14,950** |
 | Tactical | Conference Synthesis Brief | 500+ ASCO/ESMO/AACR abstracts synthesized in 24–48 hours. | Pharma R&D, investors, BD | **$4,950 / conference** |
-| Tactical | Trial Design Benchmark Pack | Comparative Phase 3 structure analysis vs **up to 20** comparable programs — allocation, masking, intervention model, arms, enrollment, primary endpoints, sponsor class. Cohort is reported as **N of M eligible** under a stated selection rule; where an indication has fewer than 20 eligible programs the pack covers the **entire** eligible population and says so. | Biotech R&D, pharma CI | **$4,950** |
+| Tactical | Trial Design Benchmark Pack | Comparative Phase 3 structure analysis vs **up to 20** comparable programs — allocation, masking, intervention model, arms, enrollment, primary endpoints, sponsor class. Cohort is reported as **N of M eligible** under a stated selection rule; where an indication has fewer than 20 eligible programs the pack covers the **entire** eligible population and says so. Turnaround: 5 business days after the Agreed Question is confirmed. | Biotech R&D, pharma CI | **$4,950** |
 | Tactical | **Scoped Research Pack** | One agreed **biomedical** research question, scoped in writing before the run and answered through the **full citation-integrity gate** — same guarantee as every other gated SKU. Bounded to a **single question at fixed depth**; the bound is what makes a flat price honest. If the evidence does not exist, the bundle ships the **search-coverage ledger documenting exactly that**, never a padded report. | Medical-startup founders (SBIR/STTR Phase I), investors with a question outside the standard SKUs | **$4,950** |
 | Tactical | Cross-Silo Connector Report | Hidden mechanistic links across ChEMBL/PubMed/CT.gov as repurposing opportunities. | Pharma R&D, biotech partnerships | **$9,950 – $24,950** |
 | Tactical | Plain-Language Patient Brief | Regulatory-compliant PLS at 8th-grade health-literacy level (EU CTR 536/2014). | Patient Advocacy Groups, trial sponsors | **$2,500** |
@@ -64,8 +64,9 @@ A price on the ladder is not proof the engine can produce the SKU. This table is
 ## D. The commitments, in short
 
 - **Zero-Fabrication Guarantee.** Findings are never fabricated to fit what the research is looking for.
-  Every cited identifier is grounded in evidence actually retrieved for the report, or it is flagged
-  `[UNVERIFIED]` and never presented as fact; if the evidence isn't there, the report says so.
+  Every cited identifier is checked against the evidence retrieved for the report, and one not found there
+  is flagged `[UNVERIFIED]` at every mention; if the evidence isn't there, the report says so rather than
+  inventing a result.
 - **Citation-Audit SLA**, refund-backed, on every deliverable.
 - **Speed SLA:** 5–10 business days for Investor Pre-Mortem (written guarantee).
 - **Scope:** both commitments cover what the engine enforces on an engine-generated deliverable, and only
