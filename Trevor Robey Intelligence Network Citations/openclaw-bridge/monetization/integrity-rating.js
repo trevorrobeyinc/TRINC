@@ -17,6 +17,123 @@ const EDITORIAL_LABELS = Object.freeze({
   pubmed_retraction_link: "PubMed links a retraction notice to it, but its record is not marked retracted (a partial retraction, or an update not yet made)"
 });
 const SOURCE_LABELS = Object.freeze({ "retraction-watch": "Crossref", pubmed: "PubMed" });
+// T2-6: how the manifest names the deliverables an identifier appears in.
+const { sectionLabel, sectionOrder } = require("../core/reproducibility-manifest.js");
+
+// T2-4 (2026-11-16): the grade's rubric, and the rest of the record printed under it. The grade
+// measures grounding alone (the share of cited identifiers found in the evidence this report
+// retrieved). The registry check, the delivery decision and the attribution check are separate
+// results, so the ledger prints them beside the grade and a reader never takes an A for the whole
+// record: all seven ledgers sealed before Tier 1 read A, including two whose retraction screen was
+// incomplete and three with UNCHECKED identifiers.
+const FLOOR_DEFAULT = 0.75;
+const GRADE_A_MIN = 0.9;
+const GRADE_C_MIN = 0.5;
+
+/** The citation gate's floor as the record states it. A floor recorded below 0.75 (before T1-6) never loosens a grade. */
+function recordedFloor(cv) {
+  const f = Number(cv && cv.min_grounded_ratio);
+  return Number.isFinite(f) && f >= FLOOR_DEFAULT && f <= 1 ? f : FLOOR_DEFAULT;
+}
+
+const pctText = (x) => `${Math.round(x * 100)}%`;
+
+function gradeRubric(floor) {
+  const aMin = Math.max(GRADE_A_MIN, floor);
+  const ab = floor < GRADE_A_MIN
+    ? `**A**: ${pctText(GRADE_A_MIN)} or more of the cited identifiers grounded in the evidence retrieved for this report. **B**: from the citation gate's floor (${pctText(floor)}) to below ${pctText(GRADE_A_MIN)}.`
+    : `**A**: the citation gate's floor (${pctText(aMin)}) or more of the cited identifiers grounded in the evidence retrieved for this report. (B does not apply: the floor is at or above ${pctText(GRADE_A_MIN)}.)`;
+  return `Grade rubric: ${ab} **C** (${pctText(GRADE_C_MIN)} to below the floor) and **D** (below ${pctText(GRADE_C_MIN)}) are below the floor, and the gate does not let such a report ship. **F**: a cited source is retracted, which blocks the report. The grade measures grounding only; the registry check, the delivery decision and the attribution check are separate results, in the table below.`;
+}
+
+// Plain words for the manifest's reason codes. A code not listed is printed with its underscores as spaces.
+const REASON_LABELS = Object.freeze({
+  rate_limited: "the registry throttled the request",
+  timeout: "the registry timed out",
+  network_error: "the registry was unreachable",
+  http_5xx: "registry error",
+  unexpected_status: "unexpected registry answer",
+  unparseable: "unreadable registry answer",
+  reresolution_error: "the re-resolution pass failed",
+  no_resolver: "no resolver for this identifier type",
+  no_api_key: "no API key for this registry",
+  registry_no_definitive_answer: "the register gave no definitive answer"
+});
+const DECISION_FLAG_LABELS = Object.freeze({
+  unchecked_over_threshold: "some identifiers are UNCHECKED",
+  attribution_mismatch: "an author or year written beside a cited work does not match its registry record",
+  retraction_screen_incomplete: "the retraction screen could not screen every cited DOI, PMID and PMCID",
+  unresolved_present: "an identifier did not resolve at its registry",
+  retracted_doi: "a cited DOI is retracted",
+  retracted_pmid: "a cited PMID is retracted",
+  retracted_pmcid: "a cited PMCID is retracted",
+  gate_fail: "the citation gate failed"
+});
+const reasonText = (code) => REASON_LABELS[code] || String(code).replace(/_/g, " ");
+
+/** "29 VERIFIED · 0 UNRESOLVED · 2 UNCHECKED (the registry throttled the request: 2)". */
+function registryCounts(counts, reasons) {
+  const k = counts || {};
+  const why = Object.entries(reasons || {}).sort(([a], [b]) => a.localeCompare(b)).map(([r, n]) => `${reasonText(r)}: ${n}`);
+  return `${k.verified || 0} VERIFIED · ${k.unresolved || 0} UNRESOLVED · ${k.unchecked || 0} UNCHECKED${why.length > 0 ? ` (${why.join("; ")})` : ""}`;
+}
+
+/**
+ * The table rows for the registry check, the delivery decision and the attribution check, from the
+ * reproducibility manifest the record carries. None for a record without one (a bundle that never
+ * went through the research path, or a record from before the manifest existed).
+ */
+function recordRows(cv) {
+  const manifest = cv && cv.reproducibility_manifest && typeof cv.reproducibility_manifest === "object" ? cv.reproducibility_manifest : null;
+  const s = (manifest && manifest.summary) || (cv && cv.reproducibility) || null;
+  if (!s || typeof s !== "object" || !s.counts) return [];
+  const rows = [];
+  const bySection = s.by_section && typeof s.by_section === "object" ? s.by_section : null;
+  const citations = manifest && Array.isArray(manifest.citations) ? manifest.citations : [];
+  // Reasons for each identifier the registry did not confirm, per deliverable (an untagged row is the report's).
+  const reasonsFor = (section) => {
+    const out = {};
+    for (const c of citations) {
+      if (!c || c.status === "VERIFIED") continue;
+      const secs = Array.isArray(c.sections) ? c.sections : ["report"];
+      if (!secs.includes(section)) continue;
+      const r = (c.evidence && c.evidence.reason) || "unknown";
+      out[r] = (out[r] || 0) + 1;
+    }
+    return out;
+  };
+  if (s.reresolution_completed === false) {
+    rows.push("| Re-resolved at the issuing registry | not completed this run: no identifier was looked up, and the report is not cleared for delivery |");
+  } else {
+    const reportCounts = bySection && bySection.report ? bySection.report : s.counts;
+    rows.push(`| Re-resolved at the issuing registry${bySection ? " (this report's identifiers)" : ""} | ${registryCounts(reportCounts, reasonsFor("report"))} |`);
+    if (bySection) {
+      const others = sectionOrder(bySection).filter((sec) => sec !== "report")
+        .map((sec) => `${sectionLabel(sec)}: ${bySection[sec].total || 0} (${registryCounts(bySection[sec], reasonsFor(sec))})`);
+      if (others.length > 0) rows.push(`| Re-resolved at the issuing registry (NCT numbers the other deliverables list) | ${others.join("; ")} |`);
+    }
+  }
+  const decision = typeof s.delivery_decision === "string" && s.delivery_decision ? s.delivery_decision : null;
+  if (decision) {
+    const codes = decision === "BLOCK"
+      ? (Array.isArray(s.block_reasons) ? s.block_reasons : [])
+      : (Array.isArray(s.flag_reasons) ? s.flag_reasons : []);
+    const why = codes.map((c) => DECISION_FLAG_LABELS[c] || reasonText(c));
+    rows.push(`| Delivery decision | ${decision}${why.length > 0 ? `: ${why.join("; ")}` : ""} |`);
+  }
+  const ac = s.attribution_check && typeof s.attribution_check === "object" ? s.attribution_check : null;
+  if (ac) {
+    if (ac.checked !== true) {
+      rows.push(`| Attribution check | not completed${ac.error ? ` (${ac.error})` : ""}: no attribution is asserted either way |`);
+    } else {
+      const k = ac.counts || {};
+      const works = Number.isFinite(k.mismatched_works) && k.mismatched_works > 0 && k.mismatched_works !== k.mismatched
+        ? ` (${k.mismatched_works} cited work${k.mismatched_works === 1 ? "" : "s"})` : "";
+      rows.push(`| Attribution check | ${k.checked || 0} checked · ${k.matched || 0} match · ${k.mismatched || 0} mismatch${works} · ${k.not_checked || 0} not checkable |`);
+    }
+  }
+  return rows;
+}
 
 /** "mission-abc:subtask:1" → "subtask 1"; plain ids pass through. */
 function shortSection(id) {
@@ -42,6 +159,8 @@ function buildIntegrityReport(citationVerification = {}, sectionCoverage = []) {
   const ungroundedSample = Array.isArray(cv.ungrounded_ids) ? cv.ungrounded_ids
     : Array.isArray(cv.ungrounded_sample) ? cv.ungrounded_sample : [];
 
+  // T2-4: the A and B bounds read the floor the record states (0.75 unless configured higher).
+  const floor = recordedFloor(cv);
   let grade;
   let verdict;
   if (retracted.length > 0) {
@@ -50,13 +169,13 @@ function buildIntegrityReport(citationVerification = {}, sectionCoverage = []) {
   } else if (cited === 0) {
     grade = "N/A";
     verdict = "no extractable citations to verify";
-  } else if (ratio >= 0.9) {
+  } else if (ratio >= Math.max(GRADE_A_MIN, floor)) {
     grade = "A";
     verdict = "High integrity — nearly all citations grounded in fetched evidence";
-  } else if (ratio >= 0.75) {
+  } else if (ratio >= floor) {
     grade = "B";
     verdict = "Strong integrity — most citations grounded; review the unverified";
-  } else if (ratio >= 0.5) {
+  } else if (ratio >= GRADE_C_MIN) {
     grade = "C";
     verdict = "Moderate integrity — a meaningful share unverified; review before relying";
   } else {
@@ -94,6 +213,9 @@ function buildIntegrityReport(citationVerification = {}, sectionCoverage = []) {
     "",
     `**Integrity grade: ${grade}** — ${verdict}`,
     "",
+    // T2-4: what the grade measures, with the floor this report's gate applied.
+    gradeRubric(floor),
+    "",
     // The live screen is Crossref for DOIs (a work's own retraction relation, or an `updated-by`
     // retraction entry, which is where Crossref serves the Retraction Watch data, read since T1-7)
     // plus PubMed pubtype for PMIDs, with a DOI→PMID escalation. The Retraction Watch database itself
@@ -120,6 +242,8 @@ function buildIntegrityReport(citationVerification = {}, sectionCoverage = []) {
   } else if (cv.grounding_match === "id_only") {
     lines.push("| Matched on | identifier number only (id_only): an evidence record from this run carried no identifier types |");
   }
+  // T2-4: the registry check, the delivery decision and the attribution check, when the record carries a manifest.
+  lines.push(...recordRows(cv));
   if (retracted.length > 0) {
     lines.push("", "## ⛔ Retracted sources (report blocked from release)", "", ...retracted.map((d) => `- ${d}`));
   }
