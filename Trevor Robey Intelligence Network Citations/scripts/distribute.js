@@ -5,7 +5,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { parseArgs } = require("node:util");
 
-const { manifestProblems, sealProblems } = require("./_delivery-checks.js");
+const { contentProblems, manifestProblems, sealProblems } = require("./_delivery-checks.js");
 
 const ROOT_DIR = path.resolve(__dirname, "..");
 
@@ -13,7 +13,9 @@ const ROOT_DIR = path.resolve(__dirname, "..");
 // sealed release, and only when that release passed the citation gate: it must hold the integrity
 // ledger and a complete reproducibility manifest (shippable decision, nothing UNRESOLVED, re-resolution
 // completed — T1-8), and every file read must match the release seal (the seal and manifest checks of
-// scripts/_delivery-checks.js; the buyer ZIP's ChEMBL and retired-wording checks are not run here).
+// scripts/_delivery-checks.js). T2-15 (2026-11-16): no staged file may carry a ChEMBL id either, for
+// every target (operator default D2: Kaggle and Hugging Face are redistribution too, and the
+// share-alike question does not depend on price); only the buyer ZIP's retired-wording check is not run.
 // Not from the release: the workflow, template and offer ids, the quality score from workflow.json,
 // and nothing else of it (Tier 1 review: it carries local paths, run inputs and every step's result).
 // Before this, the staged report was the longest .md in the mission folder or in ANY research-output
@@ -71,7 +73,12 @@ function findWorkflowFiles(workflowId, { rootDir = ROOT_DIR } = {}) {
     throw new DistributionRefusedError(workflowId, [`no sealed release at ${releaseDir}`]);
   }
   const seal = sealProblems(releaseDir, RELEASE_FILES);
-  const problems = [...seal.problems, ...manifestProblems(deliverablesDir, { requireManifest: true }).problems];
+  const problems = [
+    ...seal.problems,
+    ...manifestProblems(deliverablesDir, { requireManifest: true }).problems,
+    // T2-15: the files present (a missing one is already a seal problem).
+    ...contentProblems(deliverablesDir, seal.present, { retiredWording: false })
+  ];
   if (problems.length > 0) throw new DistributionRefusedError(workflowId, problems);
 
   const report = fs.readFileSync(path.join(deliverablesDir, "report.md"), "utf8");

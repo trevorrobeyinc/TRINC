@@ -9,7 +9,8 @@
 //                          release approval);
 //   * the workflow's own export step (workflow-engine.js executeExportStep) — the same
 //                          researchExportProblems (T2-14, 2026-11-16; before this it checked only the approval);
-//   * distribute.js      — marketplace staging (the seal and the manifest checks, T1-2).
+//   * distribute.js      — marketplace staging (the seal and the manifest checks, T1-2, and the ChEMBL
+//                          check, T2-15, 2026-11-16).
 // Each check returns a list of problems, worded for the operator; an empty list means it may ship.
 
 const crypto = require("node:crypto");

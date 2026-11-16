@@ -10,7 +10,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 
-const { FULL_PIPELINE, MISSION_STEP, makeEngine, workflowDef } = require("../helpers/workflow-bundle-harness.js");
+const { FULL_PIPELINE, GROUNDED_NCT, MISSION_STEP, makeEngine, workflowDef } = require("../helpers/workflow-bundle-harness.js");
 const { writeTaskText } = require("../helpers/phase20-fixtures.js");
 const { DistributionRefusedError, findWorkflowFiles, runDistribution } = require("../../scripts/distribute.js");
 
@@ -20,8 +20,8 @@ const quiet = (fn) => {
   try { return fn(); } finally { console.log = log; }
 };
 
-async function sealedWorkflow(researchExtras = {}) {
-  const { engine, rootDir } = await makeEngine({}, { researchExtras });
+async function sealedWorkflow(researchExtras = {}, mission = undefined) {
+  const { engine, rootDir } = await makeEngine({}, { researchExtras, mission });
   const result = await engine.executeWorkflow(workflowDef(FULL_PIPELINE));
   assert.equal(result.ok, true, JSON.stringify(result.error));
   const releaseDir = path.join(rootDir, "workspace", "releases", result.artifacts.offer_id);
@@ -82,5 +82,20 @@ describe("distribute.js stages only from a sealed, gate-passed release (T1-2)", 
     const crashing = { RESOLVER_TABLE_VERSION: "test", resolveAll: async () => { throw new Error("resolver bug"); } };
     const { rootDir, workflowId } = await sealedWorkflow({ citationReresolver: crashing });
     refusedWith(() => findWorkflowFiles(workflowId, { rootDir }), /re-resolution did not complete; re-run the order/);
+  });
+
+  // T2-15 (2026-11-16): a release that cites a ChEMBL id passes the seal and manifest checks (the gate
+  // grounded it and the registry verified it), but marketplace files are redistribution, so it is
+  // refused like the buyer ZIP and the export refuse it, for every target (operator default D2).
+  it("a sealed release whose files carry a ChEMBL id is refused for every target, and nothing is staged", async () => {
+    const mission = {
+      text: `Enterprise buyers prioritize integration depth, as seen in trial ${GROUNDED_NCT} and compound CHEMBL25.`,
+      ids: [GROUNDED_NCT, "CHEMBL25"]
+    };
+    const { rootDir, workflowId } = await sealedWorkflow({}, mission);
+    for (const target of ["kaggle", "huggingface", "datarade"]) {
+      refusedWith(() => quiet(() => runDistribution({ workflowId, targetList: [target], rootDir })), /ChEMBL identifier in (report\.md|tables\.csv)/);
+    }
+    assert.equal(fs.existsSync(path.join(rootDir, "workspace", "distribution")), false, "nothing staged");
   });
 });
