@@ -15,8 +15,12 @@ const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 
 const {
+  CUSTOMER_RUN_EXCLUDED_FIELDS,
   CUSTOMER_RUN_EXCLUDED_TOOLS,
+  CUSTOMER_RUN_PHRASES,
   CUSTOMER_RUN_PUBLISH_BLOCK,
+  customerRunText,
+  excludedFieldsFor,
   excludedToolsFor,
   customerRunSkip
 } = require("../../openclaw-bridge/core/customer-run.js");
@@ -128,6 +132,69 @@ describe("customer run", () => {
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
+  });
+
+  // T2-7 (2026-11-16): every delivery path refuses a ChEMBL id, and Open Targets records carry one, so a
+  // customer run never renders it into a prompt. The record keeps it; only the prompt text leaves it out.
+  it("T2-7: leaves exactly the ChEMBL id field out of a customer run's prompt, and nothing out of an ordinary run's", () => {
+    assert.deepEqual(Object.keys(excludedFieldsFor({ customerRun: true })), ["chemblId"]);
+    assert.deepEqual(excludedFieldsFor({}), {});
+    assert.deepEqual(excludedFieldsFor({ customerRun: "yes" }), {}, "only a real true switches it on");
+    assert.equal(excludedFieldsFor({ customerRun: true }), CUSTOMER_RUN_EXCLUDED_FIELDS);
+  });
+
+  it("T2-7: a customer-run render of an Open Targets record omits the ChEMBL id and keeps its PMID, raw-JSON form included", async () => {
+    const rootDir = tmp("customer-run-fields-");
+    try {
+      fs.mkdirSync(path.join(rootDir, "config"));
+      fs.writeFileSync(path.join(rootDir, "config", "tool-prefetch-map.json"), JSON.stringify({
+        role_mappings: {
+          fixture_role: [{ action: "executeTool", tool_name: "opentargets_disease_intel", arguments: { indication: "{{indication}}" } }]
+        }
+      }));
+      const render = async (excludedFields) => {
+        const prefetch = createToolPrefetch({
+          toolUniverseMcp: { execute: async () => [] },
+          logger: quiet,
+          rootDir,
+          excludedFields,
+          localFetchers: {
+            opentargets_disease_intel: async () => [
+              { title: "Semaglutide", chemblId: "CHEMBL2108724", pmid: "36216945" },
+              // No printable field but the id: the renderer falls back to the record's raw JSON.
+              { chemblId: "CHEMBL9", mechanism: "GLP-1 receptor agonist" }
+            ]
+          }
+        });
+        const docs = await prefetch.prefetchForRole("fixture_role", { indication: "fixture disease" });
+        return docs.map((d) => d.content).join("\n");
+      };
+      const ordinary = await render(excludedFieldsFor({}));
+      assert.match(ordinary, /ChEMBL: CHEMBL2108724/, "control: an ordinary run still sees the id");
+      const customer = await render(excludedFieldsFor({ customerRun: true }));
+      assert.doesNotMatch(customer, /CHEMBL2108724|CHEMBL9/);
+      assert.match(customer, /PMID: 36216945/);
+      assert.match(customer, /GLP-1 receptor agonist/, "the raw-JSON record keeps every other field");
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  // The base texts stay the single source; a customer run swaps exact phrases (core/customer-run.js).
+  // A phrase that no longer matches its source would silently stop being swapped, so pin each one.
+  it("T2-7: every swapped phrase still matches the instruction text it replaces", () => {
+    const rolePrompts = JSON.parse(fs.readFileSync(path.join(ENGINE_ROOT, "config", "role-prompts.json"), "utf8")).prompts;
+    const sources = [
+      ...Object.values(rolePrompts).map((p) => String((p && p.system_prefix) || "")),
+      ...["scout", "analyst", "synthesizer"].map((role) => fs.readFileSync(path.join(ENGINE_ROOT, "config", "agents", role, "SOUL.md"), "utf8")),
+      fs.readFileSync(path.join(ENGINE_ROOT, "openclaw-bridge", "core", "agent-engine.js"), "utf8")
+    ].join("\n");
+    for (const [from, to] of CUSTOMER_RUN_PHRASES) {
+      assert.ok(sources.includes(from), `no instruction text still says: ${from}`);
+      assert.doesNotMatch(to, /chembl|ENSG ID|RxNorm/i, `a replacement names a type outside the allowlist: ${to}`);
+    }
+    assert.equal(customerRunText("Nothing to swap here."), "Nothing to swap here.");
+    assert.equal(customerRunText(null), "");
   });
 
   it("leaves the Recent sessions digest out of the identity but keeps the soul and AGENTS files", () => {

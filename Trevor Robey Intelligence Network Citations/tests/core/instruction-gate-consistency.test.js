@@ -86,3 +86,56 @@ describe("the shipment gate itself stays strict", () => {
     assert.doesNotThrow(() => assertNoBannedContent("Aspirin: PubChem CID 2244, ChEMBL CHEMBL25, PMID 12345678, NCT01234567."));
   });
 });
+
+// T2-7 (2026-11-16): a paying client's run is instructed only with identifier types a paid deliverable may
+// carry and the gate checks (openclaw-bridge/core/customer-run.js). No delivery path ships a ChEMBL id, and
+// the extractor never reads an ENSG id or an RxNorm CUI, so no biomedical role's assembled customer-run
+// instructions may ask for one; the run of 2026-11-16 cited two ChEMBL ids and could not be delivered.
+// An ordinary run keeps today's prompt (operator default D4), which the last test pins.
+describe("a customer run's assembled instructions ask only for allowlisted identifier types (T2-7)", () => {
+  const { buildPrompt } = require("../../openclaw-bridge/core/agent-engine.js");
+  const { createAgentContextLoader } = require("../../openclaw-bridge/core/agent-context-loader.js");
+  const rolePrompts = JSON.parse(fs.readFileSync(path.join(ROOT, "config", "role-prompts.json"), "utf8")).prompts;
+  const loader = createAgentContextLoader({ rootDir: ROOT });
+  const task = { type: "analyze", description: "Fixture task.", output_format: "markdown", constraints: {} };
+  const agentsDir = path.join(ROOT, "config", "agents");
+  const roles = [...new Set([
+    ...Object.keys(rolePrompts),
+    ...fs.readdirSync(agentsDir).filter((r) => fs.existsSync(path.join(agentsDir, r, "SOUL.md")))
+  ])].sort();
+
+  // Everything the model is told before the evidence: identity, role prompt, task and citation rules.
+  function instructions(role, customerRun) {
+    const identity = loader.loadAgentContext(role, "biomedical", { skipSessions: true });
+    const prompt = buildPrompt(task, [], {
+      customerRun,
+      systemPrefix: rolePrompts[role] ? rolePrompts[role].system_prefix : "",
+      agentIdentityPrefix: identity.agentIdentityPrefix,
+      workflowInputs: {}
+    });
+    return prompt.slice(0, prompt.indexOf("===== END INSTRUCTIONS ====="));
+  }
+
+  it("covers every role prompt and every role identity (so it cannot pass by checking nothing)", () => {
+    for (const role of ["scout", "analyst", "synthesizer", "literature_reviewer", "molecular_profiler", "competitive_intel_analyst", "report_generator", "safety_signal_detector"]) {
+      assert.ok(roles.includes(role), `${role} must be covered`);
+    }
+  });
+
+  for (const role of roles) {
+    it(`${role}: no ChEMBL, ENSG or RxNorm ask, and the PMID/NCT/DOI allowlist`, () => {
+      const text = instructions(role, true);
+      assert.doesNotMatch(text, /chembl/i);
+      assert.doesNotMatch(text, /RxNorm/);
+      assert.doesNotMatch(text, /ENSG ID|ENSG0/);
+      assert.match(text, /A single invented PMID\/NCT\/DOI identifier/);
+      assert.match(text, /Use: PMID \(e\.g\. PMID: 12345678\), NCT numbers \(e\.g\. NCT01234567\) and DOIs/);
+    });
+  }
+
+  it("an ordinary run keeps today's prompt (operator default D4)", () => {
+    const text = instructions("molecular_profiler", false);
+    assert.match(text, /every bioactivity entry must include its ChEMBL ID/);
+    assert.match(text, /A single invented PMID\/NCT\/DOI\/ChEMBL\/CID\/UniProt identifier/);
+  });
+});

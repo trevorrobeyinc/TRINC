@@ -95,6 +95,11 @@ function createToolPrefetch(options = {}) {
   // Customer runs (2026-11-06, core/customer-run.js): tools this run must not call, with the reason
   // recorded on the skipped coverage entry. Never called, never cached, never in a prompt.
   const excludedTools = isPlainObject(options.excludedTools) ? options.excludedTools : {};
+  // T2-7 (2026-11-16, core/customer-run.js): record fields a customer run never renders into a prompt
+  // (an Open Targets record's ChEMBL id). The record keeps the field; only the prompt text omits it, so
+  // it can neither be cited nor ground a citation.
+  const excludedFields = isPlainObject(options.excludedFields) ? options.excludedFields : {};
+  const isExcludedField = (name) => Object.prototype.hasOwnProperty.call(excludedFields, name);
   const logger = isPlainObject(options.logger) ? options.logger : { info() {}, warn() {}, error() {} };
   const rootDir = options.rootDir || process.cwd();
   const timeProvider = options.timeProvider && typeof options.timeProvider.nowMs === "function"
@@ -320,8 +325,11 @@ function createToolPrefetch(options = {}) {
     if (record.url) lines.push(record.url);
     if (record.nctId && !title.includes(record.nctId)) lines.push(`NCT: ${record.nctId}`);
     if (record.pmid) lines.push(`PMID: ${record.pmid}`);
-    if (record.chemblId) lines.push(`ChEMBL: ${record.chemblId}`);
-    if (lines.length === 0) lines.push("```json", JSON.stringify(record).slice(0, 600), "```");
+    if (record.chemblId && !isExcludedField("chemblId")) lines.push(`ChEMBL: ${record.chemblId}`);
+    if (lines.length === 0) {
+      const json = JSON.stringify(record, (key, value) => (key && isExcludedField(key) ? undefined : value));
+      lines.push("```json", json.slice(0, 600), "```");
+    }
     return lines.join("\n") + "\n\n";
   }
 
