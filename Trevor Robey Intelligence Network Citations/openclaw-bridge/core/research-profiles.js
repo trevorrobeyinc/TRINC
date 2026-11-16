@@ -94,11 +94,12 @@ const PROFILES = Object.freeze({
     soulFile: "SOUL.business.md",
     citationInstruction: BUSINESS_CITATION_INSTRUCTION,
     identifierList: "WEB/SEC/WB/BLS/EUROSTAT/CENSUS/EIA/DOI",
-    // Operator decision 2026-10-21: the section gate searches SearXNG `science` (Crossref, OpenAlex,
-    // Semantic Scholar, arXiv), because `general` answers with Bing alone, keyed on one word, and that
-    // junk grades D — a business section would throw PHASE30_CITATION_COVERAGE_ZERO after every role
-    // call was paid for. Grading and thresholds are unchanged. Revert to "general" once a legitimate
-    // general-web engine (Brave Search API, Evidence Desk P3) is live.
+    // Operator decision 2026-10-21: the section gate searches the `science` topic, because SearXNG's
+    // `general` answers with Bing alone, keyed on one word, and that junk grades D — a business section
+    // would throw PHASE30_CITATION_COVERAGE_ZERO after every role call was paid for. Since 2026-11-15
+    // `science` is Europe PMC + Crossref directly (mcp/scholarly-search), not SearXNG. Grading and
+    // thresholds are unchanged. Revert to "general" once a legitimate general-web engine is live (Brave's
+    // Search API, Evidence Desk P3, has needed a card since its free tier ended in 2026).
     sectionGate: Object.freeze({ topic: "science", extraPrimaryDomains: BUSINESS_PRIMARY_SOURCE_DOMAINS }),
     deriveInputs: deriveBusinessInputs,
     // Operator decision 2026-10-21: on this lane the scout's collect-and-summarise job is done by the

@@ -1077,7 +1077,7 @@ function createWorkflowEngine(options = {}) {
     // Runs ONLY when the cheap local density check passed, so a report that already fails density
     // never spends any searches. Complementary to verifyReportCitations (which grounds cited IDs
     // against fetched IDs on the mission step): this measures EXTERNAL primary-source coverage per
-    // section. Fail-soft on infra (SearXNG unreachable -> section UNCHECKED); fail-closed on a genuine
+    // section. Fail-soft on infra (search unreachable -> section UNCHECKED); fail-closed on a genuine
     // zero-coverage section. Helpers are required lazily so a connector problem can never break module
     // load and is only touched on a density-passing quality-audit step.
     let sectionCoverage = [];

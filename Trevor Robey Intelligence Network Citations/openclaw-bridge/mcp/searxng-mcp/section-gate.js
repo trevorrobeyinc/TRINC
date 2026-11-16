@@ -5,8 +5,9 @@
  *
  * One `runCitationGate` call per report section (= one `subtask_results[]` element), on a query
  * derived from THAT section's output text + the workflow's primary subject. A section "fails" only
- * when SearXNG ran and returned zero distinct primary sources (even after the breadth retry); infra
- * failures (connector missing / SearXNG unreachable) mark the section UNCHECKED and never fail it.
+ * when its search ran and returned zero distinct primary sources (even after the breadth retry); infra
+ * failures (for `science`, both scholarly sources unreachable; for another topic, the SearXNG connector
+ * missing or SearXNG unreachable; see searchfn.js) mark the section UNCHECKED and never fail it.
  * The step fails closed (throws) only if at least one section genuinely returned zero coverage.
  *
  * Pure/injectable (searchFn, runGate, readFile, log are all passed in) so it is offline-testable, and
@@ -206,8 +207,10 @@ async function runSectionGate({ subtasks, primarySubject, searchFn, runGate, rea
     seenQueries.add(qKey);
 
     try {
+      // primary_subject lets the scholarly search (2026-11-15) anchor its Europe PMC query on the
+      // report's subject; the SearXNG connector path drops it (searchfn.js).
       const out = await runGate(
-        { query, step_type: "breadth", section_id: sectionId, topic, max_results: maxResults },
+        { query, step_type: "breadth", section_id: sectionId, topic, max_results: maxResults, search_params: { primary_subject: String(primarySubject || "") } },
         gateDeps
       );
       section_coverage.push({
@@ -223,7 +226,8 @@ async function runSectionGate({ subtasks, primarySubject, searchFn, runGate, rea
         failing.push({ section_id: sectionId, query, gate_reason: out.gate_reason || null });
       }
     } catch (err) {
-      // Infra (connector missing / SearXNG unreachable): UNCHECKED — do NOT fail on this basis.
+      // Infra (the search unreachable: both scholarly sources, or SearXNG for a non-science topic):
+      // UNCHECKED — do NOT fail on this basis.
       if (log && typeof log.warn === "function") {
         log.warn({
           event: "searxng_section_gate_infra_skip",

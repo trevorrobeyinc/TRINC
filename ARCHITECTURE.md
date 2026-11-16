@@ -157,6 +157,12 @@ Hard gates in `openclaw-bridge/core/workflow-engine.js`; logic in `citation-gate
   snapshot), `SEC:`, `WB:`, `BLS:`, `EUROSTAT:` (and `CENSUS:` / `EIA:`, dormant until free keys exist),
   plus OpenAlex DOIs. The gate judges model-written text only; the deterministic Evidence Brief that
   replaces the business scout is not graded.
+- **Section coverage (quality audit):** once the density check passes, one search per report section
+  (`section-gate.js`). A source grades A (a record's own id, not a preprint), B (a preprint, or an id only
+  mentioned in text), C (a host on the primary-domain allowlist) or D (dropped). The step fails closed
+  (`PHASE30_CITATION_COVERAGE_ZERO`) only when a section's search ran and found no A–C source; an
+  unreachable search marks the section UNCHECKED. The `science` topic queries Europe PMC + Crossref
+  directly (`openclaw-bridge/mcp/scholarly-search/`, since 2026-11-15), not SearXNG.
 
 Blocking codes are all `PHASE30_*`. There are no `PHASE29_*` codes; Phase 29 is a label.
 
@@ -181,7 +187,9 @@ Run state (citation verification, seed input, interaction log) stays in `workspa
 - **ToolUniverse:** a Python subprocess (`uv run --no-sync --directory vendor/tooluniverse tooluniverse-smcp-stdio
   --compact-mode`), JSON-RPC over stdio, 2,719 tools (v1.5.7).
 - **Adapters** in `openclaw-bridge/mcp/`: Europe PMC preprints, NIH RePORTER, arXiv, Semantic Scholar,
-  Open Targets (GraphQL), SEC EDGAR, SearXNG, the business sources (`business-sources/`: web evidence,
+  Open Targets (GraphQL), SEC EDGAR, the scholarly search (`scholarly-search/`: Europe PMC + Crossref,
+  free and keyless, behind the section gate), SearXNG (the business lane's general-web evidence and any
+  non-science section search), the business sources (`business-sources/`: web evidence,
   OpenAlex, SEC filings, World Bank, BLS, Eurostat, Census, EIA), the citation re-resolver, the Crossref
   and PubMed retraction screens, and `ctgov-supplemental` (stop reasons and change history). PubMed and
   ClinicalTrials.gov searches run through ToolUniverse.

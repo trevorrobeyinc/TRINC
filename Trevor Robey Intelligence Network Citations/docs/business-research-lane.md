@@ -55,8 +55,8 @@ with offline tests (`tests/core/evidence-desk.test.js`).
 **Operator decisions (2026-10-21, AskUserQuestion):** Brave Search API **later** (P3 not built); free
 Census + EIA keys **yes**, the operator registers them (P2 built, dormant until then); the business scout
 is **replaced** by a deterministic brief; P1 confirmed as an exception to the 2026-10-20 freeze; the
-citation gate **judges model text only**; the business section gate uses SearXNG **`science`** until
-Brave exists.
+citation gate **judges model text only**; the business section gate uses the **`science`** topic until
+Brave exists (SearXNG's science category then; Europe PMC + Crossref queried directly since 2026-11-15).
 
 ### 1. Official statistics with re-resolvable series ids
 | Source | Fetcher | Applies when | Access | Live check (2026-10-21) |
@@ -130,9 +130,13 @@ annotated and license-scanned. `citation-verification.json` lists the sections t
 ### 4. Section gate on `science`
 The quality-audit section gate searched SearXNG `general` for business sections, which returns Bing
 junk; junk grades D, and a section with zero A/B/C sources throws `PHASE30_CITATION_COVERAGE_ZERO`
-**after** every role call has been paid for. The business profile now uses `science` (Crossref, OpenAlex,
-Semantic Scholar, arXiv), with the question reduced to its content words (`toSearchQuery`), the same
-grading and the same thresholds. Revert to `general` once Brave (P3) is live.
+**after** every role call has been paid for. The business profile now uses `science`, with the question
+reduced to its content words (`toSearchQuery`), the same grading and the same thresholds. `science` was
+SearXNG's science category (Crossref, OpenAlex, Semantic Scholar, arXiv) until 2026-11-15, when every one
+of those engines stalled at once; it is now Europe PMC + Crossref queried directly
+(`openclaw-bridge/mcp/scholarly-search/`, free and keyless). For a business section Crossref carries the
+load, since Europe PMC indexes the life sciences only. Revert to `general` once a general-web engine is
+live (Brave's Search API, P3, now needs a card: its free tier ended in 2026).
 
 ## P2 activation (when the operator registers the keys)
 1. Register the free keys: Census (api.census.gov/data/key_signup.html), EIA (eia.gov/opendata), and

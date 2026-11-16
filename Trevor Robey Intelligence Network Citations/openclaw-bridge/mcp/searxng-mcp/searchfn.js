@@ -1,7 +1,9 @@
 "use strict";
 
 /**
- * searchFn — the connector-backed search seam injected into the section citation gate.
+ * searchFn — the search seam injected into the section citation gate. Since 2026-11-15 the "science"
+ * topic goes to mcp/scholarly-search (Europe PMC + Crossref, free and keyless); other topics still
+ * go to the SearXNG connector, as below.
  *
  * Wraps the `searxng-search` connector's `search()` so the gate consumes the connector's
  * already-cited output (each result carries `citations[].source:"url"|"metadata"|"text"` provenance,
@@ -38,17 +40,49 @@ function getConnectorSearch() {
   return _connectorSearch;
 }
 
-/**
- * Adapter-shaped searchFn: `(query, params) => Promise<{results:[...]}>`.
- * Throws on infra failure (connector missing / SearXNG unreachable) so the section gate can classify
- * the section as UNCHECKED rather than as zero-coverage.
- *
- * @param {string} query
- * @param {object} [params] topic / max_results / … forwarded to the connector's search()
- */
-async function searchFn(query, params = {}) {
-  const search = getConnectorSearch();
-  return search({ query, ...params });
+// The "science" topic — what the section gate searches for every biomedical report, and for business
+// reports since 2026-10-21 (research-profiles.js) — goes straight to Europe PMC and Crossref
+// (mcp/scholarly-search, operator decision 2026-11-15) instead of SearXNG's science category, which
+// only relayed to those sources and stalled. Any other topic (the general web) still uses the
+// SearXNG connector. Both sides keep the contract: rows in the connector's shape, and a throw on an
+// infra failure so the section is UNCHECKED rather than zero-coverage.
+let _scholarly = null;
+function getScholarlySearch() {
+  if (!_scholarly) {
+    const { createScholarlySearch } = require("../scholarly-search/scholarly-search.js");
+    _scholarly = createScholarlySearch();
+  }
+  return _scholarly;
 }
 
-module.exports = { searchFn, getConnectorSearch };
+/**
+ * Build an adapter-shaped searchFn from its two back ends (injectable for tests).
+ * @param {object} [deps]
+ * @param {() => {search: Function}} [deps.scholarly]  the science back end (Europe PMC + Crossref)
+ * @param {() => Function} [deps.connector]           the SearXNG connector's search()
+ */
+function createSearchFn(deps = {}) {
+  const scholarly = deps.scholarly || getScholarlySearch;
+  const connector = deps.connector || getConnectorSearch;
+  return async function routedSearchFn(query, params = {}) {
+    const topic = String(params.topic || "science");
+    if (topic === "science") return scholarly().search({ query, ...params });
+    // The connector's search() takes the parameters it always had: primary_subject is for the
+    // scholarly search only.
+    const { primary_subject: _subject, ...connectorParams } = params;
+    const search = connector();
+    return search({ query, ...connectorParams });
+  };
+}
+
+/**
+ * Adapter-shaped searchFn: `(query, params) => Promise<{results:[...]}>`.
+ * Throws on infra failure (both scholarly sources unreachable, or the connector missing / SearXNG
+ * unreachable) so the section gate can classify the section as UNCHECKED rather than as zero-coverage.
+ *
+ * @param {string} query
+ * @param {object} [params] topic / max_results / … ("science" when absent, the gate's default)
+ */
+const searchFn = createSearchFn();
+
+module.exports = { searchFn, createSearchFn, getConnectorSearch, getScholarlySearch };

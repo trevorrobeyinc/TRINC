@@ -280,8 +280,12 @@ with re-resolvable ids `BLS:` / `EUROSTAT:` (keyless) and `CENSUS:` / `EIA:` (fr
 extractive BM25 passage condenser that shows the top web passages verbatim as `WEB: <id> ¶<n>`; and the
 business **scout replaced by a deterministic Evidence Brief** (`mcp/business-sources/evidence-desk.js`,
 no model call). Operator decisions: the citation gate and the density audit **judge model-written text
-only** (metadata `authored_by: "evidence-desk"`); the business section gate searches SearXNG `science`
-until the Brave Search API (P3, deferred) exists. Tests: `tests/core/evidence-desk.test.js`. The live run
+only** (metadata `authored_by: "evidence-desk"`); the business section gate searches the `science` topic
+until a general-web engine exists (Brave's Search API, P3, now needs a card: its free tier ended in
+2026). **Since 2026-11-15 the `science` topic of every section gate is Europe PMC + Crossref, queried
+directly** (`openclaw-bridge/mcp/scholarly-search/`, free and keyless), not SearXNG, whose science
+engines all stalled at once; SearXNG still serves the business lane's general-web evidence search.
+Tests: `tests/core/evidence-desk.test.js` and `tests/core/scholarly-search.test.js`. The live run
 still needs the operator's explicit go and a freshly armed `operator-approve` token; the recommended
 inputs are in the lane doc. What the pre-flight found and fixed:
 - **SearXNG general web is unusable for this lane.** Only Bing answers in the `general` category
