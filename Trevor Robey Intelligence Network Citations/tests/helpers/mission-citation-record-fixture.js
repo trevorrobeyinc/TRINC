@@ -46,10 +46,13 @@ function passingCitationVerification(rootDir, missionId, { reresolutionCompleted
   };
 }
 
+// The fixture stands in for a workflow that ran to the end, so its quality audit passed (Tier 1
+// review: a record whose audit is still "pending" is not packaged). `qualityAudit` overrides it.
 function writePassingCitationRecord(rootDir, missionId, options = {}) {
   return writeMissionCitationRecord({
     rootDir, missionId, workflowId: "workflow-fixture", timeProvider: FIXTURE_CLOCK,
     pass: true, verdict: "PASS", errorCode: null,
+    qualityAudit: options.qualityAudit || "passed",
     citationVerification: passingCitationVerification(rootDir, missionId, options)
   });
 }

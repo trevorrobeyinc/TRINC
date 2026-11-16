@@ -20,6 +20,13 @@
 // offer-builder.resolveMissionSource requires that record and re-hashes the files, so text that
 // changed after the gate (a resumed mission, an edited output) is refused as STALE.
 //
+// The quality audit (Tier 1 review, 2026-11-14, operator pick D1). A pass:true record says
+// quality_audit "pending" when the workflow has a quality_audit step still to run, and the engine
+// turns it to "passed" only when that step passes ("failed" when it fails, with pass:false); a workflow
+// with no quality step records "not_applicable". The offer builder packages only "passed" or
+// "not_applicable", so a run killed or cancelled between the gate and the audit cannot be packaged by
+// generate-offer.js with a density audit that never ran.
+//
 // A record is only ever written by the engine. Never hand-write one: a mission sealed before T1-1 is
 // re-run if it must be re-packaged (operator default D5).
 
@@ -28,6 +35,9 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const SCHEMA_VERSION = "mission-citation-record-v1";
+const QUALITY_AUDIT_STATES = new Set(["pending", "passed", "failed", "not_applicable"]);
+// The only states the offer builder packages.
+const PACKAGEABLE_AUDIT_STATES = new Set(["passed", "not_applicable"]);
 
 function missionRoot(rootDir, missionId) {
   return path.join(rootDir, "workspace", "missions", String(missionId));
@@ -97,6 +107,8 @@ function writeMissionCitationRecord(options = {}) {
     pass,
     verdict: options.verdict || null,
     error_code: options.errorCode || null,
+    // A pass:true record with no stated audit state is "pending": packaging waits for the audit.
+    quality_audit: pass ? (QUALITY_AUDIT_STATES.has(options.qualityAudit) ? options.qualityAudit : "pending") : null,
     written_at: options.timeProvider && typeof options.timeProvider.nowIso === "function" ? options.timeProvider.nowIso() : null,
     ...(pass ? hashMissionFiles(rootDir, missionId) : {}),
     citation_verification: options.citationVerification || null
@@ -111,9 +123,27 @@ function writeMissionCitationRecord(options = {}) {
 function failMissionCitationRecord(options = {}) {
   const recordPath = missionCitationRecordPath(path.resolve(String(options.rootDir || "")), options.missionId);
   const record = JSON.parse(fs.readFileSync(recordPath, "utf8"));
-  const failed = { ...record, pass: false, verdict: options.verdict || "FAILED_AFTER_GATE", error_code: options.errorCode || null };
+  const failed = {
+    ...record,
+    pass: false,
+    verdict: options.verdict || "FAILED_AFTER_GATE",
+    error_code: options.errorCode || null,
+    quality_audit: QUALITY_AUDIT_STATES.has(options.qualityAudit) ? options.qualityAudit : (record.quality_audit || null)
+  };
   fs.writeFileSync(recordPath, `${JSON.stringify(failed, null, 2)}\n`, "utf8");
   return failed;
+}
+
+// The workflow's quality_audit step passed: a pass:true record's "pending" becomes "passed". A record
+// that did not pass is left as it is (an audit never makes a failed gate packageable). Throws on any
+// read or write failure; the engine then fails the step (fail-closed).
+function passMissionQualityAudit(options = {}) {
+  const recordPath = missionCitationRecordPath(path.resolve(String(options.rootDir || "")), options.missionId);
+  const record = JSON.parse(fs.readFileSync(recordPath, "utf8"));
+  if (record.pass !== true) return record;
+  const passed = { ...record, quality_audit: "passed" };
+  fs.writeFileSync(recordPath, `${JSON.stringify(passed, null, 2)}\n`, "utf8");
+  return passed;
 }
 
 function recordError(code, message) {
@@ -147,6 +177,10 @@ function assertMissionCitationRecord(rootDir, missionId) {
     throw recordError("PHASE19_MISSION_CITATION_GATE_FAILED",
       `Mission '${missionId}' did not pass the citation gate (verdict ${record.verdict || "unknown"}${record.error_code ? `, ${record.error_code}` : ""}${decision === "BLOCK" ? ", delivery decision BLOCK" : ""}); it cannot be packaged.`);
   }
+  if (!PACKAGEABLE_AUDIT_STATES.has(record.quality_audit)) {
+    throw recordError("PHASE19_MISSION_QUALITY_AUDIT_PENDING",
+      `Mission '${missionId}' passed the citation gate, but its workflow's quality audit has not passed (record: ${record.quality_audit || "no audit state"}); the run stopped before the audit, or is still running. Re-run the order before packaging.`);
+  }
   let current;
   try {
     current = hashMissionFiles(root, missionId);
@@ -179,5 +213,6 @@ module.exports = {
   failMissionCitationRecord,
   listMissionOutputs,
   missionCitationRecordPath,
+  passMissionQualityAudit,
   writeMissionCitationRecord
 };

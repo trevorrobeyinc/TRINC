@@ -158,7 +158,13 @@ async function main() {
   }, null, 2)}\n`);
 }
 
-main().catch((error) => {
-  process.stderr.write(`${error && error.stack ? error.stack : String(error)}\n`);
-  process.exit(1);
-});
+// Run from the command line only, so a test can load researchExportProblems (Tier 1 review: its
+// "no reproducibility manifest" branch had no test).
+if (require.main === module) {
+  main().catch((error) => {
+    process.stderr.write(`${error && error.stack ? error.stack : String(error)}\n`);
+    process.exit(1);
+  });
+}
+
+module.exports = { researchExportProblems };

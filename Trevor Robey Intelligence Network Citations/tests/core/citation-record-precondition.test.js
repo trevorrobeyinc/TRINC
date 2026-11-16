@@ -13,7 +13,7 @@ const path = require("node:path");
 
 const { FULL_PIPELINE, GROUNDED_NCT, MISSION_STEP, makeEngine, workflowDef } = require("../helpers/workflow-bundle-harness.js");
 const { writeJson, writeTaskText } = require("../helpers/phase20-fixtures.js");
-const { missionCitationRecordPath } = require("../../openclaw-bridge/core/mission-citation-record.js");
+const { missionCitationRecordPath, passMissionQualityAudit } = require("../../openclaw-bridge/core/mission-citation-record.js");
 
 const OFFER = (source) => ({ source, product_line: "research_packs", tier: "standard", targets: ["datarade"] });
 const codeOf = (fn) => { try { fn(); } catch (error) { return error.code; } return "(no error)"; };
@@ -70,6 +70,7 @@ describe("only a gate-passed mission can be packaged, on every path (T1-1)", () 
     assert.equal(result.ok, true, JSON.stringify(result.error));
     const record = readRecord(rootDir, captured.missionId);
     assert.equal(record.pass, true);
+    assert.equal(record.quality_audit, "not_applicable", "the harness pipeline has no quality step");
     assert.ok(record.citation_verification.reproducibility_manifest.summary);
     assert.ok(record.mission_summary.sha256);
     assert.equal(record.outputs.length, 1);
@@ -107,7 +108,46 @@ describe("only a gate-passed mission can be packaged, on every path (T1-1)", () 
     const record = readRecord(rootDir, captured.missionId);
     assert.equal(record.pass, false);
     assert.equal(record.verdict, "QUALITY_AUDIT_FAILED");
+    assert.equal(record.quality_audit, "failed");
     assert.equal(codeOf(() => monetizationRuntime.offerBuilder.buildOffer(OFFER(captured.missionId))), "PHASE19_MISSION_CITATION_GATE_FAILED");
+  });
+
+  // Tier 1 review (2026-11-14, operator pick D1): the record waits for the workflow's quality audit.
+  it("a run that stops between the gate and the quality audit leaves 'pending', and the offer builder refuses it", async () => {
+    const { engine, rootDir, monetizationRuntime, captured } = await engineWriting(GROUNDED_TEXT);
+    // An approve step with nothing to approve fails right after the mission, so the quality step,
+    // which depends on it, never runs: the shape of a run killed or cancelled between the two.
+    const APPROVE_EARLY = { step_id: "approve-early", type: "approve", depends_on: ["research"] };
+    const QUALITY_LATE = { step_id: "quality", type: "quality_audit", depends_on: ["approve-early"] };
+    const result = await engine.executeWorkflow(workflowDef([MISSION_STEP, APPROVE_EARLY, QUALITY_LATE]));
+    assert.equal(result.ok, false, "the run stopped before the audit");
+    const record = readRecord(rootDir, captured.missionId);
+    assert.equal(record.pass, true, "the citation gate itself passed");
+    assert.equal(record.quality_audit, "pending");
+    assert.equal(codeOf(() => monetizationRuntime.offerBuilder.buildOffer(OFFER(captured.missionId))), "PHASE19_MISSION_QUALITY_AUDIT_PENDING");
+    // The step the engine runs when the audit passes (a passing audit needs a live section search, so
+    // the transition is driven directly): "pending" becomes "passed", and the mission packages.
+    passMissionQualityAudit({ rootDir, missionId: captured.missionId });
+    assert.equal(readRecord(rootDir, captured.missionId).quality_audit, "passed");
+    assert.equal(monetizationRuntime.offerBuilder.buildOffer(OFFER(captured.missionId)).source_context.citation_verification.pass, true);
+  });
+
+  it("a workflow with no quality step records 'not_applicable', and its mission can be packaged", async () => {
+    const { engine, rootDir, monetizationRuntime, captured } = await engineWriting(GROUNDED_TEXT);
+    assert.equal((await engine.executeWorkflow(workflowDef([MISSION_STEP]))).ok, true);
+    assert.equal(readRecord(rootDir, captured.missionId).quality_audit, "not_applicable");
+    assert.equal(monetizationRuntime.offerBuilder.buildOffer(OFFER(captured.missionId)).source_context.citation_verification.pass, true);
+  });
+
+  // Review finding delivery:3: the record check's "is gone" branch alone refuses a deleted section.
+  it("a section deleted after the record is refused as STALE (it is gone), never silently dropped", async () => {
+    const { engine, monetizationRuntime, captured } = await engineWriting(GROUNDED_TEXT);
+    assert.equal((await engine.executeWorkflow(workflowDef([MISSION_STEP]))).ok, true);
+    fs.rmSync(captured.outputPath);
+    let message = "";
+    try { monetizationRuntime.offerBuilder.buildOffer(OFFER(captured.missionId)); } catch (error) { message = `${error.code} ${error.message}`; }
+    assert.match(message, /^PHASE19_MISSION_CITATION_RECORD_STALE /);
+    assert.match(message, /is gone/);
   });
 
   it("a mission no workflow gated (what run-research-task.js leaves) is refused as RECORD_MISSING", async () => {

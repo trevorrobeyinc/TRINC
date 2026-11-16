@@ -70,6 +70,22 @@ describe("export-release refuses what the buyer ZIP refuses (T1-11)", () => {
     assert.deepEqual(exportedArtifacts(fixtureRoot, offerId), []);
   });
 
+  // Review finding delivery:4: the "no reproducibility manifest" refusal had no test. Since T1-8 the
+  // packager never seals a research bundle without one, and removing the file from a sealed release
+  // trips the seal check first, so the refusal itself is pinned on the function the export runs.
+  it("a research release with no reproducibility manifest is refused (researchExportProblems)", async () => {
+    const { researchExportProblems } = require(path.join(root, "scripts", "export-release.js"));
+    const { fixtureRoot, offerId } = await approvedRelease("no-manifest");
+    const bundleDir = path.join(fixtureRoot, "workspace", "releases", offerId);
+    const offer = JSON.parse(fs.readFileSync(path.join(bundleDir, "offer.json"), "utf8"));
+    assert.deepEqual(researchExportProblems(bundleDir, offer), [], "the sealed release passes as it is");
+    for (const name of ["reproducibility-manifest.json", "reproducibility-manifest.md"]) fs.rmSync(path.join(bundleDir, "deliverables", name));
+    const problems = researchExportProblems(bundleDir, offer);
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /^no reproducibility manifest \(reproducibility-manifest\.json\); a research release never ships without one$/);
+    assert.deepEqual(researchExportProblems(bundleDir, { ...offer, source_kind: "dataset" }), [], "a dataset bundle never carries one");
+  });
+
   it("exports a release whose pass completed, as before", async () => {
     const { fixtureRoot, offerId } = await approvedRelease("clean");
     const exported = runNode("scripts/export-release.js", ["--offer-id", offerId, "--format", "zip", "--confirm"], fixtureRoot);

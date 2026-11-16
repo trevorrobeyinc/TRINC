@@ -27,7 +27,7 @@ const { createCitationReresolver } = require("../mcp/citation-reresolver/citatio
 const { getResearchProfile } = require("./research-profiles.js");
 const { buildReproducibilityManifest, renderManifestMarkdown } = require("./reproducibility-manifest.js");
 const { annotateSubtaskAttributions } = require("./citation-attribution.js");
-const { writeMissionCitationRecord, failMissionCitationRecord } = require("./mission-citation-record.js");
+const { writeMissionCitationRecord, failMissionCitationRecord, passMissionQualityAudit } = require("./mission-citation-record.js");
 const { buildGraveyardMemo, buildAmendmentRisk } = require("../monetization/graveyard-memo.js");
 const { buildDesignBenchmark } = require("../monetization/design-benchmark.js");
 const { buildSearchCoverageLedger, collectSearchCoverage } = require("../monetization/search-coverage-ledger.js");
@@ -675,10 +675,16 @@ function createWorkflowEngine(options = {}) {
       // pins are of exactly the text that ships. It carries the manifest (T1-8 guarantees one). A
       // failed write stops the run (fail-closed): without it the mission could never be packaged, and
       // a stale record must never stand in for it.
+      // Tier 1 review (2026-11-14, operator pick D1): the record waits for the workflow's quality audit
+      // ("pending" until that step passes), so a run stopped between here and the audit cannot be
+      // packaged by generate-offer.js with a density audit that never ran.
+      const hasQualityAudit = Array.isArray(workflowDef && workflowDef.pipeline)
+        && workflowDef.pipeline.some((s) => s && s.type === "quality_audit");
       try {
         writeMissionCitationRecord({
           rootDir, missionId: missionEnvelope.mission_id, workflowId: context.workflowId, timeProvider,
-          pass: true, verdict: gate.verdict, errorCode: null, citationVerification
+          pass: true, verdict: gate.verdict, errorCode: null, citationVerification,
+          qualityAudit: hasQualityAudit ? "pending" : "not_applicable"
         });
       } catch (recordErr) {
         const err = new Error(`Citation gate passed, but its record could not be written beside the mission: ${safeString(recordErr && recordErr.message)}`);
@@ -1312,6 +1318,17 @@ function createWorkflowEngine(options = {}) {
               error.code = "PHASE30_QUALITY_BELOW_THRESHOLD";
               throw error;
             }
+            // Tier 1 review (2026-11-14): only now is the mission packageable ("pending" -> "passed").
+            // A failed write fails this step, which turns the record to pass:false (the catch below).
+            if (state.artifacts.mission_id) {
+              try {
+                passMissionQualityAudit({ rootDir, missionId: state.artifacts.mission_id });
+              } catch (recordErr) {
+                const error = new Error(`Quality audit passed, but the mission's citation record could not be updated: ${String(recordErr && recordErr.message)}`);
+                error.code = "PHASE30_QUALITY_RECORD_WRITE_FAILED";
+                throw error;
+              }
+            }
             break;
           case "offer":
             result = executeOfferStep(step, validated, inputs, stepResults);
@@ -1351,7 +1368,8 @@ function createWorkflowEngine(options = {}) {
           try {
             failMissionCitationRecord({
               rootDir, missionId: state.artifacts.mission_id,
-              verdict: "QUALITY_AUDIT_FAILED", errorCode: error.code || "PHASE30_STEP_FAILED"
+              verdict: "QUALITY_AUDIT_FAILED", errorCode: error.code || "PHASE30_STEP_FAILED",
+              qualityAudit: "failed"
             });
           } catch (recordErr) {
             logger.error({ event: "mission_citation_record_fail_failed", mission_id: state.artifacts.mission_id, error: String(recordErr && recordErr.message) });
