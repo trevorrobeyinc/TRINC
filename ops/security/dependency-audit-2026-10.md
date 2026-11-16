@@ -46,6 +46,77 @@ Details in [2026-11-01 follow-up](#2026-11-01-follow-up-89--24).
 refresh fixes them. The other 12 have no code fix and wait for the operator's dismissal on GitHub. Details in
 [2026-11-14 follow-up](#2026-11-14-follow-up-54--12).
 
+**Update, 2026-11-15 (the operator: "fix the remaining 12"):** two of those 12 turned out to be fixable after
+all: the fork's `minimatch` and `diff`, which brings it to **12 → 10**. The 10 left are dismissals only:
+- `deepmerge` has no patched release;
+- the 9 `scrape-sidecar/uv.lock` alerts belong to a deleted manifest.
+
+Details in [2026-11-15 follow-up](#2026-11-15-follow-up-12--10).
+
+## 2026-11-15 follow-up: 12 → 10
+
+The picture was rebuilt from `main` at `392d806`; the change itself sits on `16c10ee`.
+- npm audit leaves the 4 locutus advisories (already dismissed) and the fork's 3.
+- OSV still matches 9 advisories to the deleted sidecar lockfile.
+- The ToolUniverse venv lock has been at 0 since `c8cc889`.
+
+| Alert | Action |
+|---|---|
+| fork `minimatch` `GHSA-g3hv-75wg-m249` (moderate, dev) | **fixed** (below) |
+| fork `diff` `GHSA-73rr-hh4g-fpgx` (low, runtime) | **fixed**; `main.js` changes (below) |
+| fork `deepmerge` `GHSA-gcqx-w48m-w2h4` (low, dev) | dismiss: no patched release. 4.3.1 (2023-03-16) is the newest, `jest-config` 30.5.2 still requires `^4.3.1`, and it only merges the repo's own Jest config |
+| `scrape-sidecar/uv.lock` ×9 | dismiss: deleted manifest (see the 2026-11-14 follow-up) |
+
+**minimatch.** One alert covers every copy in a lockfile, so all four copies had to move.
+- `npm-run-all2` goes from `^7.0.2` to `^8.0.4` (2025-05-25), which swaps minimatch for picomatch (4.0.7 here).
+  8.0.0's only breaking change is the Node ≥ 20 floor. 9.x needs Node ≥ 22.22.2, above this Mac's 22.13.1.
+- Scoped `overrides` set minimatch `^11.0.8` under three packages. Minimatch 11 removed only `makeRe()`,
+  `Minimatch#regexp`, `AST` and the `debug` option, and none of the three uses those:
+  - `@typescript-eslint/typescript-estree` calls the named `minimatch()`;
+  - `eslint-plugin-n` uses `new Minimatch().match()`;
+  - `eslint-plugin-json-schema-validator` 5.1.0 imports minimatch's default export, which went away in 9.0. But
+    nothing loads it: `eslint-plugin-obsidianmd` declares it and never imports it, and neither ESLint config uses
+    it. If a later obsidianmd starts loading it, its `no-invalid` rule will throw loudly; drop that override then.
+- minimatch 11.0.8 carries SLSA provenance. Every 11.0.x depends on the new `@isaacs/nonrecursive-glob-match`
+  (1.1.0, 2026-11-05, same maintainer, no provenance). It is dev-only.
+
+**diff.**
+- `diff` goes from `^7.0.0` to `^8.0.4` (2026-03-23). `@types/diff` is dropped, because 8 ships its own types.
+- 8.0.4 still exports `diffArrays`, `diffTrimmedLines` and the `Change` type, the only names the fork imports.
+  `tsc` passes.
+- The bundle shrinks by 4,617 bytes, from 5,526,472 to 5,521,855.
+
+**Lockfile scope**, checked entry by entry against an allow-list. These moved:
+- the root entry;
+- `diff`, and `@types/diff` (removed);
+- `npm-run-all2` and its nested tree;
+- the three overridden packages' nested trees;
+- `@isaacs/nonrecursive-glob-match` (added).
+
+Nothing else among the 1,263 packages moved.
+
+**Tests, before → after**, in one worktree on `16c10ee` with the submodule cloned locally:
+
+| Check | Before | After |
+|---|---|---|
+| engine `npm test` | 1616 / 1617, 1 skip | same |
+| engine `secrets:verify`, `build:verify` | passed (Phase 29: all checks) | passed |
+| `lint-transport-monorepo.sh --strict` | 0 violations | 0 |
+| fork `eslint .` (JSON) | 132 messages (6 errors, 126 warnings) | identical, message for message |
+| fork review lint (`eslint.review.config.mjs`) | 174 warnings | identical; the `review:obsidian:source` annotations are identical too |
+| `npm-run-all2` probe: `t:*`, `t:**`, `run-p`, `--` arguments, the `gallery:dev` form | 7.0.2 results | 8.0.4 identical |
+| fork build | `main.js` `4fdd73d9…` | `de001f21…` (diff 8); `styles.css` unchanged |
+| fork mobile-load smoke | passed | passed |
+| fork Jest | 5,831 / 5,831; 425 / 426 suites (`customCommandRegister.test.ts`) | same |
+| fork `npm audit` (records) | 3 | 1 (`deepmerge`) |
+| `npm audit signatures` | | 1,263 packages verified |
+
+**Deploy.** The fork's bundle changed. After landing:
+1. Run `npm ci --ignore-scripts` in the fork's main-checkout folder, whose `node_modules` is stale (see the
+   2026-11-14 follow-up).
+2. Run `ops/tr-suite/deploy.sh --build --apply copilot`.
+3. Do the obsidianwatch bless.
+
 ## 2026-11-14 follow-up: 54 → 12
 
 GitHub reported 54 open alerts after the operator pushed `main` at `d37bbb1`. `gh api` is refused by the
