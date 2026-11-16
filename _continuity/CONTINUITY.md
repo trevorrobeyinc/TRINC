@@ -129,8 +129,9 @@ are *logical*, and each has a guard:
 **🔴 2026-11-04 — REVENUE FIRST. START HERE: [`../STATUS.md`](../STATUS.md), rewritten today as an 8-step money
 plan** (operator's instruction: "the sole goal right now is make as much money from this research engine as
 possible"). Hub session: Desktop "Research engine AWS Data Exchange setup" (`local_1ad8daa7…`); the 26 older
-TR-INC Biz sessions were folded into it and archived. Step 1 is the operator's: restore Google Workspace billing
-(the suspension date, 11-02, has passed; on 2026-11-06 the operator confirmed that steps 1–2 are still not done).
+TR-INC Biz sessions were folded into it and archived. On 2026-11-06 step 1 (Workspace billing) was done, and step 2
+began: bizfile shows the LLC Active and not suspended, and the operator's bizfile login can file the LLC-12 online; the
+EIN is next (master checklist item 4, `/Users/myhome/TRINC/.archive/master-checklist-2026-11-06/`).
 Claude's steps 3–4 now wait on the operator's answers to the decision sheet,
 `…/08-contracts-legal/decision-sheet-2026-11.md` (41 decisions, answerable in one line). The 2026-10-21 notes below still hold where STATUS.md does not
 supersede them.
@@ -141,8 +142,9 @@ The previous Current focus (written 2026-07-22 → 2026-09-01) is preserved verb
 [`log/CONTINUITY-2026-10-21.md`](log/CONTINUITY-2026-10-21.md); every item still open from it is carried
 forward below.
 
-- **Revenue $0; compliance BEHIND (operator-confirmed 2026-10-21).** EIN not applied for; LLC-12 (due
-  2026-09-16) and $800 FTB 3522 (due 2026-08-15) not done — two are past due. Order and steps:
+- **Revenue $0; compliance BEHIND (operator-confirmed 2026-10-21; bizfile re-checked 2026-11-06: Active, all four
+  standings Good, not suspended).** EIN not applied for; LLC-12 (due 2026-08-04, 90 days after the filing; corrected
+  2026-11-06 from 09-16) and $800 FTB 3522 (due 2026-08-15) not done — two are past due. Order and steps:
   [`…/00-business-formation/compliance/compliance-calendar.md`](../Trevor%20Robey%20Intelligence%20Network%20Citations/00-business-formation/compliance/compliance-calendar.md).
 - **First product = Trial Graveyard Feed on AWS.** Refreshed 2026-10-21 into STAGING only
   (`…/trial-graveyard-feed/refresh-2026-10-21/`, uncommitted): 12 areas, 7,373 stopped trials, ~90% with a
@@ -296,6 +298,41 @@ stays first.
 ## 📋 Log — newest first
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
+
+### 2026-11-16T08:10Z · Desktop Claude Code · **The 9-week-overdue Context-Aware Access review ran: verdict do-not-enforce, and Endpoint Verification deployed (records in Security Everything, uncommitted)**
+- **SCOPE NOTE:** endpoint and browser policy administration, so this is one brief entry; Current focus is unchanged.
+- The access control built on 2026-09-16 had sat in Monitor mode ever since, its two-week review never run. It would have denied **59 of the newest 100** access attempts, all from the operator's own machine — the rule judges the Mac by Chrome-browser attributes that native apps cannot emit.
+- **Business-relevant consequence:** enforcing it on Drive would have broken Drive for Desktop sync, and with it the offsite backup leg at `My Drive/TRINC/Monorepo/`. Nothing was enforced; it stays in Monitor.
+- Endpoint Verification is now force-installed, and the Mac reports real device posture (encrypted, password on). One open test: whether Drive for Desktop's own requests pick it up.
+- Full record: `~/Security Everything/mobile/google-workspace/chrome-enterprise-premium-gap-matrix.md` (P9 + EV1 rows) and the 2026-11-15 browser-session log entry. Tenant record `03-platforms/google-workspace/google-workspace.md` §8 updated.
+
+### 2026-11-14T05:22Z · Desktop Claude Code · **Chrome Enterprise Premium kept: bought 1 license at $6/month, monthly, the day the trial lapsed (records uncommitted)**
+- **SCOPE NOTE:** a billing decision on a security add-on, so this is one brief entry; Current focus is unchanged.
+- The trial lapsed on 2026-11-13 and did not convert to paid. The operator bought it in the **Google Cloud console**, not Workspace Billing. That needed two things first: trevor@ granted Cloud BeyondCorp Admin at the org, and a new Cloud billing account (`011D03-2CEF7D-159BED`), which is separate from the Workspace invoice. Admin shows Active, 1 purchased, 1 assigned (trevor@).
+- Records: `03-platforms/google-workspace/google-workspace.md` §1/§3/§8 and `STATUS.md`. Route and gotchas are in Security Everything's browser log for 2026-11-13 (21:10 PST).
+- **For whoever's next:** prove enforcement is back. The Security insights banner still said "trial expired" minutes after the purchase. Paste a known-fake key in the work profile and expect the P3 warning. The AI Expanded Access add-on decision is still open.
+
+### 2026-11-07T06:57Z · Desktop Claude Code · **Checklist item 3 done: the LLC is Active, not suspended; the bizfile login can file the LLC-12 (no PIN); the LLC-12 was due 08-04, not 09-16 (records uncommitted)**
+- **Did:** on the operator's go, Claude read bizfile in the Claude Browser pane (one `cb` arm; the operator passed
+  bizfile's Imperva human check and did every sign-in).
+  - Public record: Status Active; Standing SOS, FTB, Agent and VCFCF all Good; Statement of Info Due Date 08/04/2026, in
+    red.
+  - Signed in (the operator's personal Gmail): the history holds only the Initial Filing, My Work Queue is empty, and
+    the record offers File Statement of Information, so User Access is in place. No PIN was requested.
+  - Mail: no SOS, FTB or IRS mail in `trevorrobeyinc@gmail.com` (control search passed; it also holds forwarded copies
+    of `trevor@` since 10-16 and of the personal Gmail since after 09-01), and nothing for "bizfile" in the personal
+    Gmail, which holds mail only from August. The May–June filing emails are gone; the PDFs are in `~/Documents`.
+- **Correction:** the LLC-12 is due 90 days after the 2026-05-06 **filing** (bizfile, and the 06-18 approval letter:
+  "within 90 days of the initial filing"), so 2026-08-04, 94 days late today. The repo had 2026-09-16, counted from
+  approval. Fixed in `compliance-calendar.md`, `certificate-of-formation.md`, `business-identity-map.md` §4,
+  `STATUS.md`, `vendor-onboarding-checklist.md`, `workspace-operations.md`, `gmail-filters.xml` and Current focus.
+  Dated history is left as written.
+- **State:** done. Paper mail, answered 2026-11-07: no FTB or SOS notice has ever arrived.
+- **Next:** item 4, the EIN. IRS EIN Online is open Saturday 3 a.m.–6 p.m. Pacific (walkthrough :11-13). Then item 5:
+  the LLC-12 online through My Records, and the FTB 3522.
+- **Touches:** the files above and `docs/history/browser-sessions.md`, all uncommitted (checklist item 25 commits them).
+- **For whoever's next:** "Good" standing on bizfile means not suspended, not current. bizfile sits behind Imperva:
+  Claude cannot pass its human check, so the operator ticks the box in the pane.
 
 ### 2026-11-07T04:25Z · Desktop Claude Code · **Business Drive cleaned: plugins backed up, March plans replaced by one current plan (uncommitted)**
 - **SCOPE NOTE:** the business Google Drive (`My Drive/TRINC/`), the offsite leg. Current focus unchanged.

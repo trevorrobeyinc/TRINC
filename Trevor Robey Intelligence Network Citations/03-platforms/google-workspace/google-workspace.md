@@ -288,7 +288,14 @@ DMARC to `p=quarantine`.
       on `confirm P9`: Context-Aware Access is ON with the level "TRINC managed endpoint" in **Monitor mode**
       on Calendar, Drive and Docs, Gmail, Chat and Meet — nothing is enforced until the two-week monitor
       review (~2026-09-30), and the Chrome-browser attributes must be re-checked against the Nov 13 trial
-      end before enforcing**)
+      end before enforcing**. **UPDATE 2026-11-15/16: that review finally ran, 9 weeks late, and the
+      verdict is DO NOT ENFORCE as written — 59 of the newest 100 access events would have been denied,
+      every one from the operator's own machine, because the level's Mac leg tests Chrome-browser
+      attributes that native clients cannot emit. Enforcing Drive would have broken Drive for Desktop
+      sync and with it the offsite backup leg in the business Drive. Endpoint Verification was then
+      force-installed (EV1) and the Mac now reports real device posture. Still Monitor, 0 apps active.
+      Security detail, per-client counts and the console traps: `~/Security Everything/mobile/google-workspace/chrome-enterprise-premium-gap-matrix.md`
+      (P9 and EV1 rows) and the 2026-11-15 browser-session log entry.**)
       OCR for Chrome (off), the Gen AI & SaaS report (not turned on), Gen AI defaults not pushed to the
       personal profiles, Password alert at default, no Chrome threat-event alert rules, Context-Aware
       Access OFF for everyone, and one HIGH-risk extension in the work profile.
