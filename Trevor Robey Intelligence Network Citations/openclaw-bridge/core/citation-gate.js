@@ -26,7 +26,7 @@ const fs = require("node:fs");
 const {
   extractCitations, extractCitationSpans, deduplicateCitations, crossCheckCitations, groundingKey
 } = require("./citation-extractor.js");
-const { insertionPoint } = require("./citation-attribution.js");
+const { insertionPoint, referenceDefinition, labelUseEnds } = require("./citation-attribution.js");
 
 // Q7: the grounded-citation floor. config/agent-config.json `minGroundedCitationRatio` is the source
 // of truth; this is the fail-CLOSED fallback (strict, not lax) used only when that config is absent
@@ -169,13 +169,21 @@ function bodySpans(text) {
   return extractCitationSpans(text).filter((s) => !lists.some(([a, b]) => s.start >= a && s.start < b));
 }
 
-// The text index where a mention's mark belongs.
-function markPosition(text, span) {
+// The text indices where a mention's marks belong: one, after the construct holding it. T2-20
+// (2026-11-16): a mention inside a reference definition ("[1]: https://doi.org/…") is marked after
+// each use of its label instead ("[1] [UNVERIFIED]"), because the definition never renders and a mark
+// on its line would end it; a definition the text never uses is marked where it ends.
+function markPositions(text, span) {
   const lineStart = text.lastIndexOf("\n", span.start - 1) + 1;
   let lineEnd = text.indexOf("\n", span.start);
   if (lineEnd < 0) lineEnd = text.length;
   const line = text.slice(lineStart, lineEnd);
-  return lineStart + insertionPoint(line, span.start - lineStart, span.end - lineStart);
+  const def = referenceDefinition(line);
+  if (def) {
+    const uses = labelUseEnds(text, def.label);
+    return uses.length > 0 ? uses : [lineStart + def.end];
+  }
+  return [lineStart + insertionPoint(line, span.start - lineStart, span.end - lineStart)];
 }
 
 function isMarkedAt(text, at) {
@@ -183,12 +191,12 @@ function isMarkedAt(text, at) {
   return ALREADY_MARKED.test(text);
 }
 
-// Untraced mentions in the body that carry no mark. 0 after a successful annotation.
+// Untraced mentions in the body that carry no mark (at any of their positions). 0 after a successful annotation.
 function countUnmarkedUntraced(text, untracedKeys) {
   const s = String(text || "");
   let n = 0;
   for (const span of bodySpans(s)) {
-    if (untracedKeys.has(groundingKey(span)) && !isMarkedAt(s, markPosition(s, span))) n++;
+    if (untracedKeys.has(groundingKey(span)) && markPositions(s, span).some((at) => !isMarkedAt(s, at))) n++;
   }
   return n;
 }
@@ -202,7 +210,7 @@ function annotateUngrounded(reportText, ungroundedList) {
   const untraced = new Set(list.map((c) => groundingKey(c)));
   const positions = new Set();
   for (const span of bodySpans(out)) {
-    if (untraced.has(groundingKey(span))) positions.add(markPosition(out, span));
+    if (untraced.has(groundingKey(span))) for (const at of markPositions(out, span)) positions.add(at);
   }
   // Right to left, so an insertion never moves a position still to be marked.
   for (const at of [...positions].sort((a, b) => b - a)) {

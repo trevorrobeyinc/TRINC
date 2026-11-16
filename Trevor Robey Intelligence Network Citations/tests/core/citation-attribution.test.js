@@ -287,6 +287,20 @@ describe("citation-attribution — marking the shipped text", () => {
     assert.equal(countUnmarkedUntraced(out, new Set(["PMID:31234567"])), 0, "the [UNVERIFIED] mark still reads as placed");
   });
 
+  // T2-20 (2026-11-16): the attribution marks share insertionPoint with the gate's marks.
+  it("T2-20: an attribution mark goes after an autolink or an HTML link, and a reference definition is never checked", () => {
+    const pmidMismatch = { id: "42937037", type: "PMID", registry_label: "Calvo et al., 2026", registry_full: { authors: ["Calvo", "Moglia"], years: [2026] } };
+    const auto = A.annotateAttributionText("Rissanen et al. (2026) <https://pubmed.ncbi.nlm.nih.gov/42937037/> modelled decline.", [pmidMismatch]);
+    assert.ok(auto.includes("<https://pubmed.ncbi.nlm.nih.gov/42937037/> [ATTRIBUTION MISMATCH: registry lists Calvo et al., 2026]"), auto);
+    const html = A.annotateAttributionText('Rissanen et al. (2026) <a href="https://pubmed.ncbi.nlm.nih.gov/42937037/">record</a> modelled decline.', [pmidMismatch]);
+    assert.ok(html.includes('">record</a> [ATTRIBUTION MISMATCH: registry lists Calvo et al., 2026]'), html);
+    const def = '[1]: https://pubmed.ncbi.nlm.nih.gov/42937037/ "Rissanen et al. 2026"';
+    assert.equal(A.annotateAttributionText(def, [pmidMismatch]), def, "a mark there would end the definition");
+    const found = A.findWrittenAttributions(def, [{ type: "PMID", id: "42937037" }]).get("PMID:42937037");
+    assert.deepEqual(found.checkable, []);
+    assert.equal(found.skipped[0].reason, "reference_definition");
+  });
+
   it("never reads a name inside the engine's own marks", () => {
     const line = "PMID: 31234567 [ATTRIBUTION MISMATCH: registry lists Feldman et al., 2022] was cited.";
     const r = A.findWrittenAttributions(line, [{ type: "PMID", id: "31234567" }]).get("PMID:31234567");

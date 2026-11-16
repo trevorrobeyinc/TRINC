@@ -278,6 +278,75 @@ describe("citation-gate", () => {
       assert.equal(annotateUngrounded(out, [{ type: "PMID", id: "12345678" }]), out);
     });
 
+    // T2-20 (2026-11-16), review marks:3: the review's seven constructs. In each the mark goes after the
+    // construct (which is left exactly as written, so it still renders), a second pass changes
+    // nothing, and the old placement INSIDE the construct no longer passes the fail-closed re-read.
+    describe("T2-20: a mark never lands inside a construct", () => {
+      const DOI = { type: "DOI", id: "10.1234/abc" };
+      const DOI_KEY = new Set(["DOI:10.1234/ABC"]);
+      const cases = [
+        ["a link whose text is a bracketed number",
+          "See [[1]](https://doi.org/10.1234/abc).",
+          "See [[1]](https://doi.org/10.1234/abc) [UNVERIFIED].",
+          "See [[1]](https://doi.org/10.1234/abc [UNVERIFIED])."],
+        ["a link whose text holds a bracket",
+          "See [Smith [2019]](https://doi.org/10.1234/abc).",
+          "See [Smith [2019]](https://doi.org/10.1234/abc) [UNVERIFIED].",
+          "See [Smith [2019]](https://doi.org/10.1234/abc [UNVERIFIED])."],
+        ["an angle-bracket autolink",
+          "See <https://doi.org/10.1234/abc>.",
+          "See <https://doi.org/10.1234/abc> [UNVERIFIED].",
+          "See <https://doi.org/10.1234/abc [UNVERIFIED]>."],
+        ["an HTML attribute",
+          'See <a href="https://doi.org/10.1234/abc">Smith</a>.',
+          'See <a href="https://doi.org/10.1234/abc">Smith</a> [UNVERIFIED].',
+          'See <a href="https://doi.org/10.1234/abc [UNVERIFIED]">Smith</a>.'],
+        ["a link title holding a parenthesis",
+          'See [Smith](https://doi.org/10.1234/abc "Smith :)").',
+          'See [Smith](https://doi.org/10.1234/abc "Smith :)") [UNVERIFIED].',
+          'See [Smith](https://doi.org/10.1234/abc "Smith :) [UNVERIFIED]").'],
+        ["a scheme-less URL with a query",
+          "See www.doi.org/10.1234/abc?utm_source=x today.",
+          "See www.doi.org/10.1234/abc?utm_source=x [UNVERIFIED] today.",
+          "See www.doi.org/10.1234/abc [UNVERIFIED]?utm_source=x today."]
+      ];
+      for (const [name, written, expected, inside] of cases) {
+        it(`${name}: marked after it, once, and a mark inside it is refused`, () => {
+          const out = annotateUngrounded(written, [DOI]);
+          assert.equal(body(out), expected);
+          assert.equal(annotateUngrounded(out, [DOI]), out, "a second pass changes nothing");
+          assert.equal(countUnmarkedUntraced(out, DOI_KEY), 0);
+          assert.equal(countUnmarkedUntraced(inside, DOI_KEY), 1, "the old placement fails the re-read");
+        });
+      }
+
+      it("a scheme-less PubMed URL keeps its trailing slash", () => {
+        const pmid = { type: "PMID", id: "12345678" };
+        const key = new Set(["PMID:12345678"]);
+        const out = annotateUngrounded("Record: pubmed.ncbi.nlm.nih.gov/12345678/ (abstract).", [pmid]);
+        assert.equal(body(out), "Record: pubmed.ncbi.nlm.nih.gov/12345678/ [UNVERIFIED] (abstract).");
+        assert.equal(annotateUngrounded(out, [pmid]), out);
+        assert.equal(countUnmarkedUntraced("Record: pubmed.ncbi.nlm.nih.gov/12345678 [UNVERIFIED]/ (abstract).", key), 1);
+      });
+
+      it("a reference definition stays valid: each use of its label is marked instead", () => {
+        const written = "As shown before [1], and by [Smith et al.][1] and [1][].\n\n[1]: https://doi.org/10.1234/abc";
+        const out = annotateUngrounded(written, [DOI]);
+        assert.equal(body(out), "As shown before [1] [UNVERIFIED], and by [Smith et al.][1] [UNVERIFIED] and [1][] [UNVERIFIED].\n\n[1]: https://doi.org/10.1234/abc");
+        assert.equal(annotateUngrounded(out, [DOI]), out, "a second pass changes nothing");
+        assert.equal(countUnmarkedUntraced(out, DOI_KEY), 0);
+        // The old placement ended the definition and left every use unmarked.
+        assert.equal(countUnmarkedUntraced(`${written} [UNVERIFIED]`, DOI_KEY), 1);
+      });
+
+      it("a definition no text uses is marked where it ends; other labels and inline links are not uses", () => {
+        const out = annotateUngrounded("Unrelated [2] and [9](https://example.org/x).\n\n[9]: https://doi.org/10.1234/abc", [DOI]);
+        assert.equal(body(out), "Unrelated [2] and [9](https://example.org/x).\n\n[9]: https://doi.org/10.1234/abc [UNVERIFIED]");
+        assert.equal(annotateUngrounded(out, [DOI]), out);
+        assert.equal(countUnmarkedUntraced(out, DOI_KEY), 0);
+      });
+    });
+
     it("the sealed offer-7e373eb2de36a7a2e73e7c1c excerpt: 2 of 4 mentions were marked; now 4 of 4, none inside a wiki-link", () => {
       const sealed = fs.readFileSync(path.join(__dirname, "..", "fixtures", "unverified-marks-excerpt.md"), "utf8");
       const doi = "10.3389/fonc.2024.1422160";
