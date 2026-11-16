@@ -7,7 +7,7 @@ const { getResearchProfile } = require("./research-profiles.js");
 const { safeString } = require("../../workflows/governance-automation/common.js");
 const defaultTimeProvider = require("./time-provider.js");
 
-const { CITATION_PATTERNS } = require("./citation-extractor.js");
+const { extractCitationSpans } = require("./citation-extractor.js");
 const { redactBylines } = require("./citation-attribution.js");
 
 // CONTEXT-ONLY SOURCES (2026-09-22). Vault read-back and research-memory priors inform a role but
@@ -45,12 +45,23 @@ const LOCAL_SOURCE_LABELS = Object.freeze({
   eia_energy_prices: "U.S. Energy Information Administration"
 });
 
+// T2-18 (2026-11-16): withheld by the extractor's own SPANS, not its regexes, so every form it reads is
+// withheld, PMID table cells and the T2-16/T2-17 forms included; the regex pass missed table cells. Then
+// every remaining run of 5 to 10 digits: a prior run's PMID also reaches this text in shapes the extractor
+// does not read as one, the PMID rows of a mirrored reproducibility manifest ("| PMID | 42977546 | …") and
+// the packager's Citation Summary lists ("- **PMID** (3): 42410465, …"). Those never ground (agent-engine
+// excludes context-only docs), but a model shown them can cite them, and each is then a flag. Over-
+// redaction is harmless here: context-only text is never citable evidence (the bylines rule below).
+const PRIOR_RUN_NUMBER = /(?<![\d.])\d{5,10}(?![\d.])/g;
 function redactIdentifiers(text) {
   let out = String(text || "");
-  for (const { type, regex } of CITATION_PATTERNS) {
-    const fresh = new RegExp(regex.source, regex.flags);
-    out = out.replace(fresh, `<prior-run ${type} withheld>`);
+  let floor = Infinity;
+  for (const s of extractCitationSpans(out).sort((a, b) => b.start - a.start)) {
+    if (s.end > floor) continue; // overlaps a span already withheld
+    out = `${out.slice(0, s.start)}<prior-run ${s.type} withheld>${out.slice(s.end)}`;
+    floor = s.start;
   }
+  out = out.replace(PRIOR_RUN_NUMBER, "<prior-run number withheld>");
   // Bylines too (2026-11-04): a prior run's wrong "Chio et al." must not be re-attached to a live id.
   return redactBylines(out);
 }
