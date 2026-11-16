@@ -164,6 +164,72 @@ describe("citation-extractor — every written form (T1-4)", () => {
 });
 
 // Tier 1 review (2026-11-14): forms the T1-4 patterns still missed or over-read.
+// T2-17 (2026-11-16): the spellings SYSTEM-REALITY.md §3 listed as unread, and DOI URL suffixes.
+describe("citation-extractor — the documented unread spellings (T2-17)", () => {
+  it("a PMID label with markdown emphasis or a '#' is read", () => {
+    for (const text of ["**PMID:** 31111111", "**PMID**: 31111111", "PMID: **31111111**", "__PMID__: 31111111", "*PMID:* 31111111", "PMID #31111111", "- **PMID:** 31111111 — Smith et al. 2020"]) {
+      assert.deepEqual(ids(text, "PMID"), ["31111111"], text);
+    }
+  });
+
+  it("the packager's own count lines are not PMIDs (found by the T2-17 replay); a plain short label still is", () => {
+    assert.deepEqual(ids("- **PMID**: 8 verified references", "PMID"), []);
+    assert.deepEqual(ids("- **PMID**: 10 cited · 10 VERIFIED", "PMID"), []);
+    assert.deepEqual(ids("- **NCT**: 15\n- **PMID**: 14\n\n## Quality Audit", "PMID"), []);
+    assert.deepEqual(ids("PMID #1 search string", "PMID"), []);
+    assert.deepEqual(ids("PMID: 1234 (a 1975 paper)", "PMID"), ["1234"]);
+  });
+
+  it("a final list item after 'and' or '&' is read when it has 5+ digits", () => {
+    assert.deepEqual(ids("Two cohorts (PMIDs: 31111111, 32222222 and 33333333) showed benefit.", "PMID"), ["31111111", "32222222", "33333333"]);
+    assert.deepEqual(ids("PMIDs: 31111111, 32222222, and 33333333.", "PMID"), ["31111111", "32222222", "33333333"]);
+    assert.deepEqual(ids("PMIDs: 31111111 and 32222222", "PMID"), ["31111111", "32222222"]);
+    assert.deepEqual(ids("PMID: 31111111 & 32222222", "PMID"), ["31111111", "32222222"]);
+    assert.deepEqual(ids("PMID: 12345678 and 2019 data", "PMID"), ["12345678"], "a year after 'and' stays prose");
+  });
+
+  it("a later list item followed by a word is read when it has 5+ digits; a short number stays prose", () => {
+    assert.deepEqual(ids("See PMIDs 31111111, 32222222 for details.", "PMID"), ["31111111", "32222222"]);
+    assert.deepEqual(ids("PMID: 31111111, 32222222 respectively.", "PMID"), ["31111111", "32222222"]);
+    assert.deepEqual(ids("PMID: 12345678, 10 patients withdrew", "PMID"), ["12345678"]);
+    assert.deepEqual(ids("PMID: 12345678, 95% CI 1.2-3.4", "PMID"), ["12345678"]);
+  });
+
+  it("a 'PubMed IDs:' list reads every item; a search span after a bare 'PubMed:' still reads nothing", () => {
+    assert.deepEqual(ids("PubMed IDs: 31111111, 32222222", "PMID"), ["31111111", "32222222"]);
+    assert.deepEqual(ids("**PubMed ID:** 31111111", "PMID"), ["31111111"]);
+    assert.deepEqual(ids("PubMed: 2015, 2016 and 2017", "PMID"), []);
+  });
+
+  it("a 'CIDs:' list reads every item; a dose after a CID stays prose; a lowercase 'cid:' stays unread (D9)", () => {
+    assert.deepEqual(ids("CIDs: 2244, 3672", "PubChem CID"), ["2244", "3672"]);
+    assert.deepEqual(ids("CID: 2244, 10 mg daily", "PubChem CID"), ["2244"]);
+    assert.deepEqual(ids("PubChem record cid: 2244", "PubChem CID"), []);
+  });
+
+  it("'UniProt ID:' and 'UniProt accession' labels are read", () => {
+    assert.deepEqual(ids("UniProt ID: P04637", "UniProt"), ["P04637"]);
+    assert.deepEqual(ids("UniProt accession Q9Y261", "UniProt"), ["Q9Y261"]);
+    assert.deepEqual(ids("UniProt: P04637", "UniProt"), ["P04637"]);
+  });
+
+  it("inside a URL, a publisher's path after the DOI is cut, so the DOI exists (D10)", () => {
+    assert.deepEqual(ids("https://www.biorxiv.org/content/10.1101/2020.03.22.002386v1.full", "DOI"), ["10.1101/2020.03.22.002386"]);
+    assert.deepEqual(ids("https://www.medrxiv.org/content/10.1101/2020.04.10.20060392v2.full.pdf", "DOI"), ["10.1101/2020.04.10.20060392"]);
+    assert.deepEqual(ids("https://link.springer.com/content/pdf/10.1007/s00134-020-06294-x.pdf", "DOI"), ["10.1007/s00134-020-06294-x"]);
+    assert.deepEqual(ids("onlinelibrary.wiley.com/doi/10.1002/jmv.25728?af=R", "DOI"), ["10.1002/jmv.25728"]);
+    assert.deepEqual(ids("https://www.frontiersin.org/articles/10.3389/fphar.2021.123456/full.", "DOI"), ["10.3389/fphar.2021.123456"]);
+    assert.deepEqual(ids("https://onlinelibrary.wiley.com/doi/epdf/10.1002/jmv.25728/abstract", "DOI"), ["10.1002/jmv.25728"]);
+  });
+
+  it("a bare DOI is never cut: the proof run's real versioned OSF DOI stays whole, bare and in a doi.org URL", () => {
+    assert.deepEqual(ids("Preprint doi: 10.31234/osf.io/r2fnz_v2.", "DOI"), ["10.31234/osf.io/r2fnz_v2"]);
+    assert.deepEqual(ids("https://doi.org/10.31234/osf.io/r2fnz_v2", "DOI"), ["10.31234/osf.io/r2fnz_v2"]);
+    assert.deepEqual(ids("Bare 10.1101/2020.03.22.002386v1 as written.", "DOI"), ["10.1101/2020.03.22.002386v1"]);
+    assert.deepEqual(ids("https://doi.org/10.1234/fullerene.2019", "DOI"), ["10.1234/fullerene.2019"], "only a trailing segment is cut");
+  });
+});
+
 describe("citation-extractor — review fixes (2026-11-14)", () => {
   const { enrichWithWikiLinks } = require("../../openclaw-bridge/core/wiki-link-enricher.js");
 

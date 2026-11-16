@@ -8,6 +8,7 @@ const {
   verifyReportCitations, annotateUngrounded, annotateSubtaskOutputs, countUnmarkedUntraced, collectFetchedIds,
   collectFetchedKeys, checkRetractions, DEFAULT_MIN_GROUNDED_RATIO, resolveConfiguredGroundedFloor, meetsGroundedFloor
 } = require("../../openclaw-bridge/core/citation-gate.js");
+const { crossCheckCitations } = require("../../openclaw-bridge/core/citation-extractor.js");
 
 function fakeReader(map) {
   return (p) => {
@@ -221,6 +222,22 @@ describe("citation-gate", () => {
     it("an untraced PMID is marked, never the same digits inside an earlier CID", () => {
       const out = annotateUngrounded("Compound CID 112345678 binds; see PMID: 12345678.", [{ type: "PMID", id: "12345678" }]);
       assert.equal(body(out), "Compound CID 112345678 binds; see PMID: 12345678 [UNVERIFIED].");
+    });
+
+    // T2-17 (2026-11-16): the newly read spellings are counted and marked like any other mention.
+    it("T2-17: an untraced PMID behind a bold label, and the last item of an 'and' list, are marked", () => {
+      const out = annotateUngrounded(
+        "**PMID:** 99999999 opened; later (PMIDs: 12345678, 23456789 and 99999998).",
+        [{ type: "PMID", id: "99999999" }, { type: "PMID", id: "99999998" }]
+      );
+      assert.equal(body(out), "**PMID:** 99999999 [UNVERIFIED] opened; later (PMIDs: 12345678, 23456789 and 99999998 [UNVERIFIED]).");
+    });
+
+    it("T2-17: a DOI in a publisher URL is counted once, as the real DOI, and marked after the whole URL", () => {
+      const text = "Full text: https://www.frontiersin.org/articles/10.3389/fphar.2021.123456/full.";
+      const x = crossCheckCitations(text, []);
+      assert.deepEqual(x.unverified, [{ type: "DOI", id: "10.3389/fphar.2021.123456" }]);
+      assert.equal(body(annotateUngrounded(text, x.unverified)), "Full text: https://www.frontiersin.org/articles/10.3389/fphar.2021.123456/full [UNVERIFIED].");
     });
 
     it("an untraced 'PMID: 5' leaves 'Phase 5' untouched", () => {
