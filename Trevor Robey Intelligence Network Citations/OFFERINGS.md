@@ -42,7 +42,9 @@
   sections of an engine-generated business report that are cited to identifiers the business lane
   recognizes: `WEB:` (a stored snapshot of the exact page text read), `SEC:` filings, `WB:` World Bank
   indicators, `BLS:` and `EUROSTAT:` statistics (`CENSUS:` and `EIA:` once their free keys are registered),
-  and DOIs. Each is grounded in the evidence retrieved for that run and re-resolved at delivery. A `WEB:`
+  and DOIs. Each is checked against the evidence retrieved for that run (one not found there is flagged
+  `[UNVERIFIED]` at every mention, and fewer than 75% traced stops the report) and re-resolved when the
+  report is assembled. A `WEB:`
   citation proves exactly what was read, from which URL and when; it does not prove the page is correct or
   still online. A statistics citation re-resolves the series, not the value, which is shown as the agency
   published it on the retrieval date. Sections built on anything else sit outside the Guarantee and the SLA
@@ -72,10 +74,12 @@
 - **Citation-Audit SLA** on every deliverable — refund-backed. The buyer reports a defect within 30 days of delivery; we correct and redeliver within 15 business days; if the deliverable is still defective, we refund the full fee for the affected deliverable, and that refund is the sole remedy. *(Operator rule 2026-11-04, applied 2026-11-06; the order form's Exhibit A, the refund policy, holds the definitions.)*
 - **Scope of the two commitments above (2026-07-30).** Both describe what the **engine enforces at
   generation time** on an engine-generated deliverable. The citation engine reads these identifier types
-  for citation — PMID, PubChem CID, NCT, UniProt, ChEMBL, DOI — in every written form a report uses
-  (2026-11-14): labels and lists ("PMIDs: a, b"), PubMed record URLs, DOIs bare, behind `doi:` or a
-  doi.org link, and inside publisher URLs, and bare cells under a table column headed PMID. PMCIDs are not
-  read. (It reads one more type, from a source this business holds no redistribution licence for; an
+  for citation — PMID, PubChem CID, NCT, UniProt, ChEMBL, DOI — in these written forms (2026-11-14):
+  labels and lists ("PMIDs: a, b", also when the first item is a link), PubMed record URLs, DOIs bare,
+  behind `doi:` or a doi.org link, and inside publisher URLs, and bare cells under a table column headed
+  PMID. Other forms are not read (for example a later list item followed by a word, an "and"-joined item,
+  `PMID #n` or a bold label), and neither are PMCIDs; SYSTEM-REALITY.md §3 lists them. (It reads one more
+  type, from a source this business holds no redistribution licence for; an
   identifier of that type anywhere in a bundle blocks shipment.) Evidence carrying
   none of them is **never extracted as a citation at all**: it is not graded, not counted in the grounded
   ratio, and not retraction-screened — so it is neither improved nor penalised by the Gate, it is
