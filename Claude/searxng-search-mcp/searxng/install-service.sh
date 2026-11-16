@@ -29,7 +29,25 @@ plutil -lint "$PLIST"
 echo "== (re)load service =="
 DOMAIN="gui/$(id -u)"
 launchctl bootout   "$DOMAIN/$LABEL" 2>/dev/null || true
-launchctl bootstrap "$DOMAIN" "$PLIST"
+# bootout returns before launchd has finished removing the job. A bootstrap in that window fails
+# with "Bootstrap failed: 5: Input/output error" and leaves the unit UNLOADED, so SearXNG stays
+# down (seen 2026-11-15). Wait until launchd no longer knows the label: at most 10 s, which covers
+# the job's 5 s exit timeout. Fail loudly rather than load the new plist over a job still there.
+for attempt in {1..50}; do
+  launchctl print "$DOMAIN/$LABEL" >/dev/null 2>&1 || break
+  sleep 0.2
+done
+if launchctl print "$DOMAIN/$LABEL" >/dev/null 2>&1; then
+  echo "ERROR: launchd still holds $LABEL 10 s after bootout; not loading the new plist over it." >&2
+  echo "       Inspect it with: launchctl print $DOMAIN/$LABEL" >&2
+  exit 1
+fi
+echo "old job gone (check $attempt of 50)"
+if ! launchctl bootstrap "$DOMAIN" "$PLIST"; then
+  echo "ERROR: bootstrap failed, so $LABEL is NOT loaded and SearXNG is down." >&2
+  echo "       Re-run this script, or run: launchctl bootstrap $DOMAIN $PLIST" >&2
+  exit 1
+fi
 launchctl enable    "$DOMAIN/$LABEL" 2>/dev/null || true
 launchctl kickstart -k "$DOMAIN/$LABEL"
 
