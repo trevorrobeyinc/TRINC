@@ -37,6 +37,25 @@ const RETRACTED_PUBTYPE = "retracted publication";
 // signal from here is what disambiguates a Crossref flag.
 const RETRACTION_NOTICE_PUBTYPE = "retraction notice";
 
+// T2-2 (2026-11-16): editorial notices PubMed records only as a docsum REFERENCE type (verified live
+// 2026-11-15, tests/fixtures/registry-probe-2026-11-15/). A paper under an expression of concern keeps its
+// publication type and carries "Expression of concern in". "Retraction in" on a record WITHOUT the
+// "Retracted Publication" type may be a partial retraction or an update not yet made, and PubMed marks
+// neither apart (no publication type and no filter for a partial retraction: the 2026-11-16 probe), so it
+// is flagged in the ledger and never blocks (operator default D14). With the publication type, the record
+// is retracted and blocks as before. Exact matches, never a regex.
+const EXPRESSION_OF_CONCERN_REFTYPE = "expression of concern in";
+const RETRACTION_IN_REFTYPE = "retraction in";
+
+function editorialReftypes(rec, retracted) {
+  const types = new Set((Array.isArray(rec && rec.references) ? rec.references : [])
+    .map((r) => String((r && r.reftype) || "").trim().toLowerCase()));
+  const out = [];
+  if (types.has(EXPRESSION_OF_CONCERN_REFTYPE)) out.push("expression_of_concern");
+  if (types.has(RETRACTION_IN_REFTYPE) && retracted !== true) out.push("pubmed_retraction_link");
+  return out;
+}
+
 // esummary accepts a comma-separated id list; 100 keeps the URL short and the request count low.
 const MAX_IDS_PER_REQUEST = 100;
 
@@ -158,12 +177,15 @@ function createPubmedRetraction(options = {}) {
         if (rec.error) { out.push({ pmid: String(id), retracted: false, is_notice: false, checked: true }); continue; }
         const verdict = isRetractedPubtype(rec.pubtype);
         if (verdict === null) { out.push(unchecked(id)); continue; }
+        // T2-2: present only when PubMed records an editorial notice, so every other row is unchanged.
+        const editorial = editorialReftypes(rec, verdict);
         out.push({
           pmid: String(id),
           retracted: verdict,
           is_notice: isNoticePubtype(rec.pubtype) === true,
           checked: true,
-          title: String(rec.title || "")
+          title: String(rec.title || ""),
+          ...(editorial.length > 0 ? { editorial } : {})
         });
       }
     }
@@ -269,6 +291,7 @@ function createPubmedRetraction(options = {}) {
 
 module.exports = {
   createPubmedRetraction,
+  editorialReftypes,
   isRetractedPubtype,
   isNoticePubtype,
   RETRACTED_PUBTYPE,

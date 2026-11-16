@@ -401,12 +401,15 @@ async function screenDoisViaPubmed(dois, doiToPmid, checkPmids, knownVerdicts) {
   for (const [doi, ps] of doiPmids) {
     let retracted = false;
     let notice = false;
+    const editorial = new Set(); // T2-2: PubMed's editorial notices on the DOI's PMIDs
     for (const p of ps) {
       const v = vById.get(p);
       if (v && v.retracted) retracted = true;
       if (v && v.is_notice) notice = true;
+      for (const t of (v && Array.isArray(v.editorial) ? v.editorial : [])) editorial.add(t);
     }
     perDoi.set(doi, {
+      editorial: [...editorial],
       // A record that is a retracted paper wins over the notice flag (defensive; they never co-occur).
       pubmedRetracted: retracted,
       pubmedNotice: notice && !retracted,
@@ -426,7 +429,7 @@ async function screenDoisViaPubmed(dois, doiToPmid, checkPmids, knownVerdicts) {
 // same per-class ceiling. `pmcidToIds` (pubmed-retraction.js resolvePmcidsToIds) is optional: unwired,
 // every cited PMCID is named unscreened.
 async function screenPmcids(pmcids, pmcidToIds, checkPmids, checkDois, knownPmidRows, knownDoiRows) {
-  const out = { retracted: [], unscreened: [], checked_count: 0 };
+  const out = { retracted: [], unscreened: [], checked_count: 0, editorial: new Map() };
   if (pmcids.length === 0) return out;
   const inScope = pmcids.slice(0, MAX_SCREEN_IDS_PER_CLASS);
   out.unscreened.push(...pmcids.slice(MAX_SCREEN_IDS_PER_CLASS));
@@ -454,6 +457,7 @@ async function screenPmcids(pmcids, pmcidToIds, checkPmids, checkDois, knownPmid
     if (map && map.pmid) {
       const v = pmidVerdicts.get(String(map.pmid));
       if (v && v.checked) verdict = Boolean(v.retracted);
+      if (v && Array.isArray(v.editorial) && v.editorial.length > 0) out.editorial.set(id, v.editorial);
     } else if (map && map.doi) {
       const v = doiVerdicts.get(lc(map.doi));
       if (v && v.checked && v.in_crossref !== false) verdict = Boolean(v.retracted);
@@ -522,6 +526,23 @@ async function screenOnce(reportText, checkDois, checkPmids, doiToPmid, pmcidToI
       editorial_flags.push({ id: `DOI:${doi}`, type: e.type, source: e.source || null });
     }
   }
+  // T2-2 (2026-11-16): PubMed's editorial notices too (pubmed-retraction.js editorialReftypes): for a
+  // cited PMID, for a DOI through the PMIDs it resolves to, and for a PMCID through its PMC record's
+  // PMID. One flag per identifier and type, so a notice both sources record is listed once. Never a block.
+  const flagged = new Set(editorial_flags.map((f) => `${f.id}|${f.type}`));
+  const addPubmed = (id, types) => {
+    for (const t of Array.isArray(types) ? types : []) {
+      if (flagged.has(`${id}|${t}`)) continue;
+      flagged.add(`${id}|${t}`);
+      editorial_flags.push({ id, type: t, source: "pubmed" });
+    }
+  };
+  for (const doi of dois) addPubmed(`DOI:${doi}`, pubmedFor(doi).editorial);
+  for (const pmid of pmids) {
+    const r = pmidRows.get(String(pmid));
+    addPubmed(`PMID:${pmid}`, r && r.editorial);
+  }
+  for (const [pmcid, types] of pmc.editorial) addPubmed(`PMCID:${pmcid}`, types);
 
   // T1-7 coverage, per identifier, NAMED. A DOI counts as screened only if Crossref holds it (a 200
   // with a definitive record), or if PubMed resolved it to at least one PMID with a definitive

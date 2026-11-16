@@ -12,6 +12,12 @@ const { MAX_SCREEN_IDS_PER_CLASS } = require("../core/citation-gate.js");
 // What a section searched since 2026-11-15, as the scholarly search names it ("Europe PMC and Crossref").
 const { SEARCHED: SCHOLARLY_SEARCH } = require("../mcp/scholarly-search/scholarly-search.js");
 
+// How the ledger names an editorial notice and who recorded it (T2-2, 2026-11-16).
+const EDITORIAL_LABELS = Object.freeze({
+  pubmed_retraction_link: "PubMed links a retraction notice to it, but its record is not marked retracted (a partial retraction, or an update not yet made)"
+});
+const SOURCE_LABELS = Object.freeze({ "retraction-watch": "Crossref", pubmed: "PubMed" });
+
 /** "mission-abc:subtask:1" → "subtask 1"; plain ids pass through. */
 function shortSection(id) {
   const s = String(id || "section");
@@ -128,14 +134,15 @@ function buildIntegrityReport(citationVerification = {}, sectionCoverage = []) {
     );
   }
   // Operator default D3 (2026-11-14): a partial retraction, withdrawal or expression of concern on a
-  // cited work is recorded here and never blocks; only an exact retraction blocks.
+  // cited work is recorded here and never blocks; only an exact retraction blocks. T2-2 (2026-11-16): PubMed's
+  // notices too, and a "Retraction in" link on a PubMed record not marked retracted (operator default D14).
   const editorial = Array.isArray(cv.retraction_editorial_flags) ? cv.retraction_editorial_flags : [];
   if (editorial.length > 0) {
     lines.push(
       "",
       "## Editorial notices on cited works (not blocking)",
       "",
-      ...editorial.map((e) => `- ${e.id}: ${String(e.type).replace(/_/g, " ")}${e.source ? ` (recorded by ${e.source === "retraction-watch" ? "Crossref" : e.source})` : ""}`)
+      ...editorial.map((e) => `- ${e.id}: ${EDITORIAL_LABELS[e.type] || String(e.type).replace(/_/g, " ")}${e.source ? ` (recorded by ${SOURCE_LABELS[e.source] || e.source})` : ""}`)
     );
   }
   if (ungroundedSample.length > 0) {

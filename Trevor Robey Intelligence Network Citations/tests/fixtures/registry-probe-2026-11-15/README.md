@@ -16,3 +16,15 @@ dexamethasone paper (PMID 32678530, PMCID PMC7383595). The invented ids were cho
 
 The ISRCTN record page (`isrctn.com/ISRCTN<n>`) answered 200 with the same 1,206-byte page for the real
 and the invented id, which is why the resolver reads the query API instead.
+
+**T2-2 (PubMed's editorial notices), saved 2026-11-16, trimmed to `uid`, `pubtype`, `references`, `title`:**
+
+| File | Request | What it pins |
+|---|---|---|
+| `pubmed-esummary-eoc-25065594.json` | NCBI `esummary.fcgi?db=pubmed&id=25065594` | a paper under an expression of concern: reference type exactly "Expression of concern in", publication type unchanged |
+| `pubmed-esummary-retracted-9500320.json` | the same for `id=9500320` (the 1998 Lancet paper) | "Retracted Publication" with the references "Retraction in", "Expression of concern in" and "Comment in" |
+
+A paced probe the same day found no PubMed marker that sets a partial retraction apart: the publication
+types "Partial Retraction" and "Retraction of Publication" and the filter "haspartialretractionin" all
+return nothing, while "hasretractionin" returns 35,624 records whose samples all carry "Retracted
+Publication". So a "Retraction in" link on a record not marked retracted is a ledger flag, never a block.
