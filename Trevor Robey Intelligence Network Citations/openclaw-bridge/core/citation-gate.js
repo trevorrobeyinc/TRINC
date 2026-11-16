@@ -481,7 +481,8 @@ async function screenPmcids(pmcids, pmcidToIds, checkPmids, checkDois, knownPmid
 // Crossref flag stands (fail-closed on the retraction axis).
 // `checkPmids` and `doiToPmid` are optional so existing 2-/3-argument callers keep prior behavior, and so
 // is `pmcidToIds` (T2-16: cited PMCIDs are screened through their PMC record's PMID or DOI).
-async function checkRetractions(reportText, checkDois, checkPmids, doiToPmid, pmcidToIds) {
+// One pass of the screen; checkRetractions (below) runs it once, or twice after a pause (T2-1).
+async function screenOnce(reportText, checkDois, checkPmids, doiToPmid, pmcidToIds) {
   const anyScreen = typeof checkDois === "function" || typeof checkPmids === "function";
   // deduplicateCitations compares DOIs case-insensitively (T1-4): "10.1056/NEJMoa…" and
   // "10.1056/nejmoa…" are one work, screened once.
@@ -578,6 +579,58 @@ async function checkRetractions(reportText, checkDois, checkPmids, doiToPmid, pm
     dois_without_retraction_source,
     dois_crossref_only
   };
+}
+
+// T2-1 (2026-11-16): one deferred retry for the screen. Each leg is wrapped so a DEFINITIVE row (a
+// verdict, a "not held here", a DOI that resolved to no PMID) is kept and never fetched again; when any
+// leg got no definitive answer for an id (a throttle, a timeout, an outage, a chunk that threw), the whole
+// screen runs once more after one pause, and only those ids are asked again. An id beyond the per-class
+// ceiling or a DOI no retraction source holds is a definitive answer, so it never triggers a retry. A
+// second failure stays unscreened and named, exactly as before. The pause is `options.retryDelayMs`
+// (default 2,000 ms, the re-resolver's) through `options.sleep`; `options.retry: false` turns it off.
+const DEFAULT_SCREEN_RETRY_DELAY_MS = 2000;
+
+function retryingLeg(fn, keyOfId, keyOfRow, isDefinitive, tally) {
+  if (typeof fn !== "function") return fn;
+  const settled = new Map(); // definitive rows, by key
+  const latest = new Map(); // the last non-definitive row, by key
+  return async (list) => {
+    const ids = Array.isArray(list) ? list : [];
+    const need = ids.filter((id) => !settled.has(keyOfId(id)));
+    if (need.length > 0) {
+      let rows = [];
+      try {
+        const got = await fn(need);
+        rows = Array.isArray(got) ? got.filter(Boolean) : [];
+      } catch { rows = []; /* fail-soft: these ids stay without a definitive row */ }
+      for (const row of rows) {
+        const key = keyOfRow(row);
+        if (isDefinitive(row)) { settled.set(key, row); latest.delete(key); } else latest.set(key, row);
+      }
+      for (const id of need) if (!settled.has(keyOfId(id))) tally.failures += 1;
+    }
+    return ids.map((id) => settled.get(keyOfId(id)) || latest.get(keyOfId(id))).filter(Boolean);
+  };
+}
+
+async function checkRetractions(reportText, checkDois, checkPmids, doiToPmid, pmcidToIds, options = {}) {
+  const lc = (doi) => String(doi).toLowerCase();
+  const up = (id) => String(id).toUpperCase();
+  const tally = { failures: 0 };
+  const legs = [
+    retryingLeg(checkDois, lc, (r) => lc(r.doi), (r) => r.checked === true, tally),
+    retryingLeg(checkPmids, String, (r) => String(r.pmid), (r) => r.checked === true, tally),
+    retryingLeg(doiToPmid, lc, (r) => lc(r.doi), (r) => r.resolved === true, tally),
+    retryingLeg(pmcidToIds, up, (r) => up(r.pmcid), (r) => r.resolved === true, tally)
+  ];
+  let result = await screenOnce(reportText, ...legs);
+  if (tally.failures > 0 && options.retry !== false) {
+    const delay = Number.isFinite(options.retryDelayMs) ? Math.max(0, options.retryDelayMs) : DEFAULT_SCREEN_RETRY_DELAY_MS;
+    const sleep = typeof options.sleep === "function" ? options.sleep : (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    await sleep(delay);
+    result = { ...(await screenOnce(reportText, ...legs)), retried: true };
+  }
+  return result;
 }
 
 module.exports = {

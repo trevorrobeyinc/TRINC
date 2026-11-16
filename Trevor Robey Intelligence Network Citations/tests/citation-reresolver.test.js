@@ -20,7 +20,8 @@ function mockFetch(routes, counter) {
   };
 }
 function rr(routes, counter) {
-  return createCitationReresolver({ fetchImpl: mockFetch(routes, counter), nowIso: NOW });
+  // T2-1: a no-op sleep, so a test whose registry keeps failing does not wait out the deferred retry.
+  return createCitationReresolver({ fetchImpl: mockFetch(routes, counter), nowIso: NOW, sleep: async () => {} });
 }
 
 test("PMID: real id with docsum -> VERIFIED", async () => {
@@ -376,4 +377,45 @@ test("attribution: an UNRESOLVED or UNCHECKED id is never attribution-checked", 
   assert.equal(resolved[0].status, "UNCHECKED");
   const out = await resolver.checkAttributions(resolved, ATTRIBUTION_REPORT);
   assert.deepEqual(out.results, []);
+});
+
+
+// T2-1 (2026-11-16): one deferred retry for every lookup a registry did not answer, after one injected
+// pause; never for a definitive answer (UNRESOLVED, or UNCHECKED for a reason that is itself an answer).
+function retryResolver(script, calls, pauses) {
+  const fetchImpl = async (url) => {
+    calls.push(url);
+    const step = script.shift();
+    if (!step) throw new Error("no scripted answer left for " + url);
+    if (step.abort) { const e = new Error("aborted"); e.name = "AbortError"; throw e; }
+    return { status: step.status, json: async () => step.body, text: async () => JSON.stringify(step.body) };
+  };
+  return createCitationReresolver({ fetchImpl, nowIso: NOW, sleep: async (ms) => { pauses.push(ms); } });
+}
+const PUBCHEM_OK = { status: 200, body: { PC_Compounds: [{ id: { id: { cid: 2244 } } }] } };
+
+test("T2-1: a lookup that timed out is asked again once after a 2,000 ms pause, and is VERIFIED with attempts 2", async () => {
+  const calls = []; const pauses = [];
+  const out = await retryResolver([{ abort: true }, PUBCHEM_OK], calls, pauses).resolveAll([{ type: "PubChem CID", id: "2244" }]);
+  assert.equal(out[0].status, "VERIFIED");
+  assert.equal(out[0].attempts, 2);
+  assert.deepEqual(pauses, [2000]);
+  assert.equal(calls.length, 2);
+});
+test("T2-1: a second failure stays UNCHECKED, with both attempts counted", async () => {
+  const calls = []; const pauses = [];
+  const out = await retryResolver([{ status: 503 }, { status: 503 }], calls, pauses).resolveAll([{ type: "PubChem CID", id: "2244" }]);
+  assert.equal(out[0].status, "UNCHECKED");
+  assert.equal(out[0].evidence.reason, "rate_limited");
+  assert.equal(out[0].attempts, 2);
+});
+test("T2-1: a 404 and a no-resolver id are answers, never retried, and no pause is taken", async () => {
+  const calls = []; const pauses = [];
+  const out = await retryResolver([{ status: 404, body: {} }], calls, pauses).resolveAll([{ type: "PubChem CID", id: "999999999" }]);
+  assert.equal(out[0].status, "UNRESOLVED");
+  assert.deepEqual(pauses, []);
+  assert.equal(calls.length, 1);
+  const none = await retryResolver([], [], pauses).resolveAll([{ type: "UNKNOWN-TYPE", id: "x1" }]);
+  assert.equal(none[0].evidence.reason, "no_resolver");
+  assert.deepEqual(pauses, []);
 });

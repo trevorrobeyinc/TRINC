@@ -613,6 +613,22 @@ function createCitationReresolver(options = {}) {
     return out;
   }
 
+  // T2-1 (2026-11-16): one deferred retry for every lookup a registry did not answer. Every UNCHECKED row
+  // in the three flagged sealed manifests was rate_limited (5, 6 and 11 rows). After the first pass, each
+  // UNCHECKED result whose reason is a transport failure is dropped from the per-run cache and asked once
+  // more, per host and in order, after one injected pause (`retryDelayMs`, default 2,000 ms, through the
+  // same injectable `sleep` the NCBI pacing uses, so a test never waits). Never retried: an UNRESOLVED
+  // answer, or UNCHECKED for any other reason (no resolver, an unparseable or empty answer, no API key, a
+  // register with no definitive answer): those are answers, not silences. Q8 holds: a retry can only
+  // turn UNCHECKED into a definitive status; nothing is promoted without one.
+  const RETRYABLE_REASONS = new Set(["timeout", "network_error", "http_5xx", "rate_limited"]);
+  const retryDelayMs = Number.isFinite(options.retryDelayMs) ? Math.max(0, options.retryDelayMs) : 2000;
+  const retrySleep = typeof options.sleep === "function" ? options.sleep : (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  function retryable(r) {
+    return Boolean(r && r.status === STATUS.UNCHECKED && RETRYABLE_REASONS.has((r.evidence && r.evidence.reason) || ""));
+  }
+
   // Dedup by type+ID; one in-flight request PER HOST (polite, never trips a registry limit),
   // hosts processed concurrently. Cache makes duplicate citations resolve once per run.
   async function resolveAll(citations) {
@@ -634,6 +650,26 @@ function createCitationReresolver(options = {}) {
     await Promise.all([...byHost.values()].map(async (list) => {
       for (const c of list) results.push(await resolveOne(c));
     }));
+    // T2-1: the deferred retry (see RETRYABLE_REASONS above).
+    const again = results.filter(retryable);
+    if (again.length > 0) {
+      await retrySleep(retryDelayMs);
+      const retryByHost = new Map();
+      for (const prev of again) {
+        const h = hostFor(prev.type);
+        if (!retryByHost.has(h)) retryByHost.set(h, []);
+        retryByHost.get(h).push(prev);
+      }
+      await Promise.all([...retryByHost.values()].map(async (list) => {
+        for (const prev of list) {
+          cache.delete(`${prev.type}:${String(prev.id).toUpperCase()}`);
+          const next = await resolveOne({ type: prev.type, id: prev.id });
+          const merged = { ...next, attempts: (prev.attempts || 1) + (next.attempts || 1) };
+          cache.set(`${prev.type}:${String(prev.id).toUpperCase()}`, merged);
+          results[results.indexOf(prev)] = merged;
+        }
+      }));
+    }
     return results;
   }
 

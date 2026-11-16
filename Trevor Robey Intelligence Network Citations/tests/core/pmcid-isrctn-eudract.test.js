@@ -38,7 +38,7 @@ function fetchStub(routes) {
     throw new Error(`no stub route for ${url}`);
   };
 }
-const resolver = (routes) => createCitationReresolver({ fetchImpl: fetchStub(routes), nowIso: () => "2026-11-16T00:00:00Z" });
+const resolver = (routes) => createCitationReresolver({ fetchImpl: fetchStub(routes), nowIso: () => "2026-11-16T00:00:00Z", sleep: async () => {} });
 
 describe("T2-16: the extractor reads EudraCT, ISRCTN and PMCID ids", () => {
   it("ISRCTN: bare, spaced, hyphenated and in an isrctn.com URL, normalized", () => {

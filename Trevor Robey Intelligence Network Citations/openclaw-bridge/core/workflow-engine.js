@@ -381,6 +381,8 @@ function createWorkflowEngine(options = {}) {
             retracted_dois_via_pmid: retraction.retracted_dois_via_pmid || [],
             unflagged_notice_dois: retraction.unflagged_notice_dois || [],
             retraction_screen_checked: Boolean(retraction.checked),
+            // T2-1: true when the screen asked again, once, for ids that first got no definitive answer.
+            retraction_screen_retried: Boolean(retraction.retried),
             dois_checked: retraction.dois_checked || 0,
             pmids_checked: retraction.pmids_checked || 0,
             dois_escalated_via_pmid: retraction.dois_escalated_via_pmid || 0,
