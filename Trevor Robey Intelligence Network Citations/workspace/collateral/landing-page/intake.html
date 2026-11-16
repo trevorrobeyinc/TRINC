@@ -424,7 +424,7 @@ code {
   <div class="pillar-strip">
     <div class="pillar-cell">
       <div class="pillar-label">VERIFIABLE</div>
-      <div class="pillar-heading">Every claim, sourced.</div>
+      <div class="pillar-heading">Every citation, checked.</div>
       <div class="pillar-proof">Citation gate hard-fails on ungrounded identifiers &mdash; not a warning flag.</div>
     </div>
     <div class="pillar-cell">
@@ -439,7 +439,7 @@ code {
     </div>
   </div>
 
-  <div class="tagline">Every claim, sourced. Every risk, named. In days, not weeks.</div>
+  <div class="tagline">Every citation, checked. Every risk, named. In days, not weeks.</div>
   <div class="framing">Select the type of analysis you need &mdash; the form will show only the relevant entity fields and the corresponding capability evidence panel.</div>
 </div>
 
@@ -619,7 +619,7 @@ code {
           <p>Every cited identifier (PMID, NCT, ChEMBL CID, DOI) is cross-checked against the union of identifiers actually returned by live database tool calls during the same run &mdash; not model memory. If the grounded-citation ratio falls below the configured threshold, the report hard-fails <code>PHASE30_CITATION_UNVERIFIED</code> and does not ship.</p>
           <p>Cited DOIs are screened against Crossref's retraction record before delivery. A report citing any confirmed retracted paper hard-stops <code>PHASE30_CITATION_RETRACTED</code>. The screen is fail-soft: a Crossref network error yields <code>checked:false</code> and does not wrongly block a passing report.</p>
           <div class="panel-note">Retraction screening applies to cited DOIs only &mdash; PMIDs and NCTs are not routed through Crossref.</div>
-          <div class="h1-tagline">Every claim, sourced. Every risk, named. In days, not weeks.</div>
+          <div class="h1-tagline">Every citation, checked. Every risk, named. In days, not weeks.</div>
         </div>
       </div>
 

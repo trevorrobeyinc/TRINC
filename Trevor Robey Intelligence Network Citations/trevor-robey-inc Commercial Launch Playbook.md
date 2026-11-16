@@ -2,9 +2,9 @@
 
 > **Renamed 2026-04-30** from "OpenClaw Commercial Launch Playbook.md". Brand stack updated: OpenClaw is the open-source agent framework that powers the engine, not the commercial brand. Commercial brand: **trevor-robey-inc** (Trevor Robey Inc.). Pricing ladder rewritten for the new offering structure (Investor Pre-Mortem $9,950–$19,950 anchor; Failed Trial Archaeology $14,950 flanking; tactical SKUs at $2,500–$4,950; Pharmacovigilance Pack retained as tactical SKU at $2,500–$4,950). Canonical SKU table lives in `OFFERINGS.md`.
 >
-> *Tagline:* **Every claim, sourced. Every risk, named. In days, not weeks.**
+> *Tagline:* **Every citation, checked. Every risk, named. In days, not weeks.**
 >
-> *Elevator:* Citation-traced biomedical due diligence for biotech investors and pharma BD. Five days. Every citation grounded and retraction-screened. Audit trail included.
+> *Elevator:* Citation-traced biomedical due diligence for biotech investors and pharma BD. Five days. Every cited paper and trial checked twice, against the evidence retrieved and at its registry, with retractions screened and anything unconfirmed flagged. Audit trail included.
 
 > ### STATUS UPDATE — 2026-05-04 (table kept live; rows current as of 2026-05-26 — see PROGRESS LOG 2026-05-26 below)
 >

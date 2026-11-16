@@ -34,8 +34,8 @@ coming from contradiction in *what* the business is.
 
 | Element | The statement | Source |
 |---|---|---|
-| Tagline | *Every claim, sourced. Every risk, named. In days, not weeks.* | `OFFERINGS.md:3` |
-| Elevator | *Citation-traced biomedical due diligence for biotech investors and pharma BD. Five days. Every citation grounded and retraction-screened. Audit trail included.* | `OFFERINGS.md:5` |
+| Tagline | *Every citation, checked. Every risk, named. In days, not weeks.* (operator decision 2026-11-15; where it stops: `SYSTEM-REALITY.md:15`) | `OFFERINGS.md:3` |
+| Elevator | *Citation-traced biomedical due diligence for biotech investors and pharma BD. Five days. Every cited paper and trial checked twice, against the evidence retrieved and at its registry, with retractions screened and anything unconfirmed flagged. Audit trail included.* (2026-11-15) | `OFFERINGS.md:5` |
 | Buyer | **Five** segments as of 2026-07-30: **Biotech Equity Investors** (hedge fund PM, biotech VC partner, family office) · **Pharma & Biotech R&D** (head of CI, VP BD/licensing, CMO) · **Academic & Clinical Researchers** · **Patient Advocacy Groups** · **Medical Startup Founders** *(added by operator decision — see [`founder-lane-2026-07-29.md`](./founder-lane-2026-07-29.md))* | `OFFERINGS.md`, `TREVOR_ROBEY_INC_AGENTS_DOSSIER.md` — both ICP tables |
 | Product | 7 SKUs, **$2,500 – $24,950**; anchor is Investor Pre-Mortem at $9,950 / $14,950 / $19,950 | `OFFERINGS.md:13-19`, `REVENUE_PLAYBOOK.md:66-68` |
 | Promise | Zero-Fabrication Guarantee · refund-backed Citation-Audit SLA · 5–10 business-day speed SLA | `OFFERINGS.md:32-35` |
@@ -48,7 +48,8 @@ coming from contradiction in *what* the business is.
 
 1. **`trevor-robey-inc Commercial Launch Playbook.md:7` still says "Zero hallucinations."**
    `OFFERINGS.md` deliberately replaced that phrase on 2026-07-13 (commit `7801443`, the
-   never-overclaim sweep) with *"Every citation grounded and retraction-screened."* The Playbook
+   never-overclaim sweep) with *"Every citation grounded and retraction-screened."* (That line was
+   itself replaced on 2026-11-15 by the elevator in the table above.) The Playbook
    was touched later, on 2026-07-22, but for AWS reconciliation — the tagline block was never
    revisited. So the single most quotable line in the largest canon file is the one the
    operator's own doctrine has since retired. **Fix this before it lands in a customer's inbox.**
@@ -153,7 +154,8 @@ identifier types: PMID, PubChem CID, NCT, UniProt, ChEMBL, DrugBank, DOI. A pate
 
 - A patent-grounded claim is **invisible to the Phase-30 grounding gate** and is never
   retraction-screened.
-- **"Every claim, sourced" does not currently extend to patent assertions.** Until a `PATENT`
+- **"Every citation, checked." does not currently extend to patent assertions** (the tagline
+  since 2026-11-15; `SYSTEM-REALITY.md:15` records where it stops). Until a `PATENT`
   pattern and a runtime patent-id grounding source ship *in the same change*, patent findings
   inform operator judgement but must not be sold as citation-traced. Honest phrasing:
   *"patent evidence, outside the citation gate."*

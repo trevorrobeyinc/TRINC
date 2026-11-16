@@ -1,9 +1,10 @@
 # How Trevor Robey, INC. works
 
-> *Every claim, sourced. Every risk, named. In days, not weeks.*
+> *Every citation, checked. Every risk, named. In days, not weeks.*
 >
-> Citation-traced biomedical due diligence for biotech investors and pharma BD. Five days. Every citation
-> grounded and retraction-screened. Audit trail included.
+> Citation-traced biomedical due diligence for biotech investors and pharma BD. Five days. Every cited
+> paper and trial checked twice, against the evidence retrieved and at its registry, with retractions
+> screened and anything unconfirmed flagged. Audit trail included.
 
 Trevor Robey, INC. is the wordmark of Trevor Robey Intelligence Network Citations LLC, a California limited
 liability company. INC = Intelligence Network Citations.

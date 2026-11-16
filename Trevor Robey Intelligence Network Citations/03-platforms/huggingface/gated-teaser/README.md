@@ -52,7 +52,7 @@ extra_gated_button_content: Request access
 
 **Every claim in this dataset resolves to a public-domain identifier.** This is a free, citation-traced sample of the kind of pharmacovigilance signal synthesis we produce for biotech investors, pharma BD/CI, and drug-safety teams: each adverse-event signal is paired with the PubMed PMID, ClinicalTrials.gov NCT, DOI, RxNorm, and MedDRA identifiers that support it, so any analyst can independently verify the evidence.
 
-*Tagline: Every claim, sourced. Every risk, named. In days, not weeks.*
+*Tagline: Every citation, checked. Every risk, named. In days, not weeks.*
 
 ## What's in the sample
 

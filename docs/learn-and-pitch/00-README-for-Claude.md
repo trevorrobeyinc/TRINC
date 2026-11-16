@@ -59,7 +59,8 @@ uploads the combined file (or the parts) as project knowledge and uses this file
    statistics that the pack does not source. Revenue is **$0** and there are **no customers yet**: say so
    on the learning deck; never imply customers in a pitch.
 4. **Never write** "zero hallucinations", "no hallucinations", "hallucination-free", "100% accurate",
-   "guaranteed correct" or "AI that never lies". Use the approved wording in `04`.
+   "guaranteed correct", "AI that never lies" or the retired tagline "Every claim, sourced." (retired
+   2026-11-15: nothing checks a sentence against its source). Use the approved wording in `04`.
 5. **Always carry these three lines** where a pitch describes what is delivered:
    - "Research artifacts only, not clinical decision support."
    - "No patient data (PHI) is used."

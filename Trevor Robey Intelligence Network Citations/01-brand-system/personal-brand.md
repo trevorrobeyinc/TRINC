@@ -1,10 +1,10 @@
 # Personal Brand — Trevor Robey (founder voice)
 
-**Last updated:** 2026-07-06
+**Last updated:** 2026-11-15 (the company tagline; the founder lines are as of 2026-07-06)
 
 Trevor's **personal / founder brand** — who he is as a person, in his own voice. It is
 **distinct from the company tagline** and does not replace it. The LLC keeps its business
-tagline (*"Every claim, sourced. Every risk, named. In days, not weeks."*) in company-voice
+tagline (*"Every citation, checked. Every risk, named. In days, not weeks."*) in company-voice
 slots. This personal brand is for **founder-voice surfaces** (see "Where to use it").
 
 Companion source-of-truth: the brand kit at [`brand-system.md`](./brand-system.md) (short
@@ -40,7 +40,7 @@ hyperbole" spine as the company brand voice.
 
 | Voice | Line to use | Where |
 |---|---|---|
-| **Company** (Trevor Robey, INC. speaking) | *Every claim, sourced. Every risk, named. In days, not weeks.* | Landing-page hero, marketplace listings (AWS/Snowflake/Datarade/HF), OFFERINGS / README / product-catalog, legal & formation docs |
+| **Company** (Trevor Robey, INC. speaking) | *Every citation, checked. Every risk, named. In days, not weeks.* | Landing-page hero, marketplace listings (AWS/Snowflake/Datarade/HF), OFFERINGS / README / product-catalog, legal & formation docs |
 | **Founder** (Trevor the person speaking) | *Truth Seeker, Receipt Keeper. — Real data beats sweet hallucination. You decide.* | Personal email signature, LinkedIn personal profile (headline / About), "about the founder" blurbs, a founder's-note or author byline on deliverables, personal outbound sign-offs, the school assignment / mission-statement seed |
 
 **Rule of thumb:** if the sentence is spoken by *Trevor the person*, use the personal brand.

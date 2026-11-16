@@ -106,7 +106,7 @@ Snowflake, no Figma, no CI.
 
 A template-following skill handed a missing tool will quietly manufacture a plausible substitute: a
 ticket key, a deal stage, a traffic number, a sprint. For a business whose entire product is
-*citation-traced due diligence* — whose tagline is **"Every claim, sourced. Every risk, named."** —
+*citation-traced due diligence* — whose tagline is **"Every citation, checked. Every risk, named."** —
 a fabricated pipeline number in an internal doc is the same failure mode it sells against, just
 pointed inward.
 
@@ -191,7 +191,7 @@ publication number such as `US12458612B2` matches **none** of them. So:
 - Full fence language, the legal boundary (search/landscape only — never an FTO opinion), and the
   price band sit in [`01-brand-system/founder-lane-2026-07-29.md`](01-brand-system/founder-lane-2026-07-29.md).
 
-Restated plainly: the **"Every claim, sourced"** guarantee does not yet cover patent assertions.
+Restated plainly: the tagline's **"Every citation, checked."** does not yet cover patent assertions.
 Selling an IP-flavoured deliverable before closing that is the never-overclaim doctrine pointed
 inward — the same failure this whole bindings layer exists to prevent.
 
@@ -358,7 +358,7 @@ Pricing comes from `REVENUE_PLAYBOOK.md` §2 and is never invented.
 - **Required disclosure**, every customer-facing use: *"Trevor Robey, INC. is the wordmark of Trevor
   Robey Intelligence Network Citations LLC, a California limited liability company."*
   Cal. Bus. & Prof. Code §17910.5(a) is why this is not optional.
-- Tagline: *Every claim, sourced. Every risk, named. In days, not weeks.*
+- Tagline: *Every citation, checked. Every risk, named. In days, not weeks.*
 
 **Guardrails**
 - `performance-report` and `seo-audit` have **no data source**. Do not estimate traffic, rankings, or

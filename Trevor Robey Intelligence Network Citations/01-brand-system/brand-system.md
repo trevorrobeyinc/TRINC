@@ -151,7 +151,7 @@ replace it. Full detail: [`personal-brand.md`](./personal-brand.md).
 - Tagline (line 2), or on its own: **Real data beats sweet hallucination. You decide.**
 
 **Company vs. founder (do not mix):**
-- **Company voice** keeps the business tagline — *"Every claim, sourced. Every risk, named. In days, not weeks."* — in the landing-page hero, marketplace listings, OFFERINGS / README / product-catalog, and legal docs.
+- **Company voice** keeps the business tagline — *"Every citation, checked. Every risk, named. In days, not weeks."* — in the landing-page hero, marketplace listings, OFFERINGS / README / product-catalog, and legal docs.
 - **Founder voice** uses the personal brand — in the personal email signature, LinkedIn personal profile, "about the founder" blurbs, a founder's-note / author byline on deliverables, and personal outbound sign-offs.
 
 **Personal email signature (founder voice):**

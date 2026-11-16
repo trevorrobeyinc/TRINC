@@ -58,7 +58,9 @@ the run did not retrieve, so the run itself cannot vouch for it. The two checks 
 
 ## Approved wording (use these, word for word or very close)
 
-- "Every citation grounded and retraction-screened. Audit trail included." [src: `ENGINE/OFFERINGS.md`, elevator]
+- "Every cited paper and trial checked twice, against the evidence retrieved and at its registry, with
+  retractions screened and anything unconfirmed flagged. Audit trail included."
+  [src: `ENGINE/OFFERINGS.md`, elevator]
 - "Every cited identifier is grounded in real evidence actually retrieved for the report, or it is flagged
   `[UNVERIFIED]` and never presented as fact." [src: `ENGINE/OFFERINGS.md` → Brand Commitments]
 - "Every cited PMID, NCT and DOI is re-resolved against its issuing public registry at delivery."

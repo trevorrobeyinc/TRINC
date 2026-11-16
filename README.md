@@ -9,10 +9,11 @@ Obsidian tooling that runs them.
 > limited liability company (filed 2026-05-06, **approved 2026-06-18, CA SOS Entity No. B20260217250**).
 > **INC = Intelligence Network Citations**, a backronym, not a corporate suffix.
 
-*Every claim, sourced. Every risk, named. In days, not weeks.*
+*Every citation, checked. Every risk, named. In days, not weeks.*
 
-Citation-traced biomedical due diligence for biotech investors and pharma BD. Five days. Every citation
-grounded and retraction-screened. Audit trail included. Powered by OpenClaw (open-source agent framework).
+Citation-traced biomedical due diligence for biotech investors and pharma BD. Five days. Every cited paper
+and trial checked twice, against the evidence retrieved and at its registry, with retractions screened and
+anything unconfirmed flagged. Audit trail included. Powered by OpenClaw (open-source agent framework).
 
 ## Start here
 

@@ -24,11 +24,17 @@ Website: https://trevorobeyinc.com · Email: trevor@trevorobeyinc.com [src: `ENG
 
 ## The lines
 
-- **Tagline:** *Every claim, sourced. Every risk, named. In days, not weeks.*
+- **Tagline:** *Every citation, checked. Every risk, named. In days, not weeks.*
 - **Elevator:** *Citation-traced biomedical due diligence for biotech investors and pharma BD. Five days.
-  Every citation grounded and retraction-screened. Audit trail included.*
+  Every cited paper and trial checked twice, against the evidence retrieved and at its registry, with
+  retractions screened and anything unconfirmed flagged. Audit trail included.*
 
 [src: `ENGINE/OFFERINGS.md`, lines 3–5]
+
+Both lines date from 2026-11-15. They hold for the identifiers the engine's extractor reads. A citation in
+another form (a patent number, a EudraCT or ISRCTN trial id, a PMCID, an author-year reference with no id)
+is not checked at all, and only DOIs and PMIDs are screened for retraction.
+[src: `ENGINE/SYSTEM-REALITY.md`, tagline row]
 
 ## The business in one sentence
 

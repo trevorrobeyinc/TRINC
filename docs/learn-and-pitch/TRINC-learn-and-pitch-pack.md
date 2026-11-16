@@ -69,7 +69,8 @@ uploads the combined file (or the parts) as project knowledge and uses this file
    statistics that the pack does not source. Revenue is **$0** and there are **no customers yet**: say so
    on the learning deck; never imply customers in a pitch.
 4. **Never write** "zero hallucinations", "no hallucinations", "hallucination-free", "100% accurate",
-   "guaranteed correct" or "AI that never lies". Use the approved wording in `04`.
+   "guaranteed correct", "AI that never lies" or the retired tagline "Every claim, sourced." (retired
+   2026-11-15: nothing checks a sentence against its source). Use the approved wording in `04`.
 5. **Always carry these three lines** where a pitch describes what is delivered:
    - "Research artifacts only, not clinical decision support."
    - "No patient data (PHI) is used."
@@ -127,11 +128,17 @@ Website: https://trevorobeyinc.com · Email: trevor@trevorobeyinc.com [src: `ENG
 
 ## The lines
 
-- **Tagline:** *Every claim, sourced. Every risk, named. In days, not weeks.*
+- **Tagline:** *Every citation, checked. Every risk, named. In days, not weeks.*
 - **Elevator:** *Citation-traced biomedical due diligence for biotech investors and pharma BD. Five days.
-  Every citation grounded and retraction-screened. Audit trail included.*
+  Every cited paper and trial checked twice, against the evidence retrieved and at its registry, with
+  retractions screened and anything unconfirmed flagged. Audit trail included.*
 
 [src: `ENGINE/OFFERINGS.md`, lines 3–5]
+
+Both lines date from 2026-11-15. They hold for the identifiers the engine's extractor reads. A citation in
+another form (a patent number, a EudraCT or ISRCTN trial id, a PMCID, an author-year reference with no id)
+is not checked at all, and only DOIs and PMIDs are screened for retraction.
+[src: `ENGINE/SYSTEM-REALITY.md`, tagline row]
 
 ## The business in one sentence
 
@@ -471,7 +478,9 @@ the run did not retrieve, so the run itself cannot vouch for it. The two checks 
 
 ## Approved wording (use these, word for word or very close)
 
-- "Every citation grounded and retraction-screened. Audit trail included." [src: `ENGINE/OFFERINGS.md`, elevator]
+- "Every cited paper and trial checked twice, against the evidence retrieved and at its registry, with
+  retractions screened and anything unconfirmed flagged. Audit trail included."
+  [src: `ENGINE/OFFERINGS.md`, elevator]
 - "Every cited identifier is grounded in real evidence actually retrieved for the report, or it is flagged
   `[UNVERIFIED]` and never presented as fact." [src: `ENGINE/OFFERINGS.md` → Brand Commitments]
 - "Every cited PMID, NCT and DOI is re-resolved against its issuing public registry at delivery."
@@ -853,8 +862,8 @@ carrying it is blocked. That database is deliberately not named in this pack; ne
 | Wordmark | **Trevor Robey, INC.** |
 | Expansion | INC = Intelligence Network Citations |
 | Disclosure (on any customer-facing piece with the wordmark) | *Trevor Robey, INC. is the wordmark of Trevor Robey Intelligence Network Citations LLC, a California limited liability company.* |
-| Tagline (company voice) | *Every claim, sourced. Every risk, named. In days, not weeks.* |
-| Elevator (company voice) | *Citation-traced biomedical due diligence for biotech investors and pharma BD. Five days. Every citation grounded and retraction-screened. Audit trail included.* |
+| Tagline (company voice) | *Every citation, checked. Every risk, named. In days, not weeks.* |
+| Elevator (company voice) | *Citation-traced biomedical due diligence for biotech investors and pharma BD. Five days. Every cited paper and trial checked twice, against the evidence retrieved and at its registry, with retractions screened and anything unconfirmed flagged. Audit trail included.* |
 | Engine credit | *Powered by OpenClaw (open-source agent framework).* |
 | Contact | trevor@trevorobeyinc.com · https://trevorobeyinc.com |
 
@@ -870,7 +879,7 @@ to a verifiable identifier. [src: `ENGINE/01-brand-system/brand-system.md` → B
 
 | Voice | Line | Where |
 |---|---|---|
-| **Company** (Trevor Robey, INC. speaking) | *Every claim, sourced. Every risk, named. In days, not weeks.* | Pitches, listings, the website, offer sheets |
+| **Company** (Trevor Robey, INC. speaking) | *Every citation, checked. Every risk, named. In days, not weeks.* | Pitches, listings, the website, offer sheets |
 | **Founder** (Trevor the person speaking) | *Truth Seeker, Receipt Keeper. — Real data beats sweet hallucination. You decide.* | An "about the founder" slide, a founder's note, his LinkedIn and email signature |
 
 [src: `ENGINE/01-brand-system/personal-brand.md` → "Company vs. founder"]
@@ -883,7 +892,8 @@ those clash with the company's 2026-07-13 decision to retire that claim, so this
 ### Never write
 
 "Zero hallucinations", "no hallucinations", "hallucination-free", "100% accurate", "guaranteed correct",
-"AI that never lies", "clinical decision support" (except to say it is *not* that), "all trials" or
+"AI that never lies", the retired tagline "Every claim, sourced." (2026-11-15: nothing checks a sentence
+against its source), "clinical decision support" (except to say it is *not* that), "all trials" or
 "complete" for a partial census, and the name of the unlicensed drug database (see `08`). Avoid hype words
 ("revolutionary", "game-changing", "cutting-edge"). Lead with what was checked and how, not with "AI".
 
@@ -1031,7 +1041,7 @@ says should be filed before any paid product goes public.
 
 | # | Headline | Content | From |
 |---|---|---|---|
-| 1 | **Every claim, sourced.** | Stat tiles from one real run (non-small cell lung cancer, 2026-10-08): **45 of 45** citations re-resolved VERIFIED at delivery · **0** retracted papers · **1,412 of 1,412** stopped-trial records retrieved for the registry query "non-small cell lung cancer" (complete for that query term, not for every name of the disease) · **20 of 675** comparable Phase 3 programs benchmarked. Subline: the tagline. | `04` exhibit |
+| 1 | **Every citation, checked.** | Stat tiles from one real run (non-small cell lung cancer, 2026-10-08): **45 of 45** citations re-resolved VERIFIED at delivery · **0** retracted papers · **1,412 of 1,412** stopped-trial records retrieved for the registry query "non-small cell lung cancer" (complete for that query term, not for every name of the disease) · **20 of 675** comparable Phase 3 programs benchmarked. Subline: the tagline. | `04` exhibit |
 | 2 | A claim you cannot trace is a risk you cannot price. | The job: diligence on someone else's science, fast. Plain framing only; **no market statistics** (they are unverified, `01`). | `01` |
 | 3 | The gate, not a warning | Three checks as a left-to-right diagram: grounded in what was retrieved (≥75% or blocked) → retraction screen (one retraction blocks) → every PMID/NCT/DOI re-resolved at delivery (any unresolved blocks). Footnote: re-resolution proves the record exists, not that its conclusions are right. | `04` |
 | 4 | What lands on your desk | The sealed bundle: report, citation-integrity grade, graveyard memo, search-coverage ledger, reproducibility manifest, checksums. One line each. | `04` |
@@ -1052,7 +1062,7 @@ the banner to make the deck look ready.
 
 | # | Headline | Content | From |
 |---|---|---|---|
-| 1 | Every claim, sourced. Every risk, named. In days, not weeks. | Title; wordmark; one line: research reports in which every cited claim traces to a public record | `01`, `09` |
+| 1 | Every citation, checked. Every risk, named. In days, not weeks. | Title; wordmark; one line: research reports in which every cited claim traces to a public record | `01`, `09` |
 | 2 | Proof, from one real run | The same four stat tiles as B1, labelled "flagship lane: biomedical due diligence" | `04` |
 | 3 | How a report is made | Simplified flow: question agreed → evidence retrieved first → written by Claude → checked against what was retrieved → every cited PMID, NCT and DOI re-resolved at its registry → sealed bundle | `03` |
 | 4 | Checked, not just written | "A claim without a verifiable identifier fails a gate rather than passing with a warning." Plus the honest zero: a search that finds nothing is reported as nothing. | `04` |

@@ -7,8 +7,8 @@ import TRINCKit
 enum Brand {
     static let wordmark = "Trevor Robey, INC."
     static let disclosure = "Trevor Robey, INC. is the wordmark of Trevor Robey Intelligence Network Citations LLC, a California limited liability company."
-    static let tagline = "Every claim, sourced. Every risk, named. In days, not weeks."
-    static let elevator = "Citation-traced biomedical due diligence for biotech investors and pharma BD. Five days. Every citation grounded and retraction-screened. Audit trail included."
+    static let tagline = "Every citation, checked. Every risk, named. In days, not weeks."
+    static let elevator = "Citation-traced biomedical due diligence for biotech investors and pharma BD. Five days. Every cited paper and trial checked twice, against the evidence retrieved and at its registry, with retractions screened and anything unconfirmed flagged. Audit trail included."
     static let engineCredit = "Powered by OpenClaw, the open-source agent framework."
     static let researchOnly = "Research artifacts only. Not clinical decision support, and never legal, medical, tax or investment advice."
     static let contact = "trevor@trevorobeyinc.com · trevorobeyinc.com"

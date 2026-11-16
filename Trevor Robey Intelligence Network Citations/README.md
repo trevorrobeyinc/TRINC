@@ -1,6 +1,6 @@
 # Trevor Robey Inc Agents — citation-traced biomedical due diligence engine
 
-> *Every claim, sourced. Every risk, named. In days, not weeks.*
+> *Every citation, checked. Every risk, named. In days, not weeks.*
 
 The runtime engine behind **Trevor Robey, INC.** — citation-traced biomedical due diligence for biotech investors and pharma BD. Powered by OpenClaw (open-source agent framework). Local-first, governed, manual-only external actions.
 

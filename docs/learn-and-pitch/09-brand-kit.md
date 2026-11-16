@@ -7,8 +7,8 @@
 | Wordmark | **Trevor Robey, INC.** |
 | Expansion | INC = Intelligence Network Citations |
 | Disclosure (on any customer-facing piece with the wordmark) | *Trevor Robey, INC. is the wordmark of Trevor Robey Intelligence Network Citations LLC, a California limited liability company.* |
-| Tagline (company voice) | *Every claim, sourced. Every risk, named. In days, not weeks.* |
-| Elevator (company voice) | *Citation-traced biomedical due diligence for biotech investors and pharma BD. Five days. Every citation grounded and retraction-screened. Audit trail included.* |
+| Tagline (company voice) | *Every citation, checked. Every risk, named. In days, not weeks.* |
+| Elevator (company voice) | *Citation-traced biomedical due diligence for biotech investors and pharma BD. Five days. Every cited paper and trial checked twice, against the evidence retrieved and at its registry, with retractions screened and anything unconfirmed flagged. Audit trail included.* |
 | Engine credit | *Powered by OpenClaw (open-source agent framework).* |
 | Contact | trevor@trevorobeyinc.com · https://trevorobeyinc.com |
 
@@ -24,7 +24,7 @@ to a verifiable identifier. [src: `ENGINE/01-brand-system/brand-system.md` → B
 
 | Voice | Line | Where |
 |---|---|---|
-| **Company** (Trevor Robey, INC. speaking) | *Every claim, sourced. Every risk, named. In days, not weeks.* | Pitches, listings, the website, offer sheets |
+| **Company** (Trevor Robey, INC. speaking) | *Every citation, checked. Every risk, named. In days, not weeks.* | Pitches, listings, the website, offer sheets |
 | **Founder** (Trevor the person speaking) | *Truth Seeker, Receipt Keeper. — Real data beats sweet hallucination. You decide.* | An "about the founder" slide, a founder's note, his LinkedIn and email signature |
 
 [src: `ENGINE/01-brand-system/personal-brand.md` → "Company vs. founder"]
@@ -37,7 +37,8 @@ those clash with the company's 2026-07-13 decision to retire that claim, so this
 ### Never write
 
 "Zero hallucinations", "no hallucinations", "hallucination-free", "100% accurate", "guaranteed correct",
-"AI that never lies", "clinical decision support" (except to say it is *not* that), "all trials" or
+"AI that never lies", the retired tagline "Every claim, sourced." (2026-11-15: nothing checks a sentence
+against its source), "clinical decision support" (except to say it is *not* that), "all trials" or
 "complete" for a partial census, and the name of the unlicensed drug database (see `08`). Avoid hype words
 ("revolutionary", "game-changing", "cutting-edge"). Lead with what was checked and how, not with "AI".
 

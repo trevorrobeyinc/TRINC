@@ -67,7 +67,7 @@ says should be filed before any paid product goes public.
 
 | # | Headline | Content | From |
 |---|---|---|---|
-| 1 | **Every claim, sourced.** | Stat tiles from one real run (non-small cell lung cancer, 2026-10-08): **45 of 45** citations re-resolved VERIFIED at delivery · **0** retracted papers · **1,412 of 1,412** stopped-trial records retrieved for the registry query "non-small cell lung cancer" (complete for that query term, not for every name of the disease) · **20 of 675** comparable Phase 3 programs benchmarked. Subline: the tagline. | `04` exhibit |
+| 1 | **Every citation, checked.** | Stat tiles from one real run (non-small cell lung cancer, 2026-10-08): **45 of 45** citations re-resolved VERIFIED at delivery · **0** retracted papers · **1,412 of 1,412** stopped-trial records retrieved for the registry query "non-small cell lung cancer" (complete for that query term, not for every name of the disease) · **20 of 675** comparable Phase 3 programs benchmarked. Subline: the tagline. | `04` exhibit |
 | 2 | A claim you cannot trace is a risk you cannot price. | The job: diligence on someone else's science, fast. Plain framing only; **no market statistics** (they are unverified, `01`). | `01` |
 | 3 | The gate, not a warning | Three checks as a left-to-right diagram: grounded in what was retrieved (≥75% or blocked) → retraction screen (one retraction blocks) → every PMID/NCT/DOI re-resolved at delivery (any unresolved blocks). Footnote: re-resolution proves the record exists, not that its conclusions are right. | `04` |
 | 4 | What lands on your desk | The sealed bundle: report, citation-integrity grade, graveyard memo, search-coverage ledger, reproducibility manifest, checksums. One line each. | `04` |
@@ -88,7 +88,7 @@ the banner to make the deck look ready.
 
 | # | Headline | Content | From |
 |---|---|---|---|
-| 1 | Every claim, sourced. Every risk, named. In days, not weeks. | Title; wordmark; one line: research reports in which every cited claim traces to a public record | `01`, `09` |
+| 1 | Every citation, checked. Every risk, named. In days, not weeks. | Title; wordmark; one line: research reports in which every cited claim traces to a public record | `01`, `09` |
 | 2 | Proof, from one real run | The same four stat tiles as B1, labelled "flagship lane: biomedical due diligence" | `04` |
 | 3 | How a report is made | Simplified flow: question agreed → evidence retrieved first → written by Claude → checked against what was retrieved → every cited PMID, NCT and DOI re-resolved at its registry → sealed bundle | `03` |
 | 4 | Checked, not just written | "A claim without a verifiable identifier fails a gate rather than passing with a warning." Plus the honest zero: a search that finds nothing is reported as nothing. | `04` |
