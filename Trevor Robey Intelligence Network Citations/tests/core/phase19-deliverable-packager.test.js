@@ -556,7 +556,9 @@ function writeDatasetFiles(dir) {
 test("review: a dataset-sourced bundle names its own files and states only what its record says", async () => {
   const tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "openclaw-phase19-dataset-"));
   const packager = createDeliverablePackager({ rootDir: tmp });
-  const offer = { ...createMissionFixture().offer, offer_id: "offer-dataset-demo", source_kind: "dataset", tier: "premium" };
+  // The premium tier's real required slots (config/monetization-map.json), schema_definition included.
+  const premiumSlots = require(path.join(root, "config", "monetization-map.json")).tiers.premium.required_artifact_slots;
+  const offer = { ...createMissionFixture().offer, offer_id: "offer-dataset-demo", source_kind: "dataset", tier: "premium", artifact_slots: premiumSlots };
   const base = {
     source_kind: "dataset",
     source_id: "dataset-demo",
@@ -567,9 +569,9 @@ test("review: a dataset-sourced bundle names its own files and states only what 
   };
   const render = (label, cv) => {
     const bundleDir = packager.createBundleWorkspace(`${offer.offer_id}-${label}`);
-    packager.writeDeliverables(bundleDir, offer, cv ? { ...base, citation_verification: cv } : base);
+    const refs = packager.writeDeliverables(bundleDir, offer, cv ? { ...base, citation_verification: cv } : base);
     const dir = path.join(bundleDir, "deliverables");
-    return { dir, files: fs.readdirSync(dir), read: (f) => fs.readFileSync(path.join(dir, f), "utf8") };
+    return { dir, refs, files: fs.readdirSync(dir), read: (f) => fs.readFileSync(path.join(dir, f), "utf8") };
   };
 
   const gated = render("gated", { pass: true, cited: 12, grounded: 12, ungrounded: 0, reproducibility_manifest: { summary: CLEAN_SUMMARY, citations: [] } });
@@ -584,6 +586,8 @@ test("review: a dataset-sourced bundle names its own files and states only what 
   assert.doesNotMatch(methodology, /Cross-reference verification \(grounding\)/);
   assert.ok(!gated.files.includes("schema-definition.json"), "the research schema file is not shipped with a dataset");
   assert.ok(gated.files.includes("schema.json"), "the dataset's own schema is");
+  assert.equal(gated.refs.schema_definition, gated.refs.structured_support, "the tier's schema_definition slot is the dataset's schema.json");
+  assert.match(gated.refs.schema_definition, /schema\.json$/);
 
   const ungated = render("ungated", null);
   const plain = ungated.read("store-copy.md");

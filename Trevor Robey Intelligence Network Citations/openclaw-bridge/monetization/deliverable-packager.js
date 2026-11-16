@@ -1033,6 +1033,10 @@ function createDeliverablePackager(options = {}) {
       if (safeString(sourceContext.source_kind) === "mission") {
         writeJson(schemaDefPath, schemaDefinition);
         artifactRefs.schema_definition = relativeFrom(bundleDir, schemaDefPath);
+      } else {
+        // The premium and enterprise tiers require a schema_definition slot (config/monetization-map.json);
+        // a dataset bundle's own schema.json IS its field definition, so the slot points there.
+        artifactRefs.schema_definition = artifactRefs.structured_support;
       }
     }
 

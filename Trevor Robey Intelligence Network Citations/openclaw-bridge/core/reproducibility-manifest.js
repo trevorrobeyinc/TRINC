@@ -270,7 +270,7 @@ function renderManifestMarkdown(manifest) {
     const where = Number.isFinite(ac.marked_lines) && ac.marked_lines > 0
       ? "marked [ATTRIBUTION MISMATCH] in the report and listed"
       : "listed";
-    lines.push(`> This report SHIPS with a flag: ${n} cited work${n === 1 ? "" : "s"} resolve${n === 1 ? "s" : ""} to a real record, but the author or year written beside ${n === 1 ? "it" : "them"} is not the record's. ${n === 1 ? "It is" : "Each is"} ${where} under "Attribution check" below; correct the attribution before relying on it.`);
+    lines.push(`> The engine's decision lets this report ship with a flag: ${n} cited work${n === 1 ? "" : "s"} resolve${n === 1 ? "s" : ""} to a real record, but the author or year written beside ${n === 1 ? "it" : "them"} is not the record's. ${n === 1 ? "It is" : "Each is"} ${where} under "Attribution check" below; correct the attribution before relying on it.`);
   }
   if (s.as_of) lines.push(`As of: ${s.as_of}`);
   lines.push("");
