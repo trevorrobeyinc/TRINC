@@ -45,6 +45,7 @@ struct VerdictPanel: View {
     }
 
     private func meaning(_ verdict: DeliveryVerdict) -> String {
+        if verdict.reresolutionIncomplete { return Copy.reresolutionIncompleteMeaning + " " + Brand.contact }
         switch verdict.decision {
         case .deliver: return Copy.deliverMeaning
         case .deliverWithFlags: return Copy.flaggedMeaning
@@ -55,6 +56,7 @@ struct VerdictPanel: View {
     }
 
     private func icon(_ verdict: DeliveryVerdict) -> String {
+        if verdict.reresolutionIncomplete { return "exclamationmark.octagon" }
         switch verdict.decision {
         case .deliver: return "checkmark.seal"
         case .deliverWithFlags: return "flag"
@@ -64,6 +66,7 @@ struct VerdictPanel: View {
     }
 
     private func color(_ verdict: DeliveryVerdict) -> Color {
+        if verdict.reresolutionIncomplete { return Theme.bad }
         switch verdict.decision {
         case .deliver: return Theme.good
         case .block: return Theme.bad

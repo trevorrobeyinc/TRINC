@@ -1,0 +1,91 @@
+{
+  "citations": [
+    {
+      "id": "00000002",
+      "type": "PMID",
+      "status": "UNCHECKED",
+      "resolver_type": "primary",
+      "resolved_url": null,
+      "http_status": null,
+      "checked_at": "2026-11-16T00:00:00.000Z",
+      "evidence": {
+        "reason": "reresolution_error"
+      },
+      "grounded_in_run": true,
+      "attempts": 1
+    },
+    {
+      "id": "NCT00000002",
+      "type": "NCT",
+      "status": "UNCHECKED",
+      "resolver_type": "primary",
+      "resolved_url": null,
+      "http_status": null,
+      "checked_at": "2026-11-16T00:00:00.000Z",
+      "evidence": {
+        "reason": "reresolution_error"
+      },
+      "grounded_in_run": true,
+      "attempts": 1
+    }
+  ],
+  "summary": {
+    "report_id": "mission-fixture-crashed-pass",
+    "delivery_id": "workflow-fixture-crashed-pass",
+    "engine_version": null,
+    "resolver_table_version": null,
+    "as_of": "2026-11-16",
+    "verification_started_at": "2026-11-16T00:00:00.000Z",
+    "verification_completed_at": "2026-11-16T00:00:06.000Z",
+    "counts": {
+      "total": 2,
+      "verified": 0,
+      "unresolved": 0,
+      "unchecked": 2
+    },
+    "by_type": {
+      "PMID": {
+        "total": 1,
+        "verified": 0,
+        "unresolved": 0,
+        "unchecked": 1
+      },
+      "NCT": {
+        "total": 1,
+        "verified": 0,
+        "unresolved": 0,
+        "unchecked": 1
+      }
+    },
+    "verified_ratio": 0,
+    "unresolved_ratio": 0,
+    "unchecked_ratio": 1,
+    "delivery_decision": "DELIVER_WITH_FLAGS",
+    "block_reasons": [],
+    "flag_reasons": [
+      "unchecked_over_threshold"
+    ],
+    "retraction_screen": {
+      "checked": true,
+      "retracted_dois": [],
+      "retracted_pmids": [],
+      "unscreened_ids": [],
+      "cited": 1
+    },
+    "gate_crosscheck": {
+      "cited": 2,
+      "grounded": 2,
+      "ungrounded": 0,
+      "grounded_ratio": 1,
+      "min_grounded_ratio": 0.75
+    },
+    "thresholds": {
+      "max_unchecked_ratio": 0,
+      "block_on_unresolved": true
+    },
+    "environment": {
+      "offline": false
+    },
+    "reresolution_completed": false
+  }
+}

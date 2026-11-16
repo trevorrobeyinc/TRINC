@@ -165,6 +165,13 @@ struct CitationTests {
             == "https://doi.org/10.0000/fixture.1")
         #expect(Registry.recordURL(type: "DOI", identifier: "10.0000/a#b")?.absoluteString
             == "https://doi.org/10.0000/a%23b")
+        // T2-16 (2026-11-16): PMCID, ISRCTN and EudraCT, in the engine's spellings of the type.
+        #expect(Registry.recordURL(type: "PMCID", identifier: "pmc0000001")?.absoluteString
+            == "https://pmc.ncbi.nlm.nih.gov/articles/PMC0000001/")
+        #expect(Registry.recordURL(type: "ISRCTN", identifier: "ISRCTN00000001")?.absoluteString
+            == "https://www.isrctn.com/ISRCTN00000001")
+        #expect(Registry.recordURL(type: "EudraCT", identifier: "2020-000001-01")?.absoluteString
+            == "https://www.clinicaltrialsregister.eu/ctr-search/search?query=2020-000001-01")
     }
 
     @Test func malformedOrUnknownIdentifiersGetNoLink() {
@@ -172,6 +179,13 @@ struct CitationTests {
         #expect(Registry.recordURL(type: "NCT", identifier: "NCTXYZ") == nil)
         #expect(Registry.recordURL(type: "DOI", identifier: "fixture") == nil)
         #expect(Registry.recordURL(type: "WEB", identifier: "snapshot-1") == nil)
+        #expect(Registry.recordURL(type: "PMCID", identifier: "PMC") == nil)
+        #expect(Registry.recordURL(type: "PMCID", identifier: "PMC1234567890") == nil)
+        #expect(Registry.recordURL(type: "PMCID", identifier: "0000001") == nil)
+        #expect(Registry.recordURL(type: "ISRCTN", identifier: "ISRCTN0000001") == nil)
+        #expect(Registry.recordURL(type: "EudraCT", identifier: "2020-0001-01") == nil)
+        #expect(Registry.recordURL(type: "EudraCT", identifier: "1890-000001-01") == nil)
+        #expect(Registry.recordURL(type: "EudraCT", identifier: "2020-000001-01&mode=x") == nil)
     }
 }
 

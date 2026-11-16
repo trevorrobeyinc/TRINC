@@ -1,0 +1,242 @@
+{
+  "citations": [
+    {
+      "id": "NCT00000002",
+      "type": "NCT",
+      "status": "VERIFIED",
+      "resolver_type": "primary",
+      "resolved_url": null,
+      "http_status": 200,
+      "checked_at": "2026-11-16T00:00:00.000Z",
+      "evidence": {
+        "nctId_echo": "NCT00000002"
+      },
+      "grounded_in_run": true,
+      "attempts": 1,
+      "sections": [
+        "report",
+        "graveyard-memo"
+      ]
+    },
+    {
+      "id": "00000002",
+      "type": "PMID",
+      "status": "VERIFIED",
+      "resolver_type": "primary",
+      "resolved_url": null,
+      "http_status": 200,
+      "checked_at": "2026-11-16T00:00:00.000Z",
+      "evidence": {
+        "has_docsum": true
+      },
+      "grounded_in_run": true,
+      "attempts": 1,
+      "sections": [
+        "report"
+      ]
+    },
+    {
+      "id": "PMC0000002",
+      "type": "PMCID",
+      "status": "VERIFIED",
+      "resolver_type": "primary",
+      "resolved_url": null,
+      "http_status": 200,
+      "checked_at": "2026-11-16T00:00:00.000Z",
+      "evidence": {
+        "pmcid_echo": "PMC0000002"
+      },
+      "grounded_in_run": true,
+      "attempts": 1,
+      "sections": [
+        "report"
+      ]
+    },
+    {
+      "id": "ISRCTN00000002",
+      "type": "ISRCTN",
+      "status": "VERIFIED",
+      "resolver_type": "primary",
+      "resolved_url": null,
+      "http_status": 200,
+      "checked_at": "2026-11-16T00:00:00.000Z",
+      "evidence": {
+        "isrctn_echo": "ISRCTN00000002"
+      },
+      "grounded_in_run": true,
+      "attempts": 1,
+      "sections": [
+        "report"
+      ]
+    },
+    {
+      "id": "2020-000002-02",
+      "type": "EudraCT",
+      "status": "VERIFIED",
+      "resolver_type": "primary",
+      "resolved_url": null,
+      "http_status": 200,
+      "checked_at": "2026-11-16T00:00:00.000Z",
+      "evidence": {
+        "eudract_echo": "2020-000002-02"
+      },
+      "grounded_in_run": true,
+      "attempts": 1,
+      "sections": [
+        "report"
+      ]
+    },
+    {
+      "id": "NCT00000003",
+      "type": "NCT",
+      "status": "UNCHECKED",
+      "resolver_type": "primary",
+      "resolved_url": null,
+      "http_status": 429,
+      "checked_at": "2026-11-16T00:00:00.000Z",
+      "evidence": {
+        "reason": "rate_limited"
+      },
+      "grounded_in_run": true,
+      "attempts": 1,
+      "sections": [
+        "graveyard-memo"
+      ]
+    },
+    {
+      "id": "NCT00000004",
+      "type": "NCT",
+      "status": "VERIFIED",
+      "resolver_type": "primary",
+      "resolved_url": null,
+      "http_status": 200,
+      "checked_at": "2026-11-16T00:00:00.000Z",
+      "evidence": {
+        "nctId_echo": "NCT00000004"
+      },
+      "grounded_in_run": true,
+      "attempts": 1,
+      "sections": [
+        "graveyard-memo",
+        "design-benchmark"
+      ]
+    },
+    {
+      "id": "NCT00000005",
+      "type": "NCT",
+      "status": "VERIFIED",
+      "resolver_type": "primary",
+      "resolved_url": null,
+      "http_status": 200,
+      "checked_at": "2026-11-16T00:00:00.000Z",
+      "evidence": {
+        "nctId_echo": "NCT00000005"
+      },
+      "grounded_in_run": true,
+      "attempts": 1,
+      "sections": [
+        "design-benchmark"
+      ]
+    }
+  ],
+  "summary": {
+    "report_id": "mission-fixture-tagged",
+    "delivery_id": "workflow-fixture-tagged",
+    "engine_version": null,
+    "resolver_table_version": "2026-11-16",
+    "as_of": "2026-11-16",
+    "verification_started_at": "2026-11-16T00:00:00.000Z",
+    "verification_completed_at": "2026-11-16T00:00:06.000Z",
+    "counts": {
+      "total": 8,
+      "verified": 7,
+      "unresolved": 0,
+      "unchecked": 1
+    },
+    "by_type": {
+      "NCT": {
+        "total": 4,
+        "verified": 3,
+        "unresolved": 0,
+        "unchecked": 1
+      },
+      "PMID": {
+        "total": 1,
+        "verified": 1,
+        "unresolved": 0,
+        "unchecked": 0
+      },
+      "PMCID": {
+        "total": 1,
+        "verified": 1,
+        "unresolved": 0,
+        "unchecked": 0
+      },
+      "ISRCTN": {
+        "total": 1,
+        "verified": 1,
+        "unresolved": 0,
+        "unchecked": 0
+      },
+      "EudraCT": {
+        "total": 1,
+        "verified": 1,
+        "unresolved": 0,
+        "unchecked": 0
+      }
+    },
+    "by_section": {
+      "report": {
+        "total": 5,
+        "verified": 5,
+        "unresolved": 0,
+        "unchecked": 0
+      },
+      "graveyard-memo": {
+        "total": 3,
+        "verified": 2,
+        "unresolved": 0,
+        "unchecked": 1
+      },
+      "design-benchmark": {
+        "total": 2,
+        "verified": 2,
+        "unresolved": 0,
+        "unchecked": 0
+      }
+    },
+    "verified_ratio": 0.875,
+    "unresolved_ratio": 0,
+    "unchecked_ratio": 0.125,
+    "delivery_decision": "DELIVER_WITH_FLAGS",
+    "block_reasons": [],
+    "flag_reasons": [
+      "unchecked_over_threshold",
+      "retraction_screen_incomplete"
+    ],
+    "retraction_screen": {
+      "checked": false,
+      "retracted_dois": [],
+      "retracted_pmids": [],
+      "unscreened_ids": [
+        "PMCID:PMC0000002"
+      ],
+      "cited": 2
+    },
+    "gate_crosscheck": {
+      "cited": 5,
+      "grounded": 5,
+      "ungrounded": 0,
+      "grounded_ratio": 1,
+      "min_grounded_ratio": 0.75
+    },
+    "thresholds": {
+      "max_unchecked_ratio": 0,
+      "block_on_unresolved": true
+    },
+    "environment": {
+      "offline": false
+    },
+    "reresolution_completed": true
+  }
+}
