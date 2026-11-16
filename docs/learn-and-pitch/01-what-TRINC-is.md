@@ -31,9 +31,11 @@ Website: https://trevorobeyinc.com · Email: trevor@trevorobeyinc.com [src: `ENG
 
 [src: `ENGINE/OFFERINGS.md`, lines 3–5]
 
-Both lines date from 2026-11-15. They hold for the identifiers the engine's extractor reads. A citation in
-another form (a patent number, a EudraCT or ISRCTN trial id, a PMCID, an author-year reference with no id)
-is not checked at all, and only DOIs and PMIDs are screened for retraction.
+Both lines date from 2026-11-15. They hold for the identifiers the engine's extractor reads, which since
+2026-11-16 include PMCIDs, ISRCTN numbers and EudraCT numbers written after an `EudraCT` label or in an EU
+register URL. A citation in another form (a patent number, an EU CT number, a EudraCT number with no label
+or URL, an author-year reference with no id) is not checked at all, and only DOIs, PMIDs and PMCIDs are
+screened for retraction.
 [src: `ENGINE/SYSTEM-REALITY.md`, tagline row]
 
 ## The business in one sentence

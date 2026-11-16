@@ -74,11 +74,14 @@
 - **Citation-Audit SLA** on every deliverable — refund-backed. The buyer reports a defect within 30 days of delivery; we correct and redeliver within 15 business days; if the deliverable is still defective, we refund the full fee for the affected deliverable, and that refund is the sole remedy. *(Operator rule 2026-11-04, applied 2026-11-06; the order form's Exhibit A, the refund policy, holds the definitions.)*
 - **Scope of the two commitments above (2026-07-30).** Both describe what the **engine enforces at
   generation time** on an engine-generated deliverable. The citation engine reads these identifier types
-  for citation — PMID, PubChem CID, NCT, UniProt, ChEMBL, DOI — in these written forms (2026-11-14):
-  labels and lists ("PMIDs: a, b", also when the first item is a link), PubMed record URLs, DOIs bare,
-  behind `doi:` or a doi.org link, and inside publisher URLs, and bare cells under a table column headed
-  PMID. Other forms are not read (for example a later list item followed by a word, an "and"-joined item,
-  `PMID #n` or a bold label), and neither are PMCIDs; SYSTEM-REALITY.md §3 lists them. (It reads one more
+  for citation — PMID, PMCID, PubChem CID, NCT, ISRCTN, EudraCT, UniProt, ChEMBL, DOI — in these written
+  forms (2026-11-16): labels and lists ("PMIDs: a, b", also when the first item is a link; a later
+  item of 5 or more digits is read even when a word follows it or it comes after "and"), labels in bold or with a `#` (`**PMID:**`,
+  `PMID #n`), PubMed and PMC record URLs, DOIs bare, behind `doi:` or a doi.org link, and inside
+  publisher URLs (a publisher's `/full` or `.pdf` path cut), bare cells under a table column headed
+  PMID, ISRCTN numbers, and EudraCT numbers only after an `EudraCT` label or in an EU register URL.
+  Other forms are not read (for example a lowercase `cid:`, an EU CT number, a EudraCT number with no
+  label, a patent number, or an author-year reference with no id); SYSTEM-REALITY.md §3 lists them. (It reads one more
   type, from a source this business holds no redistribution licence for; an
   identifier of that type anywhere in a bundle blocks shipment.) Evidence carrying
   none of them is **never extracted as a citation at all**: it is not graded, not counted in the grounded
@@ -93,14 +96,14 @@
   construction**, rendered with no LLM straight from the records fetched at runtime, but they are **not
   counted in the ratio that produced that grade**. A hand-assembled deliverable that never ran through the
   engine claims none of this.
-- **Citation-Integrity Gate** — every cited identifier in the assembled report is cross-checked against the source records actually retrieved at runtime; citations are graded "grounded" (present in retrieved evidence) vs "ungrounded" (likely model-introduced). The report refuses to ship when fewer than 75% of its cited identifiers are grounded (configuration cannot lower that floor), and every remaining ungrounded identifier is flagged inline `[UNVERIFIED]` at every mention. Cited DOIs are screened for retraction against Crossref and, through a DOI→PMID cross-check, PubMed; cited PMIDs against PubMed. Any report citing a retracted paper hard-stops, and any cited paper the screen could not reach is named in the integrity ledger. Every cited PMID, NCT and DOI is then re-resolved against its issuing public registry before release, when the report is assembled, each result recorded in the bundle's reproducibility manifest (VERIFIED / UNRESOLVED / UNCHECKED); any UNRESOLVED identifier blocks delivery, and so does a re-resolution pass that did not complete. Re-resolution confirms an identifier resolves to a real source record; it does not validate the source's scientific conclusions.
+- **Citation-Integrity Gate** — every cited identifier in the assembled report is cross-checked against the source records actually retrieved at runtime; citations are graded "grounded" (present in retrieved evidence) vs "ungrounded" (likely model-introduced). The report refuses to ship when fewer than 75% of its cited identifiers are grounded (configuration cannot lower that floor), and every remaining ungrounded identifier is flagged inline `[UNVERIFIED]` at every mention. Cited DOIs are screened for retraction against Crossref and, through a DOI→PMID cross-check, PubMed; cited PMIDs against PubMed; cited PMCIDs through the PMID or DOI their PMC record lists. Any report citing a retracted paper hard-stops, and any cited paper the screen could not reach is named in the integrity ledger. Every cited PMID, PMCID, NCT, ISRCTN and EudraCT number, DOI, PubChem CID, UniProt accession and ChEMBL id is then re-resolved against its issuing public registry before release, when the report is assembled, each result recorded in the bundle's reproducibility manifest (VERIFIED / UNRESOLVED / UNCHECKED); any UNRESOLVED identifier blocks delivery, and so does a re-resolution pass that did not complete. Re-resolution confirms an identifier resolves to a real source record; it does not validate the source's scientific conclusions.
 - **Speed SLA**: 5–10 business days for Investor Pre-Mortem (written guarantee)
 
 ### Bundle deliverables (shipped)
 
 Every mission bundle now seals two audit-trail artifacts alongside the report:
 
-- **Citation Integrity & Provenance ledger** — a graded provenance ledger (A/B/C/D from the grounded ratio; F/BLOCKED if any cited paper is retracted; N/A if nothing is cited), the report's audit-trail spine.
+- **Citation Integrity & Provenance ledger** — a graded provenance ledger (A/B/C/D from the grounded ratio; F/BLOCKED if any cited paper is retracted; N/A if nothing is cited), the report's audit-trail spine. Since 2026-11-16 it prints its grading rubric and, under the grade, the registry result, the delivery decision and the attribution check, because the grade measures grounding only.
 - **Graveyard Memo + protocol Amendment-Risk** — for an indication, a memo of prior terminated/withdrawn/suspended trial programs, each NCT-traced with the sponsor's stated stop reason (or an explicit "(none stated by sponsor)" — never invented), and a resolvable clinicaltrials.gov link. Rendered from the fetched records (no LLM), so every claim is verifiable. *The protocol amendment-risk band (LOW/MODERATE/HIGH, from change-history version counts) is **paused**: since 2026-10-08 ClinicalTrials.gov refuses the change-history requests it depends on, so the memo states "Not available for this run" rather than show a band. Do not sell the band until a supported source is in place.*
 
 ## Posture (preserved)
@@ -108,7 +111,7 @@ Every mission bundle now seals two audit-trail artifacts alongside the report:
 - Research artifacts only — not validated for clinical decision support
 - No PHI hosted, transmitted, or processed
 - Manual-only external actions — no autonomous publishing, posting, or login
-- Citation traceability quality gate — a report-level gate cross-checks every cited identifier against the records actually retrieved at runtime (grounded vs ungrounded) and refuses to ship below the 75% grounded floor; cited DOIs and PMIDs are screened for retraction against Crossref and PubMed, with any paper the screen could not reach named; and every cited PMID, NCT and DOI is re-resolved against its issuing public registry before release, with the result recorded in a reproducibility manifest (re-resolution confirms the identifier resolves to a real source record, not that the source's conclusions are correct)
+- Citation traceability quality gate — a report-level gate cross-checks every cited identifier against the records actually retrieved at runtime (grounded vs ungrounded) and refuses to ship below the 75% grounded floor; cited DOIs, PMIDs and PMCIDs are screened for retraction against Crossref and PubMed, with any paper the screen could not reach named; and every cited PMID, PMCID, NCT, ISRCTN and EudraCT number and DOI (with PubChem CIDs, UniProt accessions and ChEMBL ids) is re-resolved against its issuing public registry before release, with the result recorded in a reproducibility manifest (re-resolution confirms the identifier resolves to a real source record, not that the source's conclusions are correct)
 
 ## Engine credit
 

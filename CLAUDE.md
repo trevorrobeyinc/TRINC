@@ -213,8 +213,10 @@ The deep dive is `Trevor Robey Intelligence Network Citations/CLAUDE.md`.
   runs**; its five tiers are priced in `OFFERINGS.md` (approved 2026-10-23), and booking opens only after
   the first live business run passes the gate.
 - **Citation integrity** is the product: every cited id must have been retrieved during the run (floor
-  0.75, fail-closed), cited works are retraction-screened (Crossref + PubMed), and every PMID/NCT/DOI is
-  re-resolved against its registry at delivery (any UNRESOLVED blocks). Ground truth for copy is
+  0.75, fail-closed), cited works are retraction-screened (Crossref + PubMed), and every cited PMID, PMCID,
+  NCT, ISRCTN, EudraCT and DOI (and PubChem, UniProt and ChEMBL id), with every NCT number the graveyard
+  memo and the design benchmark list, is re-resolved against its registry when the report is assembled
+  (any UNRESOLVED blocks; 2026-11-16, Tier 2a). Ground truth for copy is
   `SYSTEM-REALITY.md` → "GAP CLOSED"; **never soften this to "grounding only"**.
 - **Bundles** also ship deterministic `citation-integrity.md`, `graveyard-memo.md`, `search-coverage.md`
   and the reproducibility manifest. The graveyard memo's amendment-risk band reads "Not available" while
