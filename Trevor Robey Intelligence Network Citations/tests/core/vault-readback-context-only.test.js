@@ -76,6 +76,36 @@ describe("vault read-back is context-only (never citation evidence)", () => {
     assert.equal(cov.records, 1);
   });
 
+  // T2-18 (2026-11-16): the regex pass missed two shapes a prior run's PMID reaches this text in: bare
+  // cells under a PMID column, and the PMID rows of the reproducibility manifest the vault mirrors.
+  it("T2-18: table cells, manifest rows, Citation Summary lists and the newer forms are withheld too", async () => {
+    const note = {
+      path: "OpenClaw/drug-discovery-full/2026-11-16 semaglutide/Reproducibility Manifest.md",
+      text: [
+        "| Study | PMID |", "|---|---|", "| Smith 2020 | 31111111 |",
+        "| Type | Identifier | Status |", "|---|---|---|", "| PMID | 42977546 | VERIFIED |",
+        "- **PMID** (3): 42410465, 42410365, 42410357",
+        "Registered as ISRCTN50189673; full text PMC7383595; EudraCT 2020-001113-21."
+      ].join("\n"),
+      source: "obsidian-vault-semantic"
+    };
+    const prefetch = createToolPrefetch({
+      toolUniverseMcp: mockToolUniverse(),
+      logger: quietLogger(),
+      rootDir: ROOT_DIR,
+      localFetchers: { obsidian_prior_research: async () => [note] }
+    });
+    const docs = await prefetch.prefetchForRole("scout", {
+      indication: "heart failure", compound_name: "sacubitril", therapeutic_area: "cardiology", topic: "heart failure"
+    });
+    const doc = docs.find((d) => d.context_only === true);
+    for (const raw of ["31111111", "42977546", "42410465", "42410357", "ISRCTN50189673", "PMC7383595", "2020-001113-21"]) {
+      assert.ok(!doc.content.includes(raw), `identifier ${raw} must be withheld`);
+    }
+    assert.equal(extractCitations(doc.content).length, 0, "nothing in a context-only doc is extractable");
+    assert.ok(docs.some((d) => d.context_only !== true && d.content.includes("30000001")), "live data keeps its ids");
+  });
+
   it("a fetcher whose records carry context_only makes the doc context-only even without the map flag", async () => {
     const prefetch = createToolPrefetch({
       toolUniverseMcp: mockToolUniverse(),

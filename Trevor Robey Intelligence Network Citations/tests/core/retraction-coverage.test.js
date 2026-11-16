@@ -88,8 +88,49 @@ describe("retraction screen coverage (T1-7)", () => {
   it("a chunk whose checker throws leaves its ids unscreened; the other chunks still run", async () => {
     let call = 0;
     const checkDois = async (batch) => { call += 1; if (call === 2) throw new Error("timeout"); return crossrefHolds(batch); };
-    const out = await checkRetractions(report(doiList(120)), checkDois);
+    // T2-1 would retry the failed chunk; this test pins T1-7's chunk isolation on its own.
+    const out = await checkRetractions(report(doiList(120)), checkDois, undefined, undefined, undefined, { retry: false });
     assert.equal(out.dois_checked, 70);
     assert.equal(out.unscreened, 50);
+  });
+});
+
+// T2-1 (2026-11-16): one deferred retry. Only the ids that got no definitive answer are asked again, after
+// one injected pause; a definitive answer (a verdict, "not held here") never triggers a retry.
+describe("retraction screen: one deferred retry (T2-1)", () => {
+  const pauses = [];
+  const sleep = async (ms) => { pauses.push(ms); };
+
+  it("a chunk that timed out is asked again once, after a 2,000 ms pause, and is then screened", async () => {
+    pauses.length = 0;
+    let call = 0;
+    const asked = [];
+    const checkDois = async (batch) => { call += 1; asked.push(batch.length); if (call === 2) throw new Error("timeout"); return crossrefHolds(batch); };
+    const out = await checkRetractions(report(doiList(120)), checkDois, undefined, undefined, undefined, { sleep });
+    assert.deepEqual(pauses, [2000]);
+    assert.deepEqual(asked, [50, 50, 20, 50], "only the failed chunk's 50 DOIs are asked again");
+    assert.equal(out.dois_checked, 120);
+    assert.equal(out.checked, true);
+    assert.equal(out.retried, true);
+  });
+
+  it("a PMID that still has no verdict after the retry stays unscreened and named", async () => {
+    pauses.length = 0;
+    const asked = [];
+    const checkPmids = async (pmids) => { asked.push(...pmids); return pmids.map((pmid) => ({ pmid, retracted: false, is_notice: false, checked: pmid !== "20000002" })); };
+    const out = await checkRetractions(report([], ["20000001", "20000002"]), null, checkPmids, undefined, undefined, { sleep });
+    assert.deepEqual(pauses, [2000]);
+    assert.deepEqual(asked, ["20000001", "20000002", "20000002"]);
+    assert.deepEqual(out.unscreened_ids, ["PMID:20000002"]);
+  });
+
+  it("a definitive 'not held here' answer is never retried, and no pause is taken", async () => {
+    pauses.length = 0;
+    const checkDois = async (batch) => batch.map((doi) => ({ doi, retracted: false, checked: true, in_crossref: false }));
+    const notInPubmed = async (dois) => dois.map((doi) => ({ doi, pmids: [], resolved: true }));
+    const out = await checkRetractions(report(["10.4444/missing"]), checkDois, async () => [], notInPubmed, undefined, { sleep });
+    assert.deepEqual(pauses, []);
+    assert.equal(out.retried, undefined);
+    assert.deepEqual(out.unscreened_ids, ["DOI:10.4444/missing"]);
   });
 });

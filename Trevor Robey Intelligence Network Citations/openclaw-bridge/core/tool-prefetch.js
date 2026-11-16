@@ -7,7 +7,7 @@ const { getResearchProfile } = require("./research-profiles.js");
 const { safeString } = require("../../workflows/governance-automation/common.js");
 const defaultTimeProvider = require("./time-provider.js");
 
-const { CITATION_PATTERNS } = require("./citation-extractor.js");
+const { extractCitationSpans } = require("./citation-extractor.js");
 const { redactBylines } = require("./citation-attribution.js");
 
 // CONTEXT-ONLY SOURCES (2026-09-22). Vault read-back and research-memory priors inform a role but
@@ -45,12 +45,23 @@ const LOCAL_SOURCE_LABELS = Object.freeze({
   eia_energy_prices: "U.S. Energy Information Administration"
 });
 
+// T2-18 (2026-11-16): withheld by the extractor's own SPANS, not its regexes, so every form it reads is
+// withheld, PMID table cells and the T2-16/T2-17 forms included; the regex pass missed table cells. Then
+// every remaining run of 5 to 10 digits: a prior run's PMID also reaches this text in shapes the extractor
+// does not read as one, the PMID rows of a mirrored reproducibility manifest ("| PMID | 42977546 | …") and
+// the packager's Citation Summary lists ("- **PMID** (3): 42410465, …"). Those never ground (agent-engine
+// excludes context-only docs), but a model shown them can cite them, and each is then a flag. Over-
+// redaction is harmless here: context-only text is never citable evidence (the bylines rule below).
+const PRIOR_RUN_NUMBER = /(?<![\d.])\d{5,10}(?![\d.])/g;
 function redactIdentifiers(text) {
   let out = String(text || "");
-  for (const { type, regex } of CITATION_PATTERNS) {
-    const fresh = new RegExp(regex.source, regex.flags);
-    out = out.replace(fresh, `<prior-run ${type} withheld>`);
+  let floor = Infinity;
+  for (const s of extractCitationSpans(out).sort((a, b) => b.start - a.start)) {
+    if (s.end > floor) continue; // overlaps a span already withheld
+    out = `${out.slice(0, s.start)}<prior-run ${s.type} withheld>${out.slice(s.end)}`;
+    floor = s.start;
   }
+  out = out.replace(PRIOR_RUN_NUMBER, "<prior-run number withheld>");
   // Bylines too (2026-11-04): a prior run's wrong "Chio et al." must not be re-attached to a live id.
   return redactBylines(out);
 }
@@ -95,6 +106,11 @@ function createToolPrefetch(options = {}) {
   // Customer runs (2026-11-06, core/customer-run.js): tools this run must not call, with the reason
   // recorded on the skipped coverage entry. Never called, never cached, never in a prompt.
   const excludedTools = isPlainObject(options.excludedTools) ? options.excludedTools : {};
+  // T2-7 (2026-11-16, core/customer-run.js): record fields a customer run never renders into a prompt
+  // (an Open Targets record's ChEMBL id). The record keeps the field; only the prompt text omits it, so
+  // it can neither be cited nor ground a citation.
+  const excludedFields = isPlainObject(options.excludedFields) ? options.excludedFields : {};
+  const isExcludedField = (name) => Object.prototype.hasOwnProperty.call(excludedFields, name);
   const logger = isPlainObject(options.logger) ? options.logger : { info() {}, warn() {}, error() {} };
   const rootDir = options.rootDir || process.cwd();
   const timeProvider = options.timeProvider && typeof options.timeProvider.nowMs === "function"
@@ -320,8 +336,11 @@ function createToolPrefetch(options = {}) {
     if (record.url) lines.push(record.url);
     if (record.nctId && !title.includes(record.nctId)) lines.push(`NCT: ${record.nctId}`);
     if (record.pmid) lines.push(`PMID: ${record.pmid}`);
-    if (record.chemblId) lines.push(`ChEMBL: ${record.chemblId}`);
-    if (lines.length === 0) lines.push("```json", JSON.stringify(record).slice(0, 600), "```");
+    if (record.chemblId && !isExcludedField("chemblId")) lines.push(`ChEMBL: ${record.chemblId}`);
+    if (lines.length === 0) {
+      const json = JSON.stringify(record, (key, value) => (key && isExcludedField(key) ? undefined : value));
+      lines.push("```json", json.slice(0, 600), "```");
+    }
     return lines.join("\n") + "\n\n";
   }
 

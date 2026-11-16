@@ -44,8 +44,8 @@ const ENTITY_DISCLOSURE =
 // generated copy, because no sentence-level support check exists, so it was false as worded. What
 // "Every citation, checked." rests on, and where it stops, is SYSTEM-REALITY.md's tagline row: every
 // identifier the extractor reads is checked against the evidence retrieved and re-resolved at its
-// registry; only DOIs and PMIDs are also retraction-screened; a form the extractor does not read is not
-// checked.
+// registry; only DOIs, PMIDs and (since T2-16, 2026-11-16) PMCIDs are also retraction-screened; a form the
+// extractor does not read is not checked.
 const COMPANY_TAGLINE = "Every citation, checked. Every risk, named. In days, not weeks.";
 const FOUNDER_LOCKUP = "Truth Seeker, Receipt Keeper. — Real data beats sweet hallucination. You decide.";
 

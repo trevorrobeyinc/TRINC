@@ -147,9 +147,12 @@ Hard gates in `openclaw-bridge/core/workflow-engine.js`; logic in `citation-gate
   `config/agent-config.json`.
 - **Verdicts:** `PASS` ships; `UNVERIFIED`, `INSUFFICIENT_EVIDENCE` (nothing retrieved) and `NO_CITATIONS`
   block.
-- **Retraction screen:** cited DOIs against Crossref, cited PMIDs against PubMed, and every DOI
-  reverse-resolved to a PMID and cross-checked. Any retracted work blocks (`PHASE30_CITATION_RETRACTED`).
-- **Re-resolution at delivery:** every PMID, NCT and DOI is re-resolved against its issuing registry
+- **Retraction screen:** cited DOIs against Crossref, cited PMIDs against PubMed, every DOI
+  reverse-resolved to a PMID and cross-checked, and (since 2026-11-16) a cited PMCID through the PMID or
+  DOI its PMC record lists. Any retracted work blocks (`PHASE30_CITATION_RETRACTED`).
+- **Re-resolution when the report is assembled:** every cited PMID, PMCID, NCT, ISRCTN, EudraCT and DOI
+  (and PubChem, UniProt and ChEMBL id), and since 2026-11-16 every NCT number the graveyard memo and the
+  design benchmark list, is re-resolved against its issuing registry
   (`openclaw-bridge/mcp/citation-reresolver/`). Each is stamped VERIFIED / UNRESOLVED / UNCHECKED in the
   reproducibility manifest; any UNRESOLVED id blocks. This proves an identifier resolves to a real record,
   not that the source's conclusions are right.
@@ -178,7 +181,7 @@ Blocking codes are all `PHASE30_*`. There are no `PHASE29_*` codes; Phase 29 is 
 | Deliverable | How it is made |
 |---|---|
 | `report.md`, `evidence-appendix.md`, `tables.csv`, `sample-preview.md` | Claude-written, then gated |
-| `citation-integrity.md` | deterministic — grade A/B/C/D from the grounded ratio, F + BLOCKED on any retraction |
+| `citation-integrity.md` | deterministic — grade A/B/C/D from the grounded ratio, F + BLOCKED on any retraction; since 2026-11-16 with its rubric and, under the grade, the registry result, the delivery decision and the attribution check |
 | `graveyard-memo.md` | deterministic — terminated/withdrawn/suspended programs in the indication, NCT-traced, with the sponsor's own stop reason or "(none stated)". Its amendment-risk band reads "Not available" while ClinicalTrials.gov's history endpoint refuses the fetcher (HTTP 403 since 2026-10-08) |
 | `search-coverage.md` | deterministic — every search and what it returned, honest zero results kept apart from failed sources |
 | `reproducibility-manifest.{json,md}` | deterministic — from the re-resolution pass |

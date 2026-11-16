@@ -411,13 +411,13 @@ test("the store copy's retraction bullet follows the screen's coverage", async (
     return fs.readFileSync(path.join(bundleDir, "deliverables", "store-copy.md"), "utf8");
   };
   const complete = render({ retraction_screen_checked: true, retraction_screen_cited: 24, unscreened: 0 });
-  assert.match(complete, /Cited DOIs and PMIDs are retraction-screened \(Crossref for DOIs/);
+  assert.match(complete, /Cited DOIs, PMIDs and PMCIDs are retraction-screened \(Crossref for DOIs/);
   const partial = render({ retraction_screen_checked: false, retraction_screen_cited: 24, unscreened: 3, unscreened_ids: ["DOI:10.4/a", "DOI:10.4/b", "PMID:1"] });
   assert.doesNotMatch(partial, /retraction-screened/);
-  assert.match(partial, /For this report 3 of 24 cited DOIs and PMIDs could not be screened; the citation-integrity ledger lists them\./);
+  assert.match(partial, /For this report 3 of 24 cited DOIs, PMIDs and PMCIDs could not be screened; the citation-integrity ledger lists them\./);
   const unknown = render({});
   assert.doesNotMatch(unknown, /retraction-screened/, "a record without coverage claims none");
-  assert.match(unknown, /does not state whether every cited DOI and PMID could be screened/);
+  assert.match(unknown, /does not state whether every cited DOI, PMID and PMCID could be screened/);
 });
 
 // T1-9: gate sentences only for a record that passed (the dataset-scoped sentence is pinned in

@@ -20,6 +20,12 @@ const DEFAULT_PROFILE_ID = "biomedical";
 const BIOMEDICAL_CITATION_INSTRUCTION =
   "CITATION REQUIREMENTS: For every factual claim, include specific database identifiers inline. Use: PubChem CID (e.g. CID: 2244), PMID (e.g. PMID: 12345678), NCT numbers (e.g. NCT01234567), ChEMBL IDs (e.g. CHEMBL25), ENSG IDs (e.g. ENSG00000157764), UniProt accessions (e.g. UniProt: P04637), DOIs (e.g. doi: 10.1000/example). Aim for at least one verifiable identifier per substantive paragraph. This output will be automatically audited for verifiable citations.";
 
+// T2-7 (2026-11-16): what a paying client's biomedical run is asked for instead (core/customer-run.js
+// says why): only identifiers a paid deliverable may carry and the gate checks, as a positive allowlist
+// that never names the excluded source. agent-engine buildPrompt picks it when context.customerRun.
+const BIOMEDICAL_CUSTOMER_CITATION_INSTRUCTION =
+  "CITATION REQUIREMENTS: For every factual claim, include specific database identifiers inline. Use: PMID (e.g. PMID: 12345678), NCT numbers (e.g. NCT01234567) and DOIs (e.g. doi: 10.1000/example). Give a PubChem CID (e.g. CID: 2244) or a UniProt accession (e.g. UniProt: P04637) only where one appears verbatim in the live data. Gene, disease and ontology ids (ENSG, MONDO, EFO) are context labels and never count as a citation. Aim for at least one verifiable identifier per substantive paragraph. This output will be automatically audited for verifiable citations.";
+
 const BUSINESS_CITATION_INSTRUCTION =
   "CITATION REQUIREMENTS: For every factual claim, cite the source inline using the identifier exactly as it appears in the live evidence below. Business identifiers: web source snapshots, with the passage number when quoting one (e.g. WEB: 3f9a1c0b7d2e ¶4), SEC filings (e.g. SEC: 320193/0000320193-24-000123), World Bank indicators (e.g. WB: FP.CPI.TOTL.ZG), official statistics series (e.g. BLS: CES4349300003, EUROSTAT: nrg_pc_205, CENSUS: cbp/2023/493, EIA: ELEC.PRICE.US-IND.M), and DOIs for published research (e.g. doi: 10.1000/example). Every figure, price, percentage or date must carry the identifier of the source it came from, with the period and geography the source states. Aim for at least one verifiable identifier per substantive paragraph. This output will be automatically audited: each identifier is checked against the sources actually retrieved for this run and re-checked at delivery.";
 
@@ -84,6 +90,11 @@ const PROFILES = Object.freeze({
     soulFile: "SOUL.md",
     citationInstruction: BIOMEDICAL_CITATION_INSTRUCTION,
     identifierList: "PMID/NCT/DOI/ChEMBL/CID/UniProt",
+    // T2-7: a customer run's instruction and the list the ZERO FABRICATION clause prints.
+    customerRun: Object.freeze({
+      citationInstruction: BIOMEDICAL_CUSTOMER_CITATION_INSTRUCTION,
+      identifierList: "PMID/NCT/DOI"
+    }),
     sectionGate: null,
     deriveInputs: null,
     deskAuthoredRoles: Object.freeze([])

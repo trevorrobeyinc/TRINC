@@ -93,8 +93,10 @@ const PROFILE_COPY = Object.freeze({
     noRecordIdentifiers: "Citations carry public identifiers (PMID, NCT, PubChem CID, DOI) that resolve in their issuing registries and can be checked directly.",
     // T1-9 (2026-11-14): the registries a cited identifier can actually reach. RxNorm was listed here,
     // but no extractor pattern ever yields an RxNorm id, so nothing is re-resolved against RxNav.
-    registries: "PMID → NCBI E-utilities, DOI → Crossref with a doi.org fallback, "
-      + "NCT → ClinicalTrials.gov, PubChem CID → PubChem, ChEMBL → ChEMBL, UniProt → UniProt",
+    // T2-16 (2026-11-16): PMCID, ISRCTN and EudraCT ids are read and re-resolved too.
+    registries: "PMID → NCBI E-utilities, PMCID → PubMed Central (NCBI E-utilities), DOI → Crossref with a doi.org fallback, "
+      + "NCT → ClinicalTrials.gov, ISRCTN → the ISRCTN registry, EudraCT → the EU Clinical Trials Register, "
+      + "PubChem CID → PubChem, ChEMBL → ChEMBL, UniProt → UniProt",
     correctnessNote: "Re-resolution confirms an "
       + "identifier resolves to a source record — it does not assess the scientific correctness of the source.",
     sourcesSentence: "peer-reviewed biomedical literature, clinical trial registries, and pharmacological databases",
@@ -105,9 +107,9 @@ const PROFILE_COPY = Object.freeze({
     identifierBullet: "- Identifiers cited in the report (PMID, NCT number, PubChem CID, DOI) are public records in their issuing registries, and every one is listed in `tables.csv`",
     // Tier 1 review (2026-11-14): a dataset-sourced bundle ships no tables.csv.
     identifierBulletDataset: "- Identifiers cited in the source report (PMID, NCT number, PubChem CID, DOI) are public records in their issuing registries",
-    retractionBullet: "- Cited DOIs and PMIDs are retraction-screened (Crossref for DOIs, PubMed for PMIDs, with a DOI→PMID cross-check); any retracted source blocks release",
-    // T1-7: the bullet when the screen did not cover every cited DOI and PMID (a count follows).
-    retractionBulletPartial: "- Cited DOIs and PMIDs are put through the retraction screen (Crossref for DOIs, PubMed for PMIDs, with a DOI→PMID cross-check); any retracted source found blocks release.",
+    retractionBullet: "- Cited DOIs, PMIDs and PMCIDs are retraction-screened (Crossref for DOIs, PubMed for PMIDs, with a DOI→PMID cross-check, and a PMCID through the PMID or DOI its PMC record lists); any retracted source blocks release",
+    // T1-7: the bullet when the screen did not cover every cited DOI, PMID and PMCID (a count follows).
+    retractionBulletPartial: "- Cited DOIs, PMIDs and PMCIDs are put through the retraction screen (Crossref for DOIs, PubMed for PMIDs, with a DOI→PMID cross-check, and a PMCID through the PMID or DOI its PMC record lists); any retracted source found blocks release.",
     dataSourcesIntro: "The pipeline queries the following authoritative biomedical databases:",
     dataSources: Object.freeze([
       "- **PubMed / MEDLINE** — Peer-reviewed biomedical literature (PMID identifiers)",
@@ -177,24 +179,57 @@ function createDeliverablePackager(options = {}) {
     // asserting the gates' guarantees for an ungated one would be a fresh overclaim of exactly the
     // class this module exists to prevent.
     const gated = Object.keys(cv).length > 0;
-    const s = asPlainObject(asPlainObject(cv.reproducibility_manifest).summary);
-    const counts = asPlainObject(s.counts);
-    if (!Number.isFinite(counts.total) || counts.total < 1) return { present: false, gated, byType: {} };
+    const manifest = asPlainObject(cv.reproducibility_manifest);
+    const s = asPlainObject(manifest.summary);
+    const allCounts = asPlainObject(s.counts);
+    if (!Number.isFinite(allCounts.total) || allCounts.total < 1) return { present: false, gated, byType: {} };
     const num = (v) => (Number.isFinite(v) ? v : 0);
+    // T2-6 (2026-11-16): since the memo's and the benchmark's NCT numbers are re-resolved with the
+    // report's identifiers, the manifest counts every row and records per-deliverable counts. Every
+    // sentence below speaks of the report, so it reads the report's own figures (and its own per-type
+    // breakdown, from the rows tagged "report"); the other deliverables get a sentence of their own. A
+    // manifest without per-deliverable counts is read exactly as before.
+    const bySection = asPlainObject(s.by_section);
+    const sectioned = Object.keys(bySection).length > 0;
+    const reportCounts = sectioned ? asPlainObject(bySection.report) : allCounts;
+    let byType = asPlainObject(s.by_type);
+    if (sectioned) {
+      byType = {};
+      for (const row of Array.isArray(manifest.citations) ? manifest.citations : []) {
+        const secs = Array.isArray(row && row.sections) ? row.sections : ["report"];
+        if (!secs.includes("report")) continue;
+        const bucket = row.status === "VERIFIED" ? "verified" : row.status === "UNRESOLVED" ? "unresolved" : "unchecked";
+        if (!byType[row.type]) byType[row.type] = { total: 0, verified: 0, unresolved: 0, unchecked: 0 };
+        byType[row.type].total += 1;
+        byType[row.type][bucket] += 1;
+      }
+    }
+    const deliverables = sectioned
+      ? Object.keys(bySection).filter((k) => k !== "report").sort().map((k) => ({
+        section: k,
+        total: num(asPlainObject(bySection[k]).total),
+        verified: num(asPlainObject(bySection[k]).verified),
+        unresolved: num(asPlainObject(bySection[k]).unresolved),
+        unchecked: num(asPlainObject(bySection[k]).unchecked)
+      })).filter((d) => d.total > 0)
+      : [];
     return {
       present: true,
       gated: true,
       // Tier 1 review (2026-11-14): false for the T1-8 fallback manifest — the pass crashed and no
       // identifier was looked up, so no sentence may say the identifiers were submitted or resolved.
       completed: s.reresolution_completed !== false,
-      total: counts.total,
-      verified: num(counts.verified),
-      unresolved: num(counts.unresolved),
-      unchecked: num(counts.unchecked),
+      total: num(reportCounts.total),
+      verified: num(reportCounts.verified),
+      unresolved: num(reportCounts.unresolved),
+      unchecked: num(reportCounts.unchecked),
+      // Every row (the report's and the other deliverables'); the decision is made over these.
+      all: { total: allCounts.total, verified: num(allCounts.verified), unresolved: num(allCounts.unresolved), unchecked: num(allCounts.unchecked) },
+      deliverables,
       decision: safeString(s.delivery_decision),
       // T1-9: re-resolution runs when the report is assembled, not at delivery; its date is stated.
       asOf: safeString(s.as_of) || "",
-      byType: asPlainObject(s.by_type),
+      byType,
       // Attribution check (2026-11-04): cited WORKS (a "PMID: …; doi: …" pair is one) that resolve but
       // carry the wrong author/year in the report, and whether marks actually reached the sections.
       attributionMismatches: (() => {
@@ -227,8 +262,8 @@ function createDeliverablePackager(options = {}) {
   }
   function retractionShortfall(coverage) {
     return coverage.known
-      ? `For this report ${coverage.unscreened}${coverage.cited !== null ? ` of ${coverage.cited}` : ""} cited DOIs and PMIDs could not be screened; the citation-integrity ledger lists them.`
-      : "This bundle's record does not state whether every cited DOI and PMID could be screened.";
+      ? `For this report ${coverage.unscreened}${coverage.cited !== null ? ` of ${coverage.cited}` : ""} cited DOIs, PMIDs and PMCIDs could not be screened; the citation-integrity ledger lists them.`
+      : "This bundle's record does not state whether every cited DOI, PMID and PMCID could be screened.";
   }
   function retractionBulletFor(copy, coverage) {
     const base = coverage.complete ? copy.retractionBullet : `${copy.retractionBulletPartial} ${retractionShortfall(coverage)}`;
@@ -289,8 +324,12 @@ function createDeliverablePackager(options = {}) {
     const registries = copy.registries;
     const when = `when the report is assembled${res.asOf ? ` (as of ${res.asOf})` : ""}`;
     if (res.decision === "BLOCK") {
+      // T2-6: the decision judges every row, so the count it names does too.
+      const counted = res.deliverables && res.deliverables.length > 0 && res.all
+        ? `${res.all.unresolved} of ${res.all.total} UNRESOLVED, counting the NCT numbers the other deliverables list`
+        : `${res.unresolved} of ${res.total} UNRESOLVED`;
       return `Every cited identifier is submitted for independent re-resolution against its issuing public registry (${registries}) ${when}. `
-        + `For this report the pass returned a BLOCKING result (${res.unresolved} of ${res.total} UNRESOLVED): this bundle is NOT cleared for delivery. `
+        + `For this report the pass returned a BLOCKING result (${counted}): this bundle is NOT cleared for delivery. `
         + `See ${manifestRef}.`;
     }
     const residue = [];
@@ -312,8 +351,27 @@ function createDeliverablePackager(options = {}) {
       attribution = ` Of the VERIFIED, ${n} cited work${n === 1 ? "" : "s"} ${n === 1 ? "carries" : "carry"} an author or year in the report that does not match the registry record`
         + `${res.attributionMarked ? ` and ${n === 1 ? "is" : "are"} marked [ATTRIBUTION MISMATCH] in the report` : ""}.`;
     }
-    return `Every cited identifier is submitted for independent re-resolution against its issuing public registry (${registries}) ${when}. ${outcome}${attribution} `
+    return `Every cited identifier is submitted for independent re-resolution against its issuing public registry (${registries}) ${when}. ${outcome}${attribution}${renderDeliverablesResolution(res)} `
       + `Per-identifier results are recorded in ${manifestRef}. ` + copy.correctnessNote;
+  }
+
+  // T2-6 (2026-11-16): the NCT numbers the graveyard memo and the design benchmark list, re-resolved in
+  // the same pass as the report's identifiers (an UNRESOLVED one blocks the bundle like any other id).
+  // Empty for a manifest that records no per-deliverable counts.
+  const DELIVERABLE_LABELS = { "graveyard-memo": "the graveyard memo", "design-benchmark": "the design benchmark" };
+  function renderDeliverablesResolution(res) {
+    const list = Array.isArray(res.deliverables) ? res.deliverables : [];
+    if (list.length === 0) return "";
+    const parts = list.map((d) => {
+      const residue = [];
+      if (d.unchecked > 0) residue.push(`${d.unchecked} UNCHECKED`);
+      if (d.unresolved > 0) residue.push(`${d.unresolved} UNRESOLVED`);
+      const label = DELIVERABLE_LABELS[d.section] || d.section;
+      return residue.length > 0
+        ? `${label} lists ${d.total}, of which ${d.verified} resolved VERIFIED and ${residue.join(" and ")}`
+        : `${label} lists ${d.total}, all VERIFIED`;
+    });
+    return ` The NCT numbers listed in the bundle's other deliverables were re-resolved in the same pass: ${parts.join("; ")}.`;
   }
 
   // Per-type breakdown from the manifest when present; a plain cited count otherwise. Never
@@ -517,6 +575,12 @@ function createDeliverablePackager(options = {}) {
         + `${reportResolution.attributionMismatches > 0
           ? ` · ${reportResolution.attributionMismatches} cited work${reportResolution.attributionMismatches === 1 ? "" : "s"} with an author/year that does not match the registry (see the Reproducibility Manifest)`
           : ""}`);
+      // T2-6: the figures above are this report's own; the other deliverables' NCT numbers follow.
+      const others = renderDeliverablesResolution(reportResolution).trim();
+      if (others) {
+        lines.push("");
+        lines.push(`${others} Each is listed in the Reproducibility Manifest.`);
+      }
     }
     lines.push("");
 
@@ -1238,9 +1302,46 @@ function createDeliverablePackager(options = {}) {
     });
   }
 
+  // T2-12 (2026-11-16): the records a committed release gathers after it is sealed. Offer ids are
+  // deterministic, so packaging the same source again used to `rmSync` the release folder and these with
+  // it: the approval, the submission-evidence ledger (export events) and the delivery-evidence ledger.
+  const RELEASE_RECORDS = Object.freeze(["release-approval.json", "submission-evidence", "delivery-evidence"]);
+
+  function releaseRecordsHeld(releaseDir) {
+    return RELEASE_RECORDS.filter((name) => fs.existsSync(path.join(releaseDir, name)));
+  }
+
+  // Move an existing release aside WHOLE (deliverables, seal, approval and evidence together), never
+  // deleting it: releases/_superseded/<offer_id>-<n>/, on the same volume as the releases folder.
+  // Returns the new path, or null when there is no release to move. Only an explicit operator step
+  // calls this (generate-offer.js --supersede); nothing calls it implicitly.
+  function supersedeRelease(offerId) {
+    const finalBundleDir = path.join(releasesDir, offerId);
+    if (!fs.existsSync(finalBundleDir)) return null;
+    const supersededDir = path.join(releasesDir, "_superseded");
+    ensureDir(supersededDir);
+    let n = 1;
+    while (fs.existsSync(path.join(supersededDir, `${offerId}-${n}`))) n += 1;
+    const target = path.join(supersededDir, `${offerId}-${n}`);
+    fs.renameSync(finalBundleDir, target);
+    return target;
+  }
+
   function commitBundle(tempBundleDir, offerId) {
     const finalBundleDir = path.join(releasesDir, offerId);
     if (fs.existsSync(finalBundleDir)) {
+      // T2-12: a release that holds an approval or any evidence is never deleted to make room.
+      const held = releaseRecordsHeld(finalBundleDir);
+      if (held.length > 0) {
+        try { fs.rmSync(tempBundleDir, { recursive: true, force: true }); } catch { /* best effort */ }
+        const err = new Error(
+          `Release '${offerId}' already holds ${held.join(", ")}, which re-packaging would delete. ` +
+          "Move the old release aside whole first (node scripts/generate-offer.js ... --supersede), or package a new run."
+        );
+        err.code = "PHASE19_RELEASE_HAS_EVIDENCE";
+        err.release_records = held;
+        throw err;
+      }
       fs.rmSync(finalBundleDir, { recursive: true, force: true });
     }
     ensureDir(path.dirname(finalBundleDir));
@@ -1279,6 +1380,8 @@ function createDeliverablePackager(options = {}) {
     writeBundleRoot,
     finalizeBundle,
     commitBundle,
+    supersedeRelease,
+    RELEASE_RECORDS,
     releasesDir
   });
 }

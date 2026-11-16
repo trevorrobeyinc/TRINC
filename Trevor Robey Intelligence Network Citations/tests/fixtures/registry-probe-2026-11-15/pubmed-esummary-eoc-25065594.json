@@ -1,0 +1,24 @@
+{
+ "result": {
+  "uids": [
+   "25065594"
+  ],
+  "25065594": {
+   "uid": "25065594",
+   "pubtype": [
+    "Journal Article",
+    "Research Support, N.I.H., Extramural",
+    "Research Support, Non-U.S. Gov't"
+   ],
+   "references": [
+    {
+     "refsource": "Oncogene. 2026 Nov 13. doi: 10.1038/s41388-026-04058-3.",
+     "reftype": "Expression of concern in",
+     "pmid": 43026286,
+     "note": ""
+    }
+   ],
+   "title": "Differential in vivo tumorigenicity of diverse KRAS mutations in vertebrate pancreas: A comprehensive survey."
+  }
+ }
+}

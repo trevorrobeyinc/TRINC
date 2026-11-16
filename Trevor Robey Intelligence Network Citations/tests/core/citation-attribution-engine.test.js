@@ -27,6 +27,8 @@ function registryFetch() {
     { match: "works/10.1038%2Fnrdp.2017.71", body: { status: "ok", message: {
       author: [{ family: "Hardiman" }, { family: "Al-Chalabi" }, { family: "Chio" }], issued: { "date-parts": [[2017]] }
     } } },
+    // T2-6 (2026-11-16): NCT numbers are asked in batches (`filter.ids`) first.
+    { match: `filter.ids=${GROUNDED_NCT}`, body: { studies: [{ protocolSection: { identificationModule: { nctId: GROUNDED_NCT } } }] } },
     { match: `studies/${GROUNDED_NCT}`, body: { protocolSection: { identificationModule: { nctId: GROUNDED_NCT } } } }
   ];
   return async (url) => {

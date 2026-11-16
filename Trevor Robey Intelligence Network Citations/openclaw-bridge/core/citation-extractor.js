@@ -23,7 +23,25 @@ const PMID_NEXT = String.raw`\d{1,10}(?!\d)(?![ \t]*%)(?!\.\d)(?![ \t]+[A-Za-z])
 // whole token, so a digit inside the link's URL is never read as an item.
 const LINK_CLOSE_SOURCE = String.raw`\]\]|\]\([^)\s]*\)`;
 const AFTER_ITEM = `${MARKS_AFTER}(?:(?:${LINK_CLOSE_SOURCE})${MARKS_AFTER})?`;
-const PMID_LIST = `${PMID_FIRST}${AFTER_ITEM}(?:[ \\t]*[,;][ \\t]*${PMID_NEXT}${AFTER_ITEM})*`;
+// T2-17 (2026-11-16): two more list shapes. A final item may follow "and" or "&" ("PMIDs: a, b and c",
+// "a, b, and c"), and a later item followed by a word is read when it has 5 or more digits ("PMIDs: a, b
+// showed …"). Both use the 5-digit rule of the bare "PubMed:" label, so "…, 10 patients", "…, 2.5 mg" and
+// "… and 2019 data" stay prose (operator default D9). A 5+ digit count after a list ("…, 12000 patients")
+// is read and flagged [UNVERIFIED] like any unretrieved id: the self-correcting side of the width doctrine.
+const PMID_NEXT_LONG = String.raw`\d{5,10}(?!\d)(?![ \t]*%)(?!\.\d)`;
+const LIST_SEP = String.raw`[ \t]*[,;][ \t]*`;
+const AND_SEP = String.raw`[ \t]*,?[ \t]+(?:and|&)[ \t]+`;
+const PMID_LIST_REST = `(?:(?:${LIST_SEP}(?:${PMID_NEXT_LONG}|${PMID_NEXT})|${AND_SEP}${PMID_NEXT_LONG})${AFTER_ITEM})*`;
+const PMID_LIST = `${PMID_FIRST}${AFTER_ITEM}${PMID_LIST_REST}`;
+// After a decorated label (markdown emphasis or "#", T2-17) the FIRST item needs 5 or more digits, the
+// bare "PubMed:" label's rule: the packager writes count lines in exactly that shape ("**PMID**: 8
+// verified references", "**PMID**: 10 cited · 10 VERIFIED", "- **PMID**: 14" at a line end), and the
+// T2-17 replay read them as PMIDs. A plain "PMID: 1234" (a pre-1977 paper) is still read.
+const PMID_LIST_DECORATED = `${PMID_NEXT_LONG}${AFTER_ITEM}${PMID_LIST_REST}`;
+// T2-17: a "CIDs:" list reads every item; a later item obeys the PMID list's prose rule.
+const CID_FIRST = String.raw`\d{1,12}(?!\d)`;
+const CID_NEXT = String.raw`\d{1,12}(?!\d)(?![ \t]*%)(?!\.\d)(?![ \t]+[A-Za-z])`;
+const CID_LIST = `${CID_FIRST}${MARKS_AFTER}(?:${LIST_SEP}${CID_NEXT}${MARKS_AFTER})*`;
 
 const CITATION_PATTERNS = [
   // PMIDs are sequential positive integers with NO fixed width: they start at 1 (PMID 1 is a real
@@ -39,16 +57,24 @@ const CITATION_PATTERNS = [
   // label is read ("PMIDs: 12345678, 23456789"); before, only the first item of "PMID: a, b" was.
   // The wiki-link target half "[[PMID-42529345|…" is not a label (no ":"/space before the digits).
   { type: "PMID", form: "label", regex: new RegExp(String.raw`PMIDs?[:\s]*(` + PMID_LIST + ")", "gi") },
+  // T2-17 (2026-11-16): a label decorated with markdown emphasis or a "#" ("**PMID:** 31111111",
+  // "**PMID**: 31111111", "PMID: **31111111**", "PMID #31111111"), spellings that used to read nothing.
+  // Its first item needs 5+ digits (PMID_LIST_DECORATED, above). The lookahead keeps the two label
+  // patterns apart, so no mention is read twice.
+  { type: "PMID", form: "label", regex: new RegExp(String.raw`PMIDs?(?=[:\s]*[*_#])[:#\s*_]*(` + PMID_LIST_DECORATED + ")", "gi") },
   // T1-4: a "PubMed ID" or "PubMed:" label. A bare "PubMed 2019" (a search year in prose) is NOT a label,
   // and neither is "PubMed: 2019" or "PubMed: 2015–2025" (a search span in a methods line): a label with
   // no "ID" needs a number of 5 or more digits (Tier 1 review, 2026-11-14). "PubMed ID: 123" is still read.
-  { type: "PMID", form: "pubmed_label", regex: /\bPubMed(?:\s*IDs?\s*[:#]?|\s*[:#](?=\s*\d{5}))\s*(\d{1,10})(?!\d)/gi },
+  // T2-17: "PubMed IDs: a, b" reads every item (it used to stop after the first), emphasis allowed.
+  { type: "PMID", form: "label", regex: new RegExp(String.raw`\bPubMed(?:[\s*_]*IDs?[\s*_]*[:#]?|\s*[:#](?=[\s*_]*\d{5}))[\s*_]*(` + PMID_LIST + ")", "gi") },
   // T1-4: PubMed record links, pubmed.ncbi.nlm.nih.gov/<id> and (www.)ncbi.nlm.nih.gov/pubmed/<id>.
   { type: "PMID", form: "pubmed_url", regex: /\b(?:pubmed\.ncbi\.nlm\.nih\.gov\/|ncbi\.nlm\.nih\.gov\/pubmed\/)(\d{1,10})(?!\d)/gi },
   // T1-4: an uppercase "CID" on a word boundary, no `i` flag. The old pattern had neither, so "amino
   // acid 614" and "acid 2019" read as PubChem CIDs, and it had no `(?!\d)` guard, so a longer number was
   // cut to a prefix. A longer digit run is now DROPPED, never mis-captured (the PMID rule).
-  { type: "PubChem CID", regex: /\b(?:PubChem\s*)?CID\b[:\s]*(\d{1,12})(?!\d)/g },
+  // T2-17 (2026-11-16): a "CIDs:" list reads every item. A lowercase "cid:" stays unread (operator
+  // default D9): no prefetch source retrieves PubChem records, and the strict label errs safe.
+  { type: "PubChem CID", form: "cid_list", regex: new RegExp(String.raw`\b(?:PubChem\s*)?CIDs?\b[:\s]*(` + CID_LIST + ")", "g") },
   // T1-4: an optional space or hyphen after "NCT" ("NCT 01234567", "NCT-01234567"), normalized to
   // NCT + 8 digits. `(?!\d)` refuses the first 8 digits of a longer run: NCT012345678 is a different
   // (possibly real) trial NCT01234567, so it is dropped rather than mis-captured. The left guard is "no
@@ -56,6 +82,26 @@ const CITATION_PATTERNS = [
   // ("distinct 12345678") must not read, but an id after "_" or a digit must, as it did at bb4299d —
   // "_NCT01234567_" is markdown italics (Tier 1 review, 2026-11-14).
   { type: "NCT", regex: /(?<![A-Za-z])NCT[ -]?(\d{8})(?!\d)/gi },
+  // ── Trial registrations and PMC full texts (T2-16, 2026-11-16) ───────────────────────────────────
+  // SYSTEM-REALITY.md's tagline row named EudraCT and ISRCTN trial ids and PMCIDs among the citation
+  // forms that were not checked at all. Each is now read, grounded by type (T1-5), marked, re-resolved
+  // at its registry (citation-reresolver.js) and, for a PMCID, retraction-screened through the PMID its
+  // PMC record lists (citation-gate.js). No stored report cited one (the 2026-11-15 count), so no past
+  // ratio moves. No prompt asks for these types (operator default D5).
+  // ISRCTN: "ISRCTN" and 8 digits, uppercase, an optional space or hyphen (normalized away), never after a
+  // letter or digit, and never the first 8 digits of a longer run (the NCT rule). isrctn.com URLs carry it.
+  { type: "ISRCTN", regex: /(?<![A-Za-z0-9])ISRCTN[ -]?(\d{8})(?!\d)/g },
+  // EudraCT: YYYY-NNNNNN-NN, only after an "EudraCT" label or inside a clinicaltrialsregister.eu URL,
+  // never as a bare dash number in prose (operator default D6). It is never followed by "-" or a digit, so
+  // an EU CT number (2023-503456-12-00, the CTIS successor format, not read yet) is never cut into one.
+  { type: "EudraCT", regex: /\bEudra[Cc][Tt](?:[ \t]+(?:[Nn]umber|[Nn]o\.?|[Nn]r\.?|ID|[Ii]dentifier))?[:\s#,.]*((?:19|20)\d{2}-\d{6}-\d{2})(?![\d-])/g },
+  { type: "EudraCT", regex: /clinicaltrialsregister\.eu\/ctr-search\/(?:trial\/|search\?query=)((?:19|20)\d{2}-\d{6}-\d{2})(?![\d-])/gi },
+  // PMCID: "PMC" and 1-9 digits, uppercase, no space, never after a letter or digit and never a prefix of
+  // a longer run (the PMID width doctrine), normalized to PMC + digits. The record URLs on
+  // pmc.ncbi.nlm.nih.gov, ncbi.nlm.nih.gov/pmc and europepmc.org carry the token. A "PMCID:" label with a
+  // bare number reads too. A PMCID and its paper's PMID are different keys: one never grounds the other.
+  { type: "PMCID", regex: /(?<![A-Za-z0-9])PMC(\d{1,9})(?!\d)/g },
+  { type: "PMCID", form: "pmcid_label", regex: /\bPMCID[:\s]*(\d{1,9})(?!\d)/gi },
   // UniProt: the id must be a real ACCESSION (UniProt's published grammar: 6 chars `[OPQ]\d[A-Z0-9]{3}\d`, or
   // `[A-NR-Z]\d` + one or two `[A-Z][A-Z0-9]{2}\d` groups = 6 or 10 chars). The old pattern,
   // `UniProt[:\s]*([A-Z0-9]{6,10})` with the `i` flag, captured ANY 6-10 letter word after the label, so a
@@ -69,7 +115,9 @@ const CITATION_PATTERNS = [
   // a prefix of a longer token is DROPPED, never mis-captured (same rule as PMID above). A malformed
   // "UniProt <token>" is not an identifier, so it is not extracted; a well-formed accession still goes through
   // grounding and re-resolution.
-  { type: "UniProt", regex: /[Uu][Nn][Ii][Pp][Rr][Oo][Tt](?:KB)?[:\s]*\b([OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9](?:[A-Z][A-Z0-9]{2}[0-9]){1,2})\b/g },
+  // T2-17 (2026-11-16): "UniProt ID: P04637" and "UniProt accession P04637" read too (they used to read
+  // nothing); the accession grammar is unchanged.
+  { type: "UniProt", regex: /[Uu][Nn][Ii][Pp][Rr][Oo][Tt](?:KB)?(?:\s+(?:[Ii][Dd]|[Aa]ccession|AC)s?)?[:\s]*\b([OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9](?:[A-Z][A-Z0-9]{2}[0-9]){1,2})\b/g },
   { type: "ChEMBL", regex: /(CHEMBL\d{2,10})/gi },
   { type: "DrugBank", regex: /(DB\d{5,7})/gi },
   // DOIs in every written form (T1-4): "doi: 10.x/…", https://doi.org/, dx.doi.org/, www.doi.org/,
@@ -154,24 +202,43 @@ function normalizeDoiId(raw) {
 // A DOI with an empty suffix after normalization ("10.1234/.") is not an identifier.
 const DOI_SHAPE = /^10\.\d{4,9}\/./;
 
-// True when the DOI starting at `start` sits inside a URL token (https://…, www.…, doi.org/…), where a
-// trailing `?query` or `#fragment` belongs to the URL, not to the DOI.
-function inUrlContext(text, start) {
+// The URL token a DOI starting at `start` sits in (https://…, www.…, doi.org/…, or, since T2-17, a
+// scheme-less host such as "onlinelibrary.wiley.com/doi/…"), or "" when the DOI is not inside a URL.
+// Inside a URL a trailing `?query` or `#fragment` belongs to the URL, not to the DOI.
+const URL_TOKEN = /(?:https?:\/\/|www\.|doi\.org\/|\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}\/)/i;
+function urlTokenBefore(text, start) {
   let i = start;
   while (i > 0 && !/\s/.test(text[i - 1])) i--;
-  return /(?:https?:\/\/|www\.|doi\.org\/)/i.test(text.slice(i, start));
+  const token = text.slice(i, start);
+  return URL_TOKEN.test(token) ? token : "";
+}
+
+// T2-17 (2026-11-16): inside a URL only, the publisher's path after a DOI is not part of it, so
+// "…/10.3389/fphar.2021.123456/full", "…/10.1007/s00134-020-06294-x.pdf" and a bioRxiv or medRxiv
+// version ("…/10.1101/2020.03.22.002386v1.full") gave a DOI that does not exist, which re-resolves
+// UNRESOLVED and blocks a sound report. A closed list of trailing segments is cut, and a version only
+// from a 10.1101 DOI in a biorxiv.org or medrxiv.org URL. A bare DOI is never cut: the proof run's
+// 10.31234/osf.io/r2fnz_v2 is a real, versioned OSF DOI (operator default D10).
+const URL_PATH_SUFFIX = /(?:\/(?:full|abstract|pdf|epdf|fulltext)(?:\.pdf)?|\.pdf)$/i;
+const PREPRINT_HOST = /(?:bio|med)rxiv\.org\//i;
+const PREPRINT_VERSION = /^(10\.1101\/\S*?\d)v\d+(?:\.\S*)?$/i;
+function cutUrlPath(id, urlToken) {
+  let out = id;
+  if (PREPRINT_HOST.test(urlToken)) out = out.replace(PREPRINT_VERSION, "$1");
+  out = out.replace(URL_PATH_SUFFIX, "");
+  return normalizeDoiId(out);
 }
 
 // PMIDs start at 1, so an all-zero number is never one. Found by the T1-4 replay (2026-11-14): the
 // manifest's own count line "retracted PMIDs: 0" read as PMID 0 once "PMIDs" became a label.
 const NOT_A_PMID = /^0+$/;
 
-// Each item of a PMID list (or of a PMID table cell), skipping any mark and any closing link between
-// items (so the digits of a link's URL are never items). `offset` is the list's position in the full
-// text, so every item gets its own span.
-function listItems(listText, offset) {
+// Each item of a PMID list (or of a PMID table cell, or, since T2-17, of a CID list), skipping any mark
+// and any closing link between items (so the digits of a link's URL are never items). `offset` is the
+// list's position in the full text, so every item gets its own span. `width` is the id's longest form.
+function listItems(listText, offset, width = 10) {
   const out = [];
-  const re = new RegExp(`${MARK_SOURCE}|${LINK_CLOSE_SOURCE}|(\\d{1,10})`, "gi");
+  const re = new RegExp(`${MARK_SOURCE}|${LINK_CLOSE_SOURCE}|(\\d{1,${width}})`, "gi");
   let m;
   while ((m = re.exec(listText)) !== null) {
     if (m[1] === undefined) continue; // a mark, not an item
@@ -282,13 +349,26 @@ function extractCitationSpans(text) {
         for (const item of listItems(raw, gStart)) spans.push({ type: "PMID", ...item });
         continue;
       }
+      if (p.form === "cid_list") {
+        for (const item of listItems(raw, gStart, 12)) spans.push({ type: p.type, ...item });
+        continue;
+      }
       if (p.type === "NCT") {
         spans.push({ type: "NCT", id: `NCT${m[1]}`, start: m.index, end: m.index + m[0].length });
         continue;
       }
+      // T2-16: ISRCTN and PMCID ids normalized to their prefix + digits; an all-zero number is a
+      // placeholder, never an id (the PMID 0 rule).
+      if (p.type === "ISRCTN" || p.type === "PMCID") {
+        if (NOT_A_PMID.test(m[1])) continue;
+        const id = `${p.type === "ISRCTN" ? "ISRCTN" : "PMC"}${m[1]}`;
+        if (p.form === "pmcid_label") spans.push({ type: p.type, id, start: gStart, end: gEnd });
+        else spans.push({ type: p.type, id, start: m.index, end: m.index + m[0].length });
+        continue;
+      }
       if (p.type === "DOI") {
-        const cut = inUrlContext(s, gStart) ? raw.replace(/[?#].*$/, "") : raw;
-        const id = normalizeDoiId(cut);
+        const urlToken = urlTokenBefore(s, gStart);
+        const id = urlToken ? cutUrlPath(normalizeDoiId(raw.replace(/[?#].*$/, "")), urlToken) : normalizeDoiId(raw);
         if (!DOI_SHAPE.test(id)) continue;
         spans.push({ type: "DOI", id, start: gStart, end: gStart + id.length });
         continue;

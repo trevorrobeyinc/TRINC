@@ -20,7 +20,8 @@ function mockFetch(routes, counter) {
   };
 }
 function rr(routes, counter) {
-  return createCitationReresolver({ fetchImpl: mockFetch(routes, counter), nowIso: NOW });
+  // T2-1: a no-op sleep, so a test whose registry keeps failing does not wait out the deferred retry.
+  return createCitationReresolver({ fetchImpl: mockFetch(routes, counter), nowIso: NOW, sleep: async () => {} });
 }
 
 test("PMID: real id with docsum -> VERIFIED", async () => {
@@ -104,14 +105,33 @@ test("NCT: 404 -> UNRESOLVED", async () => {
   assert.equal(r.status, "UNRESOLVED");
 });
 
-test("ChEMBL: id echo match -> VERIFIED (id only)", async () => {
-  const r = await rr([{ match: "chembl", status: 200, body: { molecule_chembl_id: "CHEMBL25" } }]).resolveOne({ type: "ChEMBL", id: "CHEMBL25" });
-  assert.equal(r.status, "VERIFIED");
-  assert.deepEqual(Object.keys(r.evidence), ["molecule_chembl_id"]); // no data values harvested
+// T2-3 (2026-11-16): ChEMBL ids go through chembl_id_lookup (bodies as read live on 2026-11-15).
+test("ChEMBL: an ACTIVE compound and an ACTIVE target are VERIFIED (id and entity type only)", async () => {
+  const compound = await rr([{ match: "chembl_id_lookup", status: 200, body: { chembl_id: "CHEMBL25", entity_type: "COMPOUND", status: "ACTIVE", resource_url: "/chembl/api/data/molecule/CHEMBL25" } }]).resolveOne({ type: "ChEMBL", id: "CHEMBL25" });
+  assert.equal(compound.status, "VERIFIED");
+  assert.deepEqual(Object.keys(compound.evidence).sort(), ["chembl_id", "entity_type"]); // no data values harvested
+  const target = await rr([{ match: "chembl_id_lookup", status: 200, body: { chembl_id: "CHEMBL203", entity_type: "TARGET", last_active: 28, resource_url: "/chembl/api/data/target/CHEMBL203", status: "ACTIVE" } }]).resolveOne({ type: "ChEMBL", id: "CHEMBL203" });
+  assert.equal(target.status, "VERIFIED", "a real target id no longer blocks the run");
+  assert.equal(target.evidence.entity_type, "TARGET");
 });
-test("ChEMBL: 404 -> UNRESOLVED", async () => {
-  const r = await rr([{ match: "chembl", status: 404, body: {} }]).resolveOne({ type: "ChEMBL", id: "CHEMBL00000" });
+test("ChEMBL: INACTIVE -> UNRESOLVED (D13); an undocumented status -> UNCHECKED; a lookup 404 -> UNRESOLVED", async () => {
+  const inactive = await rr([{ match: "chembl_id_lookup", status: 200, body: { chembl_id: "CHEMBL9999", entity_type: "COMPOUND", status: "INACTIVE" } }]).resolveOne({ type: "ChEMBL", id: "CHEMBL9999" });
+  assert.equal(inactive.status, "UNRESOLVED");
+  assert.equal(inactive.evidence.reason, "chembl_inactive");
+  const odd = await rr([{ match: "chembl_id_lookup", status: 200, body: { chembl_id: "CHEMBL9999", entity_type: "COMPOUND", status: "OBS" } }]).resolveOne({ type: "ChEMBL", id: "CHEMBL9999" });
+  assert.equal(odd.status, "UNCHECKED");
+  const missing = await rr([{ match: "chembl_id_lookup", status: 404, body: {} }]).resolveOne({ type: "ChEMBL", id: "CHEMBL00000" });
+  assert.equal(missing.status, "UNRESOLVED");
+});
+test("UniProt: a never-issued accession answers 404 -> UNRESOLVED (T2-3)", async () => {
+  const r = await rr([{ match: "uniprot", status: 404, body: { url: "http://rest.uniprot.org/uniprotkb/Z9ZZZ9", messages: ["Resource not found"] } }]).resolveOne({ type: "UniProt", id: "Z9ZZZ9" });
   assert.equal(r.status, "UNRESOLVED");
+  assert.equal(r.evidence.reason, "uniprot_not_found");
+});
+test("PubChem: a 503 throttle is rate_limited, not http_5xx (T2-3)", async () => {
+  const r = await rr([{ match: "pubchem", status: 503, body: { Fault: { Code: "PUGREST.ServerBusy" } } }]).resolveOne({ type: "PubChem CID", id: "2244" });
+  assert.equal(r.status, "UNCHECKED");
+  assert.equal(r.evidence.reason, "rate_limited");
 });
 
 test("DrugBank: no live resolver -> UNCHECKED no_resolver (no fetch call)", async () => {
@@ -357,4 +377,146 @@ test("attribution: an UNRESOLVED or UNCHECKED id is never attribution-checked", 
   assert.equal(resolved[0].status, "UNCHECKED");
   const out = await resolver.checkAttributions(resolved, ATTRIBUTION_REPORT);
   assert.deepEqual(out.results, []);
+});
+
+
+// T2-1 (2026-11-16): one deferred retry for every lookup a registry did not answer, after one injected
+// pause; never for a definitive answer (UNRESOLVED, or UNCHECKED for a reason that is itself an answer).
+function retryResolver(script, calls, pauses) {
+  const fetchImpl = async (url) => {
+    calls.push(url);
+    const step = script.shift();
+    if (!step) throw new Error("no scripted answer left for " + url);
+    if (step.abort) { const e = new Error("aborted"); e.name = "AbortError"; throw e; }
+    return { status: step.status, json: async () => step.body, text: async () => JSON.stringify(step.body) };
+  };
+  return createCitationReresolver({ fetchImpl, nowIso: NOW, sleep: async (ms) => { pauses.push(ms); } });
+}
+const PUBCHEM_OK = { status: 200, body: { PC_Compounds: [{ id: { id: { cid: 2244 } } }] } };
+
+test("T2-1: a lookup that timed out is asked again once after a 2,000 ms pause, and is VERIFIED with attempts 2", async () => {
+  const calls = []; const pauses = [];
+  const out = await retryResolver([{ abort: true }, PUBCHEM_OK], calls, pauses).resolveAll([{ type: "PubChem CID", id: "2244" }]);
+  assert.equal(out[0].status, "VERIFIED");
+  assert.equal(out[0].attempts, 2);
+  assert.deepEqual(pauses, [2000]);
+  assert.equal(calls.length, 2);
+});
+test("T2-1: a second failure stays UNCHECKED, with both attempts counted", async () => {
+  const calls = []; const pauses = [];
+  const out = await retryResolver([{ status: 503 }, { status: 503 }], calls, pauses).resolveAll([{ type: "PubChem CID", id: "2244" }]);
+  assert.equal(out[0].status, "UNCHECKED");
+  assert.equal(out[0].evidence.reason, "rate_limited");
+  assert.equal(out[0].attempts, 2);
+});
+test("T2-1: a 404 and a no-resolver id are answers, never retried, and no pause is taken", async () => {
+  const calls = []; const pauses = [];
+  const out = await retryResolver([{ status: 404, body: {} }], calls, pauses).resolveAll([{ type: "PubChem CID", id: "999999999" }]);
+  assert.equal(out[0].status, "UNRESOLVED");
+  assert.deepEqual(pauses, []);
+  assert.equal(calls.length, 1);
+  const none = await retryResolver([], [], pauses).resolveAll([{ type: "UNKNOWN-TYPE", id: "x1" }]);
+  assert.equal(none[0].evidence.reason, "no_resolver");
+  assert.deepEqual(pauses, []);
+});
+
+// T2-6 (2026-11-16): NCT numbers are asked in batches (`filter.ids`), because a graveyard memo can list
+// 1,420 of them. Only an exact echo is VERIFIED; a number the batch leaves out goes to the one-study
+// request, whose 404 is the only UNRESOLVED. Answers from tests/fixtures/registry-probe-2026-11-15/.
+const BATCH_FIXTURES = require("node:path").join(__dirname, "fixtures", "registry-probe-2026-11-15");
+const batchFixture = (name) => JSON.parse(require("node:fs").readFileSync(require("node:path").join(BATCH_FIXTURES, name), "utf8"));
+const nctStudies = (ids) => ({ studies: ids.map((nctId) => ({ protocolSection: { identificationModule: { nctId } } })) });
+const idsInBatch = (url) => decodeURIComponent((/[?&]filter\.ids=([^&]+)/.exec(url) || [])[1] || "").split(",").filter(Boolean);
+
+function nctResolver(answer, calls, pauses = []) {
+  const fetchImpl = async (url) => {
+    calls.push(url);
+    const step = answer(url);
+    if (step.abort) { const e = new Error("aborted"); e.name = "AbortError"; throw e; }
+    return { status: step.status, json: async () => step.body, text: async () => JSON.stringify(step.body) };
+  };
+  return createCitationReresolver({ fetchImpl, nowIso: NOW, sleep: async (ms) => { pauses.push(ms); } });
+}
+
+test("T2-6: one batch request answers every NCT number, each VERIFIED from an exact echo", async () => {
+  const calls = [];
+  const ids = ["NCT00000102", "NCT00000105", "NCT04381936"];
+  const out = await nctResolver((url) => ({ status: 200, body: nctStudies(idsInBatch(url)) }), calls)
+    .resolveAll(ids.map((id) => ({ type: "NCT", id })));
+  assert.deepEqual(out.map((o) => o.status), ["VERIFIED", "VERIFIED", "VERIFIED"]);
+  assert.equal(calls.length, 1, "one request, not one per number");
+  assert.match(calls[0], /^https:\/\/clinicaltrials\.gov\/api\/v2\/studies\?filter\.ids=NCT00000102%2CNCT00000105%2CNCT04381936&fields=NCTId&pageSize=3&format=json$/);
+  assert.deepEqual(out[2].evidence, { nctId_echo: "NCT04381936", batch_size: 3 });
+  assert.equal(out[2].resolved_url, "https://clinicaltrials.gov/api/v2/studies?filter.ids=NCT04381936&fields=NCTId&format=json");
+  assert.equal(out[2].resolver_type, "primary");
+});
+
+test("T2-6: a number the batch leaves out goes to the one-study request, whose 404 is UNRESOLVED (the real answer)", async () => {
+  const calls = [];
+  const out = await nctResolver((url) => (url.includes("filter.ids=")
+    ? { status: 200, body: batchFixture("ctgov-batch-real-plus-invented.json") }
+    : { status: 404, body: {} }), calls)
+    .resolveAll([{ type: "NCT", id: "NCT04381936" }, { type: "NCT", id: "NCT99999998" }]);
+  assert.equal(out.find((o) => o.id === "NCT04381936").status, "VERIFIED");
+  const invented = out.find((o) => o.id === "NCT99999998");
+  assert.equal(invented.status, "UNRESOLVED");
+  assert.equal(invented.evidence.reason, "nct_not_found");
+  assert.equal(calls.length, 2);
+  assert.match(calls[1], /\/api\/v2\/studies\/NCT99999998\?format=json$/);
+});
+
+test("T2-6: a padded echo is not an echo: NCT1234 came back as NCT00001234, so the one-study request decides", async () => {
+  const calls = [];
+  const out = await nctResolver((url) => (url.includes("filter.ids=")
+    ? { status: 200, body: batchFixture("ctgov-batch-short-number-padded.json") }
+    : { status: 400, body: {} }), calls)
+    .resolveAll([{ type: "NCT", id: "NCT04381936" }, { type: "NCT", id: "NCT1234" }]);
+  const short = out.find((o) => o.id === "NCT1234");
+  assert.equal(short.status, "UNRESOLVED");
+  assert.equal(short.evidence.reason, "bad_format");
+  assert.equal(out.find((o) => o.id === "NCT04381936").status, "VERIFIED");
+});
+
+test("T2-6: a memo's worth of numbers goes in batches of 200", async () => {
+  const calls = [];
+  const ids = Array.from({ length: 450 }, (_, i) => `NCT${String(10000000 + i)}`);
+  const out = await nctResolver((url) => ({ status: 200, body: nctStudies(idsInBatch(url)) }), calls)
+    .resolveAll(ids.map((id) => ({ type: "NCT", id })));
+  assert.equal(out.length, 450);
+  assert.ok(out.every((o) => o.status === "VERIFIED"));
+  assert.deepEqual(calls.map((u) => idsInBatch(u).length), [200, 200, 50]);
+});
+
+test("T2-6: a throttled batch leaves its numbers UNCHECKED, and the deferred retry asks them again in one batch", async () => {
+  const calls = []; const pauses = [];
+  let n = 0;
+  const out = await nctResolver((url) => {
+    n += 1;
+    return n === 1 ? { status: 429, body: {} } : { status: 200, body: nctStudies(idsInBatch(url)) };
+  }, calls, pauses).resolveAll([{ type: "NCT", id: "NCT00000102" }, { type: "NCT", id: "NCT00000105" }]);
+  assert.deepEqual(out.map((o) => o.status), ["VERIFIED", "VERIFIED"]);
+  assert.deepEqual(out.map((o) => o.attempts), [2, 2]);
+  assert.deepEqual(pauses, [2000]);
+  assert.equal(calls.length, 2, "two batch requests, no one-study requests");
+});
+
+test("T2-6: a throttle that outlasts the retry stays UNCHECKED rate_limited, never a false VERIFIED", async () => {
+  const calls = []; const pauses = [];
+  const out = await nctResolver(() => ({ status: 429, body: {} }), calls, pauses)
+    .resolveAll([{ type: "NCT", id: "NCT00000102" }]);
+  assert.equal(out[0].status, "UNCHECKED");
+  assert.equal(out[0].evidence.reason, "rate_limited");
+  assert.equal(out[0].attempts, 2);
+  assert.equal(calls.length, 2);
+});
+
+test("T2-6: an unparseable batch answer sends its numbers to the one-study request", async () => {
+  const calls = [];
+  const out = await nctResolver((url) => (url.includes("filter.ids=")
+    ? { status: 200, body: { unexpected: true } }
+    : { status: 200, body: { protocolSection: { identificationModule: { nctId: url.match(/NCT\d{8}/)[0] } } } }), calls)
+    .resolveAll([{ type: "NCT", id: "NCT00000102" }]);
+  assert.equal(out[0].status, "VERIFIED");
+  assert.deepEqual(out[0].evidence, { nctId_echo: "NCT00000102" });
+  assert.equal(calls.length, 2);
 });

@@ -13,6 +13,7 @@ function parseArgs(argv) {
     targets: "",
     deliveryTargets: "",
     confirm: false,
+    supersede: false,
     unknown: []
   };
 
@@ -25,6 +26,7 @@ function parseArgs(argv) {
     if (token === "--targets") { out.targets = String(argv[index + 1] || "").trim(); index += 1; continue; }
     if (token === "--delivery-targets") { out.deliveryTargets = String(argv[index + 1] || "").trim(); index += 1; continue; }
     if (token === "--confirm") { out.confirm = true; continue; }
+    if (token === "--supersede") { out.supersede = true; continue; }
     out.unknown.push(token);
   }
   return out;
@@ -34,7 +36,11 @@ function usage() {
   return [
     "Usage:",
     "  node scripts/generate-offer.js --source <mission_id|dataset_id> --product-line <product_line> --tier <tier>",
-    "    [--build-id <build_id>] [--targets a,b,c] [--delivery-targets x,y] --confirm"
+    "    [--build-id <build_id>] [--targets a,b,c] [--delivery-targets x,y] [--supersede] --confirm",
+    "",
+    "  --supersede  the offer's release already exists and holds an approval or evidence: move that whole",
+    "               release to workspace/releases/_superseded/<offer_id>-<n>/ (never deleted), then commit",
+    "               the new one. Without it, re-packaging such a release is refused (T2-12)."
   ].join("\n");
 }
 
@@ -71,12 +77,16 @@ async function main() {
     generatedSubmission.publisher_adapter_snapshot
   );
   const finalized = runtime.deliverablePackager.finalizeBundle(tempBundleDir);
+  // T2-12 (2026-11-16): only on the operator's explicit --supersede is an existing release moved aside
+  // (whole, never deleted); otherwise commitBundle refuses one that holds an approval or evidence.
+  const supersededRelease = args.supersede ? runtime.deliverablePackager.supersedeRelease(built.offer.offer_id) : null;
   const bundleDir = runtime.deliverablePackager.commitBundle(tempBundleDir, built.offer.offer_id);
 
   process.stdout.write(`${JSON.stringify({
     ok: true,
     offer_id: built.offer.offer_id,
     bundle_dir: bundleDir,
+    superseded_release: supersededRelease,
     manifest_path: finalized.manifest_path.replace(tempBundleDir, bundleDir),
     checksums_path: finalized.checksums_path.replace(tempBundleDir, bundleDir),
     platform_targets: built.offer.platform_targets,

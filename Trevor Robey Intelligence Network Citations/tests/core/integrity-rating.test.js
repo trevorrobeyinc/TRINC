@@ -99,13 +99,13 @@ describe("integrity-rating — buildIntegrityReport", () => {
     const base = { cited: 4, grounded: 4, grounded_ratio: 1, retracted: [] };
     const complete = buildIntegrityReport({ ...base, retraction_screen_checked: true, retraction_screen_cited: 4, unscreened: 0 }).markdown;
     assert.match(complete, /\| Retraction screen \| complete \|/);
-    assert.match(complete, /Every cited DOI and PMID was retraction-screened\./);
+    assert.match(complete, /Every cited DOI, PMID and PMCID was retraction-screened\./);
     const partial = buildIntegrityReport({
       ...base, retraction_screen_checked: false, retraction_screen_cited: 6, unscreened: 2,
       unscreened_ids: ["DOI:10.4444/missing", "PMID:20000002"]
     }).markdown;
-    assert.match(partial, /\| Retraction screen \| INCOMPLETE: 2 of 6 cited DOIs and PMIDs not screened \|/);
-    assert.match(partial, /Retraction screen: INCOMPLETE, 2 of 6 cited DOIs and PMIDs not screened/);
+    assert.match(partial, /\| Retraction screen \| INCOMPLETE: 2 of 6 cited DOIs, PMIDs and PMCIDs not screened \|/);
+    assert.match(partial, /Retraction screen: INCOMPLETE, 2 of 6 cited DOIs, PMIDs and PMCIDs not screened/);
     assert.match(partial, /- DOI:10\.4444\/missing\n- PMID:20000002/);
     assert.doesNotMatch(partial, /was retraction-screened/);
     const unknown = buildIntegrityReport(base).markdown;
@@ -147,5 +147,95 @@ describe("integrity-rating — buildIntegrityReport", () => {
     const r = buildIntegrityReport();
     assert.equal(r.grade, "N/A");
     assert.match(r.markdown, /Citation Integrity/);
+  });
+});
+
+// T2-4 (2026-11-16): the ledger states the whole record under its grade. The grade measures grounding
+// alone; the registry check, the delivery decision and the attribution check are printed beside it.
+describe("T2-4: the record under the grade", () => {
+  const manifestOf = (summary, citations = []) => ({ citations, summary });
+  const row = (type, id, status, reason, sections) => ({
+    id, type, status, evidence: reason ? { reason } : {}, ...(sections ? { sections } : {})
+  });
+
+  it("prints the rubric with the floor the record states, and the floor bounds A and B", () => {
+    const md = buildIntegrityReport({ cited: 10, grounded: 8, grounded_ratio: 0.8, min_grounded_ratio: 0.75, retracted: [] }).markdown;
+    assert.match(md, /Grade rubric: \*\*A\*\*: 90% or more of the cited identifiers grounded in the evidence retrieved for this report\. \*\*B\*\*: from the citation gate's floor \(75%\) to below 90%\. \*\*C\*\* \(50% to below the floor\) and \*\*D\*\* \(below 50%\) are below the floor, and the gate does not let such a report ship\. \*\*F\*\*: a cited source is retracted, which blocks the report\./);
+    assert.match(md, /The grade measures grounding only/);
+    // A floor configured higher (T1-6 allows 0.75 to 1) raises B's bound with it.
+    const strict = buildIntegrityReport({ cited: 10, grounded: 8, grounded_ratio: 0.8, min_grounded_ratio: 0.85, retracted: [] });
+    assert.equal(strict.grade, "C");
+    assert.match(strict.markdown, /from the citation gate's floor \(85%\) to below 90%/);
+    // A floor at or above 90% makes it A's bound too.
+    const top = buildIntegrityReport({ cited: 10, grounded: 9, grounded_ratio: 0.93, min_grounded_ratio: 0.95, retracted: [] });
+    assert.equal(top.grade, "C");
+    assert.match(top.markdown, /\*\*A\*\*: the citation gate's floor \(95%\) or more .*B does not apply/);
+    // A floor recorded below 0.75 (before T1-6) never loosens a grade.
+    assert.equal(buildIntegrityReport({ cited: 10, grounded: 6, grounded_ratio: 0.6, min_grounded_ratio: 0.34, retracted: [] }).grade, "C");
+  });
+
+  it("states the registry result with reasons, the delivery decision and the attribution counts", () => {
+    const summary = {
+      counts: { total: 4, verified: 2, unresolved: 0, unchecked: 2 },
+      delivery_decision: "DELIVER_WITH_FLAGS",
+      block_reasons: [],
+      flag_reasons: ["unchecked_over_threshold", "attribution_mismatch"],
+      attribution_check: { checked: true, counts: { cited: 3, checked: 3, matched: 2, mismatched: 1, mismatched_works: 1, not_checked: 1 } }
+    };
+    const md = buildIntegrityReport({
+      cited: 4, grounded: 4, grounded_ratio: 1, retracted: [], retraction_screen_checked: true,
+      reproducibility: summary,
+      reproducibility_manifest: manifestOf(summary, [
+        row("PMID", "1", "VERIFIED"), row("DOI", "10.1/a", "VERIFIED"),
+        row("PMID", "2", "UNCHECKED", "rate_limited"), row("NCT", "NCT00000102", "UNCHECKED", "timeout")
+      ])
+    }).markdown;
+    assert.match(md, /Integrity grade: A/, "the grade stays tied to grounding");
+    assert.match(md, /\| Re-resolved at the issuing registry \| 2 VERIFIED · 0 UNRESOLVED · 2 UNCHECKED \(the registry throttled the request: 1; the registry timed out: 1\) \|/);
+    assert.match(md, /\| Delivery decision \| DELIVER_WITH_FLAGS: some identifiers are UNCHECKED; an author or year written beside a cited work does not match its registry record \|/);
+    assert.match(md, /\| Attribution check \| 3 checked · 2 match · 1 mismatch · 1 not checkable \|/);
+  });
+
+  it("splits the report's own identifiers from the NCT numbers the other deliverables list (T2-6)", () => {
+    const summary = {
+      counts: { total: 3, verified: 3, unresolved: 0, unchecked: 0 },
+      by_section: {
+        report: { total: 1, verified: 1, unresolved: 0, unchecked: 0 },
+        "graveyard-memo": { total: 3, verified: 3, unresolved: 0, unchecked: 0 }
+      },
+      delivery_decision: "DELIVER", block_reasons: [], flag_reasons: []
+    };
+    const md = buildIntegrityReport({ cited: 1, grounded: 1, grounded_ratio: 1, retracted: [], reproducibility_manifest: manifestOf(summary) }).markdown;
+    assert.match(md, /\| Re-resolved at the issuing registry \(this report's identifiers\) \| 1 VERIFIED · 0 UNRESOLVED · 0 UNCHECKED \|/);
+    assert.match(md, /\| Re-resolved at the issuing registry \(NCT numbers the other deliverables list\) \| graveyard memo: 3 \(3 VERIFIED · 0 UNRESOLVED · 0 UNCHECKED\) \|/);
+    assert.match(md, /\| Delivery decision \| DELIVER \|/);
+  });
+
+  it("the F case: a retraction blocks, and the decision row says why", () => {
+    const summary = {
+      counts: { total: 2, verified: 2, unresolved: 0, unchecked: 0 },
+      delivery_decision: "BLOCK", block_reasons: ["retracted_doi"], flag_reasons: []
+    };
+    const r = buildIntegrityReport({ cited: 2, grounded: 2, grounded_ratio: 1, retracted: ["10.1/retracted"], reproducibility_manifest: manifestOf(summary) });
+    assert.equal(r.grade, "F");
+    assert.match(r.markdown, /\| Delivery decision \| BLOCK: a cited DOI is retracted \|/);
+  });
+
+  it("a crashed re-resolution pass and an attribution check that could not run are stated, not hidden", () => {
+    const summary = {
+      counts: { total: 1, verified: 0, unresolved: 0, unchecked: 1 }, reresolution_completed: false,
+      delivery_decision: "DELIVER_WITH_FLAGS", block_reasons: [], flag_reasons: ["unchecked_over_threshold"],
+      attribution_check: { checked: false, error: "internal_error" }
+    };
+    const md = buildIntegrityReport({ cited: 1, grounded: 1, grounded_ratio: 1, retracted: [], reproducibility: summary }).markdown;
+    assert.match(md, /\| Re-resolved at the issuing registry \| not completed this run: no identifier was looked up, and the report is not cleared for delivery \|/);
+    assert.match(md, /\| Attribution check \| not completed \(internal_error\): no attribution is asserted either way \|/);
+  });
+
+  it("a record with no manifest still renders, with no registry, decision or attribution row", () => {
+    const md = buildIntegrityReport({ cited: 3, grounded: 3, grounded_ratio: 1, retracted: [] }).markdown;
+    assert.match(md, /Integrity grade: A/);
+    assert.match(md, /Grade rubric:/);
+    assert.doesNotMatch(md, /Re-resolved at the issuing registry|Delivery decision|Attribution check/);
   });
 });

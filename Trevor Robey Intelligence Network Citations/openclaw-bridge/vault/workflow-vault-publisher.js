@@ -728,6 +728,11 @@ function createWorkflowVaultPublisher(options = {}) {
     if (a.dataset_id) lines.push(`- Dataset: \`${a.dataset_id}\``);
     if (a.offer_id) lines.push(`- Offer: \`${a.offer_id}\``);
     if (a.export_path) lines.push(`- Export: \`${a.export_path}\``);
+    // T2-14 (2026-11-16): the workflow's export step refused the release (scripts/_delivery-checks.js).
+    if (Array.isArray(a.export_refused) && a.export_refused.length > 0) {
+      const n = a.export_refused.length;
+      lines.push(`- Export: refused by the delivery checks, nothing exported (${n} problem${n === 1 ? "" : "s"}; see \`artifacts.export_refused\` in workflow.json)`);
+    }
     lines.push("");
     lines.push("## Provenance", "");
     lines.push("Written by the research engine's post-run vault publisher (`openclaw-bridge/vault/workflow-vault-publisher.js`) after the citation gate passed. The Command Center plugin rehydrates its enrichment stages (chat notify, Miyo index, Zettelkasten linking, research-memory ingest) from this folder instead of writing it again.", "");

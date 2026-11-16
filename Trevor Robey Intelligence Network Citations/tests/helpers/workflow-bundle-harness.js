@@ -41,7 +41,14 @@ async function makeRoot() {
 // GROUNDED by a metadata sidecar, plus the mission folder the dataset builder and the offer builder
 // read. The envelope is written verbatim as mission.json - exactly what agent-spawner.js does - so
 // the envelope's own `created_at` is what a mission-sourced offer later reads.
-function makeResearchRuntime(rootDir, captured, extras = {}) {
+// `mission` (T2-14, 2026-11-16) replaces what the fixture mission writes and grounds, for a test that
+// needs a sealed bundle citing another identifier (a ChEMBL id the delivery checks refuse, say):
+// `{ text, ids }`; both default to the one grounded NCT below.
+function makeResearchRuntime(rootDir, captured, extras = {}, mission = {}) {
+  const missionIds = Array.isArray(mission.ids) ? mission.ids : [GROUNDED_NCT];
+  const missionText = typeof mission.text === "string"
+    ? mission.text
+    : `Enterprise buyers prioritize integration depth and auditability, as seen in trial ${GROUNDED_NCT}.`;
   return {
     rootDir,
     config: { defaultProvider: "mock", defaultModel: "mock-model" },
@@ -65,9 +72,9 @@ function makeResearchRuntime(rootDir, captured, extras = {}) {
         const outputPath = writeTaskText(
           rootDir,
           "task-bundle-harness-1",
-          `Enterprise buyers prioritize integration depth and auditability, as seen in trial ${GROUNDED_NCT}.`,
+          missionText,
           {
-            fetched_citation_ids: [GROUNDED_NCT],
+            fetched_citation_ids: missionIds,
             rights: { commercial_use_allowed: true, redistribution_allowed: true },
             source_domain: "approved.example"
           }
@@ -90,11 +97,11 @@ function makeResearchRuntime(rootDir, captured, extras = {}) {
 // `clock` is injected into BOTH the engine and the monetization runtime, the way a caller that owns
 // a clock would. `researchExtras` adds fetchers (ctgovSupplemental, ...) to the fake research runtime.
 // `logger` lets a test capture the engine's events; the default is silent.
-async function makeEngine(captured, { clock, researchExtras, logger } = {}) {
+async function makeEngine(captured, { clock, researchExtras, logger, mission } = {}) {
   const rootDir = await makeRoot();
   const monetizationRuntime = buildMonetizationRuntime({ rootDir, timeProvider: clock });
   const engine = createWorkflowEngine({
-    researchRuntime: makeResearchRuntime(rootDir, captured, researchExtras),
+    researchRuntime: makeResearchRuntime(rootDir, captured, researchExtras, mission),
     monetizationRuntime,
     logger: logger || silentLogger(),
     timeProvider: clock
@@ -119,6 +126,8 @@ const DATASET_STEP = { step_id: "build_dataset", type: "dataset", depends_on: ["
 const OFFER_STEP = { step_id: "package", type: "offer", depends_on: ["build_dataset"], product_line: "biomedical_research_packs", tier: "standard", targets: ["datarade"] };
 const APPROVE_STEP = { step_id: "approve", type: "approve", depends_on: ["package"] };
 const FULL_PIPELINE = [MISSION_STEP, DATASET_STEP, OFFER_STEP, APPROVE_STEP];
+// The workflow's own export step (T2-14), after the approval.
+const EXPORT_STEP = { step_id: "export", type: "export", depends_on: ["approve"], format: "zip" };
 
 function stepResult(result, stepId) {
   const step = (result.pipeline_progress.steps || []).find((s) => s.step_id === stepId);
@@ -180,6 +189,7 @@ function commitFixtureBundle(runtime) {
 module.exports = {
   APPROVE_STEP,
   DATASET_STEP,
+  EXPORT_STEP,
   FULL_PIPELINE,
   GROUNDED_NCT,
   MISSION_STEP,

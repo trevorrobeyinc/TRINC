@@ -82,8 +82,10 @@ The gates are the product. A report has to pass all of them:
   is blocked too, instead of shipping on model memory.
 - **Retraction screen.** Every cited paper is checked against Crossref and PubMed. One retracted paper
   blocks the whole report.
-- **Re-resolution.** At delivery, every PMID, NCT and DOI is looked up again at the registry that issued
-  it. Any identifier that does not resolve blocks delivery. This proves each identifier points at a real
+- **Re-resolution.** When the report is assembled, every cited PMID, NCT number and DOI, and since
+  2026-11-16 every PMCID and ISRCTN or EudraCT trial number, is looked up again at the registry that issued
+  it, and so is every trial number the graveyard memo and the design benchmark list. Any identifier that
+  does not resolve blocks delivery. This proves each identifier points at a real
   record; it does not prove the source's conclusions are right.
 - **The model is told never to invent an identifier**, and to write `[no verifiable citation found]`
   instead.

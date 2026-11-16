@@ -1,0 +1,19 @@
+{
+  "studies": [
+    {
+      "protocolSection": {
+        "identificationModule": {
+          "nctId": "NCT04381936"
+        }
+      }
+    },
+    {
+      "protocolSection": {
+        "identificationModule": {
+          "nctId": "NCT00001234"
+        }
+      }
+    }
+  ],
+  "nextPageToken": "(opaque cursor, trimmed)"
+}

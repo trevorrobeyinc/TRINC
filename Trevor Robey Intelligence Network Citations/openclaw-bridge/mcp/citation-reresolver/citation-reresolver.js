@@ -27,7 +27,9 @@ const {
 } = require("../../core/citation-attribution.js");
 
 const STATUS = Object.freeze({ VERIFIED: "VERIFIED", UNRESOLVED: "UNRESOLVED", UNCHECKED: "UNCHECKED" });
-const RESOLVER_TABLE_VERSION = "2026-06-19";
+// 2026-11-16 (Tier 2): PMCID, ISRCTN and EudraCT resolvers added (T2-16); ChEMBL through its id lookup,
+// a UniProt 404 UNRESOLVED and a PubChem 503 rate_limited (T2-3).
+const RESOLVER_TABLE_VERSION = "2026-11-16";
 
 function normType(type) {
   const t = String(type == null ? "" : type).trim().toUpperCase();
@@ -39,6 +41,10 @@ function normType(type) {
   if (t === "DRUGBANK") return "DrugBank";
   if (t === "PUBCHEM CID" || t === "CID" || t === "PUBCHEM") return "PubChem CID";
   if (t === "RXNORM" || t === "RXCUI") return "RxNorm";
+  // T2-16 (2026-11-16): trial registrations and PMC full texts.
+  if (t === "PMCID") return "PMCID";
+  if (t === "ISRCTN") return "ISRCTN";
+  if (t === "EUDRACT") return "EudraCT";
   // Business research lane (2026-10-21) — see core/research-profiles.js.
   if (t === "SEC") return "SEC";
   if (t === "WEB") return "WEB";
@@ -54,6 +60,10 @@ function normType(type) {
 function hostFor(normalizedType) {
   switch (normalizedType) {
     case "PMID": return "eutils";
+    // T2-16: a PMCID shares the PMID lane, so every NCBI request keeps one in-flight call and the pacing.
+    case "PMCID": return "eutils";
+    case "ISRCTN": return "isrctn";
+    case "EudraCT": return "euctr";
     case "DOI": return "crossref";
     case "PubChem CID": return "pubchem";
     case "NCT": return "ctgov";
@@ -217,9 +227,14 @@ function createCitationReresolver(options = {}) {
   async function resolvePubChemCID(id) {
     const url = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${encodeURIComponent(id)}/JSON`;
     const res = await doFetch(url);
+    // T2-3 (2026-11-16): PubChem answers 503 when it throttles (PUGREST.ServerBusy). This test used to sit
+    // after classifyTransport, which files every status from 500 as http_5xx first, so it never ran. A
+    // throttle is recorded as rate_limited, which the deferred retry (T2-1) tries again.
+    if (res && !res.networkError && Number(res.status) === 503) {
+      return { status: STATUS.UNCHECKED, http_status: 503, resolved_url: url, evidence: { reason: "rate_limited" } };
+    }
     const t = classifyTransport(res);
     if (t) return { status: STATUS.UNCHECKED, http_status: res.status || null, resolved_url: url, evidence: t };
-    if (res.status === 503) return { status: STATUS.UNCHECKED, http_status: 503, resolved_url: url, evidence: { reason: "rate_limited" } };
     if (res.status === 200) {
       const body = await safeJson(res);
       const cid = body && Array.isArray(body.PC_Compounds) && body.PC_Compounds[0] && body.PC_Compounds[0].id && body.PC_Compounds[0].id.id && body.PC_Compounds[0].id.id.cid;
@@ -260,16 +275,26 @@ function createCitationReresolver(options = {}) {
     return { status: STATUS.VERIFIED, http_status: 200, resolved_url: url, evidence: { rxnorm_status: st } };
   }
 
+  // T2-3 (2026-11-16): ChEMBL's id lookup, which knows every ChEMBL id. The molecule endpoint used here
+  // before knows compounds only: /molecule/CHEMBL203.json answers 404 for a real, active TARGET
+  // (chembl_id_lookup/CHEMBL203.json: entity_type TARGET, status ACTIVE; read live 2026-11-15), so a
+  // correct target, assay or document id was UNRESOLVED and blocked the run. An id ChEMBL lists as
+  // INACTIVE is UNRESOLVED, as an inactive UniProt entry is (operator default D13); a status the lookup
+  // does not document is UNCHECKED. Identifier and entity type only: no data values are read.
   async function resolveChEMBL(id) {
-    const url = `https://www.ebi.ac.uk/chembl/api/data/molecule/${encodeURIComponent(id)}.json`;
+    const url = `https://www.ebi.ac.uk/chembl/api/data/chembl_id_lookup/${encodeURIComponent(id)}.json`;
     const res = await doFetch(url);
     const t = classifyTransport(res);
     if (t) return { status: STATUS.UNCHECKED, http_status: res.status || null, resolved_url: url, evidence: t };
     if (res.status === 200) {
       const body = await safeJson(res);
-      const cid = body && body.molecule_chembl_id; // identifier ONLY — no data values read
-      if (String(cid).toUpperCase() === String(id).toUpperCase()) return { status: STATUS.VERIFIED, http_status: 200, resolved_url: url, evidence: { molecule_chembl_id: cid } };
-      return { status: STATUS.UNCHECKED, http_status: 200, resolved_url: url, evidence: { reason: "unparseable" } };
+      const echoed = body && String(body.chembl_id || "").toUpperCase() === String(id).toUpperCase();
+      if (!echoed) return { status: STATUS.UNCHECKED, http_status: 200, resolved_url: url, evidence: { reason: "unparseable" } };
+      const evidence = { chembl_id: body.chembl_id, entity_type: body.entity_type || null };
+      const lookupStatus = String(body.status || "").toUpperCase();
+      if (lookupStatus === "ACTIVE") return { status: STATUS.VERIFIED, http_status: 200, resolved_url: url, evidence };
+      if (lookupStatus === "INACTIVE") return { status: STATUS.UNRESOLVED, http_status: 200, resolved_url: url, evidence: { reason: "chembl_inactive", ...evidence } };
+      return { status: STATUS.UNCHECKED, http_status: 200, resolved_url: url, evidence: { reason: "chembl_status_unknown", lookup_status: lookupStatus || null, ...evidence } };
     }
     if (res.status === 404) return { status: STATUS.UNRESOLVED, http_status: 404, resolved_url: url, evidence: { reason: "chembl_404" } };
     return { status: STATUS.UNCHECKED, http_status: res.status, resolved_url: url, evidence: { reason: "unexpected_status" } };
@@ -291,7 +316,79 @@ function createCitationReresolver(options = {}) {
       return { status: STATUS.UNCHECKED, http_status: 200, resolved_url: url, evidence: { reason: "unparseable" } };
     }
     if (res.status === 400) return { status: STATUS.UNRESOLVED, http_status: 400, resolved_url: url, evidence: { reason: "bad_format" } };
+    // T2-3 (2026-11-16): an accession UniProt never issued answers 404 "Resource not found" (Z9ZZZ9 and
+    // A0A0A0A0A0, read live 2026-11-15). It used to fall through to UNCHECKED and never block.
+    if (res.status === 404) return { status: STATUS.UNRESOLVED, http_status: 404, resolved_url: url, evidence: { reason: "uniprot_not_found" } };
     return { status: STATUS.UNCHECKED, http_status: res.status, resolved_url: url, evidence: { reason: "unexpected_status" } };
+  }
+
+  // ---- trial registrations and PMC full texts (T2-16, 2026-11-16) ----
+  // Each success criterion below was read from the live registry, read-only, on 2026-11-15
+  // (tests/fixtures/registry-probe-2026-11-15/): a bare HTTP 200 is never sufficient.
+
+  // PMCID: NCBI esummary db=pmc, paced like a PMID (same eutils host). A real record echoes its PMCID in
+  // `articleids`; an id PMC never issued answers the docsum error "cannot get document summary", the same
+  // definitive "does not exist" a PMID gets (:183).
+  async function resolvePMCID(id) {
+    const m = /^PMC(\d{1,9})$/i.exec(String(id));
+    if (!m) return { status: STATUS.UNRESOLVED, http_status: null, resolved_url: null, evidence: { reason: "bad_format" } };
+    const digits = m[1];
+    const keyParam = ncbiApiKey ? `&api_key=${ncbiApiKey}` : "";
+    const url = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pmc&id=${encodeURIComponent(digits)}&retmode=json&tool=TRINC-citation-reresolver&email=${encodeURIComponent(contactEmail)}${keyParam}`;
+    const resolved_url = url.replace(/&api_key=[^&]+/, "&api_key=***");
+    const { res, attempts } = await ncbiFetch(url);
+    const t = classifyTransport(res);
+    if (t) return { status: STATUS.UNCHECKED, http_status: res.status || null, resolved_url, evidence: t, attempts };
+    if (res.status !== 200) return { status: STATUS.UNCHECKED, http_status: res.status, resolved_url, evidence: { reason: "unexpected_status" }, attempts };
+    const body = await safeJson(res);
+    const rec = body && body.result && body.result[digits];
+    if (!rec) return { status: STATUS.UNCHECKED, http_status: 200, resolved_url, evidence: { reason: "unparseable" }, attempts };
+    if (rec.error) return { status: STATUS.UNRESOLVED, http_status: 200, resolved_url, evidence: { reason: "cannot_get_document_summary" }, attempts };
+    const echo = (Array.isArray(rec.articleids) ? rec.articleids : [])
+      .find((a) => a && a.idtype === "pmcid" && String(a.value).toUpperCase() === `PMC${digits}`);
+    if (echo) return { status: STATUS.VERIFIED, http_status: 200, resolved_url, evidence: { pmcid_echo: echo.value }, attempts };
+    return { status: STATUS.UNCHECKED, http_status: 200, resolved_url, evidence: { reason: "unparseable" }, attempts };
+  }
+
+  // ISRCTN: the registry's query API, never the record page (it answers 200 with the same page for a real
+  // and an invented id). A well-formed answer with totalCount 0 is the registry saying the trial does not
+  // exist (UNRESOLVED, operator default D7); a trial is VERIFIED only when its public id echoes the one cited.
+  async function resolveISRCTN(id) {
+    const m = /^ISRCTN(\d{8})$/i.exec(String(id));
+    if (!m) return { status: STATUS.UNRESOLVED, http_status: null, resolved_url: null, evidence: { reason: "bad_format" } };
+    const url = `https://www.isrctn.com/api/query/format/default?q=ISRCTN${m[1]}`;
+    const res = await doFetch(url, { accept: "application/xml" });
+    const t = classifyTransport(res);
+    if (t) return { status: STATUS.UNCHECKED, http_status: res.status || null, resolved_url: url, evidence: t };
+    if (res.status !== 200) return { status: STATUS.UNCHECKED, http_status: res.status, resolved_url: url, evidence: { reason: "unexpected_status" } };
+    const text = await safeText(res);
+    const root = typeof text === "string" ? /<allTrials\b[^>]*\btotalCount="(\d+)"/.exec(text) : null;
+    if (!root) return { status: STATUS.UNCHECKED, http_status: 200, resolved_url: url, evidence: { reason: "unparseable" } };
+    if (Number(root[1]) === 0) return { status: STATUS.UNRESOLVED, http_status: 200, resolved_url: url, evidence: { reason: "isrctn_not_found" } };
+    if (text.includes(`publicIdentifierCanonical="ISRCTN${m[1]}"`)) {
+      return { status: STATUS.VERIFIED, http_status: 200, resolved_url: url, evidence: { isrctn_echo: `ISRCTN${m[1]}` } };
+    }
+    return { status: STATUS.UNCHECKED, http_status: 200, resolved_url: url, evidence: { reason: "unparseable" } };
+  }
+
+  // EudraCT: the EU Clinical Trials Register's text download. A record echoes "EudraCT Number: <n>". An
+  // empty answer is NOT a "does not exist": the register does not publish every EudraCT trial (adult
+  // phase I trials, for one), so it is UNCHECKED and never UNRESOLVED (operator default D7). The register
+  // has no documented API, so any other shape is UNCHECKED too.
+  async function resolveEudraCT(id) {
+    const m = /^((?:19|20)\d{2}-\d{6}-\d{2})$/.exec(String(id));
+    if (!m) return { status: STATUS.UNRESOLVED, http_status: null, resolved_url: null, evidence: { reason: "bad_format" } };
+    const url = `https://www.clinicaltrialsregister.eu/ctr-search/rest/download/summary?query=${encodeURIComponent(m[1])}&mode=current_page`;
+    const res = await doFetch(url, { accept: "text/plain" });
+    const t = classifyTransport(res);
+    if (t) return { status: STATUS.UNCHECKED, http_status: res.status || null, resolved_url: url, evidence: t };
+    if (res.status !== 200) return { status: STATUS.UNCHECKED, http_status: res.status, resolved_url: url, evidence: { reason: "unexpected_status" } };
+    const text = await safeText(res);
+    if (typeof text !== "string") return { status: STATUS.UNCHECKED, http_status: 200, resolved_url: url, evidence: { reason: "unparseable" } };
+    if (new RegExp(`EudraCT Number:[ \\t]*${m[1]}(?![\\d-])`).test(text)) {
+      return { status: STATUS.VERIFIED, http_status: 200, resolved_url: url, evidence: { eudract_echo: m[1] } };
+    }
+    return { status: STATUS.UNCHECKED, http_status: 200, resolved_url: url, evidence: { reason: "registry_no_definitive_answer" } };
   }
 
   // ---- business research lane (2026-10-21) ----
@@ -477,6 +574,9 @@ function createCitationReresolver(options = {}) {
       case "RxNorm": return resolveRxNorm;
       case "ChEMBL": return resolveChEMBL;
       case "UniProt": return resolveUniProt;
+      case "PMCID": return resolvePMCID;
+      case "ISRCTN": return resolveISRCTN;
+      case "EudraCT": return resolveEudraCT;
       case "SEC": return resolveSEC;
       case "WB": return resolveWB;
       case "WEB": return resolveWEB;
@@ -513,6 +613,70 @@ function createCitationReresolver(options = {}) {
     return out;
   }
 
+  // T2-1 (2026-11-16): one deferred retry for every lookup a registry did not answer. Every UNCHECKED row
+  // in the three flagged sealed manifests was rate_limited (5, 6 and 11 rows). After the first pass, each
+  // UNCHECKED result whose reason is a transport failure is dropped from the per-run cache and asked once
+  // more, per host and in order, after one injected pause (`retryDelayMs`, default 2,000 ms, through the
+  // same injectable `sleep` the NCBI pacing uses, so a test never waits). Never retried: an UNRESOLVED
+  // answer, or UNCHECKED for any other reason (no resolver, an unparseable or empty answer, no API key, a
+  // register with no definitive answer): those are answers, not silences. Q8 holds: a retry can only
+  // turn UNCHECKED into a definitive status; nothing is promoted without one.
+  const RETRYABLE_REASONS = new Set(["timeout", "network_error", "http_5xx", "rate_limited"]);
+  const retryDelayMs = Number.isFinite(options.retryDelayMs) ? Math.max(0, options.retryDelayMs) : 2000;
+  const retrySleep = typeof options.sleep === "function" ? options.sleep : (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  function retryable(r) {
+    return Boolean(r && r.status === STATUS.UNCHECKED && RETRYABLE_REASONS.has((r.evidence && r.evidence.reason) || ""));
+  }
+
+  // T2-6 (2026-11-16): NCT numbers are asked in batches. The graveyard memo lists every stopped trial the
+  // census walk found: 1,420 NCT numbers in the NSCLC releases, which one request each would take many
+  // minutes and would invite throttling. ClinicalTrials.gov answers many numbers in one request
+  // (`filter.ids`; read live 2026-11-16: 300 numbers in a 4,288-character URL answered 200 in 0.41 s,
+  // each echoed back; tests/fixtures/registry-probe-2026-11-15/). A number the batch echoes back EXACTLY
+  // is VERIFIED. One it does not echo goes to the one-study request (resolveNCT), whose 404 stays the only
+  // UNRESOLVED, so a batch's silence never blocks a run (the API pads a short number: NCT1234 came back as
+  // NCT00001234). A batch the registry did not answer leaves its numbers UNCHECKED with the transport
+  // reason, and the deferred retry asks them again, in batches. Any other answer (an unexpected status,
+  // an unparseable body) sends the batch's numbers to the one-study path. resolveOne() alone never batches.
+  const NCT_BATCH_SIZE = 200;
+  const cacheKey = (c) => `${c.type}:${String(c.id).toUpperCase()}`;
+  // The one-number form of the batch request: the address that re-checks this number the same way.
+  const nctFilterUrl = (id) => `https://clinicaltrials.gov/api/v2/studies?filter.ids=${encodeURIComponent(id)}&fields=NCTId&format=json`;
+
+  async function prefetchNctBatches(list) {
+    const pending = list.filter((c) => c && String(c.id || "").trim() && !cache.has(cacheKey(c)));
+    for (let i = 0; i < pending.length; i += NCT_BATCH_SIZE) {
+      const chunk = pending.slice(i, i + NCT_BATCH_SIZE);
+      const ids = chunk.map((c) => String(c.id).trim().toUpperCase());
+      const url = `https://clinicaltrials.gov/api/v2/studies?filter.ids=${encodeURIComponent(ids.join(","))}&fields=NCTId&pageSize=${ids.length}&format=json`;
+      const res = await doFetch(url);
+      const checkedAt = nowIso();
+      const row = (c, fields) => ({ id: c.id, type: c.type, resolver_type: "primary", attempts: 1, checked_at: checkedAt, ...fields });
+      const t = classifyTransport(res);
+      if (t) {
+        for (const c of chunk) {
+          cache.set(cacheKey(c), row(c, { status: STATUS.UNCHECKED, http_status: res.status || null, resolved_url: nctFilterUrl(c.id), evidence: { ...t, batch_size: chunk.length } }));
+        }
+        continue;
+      }
+      if (Number(res.status) !== 200) continue;
+      const body = await safeJson(res);
+      if (!body || !Array.isArray(body.studies)) continue;
+      const echoed = new Set();
+      for (const s of body.studies) {
+        const n = s && s.protocolSection && s.protocolSection.identificationModule && s.protocolSection.identificationModule.nctId;
+        if (n) echoed.add(String(n).toUpperCase());
+      }
+      for (const c of chunk) {
+        const id = String(c.id).trim().toUpperCase();
+        if (echoed.has(id)) {
+          cache.set(cacheKey(c), row(c, { status: STATUS.VERIFIED, http_status: 200, resolved_url: nctFilterUrl(c.id), evidence: { nctId_echo: id, batch_size: chunk.length } }));
+        }
+      }
+    }
+  }
+
   // Dedup by type+ID; one in-flight request PER HOST (polite, never trips a registry limit),
   // hosts processed concurrently. Cache makes duplicate citations resolve once per run.
   async function resolveAll(citations) {
@@ -531,9 +695,31 @@ function createCitationReresolver(options = {}) {
       byHost.get(h).push(c);
     }
     const results = [];
-    await Promise.all([...byHost.values()].map(async (list) => {
+    await Promise.all([...byHost.entries()].map(async ([host, list]) => {
+      if (host === "ctgov") await prefetchNctBatches(list); // T2-6
       for (const c of list) results.push(await resolveOne(c));
     }));
+    // T2-1: the deferred retry (see RETRYABLE_REASONS above).
+    const again = results.filter(retryable);
+    if (again.length > 0) {
+      await retrySleep(retryDelayMs);
+      const retryByHost = new Map();
+      for (const prev of again) {
+        const h = hostFor(prev.type);
+        if (!retryByHost.has(h)) retryByHost.set(h, []);
+        retryByHost.get(h).push(prev);
+      }
+      await Promise.all([...retryByHost.entries()].map(async ([host, list]) => {
+        for (const prev of list) cache.delete(`${prev.type}:${String(prev.id).toUpperCase()}`);
+        if (host === "ctgov") await prefetchNctBatches(list); // T2-6: the retry asks in batches too
+        for (const prev of list) {
+          const next = await resolveOne({ type: prev.type, id: prev.id });
+          const merged = { ...next, attempts: (prev.attempts || 1) + (next.attempts || 1) };
+          cache.set(`${prev.type}:${String(prev.id).toUpperCase()}`, merged);
+          results[results.indexOf(prev)] = merged;
+        }
+      }));
+    }
     return results;
   }
 

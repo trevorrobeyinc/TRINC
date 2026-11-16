@@ -71,7 +71,7 @@ function transform(workflowOutput, options = {}) {
     "- Automated quality audit with citation density scoring",
     "- 3-agent pipeline (scout → analyst → synthesizer)",
     // T1-9: aligned with T1-3 (marks at every mention) and T1-7 (the screen names what it could not screen).
-    "- Citation-integrity gated: every cited identifier is checked against the evidence retrieved for the report, and one not found there is flagged [UNVERIFIED] at every mention; a report in which fewer than 75% of cited identifiers trace is not released. Cited DOIs and PMIDs are put through a retraction screen; a retraction found stops the report, and any paper it could not screen is named in the report's integrity ledger",
+    "- Citation-integrity gated: every cited identifier is checked against the evidence retrieved for the report, and one not found there is flagged [UNVERIFIED] at every mention; a report in which fewer than 75% of cited identifiers trace is not released. Cited DOIs, PMIDs and PMCIDs are put through a retraction screen; a retraction found stops the report, and any paper it could not screen is named in the report's integrity ledger",
     "",
     `## Pricing`,
     `- Research Intelligence Pack: $2,500 - $4,950 per report`,

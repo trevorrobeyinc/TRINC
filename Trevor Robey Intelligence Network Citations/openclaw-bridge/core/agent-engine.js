@@ -8,8 +8,15 @@ const { validateTaskDefinition } = require("./task-definition-schema.js");
 const { enrichWithWikiLinks } = require("./wiki-link-enricher.js");
 const { extractCitations, deduplicateCitations, crossCheckCitations, groundingKey } = require("./citation-extractor.js");
 const { getResearchProfile } = require("./research-profiles.js");
+const { customerRunText } = require("./customer-run.js");
 
 const SYNTHESIZER_TASK_ID_PATTERN = /synth|report_generator|integrator/i;
+
+// T2-7 (2026-11-16): a notice the engine writes into a role's evidence names only allowlisted
+// identifier types in a customer run (core/customer-run.js), as the instructions do.
+function engineNotice(context, text) {
+  return context && context.customerRun === true ? customerRunText(text) : text;
+}
 
 function isPlainObject(value) {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
@@ -126,6 +133,11 @@ function buildPrompt(taskDefinition, inputDocs, context = {}) {
   // Research profile (core/research-profiles.js): swaps the citation-requirement line and the
   // identifier list for the lane; biomedical (default) is unchanged.
   const profile = getResearchProfile((context.workflowInputs || {}).research_profile);
+  // T2-7 (2026-11-16): a paying client's run is asked only for identifiers a paid deliverable may carry
+  // (core/customer-run.js): the profile's customer instruction and list, and every instruction phrase
+  // swapped below. Every other run keeps today's prompt (operator default D4).
+  const customerRun = context.customerRun === true;
+  const citationTerms = customerRun && profile.customerRun ? profile.customerRun : profile;
   const baseInstruction = systemPrefix || "You are a local-first research agent.";
   const roleInstruction = agentIdentityPrefix
     ? `${agentIdentityPrefix}\n\n${baseInstruction}`
@@ -141,8 +153,8 @@ function buildPrompt(taskDefinition, inputDocs, context = {}) {
     `Output Format: ${taskDefinition.output_format}`,
     `Constraints: ${JSON.stringify(taskDefinition.constraints || {})}`,
     "",
-    profile.citationInstruction,
-    `ABSOLUTE RULE — ZERO FABRICATION (this is the entire value of the business): NEVER invent, guess, or approximate an identifier. Cite ONLY identifiers that appear verbatim in the live database documents provided below. If you cannot find a real, retrievable source for a claim, you MUST write "[no verifiable citation found]" and state the claim as UNVERIFIED — it is always correct to say you could not find a source, and never acceptable to fabricate one. A single invented ${profile.identifierList} identifier is a critical failure that destroys the report. Do not pattern-match plausible-looking numbers; if it is not in the provided evidence, it is not a citation. The same holds for who wrote a cited work: name an author only as that record's "Authors:" line in the documents below gives it, and if a record shows no "Authors:" line, cite it by its identifier without naming an author.`,
+    citationTerms.citationInstruction,
+    `ABSOLUTE RULE — ZERO FABRICATION (this is the entire value of the business): NEVER invent, guess, or approximate an identifier. Cite ONLY identifiers that appear verbatim in the live database documents provided below. If you cannot find a real, retrievable source for a claim, you MUST write "[no verifiable citation found]" and state the claim as UNVERIFIED — it is always correct to say you could not find a source, and never acceptable to fabricate one. A single invented ${citationTerms.identifierList} identifier is a critical failure that destroys the report. Do not pattern-match plausible-looking numbers; if it is not in the provided evidence, it is not a citation. The same holds for who wrote a cited work: name an author only as that record's "Authors:" line in the documents below gives it, and if a record shows no "Authors:" line, cite it by its identifier without naming an author.`,
     ""
   ];
 
@@ -215,7 +227,9 @@ function buildPrompt(taskDefinition, inputDocs, context = {}) {
 
   headerParts.push("Input Documents:");
 
-  const header = headerParts.join("\n");
+  // T2-7: in a customer run every instruction source (role prompt, identity, task text) gets its
+  // identifier phrases swapped; the evidence documents below are never rewritten.
+  const header = customerRun ? customerRunText(headerParts.join("\n")) : headerParts.join("\n");
 
   const docs = inputDocs.map((doc, index) => [
     `--- DOC ${index + 1}: ${doc.rel} ---`,
@@ -449,7 +463,7 @@ function createAgentEngine(options = {}) {
             // live-database grounding and must not invent identifiers.
             inputDocs.push({
               rel: "LIVE-DATA-LIMITATION-NOTICE",
-              content: "DATA LIMITATION NOTICE: live biomedical-database prefetch FAILED for this task, so no runtime-fetched records were injected below. Do NOT fabricate database identifiers (PMID / NCT / DOI / ChEMBL / CID / UniProt); cite only sources you can state with high confidence and explicitly flag any claim that lacks a verifiable citation."
+              content: engineNotice(context, "DATA LIMITATION NOTICE: live biomedical-database prefetch FAILED for this task, so no runtime-fetched records were injected below. Do NOT fabricate database identifiers (PMID / NCT / DOI / ChEMBL / CID / UniProt); cite only sources you can state with high confidence and explicitly flag any claim that lacks a verifiable citation.")
             });
           }
         }
@@ -480,13 +494,13 @@ function createAgentEngine(options = {}) {
             : "";
           inputDocs.push({
             rel: "ZERO-RESULTS-NOTICE",
-            content: `ZERO-RESULTS NOTICE: the live biomedical databases were queried for this task and returned NO groundable records — ${empties} source ${empties === 1 ? "query" : "queries"} completed and each returned nothing citable (a genuine empty result, distinct from a prefetch failure). ${failNote}No runtime-fetched identifiers are available. Do NOT fabricate database identifiers (PMID / NCT / DOI / ChEMBL / CID / UniProt) and do NOT substitute remembered facts to fill the gap. Report the absence plainly as a finding — name the sources searched and state that they returned nothing.`
+            content: engineNotice(context, `ZERO-RESULTS NOTICE: the live biomedical databases were queried for this task and returned NO groundable records — ${empties} source ${empties === 1 ? "query" : "queries"} completed and each returned nothing citable (a genuine empty result, distinct from a prefetch failure). ${failNote}No runtime-fetched identifiers are available. Do NOT fabricate database identifiers (PMID / NCT / DOI / ChEMBL / CID / UniProt) and do NOT substitute remembered facts to fill the gap. Report the absence plainly as a finding — name the sources searched and state that they returned nothing.`)
           });
         } else if (failed > 0) {
           logger.warn({ event: "tool_prefetch_all_failed", role: safeString(context.agentRole), failed });
           inputDocs.push({
             rel: "LIVE-DATA-LIMITATION-NOTICE",
-            content: `DATA LIMITATION NOTICE: every live biomedical database query for this task FAILED to complete (${failed} source ${failed === 1 ? "query" : "queries"} unreachable — timeout / rate-limit / outage), so no runtime-fetched records are available. This is INCONCLUSIVE, not evidence of absence. Do NOT fabricate database identifiers (PMID / NCT / DOI / ChEMBL / CID / UniProt) and do NOT substitute remembered facts; explicitly flag any claim that lacks a verifiable citation.`
+            content: engineNotice(context, `DATA LIMITATION NOTICE: every live biomedical database query for this task FAILED to complete (${failed} source ${failed === 1 ? "query" : "queries"} unreachable — timeout / rate-limit / outage), so no runtime-fetched records are available. This is INCONCLUSIVE, not evidence of absence. Do NOT fabricate database identifiers (PMID / NCT / DOI / ChEMBL / CID / UniProt) and do NOT substitute remembered facts; explicitly flag any claim that lacks a verifiable citation.`)
           });
         }
       }

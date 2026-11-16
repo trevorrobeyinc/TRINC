@@ -26,7 +26,7 @@ const fs = require("node:fs");
 const {
   extractCitations, extractCitationSpans, deduplicateCitations, crossCheckCitations, groundingKey
 } = require("./citation-extractor.js");
-const { insertionPoint } = require("./citation-attribution.js");
+const { insertionPoint, referenceDefinition, labelUseEnds } = require("./citation-attribution.js");
 
 // Q7: the grounded-citation floor. config/agent-config.json `minGroundedCitationRatio` is the source
 // of truth; this is the fail-CLOSED fallback (strict, not lax) used only when that config is absent
@@ -169,13 +169,21 @@ function bodySpans(text) {
   return extractCitationSpans(text).filter((s) => !lists.some(([a, b]) => s.start >= a && s.start < b));
 }
 
-// The text index where a mention's mark belongs.
-function markPosition(text, span) {
+// The text indices where a mention's marks belong: one, after the construct holding it. T2-20
+// (2026-11-16): a mention inside a reference definition ("[1]: https://doi.org/…") is marked after
+// each use of its label instead ("[1] [UNVERIFIED]"), because the definition never renders and a mark
+// on its line would end it; a definition the text never uses is marked where it ends.
+function markPositions(text, span) {
   const lineStart = text.lastIndexOf("\n", span.start - 1) + 1;
   let lineEnd = text.indexOf("\n", span.start);
   if (lineEnd < 0) lineEnd = text.length;
   const line = text.slice(lineStart, lineEnd);
-  return lineStart + insertionPoint(line, span.start - lineStart, span.end - lineStart);
+  const def = referenceDefinition(line);
+  if (def) {
+    const uses = labelUseEnds(text, def.label);
+    return uses.length > 0 ? uses : [lineStart + def.end];
+  }
+  return [lineStart + insertionPoint(line, span.start - lineStart, span.end - lineStart)];
 }
 
 function isMarkedAt(text, at) {
@@ -183,12 +191,12 @@ function isMarkedAt(text, at) {
   return ALREADY_MARKED.test(text);
 }
 
-// Untraced mentions in the body that carry no mark. 0 after a successful annotation.
+// Untraced mentions in the body that carry no mark (at any of their positions). 0 after a successful annotation.
 function countUnmarkedUntraced(text, untracedKeys) {
   const s = String(text || "");
   let n = 0;
   for (const span of bodySpans(s)) {
-    if (untracedKeys.has(groundingKey(span)) && !isMarkedAt(s, markPosition(s, span))) n++;
+    if (untracedKeys.has(groundingKey(span)) && markPositions(s, span).some((at) => !isMarkedAt(s, at))) n++;
   }
   return n;
 }
@@ -202,7 +210,7 @@ function annotateUngrounded(reportText, ungroundedList) {
   const untraced = new Set(list.map((c) => groundingKey(c)));
   const positions = new Set();
   for (const span of bodySpans(out)) {
-    if (untraced.has(groundingKey(span))) positions.add(markPosition(out, span));
+    if (untraced.has(groundingKey(span))) for (const at of markPositions(out, span)) positions.add(at);
   }
   // Right to left, so an insertion never moves a position still to be marked.
   for (const at of [...positions].sort((a, b) => b - a)) {
@@ -401,12 +409,15 @@ async function screenDoisViaPubmed(dois, doiToPmid, checkPmids, knownVerdicts) {
   for (const [doi, ps] of doiPmids) {
     let retracted = false;
     let notice = false;
+    const editorial = new Set(); // T2-2: PubMed's editorial notices on the DOI's PMIDs
     for (const p of ps) {
       const v = vById.get(p);
       if (v && v.retracted) retracted = true;
       if (v && v.is_notice) notice = true;
+      for (const t of (v && Array.isArray(v.editorial) ? v.editorial : [])) editorial.add(t);
     }
     perDoi.set(doi, {
+      editorial: [...editorial],
       // A record that is a retracted paper wins over the notice flag (defensive; they never co-occur).
       pubmedRetracted: retracted,
       pubmedNotice: notice && !retracted,
@@ -417,6 +428,53 @@ async function screenDoisViaPubmed(dois, doiToPmid, checkPmids, knownVerdicts) {
     });
   }
   return { applicable: true, perDoi, escalated };
+}
+
+// T2-16 (2026-11-16): a cited PMCID is screened through the PMID its PMC record lists (PubMed), or, when
+// the record lists no PMID, through its DOI (Crossref). A verdict this report's PMID or DOI screen already
+// has is reused, never fetched twice. A PMCID counts as screened only when that leg reached a definitive
+// verdict; every other one is named unscreened (T1-7's coverage rule, operator default D8), within the
+// same per-class ceiling. `pmcidToIds` (pubmed-retraction.js resolvePmcidsToIds) is optional: unwired,
+// every cited PMCID is named unscreened.
+async function screenPmcids(pmcids, pmcidToIds, checkPmids, checkDois, knownPmidRows, knownDoiRows) {
+  const out = { retracted: [], unscreened: [], checked_count: 0, editorial: new Map() };
+  if (pmcids.length === 0) return out;
+  const inScope = pmcids.slice(0, MAX_SCREEN_IDS_PER_CLASS);
+  out.unscreened.push(...pmcids.slice(MAX_SCREEN_IDS_PER_CLASS));
+  if (typeof pmcidToIds !== "function") {
+    out.unscreened.push(...inScope);
+    return out;
+  }
+  const lc = (doi) => String(doi).toLowerCase();
+  const maps = new Map((await inChunks(inScope, pmcidToIds))
+    .filter((r) => r && r.pmcid && r.resolved === true && r.in_pmc === true)
+    .map((r) => [String(r.pmcid).toUpperCase(), r]));
+  const pmidVerdicts = new Map(knownPmidRows);
+  const doiVerdicts = new Map(knownDoiRows);
+  const needPmids = [...new Set([...maps.values()].filter((r) => r.pmid && !pmidVerdicts.has(String(r.pmid))).map((r) => String(r.pmid)))];
+  if (needPmids.length > 0 && typeof checkPmids === "function") {
+    for (const v of await inChunks(needPmids, checkPmids)) if (v && v.pmid != null) pmidVerdicts.set(String(v.pmid), v);
+  }
+  const needDois = [...new Set([...maps.values()].filter((r) => !r.pmid && r.doi && !doiVerdicts.has(lc(r.doi))).map((r) => r.doi))];
+  if (needDois.length > 0 && typeof checkDois === "function") {
+    for (const v of await inChunks(needDois, checkDois)) if (v && v.doi != null) doiVerdicts.set(lc(v.doi), v);
+  }
+  for (const id of inScope) {
+    const map = maps.get(String(id).toUpperCase());
+    let verdict = null;
+    if (map && map.pmid) {
+      const v = pmidVerdicts.get(String(map.pmid));
+      if (v && v.checked) verdict = Boolean(v.retracted);
+      if (v && Array.isArray(v.editorial) && v.editorial.length > 0) out.editorial.set(id, v.editorial);
+    } else if (map && map.doi) {
+      const v = doiVerdicts.get(lc(map.doi));
+      if (v && v.checked && v.in_crossref !== false) verdict = Boolean(v.retracted);
+    }
+    if (verdict === null) { out.unscreened.push(id); continue; }
+    out.checked_count += 1;
+    if (verdict) out.retracted.push(id);
+  }
+  return out;
 }
 
 // Literature-integrity check: extract the report's cited DOIs and PMIDs and decide which are
@@ -433,14 +491,17 @@ async function screenDoisViaPubmed(dois, doiToPmid, checkPmids, knownVerdicts) {
 // Per-DOI rule: retracted = pubmedRetracted OR (crossFlagged AND NOT pubmedNotice). PubMed's
 // notice identification is the ONLY thing that overrides a Crossref flag; under a PubMed outage a
 // Crossref flag stands (fail-closed on the retraction axis).
-// `checkPmids` and `doiToPmid` are optional so existing 2-/3-argument callers keep prior behavior.
-async function checkRetractions(reportText, checkDois, checkPmids, doiToPmid) {
+// `checkPmids` and `doiToPmid` are optional so existing 2-/3-argument callers keep prior behavior, and so
+// is `pmcidToIds` (T2-16: cited PMCIDs are screened through their PMC record's PMID or DOI).
+// One pass of the screen; checkRetractions (below) runs it once, or twice after a pause (T2-1).
+async function screenOnce(reportText, checkDois, checkPmids, doiToPmid, pmcidToIds) {
   const anyScreen = typeof checkDois === "function" || typeof checkPmids === "function";
   // deduplicateCitations compares DOIs case-insensitively (T1-4): "10.1056/NEJMoa…" and
   // "10.1056/nejmoa…" are one work, screened once.
   const cited = deduplicateCitations(extractCitations(String(reportText || "")));
   const dois = cited.filter((c) => c.type === "DOI").map((c) => c.id);
   const pmids = cited.filter((c) => c.type === "PMID").map((c) => c.id);
+  const pmcids = cited.filter((c) => c.type === "PMCID").map((c) => c.id);
   const lc = (doi) => String(doi).toLowerCase();
 
   const doiScreen = await runScreen(dois, checkDois, "doi");
@@ -452,6 +513,7 @@ async function checkRetractions(reportText, checkDois, checkPmids, doiToPmid) {
   // Reuse the direct-PMID verdicts so a PMID cited both directly and via a DOI is not fetched twice.
   const pubmed = await screenDoisViaPubmed(dois, doiToPmid, checkPmids, pmidRows);
   const pubmedFor = (doi) => pubmed.perDoi.get(lc(doi)) || {};
+  const pmc = await screenPmcids(pmcids, pmcidToIds, checkPmids, checkDois, pmidRows, crossRows);
 
   const retracted_dois = dois.filter((doi) => {
     const v = pubmedFor(doi);
@@ -472,6 +534,23 @@ async function checkRetractions(reportText, checkDois, checkPmids, doiToPmid) {
       editorial_flags.push({ id: `DOI:${doi}`, type: e.type, source: e.source || null });
     }
   }
+  // T2-2 (2026-11-16): PubMed's editorial notices too (pubmed-retraction.js editorialReftypes): for a
+  // cited PMID, for a DOI through the PMIDs it resolves to, and for a PMCID through its PMC record's
+  // PMID. One flag per identifier and type, so a notice both sources record is listed once. Never a block.
+  const flagged = new Set(editorial_flags.map((f) => `${f.id}|${f.type}`));
+  const addPubmed = (id, types) => {
+    for (const t of Array.isArray(types) ? types : []) {
+      if (flagged.has(`${id}|${t}`)) continue;
+      flagged.add(`${id}|${t}`);
+      editorial_flags.push({ id, type: t, source: "pubmed" });
+    }
+  };
+  for (const doi of dois) addPubmed(`DOI:${doi}`, pubmedFor(doi).editorial);
+  for (const pmid of pmids) {
+    const r = pmidRows.get(String(pmid));
+    addPubmed(`PMID:${pmid}`, r && r.editorial);
+  }
+  for (const [pmcid, types] of pmc.editorial) addPubmed(`PMCID:${pmcid}`, types);
 
   // T1-7 coverage, per identifier, NAMED. A DOI counts as screened only if Crossref holds it (a 200
   // with a definitive record), or if PubMed resolved it to at least one PMID with a definitive
@@ -500,6 +579,7 @@ async function checkRetractions(reportText, checkDois, checkPmids, doiToPmid) {
     const r = pmidRows.get(String(pmid));
     if (!(r && r.checked)) unscreened_ids.push(`PMID:${pmid}`);
   }
+  for (const pmcid of pmc.unscreened) unscreened_ids.push(`PMCID:${pmcid}`);
 
   return {
     // `checked` asserts full coverage of every cited identifier. A rate-limited or unreachable
@@ -507,9 +587,13 @@ async function checkRetractions(reportText, checkDois, checkPmids, doiToPmid) {
     // never a silent "clean". It is a REPORTING flag only — it never blocks delivery: the manifest
     // turns it into the `retraction_screen_incomplete` flag (DELIVER_WITH_FLAGS), never a block.
     checked: anyScreen && unscreened_ids.length === 0,
-    retracted: [...retracted_dois, ...pmidScreen.retracted],
+    retracted: [...retracted_dois, ...pmidScreen.retracted, ...pmc.retracted],
     retracted_dois,
     retracted_pmids: pmidScreen.retracted,
+    // T2-16: cited PMCIDs found retracted through their PMC record's PMID or DOI.
+    retracted_pmcids: pmc.retracted,
+    pmcids_checked: pmc.checked_count,
+    pmcids_cited: pmcids.length,
     retracted_dois_via_pmid,
     unflagged_notice_dois,
     crossref_notice_dois,
@@ -524,6 +608,58 @@ async function checkRetractions(reportText, checkDois, checkPmids, doiToPmid) {
     dois_without_retraction_source,
     dois_crossref_only
   };
+}
+
+// T2-1 (2026-11-16): one deferred retry for the screen. Each leg is wrapped so a DEFINITIVE row (a
+// verdict, a "not held here", a DOI that resolved to no PMID) is kept and never fetched again; when any
+// leg got no definitive answer for an id (a throttle, a timeout, an outage, a chunk that threw), the whole
+// screen runs once more after one pause, and only those ids are asked again. An id beyond the per-class
+// ceiling or a DOI no retraction source holds is a definitive answer, so it never triggers a retry. A
+// second failure stays unscreened and named, exactly as before. The pause is `options.retryDelayMs`
+// (default 2,000 ms, the re-resolver's) through `options.sleep`; `options.retry: false` turns it off.
+const DEFAULT_SCREEN_RETRY_DELAY_MS = 2000;
+
+function retryingLeg(fn, keyOfId, keyOfRow, isDefinitive, tally) {
+  if (typeof fn !== "function") return fn;
+  const settled = new Map(); // definitive rows, by key
+  const latest = new Map(); // the last non-definitive row, by key
+  return async (list) => {
+    const ids = Array.isArray(list) ? list : [];
+    const need = ids.filter((id) => !settled.has(keyOfId(id)));
+    if (need.length > 0) {
+      let rows = [];
+      try {
+        const got = await fn(need);
+        rows = Array.isArray(got) ? got.filter(Boolean) : [];
+      } catch { rows = []; /* fail-soft: these ids stay without a definitive row */ }
+      for (const row of rows) {
+        const key = keyOfRow(row);
+        if (isDefinitive(row)) { settled.set(key, row); latest.delete(key); } else latest.set(key, row);
+      }
+      for (const id of need) if (!settled.has(keyOfId(id))) tally.failures += 1;
+    }
+    return ids.map((id) => settled.get(keyOfId(id)) || latest.get(keyOfId(id))).filter(Boolean);
+  };
+}
+
+async function checkRetractions(reportText, checkDois, checkPmids, doiToPmid, pmcidToIds, options = {}) {
+  const lc = (doi) => String(doi).toLowerCase();
+  const up = (id) => String(id).toUpperCase();
+  const tally = { failures: 0 };
+  const legs = [
+    retryingLeg(checkDois, lc, (r) => lc(r.doi), (r) => r.checked === true, tally),
+    retryingLeg(checkPmids, String, (r) => String(r.pmid), (r) => r.checked === true, tally),
+    retryingLeg(doiToPmid, lc, (r) => lc(r.doi), (r) => r.resolved === true, tally),
+    retryingLeg(pmcidToIds, up, (r) => up(r.pmcid), (r) => r.resolved === true, tally)
+  ];
+  let result = await screenOnce(reportText, ...legs);
+  if (tally.failures > 0 && options.retry !== false) {
+    const delay = Number.isFinite(options.retryDelayMs) ? Math.max(0, options.retryDelayMs) : DEFAULT_SCREEN_RETRY_DELAY_MS;
+    const sleep = typeof options.sleep === "function" ? options.sleep : (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    await sleep(delay);
+    result = { ...(await screenOnce(reportText, ...legs)), retried: true };
+  }
+  return result;
 }
 
 module.exports = {

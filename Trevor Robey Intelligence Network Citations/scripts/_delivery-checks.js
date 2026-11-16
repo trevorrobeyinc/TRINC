@@ -5,8 +5,12 @@
 // delivery path runs the checks listed beside it, so the paths do NOT all refuse the same things:
 //   * build-buyer-zip.js — the order form's delivery path (all three checks, with retired wording);
 //   * export-release.js  — the engine's export, which also records delivery evidence (the manifest and
-//                          ChEMBL checks; before this it checked only the release approval);
-//   * distribute.js      — marketplace staging (the seal and the manifest checks, T1-2).
+//                          ChEMBL checks, researchExportProblems below; before this it checked only the
+//                          release approval);
+//   * the workflow's own export step (workflow-engine.js executeExportStep) — the same
+//                          researchExportProblems (T2-14, 2026-11-16; before this it checked only the approval);
+//   * distribute.js      — marketplace staging (the seal and the manifest checks, T1-2, and the ChEMBL
+//                          check, T2-15, 2026-11-16).
 // Each check returns a list of problems, worded for the operator; an empty list means it may ship.
 
 const crypto = require("node:crypto");
@@ -119,12 +123,30 @@ function contentProblems(deliverablesDir, names, { retiredWording = true } = {})
   return problems;
 }
 
+// 4. What a RESEARCH (mission) bundle must clear before it is exported: the manifest check with
+//    `requireManifest`, and the ChEMBL check over every text deliverable (not the retired-wording check,
+//    which only the buyer ZIP runs). Shared by export-release.js and the workflow's own export step
+//    (T2-14, 2026-11-16; moved here from export-release.js so the two export paths cannot drift apart).
+//    A dataset bundle never carries a manifest and is exported as before.
+function researchExportProblems(bundleDir, offer) {
+  if (String((offer && offer.source_kind) || "") !== "mission") return [];
+  const deliverablesDir = path.join(bundleDir, "deliverables");
+  const names = fs.existsSync(deliverablesDir)
+    ? fs.readdirSync(deliverablesDir).filter((name) => /\.(md|csv|json|txt)$/i.test(name)).sort()
+    : [];
+  return [
+    ...manifestProblems(deliverablesDir, { requireManifest: true }).problems,
+    ...contentProblems(deliverablesDir, names, { retiredWording: false })
+  ];
+}
+
 module.exports = {
   CHEMBL_PATTERNS,
   RETIRED_WORDING,
   SHIPPABLE_DECISIONS,
   contentProblems,
   manifestProblems,
+  researchExportProblems,
   sealHash,
   sealProblems
 };

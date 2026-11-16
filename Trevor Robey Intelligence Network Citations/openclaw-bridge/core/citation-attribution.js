@@ -29,6 +29,8 @@
 // Everything else is "not_checked" with a reason, never a guess.
 
 const fs = require("node:fs");
+// The marks the engine writes after an identifier ([UNVERIFIED], [ATTRIBUTION MISMATCH: …]).
+const { MARK_SOURCE } = require("./citation-extractor.js");
 
 const PARTICLES = ["van", "von", "der", "den", "de", "del", "della", "di", "da", "du", "dos", "das", "le", "la", "ten", "ter"];
 const PARTICLE_ALT = PARTICLES.map((p) => `[${p[0]}${p[0].toUpperCase()}]${p.slice(1)}`).join("|");
@@ -248,17 +250,29 @@ function clip(s, max = 200) {
   return t.length > max ? `${t.slice(0, max - 1)}…` : t;
 }
 
+// T2-19 (2026-11-16): the engine's own marks are not the report's text. The detector reads the report
+// before any mark is written; the marker re-reads each section line after the [UNVERIFIED] pass wrote
+// into it. Both now read a line without the marks: names are found with them blanked (positions kept),
+// and the author-to-identifier distance counts the report's own characters only. Before this, a mark
+// between the two could push the author past NEAR_CHARS on the marked line, so the manifest flagged
+// attribution_mismatch while the line carried no inline mark.
+const ENGINE_MARKS = new RegExp(String.raw`[ \t]*${MARK_SOURCE}`, "g");
+
 // One line, one cited identifier → a checkable { name, year } or a reason it cannot be checked.
 function evaluateLine(line, citation) {
   const hit = idPattern(citation.type, String(citation.id)).exec(line);
   if (!hit) return null;
+  // T2-20: a reference definition never renders, and a mark on its line would break it, so the
+  // attribution beside an identifier there is neither checked nor marked.
+  if (referenceDefinition(line)) return { reason: "reference_definition" };
   if (worksOnLine(line) > 1) return { reason: "several_works_on_line" };
-  const names = namesOnLine(line);
+  const names = namesOnLine(blank(line, ENGINE_MARKS));
   if (names.length === 0) return { reason: "no_author_named" };
   if (names.length > 1) return { reason: "several_authors_named" };
   const n = names[0];
   if (!isTableRow(line)) {
-    const gap = hit.index >= n.end ? hit.index - n.end : n.start - (hit.index + hit[0].length);
+    const between = hit.index >= n.end ? line.slice(n.end, hit.index) : line.slice(hit.index + hit[0].length, n.start);
+    const gap = between.replace(ENGINE_MARKS, "").length;
     if (gap > NEAR_CHARS) return { reason: "author_not_near_identifier" };
   }
   return { name: n.name, year: Number.isFinite(n.year) ? n.year : null };
@@ -347,30 +361,189 @@ function bibFromNcbiDocsum(rec) {
   return { authors, years };
 }
 
-// Markdown links "[text](target)", keeping the target's BALANCED parentheses (T1-3, 2026-11-14): a
-// Lancet-style DOI in a link target ("…/10.1016/S0140-6736(97)11096-0)") used to end the link at its
-// first ")", which put a mark inside the DOI.
+// ── Where a mark goes (T1-3; T2-20, 2026-11-16) ─────────────────────────────────────────────────────
+// A mark goes after the whole construct that holds the identifier, so the construct still renders
+// and the mark is read as text. T2-20 (review marks:3) added the six constructs a mark used to land
+// inside, or break: a markdown link whose text holds brackets ("[[1]](…)", "[Smith [2019]](…)"), an
+// angle-bracket autolink, an HTML attribute, a link title, a reference definition and a scheme-less
+// URL. Construct boundaries are read as if the engine's marks were not there, so a mark already
+// inside a construct never makes it look closed: the gate's fail-closed re-read then finds the
+// mention unmarked and the run stops.
+
+// The line without the engine's marks, with a map from each kept character to its original index.
+function withoutMarks(line) {
+  const map = [];
+  let text = "";
+  let from = 0;
+  for (const m of line.matchAll(ENGINE_MARKS)) {
+    for (let i = from; i < m.index; i++) map.push(i);
+    text += line.slice(from, m.index);
+    from = m.index + m[0].length;
+  }
+  for (let i = from; i < line.length; i++) map.push(i);
+  text += line.slice(from);
+  return { text, map };
+}
+
+// The "]" that closes a link text opening at `open`, nested brackets kept ("[[1]]", "[Smith [2019]]"), or -1.
+function linkTextEnd(line, open) {
+  let depth = 0;
+  for (let i = open; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === "\\") { i++; continue; }
+    if (ch === "[") depth++;
+    else if (ch === "]" && --depth === 0) return i;
+  }
+  return -1;
+}
+
+// The end of an inline link's `(destination "title")` that opens at `open`, or -1. The destination is
+// <bracketed> or keeps balanced parentheses (a Lancet DOI); a title in "…", '…' or (…) may hold a ")"
+// of its own ("Smith :)").
+function linkTailEnd(line, open) {
+  let i = open + 1;
+  const skipSpace = () => { while (line[i] === " " || line[i] === "\t") i++; };
+  skipSpace();
+  if (line[i] === "<") {
+    const close = line.indexOf(">", i + 1);
+    if (close < 0) return -1;
+    i = close + 1;
+  } else {
+    let depth = 0;
+    for (; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === "\\") { i++; continue; }
+      if (ch === " " || ch === "\t") break;
+      if (ch === "(") depth++;
+      else if (ch === ")") { if (depth === 0) break; depth--; }
+    }
+  }
+  skipSpace();
+  const q = line[i];
+  if (q === '"' || q === "'" || q === "(") {
+    const closeCh = q === "(" ? ")" : q;
+    let t = i + 1;
+    for (; t < line.length && line[t] !== closeCh; t++) if (line[t] === "\\") t++;
+    if (t >= line.length) return -1;
+    i = t + 1;
+    skipSpace();
+  }
+  return line[i] === ")" ? i + 1 : -1;
+}
+
+// T1-3's rule for a link the parser above cannot close: the target's balanced parentheses only.
+function balancedParenEnd(line, from) {
+  let depth = 1;
+  let i = from;
+  for (; i < line.length && depth > 0; i++) {
+    if (line[i] === "(") depth++;
+    else if (line[i] === ")") depth--;
+  }
+  return depth === 0 ? i : -1;
+}
+
+// Markdown links "[text](target "title")": the text with nested brackets, the target with its
+// BALANCED parentheses (T1-3, 2026-11-14: a Lancet-style DOI in a link target used to end the link at
+// its first ")", which put a mark inside the DOI), and a title (T2-20). Images ("![alt](…)") too.
 function markdownLinkRanges(line) {
   const out = [];
-  const re = /\[[^\]\n]*\]\(/g;
-  let m;
-  while ((m = re.exec(line)) !== null) {
-    let depth = 1;
-    let i = m.index + m[0].length;
-    for (; i < line.length && depth > 0; i++) {
-      if (line[i] === "(") depth++;
-      else if (line[i] === ")") depth--;
-    }
-    if (depth === 0) out.push([m.index, i]);
+  for (let i = line.indexOf("["); i >= 0; i = line.indexOf("[", i + 1)) {
+    const close = linkTextEnd(line, i);
+    if (close < 0 || line[close + 1] !== "(") continue;
+    let end = linkTailEnd(line, close + 1);
+    if (end < 0) end = balancedParenEnd(line, close + 2);
+    if (end > 0) out.push([i, end]);
   }
   return out;
 }
 
-// Bare URLs with their balanced parentheses kept, and trailing sentence punctuation, markdown
-// emphasis or a wrapping ")" dropped (the extractor's DOI rule, citation-extractor.js normalizeDoiId).
+// Angle-bracket autolinks: "<" a scheme (as CommonMark has it) or "www.", no space, ">".
+const AUTOLINK = /<(?:[a-z][a-z0-9+.-]{1,31}:|www\.)[^\s<>]*>/gi;
+function autolinkRanges(line) {
+  return [...line.matchAll(AUTOLINK)].map((m) => [m.index, m.index + m[0].length]);
+}
+
+// An HTML tag ('<a href="https://doi.org/…">'): the mark goes after the tag, or after the closing </a>
+// of a link, so it is never inside an attribute and always renders. The tag name must be followed by
+// a space, "/" or ">", so an autolink ("<https:…>") is not read as a tag.
+const HTML_TAG = /<([a-z][a-z0-9-]*)(?=[\s/>])[^<>]*>/gi;
+function htmlRanges(line) {
+  const out = [];
+  const lower = line.toLowerCase();
+  for (const m of line.matchAll(HTML_TAG)) {
+    let end = m.index + m[0].length;
+    if (m[1].toLowerCase() === "a") {
+      const close = lower.indexOf("</a>", end);
+      if (close >= 0) end = close + 4;
+    }
+    out.push([m.index, end]);
+  }
+  return out;
+}
+
+function wikiLinkRanges(line) {
+  return [...line.matchAll(WIKILINK)].map((m) => [m.index, m.index + m[0].length]);
+}
+
+// A reference definition, "[1]: https://doi.org/…" (CommonMark: up to three spaces, a label, a colon,
+// a destination and an optional title, then nothing), read with the engine's marks removed. It never
+// renders: the reader sees its label where the text uses it, so the gate marks those uses
+// (citation-gate.js markPositions), and a mark written on the line itself would end the definition
+// and break every link that uses it. Returns { label, end } (end: just after the definition, in the
+// line's own positions) or null.
+const REFERENCE_DEFINITION = /^ {0,3}\[((?:[^[\]\\\n]|\\.)+)\]:[ \t]*(?:<[^<>\n]*>|\S+)(?:[ \t]+(?:"[^"\n]*"|'[^'\n]*'|\([^()\n]*\)))?[ \t]*$/;
+function normLabel(s) {
+  return String(s).trim().replace(/\s+/g, " ").toLowerCase();
+}
+function referenceDefinition(line) {
+  const { text, map } = withoutMarks(String(line || ""));
+  const m = REFERENCE_DEFINITION.exec(text);
+  if (!m) return null;
+  const bare = text.replace(/[ \t]+$/, "").length;
+  return { label: normLabel(m[1]), end: bare > 0 ? map[bare - 1] + 1 : 0 };
+}
+
+// Where a text uses a reference label: "[text][label]", "[label][]" and the shortcut "[label]", never
+// in a definition line, an inline link "[label](…)" or a wiki-link "[[…]]". Returns the index just
+// after each use, where its mark belongs.
+function labelUseEnds(text, label) {
+  const want = normLabel(label);
+  const ends = [];
+  let offset = 0;
+  for (const line of String(text || "").split("\n")) {
+    if (!referenceDefinition(line)) {
+      for (let i = line.indexOf("["); i >= 0; i = line.indexOf("[", i + 1)) {
+        if (line[i - 1] === "\\") continue;
+        const close = linkTextEnd(line, i);
+        if (close < 0) continue;
+        let used = null;
+        let end = close + 1;
+        if (line[close + 1] === "[") {
+          const close2 = line.indexOf("]", close + 2);
+          if (close2 < 0) continue;
+          const second = line.slice(close + 2, close2);
+          used = second.trim() === "" ? line.slice(i + 1, close) : second;
+          end = close2 + 1;
+        } else if (line[close + 1] !== "(" && line[close + 1] !== ":") {
+          used = line.slice(i + 1, close);
+        }
+        if (used !== null && normLabel(used) === want) ends.push(offset + end);
+        i = end - 1; // past this bracket group, so its inner "[" is not read as a use
+      }
+    }
+    offset += line.length + 1;
+  }
+  return ends;
+}
+
+// Bare URLs: with a scheme, or (T2-20) the scheme-less host-then-path forms the extractor reads since
+// T2-17 ("www.doi.org/…", "pubmed.ncbi.nlm.nih.gov/12345678/"). Balanced parentheses are kept, and
+// trailing sentence punctuation, markdown emphasis or a wrapping ")" dropped (the extractor's DOI rule,
+// citation-extractor.js normalizeDoiId).
+const BARE_URL = /(?:https?:\/\/|(?<![\w@./:-])(?:www\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}\/)[^\s\]>|]*/gi;
 function urlRanges(line) {
   const out = [];
-  for (const m of line.matchAll(/https?:\/\/[^\s\]>|]+/gi)) {
+  for (const m of line.matchAll(BARE_URL)) {
     const s = m[0];
     let open = 0;
     let close = 0;
@@ -390,19 +563,31 @@ function urlRanges(line) {
   return out;
 }
 
-// Where to put a mark: after the identifier, or — when the identifier sits inside a wiki-link, a
-// markdown link or a URL — after that whole construct, so no link is broken. Never before the end of
-// the identifier itself. Shared by the attribution marks and the gate's [UNVERIFIED] marks (T1-3).
-function insertionPoint(line, hitIndex, hitEnd) {
-  const ranges = [
-    ...[...line.matchAll(WIKILINK)].map((m) => [m.index, m.index + m[0].length]),
-    ...markdownLinkRanges(line),
-    ...urlRanges(line)
-  ];
-  for (const [start, end] of ranges) {
-    if (hitIndex >= start && hitIndex < end) return Math.max(end, hitEnd);
+// The end of the outermost construct holding [hitIndex, hitEnd) on a line with no marks, or hitEnd.
+// Outermost first: an HTML link or tag, a markdown link, an autolink, a wiki-link, a bare URL, and
+// last a reference definition (whose marks the gate puts at its label's uses instead).
+function constructEnd(line, hitIndex, hitEnd) {
+  const holds = ([start, end]) => hitIndex >= start && hitIndex < end;
+  for (const ranges of [htmlRanges(line), markdownLinkRanges(line), autolinkRanges(line), wikiLinkRanges(line), urlRanges(line)]) {
+    const ends = ranges.filter(holds).map(([, end]) => end);
+    if (ends.length > 0) return Math.max(hitEnd, ...ends);
   }
-  return hitEnd;
+  const def = REFERENCE_DEFINITION.test(line) ? line.replace(/[ \t]+$/, "").length : -1;
+  return def > hitEnd ? def : hitEnd;
+}
+
+// Where to put a mark: after the identifier, or, when the identifier sits inside a construct, after
+// the whole construct, so no link is broken. Never before the end of the identifier itself. Shared by
+// the attribution marks and the gate's [UNVERIFIED] marks (T1-3). The constructs are found on the line
+// with the engine's marks removed (T2-20), and the position is mapped back to the line as written.
+function insertionPoint(line, hitIndex, hitEnd) {
+  const { text, map } = withoutMarks(line);
+  const back = new Map(map.map((orig, k) => [orig, k]));
+  if (!back.has(hitIndex) || !back.has(hitEnd - 1)) return hitEnd;
+  const start = back.get(hitIndex);
+  const end = back.get(hitEnd - 1) + 1;
+  const at = constructEnd(text, start, end);
+  return at === end ? hitEnd : map[at - 1] + 1;
 }
 
 // Mark a line only when the line's OWN verdict is a mismatch against the stored registry record —
@@ -478,5 +663,7 @@ module.exports = {
   annotateAttributionText,
   annotateSubtaskAttributions,
   insertionPoint,
+  referenceDefinition,
+  labelUseEnds,
   ATTRIBUTION_MARK: MARK
 };

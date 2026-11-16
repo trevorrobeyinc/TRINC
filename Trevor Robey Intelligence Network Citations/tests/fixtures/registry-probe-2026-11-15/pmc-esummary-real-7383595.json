@@ -1,0 +1,25 @@
+{
+ "result": {
+  "uids": [
+   "7383595"
+  ],
+  "7383595": {
+   "uid": "7383595",
+   "articleids": [
+    {
+     "idtype": "pmid",
+     "value": "32678530"
+    },
+    {
+     "idtype": "pmcid",
+     "value": "PMC7383595"
+    },
+    {
+     "idtype": "doi",
+     "value": "10.1056/NEJMoa2021436"
+    }
+   ],
+   "title": "Dexamethasone in Hospitalized Patients with Covid-19."
+  }
+ }
+}
