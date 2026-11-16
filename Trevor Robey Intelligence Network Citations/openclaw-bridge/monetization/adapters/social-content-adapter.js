@@ -39,10 +39,13 @@ const ENTITY_DISCLOSURE =
   "Trevor Robey, INC. is the wordmark of Trevor Robey Intelligence Network Citations LLC, " +
   "a California limited liability company.";
 
-// The tagline, verbatim from OFFERINGS.md:3 (operator decision 2026-11-15). T1-9 (2026-11-14) dropped
-// "Every claim, sourced." from the generated copy, because no sentence-level support check exists, so
-// it was false as worded. "Every citation, checked." is true as worded: every cited id is checked
-// against the evidence retrieved, screened for retraction and re-resolved at its registry.
+// The tagline, verbatim from OFFERINGS.md:3 (operator decision 2026-11-15; tests/core/brand-tagline-canon
+// pins it, here and in the trinc-content MCP). T1-9 (2026-11-14) dropped "Every claim, sourced." from the
+// generated copy, because no sentence-level support check exists, so it was false as worded. What
+// "Every citation, checked." rests on, and where it stops, is SYSTEM-REALITY.md's tagline row: every
+// identifier the extractor reads is checked against the evidence retrieved and re-resolved at its
+// registry; only DOIs and PMIDs are also retraction-screened; a form the extractor does not read is not
+// checked.
 const COMPANY_TAGLINE = "Every citation, checked. Every risk, named. In days, not weeks.";
 const FOUNDER_LOCKUP = "Truth Seeker, Receipt Keeper. — Real data beats sweet hallucination. You decide.";
 

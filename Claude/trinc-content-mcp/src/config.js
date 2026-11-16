@@ -51,7 +51,12 @@ const ENTITY_DISCLOSURE =
   "Trevor Robey, INC. is the wordmark of Trevor Robey Intelligence Network Citations LLC, " +
   "a California limited liability company.";
 
-const COMPANY_TAGLINE = "Every claim, sourced. Every risk, named. In days, not weeks.";
+/**
+ * Verbatim, from OFFERINGS.md:3 (operator decision 2026-11-15). It is the lockup a company-voice draft
+ * must carry; the engine's social adapter carries the same constant, and the engine test
+ * tests/core/brand-tagline-canon.test.js fails if either drifts from the canon.
+ */
+const COMPANY_TAGLINE = "Every citation, checked. Every risk, named. In days, not weeks.";
 const FOUNDER_LOCKUP =
   "Truth Seeker, Receipt Keeper. — Real data beats sweet hallucination. You decide.";
 
@@ -72,7 +77,9 @@ const RETIRED_CLAIMS = [
   { pattern: /\b100%\s+accura(te|cy)/i, retired: "never supportable",
     instead: "Cite the measured grounded-citation ratio instead." },
   { pattern: /\bguarantee[ds]?\s+(?:results|outcomes|returns)/i, retired: "never supportable",
-    instead: "The Citation-Audit SLA is the only guarantee this business makes." }
+    instead: "The Citation-Audit SLA is the only guarantee this business makes." },
+  { pattern: /every\s+claim,?\s+sourced/i, retired: "OFFERINGS.md 2026-11-15 (operator decision)",
+    instead: `No sentence-level support check exists, so it was false as worded. The tagline now: ${COMPANY_TAGLINE}` }
 ];
 
 /**

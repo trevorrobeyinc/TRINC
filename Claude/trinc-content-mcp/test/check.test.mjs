@@ -59,7 +59,7 @@ describe("compliance gate", () => {
   });
 
   it("FAILS retired claims, naming where each was retired", () => {
-    for (const phrase of ["Zero hallucinations", "no hallucinated references", "no fabricated data"]) {
+    for (const phrase of ["Zero hallucinations", "no hallucinated references", "no fabricated data", "Every claim, sourced."]) {
       const result = checkDraft(
         { channel: "youtube", text: `${phrase} here.\n\n${COMPANY_TAGLINE}\n\n${D}` },
         { claims: [] }
