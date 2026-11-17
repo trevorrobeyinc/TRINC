@@ -64,9 +64,17 @@ struct BundleHeader: View {
                     VerdictLine(verdict: verdict)
                 }
             }
-            if let counts = bundle.citations?.summary.counts {
-                Text("\(counts.verified) of \(counts.total) cited identifiers VERIFIED at delivery")
+            if let summary = bundle.citations?.summary {
+                Text(Copy.reportVerified(summary) + Copy.whenAssembled(summary.asOf))
                     .font(.callout)
+                if !summary.otherDeliverables.isEmpty {
+                    Text(Copy.otherDeliverables(summary.otherDeliverables))
+                        .font(.callout).foregroundStyle(.secondary)
+                }
+                if bundle.verdict?.reresolutionIncomplete == true {
+                    Label(Copy.reresolutionIncompleteShort, systemImage: "exclamationmark.octagon")
+                        .foregroundStyle(Theme.bad).font(.callout)
+                }
             }
             ForEach(bundle.problems, id: \.self) { problem in
                 Label(problem, systemImage: "exclamationmark.triangle").foregroundStyle(Theme.caution).font(.callout)

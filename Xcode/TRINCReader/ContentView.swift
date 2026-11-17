@@ -100,9 +100,10 @@ struct BundleRow: View {
 
     private var subtitle: String {
         if bundle.isSample { return "Sample excerpt" }
-        if let counts = bundle.citations?.summary.counts {
+        if let summary = bundle.citations?.summary {
             let decision = bundle.verdict?.recordedValue.map { " · \($0)" } ?? ""
-            return "\(counts.verified) of \(counts.total) cited identifiers VERIFIED\(decision)"
+            let incomplete = bundle.verdict?.reresolutionIncomplete == true ? " · re-resolution did not complete" : ""
+            return Copy.reportVerified(summary) + decision + incomplete
         }
         return bundle.snapshot.name
     }

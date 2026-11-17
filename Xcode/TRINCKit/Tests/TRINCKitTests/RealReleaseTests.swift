@@ -46,6 +46,11 @@ enum RealReleases {
         let total: Int
         var legacyLayout = false
         var flags: [String] = []
+        /// Sealed after 2026-11-04, so it carries the attribution check.
+        var attributionChecked = false
+        /// Sealed with Tier 1's fields (2026-11-14): the retraction screen's scope (`cited`), with
+        /// nothing left unscreened, and `reresolution_completed: true`.
+        var screenCited: Int? = nil
     }
 
     static let expected: [String: Expected] = [
@@ -64,6 +69,10 @@ enum RealReleases {
         // ALS benchmark, run #7 (2026-11-04): sealed hours BEFORE the attribution check shipped, so it
         // carries no attribution_check although the later live check found 6 misattributed works in it.
         "offer-6e024a207af1d5e62c6a15ef": .init(decision: .deliver, verified: 38, total: 38),
+        // Drug discovery, sealed 2026-11-16 with Tier 1's fields (read that day): its 28 DOIs and 14 PMIDs
+        // all screened, and two ChEMBL compounds resolved through ChEMBL's molecule endpoint.
+        "offer-d5ada9a79a258deeb9513730": .init(decision: .deliver, verified: 59, total: 59,
+                                                attributionChecked: true, screenCited: 42),
     ]
 }
 
@@ -129,10 +138,19 @@ struct RealReleaseTests {
         #expect(verdict.usesLegacyLayout == want.legacyLayout)
         #expect(verdict.flags == want.flags)
         #expect(verdict.blockReasons.isEmpty)
-        let counts = try #require(bundle.citations?.summary.counts)
-        #expect(counts.verified == want.verified)
-        #expect(counts.total == want.total)
-        #expect(bundle.citations?.summary.attributionCheck == nil, "no release on disk was sealed after 2026-11-04")
+        let summary = try #require(bundle.citations?.summary)
+        #expect(summary.counts.verified == want.verified)
+        #expect(summary.counts.total == want.total)
+        #expect((summary.attributionCheck != nil) == want.attributionChecked)
+        if let cited = want.screenCited {
+            #expect(summary.reresolutionCompleted == true)
+            #expect(summary.retractionScreen?.cited == cited)
+            #expect(summary.retractionScreen?.unscreenedIds == [])
+        } else {
+            #expect(summary.reresolutionCompleted == nil, "sealed before Tier 1")
+            #expect(summary.retractionScreen?.unscreenedIds == nil, "sealed before Tier 1")
+        }
+        #expect(summary.reportCounts == summary.counts, "sealed before Tier 2a: no per-deliverable counts")
     }
 
     @Test func everyCitedTypeInTheReleasesHasARecordPage() throws {
@@ -143,6 +161,6 @@ struct RealReleaseTests {
                 #expect(c.registryURL != nil, "\(offer): no record page for \(c.type) \(c.identifier)")
             }
         }
-        #expect(types.isSubset(of: ["PMID", "NCT", "DOI", "ChEMBL"]), "\(types)")
+        #expect(types.isSubset(of: ["PMID", "PMCID", "NCT", "ISRCTN", "EudraCT", "DOI", "ChEMBL"]), "\(types)")
     }
 }

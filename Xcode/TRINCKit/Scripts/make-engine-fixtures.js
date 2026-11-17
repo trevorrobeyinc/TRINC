@@ -20,8 +20,18 @@
 // (not exported there): sha256("phase19-release-bundle-v1|" + JSON.stringify(files)). The same formula
 // was checked against all seven real releases on 2026-11-05.
 //
-// Writes only under Tests/TRINCKit/Fixtures/engine-flagged{,.zip}; touches nothing in the engine.
-// The identifiers are fixture placeholders (PMID 00000002, NCT00000002, DOI 10.0000/fixture.N).
+// engine-manifests/ holds three more reproducibility manifests from the same builder, as JSON only (the
+// app reads nothing else from them), for the fields Tier 1 (2026-11-14) and Tier 2a (2026-11-16) added:
+//   - tagged.json: rows tagged with the deliverables they appear in (T2-6 `sections`, `by_section`), a
+//     PMCID, an ISRCTN and an EudraCT id (T2-16), and a retraction screen that names the id it could not
+//     screen (T1-7) -> DELIVER_WITH_FLAGS, unchecked_over_threshold + retraction_screen_incomplete;
+//   - retracted-pmcid.json: a cited PMCID found retracted (T2-16 `retracted_pmcids`) -> BLOCK;
+//   - crashed-pass.json: the fallback the engine seals when its re-resolution pass crashed (T1-8
+//     `reresolution_completed: false`, every id UNCHECKED with reason reresolution_error).
+//
+// Writes only under Tests/TRINCKit/Fixtures/engine-flagged{,.zip} and engine-manifests/; touches nothing
+// in the engine. The identifiers are fixture placeholders (PMID 00000002, NCT00000002, DOI 10.0000/fixture.N,
+// PMC0000002, ISRCTN00000002, EudraCT 2020-000002-02).
 
 const fs = require("node:fs");
 const path = require("node:path");
@@ -76,6 +86,80 @@ function cit(type, id, resolvedUrl, evidence) {
 function writeText(file, body) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, body, "utf8");
+}
+
+const VARIANTS = "engine-manifests";
+const VARIANT_STAMP = "2026-11-16T00:00:00.000Z";
+
+// One re-resolver result, tagged with its deliverables the way workflow-engine.js `tag` does.
+function row(type, id, status, httpStatus, evidence, sections) {
+  return {
+    id, type, status, resolver_type: "primary", resolved_url: null, http_status: httpStatus,
+    checked_at: VARIANT_STAMP, evidence, attempts: 1, ...(sections ? { sections } : {}),
+  };
+}
+
+function variantMeta(name, resolverTableVersion = "2026-11-16") {
+  return {
+    reportId: `mission-fixture-${name}`, deliveryId: `workflow-fixture-${name}`, resolverTableVersion,
+    asOf: "2026-11-16", startedAt: VARIANT_STAMP, completedAt: "2026-11-16T00:00:06.000Z",
+  };
+}
+
+function writeManifestVariants() {
+  const dir = path.join(OUT, VARIANTS);
+  fs.rmSync(dir, { recursive: true, force: true });
+  const report = ["report"];
+  const variants = {
+    tagged: buildReproducibilityManifest({
+      reresolved: [
+        row("NCT", TRIAL, "VERIFIED", 200, { nctId_echo: TRIAL }, ["report", "graveyard-memo"]),
+        row("PMID", RIGHT_PMID, "VERIFIED", 200, { has_docsum: true }, report),
+        row("PMCID", "PMC0000002", "VERIFIED", 200, { pmcid_echo: "PMC0000002" }, report),
+        row("ISRCTN", "ISRCTN00000002", "VERIFIED", 200, { isrctn_echo: "ISRCTN00000002" }, report),
+        row("EudraCT", "2020-000002-02", "VERIFIED", 200, { eudract_echo: "2020-000002-02" }, report),
+        row("NCT", "NCT00000003", "UNCHECKED", 429, { reason: "rate_limited" }, ["graveyard-memo"]),
+        row("NCT", "NCT00000004", "VERIFIED", 200, { nctId_echo: "NCT00000004" }, ["graveyard-memo", "design-benchmark"]),
+        row("NCT", "NCT00000005", "VERIFIED", 200, { nctId_echo: "NCT00000005" }, ["design-benchmark"]),
+      ],
+      // The report cites one PMID and one PMCID; the PMCID's PMC record could not be read.
+      retraction: { checked: false, retracted_dois: [], retracted_pmids: [], retracted_pmcids: [], cited: 2, unscreened_ids: ["PMCID:PMC0000002"] },
+      gate: { cited: 5, grounded: 5, ungrounded: 0, grounded_ratio: 1, min_grounded_ratio: 0.75 },
+      groundedKeys: [`NCT:${TRIAL}`, `PMID:${RIGHT_PMID}`, "PMCID:PMC0000002", "ISRCTN:ISRCTN00000002", "EudraCT:2020-000002-02",
+        "NCT:NCT00000003", "NCT:NCT00000004", "NCT:NCT00000005"],
+      reresolutionCompleted: true,
+      meta: variantMeta("tagged"),
+    }),
+    "retracted-pmcid": buildReproducibilityManifest({
+      reresolved: [
+        row("PMID", "00000003", "VERIFIED", 200, { has_docsum: true }),
+        row("PMCID", "PMC0000003", "VERIFIED", 200, { pmcid_echo: "PMC0000003" }),
+      ],
+      retraction: { checked: true, retracted_dois: [], retracted_pmids: [], retracted_pmcids: ["PMC0000003"], cited: 2, unscreened_ids: [] },
+      gate: { cited: 2, grounded: 2, ungrounded: 0, grounded_ratio: 1, min_grounded_ratio: 0.75 },
+      groundedKeys: ["PMID:00000003", "PMCID:PMC0000003"],
+      reresolutionCompleted: true,
+      meta: variantMeta("retracted-pmcid"),
+    }),
+    // workflow-engine.js builds this fallback with no resolver table version and no HTTP status.
+    "crashed-pass": buildReproducibilityManifest({
+      reresolved: [
+        row("PMID", RIGHT_PMID, "UNCHECKED", null, { reason: "reresolution_error" }),
+        row("NCT", TRIAL, "UNCHECKED", null, { reason: "reresolution_error" }),
+      ],
+      retraction: { checked: true, retracted_dois: [], retracted_pmids: [], retracted_pmcids: [], cited: 1, unscreened_ids: [] },
+      gate: { cited: 2, grounded: 2, ungrounded: 0, grounded_ratio: 1, min_grounded_ratio: 0.75 },
+      groundedKeys: [`PMID:${RIGHT_PMID}`, `NCT:${TRIAL}`],
+      reresolutionCompleted: false,
+      meta: variantMeta("crashed-pass", null),
+    }),
+  };
+  const out = {};
+  for (const [name, rm] of Object.entries(variants)) {
+    writeText(path.join(dir, `${name}.json`), JSON.stringify(rm, null, 2));
+    out[name] = { decision: rm.summary.delivery_decision, flags: rm.summary.flag_reasons, blocks: rm.summary.block_reasons };
+  }
+  return { dir, variants: out };
 }
 
 // release-approval-manager.js collectBundleFiles + computeBundleHash, verbatim in behaviour.
@@ -161,7 +245,9 @@ function main() {
   writeText(path.join(bundleDir, "submission-evidence", "export-events.json"),
     canonicalJson(canonicalize({ schema_version: "fixture", events: [] })));
 
-  process.stdout.write(`${JSON.stringify({ ok: true, folder: bundleDir, zip: zipPath, decision: rm.summary.delivery_decision, flags: rm.summary.flag_reasons }, null, 2)}\n`);
+  const manifests = writeManifestVariants();
+
+  process.stdout.write(`${JSON.stringify({ ok: true, folder: bundleDir, zip: zipPath, decision: rm.summary.delivery_decision, flags: rm.summary.flag_reasons, manifests }, null, 2)}\n`);
 }
 
 main();

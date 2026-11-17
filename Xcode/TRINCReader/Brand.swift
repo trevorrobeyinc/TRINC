@@ -19,7 +19,7 @@ enum Brand {
 /// (SYSTEM-REALITY.md: re-resolution proves a record exists, not that its conclusions are right).
 enum Copy {
     static let welcome = "Open the bundle you received (the sealed .zip, its unzipped folder, or a dataset .csv) to read the report, see the status of every cited identifier, and confirm each file still matches its seal."
-    static let verifiedMeaning = "VERIFIED means the identifier was re-resolved against its issuing public registry when the bundle was delivered (PubMed for PMIDs, ClinicalTrials.gov for NCT numbers, Crossref for DOIs). It proves the record exists; it does not prove the source's conclusions are right. Retraction screening covers Crossref and PubMed."
+    static let verifiedMeaning = "VERIFIED means the identifier was re-resolved against its issuing public registry when the report was assembled, on the date shown (PubMed for PMIDs, PubMed Central for PMCIDs, ClinicalTrials.gov for NCT numbers, the ISRCTN registry for ISRCTN numbers, the EU Clinical Trials Register for EudraCT numbers, Crossref for DOIs). It proves the record exists; it does not prove the source's conclusions are right. Retraction screening covers Crossref and PubMed."
     static let sealMeaning = "Each file's SHA-256 fingerprint is recomputed on this device and compared with manifest.json, which was written when the bundle was sealed. A match means the file is byte for byte what was delivered."
     static let checksumsMeaning = "checksums.txt is the same list in plain text, written at the same moment as manifest.json. The two must agree entry for entry."
     static let approvalMeaning = "release-approval.json holds one fingerprint of the whole set of sealed files, taken when the release was approved. Recomputing it here shows these files are the set that was approved."
@@ -32,12 +32,17 @@ enum Copy {
     static let noLedger = "This bundle has no deliverables/reproducibility-manifest.json, so there is no delivery decision and no per-identifier record to show. Bundles sealed before the manifest existed (July 2026) do not carry one."
 
     // Delivery decision (the engine's policy, openclaw-bridge/core/reproducibility-manifest.js).
-    static let deliverMeaning = "Delivered with the full-strength claim: every cited identifier was re-resolved and recorded VERIFIED at delivery, and none is retracted."
+    static let deliverMeaning = "Delivered with the full-strength claim: every identifier in the citation ledger was re-resolved and recorded VERIFIED when the report was assembled, and none is retracted."
     static let flaggedMeaning = "Delivered with a restricted claim. The report ships; each flag below names the part of the full-strength claim that does not hold."
     static let blockMeaning = "The engine blocked this report. A blocked report is a hard stop and is not meant to reach a buyer. Contact us before relying on any part of it."
     static let unknownDecisionMeaning = "This decision is not one this app knows. It is shown exactly as the bundle records it."
     static let noDecisionMeaning = "The citation ledger records no delivery decision."
     static let legacyLayout = "This bundle records its flag in the earlier layout, under block reasons. The report shipped; the reason is shown here as a flag, which is how the engine records it today."
+    // A crashed re-resolution pass (reproducibility-manifest.js, T1-8; scripts/_delivery-checks.js).
+    static let reresolutionIncompleteMeaning = "The engine recorded DELIVER_WITH_FLAGS, but re-resolution did not complete: no identifier was looked up, so every one is UNCHECKED. The engine's delivery tools refuse a bundle like this; it is not cleared for delivery until the order is re-run. Contact us before relying on any part of it."
+    static let reresolutionIncompleteShort = "Re-resolution did not complete: no identifier was looked up, and this bundle is not cleared for delivery."
+    /// The engine's own sentence under its per-deliverable counts (reproducibility-manifest.js).
+    static let sectionCountingNote = "An identifier that appears in more than one deliverable is counted in each."
     static let attributionNotRecorded = "No attribution check is recorded in this bundle (it was sealed before 2026-11-04, when the check was added), so the authors and years written beside its DOIs and PMIDs were not compared with their registry records."
     static let attributionScope = "A citation is checked only where the report names a single author beside it. This checks who wrote the cited work and when, not what the report says about it."
     static let ledgerContradiction = "The decision disagrees with its own ledger"
@@ -46,17 +51,22 @@ enum Copy {
     static func reason(_ code: String) -> (title: String, detail: String) {
         switch code {
         case "unchecked_over_threshold":
-            return ("Some identifiers were not re-checked",
-                    "A registry could not be reached or throttled the check at delivery, so some identifiers are UNCHECKED. UNCHECKED is never counted as VERIFIED, and it is not a failure: only an UNRESOLVED identifier or a retraction blocks delivery.")
+            return ("Some identifiers could not be re-resolved",
+                    "Some identifiers got no definitive answer when the report was assembled, so they are UNCHECKED; the reason is recorded beside each one. UNCHECKED is never counted as VERIFIED. In the engine's decision only an UNRESOLVED identifier or a retraction blocks delivery.")
         case "attribution_mismatch":
             return ("An author or year does not match the registry",
                     "Each flagged identifier resolves to a real record, but the author or year the report writes beside it is not the record's. Each is listed below and marked [ATTRIBUTION MISMATCH] in the report. Correct the attribution before relying on it.")
+        case "retraction_screen_incomplete":
+            return ("Not every citation was screened for retraction",
+                    "The retraction screen could not screen every cited DOI, PMID and PMCID. The ones it could not screen are listed below; no retraction was found among those it did screen.")
         case "unresolved_present":
             return ("An identifier did not resolve", "At least one cited identifier is UNRESOLVED: its issuing registry reports no such record.")
         case "retracted_doi":
             return ("A cited DOI is retracted", "Crossref or PubMed records a cited DOI's work as retracted.")
         case "retracted_pmid":
             return ("A cited PMID is retracted", "PubMed records a cited PMID's work as a retracted publication.")
+        case "retracted_pmcid":
+            return ("A cited PMCID is retracted", "PubMed or Crossref records the paper behind a cited PMCID as retracted. The screen reaches that paper through the PMID its PubMed Central record lists or, when it lists none, through its DOI.")
         case "gate_fail":
             return ("The citation gate failed", "Too few of the report's citations were found in the evidence the run retrieved.")
         default:
@@ -68,6 +78,8 @@ enum Copy {
         switch finding {
         case .countsDisagree(let recorded, let tallied):
             return "The summary says \(recorded.verified) of \(recorded.total) VERIFIED, but the identifiers listed tally \(tallied.verified) of \(tallied.total) (\(tallied.unresolved) unresolved, \(tallied.unchecked) unchecked)."
+        case .sectionCountsDisagree(let section, let recorded, let tallied):
+            return "For the \(deliverableName(section)), the summary says \(recorded.verified) of \(recorded.total) VERIFIED, but the identifiers tagged with it tally \(tallied.verified) of \(tallied.total) (\(tallied.unresolved) unresolved, \(tallied.unchecked) unchecked)."
         case .shippedWithUnresolved(let n):
             return "\(n) identifier\(n == 1 ? " is" : "s are") UNRESOLVED, yet the recorded decision lets the report ship. The engine blocks on any."
         case .shippedWithRetraction(let n):
@@ -93,8 +105,62 @@ enum Copy {
         case "unparseable": return "registry answer unreadable"
         case "resource_not_found": return "no such record"
         case "cannot_get_document_summary": return "no such PubMed record"
+        case "reresolution_error": return "re-resolution did not run"
+        case "registry_no_definitive_answer": return "registry gave no definitive answer"
+        case "no_resolver": return "no registry check for this type"
         case let other?: return other.replacingOccurrences(of: "_", with: " ")
         case nil: return nil
+        }
+    }
+
+    /// The engine's labels for its deliverables (reproducibility-manifest.js `SECTION_LABELS`);
+    /// any other name is shown as written.
+    static func deliverableName(_ section: String) -> String {
+        switch section {
+        case Deliverables.report: return "report"
+        case Deliverables.graveyardMemo: return "graveyard memo"
+        case Deliverables.designBenchmark: return "design benchmark"
+        default: return section
+        }
+    }
+
+    static func deliverableTitle(_ section: String) -> String {
+        let name = deliverableName(section)
+        return name.prefix(1).uppercased() + name.dropFirst()
+    }
+
+    /// "3 (2 VERIFIED · 0 UNRESOLVED · 1 UNCHECKED)", the manifest's own per-deliverable layout.
+    static func tally(_ counts: ReproducibilityManifest.Counts) -> String {
+        "\(counts.total) (\(counts.verified) VERIFIED · \(counts.unresolved) UNRESOLVED · \(counts.unchecked) UNCHECKED)"
+    }
+
+    /// The report's own figure. Since T2-6 the manifest's totals also count the NCT numbers the
+    /// graveyard memo and the design benchmark list, so this reads `by_section.report` when recorded.
+    static func reportVerified(_ summary: ReproducibilityManifest.Summary) -> String {
+        let report = summary.reportCounts
+        return "\(report.verified) of \(report.total) identifiers cited in the report VERIFIED"
+    }
+
+    /// Follows `reportVerified`: re-resolution runs when the report is assembled, not at delivery (T1-9).
+    static func whenAssembled(_ asOf: String?) -> String {
+        " when it was assembled" + (asOf.map { " (as of \($0))" } ?? "")
+    }
+
+    static func otherDeliverables(_ list: [DeliverableCounts]) -> String {
+        "Also re-resolved in the same pass: "
+            + list.map { "\(deliverableName($0.section)) \(tally($0.counts))" }.joined(separator: "; ") + "."
+    }
+
+    static func retractionScreen(_ screen: ReproducibilityManifest.RetractionScreen) -> String {
+        let retracted = "\(screen.retractedCount) retracted"
+        switch screen.checked {
+        case true?: return "checked, " + retracted
+        case false?:
+            if let unscreened = screen.unscreenedIds, let cited = screen.cited {
+                return "incomplete: \(unscreened.count) of \(cited) cited DOIs, PMIDs and PMCIDs not screened, " + retracted
+            }
+            return "incomplete, " + retracted
+        case nil: return "not recorded"
         }
     }
 }

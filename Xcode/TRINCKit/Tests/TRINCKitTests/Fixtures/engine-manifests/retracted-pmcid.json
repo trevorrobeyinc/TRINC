@@ -1,0 +1,94 @@
+{
+  "citations": [
+    {
+      "id": "00000003",
+      "type": "PMID",
+      "status": "VERIFIED",
+      "resolver_type": "primary",
+      "resolved_url": null,
+      "http_status": 200,
+      "checked_at": "2026-11-16T00:00:00.000Z",
+      "evidence": {
+        "has_docsum": true
+      },
+      "grounded_in_run": true,
+      "attempts": 1
+    },
+    {
+      "id": "PMC0000003",
+      "type": "PMCID",
+      "status": "VERIFIED",
+      "resolver_type": "primary",
+      "resolved_url": null,
+      "http_status": 200,
+      "checked_at": "2026-11-16T00:00:00.000Z",
+      "evidence": {
+        "pmcid_echo": "PMC0000003"
+      },
+      "grounded_in_run": true,
+      "attempts": 1
+    }
+  ],
+  "summary": {
+    "report_id": "mission-fixture-retracted-pmcid",
+    "delivery_id": "workflow-fixture-retracted-pmcid",
+    "engine_version": null,
+    "resolver_table_version": "2026-11-16",
+    "as_of": "2026-11-16",
+    "verification_started_at": "2026-11-16T00:00:00.000Z",
+    "verification_completed_at": "2026-11-16T00:00:06.000Z",
+    "counts": {
+      "total": 2,
+      "verified": 2,
+      "unresolved": 0,
+      "unchecked": 0
+    },
+    "by_type": {
+      "PMID": {
+        "total": 1,
+        "verified": 1,
+        "unresolved": 0,
+        "unchecked": 0
+      },
+      "PMCID": {
+        "total": 1,
+        "verified": 1,
+        "unresolved": 0,
+        "unchecked": 0
+      }
+    },
+    "verified_ratio": 1,
+    "unresolved_ratio": 0,
+    "unchecked_ratio": 0,
+    "delivery_decision": "BLOCK",
+    "block_reasons": [
+      "retracted_pmcid"
+    ],
+    "flag_reasons": [],
+    "retraction_screen": {
+      "checked": true,
+      "retracted_dois": [],
+      "retracted_pmids": [],
+      "retracted_pmcids": [
+        "PMC0000003"
+      ],
+      "unscreened_ids": [],
+      "cited": 2
+    },
+    "gate_crosscheck": {
+      "cited": 2,
+      "grounded": 2,
+      "ungrounded": 0,
+      "grounded_ratio": 1,
+      "min_grounded_ratio": 0.75
+    },
+    "thresholds": {
+      "max_unchecked_ratio": 0,
+      "block_on_unresolved": true
+    },
+    "environment": {
+      "offline": false
+    },
+    "reresolution_completed": true
+  }
+}

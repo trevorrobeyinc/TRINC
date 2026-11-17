@@ -13,7 +13,7 @@ applies in full.
 | `TRINCReader/` | The SwiftUI app (macOS and iPhone/iPad). All customer-facing copy is in `Brand.swift`. |
 | `TRINCKit/` | The logic, as a Swift package: ZIP reader, bundle snapshot, seal checks (fingerprints, `checksums.txt`, the approval record), citation ledger, delivery verdict and attribution check, CSV and Markdown parsing. |
 | `TRINCKit/Scripts/make-fixtures.py` | Regenerates the hand-written synthetic fixtures (`bundle/` and four ZIPs from Python's `zipfile`). |
-| `TRINCKit/Scripts/make-engine-fixtures.js` | Regenerates `engine-flagged/` and `engine-flagged.zip`: synthetic content, but every format-bearing file written by the engine's own code (manifest builder, attribution annotator, `finalizeBundle`, the export ZIP writer). |
+| `TRINCKit/Scripts/make-engine-fixtures.js` | Regenerates `engine-flagged/` and `engine-flagged.zip`: synthetic content, but every format-bearing file written by the engine's own code (manifest builder, attribution annotator, `finalizeBundle`, the export ZIP writer). Also `engine-manifests/`: three manifests from the same builder for the Tier 1 and Tier 2a fields (rows tagged by deliverable, a retracted PMCID, a crashed re-resolution pass). |
 | `Config/TRINCReader-macOS.entitlements` | App Sandbox plus read-only access to files the user picks. Nothing else. |
 
 ## Build and test (from Claude Code's shell; no Xcode UI needed)
@@ -68,6 +68,13 @@ node /Users/myhome/TRINC/Xcode/TRINCKit/Scripts/make-engine-fixtures.js
     `flag_reasons`, `summary.attribution_check` and per-citation `attribution` (2026-11-04). Bundles sealed before Q8
     (July 2026) record a shipped report's flag under `block_reasons`; `DeliveryVerdict` reads it as a flag. The app
     re-derives the engine's delivery policy from the ledger (`LedgerCheck`) and shows any contradiction.
+    Tier 1 (2026-11-14) added the retraction screen's `unscreened_ids` and `cited` (flag
+    `retraction_screen_incomplete`), `summary.reresolution_completed` (false on the fallback a crashed pass seals,
+    which the delivery tools refuse) and integer counting of UNCHECKED ids; `LedgerCheck` applies those rules only
+    to a manifest that carries those fields. Tier 2a (2026-11-16) added per-citation `sections`, `summary.by_section`
+    and `retraction_screen.retracted_pmcids` (block reason `retracted_pmcid`). `summary.counts` counts every row, the
+    graveyard memo's and the design benchmark's NCT numbers included, so the app labels the report's own figure
+    from `by_section.report` and lists the other deliverables apart; `LedgerCheck` still tallies every row.
   - Inline marks in shipped text: `[ATTRIBUTION MISMATCH: registry lists …]` (`citation-attribution.js`) and
     `[UNVERIFIED]` (`citation-gate.js`).
 

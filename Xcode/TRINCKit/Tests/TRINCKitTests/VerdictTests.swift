@@ -80,12 +80,32 @@ struct LedgerCheckTests {
         #expect(LedgerCheck.findings(in: l) == [.missingFlag("unchecked_over_threshold")])
     }
 
-    @Test func theUncheckedRatioIsRoundedLikeTheEngine() throws {
-        // 1 of 2,001 rounds to 0.000, which the engine does not flag at max_unchecked_ratio 0.
+    @Test func beforeTier1TheUncheckedRatioWasRounded() throws {
+        // Before T1-6 the engine compared the ratio rounded to three places: 1 of 2,001 reads 0.000,
+        // which it did not flag at max_unchecked_ratio 0.
         var statuses = Array(repeating: "VERIFIED", count: 2_000)
         statuses.append("UNCHECKED")
         let l = try ledger(#"{"citations": \#(citationsJSON(statuses)), "summary": \#(summaryJSON(decision: "DELIVER", counts: #"{"total": 2001, "verified": 2000, "unresolved": 0, "unchecked": 1}"#))}"#)
         #expect(LedgerCheck.findings(in: l).isEmpty)
+    }
+
+    @Test func sinceTier1AnyUncheckedIdNeedsTheFlag() throws {
+        // T1-6 (2026-11-14): decided on integers. A manifest with Tier 1's fields is judged that way.
+        var statuses = Array(repeating: "VERIFIED", count: 2_000)
+        statuses.append("UNCHECKED")
+        let l = try ledger(#"{"citations": \#(citationsJSON(statuses)), "summary": \#(summaryJSON(decision: "DELIVER", counts: #"{"total": 2001, "verified": 2000, "unresolved": 0, "unchecked": 1}"#, extra: #""reresolution_completed": true"#))}"#)
+        #expect(LedgerCheck.findings(in: l) == [.missingFlag("unchecked_over_threshold")])
+        // A ceiling above 0 is compared on integers too: exactly half is not over 0.5.
+        let half = try ledger(#"{"citations": \#(citationsJSON(["VERIFIED", "UNCHECKED"])), "summary": \#(summaryJSON(decision: "DELIVER", counts: #"{"total": 2, "verified": 1, "unresolved": 0, "unchecked": 1}"#, extra: #""reresolution_completed": true, "thresholds": {"max_unchecked_ratio": 0.5, "block_on_unresolved": true}"#))}"#)
+        #expect(LedgerCheck.findings(in: half).isEmpty)
+    }
+
+    @Test func anIncompleteScreenNeedsItsFlagOnlyWhereTheScreenRecordsItsCoverage() throws {
+        // Before T1-7 an incomplete screen (checked false) carried no flag and no coverage fields.
+        let before = try ledger(#"{"citations": \#(citationsJSON(["VERIFIED"])), "summary": \#(summaryJSON(decision: "DELIVER", counts: #"{"total": 1, "verified": 1, "unresolved": 0, "unchecked": 0}"#, extra: #""retraction_screen": {"checked": false, "retracted_dois": [], "retracted_pmids": []}"#))}"#)
+        #expect(LedgerCheck.findings(in: before).isEmpty)
+        let since = try ledger(#"{"citations": \#(citationsJSON(["VERIFIED"])), "summary": \#(summaryJSON(decision: "DELIVER", counts: #"{"total": 1, "verified": 1, "unresolved": 0, "unchecked": 0}"#, extra: #""retraction_screen": {"checked": false, "retracted_dois": [], "retracted_pmids": [], "unscreened_ids": ["DOI:10.0000/x"], "cited": 1}"#))}"#)
+        #expect(LedgerCheck.findings(in: since) == [.missingFlag("retraction_screen_incomplete")])
     }
 
     @Test func countsThatAreNotTheTallyAreReported() throws {
@@ -176,10 +196,25 @@ struct EngineFormatUnitTests {
         #expect(try decoder.decode(WrittenAttribution.self, from: Data(#"{"name": "Chio", "year": null}"#.utf8)).label == "Chio")
     }
 
-    @Test func chemblCompoundsLinkToTheirRecordPage() {
-        #expect(Registry.recordURL(type: "ChEMBL", identifier: "CHEMBL5314564")?.absoluteString
+    @Test func aChemblIdLinksOnlyWhereTheBundleShowsACompound() throws {
+        #expect(Registry.recordURL(type: "ChEMBL", identifier: "CHEMBL5314564", chemblEntityType: "COMPOUND")?.absoluteString
             == "https://www.ebi.ac.uk/chembl/explore/compound/CHEMBL5314564")
-        #expect(Registry.recordURL(type: "ChEMBL", identifier: "CHEMBL") == nil)
-        #expect(Registry.recordURL(type: "ChEMBL", identifier: "CHEMBL12x") == nil)
+        #expect(Registry.recordURL(type: "ChEMBL", identifier: "CHEMBL5314564") == nil)
+        #expect(Registry.recordURL(type: "ChEMBL", identifier: "CHEMBL203", chemblEntityType: "TARGET") == nil)
+        #expect(Registry.recordURL(type: "ChEMBL", identifier: "CHEMBL", chemblEntityType: "COMPOUND") == nil)
+        #expect(Registry.recordURL(type: "ChEMBL", identifier: "CHEMBL12x", chemblEntityType: "COMPOUND") == nil)
+        // What each resolver writes: the molecule endpoint (before T2-3) echoes compounds only; the id
+        // lookup (T2-3) names the entity type; an UNRESOLVED id carries neither.
+        let rows = #"[{"id": "CHEMBL25", "type": "ChEMBL", "status": "VERIFIED", "evidence": {"molecule_chembl_id": "CHEMBL25"}}, "#
+            + #"{"id": "CHEMBL25", "type": "ChEMBL", "status": "VERIFIED", "evidence": {"chembl_id": "CHEMBL25", "entity_type": "COMPOUND"}}, "#
+            + #"{"id": "CHEMBL203", "type": "ChEMBL", "status": "VERIFIED", "evidence": {"chembl_id": "CHEMBL203", "entity_type": "TARGET"}}, "#
+            + #"{"id": "CHEMBL203", "type": "ChEMBL", "status": "UNRESOLVED", "evidence": {"reason": "chembl_404"}}]"#
+        let l = try ledger(#"{"citations": \#(rows), "summary": \#(summaryJSON(decision: "BLOCK", blocks: #"["unresolved_present"]"#, counts: #"{"total": 4, "verified": 3, "unresolved": 1, "unchecked": 0}"#))}"#)
+        #expect(l.citations.map(\.evidence?.chemblEntityType) == ["COMPOUND", "COMPOUND", "TARGET", nil])
+        #expect(l.citations.map { $0.registryURL?.absoluteString } == [
+            "https://www.ebi.ac.uk/chembl/explore/compound/CHEMBL25",
+            "https://www.ebi.ac.uk/chembl/explore/compound/CHEMBL25",
+            nil, nil,
+        ])
     }
 }
