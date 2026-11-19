@@ -102,3 +102,91 @@ test("a log with no RUN START is unknown", () => {
   const out = summarizeVideoPipelineLog("2026-10-15T12:00:00.000Z something\n") as any;
   assert.deepEqual(out, { status: "unknown", message: "Run log exists but contains no RUN START entry." });
 });
+
+// A folder run (2026-11-16) as the Raycast runner logs it, cut off after `upTo` lines.
+const FOLDER = "/Users/me/Downloads/Course";
+function folderRun(id: string, upTo?: number): string[] {
+  const p = (t: string, msg: string) => `2026-11-16T10:${t}Z [run ${id}] ${msg}`;
+  const lines = [
+    p("00:00.000", `RUN START folder=${FOLDER}`),
+    p("00:00.100", "folder mode: 4 video(s), 3 to transcribe, 1 skipped; one at a time, and the folder's own files are never moved or deleted"),
+    p("00:00.200", `VIDEO 2/4 SKIPPED (summary already in the vault): ${FOLDER}/Talk (1).mp4`),
+    p("00:00.300", `VIDEO 1/4 START: ${FOLDER}/Lesson 1.mp4`),
+    p("00:20.000", `transcription engine: ${ENGINE}`),
+    p("01:00.000", "summary written via obsidian-copilot: Copilot Summaries/Lesson 1 summary.md"),
+    p("01:00.100", "VIDEO 1/4 DONE: Copilot Summaries/Lesson 1 summary.md"),
+    p("01:00.200", `VIDEO 3/4 START: ${FOLDER}/Lesson 2.mp4`),
+    "--- process output (video 3/4) ---",
+    "fake-whisper: cannot decode",
+    "--- end process output ---",
+    p("01:10.000", "VIDEO 3/4 FAILED: fake-whisper: cannot decode"),
+    p("01:10.100", `VIDEO 4/4 START: ${FOLDER}/Lesson 10 (RUN SUCCESS edition).mp4`),
+    p("02:00.000", "VIDEO 4/4 DONE: Copilot Summaries/Lesson 10 (RUN SUCCESS edition) summary.md"),
+    p("02:00.100", "RUN FAIL: folder run finished with failures (2 summarized, 1 failed, 1 skipped); first failure: Lesson 2.mp4: fake-whisper: cannot decode"),
+  ];
+  return upTo === undefined ? lines : lines.slice(0, upTo);
+}
+
+test("a folder run in progress reports its folder, its counts and the video being worked on", () => {
+  const out = summarizeVideoPipelineLog(folderRun("f1", 8).join("\n")) as any;
+  assert.equal(out.status, "running");
+  assert.equal(out.folder, FOLDER);
+  assert.equal("videoUrl" in out, false);
+  assert.equal("summary" in out, false, "a folder has one summary per video, listed in batch.summaries");
+  assert.deepEqual(out.batch, {
+    total: 4,
+    summarized: 1,
+    failed: 0,
+    skipped: 1,
+    remaining: 2,
+    current: { position: 3, video: `${FOLDER}/Lesson 2.mp4` },
+    summaries: ["Copilot Summaries/Lesson 1 summary.md"],
+    failures: [],
+  });
+  assert.equal(out.transcriber, ENGINE);
+});
+
+test("a finished folder run with one failure is failed, and names the video and the reason", () => {
+  const out = summarizeVideoPipelineLog(folderRun("f2").join("\n")) as any;
+  assert.equal(out.status, "failed");
+  assert.deepEqual(out.batch, {
+    total: 4,
+    summarized: 2,
+    failed: 1,
+    skipped: 1,
+    remaining: 0,
+    summaries: [
+      "Copilot Summaries/Lesson 1 summary.md",
+      "Copilot Summaries/Lesson 10 (RUN SUCCESS edition) summary.md",
+    ],
+    failures: [{ video: `${FOLDER}/Lesson 2.mp4`, reason: "fake-whisper: cannot decode" }],
+  });
+});
+
+test("a video title containing RUN SUCCESS does not end a folder run early", () => {
+  const out = summarizeVideoPipelineLog(folderRun("f3", 13).join("\n")) as any;
+  assert.equal(out.status, "running");
+  assert.equal(out.batch.current.position, 4);
+});
+
+test("another live run's terminal line does not end the latest run", () => {
+  const latest = folderRun("new", 8);
+  latest.splice(5, 0, "2026-11-16T10:00:30.000Z [run old] RUN SUCCESS");
+  const out = summarizeVideoPipelineLog(latest.join("\n")) as any;
+  assert.equal(out.status, "running");
+});
+
+test("a local file run names its file and keeps the single-run fields", () => {
+  const p = (t: string, msg: string) => `2026-11-16T11:${t}Z [run s1] ${msg}`;
+  const run = [
+    p("00:00.000", "RUN START file=/Users/me/Downloads/Talk.mp4"),
+    p("00:00.100", "local file mode — skipping download"),
+    p("01:00.000", "summary written via obsidian-copilot: Copilot Summaries/Talk summary.md"),
+    p("01:00.100", "RUN SUCCESS"),
+  ];
+  const out = summarizeVideoPipelineLog(run.join("\n")) as any;
+  assert.equal(out.status, "success");
+  assert.equal(out.file, "/Users/me/Downloads/Talk.mp4");
+  assert.equal("batch" in out, false);
+  assert.match(out.summary, /Copilot Summaries\/Talk summary\.md$/);
+});

@@ -2,7 +2,7 @@ import * as http from "http";
 import * as https from "https";
 import * as os from "os";
 import * as path from "path";
-import { readFileSync, writeFileSync, mkdirSync, chmodSync, existsSync, realpathSync, statSync } from "fs";
+import { readFileSync, writeFileSync, mkdirSync, chmodSync, statSync } from "fs";
 import { createHash, timingSafeEqual, randomBytes } from "crypto";
 import { execFile } from "child_process";
 import { App, TFile, normalizePath } from "obsidian";
@@ -16,6 +16,7 @@ import {
 import { gateCodeFromMessage, gateDenialAction } from "../subprocess/gate-denial";
 import type { LedgerSummary } from "../workflow/post-run-ledger";
 import { compactWorkflowState } from "../workflow/status-compaction";
+import { resolveVideoPipelineSource, type VideoPipelineSource } from "./video-pipeline-source";
 import { summarizeVideoPipelineLog } from "./video-pipeline-status";
 import { refuseBrowserRequest } from "./browser-guard";
 
@@ -42,55 +43,48 @@ function isCommandAllowed(commandId: string): boolean {
 //
 // Security posture (same audit-P0 stance as the command allowlist above): this is NOT an
 // exec primitive. The binary is fixed (/usr/bin/open), arguments are an argv array (no
-// shell), and the only caller-controlled value is a strictly validated http(s) URL or
-// absolute local video path that travels INSIDE the URL-encoded deeplink payload.
+// shell), and the only caller-controlled value is a strictly validated http(s) URL, absolute
+// local video path, or absolute folder path (./video-pipeline-source.ts) that travels INSIDE
+// the URL-encoded deeplink payload.
 const VIDEO_PIPELINE_DEEPLINK_BASE =
   "raycast://extensions/marcjulian/obsidian-bridge-fork/videoTranscribeRunnerCommand";
 const VIDEO_PIPELINE_LOG_SEGMENTS = [".local", "share", "raycast-obsidian", "video-transcribe.log"];
-const VIDEO_FILE_EXTENSIONS = [".mp4", ".mkv", ".webm", ".mov", ".m4v"];
 
 function videoPipelineLogPath(): string {
   return path.join(os.homedir(), ...VIDEO_PIPELINE_LOG_SEGMENTS);
 }
 
-function resolveVideoPipelineSource(raw: unknown): string {
-  const value = typeof raw === "string" ? raw.trim() : "";
-  if (!value) {
-    throw new Error(
-      "videoUrl is required — an http(s) video URL or an absolute local video file path."
+/** What the caller should tell the user after a dispatch, by kind of source. */
+function videoPipelineDispatchMessage(resolved: VideoPipelineSource): string {
+  if (resolved.kind === "folder") {
+    return (
+      `Folder run dispatched through Raycast: the ${resolved.videoCount} video(s) directly inside ` +
+      "the folder are transcribed and summarized ONE AFTER ANOTHER in this single run, each into " +
+      "Copilot Summaries/'<video file name> summary.md'. A video whose summary note already exists " +
+      "is skipped, so running the folder again only picks up new or failed videos. Nothing is " +
+      "downloaded (no Downie click), and the folder's own files are never moved or deleted. Do NOT " +
+      "dispatch another video_pipeline_run until video_pipeline_status shows this run finished: a " +
+      "new dispatch makes this one stop before its next video. Poll video_pipeline_status every " +
+      "~30s; its `batch` field shows the progress. Each video takes about 1-4 minutes."
     );
   }
-  // Explicit NUL reject (previously only incidentally rejected by existsSync, with a mangled message).
-  if (value.includes("\0")) {
-    throw new Error("videoUrl contains a null byte.");
+  if (resolved.kind === "file") {
+    return (
+      "Local video dispatched through Raycast: nothing is downloaded, so the run starts at " +
+      "transcription and needs no click. The finished summary lands in the vault at " +
+      "Copilot Summaries/'<video file name> summary.md'; the video file itself is left where it " +
+      "is. Poll video_pipeline_status every ~20s; typical runs finish in 1-4 minutes."
+    );
   }
-  if (/^https?:\/\//i.test(value)) {
-    const parsed = new URL(value); // throws on malformed input
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      throw new Error(`Unsupported URL scheme: ${parsed.protocol}`);
-    }
-    return value;
-  }
-  const localPath = value.startsWith("file://")
-    ? decodeURIComponent(value.slice("file://".length))
-    : value;
-  if (!path.isAbsolute(localPath)) {
-    throw new Error("Local video paths must be absolute (or pass an http(s) URL).");
-  }
-  if (!VIDEO_FILE_EXTENSIONS.includes(path.extname(localPath).toLowerCase())) {
-    throw new Error(`Local file must be a video (${VIDEO_FILE_EXTENSIONS.join(", ")}).`);
-  }
-  if (!existsSync(localPath)) {
-    throw new Error(`Local video file does not exist: ${localPath}`);
-  }
-  // Canonicalize: resolve symlinks and any ../ segments so the extension receives one true
-  // path, then re-assert the extension on the canonical leaf (a video-named symlink could
-  // otherwise smuggle a non-video target).
-  const canonical = realpathSync(localPath);
-  if (!VIDEO_FILE_EXTENSIONS.includes(path.extname(canonical).toLowerCase())) {
-    throw new Error(`Local file must be a video (${VIDEO_FILE_EXTENSIONS.join(", ")}).`);
-  }
-  return canonical;
+  return (
+    "Video pipeline dispatched through Raycast. Public hosts (e.g. YouTube) download " +
+    "hands-free; login-gated hosts (e.g. LinkedIn Learning) open Downie's UGE window " +
+    "where the HUMAN must click the detected stream once — tell the user to click it. " +
+    "The finished summary lands in the vault at " +
+    "Copilot Summaries/'<video title> summary.md' and intermediates are " +
+    "cleaned up. Poll video_pipeline_status every ~20s; typical runs finish 1-4 " +
+    "minutes after the download starts."
+  );
 }
 
 // Vault Zettelkasten tools: expose the vault-zettelkasten plugin's in-process
@@ -1356,13 +1350,18 @@ export class McpBridgeServer {
   private async handleVideoPipelineRun(
     params: Record<string, unknown>
   ): Promise<Record<string, unknown>> {
-    const source = resolveVideoPipelineSource(params.videoUrl);
+    const resolved = resolveVideoPipelineSource(params.videoUrl);
+    const source = resolved.source;
     const deeplink = `${VIDEO_PIPELINE_DEEPLINK_BASE}?arguments=${encodeURIComponent(
       JSON.stringify({ videoUrl: source })
     )}`;
+    const sourceFacts =
+      resolved.kind === "folder"
+        ? { kind: resolved.kind, videoCount: resolved.videoCount }
+        : { kind: resolved.kind };
 
     if (params.dry_run === true) {
-      return { dispatched: false, dryRun: true, videoUrl: source, deeplink };
+      return { dispatched: false, dryRun: true, videoUrl: source, ...sourceFacts, deeplink };
     }
 
     // Pre-flight: report whether Raycast is up. Non-fatal — /usr/bin/open auto-launches the
@@ -1402,6 +1401,7 @@ export class McpBridgeServer {
       success: true,
       dispatched: true,
       videoUrl: source,
+      ...sourceFacts,
       raycastWasRunning,
       dispatchConfirmed: confirmation.confirmed,
       ...(confirmation.confirmed
@@ -1413,14 +1413,7 @@ export class McpBridgeServer {
               "`npm run dev` once in Copilot-Everything/bridges/raycast-obsidian-extension, then retry. " +
               "A queued replay may still fire late — check video_pipeline_status before re-dispatching.",
           }),
-      message:
-        "Video pipeline dispatched through Raycast. Public hosts (e.g. YouTube) download " +
-        "hands-free; login-gated hosts (e.g. LinkedIn Learning) open Downie's UGE window " +
-        "where the HUMAN must click the detected stream once — tell the user to click it. " +
-        "The finished summary lands in the vault at " +
-        "Copilot Summaries/'<video title> summary.md' and intermediates are " +
-        "cleaned up. Poll video_pipeline_status every ~20s; typical runs finish 1-4 " +
-        "minutes after the download starts.",
+      message: videoPipelineDispatchMessage(resolved),
     };
   }
 
@@ -1872,14 +1865,14 @@ export class McpBridgeServer {
         {
           name: "video_pipeline_run",
           description:
-            "Run the video-to-summary pipeline on a video URL (YouTube, LinkedIn Learning, etc.) or an absolute local video file path. Dispatches the Raycast 'Video Pipeline Runner': the video is downloaded (login-gated hosts like LinkedIn Learning need ONE human click in Downie's UGE window — tell the user to click the detected stream), transcribed from subtitles or from the audio by the configured local transcriber (the run log's `transcription engine:` line names it; video_pipeline_status returns it as `transcriber`), summarized by Copilot's free local relay, and saved to the vault as Copilot Summaries/'<title> summary.md' with all intermediates cleaned up. Returns immediately; poll video_pipeline_status for progress.",
+            "Run the video-to-summary pipeline on a video URL (YouTube, LinkedIn Learning, etc.), an absolute local video file path, or an absolute path to a FOLDER of videos already on disk. Dispatches the Raycast 'Video Pipeline Runner': a URL is downloaded first (login-gated hosts like LinkedIn Learning need ONE human click in Downie's UGE window — tell the user to click the detected stream), a local file or folder is not downloaded at all; each video is transcribed from subtitles or from the audio by the configured local transcriber (the run log's `transcription engine:` line names it; video_pipeline_status returns it as `transcriber`), summarized by Copilot's free local relay, and saved to the vault as Copilot Summaries/'<title> summary.md' with all intermediates cleaned up (the user's own local video files are never deleted). A folder runs every video directly inside it (not subfolders) one after another in ONE run, skipping any video whose summary note already exists. For several local videos, pass their folder ONCE: never call this once per file, because each new dispatch makes the run in progress stop. Returns immediately; poll video_pipeline_status for progress.",
           inputSchema: {
             type: "object",
             properties: {
               videoUrl: {
                 type: "string",
                 description:
-                  "http(s) video URL, or an absolute local video file path (.mp4/.mkv/.webm/.mov/.m4v)",
+                  "http(s) video URL, an absolute local video file path (.mp4/.mkv/.webm/.mov/.m4v), or an absolute folder path (every video directly inside it, one after another)",
               },
               dry_run: {
                 type: "boolean",
@@ -1892,7 +1885,7 @@ export class McpBridgeServer {
         {
           name: "video_pipeline_status",
           description:
-            "Progress of the most recent video pipeline run, read from its durable run log: running/success/failed, the latest stage line, the summary confirmation when finished, and `transcriber`: the transcription engine that actually ran, verbatim from the run's `transcription engine:` line. Report the engine only from `transcriber`. `transcriptionRequested` is what the pipeline asked for (Whisper-style settings), not what ran. Both are absent when the transcript came from subtitles or the run predates 2026-10-15.",
+            "Progress of the most recent video pipeline run, read from its durable run log: running/success/failed, the latest stage line, the summary confirmation when finished, and `transcriber`: the transcription engine that actually ran, verbatim from the run's `transcription engine:` line. Report the engine only from `transcriber`. `transcriptionRequested` is what the pipeline asked for (Whisper-style settings), not what ran. Both are absent when the transcript came from subtitles or the run predates 2026-10-15. A folder run reports `folder` and `batch`: {total, summarized, failed, skipped, remaining, current (the video being worked on), summaries (vault paths), failures ({video, reason})}; it ends `failed` when any one video failed, even though the others were summarized.",
           inputSchema: { type: "object", properties: {} },
         },
         {
