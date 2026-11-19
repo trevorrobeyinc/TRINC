@@ -4,8 +4,10 @@
 //   npm run test:profiles
 //
 // Asserts:
-//   - "raycast" profile lists EXACTLY 10 tools (7 vault + raycast_daily_open +
-//     2 video tools proxied to the Command Center bridge on :8799).
+//   - "raycast" profile lists EXACTLY its 2 video tools (proxied to the Command Center bridge on
+//     :8799), refuses its 8 retired tools by name (the 7 vault tools and raycast_daily_open, retired
+//     2026-11-18: Raycast AI's vault access is the YubiKey-gated "Obsidian Vault" server), and, like
+//     "openclaw", starts with the :8798 config unreadable.
 //   - "openclaw" profile (Claude's one door since 2026-10-23) lists EXACTLY its 15 :8799 tools plus
 //     the 12 allowlisted Viz Studio tools, never offers a Viz property that writes outside
 //     Visualizations/, and refuses one on a call.
@@ -17,9 +19,8 @@
 //     vault assertions still gate the exit code.
 //   - The raycast video tool descriptions are the Command Center's, word for word.
 //
-// Plain node, no dependencies. Requires the same env discovery the adapter uses
-// (bridge config file + mkcert CA); the :8798 daemon does NOT need to be up for
-// the tools/list assertions — listing is local to the adapter.
+// Plain node, no dependencies. Requires the mkcert CA the adapter uses. Neither profile reads the
+// :8798 bridge config since 2026-11-18, and listing is local to the adapter.
 
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -32,7 +33,9 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ADAPTER = resolve(__dirname, "../index.mjs");
 
-const EXPECTED_VAULT = [
+// The raycast profile's tools until 2026-11-18. Each must now be refused by name on that door, because
+// a Raycast holding the old tool snapshot can still call them.
+const RETIRED_RAYCAST = [
   "obsidian_open_vault",
   "obsidian_create_note",
   "obsidian_append_note",
@@ -40,13 +43,9 @@ const EXPECTED_VAULT = [
   "obsidian_search_notes",
   "obsidian_execute_command",
   "obsidian_health",
-];
-const EXPECTED_RAYCAST = [
-  ...EXPECTED_VAULT,
   "raycast_daily_open",
-  "video_pipeline_run",
-  "video_pipeline_status",
 ];
+const EXPECTED_RAYCAST = ["video_pipeline_run", "video_pipeline_status"];
 const DEEPLINK_SHAPE =
   /^raycast:\/\/extensions\/marcjulian\/obsidian-bridge-fork\/videoTranscribeRunnerCommand\?arguments=/;
 const COMMAND_CENTER_HEALTHZ = "https://127.0.0.1:8799/healthz";
@@ -262,8 +261,8 @@ const rejectRequests = [
     id: 6,
     method: "tools/call",
     params: {
-      name: "obsidian_read_note",
-      arguments: { path: "x".repeat(2 * 1024 * 1024) },
+      name: "video_pipeline_run",
+      arguments: { videoUrl: "/" + "x".repeat(2 * 1024 * 1024), dry_run: true },
     },
   },
   {
@@ -316,7 +315,7 @@ try {
   chmodSync(LOCKED_DIR, 0o700);
   rmSync(VIDEO_FIXTURE_DIR, { recursive: true, force: true });
 }
-check("raycast profile lists exactly the 10 aggregated tools", () => {
+check("raycast profile lists exactly its 2 video tools", () => {
   assert.deepEqual(toolNames(raycast), [...EXPECTED_RAYCAST].sort());
 });
 
@@ -593,21 +592,46 @@ for (const [id, label] of [
   });
 }
 
-// (2) Least privilege: the openclaw lane must start and list tools with the :8798 config UNREADABLE.
-// OBSIDIAN_MCP_CONFIG is the first candidate the vault profiles try and it is read + JSON.parsed, so
-// pointing it at a file that is not JSON crashes "raycast" but must not touch "openclaw".
+// (2) Least privilege: both lanes must start and list tools with the :8798 config UNREADABLE.
+// OBSIDIAN_MCP_CONFIG is the first candidate loadBridgeConfig tries, and it is read + JSON.parsed, so a
+// profile that loaded the config would crash on a file that is not JSON. No profile loads it since
+// 2026-11-18 ("openclaw" since 2026-10-07); the negative control below is therefore static.
 const POISON_DIR = mkdtempSync(join(tmpdir(), "stdio-adapter-poison-"));
 const POISON_CONFIG = join(POISON_DIR, "not-a-config.json");
-writeFileSync(POISON_CONFIG, "{ this is not json — the openclaw profile must never read it", "utf8");
+writeFileSync(POISON_CONFIG, "{ this is not json — no profile may ever read it", "utf8");
 try {
   const poisoned = await runAdapter("openclaw", [], { OBSIDIAN_MCP_CONFIG: POISON_CONFIG, ...DEAD_UPSTREAM });
   check("openclaw starts and lists its tools even when the :8798 config is unreadable (it never loads the :8798 token)", () => {
     assert.deepEqual(toolNames(poisoned), [...EXPECTED_OPENCLAW].sort());
   });
-  const controlExit = await runToExit({ ...process.env, OBSIDIAN_STDIO_PROFILE: "raycast", OBSIDIAN_MCP_CONFIG: POISON_CONFIG });
-  check("negative control: the SAME poisoned config does crash the raycast profile (so the check above is meaningful)", () => {
-    assert.notEqual(controlExit.code, 0, "raycast profile unexpectedly survived an unreadable config");
-    assert.notEqual(controlExit.code, "timeout", "raycast profile hung instead of failing on the bad config");
+  // The retired raycast tools are called HERE, with the config poisoned and every upstream dead, so even
+  // a regression in both the name fence and the config switch could not write to the real vault.
+  const retiredCalls = RETIRED_RAYCAST.map((name, i) => ({
+    jsonrpc: "2.0",
+    id: 70 + i,
+    method: "tools/call",
+    params: { name, arguments: { vault: "fixture", path: "fixture.md", content: "fixture", id: "fixture" } },
+  }));
+  const poisonedRaycast = await runAdapter("raycast", retiredCalls, {
+    OBSIDIAN_MCP_CONFIG: POISON_CONFIG,
+    ...DEAD_UPSTREAM,
+  });
+  check("raycast starts and lists only its 2 video tools even when the :8798 config is unreadable", () => {
+    assert.deepEqual(toolNames(poisonedRaycast), [...EXPECTED_RAYCAST].sort());
+  });
+  check("raycast refuses each of its 8 retired tools by name and points at the gated vault server", () => {
+    const wrong = RETIRED_RAYCAST.filter((name, i) => {
+      const res = poisonedRaycast.get(70 + i)?.result;
+      return !(res?.isError === true && resultText(poisonedRaycast, 70 + i).includes(`${name} is no longer served on this door`));
+    });
+    assert.deepEqual(wrong, []);
+  });
+  check("negative control: a profile that loaded the :8798 config would crash on this file (so the checks above are meaningful)", () => {
+    assert.throws(() => JSON.parse(readFileSync(POISON_CONFIG, "utf8")), SyntaxError);
+    const source = readFileSync(ADAPTER, "utf8");
+    const loader = source.slice(source.indexOf("function loadBridgeConfig()"), source.indexOf("const PROFILE ="));
+    assert.match(loader, /const candidates = \[\s*process\.env\.OBSIDIAN_MCP_CONFIG,/, "OBSIDIAN_MCP_CONFIG is no longer the first candidate");
+    assert.match(loader, /JSON\.parse\(readFileSync\(path, "utf8"\)\)/, "loadBridgeConfig no longer parses the file it finds");
   });
 } finally {
   rmSync(POISON_DIR, { recursive: true, force: true });

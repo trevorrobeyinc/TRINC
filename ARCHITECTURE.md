@@ -68,8 +68,8 @@ Obsidian — owns four HTTPS bridges; all of them die when Obsidian quits
 
 Claude's one door (Claude Code, repo .mcp.json "openclaw-obsidian")
 └── stdio adapter, profile openclaw ──> :8799 and :8800   (never loads the :8798 token)
-Raycast chat's door
-└── stdio adapter, profile raycast  ──> :8798 vault tools + :8799 video tools
+Raycast chat's door (video only since 2026-11-18; Raycast AI's vault access is the gated "Obsidian Vault")
+└── stdio adapter, profile raycast  ──> :8799 video tools   (never loads the :8798 token)
 
 Third-party loopback services, each wrapped by an in-repo HTTPS proxy (launchd)
 ├── Miyo     :8743 -> :8742    semantic search over the vault
@@ -243,12 +243,12 @@ Production deploys go through `ops/tr-suite/deploy.sh` only (registry `ops/tr-su
 `obsidianwatch` finding until the operator blesses it.
 
 **Claude's door in detail** (`Copilot-Everything/bridges/obsidian-stdio-adapter/`, profile `openclaw`,
-v0.4.0, 27 tools): run dispatch, status, results, history, artifacts, cancel, citation integrity, delivery
+v0.5.0, 27 tools): run dispatch, status, results, history, artifacts, cancel, citation integrity, delivery
 evidence, memory search, engine health and a restricted vault publish on `:8799`; read-only
 `obsidian_search_notes` / `obsidian_read_note`; the 12 `viz_*` renders on `:8800`, with `folder`,
 `targetNote`, `targetCanvas`, `useActiveTab`, `useActiveNote` and `overwrite` stripped and refused so
 renders land only in `Visualizations/`. No create, append or command execution. Regression guard:
-`npm run test:profiles` (52 checks).
+`npm run test:profiles` (61 checks with Obsidian open, 2026-11-18).
 
 ---
 
@@ -313,6 +313,7 @@ curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.
 | **Ollama model warmer** (`Copilot-Everything/scripts/ollama-preload.sh`, launchd label `com.trevorrobey.ollama-preload`) | Removed 2026-11-04 by operator decision: no plist was installed, nothing called it, and its model is not installed. The `:11435` TLS proxy is separate and stays. |
 | **Claude → opencode delegation worker** (`opencode-mcp`, `_opencode-bridge/`, the repo `AGENTS.md` mirrors) | Retired 2026-10-23. `~/.config/opencode/` stays: it is the Copilot agent's opencode configuration. |
 | **Stdio adapter `claude` profile** and `Copilot-Everything/.mcp.json` `obsidian-bridge` | Retired 2026-10-23 (unused; was an ungated write lane). |
+| **Stdio adapter `raycast` profile's vault tools** (the 7 `obsidian_*` tools and `raycast_daily_open`) | Retired 2026-11-18 by operator decision: an ungated write lane around the YubiKey-gated `Obsidian Vault` server, Raycast AI's only vault access since 2026-10-16 (Security Everything `mcp-gates/OBSIDIAN-VAULT-GATE.md`). The profile keeps the two video tools and no longer loads the `:8798` config; `npm run test:profiles` refuses each retired tool by name. If Raycast chat needs a vault write, it arms that server's session. |
 | **Engine `viz-bridge-mcp` adapter** | Retired 2026-10-23, never called. Registry tombstone `viz-bridge`. |
 | **Engine adapters `chembl-mcp`, `clinicaltrials-mcp`, `pubmed-mcp`, `huggingface-mcp`, `npi-mcp`, `icd10-mcp`, `owkin-mcp`** | Removed 2026-11-04, never called (added 2026-04-27). Registry: `pubmed` and `clinicaltrials-gov` re-pointed at ToolUniverse; the other five are tombstones. |
 | **`:8798` `research_publish`**, `scripts/publish-to-vault.js`, `scripts/atlas-stub-creator.js` | Tombstoned 2026-09-22, removed 2026-10-23. The engine writes run notes itself. |

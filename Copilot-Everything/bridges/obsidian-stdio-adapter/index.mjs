@@ -5,10 +5,14 @@
 // obsidian-mcp-stdio, and raycast-obsidian-stdio.
 //
 // Profiles (OBSIDIAN_STDIO_PROFILE env, required — there is no default):
-//   "raycast"           — Raycast chat's door: the 7 standard obsidian_* tools, plus
-//                         raycast_daily_open (mapped locally to obsidian_execute_command
-//                         id="daily-notes") and video_pipeline_run/_status, proxied to
-//                         the Command Center bridge on :8799 (separate daemon, unmodified)
+//   "raycast"           — Raycast chat's video door: video_pipeline_run/_status ONLY, proxied
+//                         to the Command Center bridge on :8799 (separate daemon, unmodified).
+//                         Its 7 obsidian_* vault tools and raycast_daily_open were retired
+//                         2026-11-18 (operator decision): Raycast AI reads and writes the vault
+//                         through Security Everything's YubiKey-gated "Obsidian Vault" server
+//                         (mcp-gates/OBSIDIAN-VAULT-GATE.md, decision of 2026-10-16), and an
+//                         ungated write lane here would go around it. Never loads the :8798
+//                         config or token.
 //   "openclaw"          — Claude's one door into Obsidian (dispatch lane added 2026-10-07,
 //                         widened 2026-10-23 per TRINC reorg decision D5): run dispatch,
 //                         status and results plus read-only vault search/read on :8799,
@@ -72,11 +76,12 @@ if (PROFILE !== "raycast" && PROFILE !== "openclaw") {
   );
 }
 
-// The "openclaw" profile talks ONLY to the Command Center (:8799) and Viz Studio (:8800) bridges and
-// never to the canonical vault bridge (:8798), so it must not even load that bridge's config: the
-// file carries the :8798 auth token, and a lane that cannot use a secret should not hold it (least
-// privilege, 2026-10-07). "raycast" behaves exactly as before.
-const USES_VAULT_BRIDGE = PROFILE !== "openclaw";
+// Neither profile talks to the canonical vault bridge (:8798), so neither loads that bridge's config:
+// the file carries the :8798 auth token, and a lane that cannot use a secret should not hold it (least
+// privilege; "openclaw" since 2026-10-07, "raycast" since its trim to the video tools on 2026-11-18).
+// The :8798 client code below (callBridge, buildBridgePayload, BASE_TOOLS, RAYCAST_DAILY_OPEN_TOOL)
+// is therefore unreachable: handleToolCall refuses every name outside a profile's allowlist.
+const USES_VAULT_BRIDGE = false;
 const config = USES_VAULT_BRIDGE ? loadBridgeConfig() : null;
 if (config && !config.transport.tls) {
   throw new Error(
@@ -1168,13 +1173,7 @@ async function handleOpenclawCall(name, args) {
   }
 }
 
-const TOOLS =
-  PROFILE === "openclaw"
-    ? OPENCLAW_TOOLS
-    : [
-        ...BASE_TOOLS,
-        ...(PROFILE === "raycast" ? [RAYCAST_DAILY_OPEN_TOOL, ...VIDEO_TOOLS] : []),
-      ];
+const TOOLS = PROFILE === "openclaw" ? OPENCLAW_TOOLS : VIDEO_TOOLS;
 
 // ---------------------------------------------------------------------------
 // Startup health check (non-blocking, warns on stderr)
@@ -1208,7 +1207,7 @@ async function checkCommandCenterHealth() {
 }
 
 async function checkBridgeHealth() {
-  if (PROFILE === "openclaw") return checkCommandCenterHealth();
+  if (!USES_VAULT_BRIDGE) return checkCommandCenterHealth();
   try {
     const resp = await fetch(`${BRIDGE_BASE_URL}/healthz`, {
       signal: AbortSignal.timeout(3000),
@@ -1235,7 +1234,7 @@ async function checkBridgeHealth() {
 // ---------------------------------------------------------------------------
 
 const server = new Server(
-  { name: "obsidian-stdio-adapter", version: "0.4.0" },
+  { name: "obsidian-stdio-adapter", version: "0.5.0" },
   { capabilities: { tools: {} } }
 );
 
@@ -1266,7 +1265,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   // server's stderr into their own managed logs. Never log argument values.
   const upstream = PROFILE === "openclaw" && VIZ_TOOL_SET.has(name)
     ? 8800
-    : PROFILE === "openclaw" || VIDEO_TOOL_NAMES.has(name) ? 8799 : 8798;
+    : PROFILE === "openclaw" || VIDEO_TOOL_NAMES.has(name) ? 8799 : "none";
   process.stderr.write(
     `[obsidian-stdio-adapter:${PROFILE}] call tool=${name} upstream=${upstream} ` +
       `status=${result.isError ? "error" : "ok"} latency_ms=${Date.now() - startedAt}\n`,
@@ -1287,66 +1286,41 @@ async function handleToolCall(name, args) {
   // even the shared name `obsidian_health` is answered by the :8799 daemon there.
   if (PROFILE === "openclaw") return await handleOpenclawCall(name, args);
 
-  const isKnownStandardTool = Object.prototype.hasOwnProperty.call(TOOL_OPERATION_MAP, name);
-  const isRaycastTool = PROFILE === "raycast" && name === "raycast_daily_open";
-  const isVideoTool = PROFILE === "raycast" && VIDEO_TOOL_NAMES.has(name);
-
-  if (!isKnownStandardTool && !isRaycastTool && !isVideoTool) {
+  // The raycast profile serves the two video tools and nothing else (2026-11-18). A Raycast that still
+  // holds the old ten-tool snapshot may call a retired vault tool by name: refuse it here, by name,
+  // and say where the vault went, so nothing reaches :8798 from this door.
+  if (!VIDEO_TOOL_NAMES.has(name)) {
+    const retired =
+      Object.prototype.hasOwnProperty.call(TOOL_OPERATION_MAP, name) || name === "raycast_daily_open";
     return {
-      content: [{ type: "text", text: `Unknown tool: ${name}` }],
+      content: [
+        {
+          type: "text",
+          text: retired
+            ? `${name} is no longer served on this door (retired 2026-11-18): Raycast AI reaches the vault ` +
+              'through the YubiKey-gated "Obsidian Vault" server.'
+            : `Unknown tool: ${name}`,
+        },
+      ],
       isError: true,
     };
   }
 
   // Video pipeline tools are proxied to the Command Center bridge (:8799),
   // after client-edge input validation for the run tool.
-  if (isVideoTool) {
-    if (name === "video_pipeline_run") {
-      const violation = validateVideoSource((args || {}).videoUrl);
-      if (violation) {
-        return {
-          content: [{ type: "text", text: `Rejected by adapter input validation: ${violation}` }],
-          isError: true,
-        };
-      }
-    }
-    try {
-      return await callCommandCenter(name, args || {});
-    } catch (err) {
-      return { content: [{ type: "text", text: `Adapter error: ${err.message}` }], isError: true };
+  if (name === "video_pipeline_run") {
+    const violation = validateVideoSource((args || {}).videoUrl);
+    if (violation) {
+      return {
+        content: [{ type: "text", text: `Rejected by adapter input validation: ${violation}` }],
+        isError: true,
+      };
     }
   }
-
-  // raycast_daily_open is a profile-local helper that maps to
-  // obsidian_execute_command id="daily-notes". The daemon is not modified.
-  if (isRaycastTool) {
-    try {
-      const a = args || {};
-      const payload = buildBridgePayload("obsidian_execute_command", {
-        vault: a.vault || DEFAULT_VAULT,
-        id: "daily-notes",
-      });
-      const result = await callBridge(payload);
-      return toMcpResult(result);
-    } catch (err) {
-      return { content: [{ type: "text", text: `Adapter error: ${err.message}` }], isError: true };
-    }
-  }
-
   try {
-    const payload = buildBridgePayload(name, args || {});
-    const result = await callBridge(payload);
-    return toMcpResult(result);
+    return await callCommandCenter(name, args || {});
   } catch (err) {
-    return {
-      content: [
-        {
-          type: "text",
-          text: `Adapter error: ${err.message}`,
-        },
-      ],
-      isError: true,
-    };
+    return { content: [{ type: "text", text: `Adapter error: ${err.message}` }], isError: true };
   }
 }
 

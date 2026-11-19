@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.5.0 — 2026-11-18 — the `raycast` profile is a video-only door
+
+Operator decision, 2026-11-18: Raycast AI reads and writes the vault only through Security
+Everything's YubiKey-gated `Obsidian Vault` server (its decision of 2026-10-16,
+`mcp-gates/OBSIDIAN-VAULT-GATE.md`), and this profile's vault tools were an ungated write lane
+around it. The `openclaw` surface is unchanged (27 tools).
+
+- **Removed (raycast):** the 7 `obsidian_*` vault tools and `raycast_daily_open`. A Raycast that
+  still holds the old snapshot gets each one refused by name, with a pointer to the gated server;
+  nothing reaches `:8798` from this door. Re-register the server in Raycast (as `Video Pipeline`).
+- **Changed:** neither profile loads the `:8798` bridge config or its auth token any more
+  (`USES_VAULT_BRIDGE` is false); the startup health check of `raycast` probes `:8799`. The `:8798`
+  client code stays in `index.mjs`, unreachable.
+- **Tests:** `raycast` lists exactly its 2 tools, starts with the `:8798` config poisoned, and
+  refuses all 8 retired tools (called with the config poisoned and every upstream dead, so no
+  regression could write to the vault); the negative control is static now, since no profile
+  reads the config. 61 checks with Obsidian open.
+
 ## 2026-11-18 — folder input on the `raycast` profile (version stays 0.4.0)
 
 No tool added, removed or renamed; every profile surface is unchanged.

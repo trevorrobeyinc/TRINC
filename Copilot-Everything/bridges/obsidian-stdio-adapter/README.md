@@ -2,6 +2,12 @@
 
 Stdio MCP adapter that tunnels tool calls to a **canonical Obsidian bridge daemon** running over HTTPS with HMAC + replay-guard, instead of letting every MCP client maintain its own Obsidian connection. Lets Claude Code, Claude Desktop, Qwen Chat, Raycast (or any MCP host) all share one bridge — single auth surface, single audit log, single point to swap out backends.
 
+> **Since 2026-11-18 no profile uses the `:8798` path described below.** `openclaw` talks to `:8799` and
+> `:8800`; `raycast` serves the two video tools on `:8799`, because its vault tools were retired by
+> operator decision (Raycast AI's vault access is Security Everything's YubiKey-gated `Obsidian Vault`
+> server). The `:8798` client code is still in `index.mjs`, unreachable, and neither profile loads its
+> config or token.
+
 ## What it talks to
 
 The bridge daemon's HTTPS endpoint is configured in a single local file (`obsidian-cli-mcp.local.json`) that lives outside this package. The adapter reads it at startup to discover the daemon URL, mkcert CA path, and HMAC auth token. The daemon (separate codebase) routes each call to the **Obsidian Local REST API plugin** (or another configured backend) and returns the result.
@@ -43,11 +49,15 @@ profile here instead.
 
 | Profile | Tools | Upstream |
 |---|---|---|
-| `raycast` | the 7 canonical `obsidian_*` tools + `raycast_daily_open` (local map to `obsidian_execute_command id="daily-notes"`) + `video_pipeline_run` / `video_pipeline_status` | vault tools → `:8798` canonical bridge (HMAC + replay-guard, token from the bridge config file); video tools → `:8799` Command Center bridge (`Authorization: Bearer`, token read per-call from `~/.config/openclaw-command-center/bridge-token`) |
+| `raycast` (0.5.0) | **Raycast chat's video door**, 2 tools: `video_pipeline_run` / `video_pipeline_status`. Its 7 `obsidian_*` vault tools and `raycast_daily_open` were retired 2026-11-18 and are refused by name | `:8799` Command Center bridge (`Authorization: Bearer`, token read per-call from `~/.config/openclaw-command-center/bridge-token`). Never loads the `:8798` config or its auth token. |
 | `openclaw` (0.4.0) | **Claude's one door**, 27 tools: `obsidian_health`, 12 `obsidian_openclaw_*` tools (start/watch/cancel a research run, read results, history, artifacts, citation integrity, memory search, engine health, delivery evidence, a restricted `publish_vault`), read-only `obsidian_search_notes` + `obsidian_read_note`, and the 12 `viz_*` renders | `:8799` Command Center bridge and `:8800` Viz Studio bridge (`Authorization: Bearer`, each token read per-call; Viz's from `~/.config/trinc-viz-studio/bridge-token`). Never loads the `:8798` config or its auth token. |
 
 The `raycast` profile's surface is **frozen**: Raycast's tool list must never change as a
-side effect of work on another profile. The `claude` profile (the 7 vault tools for Claude
+side effect of work on another profile. It changed once on purpose, by operator decision on
+2026-11-18: the 7 vault tools and `raycast_daily_open` were an ungated write lane into the vault
+around Security Everything's YubiKey-gated `Obsidian Vault` server, Raycast AI's only vault
+access since 2026-10-16 (`mcp-gates/OBSIDIAN-VAULT-GATE.md`), so only the two video tools stay.
+Never add vault tools back to this profile. The `claude` profile (the 7 vault tools for Claude
 Desktop) was **retired 2026-10-23**: no Claude surface had registered it since 2026-10-07, and
 its last entry (`Copilot-Everything/.mcp.json` `obsidian-bridge`) was an ungated write lane
 into the vault. Asking for it now refuses to start. `npm run test:profiles` asserts both
@@ -115,9 +125,10 @@ solely so tests can point a proxy at a dead port.
 1. Add its definition next to `VIDEO_TOOLS`/`RAYCAST_DAILY_OPEN_TOOL` in `index.mjs`
    (mirror the upstream daemon's schema verbatim, with a provenance comment).
 2. Gate it into `TOOLS` under the right profile conditional.
-3. Route it in `handleToolCall` (or `handleOpenclawCall`) — either through `callBridge`
-   (`:8798` operations) or `callBridgeTool(COMMAND_CENTER | VIZ_STUDIO, …)` (`:8799` / `:8800`
-   MCP tools/call). A new upstream is one more descriptor object like `VIZ_STUDIO`.
+3. Route it in `handleToolCall` (or `handleOpenclawCall`) through
+   `callBridgeTool(COMMAND_CENTER | VIZ_STUDIO, …)` (`:8799` / `:8800` MCP tools/call). A new
+   upstream is one more descriptor object like `VIZ_STUDIO`. `callBridge` (`:8798`) serves no
+   profile since 2026-11-18, and a vault tool on `raycast` is a retired decision (above).
 4. Update the table above and extend `scripts/test-profiles.mjs`'s expected set —
    the test fails on any surface drift, which is the point.
 
@@ -197,7 +208,10 @@ this adapter; it reaches the vault through FilesystemPlus and miyo.
 Raycast's Install Server form takes a command with no environment fields, so register
 `raycast-launch.sh` (it sets `OBSIDIAN_STDIO_PROFILE=raycast` and the CA). After changing its
 tools, remove and re-add the server in Raycast: Raycast answers from a tool snapshot it took
-at install time.
+at install time. Register it under the name `Video Pipeline` (chosen 2026-11-18); the August
+entry was named `obsidian-vault`. Do not confuse either with `Obsidian Vault`, Security
+Everything's gated vault server (command `/usr/bin/python3` running `mcp-gates/raycast_fs_gate.py`),
+which stays.
 
 ## License
 

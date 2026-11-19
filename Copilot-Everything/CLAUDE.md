@@ -12,7 +12,7 @@ the repo-wide invariants are in the root [`../CLAUDE.md`](../CLAUDE.md).
 |---|---|---|---|
 | Copilot plugin fork | `repos/obsidian-copilot-mcp-v4` | — | Upstream obsidian-copilot **4.0.0** plus an MCP client module, deployed as plugin id `copilot`. A catalog of 45 MCP tools (`src/mcp/catalog.ts`) reaches `:8798`, `:8799` and `:8800`. Chat defaults to hosted `copilot-plus-flash`; agent mode runs on an opencode backend. |
 | Canonical vault bridge | `bridges/obsidian-copilot-bridge` | 8798 | The multi-client vault daemon, spawned by the `obsidian-bridge-launcher` plugin. **REST-only**: the Local REST API plugin (`:27124`) is its only backend, with no fallback. `/mcp/tool`'s optional `backendHint` accepts only `"restApi"` (a stale `"cli"` is rejected with HTTP 400). HTTPS with bearer token and replay guard. |
-| Stdio adapter | `bridges/obsidian-stdio-adapter` | — | One tool surface per client, profile required: `openclaw` is **Claude's one door** (`:8799` + `:8800`, see its README), `raycast` is Raycast chat's door. |
+| Stdio adapter | `bridges/obsidian-stdio-adapter` | — | One tool surface per client, profile required: `openclaw` is **Claude's one door** (`:8799` + `:8800`, see its README), `raycast` is Raycast chat's video door (the two video tools only, since 2026-11-18). |
 | Copilot agent proxy | `bridges/openclaw-stdio-proxy` | — | Deployed inside the copilot plugin; carries the agent's tool calls to `:8799` and `:8800`. Tools must answer within its 8 s request timeout. |
 | HTTPS proxies | `scripts/{miyo,qdrant,searxng}-tls-proxy.mjs` | 8743, 6433, 8891 | Wrap Miyo `:8742`, Qdrant `:6333` and SearXNG `:8890`. launchd runs staged copies: re-run `scripts/install-tls-proxies.sh` after any edit. The Ollama proxy (`:11435`) was retired 2026-11-12 with Ollama itself. |
 
@@ -80,9 +80,12 @@ rebuild.
 
 ## Raycast
 
-Raycast chat's vault access is the adapter's `raycast` profile, registered in Raycast through
-`bridges/obsidian-stdio-adapter/raycast-launch.sh`. Raycast answers from a tool snapshot taken at install
-time, so after any tool change remove and re-add the server there. The Raycast extension and its Copilot
+Raycast chat reaches the video pipeline through the adapter's `raycast` profile (the two video tools only,
+since 2026-11-18), registered in Raycast through `bridges/obsidian-stdio-adapter/raycast-launch.sh`. Its
+vault access is Security Everything's YubiKey-gated `Obsidian Vault` server (operator decision 2026-10-16);
+the profile's own vault tools were retired on 2026-11-18 because they were an ungated write lane around it,
+so never add them back. Raycast answers from a tool snapshot taken at install time, so after any tool
+change remove and re-add the server there. The Raycast extension and its Copilot
 Plus relay provider moved to `~/Code/raycast-obsidian-bridge-fork` on 2026-10-23; the relay shares the
 Copilot Plus licence key with Obsidian, so rotating one means rotating both.
 

@@ -1,6 +1,6 @@
 {
   "name": "@trevoralexanderrobey/obsidian-bridge-adapter",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Stdio MCP adapter that tunnels to a canonical Obsidian bridge daemon (HTTPS + HMAC + replay-guard). Lets any MCP client (Claude Code, Claude Desktop, Qwen Chat, Raycast) talk to one Obsidian bridge instead of running its own — keeping vault access auth-protected and the operator topology unified.",
   "type": "module",
   "main": "index.mjs",
