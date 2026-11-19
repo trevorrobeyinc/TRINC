@@ -136,6 +136,17 @@ independently re-validate.
   clean `isError` naming the violation. To extend the list: edit the const,
   extend `scripts/test-profiles.mjs`, and update this section — all three in the
   same change.
+- **Folder input** (since 2026-11-18, Command Center's folder mode): an absolute
+  path without a video extension passes only when `stat` says it is a folder; the
+  daemon then canonicalizes it and requires at least one video directly inside.
+  A missing path is refused here (`No such file or folder`), and an existing
+  non-video file still is (`Local file must be a video`). A path this process may
+  not `stat` (EPERM/EACCES: macOS privacy controls can deny Raycast's child a
+  folder Obsidian may read, such as one on an external drive) is left to the
+  daemon, which re-validates every input.
+- **Mirrored descriptions**: the two video tool definitions are copied from
+  `Claude/obsidian-command-center/src/bridge/mcp-bridge-server.ts` word for word,
+  and `scripts/test-profiles.mjs` fails when one is not in that source verbatim.
 - **Argument size cap** (`MAX_ARGS_BYTES`): every tool call on every profile is
   rejected if its serialized arguments exceed 1 MB — protects against runaway or
   buggy client payloads before any network call.

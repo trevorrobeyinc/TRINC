@@ -11,9 +11,11 @@
 //     Visualizations/, and refuses one on a call.
 //   - The retired "claude" profile, and a missing profile, refuse to start.
 //   - When the Command Center bridge is reachable, a dry_run video_pipeline_run
-//     through the adapter returns a deeplink of the expected shape (no dispatch).
-//     When it is not reachable (Obsidian closed), that check is SKIPPED loudly
-//     and the vault assertions still gate the exit code.
+//     through the adapter returns a deeplink of the expected shape (no dispatch),
+//     for a URL and for a folder of videos (folder mode, 2026-11-18). When it is
+//     not reachable (Obsidian closed), those checks are SKIPPED loudly and the
+//     vault assertions still gate the exit code.
+//   - The raycast video tool descriptions are the Command Center's, word for word.
 //
 // Plain node, no dependencies. Requires the same env discovery the adapter uses
 // (bridge config file + mkcert CA); the :8798 daemon does NOT need to be up for
@@ -21,7 +23,7 @@
 
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import * as nodeHttps from "node:https";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -198,8 +200,44 @@ const vizUp = await bridgeUp(VIZ_HEALTHZ);
 // Inert placeholder id on an allowlisted host — the deeplink-shape check does
 // not care about URL contents, and nothing is dispatched (dry_run).
 const FIXTURE_URL = "https://www.youtube.com/watch?v=test-fixture-0000";
+// Folder mode (2026-11-18): a throwaway folder holding one empty video and one non-video file.
+// The daemon's folder check reads only names and file types, so an empty clip.mp4 counts as one
+// video; nothing is dispatched (dry_run) and the folder is removed after the raycast run.
+const VIDEO_FIXTURE_DIR = mkdtempSync(join(tmpdir(), "adapter-video-folder-"));
+writeFileSync(join(VIDEO_FIXTURE_DIR, "clip.mp4"), "");
+writeFileSync(join(VIDEO_FIXTURE_DIR, "notes.txt"), "not a video\n");
+// What the daemon sends on (it canonicalizes with realpathSync: /var/folders/... is
+// /private/var/folders/... on macOS), read now because the folder is gone by check time.
+const VIDEO_FIXTURE_DIR_REAL = realpathSync(VIDEO_FIXTURE_DIR);
+// A path the adapter may not stat (macOS privacy controls can deny Raycast's child a folder that
+// Obsidian reads, such as one on an external drive): the edge cannot tell, so the daemon decides.
+// A mode-000 parent makes stat fail with EACCES. The folder count skips it (no video extension).
+const LOCKED_DIR = join(VIDEO_FIXTURE_DIR, "locked");
+mkdirSync(LOCKED_DIR);
+chmodSync(LOCKED_DIR, 0o000);
+// Sent whether or not :8799 is up: both must pass the adapter's edge either way.
+const edgePassRequests = [
+  {
+    jsonrpc: "2.0",
+    id: 9,
+    method: "tools/call",
+    params: {
+      name: "video_pipeline_run",
+      arguments: { videoUrl: VIDEO_FIXTURE_DIR, dry_run: true },
+    },
+  },
+  {
+    jsonrpc: "2.0",
+    id: 11,
+    method: "tools/call",
+    params: {
+      name: "video_pipeline_run",
+      arguments: { videoUrl: join(LOCKED_DIR, "inner"), dry_run: true },
+    },
+  },
+];
 // Input-validation rejects happen inside the adapter BEFORE any :8799 call,
-// so these three assertions run regardless of whether the bridge is up.
+// so these assertions run regardless of whether the bridge is up.
 const rejectRequests = [
   {
     jsonrpc: "2.0",
@@ -228,6 +266,33 @@ const rejectRequests = [
       arguments: { path: "x".repeat(2 * 1024 * 1024) },
     },
   },
+  {
+    jsonrpc: "2.0",
+    id: 7,
+    method: "tools/call",
+    params: {
+      name: "video_pipeline_run",
+      arguments: { videoUrl: join(VIDEO_FIXTURE_DIR, "notes.txt"), dry_run: true },
+    },
+  },
+  {
+    jsonrpc: "2.0",
+    id: 8,
+    method: "tools/call",
+    params: {
+      name: "video_pipeline_run",
+      arguments: { videoUrl: "Videos/clip.mp4", dry_run: true },
+    },
+  },
+  {
+    jsonrpc: "2.0",
+    id: 10,
+    method: "tools/call",
+    params: {
+      name: "video_pipeline_run",
+      arguments: { videoUrl: join(VIDEO_FIXTURE_DIR, "missing-folder"), dry_run: true },
+    },
+  },
 ];
 const extra = ccUp
   ? [
@@ -240,10 +305,17 @@ const extra = ccUp
           arguments: { videoUrl: FIXTURE_URL, dry_run: true },
         },
       },
+      ...edgePassRequests,
       ...rejectRequests,
     ]
-  : rejectRequests;
-const raycast = await runAdapter("raycast", extra);
+  : [...edgePassRequests, ...rejectRequests];
+let raycast;
+try {
+  raycast = await runAdapter("raycast", extra);
+} finally {
+  chmodSync(LOCKED_DIR, 0o700);
+  rmSync(VIDEO_FIXTURE_DIR, { recursive: true, force: true });
+}
 check("raycast profile lists exactly the 10 aggregated tools", () => {
   assert.deepEqual(toolNames(raycast), [...EXPECTED_RAYCAST].sort());
 });
@@ -259,11 +331,40 @@ if (ccUp) {
     assert.match(payload.deeplink ?? "", DEEPLINK_SHAPE);
     console.log(`      deeplink: ${payload.deeplink}`);
   });
+  // Proves the running daemon is the folder-mode build: an older one refuses a folder.
+  check("live :8799: dry_run on a folder reports kind folder, its video count and its canonical path", () => {
+    const res = raycast.get(9)?.result;
+    assert.ok(res, "no result for tools/call id 9");
+    assert.notEqual(res.isError, true, `tool returned isError: ${JSON.stringify(res).slice(0, 300)}`);
+    const payload = JSON.parse(res.content?.[0]?.text ?? "{}");
+    assert.equal(payload.dryRun, true, "expected dryRun:true");
+    assert.equal(payload.dispatched, false, "dry run must not dispatch");
+    assert.equal(payload.kind, "folder");
+    assert.equal(payload.videoCount, 1, "clip.mp4 is the only video; notes.txt must not count");
+    assert.match(payload.deeplink ?? "", DEEPLINK_SHAPE);
+    const sent = JSON.parse(decodeURIComponent(payload.deeplink.split("?arguments=")[1]));
+    assert.equal(sent.videoUrl, VIDEO_FIXTURE_DIR_REAL);
+  });
 } else {
   console.log(
-    "SKIP  dry_run deeplink check — Command Center bridge (:8799) unreachable (is Obsidian open?)",
+    "SKIP  dry_run deeplink checks (URL and folder) — Command Center bridge (:8799) unreachable (is Obsidian open?)",
   );
 }
+check("an absolute folder path passes the adapter's client edge", () => {
+  const res = raycast.get(9)?.result;
+  assert.ok(res, "no result for tools/call id 9");
+  const text = res.content?.[0]?.text ?? "";
+  assert.ok(!text.startsWith("Rejected by adapter input validation"), `refused at the edge: ${text.slice(0, 200)}`);
+});
+check("a path the adapter cannot stat (EACCES) is left to the daemon, which still refuses it", () => {
+  const res = raycast.get(11)?.result;
+  assert.ok(res, "no result for tools/call id 11");
+  const text = res.content?.[0]?.text ?? "";
+  assert.ok(!text.startsWith("Rejected by adapter input validation"), `refused at the edge: ${text.slice(0, 200)}`);
+  // With :8799 up the daemon refuses it (it cannot stat it either); with :8799 down the call fails.
+  assert.equal(res.isError, true, `expected isError:true, got: ${JSON.stringify(res).slice(0, 200)}`);
+  console.log(`      answered: ${text.slice(0, 160)}`);
+});
 
 // --- input-validation guardrails (adapter-local, no bridge required) ---------
 function assertReject(id, label, phrase) {
@@ -281,6 +382,9 @@ function assertReject(id, label, phrase) {
 assertReject(4, "http:// video URL rejected with scheme error", "URL scheme must be https");
 assertReject(5, "non-allowlisted host rejected with hostname error", "hostname not in allowlist: evil.example.com");
 assertReject(6, "2 MB argument payload rejected with size error", "arguments exceed 1 MB limit");
+assertReject(7, "an existing non-video file is still rejected", "Local file must be a video");
+assertReject(8, "a relative video path is rejected", "Local video paths must be absolute");
+assertReject(10, "a missing folder is rejected at the edge", "No such file or folder:");
 
 // --- openclaw profile: Claude Code's dispatch lane (added 2026-10-07) --------
 //
@@ -535,6 +639,22 @@ check("the Command Center source supports dry_run on run_workflow and post_run_d
   const source = readFileSync(CC_SOURCE, "utf8");
   assert.ok(source.includes("params.dry_run === true"), "dry_run handling missing from handleRunWorkflow");
   assert.ok(source.includes("post_run_done"), "post_run_done missing from handleGetStatus");
+});
+// The raycast video tools are mirrored word for word (2026-11-18: the folder-mode change reached the
+// bridge but not this mirror, and no check noticed). Each description is a one-line double-quoted
+// literal in the bridge source, so its JSON form must appear there verbatim.
+check("every raycast video tool description is the Command Center source's, word for word", () => {
+  const source = readFileSync(CC_SOURCE, "utf8");
+  const tools = (raycast.get(2)?.result?.tools ?? []).filter((t) => t.name.startsWith("video_pipeline_"));
+  assert.equal(tools.length, 2, "expected video_pipeline_run and video_pipeline_status");
+  const drifted = [];
+  for (const t of tools) {
+    if (!source.includes(JSON.stringify(t.description))) drifted.push(t.name);
+    for (const [key, prop] of Object.entries(t.inputSchema.properties ?? {})) {
+      if (!source.includes(JSON.stringify(prop.description))) drifted.push(`${t.name}.${key}`);
+    }
+  }
+  assert.deepEqual(drifted, []);
 });
 
 // (4) Live checks against a reachable :8799. Read-only except the dry_run, which is sent only after

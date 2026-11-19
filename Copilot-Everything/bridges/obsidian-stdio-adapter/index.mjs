@@ -26,7 +26,7 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { createHash, randomUUID } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import * as nodeHttps from "node:https";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -224,12 +224,15 @@ const VIDEO_FILE_EXTENSIONS = [".mp4", ".mkv", ".webm", ".mov", ".m4v"];
  * (rendered as a clean isError result) or null when acceptable. The :8799
  * daemon re-validates independently; this guardrail just refuses obviously
  * out-of-contract input before it leaves the adapter. Local absolute video
- * paths remain valid — they are part of the tool's documented input contract.
+ * paths remain valid — they are part of the tool's documented input contract —
+ * and since 2026-11-18 so is an absolute FOLDER path: the daemon's folder mode
+ * (Claude/obsidian-command-center/src/bridge/video-pipeline-source.ts) runs every
+ * video directly inside it, one after another, in one run.
  */
 function validateVideoSource(raw) {
   const value = typeof raw === "string" ? raw.trim() : "";
   if (!value) {
-    return "videoUrl is required — an https video URL from an allowlisted host, or an absolute local video file path.";
+    return "videoUrl is required — an https video URL from an allowlisted host, an absolute local video file path, or an absolute path to a folder of videos.";
   }
   if (value.includes("://")) {
     let parsed;
@@ -249,10 +252,25 @@ function validateVideoSource(raw) {
   if (!value.startsWith("/")) {
     return "Local video paths must be absolute (or pass an https URL from an allowlisted host).";
   }
-  if (!VIDEO_FILE_EXTENSIONS.some((ext) => value.toLowerCase().endsWith(ext))) {
-    return `Local file must be a video (${VIDEO_FILE_EXTENSIONS.join(", ")}).`;
+  // A video file: a single-video run, exactly as before folders were accepted.
+  if (VIDEO_FILE_EXTENSIONS.some((ext) => value.toLowerCase().endsWith(ext))) {
+    return null;
   }
-  return null;
+  // Folder mode: anything else passes this edge only as a folder of videos. The :8799 daemon
+  // re-validates it (canonical path, at least one video directly inside, subfolders not searched).
+  let stats;
+  try {
+    stats = statSync(value);
+  } catch (err) {
+    // Unreadable is not out of contract: macOS privacy controls can deny this process (Raycast's
+    // child) a folder that Obsidian may read, such as one on an external drive, so the daemon decides.
+    if (err?.code === "EPERM" || err?.code === "EACCES") return null;
+    return err?.code === "ENOENT"
+      ? `No such file or folder: ${value.slice(0, 200)}`
+      : `Not a usable folder path (${err?.code ?? "unknown error"}): ${value.slice(0, 200)}`;
+  }
+  if (stats.isDirectory()) return null;
+  return `Local file must be a video (${VIDEO_FILE_EXTENSIONS.join(", ")}) or a folder of videos.`;
 }
 
 function loadBridgeToken(upstream) {
@@ -583,20 +601,21 @@ const RAYCAST_DAILY_OPEN_TOOL = {
 };
 
 // Mirrored from Claude/obsidian-command-center/src/bridge/mcp-bridge-server.ts
-// (its tools/list entries for the video pipeline). Keep in sync by hand — same
-// precedent as the Copilot fork mirroring bridge tool schemas.
+// (its tools/list entries for the video pipeline). Keep in sync by hand, word for word:
+// scripts/test-profiles.mjs fails when a description here is not in that source verbatim
+// (2026-11-18, after the folder-mode change reached the bridge but not this mirror).
 const VIDEO_TOOLS = [
   {
     name: "video_pipeline_run",
     description:
-      "Run the video-to-summary pipeline on a video URL (YouTube, LinkedIn Learning, etc.) or an absolute local video file path. Dispatches the Raycast 'Video Pipeline Runner': the video is downloaded (login-gated hosts like LinkedIn Learning need ONE human click in Downie's UGE window — tell the user to click the detected stream), transcribed from subtitles or Whisper, summarized by Copilot's free local relay, and saved to the vault as Copilot Summaries/'<title> summary.md' with all intermediates cleaned up. Returns immediately; poll video_pipeline_status for progress.",
+      "Run the video-to-summary pipeline on a video URL (YouTube, LinkedIn Learning, etc.), an absolute local video file path, or an absolute path to a FOLDER of videos already on disk. Dispatches the Raycast 'Video Pipeline Runner': a URL is downloaded first (login-gated hosts like LinkedIn Learning need ONE human click in Downie's UGE window — tell the user to click the detected stream), a local file or folder is not downloaded at all; each video is transcribed from subtitles or from the audio by the configured local transcriber (the run log's `transcription engine:` line names it; video_pipeline_status returns it as `transcriber`), summarized by Copilot's free local relay, and saved to the vault as Copilot Summaries/'<title> summary.md' with all intermediates cleaned up (the user's own local video files are never deleted). A folder runs every video directly inside it (not subfolders) one after another in ONE run, skipping any video whose summary note already exists. For several local videos, pass their folder ONCE: never call this once per file, because each new dispatch makes the run in progress stop. Returns immediately; poll video_pipeline_status for progress.",
     inputSchema: {
       type: "object",
       properties: {
         videoUrl: {
           type: "string",
           description:
-            "http(s) video URL, or an absolute local video file path (.mp4/.mkv/.webm/.mov/.m4v)",
+            "http(s) video URL, an absolute local video file path (.mp4/.mkv/.webm/.mov/.m4v), or an absolute folder path (every video directly inside it, one after another)",
         },
         dry_run: {
           type: "boolean",
@@ -609,7 +628,7 @@ const VIDEO_TOOLS = [
   {
     name: "video_pipeline_status",
     description:
-      "Progress of the most recent video pipeline run, read from its durable run log: running/success/failed, the latest stage line, and the summary confirmation when finished.",
+      "Progress of the most recent video pipeline run, read from its durable run log: running/success/failed, the latest stage line, the summary confirmation when finished, and `transcriber`: the transcription engine that actually ran, verbatim from the run's `transcription engine:` line. Report the engine only from `transcriber`. `transcriptionRequested` is what the pipeline asked for (Whisper-style settings), not what ran. Both are absent when the transcript came from subtitles or the run predates 2026-10-15. A folder run reports `folder` and `batch`: {total, summarized, failed, skipped, remaining, current (the video being worked on), summaries (vault paths), failures ({video, reason})}; it ends `failed` when any one video failed, even though the others were summarized.",
     inputSchema: { type: "object", properties: {} },
   },
 ];

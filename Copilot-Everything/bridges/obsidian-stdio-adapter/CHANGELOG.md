@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-11-18 — folder input on the `raycast` profile (version stays 0.4.0)
+
+No tool added, removed or renamed; every profile surface is unchanged.
+
+- **Changed:** `video_pipeline_run` accepts an absolute folder path (Command Center's folder
+  mode): it passes the client edge when `stat` says it is a folder; a missing path is refused
+  with `No such file or folder`; a non-video file is still refused; a path this process may not
+  `stat` (EPERM/EACCES) is left to the `:8799` daemon, which re-validates every input.
+- **Changed:** both video tool definitions are the bridge's text word for word (folder input,
+  the `batch` status fields, `transcriber`).
+- **Added:** `npm run test:profiles` checks the folder edge cases on a temp fixture, a live
+  folder dry run when `:8799` is up (kind `folder`, video count, canonical path), and a drift
+  guard that fails when a mirrored video description is not in the bridge source verbatim.
+
 ## 0.3.0 — 2026-10-07
 
 Claude Code's dispatch lane. The `claude` (7 tools) and `raycast` (10 tools) surfaces are

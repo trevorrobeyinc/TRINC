@@ -1193,21 +1193,29 @@ export const MCP_TOOL_CATALOG: Record<string, McpCatalogEntry> = {
     toolName: "video_pipeline_run",
     displayName: "Video Pipeline Run",
     description:
-      "Run the video-to-summary pipeline on an http(s) video URL or an absolute local video " +
-      "file path (.mp4/.mkv/.webm/.mov/.m4v). Dispatches the Raycast runner: download, " +
-      "subtitle claim or Whisper transcription, Copilot summarization, cleanup — the " +
-      "finished summary lands in the vault under Copilot Summaries/. Login-gated hosts " +
-      "(e.g. LinkedIn Learning) need ONE human click in Downie's UGE window — tell the user. " +
-      "Returns after dispatch confirmation; poll video_pipeline_status every ~20s (typical " +
-      "runs finish 1-4 minutes after the download starts). Set dry_run true to validate " +
-      "without dispatching.",
+      "Run the video-to-summary pipeline on an http(s) video URL, an absolute local video " +
+      "file path (.mp4/.mkv/.webm/.mov/.m4v), or an absolute path to a FOLDER of videos " +
+      "already on disk. Dispatches the Raycast runner: a URL is downloaded first (login-gated " +
+      "hosts such as LinkedIn Learning need ONE human click in Downie's UGE window — tell the " +
+      "user); a local file or folder is not downloaded. Each video gets a subtitle claim or " +
+      "local transcription, Copilot summarization and cleanup, and its summary lands in the " +
+      "vault under Copilot Summaries/ (the user's own video files are never deleted). A " +
+      "folder runs every video directly inside it (not subfolders) one after another in ONE " +
+      "run, skipping any video whose summary note already exists. For several local videos, " +
+      "pass their folder ONCE: never call this once per file, because each new dispatch makes " +
+      "the run in progress stop. Returns after dispatch confirmation; poll " +
+      "video_pipeline_status every ~20s (one video typically takes 1-4 minutes). Set dry_run " +
+      "true to validate without dispatching.",
     // Mutating: dispatches a real download/transcribe/summarize run.
     isMutating: true,
     schema: z.object({
       videoUrl: z
         .string()
         .min(1)
-        .describe("http(s) video URL, or an absolute local video file path"),
+        .describe(
+          "http(s) video URL, an absolute local video file path, or an absolute folder path " +
+            "(every video directly inside it, one after another)"
+        ),
       dry_run: z
         .boolean()
         .optional()
@@ -1221,7 +1229,9 @@ export const MCP_TOOL_CATALOG: Record<string, McpCatalogEntry> = {
     description:
       "Progress of the most recent video pipeline run, read from its durable run log: " +
       "running/success/failed, the latest stage line, and the summary confirmation when " +
-      "finished.",
+      "finished. A folder run also reports `folder` and `batch` (total, summarized, failed, " +
+      "skipped, remaining, the video in progress, summary paths, failures); it ends failed " +
+      "when any one video failed, even though the others were summarized.",
     isMutating: false,
     schema: z.object({}),
     buildInput: () => ({}),
