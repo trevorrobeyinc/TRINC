@@ -1,7 +1,8 @@
-// Pure reader for the Raycast Video Pipeline Runner's durable run log
-// (~/.local/share/raycast-obsidian/video-transcribe.log). Kept free of `obsidian` imports so
-// test/video-pipeline-status.test.ts can exercise it under node --test; the bridge's
-// video_pipeline_status handler only reads the file and hands the text here.
+// Pure reader for the video pipeline's durable run log
+// (~/.local/share/raycast-obsidian/video-transcribe.log), written by the Raycast Video Pipeline Runner
+// and, since 2026-11-19, by Command Center's built-in pipeline (src/video/, same line formats). Kept
+// free of `obsidian` imports so test/video-pipeline-status.test.ts can exercise it under node --test;
+// the bridge's video_pipeline_status handler only reads the file and hands the text here.
 //
 // Each line is `<ISO timestamp> [run <id>] <message>`; runs older than 2026-10-15 have no
 // `[run <id>]` prefix.
@@ -9,7 +10,13 @@
 const RUN_LINE = /^\S+\s+(?:\[run ([^\]]+)\]\s+)?(.*)$/;
 
 const TRANSCRIPTION_ENGINE = "transcription engine:";
-const TRANSCRIPTION_REQUESTED = "transcription requested:";
+// `transcription requested: …` before 2026-10-18; `transcription requested (parakeet|whisper): …`
+// since the two lanes got their own names. Only the settings after the colon are reported.
+const TRANSCRIPTION_REQUESTED = /^transcription requested(?: \([a-z]+\))?:/;
+// Built-in pipeline (2026-11-19): a failed summary lane logs its reason and the transcription note it
+// kept, from which the Copilot agent writes the summary itself.
+const SUMMARY_ERROR = "summary error:";
+const TRANSCRIPT_NOTE_KEPT = "transcript note kept:";
 
 // The value of the run's last `<marker> <value>` message, or undefined when it has none.
 //
@@ -17,14 +24,16 @@ const TRANSCRIPTION_REQUESTED = "transcription requested:";
 // into later lines (source note, summary), so a title containing "transcription engine:" would
 // otherwise be read as the engine. When the run carries an id, only that run's lines count,
 // because two runs can be alive at once and their lines interleave (observed 2026-10-15).
-function runMessageValue(run: string[], runId: string | undefined, marker: string): string | undefined {
+function runMessageValue(run: string[], runId: string | undefined, marker: string | RegExp): string | undefined {
   for (let i = run.length - 1; i >= 0; i--) {
     const m = run[i].match(RUN_LINE);
     if (!m) continue;
     const [, lineRunId, message] = m;
     if (runId !== undefined && lineRunId !== runId) continue;
-    if (message.startsWith(marker)) {
-      const value = message.slice(marker.length).trim();
+    const prefix =
+      typeof marker === "string" ? (message.startsWith(marker) ? marker : undefined) : message.match(marker)?.[0];
+    if (prefix !== undefined) {
+      const value = message.slice(prefix.length).trim();
       return value || undefined;
     }
   }
@@ -48,7 +57,8 @@ interface FolderBatchProgress {
   remaining: number;
   current?: { position: number; video: string };
   summaries: string[];
-  failures: Array<{ video: string; reason: string }>;
+  /** `transcriptNote` is set when the video's summary failed and its transcription note was kept. */
+  failures: Array<{ video: string; reason: string; transcriptNote?: string }>;
 }
 
 // Progress of a folder run, read from that run's own messages.
@@ -56,13 +66,19 @@ function folderBatchProgress(messages: string[], running: boolean): FolderBatchP
   let total = 0;
   let skipped = 0;
   const summaries: string[] = [];
-  const failures: Array<{ video: string; reason: string }> = [];
+  const failures: Array<{ video: string; reason: string; transcriptNote?: string }> = [];
   const started = new Map<number, string>();
+  // The transcription note each video's failed summary kept, by the video's position.
+  const kept = new Map<number, string>();
   let current: { position: number; video: string } | undefined;
   for (const message of messages) {
     const announced = message.match(FOLDER_MODE);
     if (announced) {
       total = Number(announced[1]);
+      continue;
+    }
+    if (current && message.startsWith(TRANSCRIPT_NOTE_KEPT)) {
+      kept.set(current.position, message.slice(TRANSCRIPT_NOTE_KEPT.length).trim());
       continue;
     }
     const m = message.match(VIDEO_LINE);
@@ -76,7 +92,12 @@ function folderBatchProgress(messages: string[], running: boolean): FolderBatchP
       summaries.push(rest);
       current = undefined;
     } else if (event === "FAILED") {
-      failures.push({ video: started.get(Number(position)) ?? `video ${position}`, reason: rest });
+      const transcriptNote = kept.get(Number(position));
+      failures.push({
+        video: started.get(Number(position)) ?? `video ${position}`,
+        reason: rest,
+        ...(transcriptNote ? { transcriptNote } : {}),
+      });
       current = undefined;
     } else {
       skipped += 1;
@@ -133,6 +154,11 @@ export function summarizeVideoPipelineLog(text: string): Record<string, unknown>
   // before 2026-10-15.
   const transcriber = runMessageValue(run, runId, TRANSCRIPTION_ENGINE);
   const transcriptionRequested = runMessageValue(run, runId, TRANSCRIPTION_REQUESTED);
+  // Built-in pipeline: why the summary lane failed, and the transcription note it kept for the agent
+  // (also kept, with no error, when cleanup is off). In a folder run these are the LAST ones;
+  // `batch.failures` carries each video's own.
+  const summaryError = runMessageValue(run, runId, SUMMARY_ERROR);
+  const transcriptNote = runMessageValue(run, runId, TRANSCRIPT_NOTE_KEPT);
 
   return {
     status: terminal,
@@ -142,6 +168,8 @@ export function summarizeVideoPipelineLog(text: string): Record<string, unknown>
     ...(isFolderRun ? { folder: source[2], batch: folderBatchProgress(own, terminal === "running") } : {}),
     latest: run[run.length - 1],
     ...(summaryLine ? { summary: summaryLine } : {}),
+    ...(summaryError ? { summaryError } : {}),
+    ...(transcriptNote ? { transcriptNote } : {}),
     ...(transcriber ? { transcriber } : {}),
     ...(transcriptionRequested ? { transcriptionRequested } : {}),
     recentLines: run.slice(-8),

@@ -31,6 +31,14 @@ import { runVaultZKLinking, getVaultZKApi } from "./zettelkasten/linker";
 import { MiyoClient } from "./copilot-integration/miyo-client";
 import { McpBridgeServer } from "./bridge/mcp-bridge-server";
 import type { PluginActions } from "./bridge/mcp-bridge-server";
+import {
+  previewVideoRun,
+  VideoPipelineController,
+  type VideoPipelineSettings,
+  type VideoRunContext,
+} from "./video/pipeline";
+import { createObsidianVideoHost } from "./video/obsidian-host";
+import { defaultRunLogPath, defaultRunMarkerPath } from "./video/run-log";
 import { getWorkflowHistory } from "./workflow/workflow-history";
 import { listTemplateSummaries } from "./util/template-loader";
 import { runEngineScript, resolveNodeBin, buildEngineEnv } from "./util/engine-spawn";
@@ -60,6 +68,11 @@ export default class OpenClawPlugin extends Plugin {
    * field, so a late stage of run N (the memory ingest is fire-and-forget) cannot land in run N+1's.
    */
   private postRunLedger: PostRunLedger | null = null;
+  /**
+   * The built-in video pipeline (2026-11-19, videoBackend "builtin"): one run at a time. Owned here,
+   * not by the bridge, which is rebuilt whenever it restarts, so a restart cannot lose track of a run.
+   */
+  private videoPipeline = new VideoPipelineController(() => this.videoRunContext());
 
   async onload(): Promise<void> {
     await this.loadSettings();
@@ -225,8 +238,36 @@ export default class OpenClawPlugin extends Plugin {
   onunload(): void {
     this.runner.cancel();
     this.tracker?.stop();
+    // A run's timers and promises outlive the plugin unless stopped: without this, a reloaded plugin
+    // could start a second run beside the first. The run kills its transcriber and logs RUN FAIL.
+    this.videoPipeline.abort(
+      "Command Center was unloaded (a plugin reload, or Obsidian quitting) while the run was going"
+    );
     this.bridgeServer?.stop().catch(() => {});
     this.bridgeServer = null;
+  }
+
+  /** The built-in video pipeline's settings, from this plugin's own. */
+  private videoPipelineSettings(): VideoPipelineSettings {
+    const s = this.settings;
+    return {
+      videoFolder: s.videoDownloadFolder,
+      summaryFolder: s.videoSummaryFolder,
+      transcriber: s.videoTranscriber,
+      whisperModel: s.videoWhisperModel,
+      whisperTask: s.videoWhisperTask,
+      transcriptSource: s.videoTranscriptSource,
+      cleanupAfterSummary: s.videoCleanupAfterSummary,
+    };
+  }
+
+  private videoRunContext(): Omit<VideoRunContext, "signal"> {
+    return {
+      host: createObsidianVideoHost(this.app),
+      settings: this.videoPipelineSettings(),
+      logPath: defaultRunLogPath(),
+      markerPath: defaultRunMarkerPath(),
+    };
   }
 
   async loadSettings(): Promise<void> {
@@ -922,6 +963,13 @@ export default class OpenClawPlugin extends Plugin {
         }),
       getFeedStats: () => this.readFeedStats(),
       getCitationIntegrity: (workflowId) => this.readCitationIntegrity(workflowId),
+      startBuiltinVideoRun: async (input) => {
+        const handle = await this.videoPipeline.start(input);
+        return { runId: handle.runId, startedAt: handle.startedAt };
+      },
+      builtinVideoRunActive: () => this.videoPipeline.activeRun(),
+      previewBuiltinVideoRun: (input) =>
+        previewVideoRun(input, this.videoPipelineSettings(), createObsidianVideoHost(this.app).vaultPath),
     };
   }
 

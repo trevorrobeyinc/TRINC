@@ -11,6 +11,11 @@
     "importHelpers": true,
     "isolatedModules": true,
     "strictNullChecks": true,
+    // src/video/ modules import each other as "./x.ts" so `node --test --experimental-strip-types`
+    // can load them (type stripping never resolves an extensionless specifier). esbuild builds main.js;
+    // tsc only typechecks, so noEmit costs nothing (2026-11-19).
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
     "lib": ["DOM", "ES2021"]
   },
   "include": ["src/**/*.ts"]

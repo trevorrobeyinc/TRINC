@@ -372,6 +372,9 @@ export class OpenClawSettingTab extends PluginSettingTab {
           })
       );
 
+    // --- Video pipeline (2026-11-19, phase 3 of retiring Raycast and Downie) ---
+    this.displayVideoPipelineSettings(containerEl);
+
     // --- Trevorobeyinc Research Memory ---
     containerEl.createEl("h3", { text: "Trevorobeyinc Research Memory" });
 
@@ -473,6 +476,137 @@ export class OpenClawSettingTab extends PluginSettingTab {
       );
 
     this.validateOpenClawPath();
+  }
+
+  /** The video_pipeline_run backend switch and the built-in pipeline's settings. */
+  private displayVideoPipelineSettings(containerEl: HTMLElement): void {
+    const settings = this.plugin.settings;
+    containerEl.createEl("h3", { text: "Video pipeline" });
+    containerEl.createEl("p", {
+      text:
+        "Which backend video_pipeline_run uses for a local video file or folder. A URL always goes to the " +
+        "Raycast runner for now. Both backends write the same run log, so video_pipeline_status reads either.",
+      cls: "setting-item-description",
+    });
+
+    new Setting(containerEl)
+      .setName("Backend for files and folders")
+      .setDesc(
+        "Raycast: open the Raycast Video Pipeline Runner (today's path). Built-in: transcribe and summarize " +
+          "inside Obsidian, with no paid fallback; a failed summary ends the run, and the Copilot agent writes it."
+      )
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("raycast", "Raycast")
+          .addOption("builtin", "Built-in (inside Obsidian)")
+          .setValue(settings.videoBackend)
+          .onChange(async (value) => {
+            settings.videoBackend = value === "builtin" ? "builtin" : "raycast";
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Video download folder")
+      .setDesc(
+        "Vault folder for transcription notes, and where the download script saves videos. After a " +
+          "successful summary, a video inside this folder is deleted with its subtitle files (operator " +
+          "decision, 2026-11-19); a video anywhere else is never touched."
+      )
+      .addText((text) =>
+        text
+          .setPlaceholder("Video Downloads")
+          .setValue(settings.videoDownloadFolder)
+          .onChange(async (value) => {
+            settings.videoDownloadFolder = value.trim();
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Summary folder")
+      .setDesc("Vault folder for the summary notes, '<title> summary.md'.")
+      .addText((text) =>
+        text
+          .setPlaceholder("Copilot Summaries")
+          .setValue(settings.videoSummaryFolder)
+          .onChange(async (value) => {
+            settings.videoSummaryFolder = value.trim();
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Transcriber")
+      .setDesc(
+        "Parakeet first, with Whisper as the fallback, or Whisper only. The binaries are fixed in the " +
+          "plugin's code, not settings: ~/.local/bin/whisper-parakeet-shim for Parakeet, and " +
+          "~/.local/venvs/fwhisper/bin/whisper-ctranslate2 for Whisper."
+      )
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("parakeet", "Parakeet, then Whisper")
+          .addOption("whisper", "Whisper only")
+          .setValue(settings.videoTranscriber)
+          .onChange(async (value) => {
+            settings.videoTranscriber = value === "whisper" ? "whisper" : "parakeet";
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Whisper model")
+      .setDesc("Used by the Whisper lane only; Parakeet ignores it.")
+      .addDropdown((dropdown) => {
+        for (const model of ["tiny", "base", "small", "medium", "large-v3"]) {
+          dropdown.addOption(model, model);
+        }
+        return dropdown.setValue(settings.videoWhisperModel).onChange(async (value) => {
+          settings.videoWhisperModel = value;
+          await this.plugin.saveSettings();
+        });
+      });
+
+    new Setting(containerEl)
+      .setName("Whisper task")
+      .setDesc("Translate gives an English transcript of any language; transcribe keeps the audio's language.")
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("translate", "Translate to English")
+          .addOption("transcribe", "Transcribe")
+          .setValue(settings.videoWhisperTask)
+          .onChange(async (value) => {
+            settings.videoWhisperTask = value === "transcribe" ? "transcribe" : "translate";
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Transcript source")
+      .setDesc("Always transcribe the audio, or use an English subtitle file next to the video when there is one.")
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("whisper", "Audio only")
+          .addOption("auto", "Subtitles first, then audio")
+          .setValue(settings.videoTranscriptSource)
+          .onChange(async (value) => {
+            settings.videoTranscriptSource = value === "auto" ? "auto" : "whisper";
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Clean up after the summary")
+      .setDesc(
+        "Delete the transcription note, the transcript text and the scratch folder once the summary has " +
+          "landed, and a downloaded video inside the video download folder. Nothing is deleted after a failure."
+      )
+      .addToggle((toggle) =>
+        toggle.setValue(settings.videoCleanupAfterSummary).onChange(async (value) => {
+          settings.videoCleanupAfterSummary = value;
+          await this.plugin.saveSettings();
+        })
+      );
   }
 
   hide(): void {

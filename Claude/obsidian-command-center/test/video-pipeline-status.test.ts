@@ -189,4 +189,73 @@ test("a local file run names its file and keeps the single-run fields", () => {
   assert.equal(out.file, "/Users/me/Downloads/Talk.mp4");
   assert.equal("batch" in out, false);
   assert.match(out.summary, /Copilot Summaries\/Talk summary\.md$/);
+  assert.equal("summaryError" in out, false);
+  assert.equal("transcriptNote" in out, false);
+});
+
+// The request line as runs have written it since 2026-10-18 (the lane in parentheses). Until
+// 2026-11-19 the parser only knew the older form, so `transcriptionRequested` was silently absent.
+test("transcriptionRequested reads the per-lane request line, the last one when Parakeet fell back", () => {
+  const p = (t: string, msg: string) => `2026-11-16T11:${t}Z [run L1] ${msg}`;
+  const run = [
+    p("31:46.595", "RUN START file=/Users/me/Movies/Talk.mp4"),
+    p("31:46.601", "transcription requested (parakeet): binary=whisper-parakeet-shim task=translate model=medium"),
+    p("31:50.000", "parakeet lane FAILED (snapshot missing) — falling back to Whisper"),
+    p("31:50.001", "transcription requested (whisper): binary=whisper-ctranslate2 task=translate model=medium"),
+    p("33:11.369", "transcription engine: whisper-ctranslate2 (no self-report; ran with the requested settings above)"),
+  ];
+  const out = summarizeVideoPipelineLog(run.join("\n")) as any;
+  assert.equal(out.transcriptionRequested, "binary=whisper-ctranslate2 task=translate model=medium");
+  assert.equal(out.status, "running");
+});
+
+// The built-in pipeline (2026-11-19): a failed summary lane ends the run and names the
+// transcription note it kept, from which the Copilot agent writes the summary itself.
+test("a built-in run whose summary failed reports summaryError and transcriptNote", () => {
+  const p = (t: string, msg: string) => `2026-11-19T12:${t}Z [run b1] ${msg}`;
+  const note = "Video Downloads/Talk transcription.md";
+  const reason = "Copilot summary did not appear within 180s: Copilot Summaries/Talk transcription — Super-Summarize.md";
+  const run = [
+    p("00:00.000", "RUN START file=/Users/me/Movies/Talk.mp4"),
+    p("00:00.001", "runner: Command Center built-in pipeline, inside Obsidian (videoBackend=builtin)"),
+    p("00:40.000", `source note written: ${note}`),
+    p("03:40.000", `copilot summary lane FAILED (${reason}) — no fallback runs here: the run ends failed, nothing keeps watching for a late Copilot note, and the transcription note stays for the agent`),
+    p("03:40.001", `summary error: ${reason}`),
+    p("03:40.002", `transcript note kept: ${note}`),
+    p("03:40.003", `RUN FAIL: Copilot summary lane failed (${reason}); the transcription note is kept for the agent: ${note}`),
+  ];
+  const out = summarizeVideoPipelineLog(run.join("\n")) as any;
+  assert.equal(out.status, "failed");
+  assert.equal(out.summaryError, reason);
+  assert.equal(out.transcriptNote, note);
+  assert.equal("summary" in out, false);
+});
+
+test("a folder run names each failed video's kept transcription note, and only that video's", () => {
+  const p = (t: string, msg: string) => `2026-11-19T13:${t}Z [run b2] ${msg}`;
+  const run = [
+    p("00:00.000", `RUN START folder=${FOLDER}`),
+    p("00:00.100", "folder mode: 3 video(s), 3 to transcribe, 0 skipped; one at a time, and the folder's own files are never moved or deleted"),
+    p("00:00.200", `VIDEO 1/3 START: ${FOLDER}/Lesson 1.mp4`),
+    p("01:00.000", "summary error: Copilot summary did not appear within 180s: x"),
+    p("01:00.001", "transcript note kept: Video Downloads/Lesson 1 transcription.md"),
+    p("01:00.002", "VIDEO 1/3 FAILED: Copilot summary lane failed (x); the transcription note is kept for the agent: Video Downloads/Lesson 1 transcription.md"),
+    p("01:00.100", `VIDEO 2/3 START: ${FOLDER}/Lesson 2 broken.mp4`),
+    p("01:10.000", "VIDEO 2/3 FAILED: fake-whisper: cannot decode"),
+    p("01:10.100", `VIDEO 3/3 START: ${FOLDER}/Lesson 3.mp4`),
+    p("02:00.000", "VIDEO 3/3 DONE: Copilot Summaries/Lesson 3 summary.md"),
+    p("02:00.100", "RUN FAIL: folder run finished with failures (1 summarized, 2 failed, 0 skipped); first failure: Lesson 1.mp4: x"),
+  ];
+  const out = summarizeVideoPipelineLog(run.join("\n")) as any;
+  assert.equal(out.status, "failed");
+  assert.deepEqual(out.batch.failures, [
+    {
+      video: `${FOLDER}/Lesson 1.mp4`,
+      reason: "Copilot summary lane failed (x); the transcription note is kept for the agent: Video Downloads/Lesson 1 transcription.md",
+      transcriptNote: "Video Downloads/Lesson 1 transcription.md",
+    },
+    { video: `${FOLDER}/Lesson 2 broken.mp4`, reason: "fake-whisper: cannot decode" },
+  ]);
+  assert.equal(out.transcriptNote, "Video Downloads/Lesson 1 transcription.md");
+  assert.equal(out.summaryError, "Copilot summary did not appear within 180s: x");
 });

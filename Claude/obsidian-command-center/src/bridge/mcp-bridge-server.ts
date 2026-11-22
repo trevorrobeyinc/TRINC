@@ -19,6 +19,8 @@ import { compactWorkflowState } from "../workflow/status-compaction";
 import { resolveVideoPipelineSource, type VideoPipelineSource } from "./video-pipeline-source";
 import { summarizeVideoPipelineLog } from "./video-pipeline-status";
 import { refuseBrowserRequest } from "./browser-guard";
+import type { VideoRunInput } from "../video/pipeline";
+import { defaultRunLogPath } from "../video/run-log";
 
 const HOST = "127.0.0.1";
 
@@ -33,25 +35,28 @@ function isCommandAllowed(commandId: string): boolean {
   return ALLOWED_COMMAND_PREFIXES.some((p) => commandId.startsWith(p));
 }
 
-// Video pipeline tools: expose the Raycast "Obsidian Bridge Fork" Video Pipeline Runner to
-// MCP clients (the Copilot agent chat reaches this bridge per ACP session). The pipeline
-// itself — Downie/UGE download, subtitle claim or transcription of the audio by the configured
-// local transcriber (the run log's "transcription engine:" line names it; the "Whisper Path"
-// preference is only a setting name), the headless copilot:summarize-to-note relay, cleanup —
-// stays in the Raycast extension; this bridge only dispatches its deeplink and reads its durable
-// run log.
+// Video pipeline tools (the Copilot agent chat reaches this bridge per ACP session), with two
+// backends, chosen by the setting `videoBackend` (2026-11-19, phase 3 of retiring Raycast and Downie):
+//   - "raycast" (the default): dispatch the Raycast "Obsidian Bridge Fork" Video Pipeline Runner's
+//     deeplink. The pipeline itself (Downie/UGE download, subtitle claim or transcription, the headless
+//     copilot:super-summarize-to-note relay, cleanup) runs in the Raycast extension.
+//   - "builtin": a local file or folder runs inside Obsidian, in Command Center's own src/video/ (no
+//     paid fallback: a failed summary ends the run, and the agent writes it). A URL still goes to
+//     Raycast until phase 4.
+// Both backends write the same durable run log, which video_pipeline_status reads.
 //
-// Security posture (same audit-P0 stance as the command allowlist above): this is NOT an
-// exec primitive. The binary is fixed (/usr/bin/open), arguments are an argv array (no
-// shell), and the only caller-controlled value is a strictly validated http(s) URL, absolute
-// local video path, or absolute folder path (./video-pipeline-source.ts) that travels INSIDE
-// the URL-encoded deeplink payload.
+// Security posture (same audit-P0 stance as the command allowlist above): this is NOT an exec
+// primitive. The only caller-controlled value is a strictly validated http(s) URL, absolute local
+// video path, or absolute folder path (./video-pipeline-source.ts). On the Raycast path the binary is
+// fixed (/usr/bin/open) and the value travels INSIDE the URL-encoded deeplink payload; on the built-in
+// path the transcriber binaries are fixed in src/video/transcribe.ts (never a setting), arguments are
+// argv arrays (execFile, no shell), and the only Obsidian commands run are the two fixed Copilot
+// summarize ids in src/video/copilot-summary.ts.
 const VIDEO_PIPELINE_DEEPLINK_BASE =
   "raycast://extensions/marcjulian/obsidian-bridge-fork/videoTranscribeRunnerCommand";
-const VIDEO_PIPELINE_LOG_SEGMENTS = [".local", "share", "raycast-obsidian", "video-transcribe.log"];
 
 function videoPipelineLogPath(): string {
-  return path.join(os.homedir(), ...VIDEO_PIPELINE_LOG_SEGMENTS);
+  return defaultRunLogPath();
 }
 
 /** What the caller should tell the user after a dispatch, by kind of source. */
@@ -84,6 +89,41 @@ function videoPipelineDispatchMessage(resolved: VideoPipelineSource): string {
     "Copilot Summaries/'<video title> summary.md' and intermediates are " +
     "cleaned up. Poll video_pipeline_status every ~20s; typical runs finish 1-4 " +
     "minutes after the download starts."
+  );
+}
+
+/** What the caller should tell the user after a built-in dispatch (videoBackend "builtin", 2026-11-19). */
+function builtinVideoDispatchMessage(
+  resolved: VideoPipelineSource,
+  summaryFolder: string,
+  deletesVideos: boolean
+): string {
+  const onFailure =
+    "If a summary fails, the run ends `failed` and nothing retries it: video_pipeline_status gives " +
+    "`summaryError` (why) and `transcriptNote` (the transcription note it kept), so write that summary " +
+    `yourself from the note, as ${summaryFolder}/'<title> summary.md' with title, created and source frontmatter.`;
+  if (resolved.kind === "folder") {
+    return (
+      `Folder run started inside Obsidian (Command Center's built-in pipeline): the ${resolved.videoCount} ` +
+      "video(s) directly inside the folder are transcribed and summarized ONE AFTER ANOTHER in this single " +
+      `run, each into ${summaryFolder}/'<video file name> summary.md'. A video whose summary note already ` +
+      "exists is skipped, so running the folder again only picks up new or failed videos. " +
+      (deletesVideos
+        ? "The folder is inside the vault's video download folder, so each video is deleted once its summary has landed. "
+        : "The folder's own files are never moved or deleted. ") +
+      "Do NOT dispatch another video_pipeline_run until video_pipeline_status shows this run finished: a " +
+      "dispatch while it runs is refused. Poll video_pipeline_status every ~30s; its `batch` field shows the " +
+      "progress, and `batch.failures[].transcriptNote` names each failed video's kept note. Each video takes " +
+      `about 1-4 minutes. ${onFailure}`
+    );
+  }
+  return (
+    "Local video run started inside Obsidian (Command Center's built-in pipeline): nothing is downloaded, " +
+    `so the run starts at transcription. The summary lands at ${summaryFolder}/'<video file name> summary.md'. ` +
+    (deletesVideos
+      ? "The video is inside the vault's video download folder, so it is deleted once its summary has landed. "
+      : "The video file itself is left where it is. ") +
+    `Poll video_pipeline_status every ~20s; typical runs finish in 1-4 minutes. ${onFailure}`
   );
 }
 
@@ -240,6 +280,16 @@ export interface PluginActions {
   }): Promise<EngineScriptResult>;
   getFeedStats(): Record<string, unknown>;
   getCitationIntegrity(workflowId?: string): Record<string, unknown>;
+  /**
+   * Built-in video pipeline (2026-11-19): start a run for an already validated local file or folder.
+   * Resolves once RUN START is in the run log; the run goes on in the background. Rejects when a
+   * built-in run is already in progress.
+   */
+  startBuiltinVideoRun(input: VideoRunInput): Promise<{ runId: string; startedAt: string }>;
+  /** The built-in video run in progress, or null. */
+  builtinVideoRunActive(): { runId: string; startedAt: string; kind: VideoRunInput["kind"]; source: string } | null;
+  /** What a built-in run of `input` would do, for a dry run: summary note(s), skips, video deletion. */
+  previewBuiltinVideoRun(input: VideoRunInput): Promise<Record<string, unknown>>;
 }
 
 /**
@@ -1359,9 +1409,64 @@ export class McpBridgeServer {
       resolved.kind === "folder"
         ? { kind: resolved.kind, videoCount: resolved.videoCount }
         : { kind: resolved.kind };
+    // videoBackend "builtin" (2026-11-19) runs a local file or folder inside Obsidian; a URL stays on
+    // the Raycast path until phase 4, whichever backend is set.
+    const builtinInput: VideoRunInput | null =
+      this.settings.videoBackend === "builtin" && resolved.kind !== "url"
+        ? { kind: resolved.kind, source }
+        : null;
+    const backend = builtinInput ? "builtin" : "raycast";
+    const activeBuiltinRun = this.pluginActions?.builtinVideoRunActive() ?? null;
 
     if (params.dry_run === true) {
-      return { dispatched: false, dryRun: true, videoUrl: source, ...sourceFacts, deeplink };
+      return {
+        dispatched: false,
+        dryRun: true,
+        backend,
+        videoUrl: source,
+        ...sourceFacts,
+        // The Raycast payload whichever backend would run: the stdio adapter's test:profiles checks
+        // its shape until phase 4 removes the Raycast path.
+        deeplink,
+        ...(builtinInput && this.pluginActions
+          ? { plan: await this.pluginActions.previewBuiltinVideoRun(builtinInput) }
+          : {}),
+        ...(activeBuiltinRun ? { activeBuiltinRun } : {}),
+      };
+    }
+
+    // One pipeline run at a time across both backends: a Raycast dispatch would make the built-in run
+    // stand down (both claim the same run marker), and a second built-in run would race it over
+    // Obsidian's active note.
+    if (activeBuiltinRun) {
+      throw new Error(
+        `A built-in video pipeline run is in progress (run ${activeBuiltinRun.runId}, ${activeBuiltinRun.kind} ` +
+          `${activeBuiltinRun.source}, started ${activeBuiltinRun.startedAt}). Poll video_pipeline_status and ` +
+          "dispatch again once it has finished."
+      );
+    }
+
+    if (builtinInput) {
+      if (!this.pluginActions) {
+        throw new Error("The built-in video pipeline is not available in this bridge instance.");
+      }
+      const plan = await this.pluginActions.previewBuiltinVideoRun(builtinInput);
+      const started = await this.pluginActions.startBuiltinVideoRun(builtinInput);
+      return {
+        success: true,
+        dispatched: true,
+        backend,
+        videoUrl: source,
+        ...sourceFacts,
+        runId: started.runId,
+        startedAt: started.startedAt,
+        dispatchConfirmed: true,
+        message: builtinVideoDispatchMessage(
+          resolved,
+          this.settings.videoSummaryFolder?.trim() || "Copilot Summaries",
+          plan.deletesVideoAfterSummary === true || plan.deletesVideosAfterSummary === true
+        ),
+      };
     }
 
     // Pre-flight: report whether Raycast is up. Non-fatal — /usr/bin/open auto-launches the
@@ -1400,6 +1505,7 @@ export class McpBridgeServer {
     return {
       success: true,
       dispatched: true,
+      backend,
       videoUrl: source,
       ...sourceFacts,
       raycastWasRunning,
