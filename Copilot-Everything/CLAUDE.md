@@ -12,7 +12,7 @@ the repo-wide invariants are in the root [`../CLAUDE.md`](../CLAUDE.md).
 |---|---|---|---|
 | Copilot plugin fork | `repos/obsidian-copilot-mcp-v4` | — | Upstream obsidian-copilot **4.0.0** plus an MCP client module, deployed as plugin id `copilot`. A catalog of 45 MCP tools (`src/mcp/catalog.ts`) reaches `:8798`, `:8799` and `:8800`. Chat defaults to hosted `copilot-plus-flash`; agent mode runs on an opencode backend. |
 | Canonical vault bridge | `bridges/obsidian-copilot-bridge` | 8798 | The multi-client vault daemon, spawned by the `obsidian-bridge-launcher` plugin. **REST-only**: the Local REST API plugin (`:27124`) is its only backend, with no fallback. `/mcp/tool`'s optional `backendHint` accepts only `"restApi"` (a stale `"cli"` is rejected with HTTP 400). HTTPS with bearer token and replay guard. |
-| Stdio adapter | `bridges/obsidian-stdio-adapter` | — | One tool surface per client, profile required: `openclaw` is **Claude's one door** (`:8799` + `:8800`, see its README), `raycast` is Raycast chat's video door (the two video tools only, since 2026-11-18). |
+| Stdio adapter | `bridges/obsidian-stdio-adapter` | — | One client, one profile (required): `openclaw` is **Claude's one door** (`:8799` + `:8800`, see its README). The `raycast` profile was retired on 2026-11-21 with Raycast, and `claude` on 2026-10-23; both refuse to start. |
 | Copilot agent proxy | `bridges/openclaw-stdio-proxy` | — | Deployed inside the copilot plugin; carries the agent's tool calls to `:8799` and `:8800`. Tools must answer within its 8 s request timeout. |
 | HTTPS proxies | `scripts/{miyo,qdrant,searxng}-tls-proxy.mjs` | 8743, 6433, 8891 | Wrap Miyo `:8742`, Qdrant `:6333` and SearXNG `:8890`. launchd runs staged copies: re-run `scripts/install-tls-proxies.sh` after any edit. The Ollama proxy (`:11435`) was retired 2026-11-12 with Ollama itself. |
 
@@ -78,16 +78,21 @@ itself. Working endpoints: `/v0/health`, `/v0/search`, `/v0/search/related`, `/v
 `miyoServerUrl`, must point at the HTTPS proxy `https://127.0.0.1:8743`, never `:8742`; re-check after a
 rebuild.
 
-## Raycast
+## Raycast (retired 2026-11-21)
 
-Raycast chat reaches the video pipeline through the adapter's `raycast` profile (the two video tools only,
-since 2026-11-18), registered in Raycast through `bridges/obsidian-stdio-adapter/raycast-launch.sh`. Its
-vault access is Security Everything's YubiKey-gated `Obsidian Vault` server (operator decision 2026-10-16);
-the profile's own vault tools were retired on 2026-11-18 because they were an ungated write lane around it,
-so never add them back. Raycast answers from a tool snapshot taken at install time, so after any tool
-change remove and re-add the server there. The Raycast extension and its Copilot
-Plus relay provider moved to `~/Code/raycast-obsidian-bridge-fork` on 2026-10-23; the relay shares the
-Copilot Plus licence key with Obsidian, so rotating one means rotating both.
+Operator decision, 2026-11-21: Raycast is removed from this stack. Both video workflows run from the
+Copilot agent: its `copilot-video-download` skill downloads a link with yt-dlp (or `--grab` for a
+download only), and Command Center's built-in pipeline (`video_pipeline_run` with the file or folder)
+transcribes and summarizes. Retired with it: the adapter's `raycast` profile and `raycast-launch.sh`, and
+Command Center's Raycast dispatch path. Do not add a Raycast door, a video tool on the adapter or a
+deeplink dispatch back without an operator decision.
+
+- The extension's source stays outside this repo, at `~/Code/raycast-obsidian-bridge-fork`, until the
+  operator archives it.
+- Its Copilot Plus relay provider (`~/.config/raycast/ai/providers.yaml`) holds the same Copilot Plus
+  licence key as Obsidian: that file goes when Raycast is uninstalled.
+- The pipeline's run log and run marker keep their old folder on purpose:
+  `~/.local/share/raycast-obsidian/` must stay, because `video_pipeline_status` reads it.
 
 ## Commands
 
@@ -108,7 +113,7 @@ offers `read`, `create`, `open`, `search`, `daily`, `append`, `move` and `plugin
 
 - Keep the REST-backed bridge as the production vault lane, keep its replay protection, and keep every
   listener HTTPS-only (`npm run lint:transport` before committing a bridge change).
-- Do not merge the Copilot, Raycast and Claude lanes into one daemon; aggregate per client in the adapter.
+- Do not merge the Copilot and Claude lanes into one daemon; aggregate per client in the adapter.
 - Docs and validation artifacts are part of the contract. Read order for the fork:
   `repos/obsidian-copilot-mcp-v4/UPSTREAM.md`, then `docs/OFFICIAL_DIRECT_MCP_MIYO_RUNTIME.md`,
   `docs/OFFICIAL_PLUGIN_COMPATIBILITY.md`, `docs/OFFICIAL_MIYO_CONTRACT.md`, `docs/MCP_SECURITY.md`.

@@ -20,16 +20,19 @@
     {"id": "openclaw-stdio-proxy", "source": "Copilot-Everything/bridges/openclaw-stdio-proxy", "entry": "index.mjs"}
   ],
   "raycast": {
-    "external": "$HOME/Code/raycast-obsidian-bridge-fork",
-    "moved": "2026-10-23 — personal tooling, split out of the monorepo (TRINC reorg D2). Paths below are relative to the external repo.",
-    "extension": {"name": "obsidian-bridge-fork", "source": ".", "installed_at": "$HOME/.config/raycast/extensions/obsidian-bridge-fork", "install": "bash $HOME/Code/raycast-obsidian-bridge-fork/ops/install-raycast.sh"},
-    "ai_providers": {"template": "ops/providers.copilot-plus.template.yaml", "live": "$HOME/.config/raycast/ai/providers.yaml", "secret": "Copilot Plus licence key — lives only in the live file, chmod 600"},
-    "never_commit": ["$HOME/.config/raycast/config.json (Raycast account tokens)", "$HOME/.config/raycast/ai/providers.yaml (licence key)"],
-    "store_extensions_in_use": ["shottr", "file-manager", "shell"]
+    "retired": "2026-11-21 — operator decision: Raycast is removed from the stack. Both video workflows run from the Copilot agent (the copilot-video-download skill, then Command Center's built-in pipeline). Nothing in this repo starts, registers or builds anything for Raycast any more.",
+    "leftovers": [
+      "/Applications/Raycast.app",
+      "$HOME/.config/raycast/extensions/obsidian-bridge-fork",
+      "$HOME/.config/raycast/ai/providers.yaml"
+    ],
+    "leftovers_note": "The operator removes these when uninstalling Raycast; verify.sh warns while any exists. providers.yaml holds the Copilot Plus licence key. The extension's source, $HOME/Code/raycast-obsidian-bridge-fork, is the operator's to archive.",
+    "keep": "$HOME/.local/share/raycast-obsidian — the built-in pipeline's run log and run marker, read by video_pipeline_status; the old folder name is kept on purpose.",
+    "never_commit": ["$HOME/.config/raycast/config.json (Raycast account tokens)", "$HOME/.config/raycast/ai/providers.yaml (licence key)"]
   },
   "mcp_servers": [
     {"id": "zettelkasten-graph", "source": "Claude/Medical-Zettelkasten-MCP", "entry": "src/server.js", "registered_in": "Copilot-Everything/.mcp.json"},
-    {"id": "openclaw-obsidian (+ Raycast's raycast profile)", "source": "Copilot-Everything/bridges/obsidian-stdio-adapter", "entry": "index.mjs", "registered_in": ".mcp.json (openclaw profile, Claude's one door); Raycast's own MCP settings via raycast-launch.sh (raycast profile). The Copilot-Everything/.mcp.json obsidian-bridge entry (claude profile) was retired 2026-10-23."},
+    {"id": "openclaw-obsidian", "source": "Copilot-Everything/bridges/obsidian-stdio-adapter", "entry": "index.mjs", "registered_in": ".mcp.json (openclaw profile, Claude's one door, the adapter's only profile). The raycast profile and raycast-launch.sh were retired 2026-11-21; the Copilot-Everything/.mcp.json obsidian-bridge entry (claude profile) was retired 2026-10-23."},
     {"id": "searxng-search", "source": "Claude/searxng-search-mcp", "staged_copy": "$HOME/.claude/mcp-servers/searxng-search", "install": "Claude/searxng-search-mcp/install-connector.sh", "note": "staged copy, not a symlink — re-run the installer after editing src/"},
     {"id": "research-memory", "source": "Claude/trevorobeyinc-research-memory-mcp", "entry": "dist/cli.js"},
     {"id": "perseus-business", "external": "$HOME/.local/bin/perseus-vault", "note": "third-party binary + encrypted DB; keep outside git"},

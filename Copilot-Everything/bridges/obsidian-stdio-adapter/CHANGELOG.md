@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.6.0 — 2026-11-21 — the `raycast` profile is retired; one profile, one client
+
+Operator decision, 2026-11-21: Raycast is removed, and the video workflows run from the Copilot
+agent (its `copilot-video-download` skill downloads a link, and Command Center's built-in pipeline
+does the rest). This adapter stays for the TRINC workflow only, as Claude's door. The `openclaw`
+surface is unchanged (27 tools).
+
+- **Removed:** the `raycast` profile, which now refuses to start like `claude` does, with its two
+  video tools, their client-edge input validation and URL allowlist, the mirror of Command Center's
+  video descriptions, and `raycast-launch.sh`.
+- **Removed:** the client for the canonical vault bridge on `:8798` (config loader, token header,
+  request signer, the 7 vault tool definitions and `raycast_daily_open`). It had been unreachable
+  since 2026-11-18. The adapter now reads no config file and holds one kind of secret, the two
+  bridges' bearer tokens. `index.mjs` went from 1,334 lines to 773.
+- **Tests:** both retired profiles and a missing profile refuse to start; `video_pipeline_run` is
+  unknown on Claude's door; the 1 MB argument cap is checked on an `openclaw` tool; two static
+  checks fail if the `:8798` client or a video or Raycast tool comes back. The raycast surface,
+  video edge, live video and description-drift checks are gone with the profile. 50 checks with
+  Obsidian open.
+
 ## 2026-11-20 — video tool text follows Command Center's phase 4 (version stays 0.5.0)
 
 No tool added, removed or renamed.

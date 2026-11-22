@@ -5,9 +5,9 @@ where its source lives in this monorepo, where it is deployed, and how to check 
 
 | File | What it does |
 |---|---|
-| `manifest.json` | Registry of every Obsidian plugin, bridge, Raycast piece and MCP server, with source path, deploy target and port. Update it whenever a component is added or moved. |
-| `verify.sh` | Read-only check: sources present, deployed builds byte-identical to source builds, MCP registrations resolve, Raycast template carries no key, no nested repos, no secret-shaped files tracked. Exit 1 on any FAIL. |
-| *(Raycast)* | The Raycast extension, its installer and its providers template moved to `~/Code/raycast-obsidian-bridge-fork` on 2026-10-23 (personal tooling). `manifest.json` still lists it as external, and `verify.sh` still checks the template carries no key. |
+| `manifest.json` | Registry of every Obsidian plugin, bridge and MCP server, with source path, deploy target and port. Update it whenever a component is added or moved. |
+| `verify.sh` | Read-only check: sources present, deployed builds byte-identical to source builds, MCP registrations resolve, no nested repos, no secret-shaped files tracked. Exit 1 on any FAIL. |
+| *(Raycast)* | Retired on 2026-11-21 by operator decision: both video workflows run from the Copilot agent. `manifest.json` keeps a `raycast` block that lists the leftovers the operator removes with Raycast, and `verify.sh` warns while any of them exists. |
 
 Run from anywhere:
 

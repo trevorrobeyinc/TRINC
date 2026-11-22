@@ -148,14 +148,13 @@ in the transport lint's forbidden list, as does `:11434`.
 - **A real run** needs the operator's freshly armed one-shot token (`operator-approved-gate arm openclaw`);
   `dry_run: true` proves the door without spending it. `status.post_run_done` is the only reliable
   "everything finished" signal. Never re-send `run_workflow` after a timeout; check status.
-- **Raycast chat's door** is the adapter's `raycast` profile: since 2026-11-18 the two video tools on
-  `:8799` only, registered in Raycast through `raycast-launch.sh`. Its vault tools and the daily note were
-  retired that day (operator decision): Raycast AI reads and writes the vault only through Security
-  Everything's YubiKey-gated `Obsidian Vault` server (`mcp-gates/OBSIDIAN-VAULT-GATE.md`, 2026-10-16), and
-  ungated write tools here went around it. Never add vault tools back to this profile. **Copilot** calls `:8798`,
-  `:8799` and `:8800` itself, and its agent mode reaches the bridges through
-  `bridges/openclaw-stdio-proxy`. Those are their doors, not Claude's. The adapter's `claude` profile was
-  retired 2026-10-23; the profile variable is now required.
+- **Raycast has no door (retired 2026-11-21, operator decision).** The adapter's `raycast` profile,
+  `raycast-launch.sh` and Command Center's Raycast dispatch are gone, and both video workflows run from the
+  Copilot agent: the `copilot-video-download` skill downloads a link, then `video_pipeline_run` takes the
+  file or folder. Do not add a Raycast door, a video tool on the adapter or a deeplink dispatch back.
+  **Copilot** calls `:8798`, `:8799` and `:8800` itself, and its agent mode reaches the bridges through
+  `bridges/openclaw-stdio-proxy`. That is its door, not Claude's. The adapter's `claude` profile was
+  retired 2026-10-23; the profile variable is required, and `openclaw` is its only value.
 - **Aggregate at the client edge, never by merging daemons.** Each bridge stays owned by its own plugin,
   with its own lifecycle, token and port. Merging them was declined on 2026-08-20 and again on 2026-10-23,
   as was "one plugin owns one port". Also declined, do not re-propose without new evidence: a TTL cache for

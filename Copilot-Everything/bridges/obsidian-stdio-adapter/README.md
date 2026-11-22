@@ -1,67 +1,50 @@
 # obsidian-bridge-adapter
 
-Stdio MCP adapter that tunnels tool calls to a **canonical Obsidian bridge daemon** running over HTTPS with HMAC + replay-guard, instead of letting every MCP client maintain its own Obsidian connection. Lets Claude Code, Claude Desktop, Qwen Chat, Raycast (or any MCP host) all share one bridge — single auth surface, single audit log, single point to swap out backends.
+Stdio MCP adapter that gives **Claude one door into Obsidian**. It proxies a closed set of tools over
+HTTPS to two Obsidian plugin bridges, the Command Center bridge on `:8799` and the Viz Studio bridge on
+`:8800`, so a Claude Code session starts and watches research runs through the same plugin the Copilot
+agent uses.
 
-> **Since 2026-11-18 no profile uses the `:8798` path described below.** `openclaw` talks to `:8799` and
-> `:8800`; `raycast` serves the two video tools on `:8799`, because its vault tools were retired by
-> operator decision (Raycast AI's vault access is Security Everything's YubiKey-gated `Obsidian Vault`
-> server). The `:8798` client code is still in `index.mjs`, unreachable, and neither profile loads its
-> config or token.
+> **One profile since 2026-11-21.** The `raycast` profile was retired by operator decision (Raycast is
+> removed, and the Copilot agent runs the video pipeline itself). The client for the canonical vault
+> bridge on `:8798`, unreachable since 2026-11-18, was deleted with it. The `claude` profile was retired
+> on 2026-10-23. Both refuse to start.
 
 ## What it talks to
 
-The bridge daemon's HTTPS endpoint is configured in a single local file (`obsidian-cli-mcp.local.json`) that lives outside this package. The adapter reads it at startup to discover the daemon URL, mkcert CA path, and HMAC auth token. The daemon (separate codebase) routes each call to the **Obsidian Local REST API plugin** (or another configured backend) and returns the result.
-
 ```
-MCP client ──stdio──► obsidian-bridge-adapter ──HTTPS+HMAC──► canonical bridge daemon ──► Obsidian Local REST API plugin ──► vault
-```
-
-## Install
-
-```
-npx -y @trevoralexanderrobey/obsidian-bridge-adapter
+Claude Code ──stdio──► obsidian-bridge-adapter ──HTTPS + bearer token──► Command Center bridge (:8799)
+                                               └─HTTPS + bearer token──► Viz Studio bridge     (:8800)
 ```
 
-Or as a global command:
-
-```
-npm install -g @trevoralexanderrobey/obsidian-bridge-adapter
-obsidian-bridge-adapter
-```
+Each bridge is a separate daemon owned by its own Obsidian plugin, and both stop when Obsidian quits.
+The adapter reads each bridge's `0600` bearer token at call time
+(`~/.config/openclaw-command-center/bridge-token`, `~/.config/trinc-viz-studio/bridge-token`), so a token
+rotation never needs a restart. It reads no other secret and no config file.
 
 ## Required environment
 
-The adapter needs to find the bridge's local config file. Set `OBSIDIAN_MCP_CONFIG` in your MCP host's spawn env, OR place the config at `~/.config/obsidian-bridge/obsidian-cli-mcp.local.json`.
+- `OBSIDIAN_STDIO_PROFILE=openclaw`. Required: there is no default.
+- `NODE_EXTRA_CA_CERTS`, pointing at the local CA root. The mkcert root CA on macOS is at
+  `~/Library/Application Support/mkcert/rootCA.pem`, which is also the fallback. HTTPS only: nothing
+  falls back to plaintext.
 
-The config file must contain `transport.tls`, `transport.host`, `transport.port`, and `security.authToken`.
-
-The adapter also needs `NODE_EXTRA_CA_CERTS` pointing at your local CA root (mkcert root CA on macOS is at `~/Library/Application Support/mkcert/rootCA.pem`).
-
-## Profiles — client-edge aggregation
-
-`OBSIDIAN_STDIO_PROFILE` selects a per-client tool surface. This adapter is where
-tools from **multiple** bridge daemons get aggregated into one MCP server per client
-("client-edge aggregation") — the daemons themselves stay separate, each owned by its
-own Obsidian plugin. Do not merge the daemons to widen a client's tool list; widen a
-profile here instead.
-
-`OBSIDIAN_STDIO_PROFILE` is **required**; there is no default.
+## Profiles
 
 | Profile | Tools | Upstream |
 |---|---|---|
-| `raycast` (0.5.0) | **Raycast chat's video door**, 2 tools: `video_pipeline_run` / `video_pipeline_status`. Its 7 `obsidian_*` vault tools and `raycast_daily_open` were retired 2026-11-18 and are refused by name | `:8799` Command Center bridge (`Authorization: Bearer`, token read per-call from `~/.config/openclaw-command-center/bridge-token`). Never loads the `:8798` config or its auth token. |
-| `openclaw` (0.4.0) | **Claude's one door**, 27 tools: `obsidian_health`, 12 `obsidian_openclaw_*` tools (start/watch/cancel a research run, read results, history, artifacts, citation integrity, memory search, engine health, delivery evidence, a restricted `publish_vault`), read-only `obsidian_search_notes` + `obsidian_read_note`, and the 12 `viz_*` renders | `:8799` Command Center bridge and `:8800` Viz Studio bridge (`Authorization: Bearer`, each token read per-call; Viz's from `~/.config/trinc-viz-studio/bridge-token`). Never loads the `:8798` config or its auth token. |
+| `openclaw` | **Claude's one door**, 27 tools: `obsidian_health`, 12 `obsidian_openclaw_*` tools (start/watch/cancel a research run, read results, history, artifacts, citation integrity, memory search, engine health, delivery evidence, a restricted `publish_vault`), read-only `obsidian_search_notes` + `obsidian_read_note`, and the 12 `viz_*` renders | `:8799` Command Center bridge and `:8800` Viz Studio bridge (`Authorization: Bearer`, each token read per-call). |
 
-The `raycast` profile's surface is **frozen**: Raycast's tool list must never change as a
-side effect of work on another profile. It changed once on purpose, by operator decision on
-2026-11-18: the 7 vault tools and `raycast_daily_open` were an ungated write lane into the vault
-around Security Everything's YubiKey-gated `Obsidian Vault` server, Raycast AI's only vault
-access since 2026-10-16 (`mcp-gates/OBSIDIAN-VAULT-GATE.md`), so only the two video tools stay.
-Never add vault tools back to this profile. The `claude` profile (the 7 vault tools for Claude
-Desktop) was **retired 2026-10-23**: no Claude surface had registered it since 2026-10-07, and
-its last entry (`Copilot-Everything/.mcp.json` `obsidian-bridge`) was an ungated write lane
-into the vault. Asking for it now refuses to start. `npm run test:profiles` asserts both
-surfaces exactly.
+Retired, and refused at startup:
+
+| Profile | Retired | Why |
+|---|---|---|
+| `raycast` | 2026-11-21 | Operator decision: Raycast is removed. Its last two tools, `video_pipeline_run` and `video_pipeline_status`, belong to the Copilot agent, which downloads a link with the `copilot-video-download` skill and then calls Command Center's built-in pipeline. Its 7 `obsidian_*` vault tools and `raycast_daily_open` had gone on 2026-11-18: they were an ungated write lane around Security Everything's YubiKey-gated `Obsidian Vault` server. |
+| `claude` | 2026-10-23 | No Claude surface had registered it since 2026-10-07, and its last entry (`Copilot-Everything/.mcp.json` `obsidian-bridge`) was an ungated write lane into the vault. |
+
+Never add a vault-write tool, a video tool or another client's surface here without an operator
+decision. `npm run test:profiles` asserts the surface exactly, that both retired profiles refuse to
+start, that the video tools are unknown on this door, and that the source holds no `:8798` client.
 
 ### The `openclaw` profile — Claude's one door into Obsidian
 
@@ -120,64 +103,36 @@ down, its tools return a clean MCP `isError` result (`obsidian_not_running` on t
 `OBSIDIAN_STDIO_COMMAND_CENTER_URL` and `OBSIDIAN_STDIO_VIZ_URL` (both https-only) exist
 solely so tests can point a proxy at a dead port.
 
-### Adding a tool to an existing profile
+### Adding a tool
 
-1. Add its definition next to `VIDEO_TOOLS`/`RAYCAST_DAILY_OPEN_TOOL` in `index.mjs`
-   (mirror the upstream daemon's schema verbatim, with a provenance comment).
-2. Gate it into `TOOLS` under the right profile conditional.
-3. Route it in `handleToolCall` (or `handleOpenclawCall`) through
-   `callBridgeTool(COMMAND_CENTER | VIZ_STUDIO, …)` (`:8799` / `:8800` MCP tools/call). A new
-   upstream is one more descriptor object like `VIZ_STUDIO`. `callBridge` (`:8798`) serves no
-   profile since 2026-11-18, and a vault tool on `raycast` is a retired decision (above).
-4. Update the table above and extend `scripts/test-profiles.mjs`'s expected set —
-   the test fails on any surface drift, which is the point.
+1. Add its spec to `OPENCLAW_SPECS` in `index.mjs` (mirror the upstream daemon's schema verbatim, with a
+   provenance comment and a `validate` function), or its name to `VIZ_TOOL_NAMES` for a Viz Studio tool.
+2. `handleOpenclawCall` routes every spec through `callBridgeTool(COMMAND_CENTER | VIZ_STUDIO, …)`
+   (`:8799` / `:8800` MCP tools/call). A new upstream is one more descriptor object like `VIZ_STUDIO`.
+3. Update the table above and extend `scripts/test-profiles.mjs`'s expected set. The test fails on any
+   surface drift, which is the point.
 
-### Input validation (0.2.0)
+### Input validation
 
-Two client-edge guardrails run before anything leaves the adapter; the daemons
-independently re-validate.
+Client-edge guardrails run before anything leaves the adapter, and the daemons re-validate
+independently.
 
-- **Video URL allowlist** (`VIDEO_URL_ALLOWED_HOSTS` in `index.mjs`):
-  `video_pipeline_run` accepts https URLs only, exact-hostname match against the
-  fork's documented hosts — `youtube.com`, `www.youtube.com`, `m.youtube.com`,
-  `youtu.be`, `vimeo.com`, `www.vimeo.com`, `linkedin.com`, `www.linkedin.com`,
-  `tiktok.com`, `www.tiktok.com`, `onlinelibrary.wiley.com` — or an absolute
-  local video file path (`.mp4/.mkv/.webm/.mov/.m4v`), which stays valid because
-  it is part of the tool's documented input contract. Anything else returns a
-  clean `isError` naming the violation. To extend the list: edit the const,
-  extend `scripts/test-profiles.mjs`, and update this section — all three in the
-  same change.
-- **Folder input** (since 2026-11-18, Command Center's folder mode): an absolute
-  path without a video extension passes only when `stat` says it is a folder; the
-  daemon then canonicalizes it and requires at least one video directly inside.
-  A missing path is refused here (`No such file or folder`), and an existing
-  non-video file still is (`Local file must be a video`). A path this process may
-  not `stat` (EPERM/EACCES: macOS privacy controls can deny Raycast's child a
-  folder Obsidian may read, such as one on an external drive) is left to the
-  daemon, which re-validates every input.
-- **Mirrored descriptions**: the two video tool definitions are copied from
-  `Claude/obsidian-command-center/src/bridge/mcp-bridge-server.ts` word for word,
-  and `scripts/test-profiles.mjs` fails when one is not in that source verbatim.
-- **Argument size cap** (`MAX_ARGS_BYTES`): every tool call on every profile is
-  rejected if its serialized arguments exceed 1 MB — protects against runaway or
-  buggy client payloads before any network call.
+- **Per-tool validation**: each spec's `validate` function (see the `openclaw` section above).
+- **Argument size cap** (`MAX_ARGS_BYTES`): every tool call is rejected if its serialized arguments
+  exceed 1 MB, which protects against runaway or buggy client payloads before any network call.
 
-### Adding a new profile
+### Adding a profile
 
-Add its name to the `PROFILE` validation, give it a conditional in `TOOLS`, and add an
-expected-set assertion in `scripts/test-profiles.mjs`. Never touch the daemons.
+A second client gets a profile only by operator decision. Add its name to the `PROFILE` validation,
+build its tool list beside `OPENCLAW_TOOLS`, and add an expected-set assertion in
+`scripts/test-profiles.mjs`. Never touch the daemons, and never merge them to widen a client's tool
+list: aggregate per client here.
 
 ## Rollback
 
-The aggregation lives entirely in this package. To restore the previous adapter:
-
-- While the change is uncommitted:
-  `git -C /Users/myhome/TRINC checkout -- Copilot-Everything/bridges/obsidian-stdio-adapter/index.mjs Copilot-Everything/bridges/obsidian-stdio-adapter/package.json`
-- After it is committed:
-  `git -C /Users/myhome/TRINC revert <that commit>` (or `git checkout <commit>^ -- Copilot-Everything/bridges/obsidian-stdio-adapter/index.mjs`)
-
-Then have each MCP host respawn the adapter (quit/reopen Raycast; restart Claude
-Desktop). Nothing daemon-side needs rolling back — the daemons were never modified.
+The adapter lives entirely in this package. To restore an earlier version:
+`git -C /Users/myhome/TRINC revert <that commit>`, then start a new Claude Code session so the host
+respawns the adapter. Nothing daemon-side needs rolling back: the daemons were never modified.
 
 ## MCP host configurations
 
@@ -202,16 +157,6 @@ Desktop). Nothing daemon-side needs rolling back — the daemons were never modi
 Keep the server key `openclaw-obsidian`: the Security Everything gate hook matches that
 prefix. A session sees new tools only after it restarts. Claude Desktop is not wired to
 this adapter; it reaches the vault through FilesystemPlus and miyo.
-
-### Raycast (stdio profile)
-
-Raycast's Install Server form takes a command with no environment fields, so register
-`raycast-launch.sh` (it sets `OBSIDIAN_STDIO_PROFILE=raycast` and the CA). After changing its
-tools, remove and re-add the server in Raycast: Raycast answers from a tool snapshot it took
-at install time. Register it under the name `Video Pipeline` (chosen 2026-11-18); the August
-entry was named `obsidian-vault`. Do not confuse either with `Obsidian Vault`, Security
-Everything's gated vault server (command `/usr/bin/python3` running `mcp-gates/raycast_fs_gate.py`),
-which stays.
 
 ## License
 

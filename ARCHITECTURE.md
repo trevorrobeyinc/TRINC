@@ -36,7 +36,7 @@ flight, [`_continuity/CONTINUITY.md`](_continuity/CONTINUITY.md).
 - **Obsidian** is the operator's console. Its plugins dispatch runs, receive the results as vault notes,
   render visuals, and provide semantic search and graph analysis over the vault.
 - **Claude reaches Obsidian through one door**, the stdio adapter's `openclaw` profile (server
-  `openclaw-obsidian`). Copilot and Raycast keep their own doors.
+  `openclaw-obsidian`). Copilot keeps its own door; Raycast's was retired on 2026-11-21.
 - **Models.** The engine is **100% Claude**. Obsidian's Copilot chat defaults to hosted
   `copilot-plus-flash`; its agent mode runs on an opencode backend. Ollama is running behind its HTTPS
   proxy but **has no model installed** (see §7).
@@ -67,9 +67,7 @@ Obsidian — owns four HTTPS bridges; all of them die when Obsidian quits
     contextual-wiki-definitions, claude-console-mirror
 
 Claude's one door (Claude Code, repo .mcp.json "openclaw-obsidian")
-└── stdio adapter, profile openclaw ──> :8799 and :8800   (never loads the :8798 token)
-Raycast chat's door (video only since 2026-11-18; Raycast AI's vault access is the gated "Obsidian Vault")
-└── stdio adapter, profile raycast  ──> :8799 video tools   (never loads the :8798 token)
+└── stdio adapter, profile openclaw ──> :8799 and :8800   (its only profile; it holds no :8798 client)
 
 Third-party loopback services, each wrapped by an in-repo HTTPS proxy (launchd)
 ├── Miyo     :8743 -> :8742    semantic search over the vault
@@ -313,11 +311,12 @@ curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.
 | **Ollama model warmer** (`Copilot-Everything/scripts/ollama-preload.sh`, launchd label `com.trevorrobey.ollama-preload`) | Removed 2026-11-04 by operator decision: no plist was installed, nothing called it, and its model is not installed. The `:11435` TLS proxy is separate and stays. |
 | **Claude → opencode delegation worker** (`opencode-mcp`, `_opencode-bridge/`, the repo `AGENTS.md` mirrors) | Retired 2026-10-23. `~/.config/opencode/` stays: it is the Copilot agent's opencode configuration. |
 | **Stdio adapter `claude` profile** and `Copilot-Everything/.mcp.json` `obsidian-bridge` | Retired 2026-10-23 (unused; was an ungated write lane). |
-| **Stdio adapter `raycast` profile's vault tools** (the 7 `obsidian_*` tools and `raycast_daily_open`) | Retired 2026-11-18 by operator decision: an ungated write lane around the YubiKey-gated `Obsidian Vault` server, Raycast AI's only vault access since 2026-10-16 (Security Everything `mcp-gates/OBSIDIAN-VAULT-GATE.md`). The profile keeps the two video tools and no longer loads the `:8798` config; `npm run test:profiles` refuses each retired tool by name. If Raycast chat needs a vault write, it arms that server's session. |
+| **Stdio adapter `raycast` profile**, `raycast-launch.sh` and the adapter's `:8798` client | Retired 2026-11-21 by operator decision: Raycast is removed, and both video workflows run from the Copilot agent (the `copilot-video-download` skill, then Command Center's built-in pipeline). The profile refuses to start, and `npm run test:profiles` fails if a video tool, a Raycast tool or the `:8798` client comes back. Its vault tools (the 7 `obsidian_*` tools and `raycast_daily_open`) had gone on 2026-11-18: an ungated write lane around the YubiKey-gated `Obsidian Vault` server (Security Everything `mcp-gates/OBSIDIAN-VAULT-GATE.md`). |
+| **Command Center's Raycast video path** (the `videoBackend` setting, the `raycast://` deeplink dispatch, a link on `video_pipeline_run`) | Removed 2026-11-21 (`5fe8472`). `video_pipeline_run` takes a local file or folder only; a link is downloaded first by the `copilot-video-download` skill's script. The run log keeps its old folder, `~/.local/share/raycast-obsidian/`, on purpose. |
 | **Engine `viz-bridge-mcp` adapter** | Retired 2026-10-23, never called. Registry tombstone `viz-bridge`. |
 | **Engine adapters `chembl-mcp`, `clinicaltrials-mcp`, `pubmed-mcp`, `huggingface-mcp`, `npi-mcp`, `icd10-mcp`, `owkin-mcp`** | Removed 2026-11-04, never called (added 2026-04-27). Registry: `pubmed` and `clinicaltrials-gov` re-pointed at ToolUniverse; the other five are tombstones. |
 | **`:8798` `research_publish`**, `scripts/publish-to-vault.js`, `scripts/atlas-stub-creator.js` | Tombstoned 2026-09-22, removed 2026-10-23. The engine writes run notes itself. |
-| **Raycast extension** and three personal plugins inside the repo | Moved to `~/Code` 2026-10-23; the installed builds still work. |
+| **Raycast extension** (Obsidian Bridge Fork) and three personal plugins inside the repo | Moved to `~/Code` 2026-10-23. The extension was then retired with Raycast on 2026-11-21: nothing in this repo starts it, and the operator archives its source and uninstalls Raycast. The three personal plugins' installed builds still work. |
 | **Copilot fork 3.3.3** (`repos/obsidian-copilot-mcp`) | Retired 2026-10-21; the live fork is the 4.0.0 port. |
 | **term-bridge** (`mcp__term-bridge__*`, `tb-gate`) | Retired 2026-07-28. |
 | **LM Studio** (`:1234`, proxy `:1235`) | Decommissioned 2026-07-16. |

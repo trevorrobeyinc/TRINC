@@ -176,22 +176,19 @@ for s in m["mcp_servers"]:
     say("FAIL" if drift else "PASS",
         f"{s['id']}: staged src/ " + (f"DRIFTED ({', '.join(drift[:5])}) — re-run {s.get('install')}" if drift else "matches repo source"))
 
-print("== Raycast")
+print("== Raycast (retired 2026-11-21)")
+# Raycast left the stack by operator decision. Nothing here is built or registered for it any more, so the
+# only check left is the reminder: warn while a leftover the operator still has to remove exists. One of
+# them, providers.yaml, holds the Copilot Plus licence key, so its mode is still checked while it is there.
 rc = m["raycast"]
-rc_base = expand(rc["external"]) if "external" in rc else repo
-ext = os.path.normpath(os.path.join(rc_base, rc["extension"]["source"]))
-say("PASS" if os.path.isfile(os.path.join(ext, "package.json")) else "FAIL", f"raycast extension source: {ext}")
-tpl = os.path.join(rc_base, rc["ai_providers"]["template"])
-if os.path.isfile(tpl):
-    t = open(tpl).read()
-    say("PASS" if "PASTE_COPILOT_PLUS_LICENSE_KEY_HERE" in t else "FAIL", "providers template carries a placeholder, not a key")
-live = expand(rc["ai_providers"]["live"])
-if os.path.isfile(live):
-    mode = oct(os.stat(live).st_mode & 0o777)
-    say("PASS" if mode == "0o600" else "WARN", f"live providers.yaml mode {mode} (want 0o600)")
-    strip = lambda s: re.sub(r"(?m)^#.*\n", "", re.sub(r"(copilot-plus:)\s*\S+$", r"\1 X", s, flags=re.M))
-    if os.path.isfile(tpl):
-        say("PASS" if strip(open(live).read()) == strip(t) else "WARN", "live providers.yaml matches the repo template (apart from the key)")
+left = [p for p in map(expand, rc.get("leftovers", [])) if os.path.lexists(p)]
+say("WARN" if left else "PASS",
+    "Raycast leftovers still present: " + ", ".join(left) + " (the operator removes them with Raycast)" if left
+    else "no Raycast leftovers")
+for p in left:
+    if os.path.isfile(p) and p.endswith("providers.yaml"):
+        mode = oct(os.stat(p).st_mode & 0o777)
+        say("PASS" if mode == "0o600" else "WARN", f"leftover providers.yaml (licence key) mode {mode} (want 0o600)")
 
 print("== Xcode")
 # The buyer app's Xcode project and Swift package (business). The Xcode setup's security checks (the rules for

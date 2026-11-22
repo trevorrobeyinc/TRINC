@@ -1,56 +1,30 @@
 #!/usr/bin/env node
-// Regression guard for the adapter's per-profile tool surfaces.
+// Regression guard for the adapter's tool surface.
 //
 //   npm run test:profiles
 //
 // Asserts:
-//   - "raycast" profile lists EXACTLY its 2 video tools (proxied to the Command Center bridge on
-//     :8799), refuses its 8 retired tools by name (the 7 vault tools and raycast_daily_open, retired
-//     2026-11-18: Raycast AI's vault access is the YubiKey-gated "Obsidian Vault" server), and, like
-//     "openclaw", starts with the :8798 config unreadable.
-//   - "openclaw" profile (Claude's one door since 2026-10-23) lists EXACTLY its 15 :8799 tools plus
-//     the 12 allowlisted Viz Studio tools, never offers a Viz property that writes outside
-//     Visualizations/, and refuses one on a call.
-//   - The retired "claude" profile, and a missing profile, refuse to start.
-//   - When the Command Center bridge is reachable, two live checks run:
-//       - a link sent to video_pipeline_run is refused, pointing at the copilot-video-download skill
-//         (phase 4, 2026-11-20: a link is downloaded first by that skill's script);
-//       - a dry_run on a folder of videos returns its plan (kind folder, the video count, the
-//         canonical path, and the page link read from the .url file beside the video, which also
-//         names a generic title's summary note) and starts nothing.
-//     When the bridge is not reachable (Obsidian closed), or with TEST_PROFILES_SKIP_LIVE=1, every
-//     live check is SKIPPED loudly, and the remaining assertions still gate the exit code.
-//   - The raycast video tool descriptions are the Command Center's, word for word.
+//   - The "openclaw" profile (Claude's one door since 2026-10-23, and the only profile since
+//     2026-11-21) lists EXACTLY its 15 :8799 tools plus the 12 allowlisted Viz Studio tools, never
+//     offers a Viz property that writes outside Visualizations/, and refuses one on a call.
+//   - The retired "raycast" and "claude" profiles, and a missing profile, refuse to start.
+//   - The video pipeline's tools, the raycast profile's last ones, are unknown on Claude's door, and
+//     the adapter source holds no client for the :8798 vault bridge.
+//   - When a bridge is not reachable (Obsidian closed), or with TEST_PROFILES_SKIP_LIVE=1, its live
+//     checks are SKIPPED loudly, and the remaining assertions still gate the exit code.
 //
-// Plain node, no dependencies. Requires the mkcert CA the adapter uses. Neither profile reads the
-// :8798 bridge config since 2026-11-18, and listing is local to the adapter.
+// Plain node, no dependencies. Requires the mkcert CA the adapter uses. Listing is local to the adapter.
 
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import * as nodeHttps from "node:https";
-import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ADAPTER = resolve(__dirname, "../index.mjs");
 
-// The raycast profile's tools until 2026-11-18. Each must now be refused by name on that door, because
-// a Raycast holding the old tool snapshot can still call them.
-const RETIRED_RAYCAST = [
-  "obsidian_open_vault",
-  "obsidian_create_note",
-  "obsidian_append_note",
-  "obsidian_read_note",
-  "obsidian_search_notes",
-  "obsidian_execute_command",
-  "obsidian_health",
-  "raycast_daily_open",
-];
-const EXPECTED_RAYCAST = ["video_pipeline_run", "video_pipeline_status"];
-// Command Center's phase-4 refusal of a link (video-pipeline-source.ts LINK_REFUSAL), in part.
-const LINK_REFUSAL_POINTER = "download it first with the copilot-video-download skill";
 const COMMAND_CENTER_HEALTHZ = "https://127.0.0.1:8799/healthz";
 const VIZ_HEALTHZ = "https://127.0.0.1:8800/healthz";
 
@@ -166,7 +140,7 @@ function check(label, fn) {
   }
 }
 
-// --- profile selection: "claude" is retired and there is no default --------
+// --- profile selection: one profile; "raycast" and "claude" are retired; there is no default ---
 /** Start the adapter with an env, wait for it to exit (or time out), and return code + stderr. */
 function runToExit(env, waitMs = 8000) {
   return new Promise((resolveExit) => {
@@ -185,6 +159,7 @@ function runToExit(env, waitMs = 8000) {
 }
 const { OBSIDIAN_STDIO_PROFILE: _unused, ...envWithoutProfile } = process.env;
 for (const [label, env] of [
+  ["the retired raycast profile refuses to start", { ...process.env, OBSIDIAN_STDIO_PROFILE: "raycast" }],
   ["the retired claude profile refuses to start", { ...process.env, OBSIDIAN_STDIO_PROFILE: "claude" }],
   ["a missing profile refuses to start (there is no default)", envWithoutProfile],
 ]) {
@@ -192,217 +167,17 @@ for (const [label, env] of [
   check(label, () => {
     assert.notEqual(exit.code, 0, "adapter started anyway");
     assert.notEqual(exit.code, "timeout", "adapter hung instead of refusing");
-    assert.match(exit.stderr, /must be "raycast" or "openclaw"/);
+    assert.match(exit.stderr, /must be "openclaw"/);
+    assert.match(exit.stderr, /"raycast" profile was retired 2026-11-21/);
   });
 }
 
-// --- raycast profile: exact 10-tool surface ----------------------------------
 // TEST_PROFILES_SKIP_LIVE=1 skips every check that talks to a running bridge. Use it in a checkout whose
 // Command Center source is newer than the build Obsidian runs, such as a worktree before its deploy.
 const SKIP_LIVE = process.env.TEST_PROFILES_SKIP_LIVE === "1";
 if (SKIP_LIVE) console.log("SKIP  every live check (TEST_PROFILES_SKIP_LIVE=1)");
 const ccUp = !SKIP_LIVE && (await bridgeUp(COMMAND_CENTER_HEALTHZ));
 const vizUp = !SKIP_LIVE && (await bridgeUp(VIZ_HEALTHZ));
-// Inert placeholder id on an allowlisted host. The adapter's edge lets it through, and the daemon
-// refuses every link (phase 4), so nothing is downloaded or dispatched.
-const FIXTURE_URL = "https://www.youtube.com/watch?v=test-fixture-0000";
-// Folder mode (2026-11-18): a throwaway folder holding one empty video and one non-video file.
-// The daemon's folder check reads only names and file types, so an empty clip.mp4 counts as one
-// video; nothing is dispatched (dry_run) and the folder is removed after the raycast run.
-const VIDEO_FIXTURE_DIR = mkdtempSync(join(tmpdir(), "adapter-video-folder-"));
-writeFileSync(join(VIDEO_FIXTURE_DIR, "clip.mp4"), "");
-writeFileSync(join(VIDEO_FIXTURE_DIR, "notes.txt"), "not a video\n");
-// The page link the copilot-video-download script writes beside a download (yt-dlp --write-url-link,
-// 2026-11-20). "clip" is a generic title, so the daemon names the summary note from this link's last
-// path segment, as the Raycast runner did on a link run: the dry run's plan shows both. The daemon
-// only reads this file; nothing goes to the link. example.com is reserved for documentation.
-const FIXTURE_SOURCE_URL = "https://www.example.com/talks/adapter-fixture-talk";
-writeFileSync(join(VIDEO_FIXTURE_DIR, "clip.url"), `[InternetShortcut]\r\nURL=${FIXTURE_SOURCE_URL}\r\n`);
-// What the daemon sends on (it canonicalizes with realpathSync: /var/folders/... is
-// /private/var/folders/... on macOS), read now because the folder is gone by check time.
-const VIDEO_FIXTURE_DIR_REAL = realpathSync(VIDEO_FIXTURE_DIR);
-// A path the adapter may not stat (macOS privacy controls can deny Raycast's child a folder that
-// Obsidian reads, such as one on an external drive): the edge cannot tell, so the daemon decides.
-// A mode-000 parent makes stat fail with EACCES. The folder count skips it (no video extension).
-const LOCKED_DIR = join(VIDEO_FIXTURE_DIR, "locked");
-mkdirSync(LOCKED_DIR);
-chmodSync(LOCKED_DIR, 0o000);
-// Sent whether or not :8799 is up: both must pass the adapter's edge either way.
-const edgePassRequests = [
-  {
-    jsonrpc: "2.0",
-    id: 9,
-    method: "tools/call",
-    params: {
-      name: "video_pipeline_run",
-      arguments: { videoUrl: VIDEO_FIXTURE_DIR, dry_run: true },
-    },
-  },
-  {
-    jsonrpc: "2.0",
-    id: 11,
-    method: "tools/call",
-    params: {
-      name: "video_pipeline_run",
-      arguments: { videoUrl: join(LOCKED_DIR, "inner"), dry_run: true },
-    },
-  },
-];
-// Input-validation rejects happen inside the adapter BEFORE any :8799 call,
-// so these assertions run regardless of whether the bridge is up.
-const rejectRequests = [
-  {
-    jsonrpc: "2.0",
-    id: 4,
-    method: "tools/call",
-    params: {
-      name: "video_pipeline_run",
-      arguments: { videoUrl: "http://youtube.com/watch?v=test-fixture-0000", dry_run: true },
-    },
-  },
-  {
-    jsonrpc: "2.0",
-    id: 5,
-    method: "tools/call",
-    params: {
-      name: "video_pipeline_run",
-      arguments: { videoUrl: "https://evil.example.com/video", dry_run: true },
-    },
-  },
-  {
-    jsonrpc: "2.0",
-    id: 6,
-    method: "tools/call",
-    params: {
-      name: "video_pipeline_run",
-      arguments: { videoUrl: "/" + "x".repeat(2 * 1024 * 1024), dry_run: true },
-    },
-  },
-  {
-    jsonrpc: "2.0",
-    id: 7,
-    method: "tools/call",
-    params: {
-      name: "video_pipeline_run",
-      arguments: { videoUrl: join(VIDEO_FIXTURE_DIR, "notes.txt"), dry_run: true },
-    },
-  },
-  {
-    jsonrpc: "2.0",
-    id: 8,
-    method: "tools/call",
-    params: {
-      name: "video_pipeline_run",
-      arguments: { videoUrl: "Videos/clip.mp4", dry_run: true },
-    },
-  },
-  {
-    jsonrpc: "2.0",
-    id: 10,
-    method: "tools/call",
-    params: {
-      name: "video_pipeline_run",
-      arguments: { videoUrl: join(VIDEO_FIXTURE_DIR, "missing-folder"), dry_run: true },
-    },
-  },
-];
-const extra = ccUp
-  ? [
-      {
-        jsonrpc: "2.0",
-        id: 3,
-        method: "tools/call",
-        params: {
-          name: "video_pipeline_run",
-          arguments: { videoUrl: FIXTURE_URL, dry_run: true },
-        },
-      },
-      ...edgePassRequests,
-      ...rejectRequests,
-    ]
-  : [...edgePassRequests, ...rejectRequests];
-let raycast;
-try {
-  raycast = await runAdapter("raycast", extra);
-} finally {
-  chmodSync(LOCKED_DIR, 0o700);
-  rmSync(VIDEO_FIXTURE_DIR, { recursive: true, force: true });
-}
-check("raycast profile lists exactly its 2 video tools", () => {
-  assert.deepEqual(toolNames(raycast), [...EXPECTED_RAYCAST].sort());
-});
-
-if (ccUp) {
-  // Proves the running daemon is the phase-4 build: phase 3 still handed a link to Raycast.
-  check("live :8799: a link is refused, pointing at the copilot-video-download skill", () => {
-    const res = raycast.get(3)?.result;
-    assert.ok(res, "no result for tools/call id 3");
-    assert.equal(res.isError, true, `expected the daemon to refuse a link, got: ${JSON.stringify(res).slice(0, 300)}`);
-    const text = res.content?.[0]?.text ?? "";
-    assert.ok(text.includes(LINK_REFUSAL_POINTER), `the refusal lacks the pointer: ${text.slice(0, 300)}`);
-  });
-  check("live :8799: dry_run on a folder returns its plan (kind folder, video count, canonical path, source link)", () => {
-    const res = raycast.get(9)?.result;
-    assert.ok(res, "no result for tools/call id 9");
-    assert.notEqual(res.isError, true, `tool returned isError: ${JSON.stringify(res).slice(0, 300)}`);
-    const payload = JSON.parse(res.content?.[0]?.text ?? "{}");
-    assert.equal(payload.dryRun, true, "expected dryRun:true");
-    assert.equal(payload.dispatched, false, "dry run must not dispatch");
-    assert.equal(payload.backend, "builtin");
-    assert.equal(payload.kind, "folder");
-    assert.equal(payload.videoCount, 1, "clip.mp4 is the only video; notes.txt must not count");
-    assert.equal(payload.videoUrl, VIDEO_FIXTURE_DIR_REAL);
-    assert.ok(payload.plan && typeof payload.plan === "object", "expected the run's plan");
-    assert.equal(payload.deeplink, undefined, "phase 4 sends no deeplink");
-    const planned = Array.isArray(payload.plan.videos) ? payload.plan.videos : [];
-    assert.equal(planned.length, 1, `expected one planned video: ${JSON.stringify(payload.plan).slice(0, 300)}`);
-    assert.equal(planned[0].video, "clip.mp4");
-    assert.equal(planned[0].sourceUrl, FIXTURE_SOURCE_URL, "the daemon must read clip.url beside the video");
-    assert.ok(
-      String(planned[0].summaryNote).endsWith("/adapter-fixture-talk summary.md"),
-      `a generic title is named from the link's last path segment, got: ${planned[0].summaryNote}`,
-    );
-  });
-} else {
-  console.log(
-    "SKIP  live video checks (link refusal, folder plan) — Command Center bridge (:8799) unreachable, or live checks skipped",
-  );
-}
-check("an absolute folder path passes the adapter's client edge", () => {
-  const res = raycast.get(9)?.result;
-  assert.ok(res, "no result for tools/call id 9");
-  const text = res.content?.[0]?.text ?? "";
-  assert.ok(!text.startsWith("Rejected by adapter input validation"), `refused at the edge: ${text.slice(0, 200)}`);
-});
-check("a path the adapter cannot stat (EACCES) is left to the daemon, which still refuses it", () => {
-  const res = raycast.get(11)?.result;
-  assert.ok(res, "no result for tools/call id 11");
-  const text = res.content?.[0]?.text ?? "";
-  assert.ok(!text.startsWith("Rejected by adapter input validation"), `refused at the edge: ${text.slice(0, 200)}`);
-  // With :8799 up the daemon refuses it (it cannot stat it either); with :8799 down the call fails.
-  assert.equal(res.isError, true, `expected isError:true, got: ${JSON.stringify(res).slice(0, 200)}`);
-  console.log(`      answered: ${text.slice(0, 160)}`);
-});
-
-// --- input-validation guardrails (adapter-local, no bridge required) ---------
-function assertReject(id, label, phrase) {
-  check(label, () => {
-    const res = raycast.get(id)?.result;
-    assert.ok(res, `no result for tools/call id ${id}`);
-    assert.equal(res.isError, true, `expected isError:true, got: ${JSON.stringify(res).slice(0, 200)}`);
-    const text = res.content?.[0]?.text ?? "";
-    assert.ok(
-      text.includes(phrase),
-      `expected message containing ${JSON.stringify(phrase)}, got: ${text.slice(0, 200)}`,
-    );
-  });
-}
-assertReject(4, "http:// video URL rejected with scheme error", "URL scheme must be https");
-assertReject(5, "non-allowlisted host rejected with hostname error", "hostname not in allowlist: evil.example.com");
-assertReject(6, "2 MB argument payload rejected with size error", "arguments exceed 1 MB limit");
-assertReject(7, "an existing non-video file is still rejected", "Local file must be a video");
-assertReject(8, "a relative video path is rejected", "Local video paths must be absolute");
-assertReject(10, "a missing folder is rejected at the edge", "No such file or folder:");
 
 // --- openclaw profile: Claude Code's dispatch lane (added 2026-10-07) --------
 //
@@ -526,6 +301,9 @@ const openclawLocal = await runAdapter(
     callReq(33, "viz_canvas", { title: "t", targetCanvas: "Board.canvas", overwrite: true }),
     callReq(34, "viz_mermaid", { source: "flowchart TD\n A-->B", fileName: "../escape" }),
     callReq(35, "viz_health", {}),
+    // The retired raycast door's tools stay unknown here, and the size cap covers every tool.
+    callReq(36, "video_pipeline_run", { videoUrl: "/Users/fixture/clip.mp4", dry_run: true }),
+    callReq(37, "obsidian_search_notes", { query: "x".repeat(2 * 1024 * 1024) }),
   ],
   DEAD_UPSTREAM,
 );
@@ -589,6 +367,8 @@ assertOpenclawReject(31, "viz refuses targetNote (no appending to an existing no
 assertOpenclawReject(32, "viz refuses useActiveTab (no writing into the open note or canvas)", "useActiveTab not available on this door");
 assertOpenclawReject(33, "viz refuses targetCanvas and overwrite together", "targetCanvas, overwrite not available on this door");
 assertOpenclawReject(34, "viz refuses a path-like fileName", "fileName must be a plain base name");
+assertOpenclawReject(36, "video_pipeline_run is Unknown on Claude's door (the video pipeline is the Copilot agent's lane)", "Unknown tool: video_pipeline_run");
+assertOpenclawReject(37, "a 2 MB argument payload is rejected with the size error", "arguments exceed 1 MB limit");
 check("dead upstream: viz_health degrades to obsidian_not_running and names the Viz Studio bridge", () => {
   const body = resultJson(openclawLocal, 35);
   assert.equal(body?.error, "obsidian_not_running", `got: ${resultText(openclawLocal, 35).slice(0, 240)}`);
@@ -611,50 +391,28 @@ for (const [id, label] of [
   });
 }
 
-// (2) Least privilege: both lanes must start and list tools with the :8798 config UNREADABLE.
-// OBSIDIAN_MCP_CONFIG is the first candidate loadBridgeConfig tries, and it is read + JSON.parsed, so a
-// profile that loaded the config would crash on a file that is not JSON. No profile loads it since
-// 2026-11-18 ("openclaw" since 2026-10-07); the negative control below is therefore static.
-const POISON_DIR = mkdtempSync(join(tmpdir(), "stdio-adapter-poison-"));
-const POISON_CONFIG = join(POISON_DIR, "not-a-config.json");
-writeFileSync(POISON_CONFIG, "{ this is not json — no profile may ever read it", "utf8");
-try {
-  const poisoned = await runAdapter("openclaw", [], { OBSIDIAN_MCP_CONFIG: POISON_CONFIG, ...DEAD_UPSTREAM });
-  check("openclaw starts and lists its tools even when the :8798 config is unreadable (it never loads the :8798 token)", () => {
-    assert.deepEqual(toolNames(poisoned), [...EXPECTED_OPENCLAW].sort());
-  });
-  // The retired raycast tools are called HERE, with the config poisoned and every upstream dead, so even
-  // a regression in both the name fence and the config switch could not write to the real vault.
-  const retiredCalls = RETIRED_RAYCAST.map((name, i) => ({
-    jsonrpc: "2.0",
-    id: 70 + i,
-    method: "tools/call",
-    params: { name, arguments: { vault: "fixture", path: "fixture.md", content: "fixture", id: "fixture" } },
-  }));
-  const poisonedRaycast = await runAdapter("raycast", retiredCalls, {
-    OBSIDIAN_MCP_CONFIG: POISON_CONFIG,
-    ...DEAD_UPSTREAM,
-  });
-  check("raycast starts and lists only its 2 video tools even when the :8798 config is unreadable", () => {
-    assert.deepEqual(toolNames(poisonedRaycast), [...EXPECTED_RAYCAST].sort());
-  });
-  check("raycast refuses each of its 8 retired tools by name and points at the gated vault server", () => {
-    const wrong = RETIRED_RAYCAST.filter((name, i) => {
-      const res = poisonedRaycast.get(70 + i)?.result;
-      return !(res?.isError === true && resultText(poisonedRaycast, 70 + i).includes(`${name} is no longer served on this door`));
-    });
-    assert.deepEqual(wrong, []);
-  });
-  check("negative control: a profile that loaded the :8798 config would crash on this file (so the checks above are meaningful)", () => {
-    assert.throws(() => JSON.parse(readFileSync(POISON_CONFIG, "utf8")), SyntaxError);
-    const source = readFileSync(ADAPTER, "utf8");
-    const loader = source.slice(source.indexOf("function loadBridgeConfig()"), source.indexOf("const PROFILE ="));
-    assert.match(loader, /const candidates = \[\s*process\.env\.OBSIDIAN_MCP_CONFIG,/, "OBSIDIAN_MCP_CONFIG is no longer the first candidate");
-    assert.match(loader, /JSON\.parse\(readFileSync\(path, "utf8"\)\)/, "loadBridgeConfig no longer parses the file it finds");
-  });
-} finally {
-  rmSync(POISON_DIR, { recursive: true, force: true });
-}
+// (2) Least privilege: the adapter holds no client for the canonical vault bridge (:8798). Until
+// 2026-11-21 that client's code was still in index.mjs, unreachable; it went with the raycast profile.
+// These are static checks, because no call can prove an absence: the config loader, its env var, the
+// token header and the request signer must not come back, and neither may a video or Raycast tool.
+check("the adapter source holds no :8798 client (config loader, env var, token header, body signer)", () => {
+  const source = readFileSync(ADAPTER, "utf8");
+  const returned = [
+    "loadBridgeConfig",
+    "OBSIDIAN_MCP_CONFIG",
+    "obsidian-cli-mcp.local.json",
+    "X-MCP-Token",
+    "X-MCP-Body-Sha256",
+  ].filter((s) => source.includes(s));
+  assert.deepEqual(returned, []);
+});
+check("the adapter source defines no video-pipeline or Raycast tool", () => {
+  const source = readFileSync(ADAPTER, "utf8");
+  const returned = ['name: "video_pipeline_run"', 'name: "video_pipeline_status"', 'name: "raycast_daily_open"'].filter(
+    (s) => source.includes(s),
+  );
+  assert.deepEqual(returned, []);
+});
 
 // (3) Static drift guard: every mirrored tool name must still exist in the Command Center source.
 // (Names only — property-level drift is covered by the live checks below when :8799 is up.)
@@ -683,23 +441,6 @@ check("the Command Center source supports dry_run on run_workflow and post_run_d
   assert.ok(source.includes("params.dry_run === true"), "dry_run handling missing from handleRunWorkflow");
   assert.ok(source.includes("post_run_done"), "post_run_done missing from handleGetStatus");
 });
-// The raycast video tools are mirrored word for word (2026-11-18: the folder-mode change reached the
-// bridge but not this mirror, and no check noticed). Each description is a one-line double-quoted
-// literal in the bridge source, so its JSON form must appear there verbatim.
-check("every raycast video tool description is the Command Center source's, word for word", () => {
-  const source = readFileSync(CC_SOURCE, "utf8");
-  const tools = (raycast.get(2)?.result?.tools ?? []).filter((t) => t.name.startsWith("video_pipeline_"));
-  assert.equal(tools.length, 2, "expected video_pipeline_run and video_pipeline_status");
-  const drifted = [];
-  for (const t of tools) {
-    if (!source.includes(JSON.stringify(t.description))) drifted.push(t.name);
-    for (const [key, prop] of Object.entries(t.inputSchema.properties ?? {})) {
-      if (!source.includes(JSON.stringify(prop.description))) drifted.push(`${t.name}.${key}`);
-    }
-  }
-  assert.deepEqual(drifted, []);
-});
-
 // (4) Live checks against a reachable :8799. Read-only except the dry_run, which is sent only after
 // the status reply proves the daemon is the upgraded build.
 if (ccUp) {

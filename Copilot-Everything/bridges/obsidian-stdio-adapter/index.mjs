@@ -1,27 +1,23 @@
 #!/usr/bin/env node
 // obsidian-stdio-adapter
-// Consolidated stdio MCP adapter that tunnels tool calls to the canonical
-// bridge daemon at https://127.0.0.1:8798. Replaces claude-adapter,
-// obsidian-mcp-stdio, and raycast-obsidian-stdio.
+// Stdio MCP adapter for ONE client, Claude. It proxies a closed set of tools to two Obsidian plugin
+// bridges over HTTPS: the Command Center bridge (https://127.0.0.1:8799) and the Viz Studio bridge
+// (https://127.0.0.1:8800). It holds no client for the canonical vault bridge on :8798.
 //
-// Profiles (OBSIDIAN_STDIO_PROFILE env, required — there is no default):
-//   "raycast"           — Raycast chat's video door: video_pipeline_run/_status ONLY, proxied
-//                         to the Command Center bridge on :8799 (separate daemon, unmodified).
-//                         Its 7 obsidian_* vault tools and raycast_daily_open were retired
-//                         2026-11-18 (operator decision): Raycast AI reads and writes the vault
-//                         through Security Everything's YubiKey-gated "Obsidian Vault" server
-//                         (mcp-gates/OBSIDIAN-VAULT-GATE.md, decision of 2026-10-16), and an
-//                         ungated write lane here would go around it. Never loads the :8798
-//                         config or token.
+// Profile (OBSIDIAN_STDIO_PROFILE env, required — there is no default):
 //   "openclaw"          — Claude's one door into Obsidian (dispatch lane added 2026-10-07,
 //                         widened 2026-10-23 per TRINC reorg decision D5): run dispatch,
 //                         status and results plus read-only vault search/read on :8799,
 //                         and the Viz Studio renders on :8800, writing only into
-//                         Visualizations/. Never loads the :8798 config or token. See
-//                         the "openclaw" section below.
-// The "claude" profile (the 7 vault tools for Claude Desktop) was retired 2026-10-23: no Claude
-// surface had registered it since 2026-10-07, and its last entry (Copilot-Everything/.mcp.json
-// "obsidian-bridge") was an ungated write lane into the vault.
+//                         Visualizations/. See the "openclaw" section below.
+// Retired profiles, which refuse to start:
+//   "raycast"  (2026-11-21, operator decision: Raycast is removed). Its last two tools, the video
+//              pipeline's, belong to the Copilot agent, which downloads a link with its own skill
+//              and calls Command Center's built-in pipeline itself. Its 7 vault tools and
+//              raycast_daily_open had gone on 2026-11-18, and the :8798 client went with it.
+//   "claude"   (2026-10-23): no Claude surface had registered it since 2026-10-07, and its last
+//              entry (Copilot-Everything/.mcp.json "obsidian-bridge") was an ungated write lane
+//              into the vault.
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -29,135 +25,33 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { createHash, randomUUID } from "node:crypto";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
 import * as nodeHttps from "node:https";
-import { resolve, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-// ---------------------------------------------------------------------------
-// Config — read from the same file the bridge uses
-// ---------------------------------------------------------------------------
-
-function loadBridgeConfig() {
-  // Lookup order:
-  //   1. OBSIDIAN_MCP_CONFIG env var (explicit, highest priority — recommended for npx callers).
-  //   2. ~/.config/obsidian-bridge/obsidian-cli-mcp.local.json (cross-host standard, host-local).
-  //   3. <adapter-dir>/../obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json
-  //      (monorepo-internal sibling-dir fallback; only resolves when adapter runs from inside
-  //      its source repo, NOT when run via npx from a temp install dir).
-  const candidates = [
-    process.env.OBSIDIAN_MCP_CONFIG,
-    process.env.HOME && resolve(process.env.HOME, ".config/obsidian-bridge/obsidian-cli-mcp.local.json"),
-    resolve(__dirname, "../obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json"),
-  ].filter(Boolean);
-
-  for (const path of candidates) {
-    if (existsSync(path)) {
-      return JSON.parse(readFileSync(path, "utf8"));
-    }
-  }
-
-  throw new Error(
-    "obsidian-bridge-adapter: could not locate the bridge config file. Set OBSIDIAN_MCP_CONFIG=" +
-      "/absolute/path/to/obsidian-cli-mcp.local.json in this MCP server's env, or place a copy " +
-      "of the config at ~/.config/obsidian-bridge/obsidian-cli-mcp.local.json. Tried:\n  " +
-      candidates.join("\n  "),
-  );
-}
+import { resolve } from "node:path";
 
 const PROFILE = process.env.OBSIDIAN_STDIO_PROFILE;
-if (PROFILE !== "raycast" && PROFILE !== "openclaw") {
+if (PROFILE !== "openclaw") {
   throw new Error(
-    `obsidian-stdio-adapter: OBSIDIAN_STDIO_PROFILE must be "raycast" or "openclaw" (got ${JSON.stringify(PROFILE)}). ` +
-      'The "claude" profile was retired 2026-10-23; Claude uses "openclaw".',
+    `obsidian-stdio-adapter: OBSIDIAN_STDIO_PROFILE must be "openclaw" (got ${JSON.stringify(PROFILE)}). ` +
+      'The "raycast" profile was retired 2026-11-21 (Raycast is removed; the Copilot agent runs the video ' +
+      'pipeline) and the "claude" profile 2026-10-23; Claude uses "openclaw".',
   );
 }
 
-// Neither profile talks to the canonical vault bridge (:8798), so neither loads that bridge's config:
-// the file carries the :8798 auth token, and a lane that cannot use a secret should not hold it (least
-// privilege; "openclaw" since 2026-10-07, "raycast" since its trim to the video tools on 2026-11-18).
-// The :8798 client code below (callBridge, buildBridgePayload, BASE_TOOLS, RAYCAST_DAILY_OPEN_TOOL)
-// is therefore unreachable: handleToolCall refuses every name outside a profile's allowlist.
-const USES_VAULT_BRIDGE = false;
-const config = USES_VAULT_BRIDGE ? loadBridgeConfig() : null;
-if (config && !config.transport.tls) {
-  throw new Error(
-    "obsidian-stdio-adapter requires TLS configuration; plain HTTP is not supported. " +
-      "Set transport.tls.{certPath,keyPath} in obsidian-cli-mcp.local.json.",
-  );
-}
-
-const BRIDGE_BASE_URL = config ? `https://${config.transport.host}:${config.transport.port}` : null;
-
+// The trust anchor for both bridges is the mkcert root CA. HTTPS only: nothing here falls back to
+// plaintext.
 const caPath = process.env.NODE_EXTRA_CA_CERTS
   || `${process.env.HOME}/Library/Application Support/mkcert/rootCA.pem`;
 if (!existsSync(caPath)) {
   throw new Error(`obsidian-stdio-adapter could not locate trust anchor at ${caPath}`);
 }
 const BRIDGE_TLS_AGENT = new nodeHttps.Agent({ ca: readFileSync(caPath) });
-const AUTH_TOKEN = config?.security?.authToken;
-const DEFAULT_VAULT =
-  config?.cliStability?.requiredVaultNames?.[0] ?? "My Digital Garden";
-const DEFAULT_VAULT_ROOT =
-  config?.allowedVaultRoots?.[0] ??
-  "/Users/myhome/My Digital Garden";
-const REQUEST_TIMEOUT_MS = 20_000;
 
 // ---------------------------------------------------------------------------
-// Bridge HTTP client (matches mcpClient.service.ts:callTool pattern)
-// ---------------------------------------------------------------------------
-
-function sha256Hex(body) {
-  return createHash("sha256").update(body, "utf8").digest("hex");
-}
-
-async function callBridge(payload) {
-  const body = JSON.stringify(payload);
-  const headers = {
-    "Content-Type": "application/json",
-    "X-MCP-Token": AUTH_TOKEN,
-    "X-MCP-Timestamp": String(Date.now()),
-    "X-MCP-Nonce": randomUUID(),
-    "X-MCP-Body-Sha256": sha256Hex(body),
-  };
-
-  return await new Promise((resolvePromise, rejectPromise) => {
-    const url = new URL(`${BRIDGE_BASE_URL}/mcp/tool`);
-    const req = nodeHttps.request(
-      {
-        hostname: url.hostname,
-        port: url.port,
-        path: url.pathname,
-        method: "POST",
-        headers: { ...headers, "Content-Length": Buffer.byteLength(body) },
-        agent: BRIDGE_TLS_AGENT,
-        timeout: REQUEST_TIMEOUT_MS,
-      },
-      (res) => {
-        const chunks = [];
-        res.on("data", (chunk) => chunks.push(chunk));
-        res.on("end", () => {
-          const text = Buffer.concat(chunks).toString("utf8");
-          try { resolvePromise(JSON.parse(text)); }
-          catch (e) { rejectPromise(new Error(`bridge non-JSON response: ${text.slice(0, 200)}`)); }
-        });
-      }
-    );
-    req.on("error", rejectPromise);
-    req.on("timeout", () => { req.destroy(new Error("request timed out")); });
-    req.write(body);
-    req.end();
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Command Center bridge client (:8799) — raycast-profile video tools only.
-// The Command Center bridge is a SEPARATE daemon owned by the command-center
-// Obsidian plugin; this adapter proxies two of its tools so Raycast chat gets
-// one merged tool list. The daemon itself is not modified.
+// Command Center bridge (:8799): the openclaw profile's main upstream. It is a
+// SEPARATE daemon owned by the command-center Obsidian plugin, and this adapter
+// proxies a closed set of its tools. The daemon itself is not modified.
 // ---------------------------------------------------------------------------
 
 // Env override exists for failure-isolation testing only (point it at a dead
@@ -173,7 +67,7 @@ const COMMAND_CENTER_TOKEN_PATH = resolve(
   process.env.HOME || "",
   ".config/openclaw-command-center/bridge-token",
 );
-// video_pipeline_run blocks up to ~15s waiting for RUN START confirmation.
+// Default per-call timeout on :8799; a tool's spec may set its own.
 const COMMAND_CENTER_TIMEOUT_MS = 30_000;
 const COMMAND_CENTER = {
   name: "Command Center",
@@ -197,86 +91,8 @@ const VIZ_STUDIO = {
 };
 
 // Hard cap on serialized tools/call arguments — rejects runaway or buggy client
-// payloads before any re-serialization or network call. Applies to every tool
-// on every profile.
+// payloads before any re-serialization or network call. Applies to every tool.
 const MAX_ARGS_BYTES = 1_048_576; // 1 MB
-
-// Hosts video_pipeline_run accepts for https input — exact hostname match.
-// Source of truth: the Raycast fork's Video Pipeline Runner (Downie/yt-dlp can
-// fetch more; extend this list deliberately, updating scripts/test-profiles.mjs
-// and the README "Input validation" section in the same change). Derived
-// 2026-08-20 from the fork's own docs/prefs: YouTube (primary lane), LinkedIn
-// Learning + TikTok (named in videoTranscribeFlow.ts), Wiley
-// (docs/transcribe-and-save/README.md), Vimeo (operator-requested).
-const VIDEO_URL_ALLOWED_HOSTS = [
-  "youtube.com",
-  "www.youtube.com",
-  "m.youtube.com",
-  "youtu.be",
-  "vimeo.com",
-  "www.vimeo.com",
-  "linkedin.com",
-  "www.linkedin.com",
-  "tiktok.com",
-  "www.tiktok.com",
-  "onlinelibrary.wiley.com",
-];
-// Mirrors the :8799 daemon's accepted local-file extensions.
-const VIDEO_FILE_EXTENSIONS = [".mp4", ".mkv", ".webm", ".mov", ".m4v"];
-
-/**
- * Client-edge validation for video_pipeline_run input. Returns an error string
- * (rendered as a clean isError result) or null when acceptable. The :8799
- * daemon re-validates independently; this guardrail just refuses obviously
- * out-of-contract input before it leaves the adapter. Local absolute video
- * paths remain valid — they are part of the tool's documented input contract —
- * and since 2026-11-18 so is an absolute FOLDER path: the daemon's folder mode
- * (Claude/obsidian-command-center/src/bridge/video-pipeline-source.ts) runs every
- * video directly inside it, one after another, in one run.
- */
-function validateVideoSource(raw) {
-  const value = typeof raw === "string" ? raw.trim() : "";
-  if (!value) {
-    return "videoUrl is required — an https video URL from an allowlisted host, an absolute local video file path, or an absolute path to a folder of videos.";
-  }
-  if (value.includes("://")) {
-    let parsed;
-    try {
-      parsed = new URL(value);
-    } catch {
-      return `videoUrl does not parse as a URL: ${value.slice(0, 100)}`;
-    }
-    if (parsed.protocol !== "https:") {
-      return `URL scheme must be https (got: ${parsed.protocol.replace(":", "")})`;
-    }
-    if (!VIDEO_URL_ALLOWED_HOSTS.includes(parsed.hostname)) {
-      return `hostname not in allowlist: ${parsed.hostname}`;
-    }
-    return null;
-  }
-  if (!value.startsWith("/")) {
-    return "Local video paths must be absolute (or pass an https URL from an allowlisted host).";
-  }
-  // A video file: a single-video run, exactly as before folders were accepted.
-  if (VIDEO_FILE_EXTENSIONS.some((ext) => value.toLowerCase().endsWith(ext))) {
-    return null;
-  }
-  // Folder mode: anything else passes this edge only as a folder of videos. The :8799 daemon
-  // re-validates it (canonical path, at least one video directly inside, subfolders not searched).
-  let stats;
-  try {
-    stats = statSync(value);
-  } catch (err) {
-    // Unreadable is not out of contract: macOS privacy controls can deny this process (Raycast's
-    // child) a folder that Obsidian may read, such as one on an external drive, so the daemon decides.
-    if (err?.code === "EPERM" || err?.code === "EACCES") return null;
-    return err?.code === "ENOENT"
-      ? `No such file or folder: ${value.slice(0, 200)}`
-      : `Not a usable folder path (${err?.code ?? "unknown error"}): ${value.slice(0, 200)}`;
-  }
-  if (stats.isDirectory()) return null;
-  return `Local file must be a video (${VIDEO_FILE_EXTENSIONS.join(", ")}) or a folder of videos.`;
-}
 
 function loadBridgeToken(upstream) {
   if (!existsSync(upstream.tokenPath)) {
@@ -339,306 +155,6 @@ async function callBridgeTool(upstream, toolName, args, timeoutMs) {
   return raw.result ?? { content: [{ type: "text", text: JSON.stringify(raw) }] };
 }
 
-async function callCommandCenter(toolName, args, timeoutMs = COMMAND_CENTER_TIMEOUT_MS) {
-  return callBridgeTool(COMMAND_CENTER, toolName, args, timeoutMs);
-}
-
-// ---------------------------------------------------------------------------
-// Tool-to-operation mapping and default injection
-// ---------------------------------------------------------------------------
-
-// Maps MCP tool names to the bridge's operation field.
-// null operation means the tool has special handling (health, miyo).
-const TOOL_OPERATION_MAP = {
-  obsidian_open_vault: "open_vault",
-  obsidian_create_note: "create_note",
-  obsidian_append_note: "append_note",
-  obsidian_read_note: "read_note",
-  obsidian_search_notes: "search_notes",
-  obsidian_execute_command: "execute_command",
-  obsidian_health: null,
-};
-
-// Tools that need vault injected
-const NEEDS_VAULT = new Set([
-  "obsidian_open_vault",
-  "obsidian_create_note",
-  "obsidian_append_note",
-  "obsidian_read_note",
-  "obsidian_search_notes",
-]);
-
-// Tools that need vaultRoot injected
-const NEEDS_VAULT_ROOT = new Set([
-  "obsidian_create_note",
-  "obsidian_append_note",
-  "obsidian_read_note",
-]);
-
-function buildBridgePayload(toolName, args) {
-  const input = { ...args };
-
-  // Inject vault default for note/command tools
-  if (NEEDS_VAULT.has(toolName) && !input.vault) {
-    input.vault = DEFAULT_VAULT;
-  }
-
-  // Inject vaultRoot default for tools that require it
-  if (NEEDS_VAULT_ROOT.has(toolName) && !input.vaultRoot) {
-    input.vaultRoot = DEFAULT_VAULT_ROOT;
-  }
-
-  // idempotencyKey is required by the bridge for append_note in hardened mode.
-  // Do NOT auto-generate a random key — that breaks retry safety. The caller
-  // must provide a stable key so retries of the same logical append reconcile
-  // instead of creating duplicates.
-
-  const operation = TOOL_OPERATION_MAP[toolName];
-
-  // Build the MCPToolRequest shape: { tool, operation, input }
-  const payload = { tool: toolName, input };
-  if (operation) {
-    payload.operation = operation;
-  }
-
-  return payload;
-}
-
-// ---------------------------------------------------------------------------
-// MCP tool definitions
-// ---------------------------------------------------------------------------
-
-const BASE_TOOLS = [
-  {
-    name: "obsidian_open_vault",
-    description:
-      "Open a vault (or a specific note within it) in Obsidian.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        vault: {
-          type: "string",
-          description: `Vault name (default: ${DEFAULT_VAULT})`,
-        },
-        path: {
-          type: "string",
-          description: "Optional note path to open within the vault",
-        },
-        paneType: {
-          type: "string",
-          enum: ["tab", "split", "window"],
-          description: "How to open the note",
-        },
-      },
-    },
-  },
-  {
-    name: "obsidian_create_note",
-    description:
-      "Create a new note in the vault. Provide path relative to vault root (e.g., 'Daily Notes/2026-03-24.md').",
-    inputSchema: {
-      type: "object",
-      properties: {
-        path: {
-          type: "string",
-          description:
-            "Note path relative to vault root (e.g., 'folder/note.md')",
-        },
-        content: {
-          type: "string",
-          description: "Markdown content for the note",
-        },
-        vault: {
-          type: "string",
-          description: `Vault name (default: ${DEFAULT_VAULT})`,
-        },
-        vaultRoot: {
-          type: "string",
-          description: `Vault root path (default: ${DEFAULT_VAULT_ROOT})`,
-        },
-        overwrite: {
-          type: "boolean",
-          description: "Overwrite if note already exists (default: false)",
-        },
-        open: {
-          type: "boolean",
-          description: "Open the note in Obsidian after creation",
-        },
-      },
-      required: ["path"],
-    },
-  },
-  {
-    name: "obsidian_append_note",
-    description:
-      "Append content to an existing note. Requires an idempotencyKey for retry safety — use a stable identifier so retries of the same logical append are reconciled instead of duplicated.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        path: {
-          type: "string",
-          description:
-            "Note path relative to vault root (e.g., 'folder/note.md')",
-        },
-        content: {
-          type: "string",
-          description: "Markdown content to append",
-        },
-        idempotencyKey: {
-          type: "string",
-          description:
-            "Stable unique key for this append operation. Must be the same across retries of the same logical append to prevent duplicates.",
-        },
-        vault: {
-          type: "string",
-          description: `Vault name (default: ${DEFAULT_VAULT})`,
-        },
-        vaultRoot: {
-          type: "string",
-          description: `Vault root path (default: ${DEFAULT_VAULT_ROOT})`,
-        },
-        inline: {
-          type: "boolean",
-          description: "Append inline (no newline separator)",
-        },
-      },
-      required: ["path", "content", "idempotencyKey"],
-    },
-  },
-  {
-    name: "obsidian_read_note",
-    description:
-      "Read the full markdown content of a note from the vault.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        path: {
-          type: "string",
-          description:
-            "Note path relative to vault root (e.g., 'folder/note.md')",
-        },
-        vault: {
-          type: "string",
-          description: `Vault name (default: ${DEFAULT_VAULT})`,
-        },
-        vaultRoot: {
-          type: "string",
-          description: `Vault root path (default: ${DEFAULT_VAULT_ROOT})`,
-        },
-      },
-      required: ["path"],
-    },
-  },
-  {
-    name: "obsidian_search_notes",
-    description:
-      "Search for notes by content. Returns matching note paths and context.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        query: {
-          type: "string",
-          description: "Search query",
-        },
-        vault: {
-          type: "string",
-          description: `Vault name (default: ${DEFAULT_VAULT})`,
-        },
-        path: {
-          type: "string",
-          description: "Optional path prefix to scope the search",
-        },
-        limit: {
-          type: "number",
-          description: "Max results (1-500)",
-        },
-        caseSensitive: {
-          type: "boolean",
-          description: "Case-sensitive search",
-        },
-      },
-      required: ["query"],
-    },
-  },
-  {
-    name: "obsidian_execute_command",
-    description:
-      "Execute an Obsidian command by its command ID (e.g., 'copilot:chat').",
-    inputSchema: {
-      type: "object",
-      properties: {
-        id: {
-          type: "string",
-          description: "Obsidian command ID to execute",
-        },
-        vault: {
-          type: "string",
-          description: "Optional vault name",
-        },
-      },
-      required: ["id"],
-    },
-  },
-  {
-    name: "obsidian_health",
-    description:
-      "Check bridge health: backend status, routing, security, and metrics.",
-    inputSchema: {
-      type: "object",
-      properties: {},
-    },
-  },
-];
-
-const RAYCAST_DAILY_OPEN_TOOL = {
-  name: "raycast_daily_open",
-  description:
-    "Open today's Obsidian daily note via the built-in Daily Notes plugin (command id 'daily-notes'). Maps locally to obsidian_execute_command — the bridge daemon is not modified.",
-  inputSchema: {
-    type: "object",
-    properties: {
-      vault: {
-        type: "string",
-        description: `Vault name (default: ${DEFAULT_VAULT})`,
-      },
-    },
-  },
-};
-
-// Mirrored from Claude/obsidian-command-center/src/bridge/mcp-bridge-server.ts
-// (its tools/list entries for the video pipeline). Keep in sync by hand, word for word:
-// scripts/test-profiles.mjs fails when a description here is not in that source verbatim
-// (2026-11-18, after the folder-mode change reached the bridge but not this mirror).
-const VIDEO_TOOLS = [
-  {
-    name: "video_pipeline_run",
-    description:
-      "Run the video-to-summary pipeline inside Obsidian on an absolute local video file path, or an absolute path to a FOLDER of videos already on disk. A link (YouTube, LinkedIn Learning, a course page) is refused: it is downloaded first by /Users/myhome/My Digital Garden/copilot/skills/copilot-video-download/video-download.sh (the copilot-video-download skill), and you then pass the file path it prints, or the folder it prints for a course. Each video is transcribed by the local transcriber (the run log's `transcription engine:` line names it; video_pipeline_status returns it as `transcriber`), summarized by Copilot's Super-Summarize command, and saved to the vault as Copilot Summaries/'<title> summary.md' with title, created and source frontmatter. After a successful summary the intermediates are cleaned up, and a video inside the vault's Video Downloads folder (where the download script saves) is deleted with its subtitle files; a video anywhere else is never moved or deleted. A folder runs every video directly inside it (not subfolders) one after another in ONE run, skipping any video whose summary note already exists. For several videos, pass their folder ONCE: a second call while a run is going is refused. If a summary fails, the run ends failed and nothing retries it: video_pipeline_status then gives `summaryError` and `transcriptNote`, and you write that summary yourself from the note. Returns immediately; poll video_pipeline_status for progress.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        videoUrl: {
-          type: "string",
-          description:
-            "An absolute local video file path (.mp4/.mkv/.webm/.mov/.m4v), or an absolute folder path (every video directly inside it, one after another). A link is refused: download it first with the copilot-video-download skill.",
-        },
-        dry_run: {
-          type: "boolean",
-          description: "Validate the input and report what the run would do, without starting it: the summary note, or for a folder the videos it would transcribe and skip, and whether videos would be deleted.",
-        },
-      },
-      required: ["videoUrl"],
-    },
-  },
-  {
-    name: "video_pipeline_status",
-    description:
-      "Progress of the most recent video pipeline run, read from its durable run log: running/success/failed, the latest stage line, the summary confirmation when finished, and `transcriber`: the transcription engine that actually ran, verbatim from the run's `transcription engine:` line. Report the engine only from `transcriber`. `transcriptionRequested` is what the pipeline asked for (Whisper-style settings), not what ran. Both are absent when the transcript came from subtitles. A folder run reports `folder` and `batch`: {total, summarized, failed, skipped, remaining, current (the video being worked on), summaries (vault paths), failures ({video, reason, transcriptNote})}; it ends `failed` when any one video failed, even though the others were summarized. When a summary fails, `summaryError` says why and `transcriptNote` names the transcription note that was kept (per video in a folder run: `batch.failures[].transcriptNote`): read that note and write the summary yourself as Copilot Summaries/'<title> summary.md' with title, created and source frontmatter, never overwriting an existing note.",
-    inputSchema: { type: "object", properties: {} },
-  },
-];
-const VIDEO_TOOL_NAMES = new Set(VIDEO_TOOLS.map((t) => t.name));
-
 // ---------------------------------------------------------------------------
 // "openclaw" profile — Claude Code -> Command Center bridge (:8799)  (2026-10-07)
 // ---------------------------------------------------------------------------
@@ -651,14 +167,15 @@ const VIDEO_TOOL_NAMES = new Set(VIDEO_TOOLS.map((t) => t.name));
 //
 // Since 2026-10-23 this is Claude's ONE door into Obsidian (TRINC reorg, decisions D4 and D5): the
 // dispatch tools below, read-only vault search/read on :8799, and the Viz Studio renders on :8800
-// (see the "Viz Studio" section after OPENCLAW_SPECS). Copilot and Raycast keep their own doors.
+// (see the "Viz Studio" section after OPENCLAW_SPECS). Copilot keeps its own door.
 //
 // This is a NARROW ALLOWLIST. Deliberately NOT exposed here, and why:
 //   obsidian_openclaw_research_task   the `real` provider spends the one-shot operator token and
 //                                     duplicates run_workflow
 //   obsidian_openclaw_{research_tasks_list,research_output,feed_stats}   not pipeline-related
 //   zk_*                              model analyses that write nothing; they do not close any gap
-//   video_pipeline_*                  needs a human click in Downie
+//   video_pipeline_*                  the Copilot agent's lane: it downloads a link with its own
+//                                     skill and then starts the run
 //   obsidian_{open_vault,create_note,append_note,execute_command} and the
 //   dev-console tools                 write/exec surface. obsidian_read_note and obsidian_search_notes
 //                                     ARE exposed (read-only, D5): :8799 serves both through Obsidian's
@@ -669,7 +186,7 @@ const VIDEO_TOOL_NAMES = new Set(VIDEO_TOOLS.map((t) => t.name));
 // fails closed with operator_gate_* unless a fresh token was armed (`operator-approved-gate arm openclaw`).
 //
 // Schemas below are mirrored BY HAND from Claude/obsidian-command-center/src/bridge/mcp-bridge-server.ts
-// (handleToolsList), same precedent as VIDEO_TOOLS above. scripts/test-profiles.mjs checks that every
+// (handleToolsList). scripts/test-profiles.mjs checks that every
 // mirrored name and property still exists in the live :8799 tools/list whenever it is reachable.
 
 // Mirrors the :8799 daemon's ID_RE, which it applies to template ids, input keys and workflow ids.
@@ -1173,7 +690,7 @@ async function handleOpenclawCall(name, args) {
   }
 }
 
-const TOOLS = PROFILE === "openclaw" ? OPENCLAW_TOOLS : VIDEO_TOOLS;
+const TOOLS = OPENCLAW_TOOLS;
 
 // ---------------------------------------------------------------------------
 // Startup health check (non-blocking, warns on stderr)
@@ -1206,56 +723,18 @@ async function checkCommandCenterHealth() {
   });
 }
 
-async function checkBridgeHealth() {
-  if (!USES_VAULT_BRIDGE) return checkCommandCenterHealth();
-  try {
-    const resp = await fetch(`${BRIDGE_BASE_URL}/healthz`, {
-      signal: AbortSignal.timeout(3000),
-    });
-    const data = await resp.json();
-    if (data.ok) {
-      process.stderr.write(
-        `[obsidian-stdio-adapter:${PROFILE}] Bridge healthy at ${BRIDGE_BASE_URL}\n`
-      );
-    } else {
-      process.stderr.write(
-        `[obsidian-stdio-adapter:${PROFILE}] Bridge returned ok=false: ${JSON.stringify(data)}\n`
-      );
-    }
-  } catch (err) {
-    process.stderr.write(
-      `[obsidian-stdio-adapter:${PROFILE}] Warning: bridge not reachable at ${BRIDGE_BASE_URL} — ${err.message}\n`
-    );
-  }
-}
-
 // ---------------------------------------------------------------------------
 // MCP server
 // ---------------------------------------------------------------------------
 
 const server = new Server(
-  { name: "obsidian-stdio-adapter", version: "0.5.0" },
+  { name: "obsidian-stdio-adapter", version: "0.6.0" },
   { capabilities: { tools: {} } }
 );
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools: PROFILE === "openclaw" ? [...TOOLS, ...(await listVizTools())] : TOOLS,
+  tools: [...TOOLS, ...(await listVizTools())],
 }));
-
-/**
- * Map a bridge call result to the MCP tool-result shape. Success omits isError;
- * a failure carries isError:true with the bridge error code/message. Shared by
- * the raycast-profile helper and the standard tool path.
- */
-function toMcpResult(result) {
-  if (result.ok) {
-    return { content: [{ type: "text", text: JSON.stringify(result.data, null, 2) }] };
-  }
-  return {
-    content: [{ type: "text", text: `Error [${result.error?.code}]: ${result.error?.message}` }],
-    isError: true,
-  };
-}
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
@@ -1263,9 +742,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const result = await handleToolCall(name, args);
   // One structured line per call for post-hoc debugging — MCP hosts capture a
   // server's stderr into their own managed logs. Never log argument values.
-  const upstream = PROFILE === "openclaw" && VIZ_TOOL_SET.has(name)
-    ? 8800
-    : PROFILE === "openclaw" || VIDEO_TOOL_NAMES.has(name) ? 8799 : "none";
+  const upstream = VIZ_TOOL_SET.has(name) ? 8800 : 8799;
   process.stderr.write(
     `[obsidian-stdio-adapter:${PROFILE}] call tool=${name} upstream=${upstream} ` +
       `status=${result.isError ? "error" : "ok"} latency_ms=${Date.now() - startedAt}\n`,
@@ -1282,46 +759,8 @@ async function handleToolCall(name, args) {
     };
   }
 
-  // The openclaw profile has its own closed tool set and never reaches the :8798 paths below —
-  // even the shared name `obsidian_health` is answered by the :8799 daemon there.
-  if (PROFILE === "openclaw") return await handleOpenclawCall(name, args);
-
-  // The raycast profile serves the two video tools and nothing else (2026-11-18). A Raycast that still
-  // holds the old ten-tool snapshot may call a retired vault tool by name: refuse it here, by name,
-  // and say where the vault went, so nothing reaches :8798 from this door.
-  if (!VIDEO_TOOL_NAMES.has(name)) {
-    const retired =
-      Object.prototype.hasOwnProperty.call(TOOL_OPERATION_MAP, name) || name === "raycast_daily_open";
-    return {
-      content: [
-        {
-          type: "text",
-          text: retired
-            ? `${name} is no longer served on this door (retired 2026-11-18): Raycast AI reaches the vault ` +
-              'through the YubiKey-gated "Obsidian Vault" server.'
-            : `Unknown tool: ${name}`,
-        },
-      ],
-      isError: true,
-    };
-  }
-
-  // Video pipeline tools are proxied to the Command Center bridge (:8799),
-  // after client-edge input validation for the run tool.
-  if (name === "video_pipeline_run") {
-    const violation = validateVideoSource((args || {}).videoUrl);
-    if (violation) {
-      return {
-        content: [{ type: "text", text: `Rejected by adapter input validation: ${violation}` }],
-        isError: true,
-      };
-    }
-  }
-  try {
-    return await callCommandCenter(name, args || {});
-  } catch (err) {
-    return { content: [{ type: "text", text: `Adapter error: ${err.message}` }], isError: true };
-  }
+  // One profile, one closed tool set: handleOpenclawCall refuses every name outside it.
+  return await handleOpenclawCall(name, args);
 }
 
 // ---------------------------------------------------------------------------
@@ -1329,6 +768,6 @@ async function handleToolCall(name, args) {
 // ---------------------------------------------------------------------------
 
 process.stderr.write(`[obsidian-stdio-adapter:${PROFILE}] starting (profile=${PROFILE})\n`);
-await checkBridgeHealth();
+await checkCommandCenterHealth();
 const transport = new StdioServerTransport();
 await server.connect(transport);
