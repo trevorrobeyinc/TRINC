@@ -372,7 +372,7 @@ export class OpenClawSettingTab extends PluginSettingTab {
           })
       );
 
-    // --- Video pipeline (2026-11-19, phase 3 of retiring Raycast and Downie) ---
+    // --- Video pipeline (2026-11-19; the only pipeline since phase 4, 2026-11-20) ---
     this.displayVideoPipelineSettings(containerEl);
 
     // --- Trevorobeyinc Research Memory ---
@@ -478,33 +478,17 @@ export class OpenClawSettingTab extends PluginSettingTab {
     this.validateOpenClawPath();
   }
 
-  /** The video_pipeline_run backend switch and the built-in pipeline's settings. */
+  /** The video pipeline's settings (video_pipeline_run). */
   private displayVideoPipelineSettings(containerEl: HTMLElement): void {
     const settings = this.plugin.settings;
     containerEl.createEl("h3", { text: "Video pipeline" });
     containerEl.createEl("p", {
       text:
-        "Which backend video_pipeline_run uses for a local video file or folder. A URL always goes to the " +
-        "Raycast runner for now. Both backends write the same run log, so video_pipeline_status reads either.",
+        "video_pipeline_run transcribes and summarizes a local video file or folder inside Obsidian, with no " +
+        "paid fallback: a failed summary ends the run, and the Copilot agent writes it. A link is downloaded " +
+        "first by the copilot-video-download skill.",
       cls: "setting-item-description",
     });
-
-    new Setting(containerEl)
-      .setName("Backend for files and folders")
-      .setDesc(
-        "Raycast: open the Raycast Video Pipeline Runner (today's path). Built-in: transcribe and summarize " +
-          "inside Obsidian, with no paid fallback; a failed summary ends the run, and the Copilot agent writes it."
-      )
-      .addDropdown((dropdown) =>
-        dropdown
-          .addOption("raycast", "Raycast")
-          .addOption("builtin", "Built-in (inside Obsidian)")
-          .setValue(settings.videoBackend)
-          .onChange(async (value) => {
-            settings.videoBackend = value === "builtin" ? "builtin" : "raycast";
-            await this.plugin.saveSettings();
-          })
-      );
 
     new Setting(containerEl)
       .setName("Video download folder")

@@ -217,7 +217,7 @@ test("a built-in run whose summary failed reports summaryError and transcriptNot
   const reason = "Copilot summary did not appear within 180s: Copilot Summaries/Talk transcription — Super-Summarize.md";
   const run = [
     p("00:00.000", "RUN START file=/Users/me/Movies/Talk.mp4"),
-    p("00:00.001", "runner: Command Center built-in pipeline, inside Obsidian (videoBackend=builtin)"),
+    p("00:00.001", "runner: Command Center built-in pipeline, inside Obsidian"),
     p("00:40.000", `source note written: ${note}`),
     p("03:40.000", `copilot summary lane FAILED (${reason}) — no fallback runs here: the run ends failed, nothing keeps watching for a late Copilot note, and the transcription note stays for the agent`),
     p("03:40.001", `summary error: ${reason}`),

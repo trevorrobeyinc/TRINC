@@ -8,11 +8,14 @@
  * without the CustomCommandChatModal's Copy/Insert/Replace confirmation step: the model
  * output is persisted via vault.create/modify, which needs no user press.
  *
- * The Raycast extension "Obsidian Bridge Fork" → "Video Pipeline Runner" depends on this:
- * it dispatches `copilot:summarize-to-note` through the Local REST API and then polls for
- * `<source basename> — <command title>.md` in `customCommandNoteFolder`. The output path
- * below is therefore a CONTRACT, not an implementation detail — changing it breaks that
- * command's primary (free, local) path and silently demotes it to its paid API fallback.
+ * Command Center's built-in video pipeline depends on this
+ * (Claude/obsidian-command-center/src/video/copilot-summary.ts, since 2026-11-19; the Raycast
+ * "Video Pipeline Runner" did before it). It runs `copilot:super-summarize-to-note`, or
+ * `copilot:summarize-to-note` when the Super-Summarize prompt is missing, through
+ * `app.commands.executeCommandById`, then polls for `<source basename> — <command title>.md`
+ * in `customCommandNoteFolder`. The output path below is therefore a CONTRACT, not an
+ * implementation detail: changing it makes that pipeline's summary step fail, and the run then
+ * ends failed for the Copilot agent to write the summary itself.
  *
  * PORT NOTE: 3.3.3 resolved the model from the legacy `settings.activeModels`. Upstream
  * 4.0.0 replaced that with the model-management registry, so model resolution now goes

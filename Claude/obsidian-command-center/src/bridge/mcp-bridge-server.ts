@@ -2,9 +2,8 @@ import * as http from "http";
 import * as https from "https";
 import * as os from "os";
 import * as path from "path";
-import { readFileSync, writeFileSync, mkdirSync, chmodSync, statSync } from "fs";
+import { readFileSync, writeFileSync, mkdirSync, chmodSync } from "fs";
 import { createHash, timingSafeEqual, randomBytes } from "crypto";
-import { execFile } from "child_process";
 import { App, TFile, normalizePath } from "obsidian";
 import type { OpenClawSettings } from "../types";
 import { getVaultZKApi, type VaultZKApi } from "../zettelkasten/linker";
@@ -35,65 +34,26 @@ function isCommandAllowed(commandId: string): boolean {
   return ALLOWED_COMMAND_PREFIXES.some((p) => commandId.startsWith(p));
 }
 
-// Video pipeline tools (the Copilot agent chat reaches this bridge per ACP session), with two
-// backends, chosen by the setting `videoBackend` (2026-11-19, phase 3 of retiring Raycast and Downie):
-//   - "raycast" (the default): dispatch the Raycast "Obsidian Bridge Fork" Video Pipeline Runner's
-//     deeplink. The pipeline itself (Downie/UGE download, subtitle claim or transcription, the headless
-//     copilot:super-summarize-to-note relay, cleanup) runs in the Raycast extension.
-//   - "builtin": a local file or folder runs inside Obsidian, in Command Center's own src/video/ (no
-//     paid fallback: a failed summary ends the run, and the agent writes it). A URL still goes to
-//     Raycast until phase 4.
-// Both backends write the same durable run log, which video_pipeline_status reads.
+// Video pipeline tools (the Copilot agent chat reaches this bridge per ACP session). Since phase 4 of
+// retiring Raycast and Downie (2026-11-20) there is one pipeline: a local video file, or a folder of
+// them, runs inside Obsidian in Command Center's own src/video/ (transcript, the Copilot fork's headless
+// Super-Summarize, the summary note, cleanup). A link is refused (./video-pipeline-source.ts): the agent
+// downloads it first with the copilot-video-download skill. There is no paid fallback: a failed summary
+// ends the run `failed`, and the agent writes that summary from the transcription note the run kept.
+// The run log keeps its Raycast-era path and line formats; video_pipeline_status reads it.
 //
 // Security posture (same audit-P0 stance as the command allowlist above): this is NOT an exec
-// primitive. The only caller-controlled value is a strictly validated http(s) URL, absolute local
-// video path, or absolute folder path (./video-pipeline-source.ts). On the Raycast path the binary is
-// fixed (/usr/bin/open) and the value travels INSIDE the URL-encoded deeplink payload; on the built-in
-// path the transcriber binaries are fixed in src/video/transcribe.ts (never a setting), arguments are
-// argv arrays (execFile, no shell), and the only Obsidian commands run are the two fixed Copilot
-// summarize ids in src/video/copilot-summary.ts.
-const VIDEO_PIPELINE_DEEPLINK_BASE =
-  "raycast://extensions/marcjulian/obsidian-bridge-fork/videoTranscribeRunnerCommand";
+// primitive. The only caller-controlled value is a strictly validated absolute local video path or
+// absolute folder path. The transcriber binaries are fixed in src/video/transcribe.ts (never a
+// setting), arguments are argv arrays (execFile, no shell), and the only Obsidian commands run are the
+// two fixed Copilot summarize ids in src/video/copilot-summary.ts.
 
 function videoPipelineLogPath(): string {
   return defaultRunLogPath();
 }
 
-/** What the caller should tell the user after a dispatch, by kind of source. */
-function videoPipelineDispatchMessage(resolved: VideoPipelineSource): string {
-  if (resolved.kind === "folder") {
-    return (
-      `Folder run dispatched through Raycast: the ${resolved.videoCount} video(s) directly inside ` +
-      "the folder are transcribed and summarized ONE AFTER ANOTHER in this single run, each into " +
-      "Copilot Summaries/'<video file name> summary.md'. A video whose summary note already exists " +
-      "is skipped, so running the folder again only picks up new or failed videos. Nothing is " +
-      "downloaded (no Downie click), and the folder's own files are never moved or deleted. Do NOT " +
-      "dispatch another video_pipeline_run until video_pipeline_status shows this run finished: a " +
-      "new dispatch makes this one stop before its next video. Poll video_pipeline_status every " +
-      "~30s; its `batch` field shows the progress. Each video takes about 1-4 minutes."
-    );
-  }
-  if (resolved.kind === "file") {
-    return (
-      "Local video dispatched through Raycast: nothing is downloaded, so the run starts at " +
-      "transcription and needs no click. The finished summary lands in the vault at " +
-      "Copilot Summaries/'<video file name> summary.md'; the video file itself is left where it " +
-      "is. Poll video_pipeline_status every ~20s; typical runs finish in 1-4 minutes."
-    );
-  }
-  return (
-    "Video pipeline dispatched through Raycast. Public hosts (e.g. YouTube) download " +
-    "hands-free; login-gated hosts (e.g. LinkedIn Learning) open Downie's UGE window " +
-    "where the HUMAN must click the detected stream once — tell the user to click it. " +
-    "The finished summary lands in the vault at " +
-    "Copilot Summaries/'<video title> summary.md' and intermediates are " +
-    "cleaned up. Poll video_pipeline_status every ~20s; typical runs finish 1-4 " +
-    "minutes after the download starts."
-  );
-}
-
-/** What the caller should tell the user after a built-in dispatch (videoBackend "builtin", 2026-11-19). */
-function builtinVideoDispatchMessage(
+/** What the caller should tell the user after a dispatch. */
+function videoDispatchMessage(
   resolved: VideoPipelineSource,
   summaryFolder: string,
   deletesVideos: boolean
@@ -104,7 +64,7 @@ function builtinVideoDispatchMessage(
     `yourself from the note, as ${summaryFolder}/'<title> summary.md' with title, created and source frontmatter.`;
   if (resolved.kind === "folder") {
     return (
-      `Folder run started inside Obsidian (Command Center's built-in pipeline): the ${resolved.videoCount} ` +
+      `Folder run started inside Obsidian (Command Center's video pipeline): the ${resolved.videoCount} ` +
       "video(s) directly inside the folder are transcribed and summarized ONE AFTER ANOTHER in this single " +
       `run, each into ${summaryFolder}/'<video file name> summary.md'. A video whose summary note already ` +
       "exists is skipped, so running the folder again only picks up new or failed videos. " +
@@ -118,7 +78,7 @@ function builtinVideoDispatchMessage(
     );
   }
   return (
-    "Local video run started inside Obsidian (Command Center's built-in pipeline): nothing is downloaded, " +
+    "Local video run started inside Obsidian (Command Center's video pipeline): nothing is downloaded, " +
     `so the run starts at transcription. The summary lands at ${summaryFolder}/'<video file name> summary.md'. ` +
     (deletesVideos
       ? "The video is inside the vault's video download folder, so it is deleted once its summary has landed. "
@@ -281,15 +241,15 @@ export interface PluginActions {
   getFeedStats(): Record<string, unknown>;
   getCitationIntegrity(workflowId?: string): Record<string, unknown>;
   /**
-   * Built-in video pipeline (2026-11-19): start a run for an already validated local file or folder.
+   * The video pipeline (src/video/): start a run for an already validated local file or folder.
    * Resolves once RUN START is in the run log; the run goes on in the background. Rejects when a
-   * built-in run is already in progress.
+   * run is already in progress.
    */
-  startBuiltinVideoRun(input: VideoRunInput): Promise<{ runId: string; startedAt: string }>;
-  /** The built-in video run in progress, or null. */
-  builtinVideoRunActive(): { runId: string; startedAt: string; kind: VideoRunInput["kind"]; source: string } | null;
-  /** What a built-in run of `input` would do, for a dry run: summary note(s), skips, video deletion. */
-  previewBuiltinVideoRun(input: VideoRunInput): Promise<Record<string, unknown>>;
+  startVideoRun(input: VideoRunInput): Promise<{ runId: string; startedAt: string }>;
+  /** The video run in progress, or null. */
+  activeVideoRun(): { runId: string; startedAt: string; kind: VideoRunInput["kind"]; source: string } | null;
+  /** What a run of `input` would do, for a dry run: summary note(s), skips, video deletion. */
+  previewVideoRun(input: VideoRunInput): Promise<Record<string, unknown>>;
 }
 
 /**
@@ -1400,126 +1360,56 @@ export class McpBridgeServer {
   private async handleVideoPipelineRun(
     params: Record<string, unknown>
   ): Promise<Record<string, unknown>> {
+    // A link is refused here, with a pointer to the download skill; only a file or folder passes.
     const resolved = resolveVideoPipelineSource(params.videoUrl);
-    const source = resolved.source;
-    const deeplink = `${VIDEO_PIPELINE_DEEPLINK_BASE}?arguments=${encodeURIComponent(
-      JSON.stringify({ videoUrl: source })
-    )}`;
+    const input: VideoRunInput = { kind: resolved.kind, source: resolved.source };
     const sourceFacts =
       resolved.kind === "folder"
         ? { kind: resolved.kind, videoCount: resolved.videoCount }
         : { kind: resolved.kind };
-    // videoBackend "builtin" (2026-11-19) runs a local file or folder inside Obsidian; a URL stays on
-    // the Raycast path until phase 4, whichever backend is set.
-    const builtinInput: VideoRunInput | null =
-      this.settings.videoBackend === "builtin" && resolved.kind !== "url"
-        ? { kind: resolved.kind, source }
-        : null;
-    const backend = builtinInput ? "builtin" : "raycast";
-    const activeBuiltinRun = this.pluginActions?.builtinVideoRunActive() ?? null;
+    const actions = this.pluginActions;
+    if (!actions) {
+      throw new Error("The video pipeline is not available in this bridge instance.");
+    }
+    const activeRun = actions.activeVideoRun();
+    // `backend` is a constant since phase 4; the Copilot agent's video-pipeline skill checks for it.
+    const backend = "builtin";
 
     if (params.dry_run === true) {
       return {
         dispatched: false,
         dryRun: true,
         backend,
-        videoUrl: source,
+        videoUrl: input.source,
         ...sourceFacts,
-        // The Raycast payload whichever backend would run: the stdio adapter's test:profiles checks
-        // its shape until phase 4 removes the Raycast path.
-        deeplink,
-        ...(builtinInput && this.pluginActions
-          ? { plan: await this.pluginActions.previewBuiltinVideoRun(builtinInput) }
-          : {}),
-        ...(activeBuiltinRun ? { activeBuiltinRun } : {}),
+        plan: await actions.previewVideoRun(input),
+        ...(activeRun ? { activeRun } : {}),
       };
     }
 
-    // One pipeline run at a time across both backends: a Raycast dispatch would make the built-in run
-    // stand down (both claim the same run marker), and a second built-in run would race it over
-    // Obsidian's active note.
-    if (activeBuiltinRun) {
+    // One run at a time: a second run would race the first over Obsidian's active note.
+    if (activeRun) {
       throw new Error(
-        `A built-in video pipeline run is in progress (run ${activeBuiltinRun.runId}, ${activeBuiltinRun.kind} ` +
-          `${activeBuiltinRun.source}, started ${activeBuiltinRun.startedAt}). Poll video_pipeline_status and ` +
-          "dispatch again once it has finished."
+        `A video pipeline run is in progress (run ${activeRun.runId}, ${activeRun.kind} ${activeRun.source}, ` +
+          `started ${activeRun.startedAt}). Poll video_pipeline_status and dispatch again once it has finished.`
       );
     }
 
-    if (builtinInput) {
-      if (!this.pluginActions) {
-        throw new Error("The built-in video pipeline is not available in this bridge instance.");
-      }
-      const plan = await this.pluginActions.previewBuiltinVideoRun(builtinInput);
-      const started = await this.pluginActions.startBuiltinVideoRun(builtinInput);
-      return {
-        success: true,
-        dispatched: true,
-        backend,
-        videoUrl: source,
-        ...sourceFacts,
-        runId: started.runId,
-        startedAt: started.startedAt,
-        dispatchConfirmed: true,
-        message: builtinVideoDispatchMessage(
-          resolved,
-          this.settings.videoSummaryFolder?.trim() || "Copilot Summaries",
-          plan.deletesVideoAfterSummary === true || plan.deletesVideosAfterSummary === true
-        ),
-      };
-    }
-
-    // Pre-flight: report whether Raycast is up. Non-fatal — /usr/bin/open auto-launches the
-    // URL handler — but a cold launch is a known replay risk, so surface it.
-    const raycastWasRunning = await new Promise<boolean>((resolve) => {
-      execFile("/usr/bin/pgrep", ["-x", "Raycast"], (err) => resolve(!err));
-    });
-
-    // Byte-anchor the run log BEFORE dispatch so the confirmation watch below only ever
-    // matches a RUN START appended by THIS dispatch, never a previous run's.
-    const logBytesBeforeDispatch = this.videoPipelineLogSize();
-
-    await new Promise<void>((resolve, reject) => {
-      execFile("/usr/bin/open", [deeplink], (err, _stdout, stderr) => {
-        if (err) {
-          reject(
-            new Error(
-              `/usr/bin/open failed (exit ${err.code ?? "?"}): ${String(stderr || err.message).trim()}`
-            )
-          );
-        } else {
-          resolve();
-        }
-      });
-    });
-
-    // Bounded confirmation: the runner appends RUN START within ~2s of a healthy dispatch.
-    // Its absence after 15s is the stale-registration signature observed 2026-08-17 (open
-    // exits 0, Raycast running, command not registered, total silence).
-    const confirmation = await this.waitForVideoPipelineRunStart(
-      source,
-      logBytesBeforeDispatch,
-      15_000
-    );
-
+    const plan = await actions.previewVideoRun(input);
+    const started = await actions.startVideoRun(input);
     return {
       success: true,
       dispatched: true,
       backend,
-      videoUrl: source,
+      videoUrl: input.source,
       ...sourceFacts,
-      raycastWasRunning,
-      dispatchConfirmed: confirmation.confirmed,
-      ...(confirmation.confirmed
-        ? { startedAt: confirmation.startedAt }
-        : {
-            warning:
-              "macOS accepted the dispatch but no RUN START appeared in the pipeline log within 15s. " +
-              "Most likely the Raycast extension registration is stale (observed 2026-08-17): run " +
-              "`npm run dev` once in Copilot-Everything/bridges/raycast-obsidian-extension, then retry. " +
-              "A queued replay may still fire late — check video_pipeline_status before re-dispatching.",
-          }),
-      message: videoPipelineDispatchMessage(resolved),
+      runId: started.runId,
+      startedAt: started.startedAt,
+      message: videoDispatchMessage(
+        resolved,
+        this.settings.videoSummaryFolder?.trim() || "Copilot Summaries",
+        plan.deletesVideoAfterSummary === true || plan.deletesVideosAfterSummary === true
+      ),
     };
   }
 
@@ -1534,38 +1424,6 @@ export class McpBridgeServer {
       };
     }
     return summarizeVideoPipelineLog(text);
-  }
-
-  private videoPipelineLogSize(): number {
-    try {
-      return statSync(videoPipelineLogPath()).size;
-    } catch {
-      return 0;
-    }
-  }
-
-  /** Watch the run log (byte-anchored) for a RUN START naming this dispatch's source. */
-  private async waitForVideoPipelineRunStart(
-    source: string,
-    fromByte: number,
-    timeoutMs: number
-  ): Promise<{ confirmed: boolean; startedAt?: string }> {
-    const deadline = Date.now() + timeoutMs;
-    for (;;) {
-      try {
-        // Buffer slice by BYTES — the anchor is a byte offset, and log lines carry
-        // multibyte video titles, so a string slice would mis-anchor.
-        const fresh = readFileSync(videoPipelineLogPath()).subarray(fromByte).toString("utf8");
-        const line = fresh
-          .split("\n")
-          .find((l) => l.includes("RUN START") && l.includes(source));
-        if (line) return { confirmed: true, startedAt: line.slice(0, 24).trim() };
-      } catch {
-        /* log may not exist yet */
-      }
-      if (Date.now() >= deadline) return { confirmed: false };
-      await new Promise((r) => setTimeout(r, 500));
-    }
   }
 
   // ─── Vault Zettelkasten Tools ───────────────────────────────
@@ -1971,18 +1829,19 @@ export class McpBridgeServer {
         {
           name: "video_pipeline_run",
           description:
-            "Run the video-to-summary pipeline on a video URL (YouTube, LinkedIn Learning, etc.), an absolute local video file path, or an absolute path to a FOLDER of videos already on disk. Dispatches the Raycast 'Video Pipeline Runner': a URL is downloaded first (login-gated hosts like LinkedIn Learning need ONE human click in Downie's UGE window — tell the user to click the detected stream), a local file or folder is not downloaded at all; each video is transcribed from subtitles or from the audio by the configured local transcriber (the run log's `transcription engine:` line names it; video_pipeline_status returns it as `transcriber`), summarized by Copilot's free local relay, and saved to the vault as Copilot Summaries/'<title> summary.md' with all intermediates cleaned up (the user's own local video files are never deleted). A folder runs every video directly inside it (not subfolders) one after another in ONE run, skipping any video whose summary note already exists. For several local videos, pass their folder ONCE: never call this once per file, because each new dispatch makes the run in progress stop. Returns immediately; poll video_pipeline_status for progress.",
+            "Run the video-to-summary pipeline inside Obsidian on an absolute local video file path, or an absolute path to a FOLDER of videos already on disk. A link (YouTube, LinkedIn Learning, a course page) is refused: it is downloaded first by /Users/myhome/My Digital Garden/copilot/skills/copilot-video-download/video-download.sh (the copilot-video-download skill), and you then pass the file path it prints, or the folder it prints for a course. Each video is transcribed by the local transcriber (the run log's `transcription engine:` line names it; video_pipeline_status returns it as `transcriber`), summarized by Copilot's Super-Summarize command, and saved to the vault as Copilot Summaries/'<title> summary.md' with title, created and source frontmatter. After a successful summary the intermediates are cleaned up, and a video inside the vault's Video Downloads folder (where the download script saves) is deleted with its subtitle files; a video anywhere else is never moved or deleted. A folder runs every video directly inside it (not subfolders) one after another in ONE run, skipping any video whose summary note already exists. For several videos, pass their folder ONCE: a second call while a run is going is refused. If a summary fails, the run ends failed and nothing retries it: video_pipeline_status then gives `summaryError` and `transcriptNote`, and you write that summary yourself from the note. Returns immediately; poll video_pipeline_status for progress.",
           inputSchema: {
             type: "object",
             properties: {
               videoUrl: {
                 type: "string",
                 description:
-                  "http(s) video URL, an absolute local video file path (.mp4/.mkv/.webm/.mov/.m4v), or an absolute folder path (every video directly inside it, one after another)",
+                  "An absolute local video file path (.mp4/.mkv/.webm/.mov/.m4v), or an absolute folder path (every video directly inside it, one after another). A link is refused: download it first with the copilot-video-download skill.",
               },
               dry_run: {
                 type: "boolean",
-                description: "Validate the input and return the Raycast deeplink without dispatching.",
+                description:
+                  "Validate the input and report what the run would do, without starting it: the summary note, or for a folder the videos it would transcribe and skip, and whether videos would be deleted.",
               },
             },
             required: ["videoUrl"],
@@ -1991,7 +1850,7 @@ export class McpBridgeServer {
         {
           name: "video_pipeline_status",
           description:
-            "Progress of the most recent video pipeline run, read from its durable run log: running/success/failed, the latest stage line, the summary confirmation when finished, and `transcriber`: the transcription engine that actually ran, verbatim from the run's `transcription engine:` line. Report the engine only from `transcriber`. `transcriptionRequested` is what the pipeline asked for (Whisper-style settings), not what ran. Both are absent when the transcript came from subtitles or the run predates 2026-10-15. A folder run reports `folder` and `batch`: {total, summarized, failed, skipped, remaining, current (the video being worked on), summaries (vault paths), failures ({video, reason})}; it ends `failed` when any one video failed, even though the others were summarized.",
+            "Progress of the most recent video pipeline run, read from its durable run log: running/success/failed, the latest stage line, the summary confirmation when finished, and `transcriber`: the transcription engine that actually ran, verbatim from the run's `transcription engine:` line. Report the engine only from `transcriber`. `transcriptionRequested` is what the pipeline asked for (Whisper-style settings), not what ran. Both are absent when the transcript came from subtitles. A folder run reports `folder` and `batch`: {total, summarized, failed, skipped, remaining, current (the video being worked on), summaries (vault paths), failures ({video, reason, transcriptNote})}; it ends `failed` when any one video failed, even though the others were summarized. When a summary fails, `summaryError` says why and `transcriptNote` names the transcription note that was kept (per video in a folder run: `batch.failures[].transcriptNote`): read that note and write the summary yourself as Copilot Summaries/'<title> summary.md' with title, created and source frontmatter, never overwriting an existing note.",
           inputSchema: { type: "object", properties: {} },
         },
         {

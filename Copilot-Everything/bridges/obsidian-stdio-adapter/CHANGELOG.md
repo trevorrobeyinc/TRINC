@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-11-20 — video tool text follows Command Center's phase 4 (version stays 0.5.0)
+
+No tool added, removed or renamed.
+
+- **Changed:** the `raycast` profile's two video tool definitions are Command Center's phase-4 text,
+  word for word, copied from its built source rather than retyped. A link is now refused by the
+  daemon: the copilot-video-download skill downloads it first, then the pipeline takes the file or
+  folder.
+- **Tests:** the two live video checks now expect a link to be refused with the download-skill pointer,
+  and a folder dry run to return its `plan` (kind, video count, canonical path, no deeplink). That plan
+  must also show the page link read from the `clip.url` file beside the fixture video, and, because
+  "clip" is a generic title, a summary note named from that link. Run against the phase-3 daemon,
+  exactly those two fail. `TEST_PROFILES_SKIP_LIVE=1` skips every live
+  check, for a checkout whose Command Center source is newer than the running build.
+
 ## 0.5.0 — 2026-11-18 — the `raycast` profile is a video-only door
 
 Operator decision, 2026-11-18: Raycast AI reads and writes the vault only through Security

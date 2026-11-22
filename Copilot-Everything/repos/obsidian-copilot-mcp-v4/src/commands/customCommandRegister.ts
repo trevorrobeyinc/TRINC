@@ -258,9 +258,10 @@ export class CustomCommandRegister {
     // Obsidian unfocused — works: it operates on the active file, using the editor selection
     // only when an editor happens to be active.
     //
-    // `copilot:summarize-to-note` produced by this registration is a CONTRACT with the
-    // Raycast "Video Pipeline Runner" command; without it that pipeline silently falls back
-    // to its paid Anthropic path.
+    // `copilot:super-summarize-to-note` and `copilot:summarize-to-note`, produced by this
+    // registration, are a CONTRACT with Command Center's built-in video pipeline
+    // (src/video/copilot-summary.ts there; the Raycast "Video Pipeline Runner" before
+    // 2026-11-19). Without them its summary step fails, and the run ends failed.
     const toNoteCommandId = getToNoteCommandId(commandId);
     (this.plugin as unknown as { removeCommand: (id: string) => void }).removeCommand(
       toNoteCommandId
@@ -283,8 +284,8 @@ export class CustomCommandRegister {
 /**
  * Command id for the headless "→ New Note" sibling of a custom command.
  *
- * Fork addition. The `-to-note` suffix is depended on externally (Raycast dispatches
- * `copilot:summarize-to-note`), so this shape must not change.
+ * Fork addition. The `-to-note` suffix is depended on externally (Command Center's built-in
+ * video pipeline runs `copilot:super-summarize-to-note`), so this shape must not change.
  */
 function getToNoteCommandId(commandId: string): string {
   return `${commandId}-to-note`;

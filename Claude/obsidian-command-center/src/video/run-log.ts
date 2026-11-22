@@ -5,11 +5,12 @@
 //
 // The FILES are shared with the Raycast runner on purpose, and so are the line formats:
 //   - the run log `~/.local/share/raycast-obsidian/video-transcribe.log` is what video_pipeline_status
-//     parses (src/bridge/video-pipeline-status.ts), whichever backend ran. The old folder name is kept
-//     deliberately: the status tool and the Copilot skill both read this one file.
+//     parses (src/bridge/video-pipeline-status.ts). The old folder name is kept deliberately: the status
+//     tool and the Copilot skill both read this one file, and it holds every earlier run.
 //   - the run marker `~/.local/share/raycast-obsidian/current-run` names the ONE run allowed to carry on.
-//     Both backends claim it at RUN START and check it at their waits, so a Raycast run and a built-in
-//     run stand each other down instead of racing over Obsidian's active note.
+//     Every run claims it at RUN START and checks it at its waits. Since phase 4 nothing dispatches the
+//     Raycast runner, but it stays installed until phase 7 and can still be started by hand from Raycast;
+//     the marker keeps such a run and a Command Center run from racing over Obsidian's active note.
 //
 // Unlike the extension, the run id is passed explicitly (createRunLogger) instead of riding an
 // AsyncLocalStorage: inside Obsidian's renderer the timers are the browser's, and an explicit id needs no

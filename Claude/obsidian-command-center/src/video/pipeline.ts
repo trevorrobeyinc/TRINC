@@ -1,8 +1,9 @@
-// The built-in video pipeline (phase 3 of ~/.claude/plans/in-a-new-session-sharded-valley.md,
-// 2026-11-19): steps 4 to 9 of the Raycast "Video Pipeline Runner", run inside Obsidian for a local
-// video file or a folder of them. Ported from the extension's videoTranscribeFlow.ts
-// (transcribeAndSummarize, runLocalFolder, runVideoTranscribeCommandForRun), WITHOUT its download
-// lanes (a URL stays on the Raycast path until phase 4) and WITHOUT its paid Anthropic fallback.
+// The video pipeline (phase 3 of ~/.claude/plans/in-a-new-session-sharded-valley.md, 2026-11-19; the
+// only one since phase 4, 2026-11-20): steps 4 to 9 of the retired Raycast "Video Pipeline Runner", run
+// inside Obsidian for a local video file or a folder of them. Ported from the extension's
+// videoTranscribeFlow.ts (transcribeAndSummarize, runLocalFolder, runVideoTranscribeCommandForRun),
+// WITHOUT its download lanes (a link is downloaded first by the copilot-video-download skill) and
+// WITHOUT its paid Anthropic fallback.
 //
 // One video: transcript (subtitles or the audio) → transcription note through app.vault.create →
 // the Copilot fork's headless summary → frontmatter → cleanup. When the summary fails, the run ends
@@ -59,6 +60,7 @@ import {
   throwIfSuperseded,
   type RunLogger,
 } from "./run-log.ts";
+import { readSourceUrl, type SourceUrlRead } from "./source-url.ts";
 import {
   assertPrimaryTranscriberPresent,
   describeVideoError,
@@ -174,9 +176,10 @@ export function isInsideFolder(candidate: string, folder: string): boolean {
   return relative !== "" && !relative.startsWith("..") && !path.isAbsolute(relative);
 }
 
-// Files that travel with a downloaded video: subtitles (yt-dlp --write-subs), yt-dlp's .info.json and
-// the thumbnail. A yt-dlp format variant (`<name>.f137.mp4`) left by a failed merge goes too.
-const COMPANION_EXTENSIONS = [".srt", ".vtt", ".ass", ".ssa", ".sub", ".lrc", ".json", ".jpg", ".jpeg", ".png", ".webp"];
+// Files that travel with a downloaded video: subtitles (yt-dlp --write-subs), the `.url` page link the
+// download script writes (src/video/source-url.ts), a .json metadata file and the thumbnail. A yt-dlp
+// format variant (`<name>.f137.mp4`) left by a failed merge goes too.
+const COMPANION_EXTENSIONS = [".srt", ".vtt", ".ass", ".ssa", ".sub", ".lrc", ".url", ".json", ".jpg", ".jpeg", ".png", ".webp"];
 
 /** The video and every companion file of it in its own folder: `<base>.<...>` with a companion extension. */
 export async function downloadedVideoFiles(videoFile: string): Promise<string[]> {
@@ -213,19 +216,30 @@ export async function previewVideoRun(
   const downloadDir = canonicalOrNull(path.join(vaultPath, ...videoFolder.split("/")));
   const cleanup = settings.cleanupAfterSummary !== false;
   const deletesVideos = cleanup && downloadDir !== null && isInsideFolder(input.source, downloadDir);
+  // The source URL is part of the plan so a dry run proves the `.url` read without a live run.
   if (input.kind === "file") {
+    const source = readSourceUrl(input.source);
     return {
-      summaryNote: summaryNotePathFor(summaryFolder, noteTitlesFor(input.source, "").noteTitle),
+      summaryNote: summaryNotePathFor(summaryFolder, noteTitlesFor(input.source, source.url).noteTitle),
+      sourceUrl: source.url || null,
       deletesVideoAfterSummary: deletesVideos,
     };
   }
-  const plan = await planFolderBatch(
-    await listFolderVideos(input.source),
-    (video) => noteTitlesFor(video, "").noteTitle,
-    (title) => existsSync(path.join(vaultPath, ...summaryNotePathFor(summaryFolder, title).split("/")))
+  const videos = await listFolderVideos(input.source);
+  const sources = new Map(videos.map((video) => [video, readSourceUrl(video)] as const));
+  const titleOf = (video: string) => noteTitlesFor(video, sources.get(video)?.url ?? "").noteTitle;
+  const plan = await planFolderBatch(videos, titleOf, (title) =>
+    existsSync(path.join(vaultPath, ...summaryNotePathFor(summaryFolder, title).split("/")))
   );
   return {
     toTranscribe: plan.filter((item) => !item.skip).length,
+    videos: plan
+      .filter((item) => !item.skip)
+      .map((item) => ({
+        video: path.basename(item.video),
+        summaryNote: summaryNotePathFor(summaryFolder, item.title),
+        sourceUrl: sources.get(item.video)?.url || null,
+      })),
     skipped: plan.filter((item) => item.skip).map((item) => ({ video: path.basename(item.video), reason: item.skip })),
     deletesVideosAfterSummary: deletesVideos,
   };
@@ -247,12 +261,25 @@ interface RunPlan {
   checkpoint: () => Promise<void>;
 }
 
-/** Everything after the video is on disk, for ONE video. Resolves to its summary note's vault path. */
-async function transcribeAndSummarize(run: RunPlan, videoFile: string, workDir: string): Promise<string> {
+/**
+ * Everything after the video is on disk, for ONE video. Resolves to its summary note's vault path.
+ *
+ * @param source The video's page URL, read from its `.url` file. Folder mode reads it while planning,
+ *   because the planner names each summary from it, and passes that same read here; the URL then
+ *   names the notes (the generic-title rule), fills the transcription note's Source URL and becomes
+ *   the summary's `source`, as on a Raycast link run.
+ */
+async function transcribeAndSummarize(
+  run: RunPlan,
+  videoFile: string,
+  workDir: string,
+  source: SourceUrlRead = readSourceUrl(videoFile)
+): Promise<string> {
   const { ctx, log, clock } = run;
   const { host } = ctx;
 
   await run.checkpoint();
+  await log(source.logLine);
   const transcript = await obtainTranscript(videoFile, ctx.settings, workDir, {
     log,
     exec: ctx.exec,
@@ -262,7 +289,7 @@ async function transcribeAndSummarize(run: RunPlan, videoFile: string, workDir: 
   });
   await run.checkpoint();
 
-  const { baseName, noteTitle } = noteTitlesFor(videoFile, "");
+  const { baseName, noteTitle } = noteTitlesFor(videoFile, source.url);
   const { transcriptRelativePath, sourceNotePath } = transcriptPathsFor(run.videoFolder, baseName);
   const transcriptAbsolutePath = path.join(host.vaultPath, ...transcriptRelativePath.split("/"));
   await mkdir(path.dirname(transcriptAbsolutePath), { recursive: true });
@@ -271,7 +298,7 @@ async function transcribeAndSummarize(run: RunPlan, videoFile: string, workDir: 
   const sourceNoteContent = buildVideoSourceNoteContent({
     title: baseName,
     sourceVideoRef: sourceVideoReference(videoFile, run.vaultReal),
-    sourceUrl: `file://${videoFile}`,
+    sourceUrl: source.url || `file://${videoFile}`,
     extractedAtIso: (ctx.now ?? (() => new Date()))().toISOString(),
     transcriptSection: buildDeterministicTranscriptSection({
       sourceNoteRelativePath: sourceNotePath,
@@ -317,7 +344,7 @@ async function transcribeAndSummarize(run: RunPlan, videoFile: string, workDir: 
     let outcome: FrontmatterOutcome = { kind: "unchanged" };
     const createdIso = (ctx.now ?? (() => new Date()))().toISOString();
     await host.processNote(summaryNotePath, (content) => {
-      outcome = normalizeSummaryFrontmatter(content, { title: noteTitle, sourceUrl: "", createdIso });
+      outcome = normalizeSummaryFrontmatter(content, { title: noteTitle, sourceUrl: source.url, createdIso });
       return outcome.kind === "changed" ? outcome.content : content;
     });
     const settled = outcome as FrontmatterOutcome;
@@ -369,9 +396,12 @@ async function runLocalFolder(run: RunPlan, folder: string, scratchDir: string):
       `No videos (${LOCAL_VIDEO_EXTENSIONS.join(", ")}) directly inside ${folder}. Subfolders are not searched.`
     );
   }
+  // One `.url` read per video, shared by the planner and the run: the URL can name the summary note
+  // (the generic-title rule), so the skip check and the run must see the same one.
+  const sources = new Map(videos.map((video) => [video, readSourceUrl(video)] as const));
   const plan = await planFolderBatch(
     videos,
-    (video) => noteTitlesFor(video, "").noteTitle,
+    (video) => noteTitlesFor(video, sources.get(video)?.url ?? "").noteTitle,
     (title) => existsSync(path.join(run.ctx.host.vaultPath, ...summaryNotePathFor(run.summaryFolder, title).split("/")))
   );
   const toTranscribe = plan.filter((item) => !item.skip).length;
@@ -392,7 +422,7 @@ async function runLocalFolder(run: RunPlan, folder: string, scratchDir: string):
     processVideo: async (item, position, total) => {
       try {
         // One scratch folder per video: the transcriber falls back to ANY .txt in its output folder.
-        return await transcribeAndSummarize(run, item.video, path.join(scratchDir, String(position)));
+        return await transcribeAndSummarize(run, item.video, path.join(scratchDir, String(position)), sources.get(item.video));
       } catch (error) {
         const processOutput = extractProcessErrorText(error);
         if (processOutput) {
@@ -494,7 +524,7 @@ export async function startVideoRun(input: VideoRunInput, ctx: VideoRunContext):
   const startedAt = now().toISOString();
   // video_pipeline_run reports the run as started once this line is written; status parses it.
   await log(`RUN START ${input.kind}=${input.source}`);
-  await log("runner: Command Center built-in pipeline, inside Obsidian (videoBackend=builtin)");
+  await log("runner: Command Center built-in pipeline, inside Obsidian");
   try {
     await claimCurrentRun(runId, ctx.markerPath);
   } catch (claimError) {

@@ -34,9 +34,7 @@ export const DEFAULT_SETTINGS: OpenClawSettings = {
     "/Users/myhome/TRINC/Claude/trevorobeyinc-research-memory-mcp/dist/cli.js",
   researchMemoryDefaultClient: "trevorobeyinc",
   researchMemoryTimeoutMs: 60000,
-  // Video pipeline (2026-11-19). Raycast stays the default until the operator flips it; the rest are
-  // the Raycast runner's own defaults (its package.json preferences), so a flip changes the backend only.
-  videoBackend: "raycast",
+  // Video pipeline (2026-11-19): the retired Raycast runner's own defaults (its package.json preferences).
   videoDownloadFolder: "Video Downloads",
   videoSummaryFolder: "Copilot Summaries",
   videoTranscriber: "parakeet",

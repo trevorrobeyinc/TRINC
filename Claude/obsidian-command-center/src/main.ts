@@ -69,8 +69,8 @@ export default class OpenClawPlugin extends Plugin {
    */
   private postRunLedger: PostRunLedger | null = null;
   /**
-   * The built-in video pipeline (2026-11-19, videoBackend "builtin"): one run at a time. Owned here,
-   * not by the bridge, which is rebuilt whenever it restarts, so a restart cannot lose track of a run.
+   * The video pipeline (src/video/, 2026-11-19; the only one since phase 4): one run at a time. Owned
+   * here, not by the bridge, which is rebuilt whenever it restarts, so a restart cannot lose track of a run.
    */
   private videoPipeline = new VideoPipelineController(() => this.videoRunContext());
 
@@ -147,9 +147,15 @@ export default class OpenClawPlugin extends Plugin {
       // data.json. Scrub any legacy `bridgeToken` key out of stored settings so
       // it stops leaking via data.json (and Obsidian's auto-generated .bak
       // copies). The field itself was removed from OpenClawSettings 2026-08-20.
-      const legacy = this.settings as unknown as { bridgeToken?: string };
+      const legacy = this.settings as unknown as { bridgeToken?: string; videoBackend?: string };
       if (typeof legacy.bridgeToken === "string") {
         delete legacy.bridgeToken;
+        void this.saveSettings();
+      }
+      // Phase 3's temporary Raycast/built-in switch (2026-11-19) means nothing since phase 4
+      // (2026-11-20), when the Raycast path went: drop a stored value so data.json cannot suggest one.
+      if (legacy.videoBackend !== undefined) {
+        delete legacy.videoBackend;
         void this.saveSettings();
       }
       if (this.settings.enableCopilotBridge) {
@@ -963,12 +969,12 @@ export default class OpenClawPlugin extends Plugin {
         }),
       getFeedStats: () => this.readFeedStats(),
       getCitationIntegrity: (workflowId) => this.readCitationIntegrity(workflowId),
-      startBuiltinVideoRun: async (input) => {
+      startVideoRun: async (input) => {
         const handle = await this.videoPipeline.start(input);
         return { runId: handle.runId, startedAt: handle.startedAt };
       },
-      builtinVideoRunActive: () => this.videoPipeline.activeRun(),
-      previewBuiltinVideoRun: (input) =>
+      activeVideoRun: () => this.videoPipeline.activeRun(),
+      previewVideoRun: (input) =>
         previewVideoRun(input, this.videoPipelineSettings(), createObsidianVideoHost(this.app).vaultPath),
     };
   }

@@ -1180,46 +1180,50 @@ export const MCP_TOOL_CATALOG: Record<string, McpCatalogEntry> = {
     }),
     buildInput: (args, server) => ({ vault: server.vaultName, ...args }),
   },
-  // ── Video pipeline (:8799 Command Center bridge → Raycast runner) ────
+  // ── Video pipeline (:8799 Command Center bridge, built-in since 2026-11-19) ────
   // Added 2026-08-20, completing the Command Center surface for agent chat:
   // the bridge has served these tools for a while (and the stdio adapter
-  // proxies them for Claude/Raycast consumers), but without catalog entries
+  // proxies them for its raycast profile), but without catalog entries
   // the IN-PLUGIN agent could not call them. Schemas mirror the bridge's own
   // tools/list declarations in
   // Claude/obsidian-command-center/src/bridge/mcp-bridge-server.ts (the
   // contract of record — keep in sync). NO `operation` field; args pass
-  // through unchanged.
+  // through unchanged. Since phase 4 (2026-11-20) the bridge refuses a link:
+  // the copilot-video-download skill downloads it first.
   video_pipeline_run: {
     toolName: "video_pipeline_run",
     displayName: "Video Pipeline Run",
     description:
-      "Run the video-to-summary pipeline on an http(s) video URL, an absolute local video " +
-      "file path (.mp4/.mkv/.webm/.mov/.m4v), or an absolute path to a FOLDER of videos " +
-      "already on disk. Dispatches the Raycast runner: a URL is downloaded first (login-gated " +
-      "hosts such as LinkedIn Learning need ONE human click in Downie's UGE window — tell the " +
-      "user); a local file or folder is not downloaded. Each video gets a subtitle claim or " +
-      "local transcription, Copilot summarization and cleanup, and its summary lands in the " +
-      "vault under Copilot Summaries/ (the user's own video files are never deleted). A " +
-      "folder runs every video directly inside it (not subfolders) one after another in ONE " +
-      "run, skipping any video whose summary note already exists. For several local videos, " +
-      "pass their folder ONCE: never call this once per file, because each new dispatch makes " +
-      "the run in progress stop. Returns after dispatch confirmation; poll " +
-      "video_pipeline_status every ~20s (one video typically takes 1-4 minutes). Set dry_run " +
-      "true to validate without dispatching.",
-    // Mutating: dispatches a real download/transcribe/summarize run.
+      "Run the video-to-summary pipeline inside Obsidian on an absolute local video file path " +
+      "(.mp4/.mkv/.webm/.mov/.m4v) or an absolute path to a FOLDER of videos already on disk. " +
+      "A link is refused: download it first with the copilot-video-download skill, then pass " +
+      "the file path its script prints (or, for a LinkedIn Learning course, the folder it " +
+      "prints). Each video is transcribed locally, summarized by Copilot's Super-Summarize " +
+      "command and saved as Copilot Summaries/'<title> summary.md' with title, created and " +
+      "source front matter. A video inside the vault's Video Downloads folder (where the " +
+      "download script saves) is deleted after a successful summary; a video anywhere else is " +
+      "never moved or deleted. A folder runs every video directly inside it (not subfolders) " +
+      "one after another in ONE run, skipping any video whose summary note already exists: " +
+      "pass a folder ONCE, never one call per file (a second call while a run is going is " +
+      "refused). If a summary fails, the run ends failed, and video_pipeline_status gives " +
+      "summaryError and transcriptNote: write that summary yourself from the note. Returns " +
+      "immediately; poll video_pipeline_status every ~20s (one video typically takes 1-4 " +
+      "minutes). Set dry_run true to see the plan without starting a run.",
+    // Mutating: starts a real transcribe/summarize run.
     isMutating: true,
     schema: z.object({
       videoUrl: z
         .string()
         .min(1)
         .describe(
-          "http(s) video URL, an absolute local video file path, or an absolute folder path " +
-            "(every video directly inside it, one after another)"
+          "An absolute local video file path, or an absolute folder path (every video directly " +
+            "inside it, one after another). A link is refused: download it first with the " +
+            "copilot-video-download skill."
         ),
       dry_run: z
         .boolean()
         .optional()
-        .describe("Validate the input and return the Raycast deeplink without dispatching"),
+        .describe("Validate the input and report what the run would do, without starting it"),
     }),
     buildInput: (args) => ({ ...args }),
   },
@@ -1230,8 +1234,11 @@ export const MCP_TOOL_CATALOG: Record<string, McpCatalogEntry> = {
       "Progress of the most recent video pipeline run, read from its durable run log: " +
       "running/success/failed, the latest stage line, and the summary confirmation when " +
       "finished. A folder run also reports `folder` and `batch` (total, summarized, failed, " +
-      "skipped, remaining, the video in progress, summary paths, failures); it ends failed " +
-      "when any one video failed, even though the others were summarized.",
+      "skipped, remaining, the video in progress, summary paths, and failures with their " +
+      "transcriptNote); it ends failed when any one video failed, even though the others were " +
+      "summarized. When a summary fails, `summaryError` says why and `transcriptNote` names the " +
+      "transcription note that was kept: write the summary yourself from that note, as " +
+      "Copilot Summaries/'<title> summary.md', never overwriting an existing note.",
     isMutating: false,
     schema: z.object({}),
     buildInput: () => ({}),

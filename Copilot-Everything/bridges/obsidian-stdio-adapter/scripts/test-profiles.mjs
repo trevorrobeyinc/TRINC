@@ -12,11 +12,14 @@
 //     the 12 allowlisted Viz Studio tools, never offers a Viz property that writes outside
 //     Visualizations/, and refuses one on a call.
 //   - The retired "claude" profile, and a missing profile, refuse to start.
-//   - When the Command Center bridge is reachable, a dry_run video_pipeline_run
-//     through the adapter returns a deeplink of the expected shape (no dispatch),
-//     for a URL and for a folder of videos (folder mode, 2026-11-18). When it is
-//     not reachable (Obsidian closed), those checks are SKIPPED loudly and the
-//     vault assertions still gate the exit code.
+//   - When the Command Center bridge is reachable, two live checks run:
+//       - a link sent to video_pipeline_run is refused, pointing at the copilot-video-download skill
+//         (phase 4, 2026-11-20: a link is downloaded first by that skill's script);
+//       - a dry_run on a folder of videos returns its plan (kind folder, the video count, the
+//         canonical path, and the page link read from the .url file beside the video, which also
+//         names a generic title's summary note) and starts nothing.
+//     When the bridge is not reachable (Obsidian closed), or with TEST_PROFILES_SKIP_LIVE=1, every
+//     live check is SKIPPED loudly, and the remaining assertions still gate the exit code.
 //   - The raycast video tool descriptions are the Command Center's, word for word.
 //
 // Plain node, no dependencies. Requires the mkcert CA the adapter uses. Neither profile reads the
@@ -46,8 +49,8 @@ const RETIRED_RAYCAST = [
   "raycast_daily_open",
 ];
 const EXPECTED_RAYCAST = ["video_pipeline_run", "video_pipeline_status"];
-const DEEPLINK_SHAPE =
-  /^raycast:\/\/extensions\/marcjulian\/obsidian-bridge-fork\/videoTranscribeRunnerCommand\?arguments=/;
+// Command Center's phase-4 refusal of a link (video-pipeline-source.ts LINK_REFUSAL), in part.
+const LINK_REFUSAL_POINTER = "download it first with the copilot-video-download skill";
 const COMMAND_CENTER_HEALTHZ = "https://127.0.0.1:8799/healthz";
 const VIZ_HEALTHZ = "https://127.0.0.1:8800/healthz";
 
@@ -194,10 +197,14 @@ for (const [label, env] of [
 }
 
 // --- raycast profile: exact 10-tool surface ----------------------------------
-const ccUp = await bridgeUp(COMMAND_CENTER_HEALTHZ);
-const vizUp = await bridgeUp(VIZ_HEALTHZ);
-// Inert placeholder id on an allowlisted host — the deeplink-shape check does
-// not care about URL contents, and nothing is dispatched (dry_run).
+// TEST_PROFILES_SKIP_LIVE=1 skips every check that talks to a running bridge. Use it in a checkout whose
+// Command Center source is newer than the build Obsidian runs, such as a worktree before its deploy.
+const SKIP_LIVE = process.env.TEST_PROFILES_SKIP_LIVE === "1";
+if (SKIP_LIVE) console.log("SKIP  every live check (TEST_PROFILES_SKIP_LIVE=1)");
+const ccUp = !SKIP_LIVE && (await bridgeUp(COMMAND_CENTER_HEALTHZ));
+const vizUp = !SKIP_LIVE && (await bridgeUp(VIZ_HEALTHZ));
+// Inert placeholder id on an allowlisted host. The adapter's edge lets it through, and the daemon
+// refuses every link (phase 4), so nothing is downloaded or dispatched.
 const FIXTURE_URL = "https://www.youtube.com/watch?v=test-fixture-0000";
 // Folder mode (2026-11-18): a throwaway folder holding one empty video and one non-video file.
 // The daemon's folder check reads only names and file types, so an empty clip.mp4 counts as one
@@ -205,6 +212,12 @@ const FIXTURE_URL = "https://www.youtube.com/watch?v=test-fixture-0000";
 const VIDEO_FIXTURE_DIR = mkdtempSync(join(tmpdir(), "adapter-video-folder-"));
 writeFileSync(join(VIDEO_FIXTURE_DIR, "clip.mp4"), "");
 writeFileSync(join(VIDEO_FIXTURE_DIR, "notes.txt"), "not a video\n");
+// The page link the copilot-video-download script writes beside a download (yt-dlp --write-url-link,
+// 2026-11-20). "clip" is a generic title, so the daemon names the summary note from this link's last
+// path segment, as the Raycast runner did on a link run: the dry run's plan shows both. The daemon
+// only reads this file; nothing goes to the link. example.com is reserved for documentation.
+const FIXTURE_SOURCE_URL = "https://www.example.com/talks/adapter-fixture-talk";
+writeFileSync(join(VIDEO_FIXTURE_DIR, "clip.url"), `[InternetShortcut]\r\nURL=${FIXTURE_SOURCE_URL}\r\n`);
 // What the daemon sends on (it canonicalizes with realpathSync: /var/folders/... is
 // /private/var/folders/... on macOS), read now because the folder is gone by check time.
 const VIDEO_FIXTURE_DIR_REAL = realpathSync(VIDEO_FIXTURE_DIR);
@@ -320,33 +333,39 @@ check("raycast profile lists exactly its 2 video tools", () => {
 });
 
 if (ccUp) {
-  check("dry_run video_pipeline_run returns a well-formed Raycast deeplink", () => {
+  // Proves the running daemon is the phase-4 build: phase 3 still handed a link to Raycast.
+  check("live :8799: a link is refused, pointing at the copilot-video-download skill", () => {
     const res = raycast.get(3)?.result;
     assert.ok(res, "no result for tools/call id 3");
-    assert.notEqual(res.isError, true, `tool returned isError: ${JSON.stringify(res)}`);
-    const payload = JSON.parse(res.content?.[0]?.text ?? "{}");
-    assert.equal(payload.dryRun, true, "expected dryRun:true");
-    assert.equal(payload.dispatched, false, "dry run must not dispatch");
-    assert.match(payload.deeplink ?? "", DEEPLINK_SHAPE);
-    console.log(`      deeplink: ${payload.deeplink}`);
+    assert.equal(res.isError, true, `expected the daemon to refuse a link, got: ${JSON.stringify(res).slice(0, 300)}`);
+    const text = res.content?.[0]?.text ?? "";
+    assert.ok(text.includes(LINK_REFUSAL_POINTER), `the refusal lacks the pointer: ${text.slice(0, 300)}`);
   });
-  // Proves the running daemon is the folder-mode build: an older one refuses a folder.
-  check("live :8799: dry_run on a folder reports kind folder, its video count and its canonical path", () => {
+  check("live :8799: dry_run on a folder returns its plan (kind folder, video count, canonical path, source link)", () => {
     const res = raycast.get(9)?.result;
     assert.ok(res, "no result for tools/call id 9");
     assert.notEqual(res.isError, true, `tool returned isError: ${JSON.stringify(res).slice(0, 300)}`);
     const payload = JSON.parse(res.content?.[0]?.text ?? "{}");
     assert.equal(payload.dryRun, true, "expected dryRun:true");
     assert.equal(payload.dispatched, false, "dry run must not dispatch");
+    assert.equal(payload.backend, "builtin");
     assert.equal(payload.kind, "folder");
     assert.equal(payload.videoCount, 1, "clip.mp4 is the only video; notes.txt must not count");
-    assert.match(payload.deeplink ?? "", DEEPLINK_SHAPE);
-    const sent = JSON.parse(decodeURIComponent(payload.deeplink.split("?arguments=")[1]));
-    assert.equal(sent.videoUrl, VIDEO_FIXTURE_DIR_REAL);
+    assert.equal(payload.videoUrl, VIDEO_FIXTURE_DIR_REAL);
+    assert.ok(payload.plan && typeof payload.plan === "object", "expected the run's plan");
+    assert.equal(payload.deeplink, undefined, "phase 4 sends no deeplink");
+    const planned = Array.isArray(payload.plan.videos) ? payload.plan.videos : [];
+    assert.equal(planned.length, 1, `expected one planned video: ${JSON.stringify(payload.plan).slice(0, 300)}`);
+    assert.equal(planned[0].video, "clip.mp4");
+    assert.equal(planned[0].sourceUrl, FIXTURE_SOURCE_URL, "the daemon must read clip.url beside the video");
+    assert.ok(
+      String(planned[0].summaryNote).endsWith("/adapter-fixture-talk summary.md"),
+      `a generic title is named from the link's last path segment, got: ${planned[0].summaryNote}`,
+    );
   });
 } else {
   console.log(
-    "SKIP  dry_run deeplink checks (URL and folder) — Command Center bridge (:8799) unreachable (is Obsidian open?)",
+    "SKIP  live video checks (link refusal, folder plan) — Command Center bridge (:8799) unreachable, or live checks skipped",
   );
 }
 check("an absolute folder path passes the adapter's client edge", () => {

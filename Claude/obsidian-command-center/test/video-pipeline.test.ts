@@ -11,7 +11,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
-import { mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rename, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { summarizeVideoPipelineLog } from "../src/bridge/video-pipeline-status.ts";
@@ -516,22 +516,100 @@ test("aborting (the plugin unloading) kills the transcriber and ends the run fai
     assert.equal((await logMessages(world)).at(-1), "RUN FAIL: Command Center was unloaded");
   }));
 
-test("previewVideoRun says what a run would do without doing any of it", () =>
+// Phase 4 (2026-11-20): the download script writes `<base>.url` beside each video it saves, and the
+// pipeline uses that URL where the Raycast runner used the link it downloaded.
+const LESSON_URL = "https://www.linkedin.com/learning/networking-foundations/what-is-a-network";
+const shortcut = (url: string) => `[InternetShortcut]\r\nURL=${url}\r\n`;
+
+test("previewVideoRun says what a run would do without doing any of it, source URLs included", () =>
   inWorld(async (world) => {
     await addFile(world.outside, "Lesson 1.mp4");
     await addFile(world.outside, "Lesson 2.mp4");
+    await writeFile(join(world.outside, "Lesson 2.url"), shortcut(LESSON_URL));
     await mkdir(join(world.vault, "Copilot Summaries"), { recursive: true });
     await writeFile(join(world.vault, "Copilot Summaries", "Lesson 1 summary.md"), "done before");
     assert.deepEqual(await previewVideoRun({ kind: "folder", source: world.outside }, {}, world.vault), {
       toTranscribe: 1,
+      videos: [{ video: "Lesson 2.mp4", summaryNote: "Copilot Summaries/Lesson 2 summary.md", sourceUrl: LESSON_URL }],
       skipped: [{ video: "Lesson 1.mp4", reason: "summary already in the vault" }],
       deletesVideosAfterSummary: false,
     });
     const download = await addFile(world.downloads, "Talk: part 1.mp4");
     assert.deepEqual(await previewVideoRun({ kind: "file", source: download }, {}, world.vault), {
       summaryNote: "Copilot Summaries/Talk - part 1 summary.md",
+      sourceUrl: null,
+      deletesVideoAfterSummary: true,
+    });
+    // A single file's dry run proves the .url read, without a live run.
+    const lesson = await addFile(world.downloads, "What is a network.mp4");
+    await writeFile(join(world.downloads, "What is a network.url"), shortcut(LESSON_URL));
+    assert.deepEqual(await previewVideoRun({ kind: "file", source: lesson }, {}, world.vault), {
+      summaryNote: "Copilot Summaries/What is a network summary.md",
+      sourceUrl: LESSON_URL,
       deletesVideoAfterSummary: true,
     });
     assert.deepEqual(world.calls, []);
     assert.equal(existsSync(world.logPath), false);
+  }));
+
+test("a downloaded video's .url becomes the summary's source and goes with the video", () =>
+  inWorld(async (world) => {
+    const video = await addFile(world.downloads, "What is a network.mp4");
+    await writeFile(join(world.downloads, "What is a network.url"), shortcut(LESSON_URL));
+
+    const outcome = await run(world, { kind: "file", source: video });
+
+    assert.equal(outcome.status, "success");
+    const summary = await readFile(inVault(world, "Copilot Summaries/What is a network summary.md"), "utf-8");
+    assert.ok(summary.includes(`\nsource: ${LESSON_URL}\n`), summary);
+    assert.equal(existsSync(video), false);
+    assert.equal(existsSync(join(world.downloads, "What is a network.url")), false, "the .url goes with the video");
+    const messages = await logMessages(world);
+    assert.ok(messages.includes(`source URL from What is a network.url: ${LESSON_URL}`));
+    assert.match(messages.find((m) => m.startsWith("downloaded video removed")) ?? "", /\(2 file\(s\)\)/);
+  }));
+
+test("the transcription note names the page as its Source URL and still links the file", () =>
+  inWorld(async (world) => {
+    const video = await addFile(world.outside, "Talk.mp4");
+    await writeFile(join(world.outside, "Talk.url"), shortcut(LESSON_URL));
+    await run(world, { kind: "file", source: video }, { cleanupAfterSummary: false });
+    const note = await readFile(inVault(world, "Video Downloads/Talk transcription.md"), "utf-8");
+    assert.ok(note.includes(`- **Source URL**: ${LESSON_URL}\n`), note);
+    assert.ok(note.includes(`- **Source Video**: [Talk.mp4](file://${encodeURI(video)})\n`), note);
+  }));
+
+test("a generic title is named from the .url, and folder mode then skips that video on the next run", () =>
+  inWorld(async (world) => {
+    const video = await addFile(world.outside, "Videoplayer-2026-11-20T10-12-29-703Z.mp4");
+    await writeFile(join(world.outside, "Videoplayer-2026-11-20T10-12-29-703Z.url"), shortcut("https://www.example.com/course/organizational_behavior"));
+
+    await run(world, { kind: "folder", source: world.outside });
+    assert.equal(existsSync(inVault(world, "Copilot Summaries/organizational behavior summary.md")), true);
+
+    world.calls.length = 0;
+    await run(world, { kind: "folder", source: world.outside });
+    assert.deepEqual(world.calls, [], "the planner must name the summary from the same .url the run used");
+    assert.ok((await logMessages(world)).includes(`VIDEO 1/1 SKIPPED (summary already in the vault): ${video}`));
+  }));
+
+test("a symlinked .url is ignored in a run: no source, one log line, and the run still succeeds", () =>
+  inWorld(async (world) => {
+    const video = await addFile(world.outside, "Talk.mp4");
+    await writeFile(join(world.root, "planted.url"), shortcut("https://evil.example/"));
+    await symlink(join(world.root, "planted.url"), join(world.outside, "Talk.url"));
+    const outcome = await run(world, { kind: "file", source: video });
+    assert.equal(outcome.status, "success");
+    const summary = await readFile(inVault(world, "Copilot Summaries/Talk summary.md"), "utf-8");
+    assert.equal(summary.includes("evil.example"), false);
+    assert.ok((await logMessages(world)).includes("no source URL: Talk.url is a symbolic link, which is ignored"));
+  }));
+
+test("the download script's run stamp stays out of the summary's name and title", () =>
+  inWorld(async (world) => {
+    const video = await addFile(world.downloads, "Subnetting basics-2026-11-20T10-12-29-703Z.mp4");
+    const outcome = await run(world, { kind: "file", source: video });
+    assert.deepEqual(outcome, { status: "success", kind: "file", summaryNotePath: "Copilot Summaries/Subnetting basics summary.md" });
+    const summary = await readFile(inVault(world, "Copilot Summaries/Subnetting basics summary.md"), "utf-8");
+    assert.ok(summary.includes("title: Subnetting basics\n"), summary);
   }));

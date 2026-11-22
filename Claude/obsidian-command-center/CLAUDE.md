@@ -69,10 +69,13 @@ the plugin's post-run chain runs with nobody operating Obsidian:
   `test/no-dynamic-builtin-imports.test.ts` (it reads the source) can see it. The engine ingests the research-memory
   pack itself, headless and idempotent, so this stage had cost no data, only an honest `failed` in the ledger.
 
-**Video pipeline, two backends (2026-11-19, phase 3 of `~/.claude/plans/in-a-new-session-sharded-valley.md`).**
-`video_pipeline_run` reads the setting `videoBackend`. `raycast` (the default) dispatches the Raycast runner's
-deeplink as before. `builtin` runs a local file or folder inside Obsidian through `src/video/`, a port of the
-Raycast extension's file and folder pipeline. A URL stays on Raycast until phase 4.
+**Video pipeline (2026-11-19, phase 3 of `~/.claude/plans/in-a-new-session-sharded-valley.md`; the only one since
+phase 4, 2026-11-20).** `video_pipeline_run` runs a local video file or folder inside Obsidian through
+`src/video/`, a port of the Raycast extension's file and folder pipeline. A link is refused with a pointer to
+the download script (`video-pipeline-source.ts` `LINK_REFUSAL`): the Copilot agent downloads it first with the
+`copilot-video-download` skill and passes the file or course folder. The Raycast deeplink, its dispatch
+confirm and phase 3's `videoBackend` switch are gone (`test/video-raycast-path-retired.test.ts` guards that;
+`main.ts` scrubs a stored `videoBackend`).
 - **Steps.** Subtitles or the audio through the fixed `~/.local/bin/whisper-parakeet-shim` (Whisper as the
   fallback; the binaries are constants in `transcribe.ts`, never settings, because data.json lives in the vault).
   Then the transcription note through `app.vault.create`, the Copilot fork's `copilot:super-summarize-to-note`
@@ -81,16 +84,31 @@ Raycast extension's file and folder pipeline. A URL stays on Raycast until phase
 - **Failure.** There is no paid fallback. A failed or timed-out summary ends the run `failed`, keeps the
   transcription note and the video, and stops watching, so a late Copilot note cannot race the Copilot agent,
   which writes the summary itself. `video_pipeline_status` reports `summaryError` and `transcriptNote`.
+- **Source URL (phase 4).** The download script writes `<video base>.url` (an InternetShortcut) beside each
+  video. `src/video/source-url.ts` reads it strictly: one `open(O_RDONLY | O_NOFOLLOW | O_NONBLOCK)`, then
+  `fstat` on that descriptor (a regular file, at most 4 KB) and a read capped at 4 KB + 1, so a symlink or
+  FIFO swapped in after the first `lstat` is refused without blocking Obsidian's main thread. It needs one
+  `URL=` line with an https URL that parses, no whitespace, control or format characters, no credentials,
+  at most 2048 characters, and keeps the parser's normalized `href`. Its FIFO tests make the pipe through
+  `test/support/make-named-pipe.py` (the system call), so the tool's name is on no command line: Falcon rule 8
+  (Critical, Block) kills a shell whose command line holds that word followed by `nc`, and a Bash grep for it
+  was blocked on 2026-11-20. The URL names the notes (the generic-title rule;
+  folder mode's planner uses the same read), becomes the transcription note's Source URL and the summary's
+  `source`, and shows in the dry run's `plan`. Anything else is no URL plus one `no source URL:` log line,
+  and the run goes on.
 - **Downloaded videos are deleted** after a successful summary, with their subtitle and metadata files, when they
   sit inside the video download folder (`Video Downloads/`, where the download script saves). This is the
   operator's decision of 2026-11-19, "Delete (today's cleanup)". A video anywhere else is never touched.
 - **One run at a time.** The plugin owns the single `VideoPipelineController`, which refuses a second dispatch
-  and aborts the run on unload (`RUN FAIL`). Both backends share the run log and the run marker in
-  `~/.local/share/raycast-obsidian/`, with the same line formats.
+  and aborts the run on unload (`RUN FAIL`). The run log and the run marker keep their Raycast-era paths in
+  `~/.local/share/raycast-obsidian/` and their line formats; the marker still stands down a Raycast run
+  started by hand while Raycast stays installed (until phase 7).
 - **Tests.** The modules import each other as `./x.ts` (tsconfig `allowImportingTsExtensions`, `noEmit`), so
   `node --test` runs whole pipelines against a fake vault. Only `obsidian-host.ts` imports `obsidian`.
-- **Contract.** The tool descriptions are unchanged until phase 4: the stdio adapter's `test:profiles` requires
-  its copy to match them word for word. A dry run still returns the Raycast `deeplink`, plus `backend` and `plan`.
+- **Contract.** The stdio adapter's `test:profiles` requires its copy of both tools' descriptions to match these
+  word for word, and the Copilot fork's `src/mcp/catalog.ts` carries the same text: change all three together.
+  A reply carries `backend: "builtin"` (a constant the Copilot skill checks), `kind`, `runId`, and `videoCount`
+  for a folder; a dry run returns `plan` instead of starting anything.
 
 The canonical Obsidian MCP bridge (with auth, replay protection, idempotency) lives at:
 `/Users/myhome/TRINC/Copilot-Everything/bridges/obsidian-copilot-bridge/`

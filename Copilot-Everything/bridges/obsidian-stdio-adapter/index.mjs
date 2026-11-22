@@ -613,18 +613,18 @@ const VIDEO_TOOLS = [
   {
     name: "video_pipeline_run",
     description:
-      "Run the video-to-summary pipeline on a video URL (YouTube, LinkedIn Learning, etc.), an absolute local video file path, or an absolute path to a FOLDER of videos already on disk. Dispatches the Raycast 'Video Pipeline Runner': a URL is downloaded first (login-gated hosts like LinkedIn Learning need ONE human click in Downie's UGE window — tell the user to click the detected stream), a local file or folder is not downloaded at all; each video is transcribed from subtitles or from the audio by the configured local transcriber (the run log's `transcription engine:` line names it; video_pipeline_status returns it as `transcriber`), summarized by Copilot's free local relay, and saved to the vault as Copilot Summaries/'<title> summary.md' with all intermediates cleaned up (the user's own local video files are never deleted). A folder runs every video directly inside it (not subfolders) one after another in ONE run, skipping any video whose summary note already exists. For several local videos, pass their folder ONCE: never call this once per file, because each new dispatch makes the run in progress stop. Returns immediately; poll video_pipeline_status for progress.",
+      "Run the video-to-summary pipeline inside Obsidian on an absolute local video file path, or an absolute path to a FOLDER of videos already on disk. A link (YouTube, LinkedIn Learning, a course page) is refused: it is downloaded first by /Users/myhome/My Digital Garden/copilot/skills/copilot-video-download/video-download.sh (the copilot-video-download skill), and you then pass the file path it prints, or the folder it prints for a course. Each video is transcribed by the local transcriber (the run log's `transcription engine:` line names it; video_pipeline_status returns it as `transcriber`), summarized by Copilot's Super-Summarize command, and saved to the vault as Copilot Summaries/'<title> summary.md' with title, created and source frontmatter. After a successful summary the intermediates are cleaned up, and a video inside the vault's Video Downloads folder (where the download script saves) is deleted with its subtitle files; a video anywhere else is never moved or deleted. A folder runs every video directly inside it (not subfolders) one after another in ONE run, skipping any video whose summary note already exists. For several videos, pass their folder ONCE: a second call while a run is going is refused. If a summary fails, the run ends failed and nothing retries it: video_pipeline_status then gives `summaryError` and `transcriptNote`, and you write that summary yourself from the note. Returns immediately; poll video_pipeline_status for progress.",
     inputSchema: {
       type: "object",
       properties: {
         videoUrl: {
           type: "string",
           description:
-            "http(s) video URL, an absolute local video file path (.mp4/.mkv/.webm/.mov/.m4v), or an absolute folder path (every video directly inside it, one after another)",
+            "An absolute local video file path (.mp4/.mkv/.webm/.mov/.m4v), or an absolute folder path (every video directly inside it, one after another). A link is refused: download it first with the copilot-video-download skill.",
         },
         dry_run: {
           type: "boolean",
-          description: "Validate the input and return the Raycast deeplink without dispatching.",
+          description: "Validate the input and report what the run would do, without starting it: the summary note, or for a folder the videos it would transcribe and skip, and whether videos would be deleted.",
         },
       },
       required: ["videoUrl"],
@@ -633,7 +633,7 @@ const VIDEO_TOOLS = [
   {
     name: "video_pipeline_status",
     description:
-      "Progress of the most recent video pipeline run, read from its durable run log: running/success/failed, the latest stage line, the summary confirmation when finished, and `transcriber`: the transcription engine that actually ran, verbatim from the run's `transcription engine:` line. Report the engine only from `transcriber`. `transcriptionRequested` is what the pipeline asked for (Whisper-style settings), not what ran. Both are absent when the transcript came from subtitles or the run predates 2026-10-15. A folder run reports `folder` and `batch`: {total, summarized, failed, skipped, remaining, current (the video being worked on), summaries (vault paths), failures ({video, reason})}; it ends `failed` when any one video failed, even though the others were summarized.",
+      "Progress of the most recent video pipeline run, read from its durable run log: running/success/failed, the latest stage line, the summary confirmation when finished, and `transcriber`: the transcription engine that actually ran, verbatim from the run's `transcription engine:` line. Report the engine only from `transcriber`. `transcriptionRequested` is what the pipeline asked for (Whisper-style settings), not what ran. Both are absent when the transcript came from subtitles. A folder run reports `folder` and `batch`: {total, summarized, failed, skipped, remaining, current (the video being worked on), summaries (vault paths), failures ({video, reason, transcriptNote})}; it ends `failed` when any one video failed, even though the others were summarized. When a summary fails, `summaryError` says why and `transcriptNote` names the transcription note that was kept (per video in a folder run: `batch.failures[].transcriptNote`): read that note and write the summary yourself as Copilot Summaries/'<title> summary.md' with title, created and source frontmatter, never overwriting an existing note.",
     inputSchema: { type: "object", properties: {} },
   },
 ];

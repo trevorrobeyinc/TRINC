@@ -280,13 +280,10 @@ export interface OpenClawSettings {
   researchMemoryCliPath: string;
   researchMemoryDefaultClient: string;
   researchMemoryTimeoutMs: number;
-  // Video pipeline (2026-11-19, phase 3 of retiring Raycast and Downie): which backend
-  // video_pipeline_run uses for a local file or folder. "raycast" (the default) opens the Raycast
-  // runner's deeplink, as before; "builtin" runs src/video/ inside Obsidian. A URL always goes to
-  // Raycast until phase 4. Temporary: phase 4 removes the Raycast path and this switch.
-  videoBackend: "raycast" | "builtin";
-  // The built-in pipeline's settings, defaulting to the Raycast runner's values. The transcriber
-  // BINARIES are fixed in src/video/transcribe.ts, never settings: data.json lives in the vault.
+  // The video pipeline's settings (src/video/, 2026-11-19), defaulting to the retired Raycast runner's
+  // values. The transcriber BINARIES are fixed in src/video/transcribe.ts, never settings: data.json
+  // lives in the vault. (Phase 3's temporary `videoBackend` switch went with the Raycast path in phase 4,
+  // 2026-11-20; main.ts scrubs a stored value.)
   videoDownloadFolder: string;
   videoSummaryFolder: string;
   videoTranscriber: "parakeet" | "whisper";

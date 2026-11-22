@@ -5,7 +5,12 @@ import { mkdtempSync, mkdirSync, realpathSync, rmSync, symlinkSync, writeFileSyn
 import { tmpdir } from "node:os";
 import * as path from "node:path";
 import { pathToFileURL } from "node:url";
-import { countFolderVideos, resolveVideoPipelineSource } from "../src/bridge/video-pipeline-source.ts";
+import {
+  countFolderVideos,
+  LINK_REFUSAL,
+  resolveVideoPipelineSource,
+  VIDEO_DOWNLOAD_SCRIPT,
+} from "../src/bridge/video-pipeline-source.ts";
 
 let root = "";
 // Canonical, as the resolver returns it (macOS's tmpdir sits behind the /var -> /private/var link).
@@ -27,11 +32,19 @@ after(() => {
   rmSync(root, { recursive: true, force: true });
 });
 
-test("an http(s) URL passes through unchanged", () => {
-  assert.deepEqual(resolveVideoPipelineSource("  https://www.youtube.com/watch?v=x  "), {
-    kind: "url",
-    source: "https://www.youtube.com/watch?v=x",
-  });
+// Phase 4 (2026-11-20): Raycast's download lanes are gone, so a link is refused with a pointer to
+// the skill that downloads it. The pointer is the agent's whole recovery, so it is checked word for word.
+test("an http(s) link is refused, pointing at the download skill and its script", () => {
+  for (const link of ["  https://www.youtube.com/watch?v=x  ", "http://example.com/v.mp4", "HTTPS://www.linkedin.com/learning/x"]) {
+    assert.throws(() => resolveVideoPipelineSource(link), { message: LINK_REFUSAL });
+  }
+  assert.equal(
+    LINK_REFUSAL,
+    "video_pipeline_run takes a local video file or folder, not a link: download it first with the " +
+      "copilot-video-download skill (/Users/myhome/My Digital Garden/copilot/skills/copilot-video-download/video-download.sh), " +
+      "then pass the file it prints or the course folder."
+  );
+  assert.ok(VIDEO_DOWNLOAD_SCRIPT.endsWith("/copilot/skills/copilot-video-download/video-download.sh"));
 });
 
 test("a local video file resolves to its canonical path", () => {
@@ -76,7 +89,7 @@ test("a folder without videos directly inside is refused", () => {
   );
 });
 
-test("the old refusals still hold for anything that is not a URL, a video or a folder", () => {
+test("the old refusals still hold for anything that is not a video or a folder", () => {
   file("other/notes.txt");
   assert.throws(() => resolveVideoPipelineSource(""), /videoUrl is required/);
   assert.throws(() => resolveVideoPipelineSource("relative/clip.mp4"), /must be absolute/);
