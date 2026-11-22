@@ -126,8 +126,9 @@ Claude (in Claude Code) ── one door: "openclaw-obsidian" ──> Command Cen
 - **Claude has exactly one door** into Obsidian. Through it Claude can start and watch runs, read and
   search notes (read-only), and draw visuals, which land only in `Visualizations/`. It cannot create,
   edit or run anything else.
-- **Copilot and Raycast keep their own doors.** Copilot chat runs on hosted `copilot-plus-flash`; its
-  agent mode runs on an opencode backend.
+- **Copilot keeps its own door.** Copilot chat runs on hosted `copilot-plus-flash`; its
+  agent mode runs on an opencode backend. *(Raycast had a door of its own until 2026-11-21, when it was removed from
+  the Mac. The two video workflows it carried run from the Copilot agent now.)*
 - **Security is layered on top**: every network service on the Mac is HTTPS-only, real runs and
   privileged actions need a YubiKey touch, and CrowdStrike Falcon watches the machine. The security stack
   protects the business; it is not something the business sells.

@@ -70,6 +70,7 @@ Run a full force reindex through the official plugin against the Miyo backend:
 - When `enableAutonomousAgent` is on, the official plugin also needs the runtime MCP tool ids in `autonomousAgentEnabledToolIds`; configuring `mcp.servers[]` alone is not enough for hosted agent turns to use those tools.
 - Ollama remains a separate follow-up validation; it is not required for the hosted/Copilot direct-MCP cutover.
 - Official plugin write validation currently leaves a timestamped note under `copilot-mcp/validation/` so the create/append/readback artifact is inspectable after the run.
+- *(2026-11-22: the three Raycast statements below are history. Raycast was removed from the Mac on 2026-11-21, and video summaries run through Command Center's built-in pipeline.)*
 - In this workspace, Raycast prompt execution uses the shared HTTP MCP bridge directly for `execute_command`.
 - In this workspace, Raycast active-note summarize is the one deliberate Raycast-side exception: it restores Obsidian focus and invokes the local Obsidian CLI command ids directly so whole-note rewrite behavior stays tied to the real active editor state.
 - In this workspace, Raycast PDF and video summaries use backend-first `/v1/self-host/agent-turn` flows with local Raycast AI fallback only if backend summary generation fails, and note writes stay routed through the shared bridge MCP path (CLI-backed when this was written; REST-backed — Obsidian Local REST API `:27124` — since 2026-05-09).

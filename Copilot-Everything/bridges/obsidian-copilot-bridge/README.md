@@ -8,6 +8,7 @@ Workspace source-of-truth:
 
 - Parent Raycast package: `../package.json` (`obsidian-bridge-fork`)
 - Default Codex sync target: `~/.config/raycast/extensions/obsidian` via `../scripts/codex/sync-config.sh`
+- *(2026-11-22: both lines describe the Raycast extension this bridge once shipped inside. The extension moved out of the monorepo on 2026-10-23, and Raycast was removed from the Mac on 2026-11-21, so neither path exists here.)*
 
 This server is the REST-backed execution layer for note and command operations (sole backend: `src/backends/restApiBackend.ts`). The PDF/video summarize flows that used the backend emulator for `/v0/parse-doc` and `/v1/self-host/agent-turn` predate the emulator's retirement (2026-04-11, deleted 2026-05-08).
 

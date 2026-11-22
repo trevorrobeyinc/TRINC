@@ -101,8 +101,9 @@ confirm and phase 3's `videoBackend` switch are gone (`test/video-raycast-path-r
   operator's decision of 2026-11-19, "Delete (today's cleanup)". A video anywhere else is never touched.
 - **One run at a time.** The plugin owns the single `VideoPipelineController`, which refuses a second dispatch
   and aborts the run on unload (`RUN FAIL`). The run log and the run marker keep their Raycast-era paths in
-  `~/.local/share/raycast-obsidian/` and their line formats; the marker still stands down a Raycast run
-  started by hand while Raycast stays installed (until phase 7).
+  `~/.local/share/raycast-obsidian/` and their line formats. *(2026-11-22: Raycast was uninstalled on 2026-11-21, so
+  no Raycast run can exist any more and the marker's stand-down for one is inert. The folder keeps its old name and
+  stays live.)*
 - **Tests.** The modules import each other as `./x.ts` (tsconfig `allowImportingTsExtensions`, `noEmit`), so
   `node --test` runs whole pipelines against a fake vault. Only `obsidian-host.ts` imports `obsidian`.
 - **Contract.** The stdio adapter's `test:profiles` requires its copy of both tools' descriptions to match these

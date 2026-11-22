@@ -602,8 +602,9 @@ Why one door: an earlier set of overlapping lanes included an ungated write path
 retired on 2026-10-23, so every Claude action in Obsidian goes through one narrow, tested entrance.
 [src: `CLAUDE.md` → Obsidian section; `ops/reorg/2026-10-cleanup-manifest.md`, Phase 5]
 
-**Copilot and Raycast keep their own doors.** Copilot chat runs on a hosted model (`copilot-plus-flash`); its
-agent mode runs on an opencode backend. Raycast chat has a separate door to the vault tools.
+**Copilot keeps its own door.** Copilot chat runs on a hosted model (`copilot-plus-flash`); its
+agent mode runs on an opencode backend. Raycast, which once had a separate door to the vault tools, was removed on
+2026-11-21.
 [src: `HOW-IT-WORKS.md` §6; `ARCHITECTURE.md` §2]
 
 ## The engine's parts
