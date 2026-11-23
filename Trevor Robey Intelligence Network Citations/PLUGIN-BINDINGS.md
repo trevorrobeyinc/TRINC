@@ -406,6 +406,17 @@ ClinicalTrials.gov through ToolUniverse and Open Targets through its own `open-t
 `config/tool-prefetch-map.json`** — doing so would dilute the grounded-citation ratio the Phase-30
 gate computes and inflate a token budget already near 300K per template.
 
+**Stdio since 2026-11-23: the transport changed, the rule did not.** In Claude Code this plugin loads
+from the local `kwp-archive` marketplace. There, `pubmed`, `biorxiv`, `c-trials`, `chembl` and `ot` run
+over stdio through the pinned `mcp-remote` 0.1.38 with the loopback preload, and `consensus` stays on
+HTTP (operator decision, Security Everything's `mcp-loopback` lane). Cowork's own copy still lists all
+eleven servers on HTTP. They are still Claude-host servers, and the operator kept the rule above the
+same day. A stdio server can be started from a subprocess, but the engine must not start one: every
+role call runs with zero MCP servers on purpose (`--strict-mcp-config` with the empty
+`config/claude-code-print-mcp.json`). Checked that day: the role-call isolation probe on CLI 2.1.327
+started no MCP server. The record is the registry's `plugin_surfaces` → bio-research
+`mcp_note_2026-11-23`.
+
 **Guardrails**
 - **Duplicate-aware:** a claim destined for a paid deliverable must come through the *engine's*
   registered connectors so the grounding gate can see it.
