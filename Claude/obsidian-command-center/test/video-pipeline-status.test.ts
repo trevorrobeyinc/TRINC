@@ -2,6 +2,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { summarizeVideoPipelineLog } from "../src/bridge/video-pipeline-status.ts";
+import {
+  DOWNIE_FILE_DETECTED,
+  DOWNIE_GUIDED_STEPS,
+  DOWNIE_UNMATCHED,
+  WAITING_FOR_USER,
+} from "../src/video/downie.ts";
 
 const ENGINE =
   "engine=parakeet-mlx model=mlx-community/parakeet-tdt-0.6b-v3@ed2b7e8c task=transcribe " +
@@ -258,4 +264,55 @@ test("a folder run names each failed video's kept transcription note, and only t
   ]);
   assert.equal(out.transcriptNote, "Video Downloads/Lesson 1 transcription.md");
   assert.equal(out.summaryError, "Copilot summary did not appear within 180s: x");
+});
+
+// Link runs (2026-11-22): while the operator has steps to take in Downie's window, status carries them.
+const LIBRARY = "https://video-alexanderstreet-com.libdatab.strayer.edu/watch/criminal-law";
+function linkRun(id: string, upTo: number): string {
+  const p = (t: string, msg: string) => `2026-11-22T23:${t}Z [run ${id}] ${msg}`;
+  return [
+    p("00:00.000", `RUN START url=${LIBRARY}`),
+    p("00:00.100", "runner: Command Center built-in pipeline, inside Obsidian"),
+    p("00:00.200", "downie hand-off (guided): video-alexanderstreet-com.libdatab.strayer.edu"),
+    p("00:00.300", `${WAITING_FOR_USER} Downie's window is open on video-alexanderstreet-com.libdatab.strayer.edu; press play on the video, then +`),
+    p("05:00.000", `${DOWNIE_FILE_DETECTED} /Users/me/Movies/Downie/Criminal law.mp4`),
+    p("05:00.100", `${DOWNIE_UNMATCHED} it was the one new finished video in Downie's folder; check that it is the right one`),
+    p("05:30.000", "summary written via obsidian-copilot: Copilot Summaries/Criminal law summary.md"),
+    p("05:30.100", "RUN SUCCESS"),
+  ].slice(0, upTo).join("\n");
+}
+
+test("a link run says what the user must do only while it waits for them", () => {
+  const before = summarizeVideoPipelineLog(linkRun("r", 3)) as any;
+  assert.equal(before.status, "running");
+  assert.equal("waitingForUser" in before, false);
+
+  const waiting = summarizeVideoPipelineLog(linkRun("r", 4)) as any;
+  assert.equal(waiting.status, "running");
+  assert.equal(waiting.videoUrl, LIBRARY);
+  assert.equal(waiting.waitingForUser.in, "Downie");
+  assert.equal(waiting.waitingForUser.since, "2026-11-22T23:00:00.300Z");
+  assert.deepEqual(waiting.waitingForUser.steps, DOWNIE_GUIDED_STEPS);
+
+  const landed = summarizeVideoPipelineLog(linkRun("r", 5)) as any;
+  assert.equal("waitingForUser" in landed, false);
+  assert.equal("downloadNote" in landed, false);
+
+  const done = summarizeVideoPipelineLog(linkRun("r", 8)) as any;
+  assert.equal(done.status, "success");
+  assert.equal("waitingForUser" in done, false);
+  assert.match(done.downloadNote, /^it was the one new finished video/);
+});
+
+test("a link run that gave up is not still waiting, and another run's lines never make one wait", () => {
+  const failed = summarizeVideoPipelineLog(`${linkRun("r", 4)}\n2026-11-22T23:31:00.000Z [run r] RUN FAIL: Downie saved no video`) as any;
+  assert.equal(failed.status, "failed");
+  assert.equal("waitingForUser" in failed, false);
+
+  const other = [
+    "2026-11-22T23:00:00.000Z [run b] RUN START file=/m/a.mp4",
+    `2026-11-22T23:00:01.000Z [run a] ${WAITING_FOR_USER} Downie's window is open`,
+    `2026-11-22T23:00:02.000Z [run b] source note written: Video Downloads/${WAITING_FOR_USER} transcription.md`,
+  ].join("\n");
+  assert.equal("waitingForUser" in (summarizeVideoPipelineLog(other) as any), false);
 });

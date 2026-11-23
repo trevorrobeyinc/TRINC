@@ -969,8 +969,8 @@ export default class OpenClawPlugin extends Plugin {
         }),
       getFeedStats: () => this.readFeedStats(),
       getCitationIntegrity: (workflowId) => this.readCitationIntegrity(workflowId),
-      startVideoRun: async (input) => {
-        const handle = await this.videoPipeline.start(input);
+      startVideoRun: async (input, options) => {
+        const handle = await this.videoPipeline.start(input, options);
         return { runId: handle.runId, startedAt: handle.startedAt };
       },
       activeVideoRun: () => this.videoPipeline.activeRun(),

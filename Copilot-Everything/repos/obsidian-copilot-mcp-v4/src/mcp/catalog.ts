@@ -1188,24 +1188,30 @@ export const MCP_TOOL_CATALOG: Record<string, McpCatalogEntry> = {
   // tools/list declarations in
   // Claude/obsidian-command-center/src/bridge/mcp-bridge-server.ts (the
   // contract of record — keep in sync). NO `operation` field; args pass
-  // through unchanged. Since phase 4 (2026-11-20) the bridge refuses a link:
-  // the copilot-video-download skill downloads it first.
+  // through unchanged. Since phase 4 (2026-11-20) the copilot-video-download
+  // skill downloads a link first; since 2026-11-22 the bridge takes a link on
+  // its approved list (Downie downloads it) and still refuses every other one.
   video_pipeline_run: {
     toolName: "video_pipeline_run",
     displayName: "Video Pipeline Run",
     description:
       "Run the video-to-summary pipeline inside Obsidian on an absolute local video file path " +
-      "(.mp4/.mkv/.webm/.mov/.m4v) or an absolute path to a FOLDER of videos already on disk. " +
-      "A link is refused: download it first with the copilot-video-download skill, then pass " +
-      "the file path its script prints (or, for a LinkedIn Learning course, the folder it " +
-      "prints). Each video is transcribed locally, summarized by Copilot's Super-Summarize " +
-      "command and saved as Copilot Summaries/'<title> summary.md' with title, created and " +
+      "(.mp4/.mkv/.webm/.mov/.m4v), an absolute path to a FOLDER of videos already on disk, or a " +
+      "LINK to a LinkedIn Learning lesson, one of the school's Kaltura videos or a Strayer " +
+      "library film. Such a link is handed to Downie with the user's own sign-ins, and the run " +
+      "goes on by itself with the video Downie saves; while the user has steps to take in " +
+      "Downie's window, video_pipeline_status gives waitingForUser: pass its steps on word for " +
+      "word, keep polling, and never ask the user to say when it is done. Pass the link exactly " +
+      "as the user gave it, and never open a link any other way. Any other link is refused: " +
+      "download it first with the copilot-video-download skill, then pass the file path its " +
+      "script prints (or, for a LinkedIn Learning course, the folder it prints). Each video is " +
+      "transcribed locally, summarized by Copilot's Super-Summarize command and saved as Copilot Summaries/'<title> summary.md' with title, created and " +
       "source front matter. A video inside the vault's Video Downloads folder (where the " +
       "download script saves) is deleted after a successful summary; a video anywhere else is " +
       "never moved or deleted. A folder runs every video directly inside it (not subfolders) " +
       "one after another in ONE run, skipping any video whose summary note already exists: " +
       "pass a folder ONCE, never one call per file (a second call while a run is going is " +
-      "refused). If a summary fails, the run ends failed, and video_pipeline_status gives " +
+      "refused, but a run that only waits for Downie can be given up with replace_waiting). If a summary fails, the run ends failed, and video_pipeline_status gives " +
       "summaryError and transcriptNote: write that summary yourself from the note. Returns " +
       "immediately; poll video_pipeline_status every ~20s (one video typically takes 1-4 " +
       "minutes). Set dry_run true to see the plan without starting a run.",
@@ -1216,14 +1222,22 @@ export const MCP_TOOL_CATALOG: Record<string, McpCatalogEntry> = {
         .string()
         .min(1)
         .describe(
-          "An absolute local video file path, or an absolute folder path (every video directly " +
-            "inside it, one after another). A link is refused: download it first with the " +
-            "copilot-video-download skill."
+          "An absolute local video file path, an absolute folder path (every video directly " +
+            "inside it, one after another), or a link to a LinkedIn Learning lesson, one of the " +
+            "school's Kaltura videos or a Strayer library film. Any other link is refused: " +
+            "download it first with the copilot-video-download skill."
         ),
       dry_run: z
         .boolean()
         .optional()
         .describe("Validate the input and report what the run would do, without starting it"),
+      replace_waiting: z
+        .boolean()
+        .optional()
+        .describe(
+          "Only when the user asks to open a link again (for example after signing in) or to give " +
+            "a waiting video up: ends a run that is only waiting for Downie and starts this one"
+        ),
     }),
     buildInput: (args) => ({ ...args }),
   },
@@ -1232,8 +1246,10 @@ export const MCP_TOOL_CATALOG: Record<string, McpCatalogEntry> = {
     displayName: "Video Pipeline Status",
     description:
       "Progress of the most recent video pipeline run, read from its durable run log: " +
-      "running/success/failed, the latest stage line, and the summary confirmation when " +
-      "finished. A folder run also reports `folder` and `batch` (total, summarized, failed, " +
+      "running/success/failed, the latest stage line, the summary confirmation when finished, " +
+      "waitingForUser while a link run waits for the user in Downie's window (give them its " +
+      "steps word for word, once, and keep polling), and downloadNote when Downie's file could " +
+      "not be matched to the link (ask the user whether it is the right video). A folder run also reports `folder` and `batch` (total, summarized, failed, " +
       "skipped, remaining, the video in progress, summary paths, and failures with their " +
       "transcriptNote); it ends failed when any one video failed, even though the others were " +
       "summarized. When a summary fails, `summaryError` says why and `transcriptNote` names the " +

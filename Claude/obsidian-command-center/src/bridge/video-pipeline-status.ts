@@ -4,8 +4,18 @@
 // free of `obsidian` imports so test/video-pipeline-status.test.ts can exercise it under node --test;
 // the bridge's video_pipeline_status handler only reads the file and hands the text here.
 //
+// A link run (2026-11-22, src/video/downie.ts) can wait up to half an hour for the operator to press play
+// and + in Downie's window. While it does, the result carries `waitingForUser` with the exact steps.
+//
 // Each line is `<ISO timestamp> [run <id>] <message>`; runs older than 2026-10-15 have no
 // `[run <id>]` prefix.
+
+import {
+  DOWNIE_FILE_DETECTED,
+  DOWNIE_GUIDED_STEPS,
+  DOWNIE_UNMATCHED,
+  WAITING_FOR_USER,
+} from "../video/downie.ts";
 
 const RUN_LINE = /^\S+\s+(?:\[run ([^\]]+)\]\s+)?(.*)$/;
 
@@ -115,6 +125,18 @@ function folderBatchProgress(messages: string[], running: boolean): FolderBatchP
   };
 }
 
+/** The steps the operator has to take, while this run's own lines say it is waiting for them. */
+function waitingForUser(run: string[], runId: string | undefined): Record<string, unknown> | undefined {
+  let since: string | undefined;
+  for (const line of run) {
+    const m = line.match(RUN_LINE);
+    if (!m || (runId !== undefined && m[1] !== runId)) continue;
+    if (m[2].startsWith(WAITING_FOR_USER)) since = line.split(" ", 1)[0];
+    else if (m[2].startsWith(DOWNIE_FILE_DETECTED)) since = undefined;
+  }
+  return since === undefined ? undefined : { in: "Downie", since, steps: DOWNIE_GUIDED_STEPS };
+}
+
 export function summarizeVideoPipelineLog(text: string): Record<string, unknown> {
   const lines = text.trimEnd().split("\n");
   let startIdx = -1;
@@ -159,15 +181,19 @@ export function summarizeVideoPipelineLog(text: string): Record<string, unknown>
   // `batch.failures` carries each video's own.
   const summaryError = runMessageValue(run, runId, SUMMARY_ERROR);
   const transcriptNote = runMessageValue(run, runId, TRANSCRIPT_NOTE_KEPT);
+  const waiting = terminal === "running" ? waitingForUser(run, runId) : undefined;
+  const downloadNote = runMessageValue(run, runId, DOWNIE_UNMATCHED);
 
   return {
     status: terminal,
+    ...(waiting ? { waitingForUser: waiting } : {}),
     startedAt: run[0].slice(0, 24).trim(),
     ...(source?.[1] === "url" ? { videoUrl: source[2] } : {}),
     ...(source?.[1] === "file" ? { file: source[2] } : {}),
     ...(isFolderRun ? { folder: source[2], batch: folderBatchProgress(own, terminal === "running") } : {}),
     latest: run[run.length - 1],
     ...(summaryLine ? { summary: summaryLine } : {}),
+    ...(downloadNote ? { downloadNote } : {}),
     ...(summaryError ? { summaryError } : {}),
     ...(transcriptNote ? { transcriptNote } : {}),
     ...(transcriber ? { transcriber } : {}),

@@ -71,11 +71,33 @@ the plugin's post-run chain runs with nobody operating Obsidian:
 
 **Video pipeline (2026-11-19, phase 3 of `~/.claude/plans/in-a-new-session-sharded-valley.md`; the only one since
 phase 4, 2026-11-20).** `video_pipeline_run` runs a local video file or folder inside Obsidian through
-`src/video/`, a port of the Raycast extension's file and folder pipeline. A link is refused with a pointer to
+`src/video/`, a port of the Raycast extension's file and folder pipeline. Since 2026-11-22 it also takes a link
+on the approved list and has Downie download it (next bullet). Any other link is refused with a pointer to
 the download script (`video-pipeline-source.ts` `LINK_REFUSAL`): the Copilot agent downloads it first with the
 `copilot-video-download` skill and passes the file or course folder. The Raycast deeplink, its dispatch
 confirm and phase 3's `videoBackend` switch are gone (`test/video-raycast-path-retired.test.ts` guards that;
 `main.ts` scrubs a stored `videoBackend`).
+- **The Downie hand-off (2026-11-22, operator decision "Yes, build it"; it reverses 2026-11-19's "Downie
+  retires").** For sites that need the operator's own sign-in. `video_pipeline_run` with an approved link replies
+  at once (`kind: "link"`); `src/video/downie.ts` opens it in Downie 4 (`/usr/bin/open` with one `downie://` address,
+  argv array), watches `~/Movies/Downie`, and the run goes on with the finished file, as a local-file run whose
+  `source` is the link. LinkedIn Learning lessons and Kaltura: Downie tries by itself for 3 minutes, then its guided
+  window opens. Strayer library films: the window opens at once. In the window the operator presses play, then +;
+  the run waits up to 30 minutes, and `video_pipeline_status` carries `waitingForUser` with the exact steps. A run
+  that is only waiting can be given up with `replace_waiting`; one that is working is never replaced.
+  - **The approved list is code (`src/video/downie-sites.ts`), never a setting.** Downie opens pages with the
+    operator's sign-ins and the caller is an agent that reads untrusted text, so any other address would be a way
+    to send note text out. A link is REBUILT from checked parts; no path or query part may hold `:`, `/` or `%`, so a
+    nested address (what a redirect page needs) cannot be written; Kaltura is pinned to the school's partner
+    number; LinkedIn is `/learning/<course>/<lesson>` only; the library's sign-in and DOI hosts are never opened (a
+    sign-in link is rewritten to the film's own proxied page). `openInDownie` asks the list again right before
+    the program runs. Adding a site is a code change with its refusals tested first.
+  - **The claim** compares the folder with how it looked before the hand-off (inode and size, not times, which a
+    tag or Finder changes), waits for two equal sizes, and prefers the file whose `.json` names the page. With no
+    match after 20 s the one new finished video is taken, and status says so (`downloadNote`).
+  - **What it never does:** read Downie's settings, history, cache or sign-ins; move, rename or delete a file in
+    Downie's folder (notes are named by `pathForNaming` instead); drive any other app. Only `src/video/downie.ts`
+    may name the open program (`test/video-raycast-path-retired.test.ts`).
 - **Steps.** Subtitles or the audio through the fixed `~/.local/bin/whisper-parakeet-shim` (Whisper as the
   fallback; the binaries are constants in `transcribe.ts`, never settings, because data.json lives in the vault).
   Then the transcription note through `app.vault.create`, the Copilot fork's `copilot:super-summarize-to-note`
@@ -106,10 +128,10 @@ confirm and phase 3's `videoBackend` switch are gone (`test/video-raycast-path-r
   stays live.)*
 - **Tests.** The modules import each other as `./x.ts` (tsconfig `allowImportingTsExtensions`, `noEmit`), so
   `node --test` runs whole pipelines against a fake vault. Only `obsidian-host.ts` imports `obsidian`.
-- **Contract.** The stdio adapter's `test:profiles` requires its copy of both tools' descriptions to match these
-  word for word, and the Copilot fork's `src/mcp/catalog.ts` carries the same text: change all three together.
-  A reply carries `backend: "builtin"` (a constant the Copilot skill checks), `kind`, `runId`, and `videoCount`
-  for a folder; a dry run returns `plan` instead of starting anything.
+- **Contract.** The Copilot fork's `src/mcp/catalog.ts` describes the same tools for its in-plugin agent: change
+  both together. (The stdio adapter's word-for-word copy left with its `raycast` profile, `41a0822`.)
+  A reply carries `backend: "builtin"` (a constant the Copilot skill checks), `kind`, `runId`, `videoCount`
+  for a folder, and `site` and `firstTry` for a link; a dry run returns `plan` instead of starting anything.
 
 The canonical Obsidian MCP bridge (with auth, replay protection, idempotency) lives at:
 `/Users/myhome/TRINC/Copilot-Everything/bridges/obsidian-copilot-bridge/`

@@ -485,8 +485,9 @@ export class OpenClawSettingTab extends PluginSettingTab {
     containerEl.createEl("p", {
       text:
         "video_pipeline_run transcribes and summarizes a local video file or folder inside Obsidian, with no " +
-        "paid fallback: a failed summary ends the run, and the Copilot agent writes it. A link is downloaded " +
-        "first by the copilot-video-download skill.",
+        "paid fallback: a failed summary ends the run, and the Copilot agent writes it. A LinkedIn Learning " +
+        "lesson, a Kaltura video or a Strayer library film is handed to Downie first; any other link is " +
+        "downloaded first by the copilot-video-download skill.",
       cls: "setting-item-description",
     });
 

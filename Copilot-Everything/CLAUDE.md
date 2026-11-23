@@ -85,7 +85,9 @@ Copilot agent: its `copilot-video-download` skill downloads a link with yt-dlp (
 download only), and Command Center's built-in pipeline (`video_pipeline_run` with the file or folder)
 transcribes and summarizes. Retired with it: the adapter's `raycast` profile and `raycast-launch.sh`, and
 Command Center's Raycast dispatch path. Do not add a Raycast door, a video tool on the adapter or a
-deeplink dispatch back without an operator decision.
+deeplink dispatch back without an operator decision. The one such decision (2026-11-22): Command Center hands
+LinkedIn Learning lessons, the school's Kaltura videos and Strayer library films to Downie
+(`Claude/obsidian-command-center/CLAUDE.md`, "The Downie hand-off").
 
 - The extension's source stays outside this repo, at `~/Code/raycast-obsidian-bridge-fork`, until the
   operator archives it.

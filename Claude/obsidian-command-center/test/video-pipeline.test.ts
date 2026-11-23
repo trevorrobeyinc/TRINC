@@ -613,3 +613,236 @@ test("the download script's run stamp stays out of the summary's name and title"
     const summary = await readFile(inVault(world, "Copilot Summaries/Subnetting basics summary.md"), "utf-8");
     assert.ok(summary.includes("title: Subnetting basics\n"), summary);
   }));
+
+// Link runs (2026-11-22): Downie downloads an approved link, and the run goes on as a local-file run with
+// the link as its source. Downie is a fake program runner; its folder is a temp folder.
+const FILM_URL = "https://video-alexanderstreet-com.libdatab.strayer.edu/watch/criminal-law";
+
+interface FakeDownie {
+  folder: string;
+  opened: string[];
+  ctx: Partial<VideoRunContext>;
+}
+
+/** A Downie that saves `name` (with its details file) `afterPolls` looks after it was told to open a page. */
+function fakeDownie(world: World, name: string | null, page: string, afterPolls = 3): FakeDownie {
+  const folder = join(world.root, "Movies", "Downie");
+  const opened: string[] = [];
+  let polls = -1;
+  const clock: Clock = {
+    now: world.clock.now,
+    sleep: async (ms) => {
+      await world.clock.sleep(ms);
+      if (polls >= 0 && ++polls === afterPolls && name !== null) {
+        await writeFile(join(folder, `${name}.mp4`), "not really a video");
+        await writeFile(join(folder, `${name}.json`), JSON.stringify({ referer: page, url: "https://media.example/a.m3u8" }));
+      }
+    },
+  };
+  return {
+    folder,
+    opened,
+    ctx: {
+      clock,
+      downie: {
+        folder,
+        appExists: () => true,
+        exec: async (file, args) => {
+          opened.push([file, ...args].join(" "));
+          if (polls < 0) polls = 0;
+          return { stdout: "", stderr: "" };
+        },
+      },
+    },
+  };
+}
+
+test("a link run hands the link to Downie and summarizes the video it saves, with the link as the source", () =>
+  inWorld(async (world) => {
+    const downie = fakeDownie(world, "Criminal law | Alexander Street", FILM_URL);
+    const notices: string[] = [];
+    const host = { ...world.host, notify: (message: string) => void notices.push(message) };
+
+    const outcome = await run(world, { kind: "link", source: FILM_URL }, {}, { ...downie.ctx, host });
+
+    const summaryNote = "Copilot Summaries/Criminal law - Alexander Street summary.md";
+    assert.deepEqual(outcome, { status: "success", kind: "link", summaryNotePath: summaryNote });
+    assert.deepEqual(downie.opened, [
+      `/usr/bin/open downie://XUOpenURL?url=${encodeURIComponent(FILM_URL)}&action=open_in_uge`,
+    ]);
+    const summary = await readFile(inVault(world, summaryNote), "utf-8");
+    assert.match(summary, new RegExp(`^source: "?${FILM_URL}"?$`, "m"));
+    assert.ok(summary.includes("# Criminal law - Alexander Street"), summary);
+    // Downie's own files stay exactly as Downie left them, even with cleanup on.
+    assert.deepEqual((await readdir(downie.folder)).sort(), [
+      "Criminal law | Alexander Street.json",
+      "Criminal law | Alexander Street.mp4",
+    ]);
+    assert.equal(existsSync(inVault(world, "Video Downloads/Criminal law - Alexander Street transcription.md")), false);
+    const messages = await logMessages(world);
+    assert.equal(messages[0], `RUN START url=${FILM_URL}`);
+    assert.equal(messages.at(-1), "RUN SUCCESS");
+    assert.ok(messages.includes(`source URL: the link handed to Downie: ${FILM_URL}`));
+    assert.equal(notices.length, 2);
+    const status = summarizeVideoPipelineLog(await readFile(world.logPath, "utf-8"));
+    assert.equal(status.status, "success");
+    assert.equal(status.videoUrl, FILM_URL);
+    assert.equal("waitingForUser" in status, false);
+  }));
+
+test("a LinkedIn lesson saved under its stream token is named after the lesson", () =>
+  inWorld(async (world) => {
+    const token = `CeJx${"a".repeat(60)}`;
+    const downie = fakeDownie(world, token, LESSON_URL);
+    const outcome = await run(world, { kind: "link", source: LESSON_URL }, {}, downie.ctx);
+    assert.deepEqual(outcome, {
+      status: "success",
+      kind: "link",
+      summaryNotePath: "Copilot Summaries/What is a network summary.md",
+    });
+    assert.deepEqual(world.calls, [join(downie.folder, `${token}.mp4`)]);
+  }));
+
+test("a link that is not approved never reaches Downie, whoever starts the run", () =>
+  inWorld(async (world) => {
+    const downie = fakeDownie(world, "x", FILM_URL);
+    for (const source of ["https://attacker.example/?notes=secret", "https://www.linkedin.com/redir/redirect?url=x"]) {
+      const outcome = await run(world, { kind: "link", source }, {}, downie.ctx);
+      assert.equal(outcome.status, "failed");
+      assert.match(outcome.status === "failed" ? outcome.error : "", /^Not a link Command Center hands to Downie/);
+    }
+    assert.deepEqual(downie.opened, []);
+  }));
+
+test("a link run that gets no video fails saying how to go on, and makes no note", () =>
+  inWorld(async (world) => {
+    const downie = fakeDownie(world, null, FILM_URL);
+    const outcome = await run(world, { kind: "link", source: FILM_URL }, {}, downie.ctx);
+    assert.equal(outcome.status, "failed");
+    assert.match(outcome.status === "failed" ? outcome.error : "", /within 30 min\. Nothing is saved until \+ is pressed/);
+    assert.deepEqual(world.calls, []);
+    assert.deepEqual(await readdir(join(world.vault, "Video Downloads")), []);
+  }));
+
+test("a missing transcriber fails a link run before Downie is opened", () =>
+  inWorld(async (world) => {
+    const downie = fakeDownie(world, "x", FILM_URL);
+    const outcome = await run(world, { kind: "link", source: FILM_URL }, {}, { ...downie.ctx, binaryExists: () => false });
+    assert.equal(outcome.status, "failed");
+    assert.deepEqual(downie.opened, []);
+  }));
+
+test("a dry run of a link says what Downie would open, and opens nothing", () =>
+  inWorld(async (world) => {
+    const plan = await previewVideoRun({ kind: "link", source: `${FILM_URL}/transcript` }, {}, world.vault);
+    assert.equal(plan.opens, FILM_URL);
+    assert.equal(plan.sourceUrl, FILM_URL);
+    assert.equal(plan.firstTry, "guided");
+    assert.deepEqual(plan.waitMinutes, { guided: 30 });
+    assert.equal(plan.deletesVideoAfterSummary, false);
+    const lesson = await previewVideoRun({ kind: "link", source: LESSON_URL }, {}, world.vault);
+    assert.deepEqual(lesson.waitMinutes, { automatic: 3, guided: 30 });
+    await assert.rejects(previewVideoRun({ kind: "link", source: "https://attacker.example/" }, {}, world.vault), /hands to Downie/);
+    assert.equal(existsSync(world.logPath), false);
+  }));
+
+/** A link run whose Downie never delivers, left waiting. */
+async function waitingRun(world: World): Promise<{ controller: VideoPipelineController; downie: FakeDownie; first: Awaited<ReturnType<VideoPipelineController["start"]>> }> {
+  const downie = fakeDownie(world, null, FILM_URL);
+  // Never wakes up by itself, so the run stays in its wait until it is stopped.
+  const clock: Clock = { now: world.clock.now, sleep: (ms) => (downie.opened.length > 0 ? new Promise(() => undefined) : world.clock.sleep(ms)) };
+  let starts = 0;
+  const controller = new VideoPipelineController(() => {
+    starts += 1;
+    return world.ctx({}, { ...downie.ctx, clock: starts === 1 ? clock : world.clock });
+  });
+  const first = await controller.start({ kind: "link", source: FILM_URL });
+  while (downie.opened.length === 0) await new Promise((resolve) => setImmediate(resolve));
+  return { controller, downie, first };
+}
+
+test("a waiting link run is kept by default, and given up for a new run when the caller says so", () =>
+  inWorld(async (world) => {
+    const { controller, first } = await waitingRun(world);
+    assert.equal(controller.activeRun()?.waitingForDownload, true);
+    const solo = await addFile(world.outside, "Solo talk.mp4");
+    await assert.rejects(controller.start({ kind: "file", source: solo }), (error: Error) => {
+      assert.ok(error instanceof VideoRunInProgressError);
+      assert.match(error.message, /waiting for Downie/);
+      assert.match(error.message, /replace_waiting/);
+      return true;
+    });
+
+    const second = await controller.start({ kind: "file", source: solo }, { replaceWaiting: true });
+    assert.deepEqual(await first.done, {
+      status: "failed",
+      error: "replaced by a newer run before Downie had saved its video",
+    });
+    assert.equal(controller.activeRun()?.runId, second.runId);
+    assert.equal((await second.done).status, "success");
+    assert.deepEqual(world.calls, [solo]);
+    // The old run has ended, and said so, before the new one starts.
+    const messages = await logMessages(world);
+    const ends = messages.indexOf("RUN FAIL: replaced by a newer run before Downie had saved its video");
+    assert.ok(ends > 0 && ends < messages.indexOf(`RUN START file=${solo}`), messages.join("\n"));
+    assert.equal(messages.some((m) => m.startsWith("warning: previous run never logged")), false);
+  }));
+
+test("the same link can be opened again after signing in", () =>
+  inWorld(async (world) => {
+    const { controller, downie, first } = await waitingRun(world);
+    const again = await controller.start({ kind: "link", source: FILM_URL }, { replaceWaiting: true });
+    assert.equal((await first.done).status, "failed");
+    assert.notEqual(again.runId, first.runId);
+    await again.done;
+    assert.equal(downie.opened.length, 2);
+  }));
+
+test("a run that is already working is never replaced", () =>
+  inWorld(async (world) => {
+    const solo = await addFile(world.outside, "Solo talk.mp4");
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const exec: ExecFn = async (file, args, options) => {
+      await gate;
+      return world.exec(file, args, options);
+    };
+    const controller = new VideoPipelineController(() => world.ctx({}, { exec }));
+    const handle = await controller.start({ kind: "file", source: solo });
+    assert.equal(controller.activeRun()?.waitingForDownload, false);
+    await assert.rejects(controller.start({ kind: "file", source: solo }, { replaceWaiting: true }), (error: Error) => {
+      assert.ok(error instanceof VideoRunInProgressError);
+      assert.equal(error.message.includes("replace_waiting"), false);
+      return true;
+    });
+    release();
+    assert.equal((await handle.done).status, "success");
+  }));
+
+test("a link run stops being replaceable the moment Downie's file is claimed", () =>
+  inWorld(async (world) => {
+    const downie = fakeDownie(world, "Criminal law", FILM_URL);
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let transcribing = false;
+    const exec: ExecFn = async (file, args, options) => {
+      transcribing = true;
+      await gate;
+      return world.exec(file, args, options);
+    };
+    const controller = new VideoPipelineController(() => world.ctx({}, { ...downie.ctx, exec }));
+    const handle = await controller.start({ kind: "link", source: FILM_URL });
+    while (!transcribing) await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(controller.activeRun()?.waitingForDownload, false);
+    await assert.rejects(controller.start({ kind: "link", source: FILM_URL }, { replaceWaiting: true }), VideoRunInProgressError);
+    release();
+    assert.equal((await handle.done).status, "success");
+  }));
+
+test("unloading the plugin ends a waiting link run at once", () =>
+  inWorld(async (world) => {
+    const { controller, first } = await waitingRun(world);
+    controller.abort("Command Center was unloaded");
+    assert.deepEqual(await first.done, { status: "failed", error: "Command Center was unloaded" });
+    assert.equal((await logMessages(world)).at(-1), "RUN FAIL: Command Center was unloaded");
+  }));

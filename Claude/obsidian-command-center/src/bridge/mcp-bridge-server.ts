@@ -18,7 +18,13 @@ import { compactWorkflowState } from "../workflow/status-compaction";
 import { resolveVideoPipelineSource, type VideoPipelineSource } from "./video-pipeline-source";
 import { summarizeVideoPipelineLog } from "./video-pipeline-status";
 import { refuseBrowserRequest } from "./browser-guard";
-import type { VideoRunInput } from "../video/pipeline";
+import { DOWNIE_GUIDED_STEPS } from "../video/downie";
+import {
+  runInProgressMessage,
+  type ActiveVideoRun,
+  type VideoRunInput,
+  type VideoRunStartOptions,
+} from "../video/pipeline";
 import { defaultRunLogPath } from "../video/run-log";
 
 const HOST = "127.0.0.1";
@@ -35,18 +41,21 @@ function isCommandAllowed(commandId: string): boolean {
 }
 
 // Video pipeline tools (the Copilot agent chat reaches this bridge per ACP session). Since phase 4 of
-// retiring Raycast and Downie (2026-11-20) there is one pipeline: a local video file, or a folder of
-// them, runs inside Obsidian in Command Center's own src/video/ (transcript, the Copilot fork's headless
-// Super-Summarize, the summary note, cleanup). A link is refused (./video-pipeline-source.ts): the agent
-// downloads it first with the copilot-video-download skill. There is no paid fallback: a failed summary
-// ends the run `failed`, and the agent writes that summary from the transcription note the run kept.
+// retiring Raycast (2026-11-20) there is one pipeline: a local video file, or a folder of them, runs inside
+// Obsidian in Command Center's own src/video/ (transcript, the Copilot fork's headless Super-Summarize, the
+// summary note, cleanup). Since 2026-11-22 a link on the approved list is a run too: Downie downloads it
+// (src/video/downie.ts). Any other link is refused (./video-pipeline-source.ts): the agent downloads it
+// first with the copilot-video-download skill. There is no paid fallback: a failed summary ends the run
+// `failed`, and the agent writes that summary from the transcription note the run kept.
 // The run log keeps its Raycast-era path and line formats; video_pipeline_status reads it.
 //
 // Security posture (same audit-P0 stance as the command allowlist above): this is NOT an exec
-// primitive. The only caller-controlled value is a strictly validated absolute local video path or
-// absolute folder path. The transcriber binaries are fixed in src/video/transcribe.ts (never a
-// setting), arguments are argv arrays (execFile, no shell), and the only Obsidian commands run are the
-// two fixed Copilot summarize ids in src/video/copilot-summary.ts.
+// primitive. The only caller-controlled values are a strictly validated absolute local video path or
+// folder path, or a link rebuilt from checked parts on a compiled-in list of sites (Downie opens pages with
+// the operator's sign-ins, so nothing else may be handed to it), and two booleans. The programs are fixed
+// (src/video/transcribe.ts, src/video/downie.ts; never a setting), arguments are argv arrays (execFile, no
+// shell), and the only Obsidian commands run are the two fixed Copilot summarize ids in
+// src/video/copilot-summary.ts.
 
 function videoPipelineLogPath(): string {
   return defaultRunLogPath();
@@ -62,6 +71,24 @@ function videoDispatchMessage(
     "If a summary fails, the run ends `failed` and nothing retries it: video_pipeline_status gives " +
     "`summaryError` (why) and `transcriptNote` (the transcription note it kept), so write that summary " +
     `yourself from the note, as ${summaryFolder}/'<title> summary.md' with title, created and source frontmatter.`;
+  if (resolved.kind === "link") {
+    const how =
+      resolved.link.firstTry === "automatic"
+        ? "Downie tries by itself first, so there may be nothing for the user to do. If it finds nothing in " +
+          "3 minutes, its window opens on the page. "
+        : "Downie's window is opening on the page now. Give the user these steps, word for word: " +
+          `${DOWNIE_GUIDED_STEPS.map((step, i) => `${i + 1}. ${step}`).join(" ")} `;
+    return (
+      `Link run started: Command Center handed the ${resolved.link.siteName} link to Downie and is waiting for the ` +
+      `video in Downie's folder. ${how}` +
+      "Poll video_pipeline_status every ~30s: `waitingForUser` appears while the user has steps to take (pass " +
+      "them on word for word, once), and the run goes on by itself when Downie has the video, so never ask the " +
+      "user to say it is done. The wait in the window is up to 30 minutes; after about 10 you may stop polling and " +
+      "say so, and check again when the user next writes. The summary lands at " +
+      `${summaryFolder}/'<video title> summary.md' with the link as its source; Downie's own copy of the video is ` +
+      `left where it is. ${onFailure}`
+    );
+  }
   if (resolved.kind === "folder") {
     return (
       `Folder run started inside Obsidian (Command Center's video pipeline): the ${resolved.videoCount} ` +
@@ -241,13 +268,13 @@ export interface PluginActions {
   getFeedStats(): Record<string, unknown>;
   getCitationIntegrity(workflowId?: string): Record<string, unknown>;
   /**
-   * The video pipeline (src/video/): start a run for an already validated local file or folder.
+   * The video pipeline (src/video/): start a run for an already validated local file, folder or link.
    * Resolves once RUN START is in the run log; the run goes on in the background. Rejects when a
-   * run is already in progress.
+   * run is already in progress (unless it is only waiting for Downie and may be replaced).
    */
-  startVideoRun(input: VideoRunInput): Promise<{ runId: string; startedAt: string }>;
+  startVideoRun(input: VideoRunInput, options?: VideoRunStartOptions): Promise<{ runId: string; startedAt: string }>;
   /** The video run in progress, or null. */
-  activeVideoRun(): { runId: string; startedAt: string; kind: VideoRunInput["kind"]; source: string } | null;
+  activeVideoRun(): ActiveVideoRun | null;
   /** What a run of `input` would do, for a dry run: summary note(s), skips, video deletion. */
   previewVideoRun(input: VideoRunInput): Promise<Record<string, unknown>>;
 }
@@ -1360,13 +1387,16 @@ export class McpBridgeServer {
   private async handleVideoPipelineRun(
     params: Record<string, unknown>
   ): Promise<Record<string, unknown>> {
-    // A link is refused here, with a pointer to the download skill; only a file or folder passes.
+    // A file, a folder or a link on the approved list passes; any other link is refused here, with a
+    // pointer to the download skill.
     const resolved = resolveVideoPipelineSource(params.videoUrl);
     const input: VideoRunInput = { kind: resolved.kind, source: resolved.source };
     const sourceFacts =
       resolved.kind === "folder"
         ? { kind: resolved.kind, videoCount: resolved.videoCount }
-        : { kind: resolved.kind };
+        : resolved.kind === "link"
+          ? { kind: resolved.kind, site: resolved.link.siteName, firstTry: resolved.link.firstTry }
+          : { kind: resolved.kind };
     const actions = this.pluginActions;
     if (!actions) {
       throw new Error("The video pipeline is not available in this bridge instance.");
@@ -1387,16 +1417,15 @@ export class McpBridgeServer {
       };
     }
 
-    // One run at a time: a second run would race the first over Obsidian's active note.
-    if (activeRun) {
-      throw new Error(
-        `A video pipeline run is in progress (run ${activeRun.runId}, ${activeRun.kind} ${activeRun.source}, ` +
-          `started ${activeRun.startedAt}). Poll video_pipeline_status and dispatch again once it has finished.`
-      );
+    // One run at a time: a second run would race the first over Obsidian's active note. A run that is only
+    // waiting for Downie may be given up, when the caller says so.
+    const replaceWaiting = params.replace_waiting === true;
+    if (activeRun && !(replaceWaiting && activeRun.waitingForDownload)) {
+      throw new Error(runInProgressMessage(activeRun));
     }
 
     const plan = await actions.previewVideoRun(input);
-    const started = await actions.startVideoRun(input);
+    const started = await actions.startVideoRun(input, { replaceWaiting });
     return {
       success: true,
       dispatched: true,
@@ -1829,19 +1858,24 @@ export class McpBridgeServer {
         {
           name: "video_pipeline_run",
           description:
-            "Run the video-to-summary pipeline inside Obsidian on an absolute local video file path, or an absolute path to a FOLDER of videos already on disk. A link (YouTube, LinkedIn Learning, a course page) is refused: it is downloaded first by /Users/myhome/My Digital Garden/copilot/skills/copilot-video-download/video-download.sh (the copilot-video-download skill), and you then pass the file path it prints, or the folder it prints for a course. Each video is transcribed by the local transcriber (the run log's `transcription engine:` line names it; video_pipeline_status returns it as `transcriber`), summarized by Copilot's Super-Summarize command, and saved to the vault as Copilot Summaries/'<title> summary.md' with title, created and source frontmatter. After a successful summary the intermediates are cleaned up, and a video inside the vault's Video Downloads folder (where the download script saves) is deleted with its subtitle files; a video anywhere else is never moved or deleted. A folder runs every video directly inside it (not subfolders) one after another in ONE run, skipping any video whose summary note already exists. For several videos, pass their folder ONCE: a second call while a run is going is refused. If a summary fails, the run ends failed and nothing retries it: video_pipeline_status then gives `summaryError` and `transcriptNote`, and you write that summary yourself from the note. Returns immediately; poll video_pipeline_status for progress.",
+            "Run the video-to-summary pipeline inside Obsidian on an absolute local video file path, an absolute path to a FOLDER of videos already on disk, or a LINK to a LinkedIn Learning lesson, one of the school's Kaltura videos or a Strayer library film (the library's sign-in link to a film works too). Such a link is handed to Downie with the user's own sign-ins, and the run goes on by itself with the video Downie saves. For LinkedIn and Kaltura, Downie tries by itself first; for the library, and when that finds nothing in 3 minutes, Downie's window opens and the user presses play, then +. While it waits, video_pipeline_status gives `waitingForUser` with the exact steps: pass them on word for word, keep polling, and never ask the user to say when it is done. Pass the link exactly as the user gave it, and never open a link any other way. Any other link (YouTube, a course page) is refused: it is downloaded first by /Users/myhome/My Digital Garden/copilot/skills/copilot-video-download/video-download.sh (the copilot-video-download skill), and you then pass the file path it prints, or the folder it prints for a course. Each video is transcribed by the local transcriber (the run log's `transcription engine:` line names it; video_pipeline_status returns it as `transcriber`), summarized by Copilot's Super-Summarize command, and saved to the vault as Copilot Summaries/'<title> summary.md' with title, created and source frontmatter. After a successful summary the intermediates are cleaned up, and a video inside the vault's Video Downloads folder (where the download script saves) is deleted with its subtitle files; a video anywhere else is never moved or deleted. A folder runs every video directly inside it (not subfolders) one after another in ONE run, skipping any video whose summary note already exists. For several videos, pass their folder ONCE: a second call while a run is going is refused (a run that only waits for Downie can be given up with `replace_waiting`). If a summary fails, the run ends failed and nothing retries it: video_pipeline_status then gives `summaryError` and `transcriptNote`, and you write that summary yourself from the note. Returns immediately; poll video_pipeline_status for progress.",
           inputSchema: {
             type: "object",
             properties: {
               videoUrl: {
                 type: "string",
                 description:
-                  "An absolute local video file path (.mp4/.mkv/.webm/.mov/.m4v), or an absolute folder path (every video directly inside it, one after another). A link is refused: download it first with the copilot-video-download skill.",
+                  "An absolute local video file path (.mp4/.mkv/.webm/.mov/.m4v), an absolute folder path (every video directly inside it, one after another), or a link to a LinkedIn Learning lesson, one of the school's Kaltura videos or a Strayer library film. Any other link is refused: download it first with the copilot-video-download skill.",
               },
               dry_run: {
                 type: "boolean",
                 description:
-                  "Validate the input and report what the run would do, without starting it: the summary note, or for a folder the videos it would transcribe and skip, and whether videos would be deleted.",
+                  "Validate the input and report what the run would do, without starting it: the summary note, or for a folder the videos it would transcribe and skip, or for a link what Downie would open; and whether videos would be deleted.",
+              },
+              replace_waiting: {
+                type: "boolean",
+                description:
+                  "Only when the user asks to open a link again (for example after signing in) or to give a waiting video up: ends a run that is only waiting for Downie and starts this one. A run that is already working on a video is never replaced.",
               },
             },
             required: ["videoUrl"],
@@ -1850,7 +1884,7 @@ export class McpBridgeServer {
         {
           name: "video_pipeline_status",
           description:
-            "Progress of the most recent video pipeline run, read from its durable run log: running/success/failed, the latest stage line, the summary confirmation when finished, and `transcriber`: the transcription engine that actually ran, verbatim from the run's `transcription engine:` line. Report the engine only from `transcriber`. `transcriptionRequested` is what the pipeline asked for (Whisper-style settings), not what ran. Both are absent when the transcript came from subtitles. A folder run reports `folder` and `batch`: {total, summarized, failed, skipped, remaining, current (the video being worked on), summaries (vault paths), failures ({video, reason, transcriptNote})}; it ends `failed` when any one video failed, even though the others were summarized. When a summary fails, `summaryError` says why and `transcriptNote` names the transcription note that was kept (per video in a folder run: `batch.failures[].transcriptNote`): read that note and write the summary yourself as Copilot Summaries/'<title> summary.md' with title, created and source frontmatter, never overwriting an existing note.",
+            "Progress of the most recent video pipeline run, read from its durable run log: running/success/failed, the latest stage line, the summary confirmation when finished, `waitingForUser` while a link run waits for the user in Downie's window ({in, since, steps}: give the user the steps word for word, once, and keep polling), `downloadNote` when Downie's file could not be matched to the link (ask the user whether it is the right video), and `transcriber`: the transcription engine that actually ran, verbatim from the run's `transcription engine:` line. Report the engine only from `transcriber`. `transcriptionRequested` is what the pipeline asked for (Whisper-style settings), not what ran. Both are absent when the transcript came from subtitles. A folder run reports `folder` and `batch`: {total, summarized, failed, skipped, remaining, current (the video being worked on), summaries (vault paths), failures ({video, reason, transcriptNote})}; it ends `failed` when any one video failed, even though the others were summarized. When a summary fails, `summaryError` says why and `transcriptNote` names the transcription note that was kept (per video in a folder run: `batch.failures[].transcriptNote`): read that note and write the summary yourself as Copilot Summaries/'<title> summary.md' with title, created and source frontmatter, never overwriting an existing note.",
           inputSchema: { type: "object", properties: {} },
         },
         {

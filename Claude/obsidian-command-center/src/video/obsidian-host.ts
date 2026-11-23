@@ -6,7 +6,7 @@
 // delete), so Obsidian's index holds it the moment the call returns. The Raycast runner wrote over
 // the Local REST API from outside and had to wait on the file watcher; nothing here waits on it.
 
-import { App, FileSystemAdapter, normalizePath, TFile, TFolder } from "obsidian";
+import { App, FileSystemAdapter, normalizePath, Notice, TFile, TFolder } from "obsidian";
 import type { VideoVaultHost } from "./pipeline.ts";
 
 interface CommandsApi {
@@ -47,6 +47,10 @@ export function createObsidianVideoHost(app: App): VideoVaultHost {
   return {
     vaultPath: adapter.getBasePath(),
     configDir: app.vault.configDir,
+
+    notify(message) {
+      new Notice(message, 15_000);
+    },
 
     async writeNote(notePath, content) {
       const existing = fileAt(notePath);

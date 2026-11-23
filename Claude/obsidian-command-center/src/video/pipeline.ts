@@ -2,8 +2,13 @@
 // only one since phase 4, 2026-11-20): steps 4 to 9 of the retired Raycast "Video Pipeline Runner", run
 // inside Obsidian for a local video file or a folder of them. Ported from the extension's
 // videoTranscribeFlow.ts (transcribeAndSummarize, runLocalFolder, runVideoTranscribeCommandForRun),
-// WITHOUT its download lanes (a link is downloaded first by the copilot-video-download skill) and
-// WITHOUT its paid Anthropic fallback.
+// WITHOUT its paid Anthropic fallback and, until 2026-11-22, without any download lane: every link was
+// downloaded first by the copilot-video-download skill.
+//
+// Since 2026-11-22 a link on an approved site (src/video/downie-sites.ts) is a run too: Downie downloads
+// it (src/video/downie.ts) and the run goes on with the file Downie saved, exactly as a local-file run,
+// with the link as the source. Every other link still goes through the skill. A run that is only waiting
+// for Downie can be replaced (VideoPipelineController.start, replaceWaiting); one that is working cannot.
 //
 // One video: transcript (subtitles or the audio) → transcription note through app.vault.create →
 // the Copilot fork's headless summary → frontmatter → cleanup. When the summary fails, the run ends
@@ -43,6 +48,16 @@ import {
   runFolderBatch,
   type FolderBatchResult,
 } from "./folder-batch.ts";
+import {
+  defaultDownieFolder,
+  DOWNIE_AUTOMATIC_WAIT_MS,
+  DOWNIE_GUIDED_STEPS,
+  DOWNIE_GUIDED_WAIT_MS,
+  downieInstalled,
+  downloadThroughDownie,
+  pathForNaming,
+} from "./downie.ts";
+import { approveDownieLink, type ApprovedLink } from "./downie-sites.ts";
 import { normalizeVaultRelativeFolder, noteTitlesFor, summaryNotePathFor, transcriptPathsFor } from "./naming.ts";
 import {
   buildDeterministicTranscriptSection,
@@ -93,9 +108,12 @@ export interface VideoVaultHost extends SummaryHost {
   writeNote(notePath: string, content: string): Promise<void>;
   /** Rewrite a note's text through Obsidian (app.vault.process). False when the index has no such note. */
   processNote(notePath: string, fn: (content: string) => string): Promise<boolean>;
+  /** Tell the operator something on screen (an Obsidian notice). Optional: a run never needs it. */
+  notify?(message: string): void;
 }
 
-export type VideoRunInput = { kind: "file" | "folder"; source: string };
+/** `link` is an approved link (src/video/downie-sites.ts), checked again when the run starts. */
+export type VideoRunInput = { kind: "file" | "folder" | "link"; source: string };
 
 export interface VideoRunContext {
   host: VideoVaultHost;
@@ -114,6 +132,8 @@ export interface VideoRunContext {
   clock?: Clock;
   now?: () => Date;
   summaryTimeouts?: Partial<SummaryTimeouts>;
+  /** Downie's folder, whether Downie is installed, and the program runner its address is opened with. */
+  downie?: { folder?: string; appExists?: (candidate: string) => boolean; exec?: ExecFn };
 }
 
 /** The summary lane failed for one video; its transcription note was kept for the agent. */
@@ -157,7 +177,7 @@ class FolderRunError extends Error {
 }
 
 export type VideoRunOutcome =
-  | { status: "success"; kind: "file"; summaryNotePath: string }
+  | { status: "success"; kind: "file" | "link"; summaryNotePath: string }
   | { status: "success"; kind: "folder"; batch: FolderBatchResult; counts: string }
   | { status: "failed"; error: string; batch?: FolderBatchResult }
   | { status: "superseded"; by: string };
@@ -168,6 +188,13 @@ export interface VideoRunHandle {
   input: VideoRunInput;
   /** Settles when the run has logged its terminal line. Never rejects. */
   done: Promise<VideoRunOutcome>;
+  /** True while a link run is still waiting for Downie's file: nothing has been transcribed yet. */
+  waitingForDownload(): boolean;
+}
+
+/** What a run tells its handle while it works. */
+interface RunPhase {
+  waitingForDownload: boolean;
 }
 
 /** True when `candidate` is inside `folder` (both absolute, canonical). */
@@ -205,6 +232,13 @@ function canonicalOrNull(candidate: string): string | null {
   }
 }
 
+/** The approved link a link run was given, checked again here so a caller's check is never trusted. */
+function requireApprovedLink(source: string): ApprovedLink {
+  const approval = approveDownieLink(source);
+  if (!approval.ok) throw new Error(`Not a link Command Center hands to Downie: ${approval.reason}.`);
+  return approval.link;
+}
+
 /** What a run of `input` would do, without doing any of it (video_pipeline_run's dry run). */
 export async function previewVideoRun(
   input: VideoRunInput,
@@ -215,6 +249,26 @@ export async function previewVideoRun(
   const summaryFolder = normalizeVaultRelativeFolder(settings.summaryFolder, DEFAULT_SUMMARY_FOLDER);
   const downloadDir = canonicalOrNull(path.join(vaultPath, ...videoFolder.split("/")));
   const cleanup = settings.cleanupAfterSummary !== false;
+  if (input.kind === "link") {
+    const link = requireApprovedLink(input.source);
+    return {
+      handOff: "Downie",
+      site: link.siteName,
+      opens: link.url,
+      firstTry: link.firstTry,
+      downieInstalled: downieInstalled(),
+      watchesFolder: defaultDownieFolder(),
+      waitMinutes: {
+        ...(link.firstTry === "automatic" ? { automatic: DOWNIE_AUTOMATIC_WAIT_MS / 60_000 } : {}),
+        guided: DOWNIE_GUIDED_WAIT_MS / 60_000,
+      },
+      // The guided window opens at once, or only when the automatic way finds nothing.
+      userStepsWhenGuided: DOWNIE_GUIDED_STEPS,
+      summaryNote: `${summaryFolder}/<the video's title> summary.md`,
+      sourceUrl: link.url,
+      deletesVideoAfterSummary: false,
+    };
+  }
   const deletesVideos = cleanup && downloadDir !== null && isInsideFolder(input.source, downloadDir);
   // The source URL is part of the plan so a dry run proves the `.url` read without a live run.
   if (input.kind === "file") {
@@ -267,13 +321,15 @@ interface RunPlan {
  * @param source The video's page URL, read from its `.url` file. Folder mode reads it while planning,
  *   because the planner names each summary from it, and passes that same read here; the URL then
  *   names the notes (the generic-title rule), fills the transcription note's Source URL and becomes
- *   the summary's `source`, as on a Raycast link run.
+ *   the summary's `source`, as on a Raycast link run. A link run passes the link itself.
+ * @param namedFrom The path the notes are named from, when that is not the file's own (a link run).
  */
 async function transcribeAndSummarize(
   run: RunPlan,
   videoFile: string,
   workDir: string,
-  source: SourceUrlRead = readSourceUrl(videoFile)
+  source: SourceUrlRead = readSourceUrl(videoFile),
+  namedFrom: string = videoFile
 ): Promise<string> {
   const { ctx, log, clock } = run;
   const { host } = ctx;
@@ -289,7 +345,7 @@ async function transcribeAndSummarize(
   });
   await run.checkpoint();
 
-  const { baseName, noteTitle } = noteTitlesFor(videoFile, source.url);
+  const { baseName, noteTitle } = noteTitlesFor(namedFrom, source.url);
   const { transcriptRelativePath, sourceNotePath } = transcriptPathsFor(run.videoFolder, baseName);
   const transcriptAbsolutePath = path.join(host.vaultPath, ...transcriptRelativePath.split("/"));
   await mkdir(path.dirname(transcriptAbsolutePath), { recursive: true });
@@ -434,7 +490,44 @@ async function runLocalFolder(run: RunPlan, folder: string, scratchDir: string):
   });
 }
 
-async function executeRun(input: VideoRunInput, ctx: VideoRunContext, runId: string, log: RunLogger): Promise<VideoRunOutcome> {
+/** A link run: Downie downloads the video, then it goes the way of a local file, with the link as its source. */
+async function runLink(run: RunPlan, rawLink: string, scratchDir: string, phase: RunPhase): Promise<string> {
+  const { ctx } = run;
+  const link = requireApprovedLink(rawLink);
+  phase.waitingForDownload = true;
+  let file: string;
+  try {
+    const download = await downloadThroughDownie({
+      link,
+      folder: ctx.downie?.folder ?? defaultDownieFolder(),
+      log: run.log,
+      clock: run.clock,
+      checkpoint: run.checkpoint,
+      signal: ctx.signal,
+      notify: ctx.host.notify ? (message) => ctx.host.notify?.(message) : undefined,
+      exec: ctx.downie?.exec,
+      appExists: ctx.downie?.appExists,
+    });
+    file = download.file;
+  } finally {
+    phase.waitingForDownload = false;
+  }
+  return transcribeAndSummarize(
+    run,
+    file,
+    scratchDir,
+    { url: link.url, logLine: `source URL: the link handed to Downie: ${link.url}` },
+    pathForNaming(file, link)
+  );
+}
+
+async function executeRun(
+  input: VideoRunInput,
+  ctx: VideoRunContext,
+  runId: string,
+  log: RunLogger,
+  phase: RunPhase
+): Promise<VideoRunOutcome> {
   const scratchDir = path.join(ctx.scratchRoot ?? os.tmpdir(), "command-center-video", runId);
   let cleanup = true;
   try {
@@ -475,6 +568,12 @@ async function executeRun(input: VideoRunInput, ctx: VideoRunContext, runId: str
       }
       await log(`RUN SUCCESS folder: ${counts}`);
       return { status: "success", kind: "folder", batch, counts };
+    }
+
+    if (input.kind === "link") {
+      const summaryNotePath = await runLink(run, input.source, scratchDir, phase);
+      await log("RUN SUCCESS");
+      return { status: "success", kind: "link", summaryNotePath };
     }
 
     if (!existsSync(input.source)) {
@@ -523,7 +622,7 @@ export async function startVideoRun(input: VideoRunInput, ctx: VideoRunContext):
   const unterminated = await findUnterminatedPreviousRun(ctx.logPath);
   const startedAt = now().toISOString();
   // video_pipeline_run reports the run as started once this line is written; status parses it.
-  await log(`RUN START ${input.kind}=${input.source}`);
+  await log(`RUN START ${input.kind === "link" ? "url" : input.kind}=${input.source}`);
   await log("runner: Command Center built-in pipeline, inside Obsidian");
   try {
     await claimCurrentRun(runId, ctx.markerPath);
@@ -540,13 +639,43 @@ export async function startVideoRun(input: VideoRunInput, ctx: VideoRunContext):
         `alive and will stand down at its next check: ${unterminated.slice(25)}`
     );
   }
-  return { runId, startedAt, input, done: executeRun(input, ctx, runId, log) };
+  const phase: RunPhase = { waitingForDownload: input.kind === "link" };
+  const done = executeRun(input, ctx, runId, log, phase).finally(() => {
+    phase.waitingForDownload = false;
+  });
+  return { runId, startedAt, input, done, waitingForDownload: () => phase.waitingForDownload };
+}
+
+/** The run in progress, as video_pipeline_run reports it. */
+export interface ActiveVideoRun {
+  runId: string;
+  startedAt: string;
+  kind: VideoRunInput["kind"];
+  source: string;
+  /** Still waiting for Downie's file, so it may be replaced. */
+  waitingForDownload: boolean;
+}
+
+export interface VideoRunStartOptions {
+  /** Give up a run that is only waiting for Downie's file, and start this one instead. */
+  replaceWaiting?: boolean;
+}
+
+/** Why a dispatch is refused while `current` is going. */
+export function runInProgressMessage(current: ActiveVideoRun): string {
+  const what = `A video pipeline run is in progress (run ${current.runId}, ${current.kind} ${current.source}, started ${current.startedAt}). `;
+  return current.waitingForDownload
+    ? what +
+        "It is waiting for Downie to save the video: poll video_pipeline_status for the steps to give the user. " +
+        "Only if the user wants to open the link again or give that video up, call again with replace_waiting true."
+    : `${what}Poll video_pipeline_status and dispatch again once it has finished.`;
 }
 
 /**
  * One built-in run at a time, owned by the plugin (not the bridge, which restarts with its settings).
  * A second dispatch while a run is going is refused rather than replacing it: replacing would throw
- * away the first video's work and race over Obsidian's active note.
+ * away the first video's work and race over Obsidian's active note. The one exception is a run that is
+ * only waiting for Downie (no work yet, up to half an hour): `replaceWaiting` gives that one up.
  */
 export class VideoPipelineController {
   private readonly contextFor: () => Omit<VideoRunContext, "signal">;
@@ -558,25 +687,30 @@ export class VideoPipelineController {
   }
 
   /** The run in progress, or null. */
-  activeRun(): { runId: string; startedAt: string; kind: VideoRunInput["kind"]; source: string } | null {
+  activeRun(): ActiveVideoRun | null {
     if (!this.active) return null;
-    const { runId, startedAt, input } = this.active.handle;
-    return { runId, startedAt, kind: input.kind, source: input.source };
+    const { runId, startedAt, input, waitingForDownload } = this.active.handle;
+    return { runId, startedAt, kind: input.kind, source: input.source, waitingForDownload: waitingForDownload() };
   }
 
-  /** Start a run, or throw VideoRunInProgressError when one is going. */
-  async start(input: VideoRunInput): Promise<VideoRunHandle> {
-    const current = this.activeRun();
-    if (current || this.starting) {
+  /** Start a run, or throw VideoRunInProgressError when one is going that may not be replaced. */
+  async start(input: VideoRunInput, options: VideoRunStartOptions = {}): Promise<VideoRunHandle> {
+    if (this.starting) {
       throw new VideoRunInProgressError(
-        current
-          ? `A built-in video pipeline run is in progress (run ${current.runId}, ${current.kind} ${current.source}). ` +
-              "Poll video_pipeline_status and dispatch again once it has finished."
-          : "A built-in video pipeline run is starting. Poll video_pipeline_status before dispatching again."
+        "A video pipeline run is starting. Poll video_pipeline_status before dispatching again."
       );
+    }
+    const current = this.activeRun();
+    if (current && !(options.replaceWaiting === true && current.waitingForDownload)) {
+      throw new VideoRunInProgressError(runInProgressMessage(current));
     }
     this.starting = true;
     try {
+      if (this.active) {
+        const replaced = this.active;
+        replaced.abort.abort("replaced by a newer run before Downie had saved its video");
+        await replaced.handle.done;
+      }
       const abort = new AbortController();
       const handle = await startVideoRun(input, { ...this.contextFor(), signal: abort.signal });
       this.active = { handle, abort };
