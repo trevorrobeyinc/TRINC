@@ -98,6 +98,15 @@ confirm and phase 3's `videoBackend` switch are gone (`test/video-raycast-path-r
   - **What it never does:** read Downie's settings, history, cache or sign-ins; move, rename or delete a file in
     Downie's folder (notes are named by `pathForNaming` instead); drive any other app. Only `src/video/downie.ts`
     may name the open program (`test/video-raycast-path-retired.test.ts`).
+  - **A chat follows the skill text it loaded,** even after the file changes. The first live test (2026-11-22) ran in a
+    chat that had loaded the old video-pipeline skill, so it used the download script and never called this tool. The
+    vault script `copilot/skills/copilot-video-download/video_download.py` (`downie_link`) therefore refuses these
+    three kinds of link in pipeline mode and names `video_pipeline_run`, so any chat ends up here.
+  - **Live, 2026-11-22:** two LinkedIn lessons went through Downie by themselves (59 s and 56 s end to end). Downie's
+    guided window (library films) has not been run live through the hand-off yet.
+- **Front matter (2026-11-22).** The model writes most of the summary's keys, and one bare colon in a value
+  ("course: Finance Foundations: Corporate Governance") made Obsidian read no property of the note. The normalizer
+  quotes such values, and `created` is the local date (`localDate`), not the UTC one.
 - **Steps.** Subtitles or the audio through the fixed `~/.local/bin/whisper-parakeet-shim` (Whisper as the
   fallback; the binaries are constants in `transcribe.ts`, never settings, because data.json lives in the vault).
   Then the transcription note through `app.vault.create`, the Copilot fork's `copilot:super-summarize-to-note`

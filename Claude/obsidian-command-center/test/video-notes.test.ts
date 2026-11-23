@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import {
   buildDeterministicTranscriptSection,
   buildVideoSourceNoteContent,
+  localDate,
   normalizeSummaryFrontmatter,
   sourceVideoReference,
   toYamlScalar,
@@ -14,7 +15,7 @@ import {
 const facts = {
   title: "Add social media to your marketing mix | LinkedIn Learning",
   sourceUrl: "https://www.linkedin.com/learning/x/add-social-media?u=1",
-  createdIso: "2026-09-01T11:46:50.847Z",
+  createdDate: "2026-09-01",
 };
 
 function changedContent(content: string, overrides: Partial<typeof facts> = {}): string {
@@ -105,4 +106,62 @@ test("the transcription note links a vault video by wikilink and any other video
   });
   assert.ok(note.startsWith("# Talk transcription\n\n## Metadata\n- **Source Video**: [[Video Downloads/Talk.mp4]]\n"));
   assert.ok(note.endsWith("- **Extracted**: 2026-11-19T00:00:00.000Z\n\n## 📎 Full Transcript\n"));
+});
+
+// 2026-11-22, the first live link run: one bare colon in a line the model wrote, and Obsidian read no
+// property of the note at all.
+test("a value YAML could not read bare is quoted, and every other line is left as it was", () => {
+  const kept = [
+    'transcript: "[[Scandals: part 1 transcription]]"',
+    "type: video-summary",
+    "author:",
+    "ratio: 16:9",
+    "link: https://example.com/a#b",
+    "tags: [a: b, c]",
+    "note: 'quoted: already'",
+    "block: |",
+    "  text: inside: a block",
+    "list:",
+    "  - item: nested",
+  ];
+  const written = changedContent(
+    [
+      "---",
+      `title: ${facts.title}`,
+      "created: 2026-09-01",
+      `source: ${facts.sourceUrl}`,
+      "course: Finance Foundations: Corporate Governance",
+      'description: What "fraud" means: a walk # through',
+      "series: Law:",
+      "remark: before # after",
+      ...kept,
+      "---",
+      "",
+      "## Keywords",
+      "course: a line in the body: untouched",
+      "",
+    ].join("\n")
+  );
+  assert.ok(written.includes('\ncourse: "Finance Foundations: Corporate Governance"\n'), written);
+  assert.ok(written.includes('\ndescription: "What \\"fraud\\" means: a walk # through"\n'), written);
+  assert.ok(written.includes('\nseries: "Law:"\n'), written);
+  assert.ok(written.includes('\nremark: "before # after"\n'), written);
+  for (const line of kept) assert.ok(written.includes(`\n${line}\n`), `${line} was changed:\n${written}`);
+  assert.ok(written.includes("\ncourse: a line in the body: untouched\n"));
+  // Running it again changes nothing.
+  assert.deepEqual(normalizeSummaryFrontmatter(written, facts), { kind: "unchanged" });
+});
+
+test("the keys it quoted are named, so the run log says what was changed", () => {
+  const outcome = normalizeSummaryFrontmatter(
+    `---\ntitle: ${facts.title}\ncreated: 2026-09-01\nsource: ${facts.sourceUrl}\ncourse: A: B\n---\n`,
+    facts
+  );
+  assert.deepEqual(outcome.kind === "changed" ? outcome.changed : null, ["course"]);
+});
+
+test("created is the date where the operator is, at any hour", () => {
+  assert.equal(localDate(new Date(2026, 10, 22, 16, 31)), "2026-11-22");
+  assert.equal(localDate(new Date(2026, 10, 22, 23, 59, 59)), "2026-11-22");
+  assert.equal(localDate(new Date(2026, 0, 5, 0, 0, 0)), "2026-01-05");
 });

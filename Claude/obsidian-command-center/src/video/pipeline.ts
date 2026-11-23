@@ -62,6 +62,7 @@ import { normalizeVaultRelativeFolder, noteTitlesFor, summaryNotePathFor, transc
 import {
   buildDeterministicTranscriptSection,
   buildVideoSourceNoteContent,
+  localDate,
   normalizeSummaryFrontmatter,
   sourceVideoReference,
   type FrontmatterOutcome,
@@ -398,9 +399,9 @@ async function transcribeAndSummarize(
   // here would have the agent write a second one.
   try {
     let outcome: FrontmatterOutcome = { kind: "unchanged" };
-    const createdIso = (ctx.now ?? (() => new Date()))().toISOString();
+    const createdDate = localDate((ctx.now ?? (() => new Date()))());
     await host.processNote(summaryNotePath, (content) => {
-      outcome = normalizeSummaryFrontmatter(content, { title: noteTitle, sourceUrl: source.url, createdIso });
+      outcome = normalizeSummaryFrontmatter(content, { title: noteTitle, sourceUrl: source.url, createdDate });
       return outcome.kind === "changed" ? outcome.content : content;
     });
     const settled = outcome as FrontmatterOutcome;

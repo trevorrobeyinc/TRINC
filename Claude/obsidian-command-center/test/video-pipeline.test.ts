@@ -846,3 +846,11 @@ test("unloading the plugin ends a waiting link run at once", () =>
     assert.deepEqual(await first.done, { status: "failed", error: "Command Center was unloaded" });
     assert.equal((await logMessages(world)).at(-1), "RUN FAIL: Command Center was unloaded");
   }));
+
+test("a summary made late in the day is dated that day, not the UTC day after", () =>
+  inWorld(async (world) => {
+    const solo = await addFile(world.outside, "Solo talk.mp4");
+    await run(world, { kind: "file", source: solo }, {}, { now: () => new Date(2026, 10, 22, 23, 30) });
+    const summary = await readFile(inVault(world, "Copilot Summaries/Solo talk summary.md"), "utf-8");
+    assert.match(summary, /^created: 2026-11-22$/m);
+  }));

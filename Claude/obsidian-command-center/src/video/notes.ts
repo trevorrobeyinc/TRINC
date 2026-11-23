@@ -70,7 +70,29 @@ export function sourceVideoReference(videoFile: string, vaultPath: string): stri
 /** Quote a YAML scalar only when leaving it bare would change how it parses. */
 export function toYamlScalar(value: string): string {
   const needsQuoting = /^[\s>|&*!%@`{}[\]#-]|:\s|\s#|["']|^$/.test(value);
-  return needsQuoting ? `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"` : value;
+  return needsQuoting ? quoteYamlScalar(value) : value;
+}
+
+function quoteYamlScalar(value: string): string {
+  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
+/**
+ * A top-level `key: value` line whose bare value YAML cannot read, with the value quoted. The model writes
+ * the other keys, and one such line ("course: Finance Foundations: Corporate Governance", 2026-11-22)
+ * makes Obsidian lose EVERY property of the note, `source` included. Lists, quoted values and block
+ * values are left alone.
+ */
+function readableYamlLine(line: string): string {
+  const match = /^([A-Za-z_][\w -]*):[ \t]+(\S.*?)[ \t]*$/.exec(line);
+  if (!match || /^["'[{|>&*!]/.test(match[2]) || !/:\s|:$|\s#/.test(match[2])) return line;
+  return `${match[1]}: ${quoteYamlScalar(match[2])}`;
+}
+
+/** The date where the operator is, as YYYY-MM-DD. Not the UTC date, which is tomorrow every afternoon. */
+export function localDate(now: Date): string {
+  const two = (value: number) => String(value).padStart(2, "0");
+  return `${now.getFullYear()}-${two(now.getMonth() + 1)}-${two(now.getDate())}`;
 }
 
 export type FrontmatterOutcome =
@@ -84,14 +106,15 @@ export type FrontmatterOutcome =
  * after the note it summarized, so its title keeps the " transcription" suffix; asking the model to
  * drop it was rejected as the fix because it varied between runs on the same prompt.
  *
- * Other keys the model chose (description, tags, author, published) are left untouched, a note with
- * no frontmatter block is left alone rather than guessed at, and the body's H1 follows the title.
+ * Other keys the model chose (description, tags, author, published) keep their values, quoted when YAML
+ * could not read them bare; a note with no frontmatter block is left alone rather than guessed at, and
+ * the body's H1 follows the title.
  *
  * @param sourceUrl The video's page URL; "" for a local file, where `source` is left as it is.
  */
 export function normalizeSummaryFrontmatter(
   content: string,
-  facts: { title: string; sourceUrl: string; createdIso: string }
+  facts: { title: string; sourceUrl: string; createdDate: string }
 ): FrontmatterOutcome {
   const match = /^---\r?\n([\s\S]*?)\r?\n---(\r?\n|$)/.exec(content);
   if (!match) {
@@ -100,7 +123,7 @@ export function normalizeSummaryFrontmatter(
 
   const desired: Array<[string, string]> = [
     ["title", facts.title],
-    ["created", facts.createdIso.slice(0, 10)],
+    ["created", facts.createdDate],
   ];
   if (facts.sourceUrl) {
     desired.push(["source", facts.sourceUrl]);
@@ -120,6 +143,13 @@ export function normalizeSummaryFrontmatter(
       changed.push(key);
     }
   }
+  lines.forEach((line, index) => {
+    const readable = readableYamlLine(line);
+    if (readable !== line) {
+      lines[index] = readable;
+      changed.push(line.slice(0, line.indexOf(":")));
+    }
+  });
   if (changed.length === 0) {
     return { kind: "unchanged" };
   }

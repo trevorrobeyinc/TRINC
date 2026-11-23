@@ -202,7 +202,7 @@ test("the parser's normalized href is what is kept: quotes and non-ASCII come ou
 
 test("an accepted URL cannot break the summary's YAML frontmatter", () => {
   const note = "---\ntitle: Lesson transcription\nsource:\ncreated:\n---\n\n# Lesson transcription\n";
-  const facts = (sourceUrl: string) => ({ title: "Lesson", sourceUrl, createdIso: "2026-11-20T10:12:29.703Z" });
+  const facts = (sourceUrl: string) => ({ title: "Lesson", sourceUrl, createdDate: "2026-11-20" });
   const plain = parseSourceUrl("https://example.com/watch?v=x#t=1m");
   assert.ok("url" in plain);
   const plainOut = normalizeSummaryFrontmatter(note, facts(plain.url));
