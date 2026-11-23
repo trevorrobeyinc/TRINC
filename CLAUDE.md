@@ -61,20 +61,21 @@ before asserting how the engine behaves.
   `bash /Users/myhome/TRINC/scripts/trinc-backup.sh --prune` (rewritten 2026-11-05: it writes both copies,
   verifies, compares them byte for byte, and moves superseded bundles to the Trash; the Drive snapshot and
   this line stay manual). A bundle carries no gitignored files.
-  **Current (2026-11-16):** `TRINC-FULL-backup-20261116-0229.bundle`, HEAD `0132d36`, sha256 `03d70f8f…9567`
-  (79,779,964 bytes), "records a complete history", 25 refs, byte-identical in both places. The 11-06 pair
-  (`…-20261106-0042`, HEAD `bd9abf2`) is in the Trash. **Drive:** `TRINC/Monorepo/` is the one snapshot, of the
-  same commit `0132d36` (3,226 files + 4 symlinks, exported with `git archive` into a new folder; compared entry
-  by entry with the commit, content by SHA-256, 138 executable bits and symlink targets, with 0 differences;
-  every file accepted by Google before the `bd9abf2` snapshot was trashed with one `mv`), and
-  `Backups/README-RESTORE.md` + `SHA256SUMS.txt` were rewritten as new files naming the new bundle. Prove
-  acceptance on NEW files: a file rewritten in place can upload and still lack Google's item id locally
-  (`stillPending:xattrs`). The Drive's `TRINC/` also holds `Skills-Integrations/trinc-local/`, the offsite copy
-  of `~/.claude/local-plugins/` (the nine `trinc-*` plugins live outside the repo, so no bundle covers them;
-  refreshed by hand after skill changes, last on 2026-11-16), `Plans/`, the strategy and development plan as a
-  Google Doc built from `STATUS.md` and `OFFERINGS.md` on 2026-11-06 (the repo wins), and `NotebookLM/`, the
-  operator's self-teaching manual for NotebookLM (seven Word chapters plus `Source-documents/`, Word copies of
-  six canon files; written from `c4db018` on 2026-11-16). **Refresh `NotebookLM/` in place**, overwriting each
+  **Current (2026-11-23):** `TRINC-FULL-backup-20261123-0607.bundle`, HEAD `c2fb138`, sha256 `cb287a23…aa78`
+  (79,870,494 bytes), "records a complete history", 27 refs, byte-identical in both places. The 11-16 pair
+  (`…-20261116-0229`, HEAD `0132d36`) is in the Trash. **Drive:** `TRINC/Monorepo/` is the one snapshot, of the
+  same commit `c2fb138` (3,253 files + 4 symlinks, exported with `git archive` into a new folder; compared entry
+  by entry with the commit, content by SHA-256, 137 executable bits and symlink targets, with 0 differences;
+  every file accepted by Google, with DriveFS's upload queue empty, before the `0132d36` snapshot was trashed
+  with one `mv`), and `Backups/README-RESTORE.md` + `SHA256SUMS.txt` were rewritten as new files naming the
+  new bundle. Prove acceptance on NEW files: a file rewritten in place can upload and still lack Google's item
+  id locally (`stillPending:xattrs`). The Drive's `TRINC/` also holds `Skills-Integrations/trinc-local/`, the
+  offsite copy of `~/.claude/local-plugins/` (the nine `trinc-*` plugins live outside the repo, so no bundle
+  covers them; refreshed by hand after skill changes, last on 2026-11-16, still identical on 2026-11-23),
+  `Plans/`, the strategy and development plan as a Google Doc built from `STATUS.md` and `OFFERINGS.md` on
+  2026-11-06 (the repo wins), and `NotebookLM/`, the operator's self-teaching manual for NotebookLM (seven Word
+  chapters plus `Source-documents/`, Word copies of six canon files; written on 2026-11-16; each file's banner or
+  "As of" line names the commit it reflects). **Refresh `NotebookLM/` in place**, overwriting each
   file at its own path: NotebookLM binds a source to one Drive file, so a trashed-and-recreated file leaves a
   dead source in the operator's notebook. Keep one bundle version only (two copies of it):
   superseded bundles go to the Trash once the new one is verified and mirrored. A superseded Drive snapshot is
