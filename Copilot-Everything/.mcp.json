@@ -3,7 +3,10 @@
     "zettelkasten-graph": {
       "command": "${HOME}/.nvm/versions/node/v22.13.1/bin/node",
       "args": ["/Users/myhome/TRINC/Claude/Medical-Zettelkasten-MCP/src/server.js"],
-      "cwd": "/Users/myhome/TRINC/Claude/Medical-Zettelkasten-MCP"
+      "cwd": "/Users/myhome/TRINC/Claude/Medical-Zettelkasten-MCP",
+      "env": {
+        "NODE_OPTIONS": "--require /Users/myhome/.claude/mcp/loopback-listen.cjs"
+      }
     }
   }
 }

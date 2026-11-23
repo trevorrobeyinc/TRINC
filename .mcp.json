@@ -7,7 +7,8 @@
       ],
       "env": {
         "SEARXNG_BASE_URL": "https://127.0.0.1:8891",
-        "NODE_EXTRA_CA_CERTS": "/Users/myhome/Library/Application Support/mkcert/rootCA.pem"
+        "NODE_EXTRA_CA_CERTS": "/Users/myhome/Library/Application Support/mkcert/rootCA.pem",
+        "NODE_OPTIONS": "--require /Users/myhome/.claude/mcp/loopback-listen.cjs"
       }
     },
     "perseus-business": {
@@ -33,7 +34,8 @@
       ],
       "env": {
         "TRINC_CONTENT_REPO": "/Users/myhome/TRINC",
-        "TRINC_CONTENT_PUBLISH": ""
+        "TRINC_CONTENT_PUBLISH": "",
+        "NODE_OPTIONS": "--require /Users/myhome/.claude/mcp/loopback-listen.cjs"
       }
     },
     "openclaw-obsidian": {
@@ -44,7 +46,8 @@
       ],
       "env": {
         "OBSIDIAN_STDIO_PROFILE": "openclaw",
-        "NODE_EXTRA_CA_CERTS": "/Users/myhome/Library/Application Support/mkcert/rootCA.pem"
+        "NODE_EXTRA_CA_CERTS": "/Users/myhome/Library/Application Support/mkcert/rootCA.pem",
+        "NODE_OPTIONS": "--require /Users/myhome/.claude/mcp/loopback-listen.cjs"
       }
     }
   }
