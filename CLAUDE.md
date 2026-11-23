@@ -230,7 +230,7 @@ The deep dive is `Trevor Robey Intelligence Network Citations/CLAUDE.md`.
 - **Bundles** also ship deterministic `citation-integrity.md`, `graveyard-memo.md`, `search-coverage.md`
   and the reproducibility manifest. The graveyard memo's amendment-risk band reads "Not available" while
   ClinicalTrials.gov refuses the history endpoint (HTTP 403 since 2026-10-08).
-- **Engine role calls are isolated** from the operator's setup (`--strict-mcp-config`,
+- **Engine role calls are isolated** from the operator's setup (`--tools ""`, `--strict-mcp-config`,
   `--setting-sources ""`, `CLAUDE_CODE_DISABLE_CLAUDE_MDS=1`); re-probe after a Claude CLI upgrade.
 
 ## Business identity and customer-facing copy

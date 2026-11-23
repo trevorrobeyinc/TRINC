@@ -234,9 +234,18 @@ const CLAUDE_CODE_EMPTY_MCP_CONFIG = path.join(__dirname, "..", "..", "config", 
  * has configured — user, project and plugin — for each role call. The pdf-viewer plugin's server is
  * an `npx` package, and because the child's cwd is the engine folder, its `.npmrc`
  * (`cache=.ci/npm-cache`) made npx pull 209 packages into the repo's LOCKED supply-chain cache
- * mid-run (caught by tests/supply-chain). A role call needs no MCP server at all — tools are off
- * (--allowedTools "") — so it gets an empty, strict MCP config: zero servers, no npx, no network
- * beyond the model call, and a much lighter spawn.
+ * mid-run (caught by tests/supply-chain). A role call needs no MCP server at all — it answers in
+ * text and has no tools (below) — so it gets an empty, strict MCP config: zero servers, no npx, no
+ * network beyond the model call, and a much lighter spawn.
+ *
+ * NO TOOLS (2026-11-23): `--allowedTools ""` is only the permission allow-list (nothing is
+ * pre-approved); it removes no tool. A stream-json probe on CLI 2.1.327 with every other flag here
+ * still listed 28 built-in tools in the init event (Bash, Edit, Write, Read, WebSearch, Task,
+ * Workflow…), and read-only tools in the cwd (this folder, in production) may run without a prompt
+ * even in print mode. `--tools ""` is the flag that makes no built-in tool available: the same probe
+ * with it listed 0 tools and 0 MCP servers, and a plain `--output-format json` call still returned
+ * its text result. Both flags stay. Both are list options, so the prompt goes on stdin, never as a
+ * positional argument after them (the CLI would read it as a tool name).
  *
  * HERMETIC PROMPT (same day, second finding): print mode also loads the operator's instruction files
  * — ~/.claude/CLAUDE.md, the monorepo CLAUDE.md and this folder's CLAUDE.md/AGENTS.md — into every
@@ -254,6 +263,7 @@ function buildClaudeCodeArgs(model) {
     "--output-format", "json",
     "--model", model,
     "--allowedTools", "",
+    "--tools", "",
     "--strict-mcp-config",
     "--mcp-config", CLAUDE_CODE_EMPTY_MCP_CONFIG,
     "--setting-sources", "",
@@ -279,7 +289,7 @@ function buildClaudeCodeEnv(baseEnv) {
  *
  * Uses the user's authenticated Claude session (no API key).
  * Pipes the prompt via stdin to avoid CLI argument length limits.
- * Disables tool use (--allowedTools "") to force direct text response
+ * Loads no tools (--tools "", see buildClaudeCodeArgs) to force a direct text response
  * with real citations from Claude's parametric knowledge.
  */
 async function callClaudeCode(prompt, providerConfig, logger) {

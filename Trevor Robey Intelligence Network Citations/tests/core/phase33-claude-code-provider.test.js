@@ -229,12 +229,28 @@ describe("Phase 33 — Claude Code MCP Provider", () => {
       assert.deepEqual(JSON.parse(fs.readFileSync(CLAUDE_CODE_EMPTY_MCP_CONFIG, "utf8")), { mcpServers: {} });
     });
 
-    it("keeps tools off and print mode on (the shape the rest of the adapter parses)", () => {
+    it("loads NO built-in tools: --tools \"\" removes them, --allowedTools \"\" pre-approves none (2026-11-23)", () => {
+      // Probed 2026-11-23 on CLI 2.1.327 (stream-json init event, scratch folder, env -i): with
+      // --allowedTools "" alone a role call was still offered 28 built-in tools (Bash, Edit, Write, Read,
+      // WebSearch, Task, Workflow…), because --allowedTools is only the permission allow-list. With
+      // --tools "" added the init event listed 0 tools and 0 MCP servers, and the json result came back.
+      // Both are list options (`<tools...>` in --help), which read every word up to the next flag, so
+      // each must carry exactly ONE empty value: what follows it is another flag or the end of argv.
+      const args = buildClaudeCodeArgs("claude-sonnet-4-6");
+      for (const flag of ["--tools", "--allowedTools"]) {
+        const i = args.indexOf(flag);
+        assert.ok(i > -1, `${flag} must be present`);
+        assert.equal(args.lastIndexOf(flag), i, `${flag} must appear once (a repeat would add to its list)`);
+        assert.equal(args[i + 1], "", `${flag} must carry an EMPTY value`);
+        assert.ok(i + 2 === args.length || args[i + 2].startsWith("--"), `no tool name may follow ${flag} ""`);
+      }
+    });
+
+    it("keeps print mode on (the shape the rest of the adapter parses)", () => {
       const args = buildClaudeCodeArgs("claude-opus-4-8");
       assert.equal(args[0], "-p");
       assert.deepEqual(args.slice(args.indexOf("--output-format"), args.indexOf("--output-format") + 2), ["--output-format", "json"]);
       assert.deepEqual(args.slice(args.indexOf("--model"), args.indexOf("--model") + 2), ["--model", "claude-opus-4-8"]);
-      assert.deepEqual(args.slice(args.indexOf("--allowedTools"), args.indexOf("--allowedTools") + 2), ["--allowedTools", ""]);
     });
   });
 

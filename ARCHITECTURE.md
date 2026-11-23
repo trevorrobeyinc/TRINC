@@ -130,12 +130,14 @@ Every fallback is empty on purpose: a failure surfaces the real error instead of
 longer exists. Billing is the flat Claude Max subscription, not per-token API use.
 
 **How Claude is called** (`openclaw-bridge/core/llm-adapter.js`): the `claude` CLI as a child process,
-prompt on stdin, tools off, and **isolated from the operator's own setup** —
-`claude -p --output-format json --model <id> --allowedTools "" --strict-mcp-config --mcp-config
+prompt on stdin, no tools, and **isolated from the operator's own setup** —
+`claude -p --output-format json --model <id> --allowedTools "" --tools "" --strict-mcp-config --mcp-config
 config/claude-code-print-mcp.json --setting-sources "" --no-session-persistence` with
 `CLAUDE_CODE_DISABLE_CLAUDE_MDS=1` in the environment. Without that isolation every role call booted every
-MCP server and loaded the operator's instruction files (found and fixed 2026-09-22). Re-probe it after any
-Claude CLI upgrade; the probe is in the engine's `CLAUDE.md`.
+MCP server and loaded the operator's instruction files (found and fixed 2026-09-22). Until 2026-11-23 a
+role call was also offered 28 built-in tools: `--allowedTools ""` only empties the permission allow-list,
+and `--tools ""` is what removes them. Re-probe it after any Claude CLI upgrade; the probe is in the
+engine's `CLAUDE.md`.
 
 **Agent identity.** `scout`, `analyst` and `synthesizer` each own `config/agents/<role>/{SOUL.md,
 AGENTS.md, sessions/}`; the business lane adds `SOUL.business.md`. These `AGENTS.md` files are role

@@ -156,7 +156,7 @@ node scripts/distribute.js --workflow-id <id> --targets datarade,kaggle,training
 Phases 1-33 are implemented. Phase 26 bridge consolidation is complete (execution router, principal context, fail-closed enforcement). Phase 29 (Harvard ToolUniverse biomedical MCP) is active — startup integrity hooked into MCP init chain (warn-on-failure, non-blocking), 58/58 tests passing, 2,719 biomedical tools (vendor/tooluniverse v1.5.7) accessible via MCP. Phase 30 (Workflow Engine) provides single-command end-to-end orchestration with 10 workflow templates (seven biomedical, three business-lane), 6 specialized agent roles, and quality auditor. Phase 31 (Enterprise Delivery) adds Research REST API, scheduled workflows, and usage metering. Phase 33 (Claude Code MCP Provider) replaces LM Studio as the primary LLM provider — Claude Code runs via `claude -p` stdin pipe using the user's authenticated session (Claude Max Pro), producing biomedical output with real verifiable citations that pass quality gates.
 
 **Role-call isolation (2026-09-22, found by the first gated run started from Copilot chat):** every
-role call is `claude -p --output-format json --allowedTools "" --strict-mcp-config --mcp-config
+role call is `claude -p --output-format json --allowedTools "" --tools "" --strict-mcp-config --mcp-config
 config/claude-code-print-mcp.json` (`openclaw-bridge/core/llm-adapter.js` `buildClaudeCodeArgs`, pinned
 by `tests/core/phase33-claude-code-provider.test.js`). Without the two MCP flags the CLI booted **every**
 user/project/plugin MCP server per role call; the pdf-viewer plugin's server is an `npx` package and,
@@ -170,12 +170,24 @@ clean call. Fixed without an API key: `buildClaudeCodeEnv` sets `CLAUDE_CODE_DIS
 `--setting-sources ""` (user/project/local settings and their hooks off) plus
 `--no-session-persistence` (no transcript per role call under `~/.claude/projects/`). Probed from
 this folder under the operator's OAuth session: NO NO NO. `--bare` is NOT usable (API-key auth only);
-`--system-prompt` alone does not help; `--setting-sources ""` alone still left `AGENTS.md`. **Re-verify
-after any CLI upgrade** (Haiku, ~$0.02, run from the scratchpad so nothing touches the repo cache):
-`claude -p "Answer YES or NO: do your session instructions mention a YubiKey?" --model
-claude-haiku-4-5-20251001 --output-format json --allowedTools "" --strict-mcp-config --mcp-config
-config/claude-code-print-mcp.json --setting-sources "" --no-session-persistence` with
-`CLAUDE_CODE_DISABLE_CLAUDE_MDS=1` in the env must answer NO.
+`--system-prompt` alone does not help; `--setting-sources ""` alone still left `AGENTS.md`. **No tools
+(2026-11-23):** `--allowedTools ""` is only the permission allow-list, so on CLI 2.1.327 a role call's
+init event still listed 28 built-in tools (Bash, Edit, Write, Read, WebSearch, Task, Workflow…).
+`--tools ""` is the flag that makes none available; with it the init event lists 0 tools. It still lists
+six built-in `cc-plugin-*` plugins (19 skills, 6 agents), which no flag here removes; the model reaches
+skills and agents only through the Skill and Task tools, which are gone. Both tool flags are list
+options, so the prompt goes on stdin, never as a positional argument after them. **Re-verify after any
+CLI upgrade** (Haiku, under $0.02 a call, run from the scratchpad so nothing touches the repo cache,
+under `env -i` with only HOME, USER, the engine's PATH order — `~/.local/bin`, the nvm node bin,
+`/opt/homebrew/bin`, `/usr/local/bin`, then the system dirs — `NODE_EXTRA_CA_CERTS` and
+`CLAUDE_CODE_DISABLE_CLAUDE_MDS=1`): `claude -p "Answer YES or NO: do your session instructions mention
+a YubiKey?" --model claude-haiku-4-5-20251001 --output-format stream-json --verbose --allowedTools ""
+--tools "" --strict-mcp-config --mcp-config <absolute path of this folder's
+config/claude-code-print-mcp.json> --setting-sources "" --no-session-persistence`. Its first line, the
+init event, must have `tools` and `mcp_servers` both `[]`, and the result must answer NO. Then run it
+once with `--output-format json` in place of `stream-json --verbose`: `subtype` `success`, `is_error`
+false, the answer in `result` (the envelope `callClaudeCode` parses). Last run 2026-11-23, CLI 2.1.327:
+0 tools, 0 MCP servers, NO both times ($0.015 and $0.0015).
 
 **ToolUniverse Live Pre-Fetch**: When workflows run, the tool-prefetch module (`openclaw-bridge/core/tool-prefetch.js`) queries ToolUniverse SMCP for each agent role before prompt construction. Results are injected as synthetic input documents marked `tooluniverse://`. The LLM prompt includes a LIVE DATABASE CONTEXT instruction prioritizing live data over training knowledge. Role-to-tool mappings configured in `config/tool-prefetch-map.json`. Graceful degradation: if ToolUniverse is unavailable, workflows continue with parametric-only output. In addition to ToolUniverse, `createToolPrefetch` accepts a `localFetchers` seam for in-process fetchers that are not ToolUniverse tools (see Citation Integrity Layer below).
 
