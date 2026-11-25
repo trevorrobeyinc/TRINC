@@ -29,6 +29,17 @@
 //   (security.authToken) — the same file the bridge reads at startup, so there is no second
 //   copy of the secret anywhere.
 //
+// VAULT ROOT — the same file supplies the one other value the bridge needs from a caller. Its note
+// tools (read_note, create_note, append_note) require `vaultRoot` in the input and accept it only
+// if it is one of the bridge's own allowedVaultRoots, compared as an exact string; the bridge then
+// pins its path guard to allowedVaultRoots[0]. So the note tools send allowedVaultRoots[0], read
+// from the file in the same single read as the token. Until 2026-11-25 the adapter sent no
+// vaultRoot, so the bridge refused every note call (INTERNAL_ERROR, HTTP 400) before any backend
+// ran and readNote returned ''. append_note also needs an idempotencyKey (see appendIdempotencyKey).
+// search_notes, miyo_search_context and health need no vaultRoot and send none.
+// tests/mcp/obsidian-bridge-mcp-schemas.test.js runs every request this adapter sends through the
+// bridge's real schemas, read from its TypeScript source in this checkout.
+//
 // FAIL-SOFT IS MANDATORY. The bridge is a child of the obsidian-bridge-launcher plugin and dies
 // with Obsidian, and run-workflow.js can also be launched standalone from a terminal. A closed
 // vault must degrade to "no prior-research context", never fail a run — the same contract every
@@ -169,6 +180,57 @@ const WRITE_TOOLS = Object.freeze({
   append_note: { tool: "obsidian_append_note", operation: "append_note" },
 });
 
+// A note tool fails soft with this, sending nothing, when the bridge config names no vault root:
+// the bridge would refuse the call anyway (see VAULT ROOT in the header).
+const VAULT_ROOT_UNAVAILABLE = "bridge vault root unavailable";
+
+/**
+ * The idempotencyKey for one append_note call. The bridge refuses an append without one
+ * (IDEMPOTENCY_KEY_REQUIRED_FOR_RETRY), and three of its behaviours set what the key must be:
+ *
+ *   - Its ledger is a durable SQLite table keyed on (operation, key) alone, shared by every note and
+ *     kept across restarts. A key it has already COMMITTED or RECONCILED is answered "appended" and
+ *     nothing is written. So the same call must get the same key every time, from any adapter
+ *     instance (no clock, counter or random value: a retry after a timeout must be recognised, not
+ *     appended twice), and a different note or different content must get a different key.
+ *   - It records the key as STARTED before the backend runs, and a key it has seen before is only
+ *     ever reconciled, never written again: the retry looks for the key's marker in the note's last
+ *     16 KB. An attempt that leaves no marker behind (a timeout whose write never landed, or a
+ *     failure before anything was written, such as NO_CAPABLE_BACKEND in the bridge's cold-start
+ *     window) makes every later call with that key end in AMBIGUOUS_WRITE_REQUIRES_DECISION, even
+ *     after the bridge recovers. The only way past it is a new key, which is why appendNote takes an
+ *     optional `appendId`; but a new key appends the text again, so use one only when the text is
+ *     known to be missing, and that code alone does not say so. The bridge also sends it while the
+ *     first attempt is still writing (it does not stop when this adapter gives up at 15 s, and an
+ *     append may wait 20 s in its queue and then write for 15 s more), and it sends it with retryable
+ *     true whenever its own read of the note fails, which can last (a note that does not exist yet).
+ *     So: wait out those 35 s, repeat the SAME call (a write that landed comes back RECONCILED), and
+ *     take a new appendId only if that repeat is refused with retryable false, the answer the bridge
+ *     gives once it has read the note and found no marker. readNote cannot settle it for you: it
+ *     returns '' on any failure. callTool passes the bridge's code and retryable on. The lasting fix
+ *     is in the bridge: drop the STARTED row when its backend failed before writing.
+ *   - It writes the key into the note inside an HTML-comment marker
+ *     (`<!-- cpbh-idem:v1 key=<key> op=append_note … -->`) that it searches for when it reconciles a
+ *     timed-out append. So the key uses only letters, digits and `._:-` (no whitespace, never
+ *     `-->`) and stays short.
+ *
+ * The key is therefore content-addressed: a version tag, then the sha256 of the call's fields as one
+ * JSON array (an array keeps field boundaries, where joined strings could not tell "a|b" + "c" from
+ * "a" + "b|c"), with `appendId` as a fifth field only when the caller gives one. The fields are
+ * taken exactly as given, never normalized, so two spellings of one note path are two keys. The same
+ * text appended twice to the same note is ONE append unless the two calls carry different appendIds.
+ * Changing this scheme changes every key, so a retry across the change would append twice: bump the
+ * tag deliberately.
+ *
+ * @param {{ vault: string, vaultRoot: string, notePath: string, content: string, appendId?: string }} call
+ * @returns {string} `engine-append-v1:` and 64 hex digits
+ */
+function appendIdempotencyKey({ vault, vaultRoot, notePath, content, appendId }) {
+  const fields = [vault, vaultRoot, notePath, content];
+  if (appendId !== undefined) fields.push(appendId);
+  return `engine-append-v1:${crypto.createHash("sha256").update(JSON.stringify(fields), "utf8").digest("hex")}`;
+}
+
 function createObsidianBridgeMcp(options = {}) {
   const logger =
     options.logger && typeof options.logger.warn === "function"
@@ -187,6 +249,7 @@ function createObsidianBridgeMcp(options = {}) {
   const allowWrites = options.allowWrites === true;
   // Injectable so tests don't need a config file on disk.
   const tokenOverride = typeof options.authToken === "string" ? options.authToken : null;
+  const vaultRootOverride = typeof options.vaultRoot === "string" ? options.vaultRoot : null;
   // Miyo-direct lane (see header). Injectable request for tests.
   const miyoUrl = String(options.miyoUrl || DEFAULT_MIYO).replace(/\/+$/, "");
   const miyoCaPath = options.miyoCaPath || DEFAULT_MKCERT_CA;
@@ -196,45 +259,79 @@ function createObsidianBridgeMcp(options = {}) {
 
   let cachedToken = tokenOverride;
   let tokenLookupFailed = false;
+  let cachedVaultRoot = vaultRootOverride;
+  let vaultRootLookupFailed = false;
   // Availability is cached per instance: a closed Obsidian shouldn't cost every role a timeout.
   let availability = null;
+
+  // The bridge's own config file, read at most once per instance and not at all while both values
+  // it supplies (the token and the vault root) are injected. null after a failed read.
+  let bridgeConfig;
+
+  function readBridgeConfig() {
+    if (bridgeConfig !== undefined) return bridgeConfig;
+    bridgeConfig = null;
+    try {
+      const cfg = JSON.parse(fs.readFileSync(bridgeConfigPath, "utf8"));
+      if (cfg && typeof cfg === "object") {
+        bridgeConfig = cfg;
+      } else {
+        logger.warn(`[obsidian-bridge-mcp] bridge config is not a JSON object: ${bridgeConfigPath}`);
+      }
+    } catch (err) {
+      // Never a parse error's message: V8 quotes the JSON around the fault, and this file holds the
+      // bridge's token. A file-system error's code (ENOENT, EACCES) is enough to act on.
+      const reason = err && err.name === "SyntaxError" ? "not valid JSON" : (err && err.code) || "unreadable";
+      logger.warn(`[obsidian-bridge-mcp] cannot read bridge config (${bridgeConfigPath}): ${reason}`);
+    }
+    return bridgeConfig;
+  }
 
   function readToken() {
     if (cachedToken) return cachedToken;
     if (tokenLookupFailed) return null;
-    try {
-      const raw = fs.readFileSync(bridgeConfigPath, "utf8");
-      const cfg = JSON.parse(raw);
-      const token = cfg && cfg.security && cfg.security.authToken;
-      if (typeof token === "string" && token.length > 0) {
-        cachedToken = token;
-        return cachedToken;
-      }
-      logger.warn(`[obsidian-bridge-mcp] bridge config has no security.authToken: ${bridgeConfigPath}`);
-    } catch (err) {
-      logger.warn(
-        `[obsidian-bridge-mcp] cannot read bridge config (${bridgeConfigPath}): ${err && err.message ? err.message : err}`
-      );
+    const cfg = readBridgeConfig();
+    const token = cfg && cfg.security && cfg.security.authToken;
+    if (typeof token === "string" && token.length > 0) {
+      cachedToken = token;
+      return cachedToken;
     }
+    if (cfg) logger.warn(`[obsidian-bridge-mcp] bridge config has no security.authToken: ${bridgeConfigPath}`);
     tokenLookupFailed = true;
+    return null;
+  }
+
+  /** The note tools' vaultRoot: allowedVaultRoots[0] of the bridge config (see VAULT ROOT above). */
+  function readVaultRoot() {
+    if (cachedVaultRoot) return cachedVaultRoot;
+    if (vaultRootLookupFailed) return null;
+    const cfg = readBridgeConfig();
+    const root = cfg && Array.isArray(cfg.allowedVaultRoots) ? cfg.allowedVaultRoots[0] : undefined;
+    if (typeof root === "string" && root.length > 0) {
+      cachedVaultRoot = root;
+      return cachedVaultRoot;
+    }
+    if (cfg) logger.warn(`[obsidian-bridge-mcp] bridge config has no allowedVaultRoots[0]: ${bridgeConfigPath}`);
+    vaultRootLookupFailed = true;
     return null;
   }
 
   /**
    * One authenticated POST to the bridge's /mcp/tool endpoint, over the vault bridge's socket.
-   * Returns { ok, data?, error?, status? } and NEVER throws — every caller below is on a
-   * research hot path where an unreachable vault must degrade, not abort.
+   * Returns { ok, data?, error?, status?, code?, retryable? } and NEVER throws — every caller below
+   * is on a research hot path where an unreachable vault must degrade, not abort. code and
+   * retryable are the bridge's own, present only when the bridge sent them.
    */
   async function callTool(tool, operation, input) {
     const token = readToken();
     if (!token) return { ok: false, error: "bridge auth token unavailable" };
 
-    const body = JSON.stringify({ tool, operation, input: { vault, ...input } });
-    const bodySha256 = crypto.createHash("sha256").update(body, "utf8").digest("hex");
-
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
+      // Built inside the try, so an input JSON cannot encode (a BigInt, a cycle) fails soft too.
+      const body = JSON.stringify({ tool, operation, input: { vault, ...input } });
+      const bodySha256 = crypto.createHash("sha256").update(body, "utf8").digest("hex");
       const res = await bridgeTransport({
         method: "POST",
         path: "/mcp/tool",
@@ -252,8 +349,11 @@ function createObsidianBridgeMcp(options = {}) {
       const status = res && Number(res.status) > 0 ? Number(res.status) : 0;
       const json = res ? res.json : null;
       if (status < 200 || status >= 300 || !json || json.ok !== true) {
-        const message = (json && json.error && json.error.message) || `HTTP ${status || "no-response"}`;
-        return { ok: false, error: message, status };
+        const bridgeError = json && json.error && typeof json.error === "object" ? json.error : {};
+        const failure = { ok: false, error: bridgeError.message || `HTTP ${status || "no-response"}`, status };
+        if (typeof bridgeError.code === "string") failure.code = bridgeError.code;
+        if (typeof bridgeError.retryable === "boolean") failure.retryable = bridgeError.retryable;
+        return failure;
       }
       return { ok: true, data: json.data };
     } catch (err) {
@@ -317,8 +417,10 @@ function createObsidianBridgeMcp(options = {}) {
   /** Read one note by vault-relative path. Returns a string ("" when unavailable). */
   async function readNote({ notePath } = {}) {
     if (!notePath || typeof notePath !== "string") return "";
+    const vaultRoot = readVaultRoot();
+    if (!vaultRoot) return "";
     const spec = READ_TOOLS.read_note;
-    const res = await callTool(spec.tool, spec.operation, { path: notePath });
+    const res = await callTool(spec.tool, spec.operation, { vaultRoot, path: notePath });
     if (!res.ok) return "";
     const d = res.data;
     if (typeof d === "string") return d;
@@ -418,20 +520,36 @@ function createObsidianBridgeMcp(options = {}) {
   // ── Writes (opt-in; see the double-write note in the header) ────────────────
   async function createNote({ notePath, content, mode = "create" } = {}) {
     if (!allowWrites) return { ok: false, error: "writes disabled (allowWrites=false)" };
-    if (!notePath || typeof content !== "string") {
+    if (!notePath || typeof notePath !== "string" || typeof content !== "string") {
       return { ok: false, error: "createNote requires notePath and content" };
     }
+    const vaultRoot = readVaultRoot();
+    if (!vaultRoot) return { ok: false, error: VAULT_ROOT_UNAVAILABLE };
     const spec = WRITE_TOOLS.create_note;
-    return callTool(spec.tool, spec.operation, { path: notePath, content, mode });
+    return callTool(spec.tool, spec.operation, { vaultRoot, path: notePath, content, mode });
   }
 
-  async function appendNote({ notePath, content } = {}) {
+  /**
+   * Append to a note. `appendId` (optional) names this append for its idempotency key: omit it, or
+   * repeat it, and the same text appended to the same note again is recognised as the same append; a
+   * new one appends the text again. Before using a new one to get past
+   * AMBIGUOUS_WRITE_REQUIRES_DECISION, read appendIdempotencyKey: that code alone does not mean the
+   * text is missing.
+   */
+  async function appendNote({ notePath, content, appendId } = {}) {
     if (!allowWrites) return { ok: false, error: "writes disabled (allowWrites=false)" };
-    if (!notePath || typeof content !== "string") {
-      return { ok: false, error: "appendNote requires notePath and content" };
+    // The bridge's append schema refuses empty content (z.string().min(1)), so it is never sent.
+    if (!notePath || typeof notePath !== "string" || typeof content !== "string" || content.length === 0) {
+      return { ok: false, error: "appendNote requires notePath and non-empty content" };
     }
+    if (appendId !== undefined && (typeof appendId !== "string" || appendId.length === 0)) {
+      return { ok: false, error: "appendNote appendId must be a non-empty string" };
+    }
+    const vaultRoot = readVaultRoot();
+    if (!vaultRoot) return { ok: false, error: VAULT_ROOT_UNAVAILABLE };
+    const idempotencyKey = appendIdempotencyKey({ vault, vaultRoot, notePath, content, appendId });
     const spec = WRITE_TOOLS.append_note;
-    return callTool(spec.tool, spec.operation, { path: notePath, content });
+    return callTool(spec.tool, spec.operation, { vaultRoot, path: notePath, content, idempotencyKey });
   }
 
   return {
