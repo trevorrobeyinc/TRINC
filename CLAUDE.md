@@ -61,17 +61,20 @@ before asserting how the engine behaves.
   `bash /Users/myhome/TRINC/scripts/trinc-backup.sh --prune` (rewritten 2026-11-05: it writes both copies,
   verifies, compares them byte for byte, and moves superseded bundles to the Trash; the Drive snapshot and
   this line stay manual). A bundle carries no gitignored files.
-  **Current (2026-11-23):** `TRINC-FULL-backup-20261123-0607.bundle`, HEAD `c2fb138`, sha256 `cb287a23…aa78`
-  (79,870,494 bytes), "records a complete history", 27 refs, byte-identical in both places. The 11-16 pair
-  (`…-20261116-0229`, HEAD `0132d36`) is in the Trash. **Drive:** `TRINC/Monorepo/` is the one snapshot, of the
-  same commit `c2fb138` (3,253 files + 4 symlinks, exported with `git archive` into a new folder; compared entry
-  by entry with the commit, content by SHA-256, 137 executable bits and symlink targets, with 0 differences;
-  every file accepted by Google, with DriveFS's upload queue empty, before the `0132d36` snapshot was trashed
-  with one `mv`), and `Backups/README-RESTORE.md` + `SHA256SUMS.txt` were rewritten as new files naming the
-  new bundle. Prove acceptance on NEW files: a file rewritten in place can upload and still lack Google's item
-  id locally (`stillPending:xattrs`). The Drive's `TRINC/` also holds `Skills-Integrations/trinc-local/`, the
-  offsite copy of `~/.claude/local-plugins/` (the nine `trinc-*` plugins live outside the repo, so no bundle
-  covers them; refreshed by hand after skill changes, last on 2026-11-16, still identical on 2026-11-23),
+  **Current (2026-11-24):** `TRINC-FULL-backup-20261124-1942.bundle`, HEAD `ab130c4`, sha256 `8bf7905e…ba9b`
+  (80,155,024 bytes), "records a complete history", 33 refs, byte-identical in both places. The 11-23 pair
+  (`…-20261123-0607`, HEAD `c2fb138`) and the flag day's rollback pair (`…-20261124-1825`, HEAD `577f8f4`, which
+  the new bundle also carries) are in the Trash. **Drive:** `TRINC/Monorepo/` is the one snapshot, of the same
+  commit `ab130c4` (3,280 files + 4 symlinks, exported with `git archive` into a new folder; compared entry by
+  entry with the commit, content by SHA-256, 137 executable bits and symlink targets, with 0 differences; every
+  file accepted by Google, with DriveFS's upload queue empty, before the `c2fb138` snapshot was trashed with one
+  `mv`), and `Backups/README-RESTORE.md` + `SHA256SUMS.txt` were rewritten as new files naming the new bundle.
+  Prove acceptance on NEW files: a file rewritten in place can upload and still lack Google's item id locally
+  (`stillPending:xattrs`); for a file that must stay in place, prove the upload from a copy of DriveFS's
+  database and fileproviderd's log instead. The Drive's `TRINC/` also holds `Skills-Integrations/trinc-local/`,
+  the offsite copy of `~/.claude/local-plugins/` (the nine `trinc-*` plugins live outside the repo, so no bundle
+  covers them; refreshed by hand after skill changes, last on 2026-11-24 for `trinc-engineering` 2.1.9, with the
+  folder's own `README.md` and `SHA256SUMS.txt` rewritten as new files; 33 of 33 files identical),
   `Plans/`, the strategy and development plan as a Google Doc built from `STATUS.md` and `OFFERINGS.md` on
   2026-11-06 (the repo wins), and `NotebookLM/`, the operator's self-teaching manual for NotebookLM (seven Word
   chapters plus `Source-documents/`, Word copies of six canon files; written on 2026-11-16; each file's banner or
