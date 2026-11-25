@@ -14,7 +14,7 @@
 3. **Time-limited carve-out** — add the service to an explicit carve-out registry with (a) name, (b) plaintext endpoint, (c) **concrete resolution deadline as a calendar date** (no carve-out without a deadline), (d) operator who owns the resolution. Mark in-source with `// lint-transport: outbound-carve-out` (or `# lint-transport: outbound-carve-out`) and document the registry entry. The lint script counts marker-suppressed lines separately for auditability.
 
 **Carve-outs (standing).**
-- **Browser automation MCP** — the Claude Browser pane (`mcp__Claude_Browser__*`) is the one permanent plaintext-loopback exception, and the only browser surface (2026-09-18).
+- **Browser automation MCP** — the Claude Browser pane (`mcp__Claude_Browser__*`) is the one permanent plaintext-loopback exception (2026-09-18); Claude in Chrome, the second browser surface (permanent since 2026-11-18), gets no plaintext exception.
 - **Vendor code (flag-only).** Code under `trevor-robey-inc-agents/vendor/tooluniverse/` and `Copilot-Everything/repos/obsidian-copilot-mcp-v4/` is third-party. Modifying it creates upstream-drift; the canonical resolution for vendor-code violations is route-through-proxy or replace, NOT fork-and-patch the vendor file. The lint surfaces these as flagged but does not require in-vendor fixes.
 
 ### II. Citation Traceability as Quality Gate
@@ -59,4 +59,4 @@ The marker split is intentional and non-blocking — `[DEFERRED]` items do NOT p
 
 `[NEEDS CLARIFICATION]` and `[DEFERRED]` are the only two open-marker forms permitted in `.specify/` artifacts. Other markers (`[TODO]`, `[TKTK]`, `[???]`, bare `<placeholder>`, etc.) MUST be converted to one of these two before a spec / plan / checklist is treated as review-ready.
 
-**Version**: 2.0.0 | **Ratified**: 2026-05-13 | **Last Amended**: 2026-05-13 (v2.0.0 — extended Principle I scope to include outbound TCP connections; three resolution paths codified (replace / wrap / time-limited carve-out); vendor-code flagging-only carve-out documented; browser-automation carve-out preserved unchanged)
+**Version**: 2.0.1 | **Ratified**: 2026-05-13 | **Last Amended**: 2026-11-18 (v2.0.1 — browser-automation carve-out clarified: the Claude Browser pane is no longer the only browser surface; Claude in Chrome is the second, permanent since 2026-11-18, with no plaintext exception. v2.0.0 — extended Principle I scope to include outbound TCP connections; three resolution paths codified (replace / wrap / time-limited carve-out); vendor-code flagging-only carve-out documented; browser-automation carve-out preserved unchanged)

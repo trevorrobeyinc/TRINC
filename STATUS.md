@@ -13,7 +13,7 @@
 | | |
 |---|---|
 | Revenue | **$0.** Nothing listed; no calls, NDAs or deals (`12-pipeline-tracking/` is all zero). |
-| Entity | LLC, CA No. B20260217250, approved 2026-06-18. **Behind on filings:** EIN not applied for; LLC-12 (due 2026-09-16) and the $800 FTB 3522 (due 2026-08-15) are past due. Suspension follows notices, not the due date, and contracts a suspended LLC makes are *voidable* by the other party (R&TC §23304.1). Check the live status read-only on bizfile (B20260217250). |
+| Entity | LLC, CA No. B20260217250, approved 2026-06-18. **Behind on filings:** EIN not applied for; LLC-12 (due 2026-08-04, 90 days after the filing; this said 2026-09-16 until 2026-11-06) and the $800 FTB 3522 (due 2026-08-15) are past due. Suspension follows notices, not the due date, and contracts a suspended LLC makes are *voidable* by the other party (R&TC §23304.1). **bizfile, 2026-11-06:** Active, with SOS, FTB, Agent and VCFCF standing all Good (not suspended); the bizfile login has User Access, so the LLC-12 can be filed online with no PIN (`compliance-calendar.md`). |
 | Workspace | 🔴 Card declined; the suspension date **(2026-11-02) has passed** and no fix is recorded. Workspace carries trevor@ and `aws@`, the AWS root email. Google reactivates "within a few hours" only after a working **primary** payment method is set; a one-off payment can fall back into suspension. |
 | Money rails | **AWS Marketplace payout works** (ACH ending 262; "Publish paid and free products" since 2026-07-22). It is the only way to receive money today. **There is no direct-sale rail:** no business bank account (blocked on the EIN), and the Stripe/invoicing and banking folders are placeholders. |
 | Paper | **Nothing signable for direct sales.** All 15 `08-contracts-legal/` files and the `common-paper/` notes are placeholders. `workspace/legal/CommonPaper-Mutual-NDA-v2.pdf` (a saved 404 web page, not an NDA) was removed 2026-11-04. `nda-mutual-template.md:35` names a non-existent "Trevor Robey Inc. d/b/a OpenClaw…" under Delaware law. The refund policy behind the "refund-backed" SLA is empty. AWS sales use AWS's standard DSA (decided). |
@@ -116,7 +116,7 @@ The owner is in brackets. Prices come only from `OFFERINGS.md`; the feed numbers
 
 ## Also open (housekeeping, after steps 1–2)
 
-- Chrome Enterprise Premium trial ends around 2026-11-13: keep or cancel.
+- ~~Chrome Enterprise Premium trial ends around 2026-11-13: keep or cancel.~~ Kept: bought 2026-11-13, 1 license, $6/month, monthly, on a Google Cloud billing account.
 - Workspace housekeeping (about 10 min): turn off the Strayer Outlook forward, remove the GAM7 leftovers, check trevor@'s recovery email.
 - Re-seal the `gmail` MCP client (Security Everything lane).
 - Bless obsidianwatch with Obsidian open. Run `node scripts/render-business-context.js --apply` after the next commit.

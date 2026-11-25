@@ -15,7 +15,7 @@ Entity: **Trevor Robey Intelligence Network Citations LLC** · CA Entity No. **B
 | # | Obligation | Due | Status 2026-10-21 | Cost (from the filing record) | Where |
 |---|---|---|---|---|---|
 | 1 | **IRS EIN** (federal; no California filing ever produces one) | No statutory deadline — but it blocks the bank account and the AWS "Legal business name" update | **Not applied for** | Free | IRS online EIN application: <https://www.irs.gov/businesses/small-businesses-self-employed/apply-for-an-employer-identification-number-ein-online> |
-| 2 | **Statement of Information, Form LLC-12** (CA Secretary of State) | Within 90 days of approval → **2026-09-16**. Then every two years. | **NOT FILED — past due (35 days on 2026-10-21)** | $20 filing fee | bizfileOnline.sos.ca.gov — since **2026-08-01** the online LLC-12 needs **User Access** to the entity record. The login that filed the Articles online (2026-05-06) has it; its email is not recorded (find it in Bitwarden). Without it, a PIN letter is mailed to 8161 Oahu Dr. |
+| 2 | **Statement of Information, Form LLC-12** (CA Secretary of State) | Within 90 days of the **filing** (2026-05-06) → **2026-08-04**: bizfile's due date, and the approval letter says "within 90 days of the initial filing". This cell said 2026-09-16, counted from approval, until 2026-11-06. Then every two years. | **NOT FILED — past due (78 days on 2026-10-21; 94 on 2026-11-06)** | $20 filing fee | bizfileOnline.sos.ca.gov — since **2026-08-01** the online LLC-12 needs **User Access** to the entity record. The login that filed the Articles online (2026-05-06), on the operator's personal Gmail, **has it (checked 2026-11-06), so no PIN is needed.** |
 | 3 | **$800 annual LLC tax, Form FTB 3522** (CA Franchise Tax Board) | 15th day of the 4th month after formation → **2026-08-15** (a Saturday; FTB moves a weekend due date to the next business day, 2026-08-17) | **NOT PAID — past due (67 days on 2026-10-21)** | $800 | FTB **Web Pay for Businesses** (ftb.ca.gov/pay), entity ID **`20260217250`** (the 11 digits of the SOS number; Web Pay does not take the EIN). Paying by Web Pay = do not also mail a 3522. |
 
 **One-sitting walk-through with every answer pre-filled:** [`filing-walkthrough-2026-10.md`](./filing-walkthrough-2026-10.md).
@@ -24,6 +24,13 @@ Entity: **Trevor Robey Intelligence Network Citations LLC** · CA Entity No. **B
 spam and trash included (positive control passed). That covers mail since the 2026-07-22 Gmail cutover,
 not the Zoho period, and agency notices come by post: check the paper mail before filing. Record:
 `../../03-platforms/business-identity-map.md` § 4.
+
+**Live standing and agency mail, 2026-11-06** (checklist item 3; bizfile read in the Claude Browser pane ~22:33 PST,
+the operator signed in). **bizfile:** Status **Active**; Standing SOS, FTB, Agent and VCFCF all **Good**, so not
+suspended. That is not "current": the Statement of Info Due Date shows **08/04/2026** in red, the history holds only the
+Initial Filing, and My Work Queue is empty. **Login:** the account on the operator's personal Gmail has User Access; no
+PIN needed. **Email:** no SOS, FTB or IRS mail in `trevorrobeyinc@gmail.com` or the personal Gmail (which holds mail only
+from August 2026). **Paper mail:** no FTB or SOS notice has ever arrived (the operator, 2026-11-07). Coverage and evidence: `business-identity-map.md` § 4.
 
 **Why this order:** the EIN is free and immediate and unblocks other work; the LLC-12 is $20 and
 online; the $800 is the largest and is accruing the longest. Penalty and interest amounts are **not

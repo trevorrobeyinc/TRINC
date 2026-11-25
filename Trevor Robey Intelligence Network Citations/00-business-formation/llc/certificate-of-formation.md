@@ -12,7 +12,7 @@
 | Standard processing | $70 |
 | Approval status | **APPROVED** — Initial Business Filing Approved (SOS approval letter dated 2026-06-18) |
 | California Entity No. | **B20260217250** — ✅ **CONFIRMED** by certified SOS copy, which labels it "Entity No." Earlier repo notes calling this "just the bizfileOnline filing receipt, not the real entity number" were **incorrect**. |
-| Stamped Articles PDF | In hand — filed Articles of Organization + Filing Acknowledgment (B20260217250) + Welcome Letter saved in `~/Documents` |
+| Stamped Articles PDF | In hand — filed Articles of Organization + Filing Acknowledgment (B20260217250) + Welcome Letter saved in `~/Documents` (`21528651.pdf`, `Business Entity Filing Acknowledgment_B20260217250.pdf`, `Welcome Letter Universal_B20260217250.pdf`; all present 2026-11-06) |
 | Receipt PDF | [`receipt-articles-of-organization-2026-05-06.pdf`](./receipt-articles-of-organization-2026-05-06.pdf) (in this folder) |
 | **Certified copy (CA SOS)** | **Certificate No. 457169837**, issued **2026-05-12**, 1 copy requested; certified by **Shirley N. Weber, Ph.D., California Secretary of State**. Source PDF: `~/Documents/457169837/Certified Copies Acknowledgment.pdf`. Verify at bizfileOnline.sos.ca.gov → Certification Verification Search using Certificate No. 457169837. |
 
@@ -56,7 +56,7 @@ The wordmark and full legal name are paired in customer-facing materials with th
 > [`../compliance/filing-walkthrough-2026-10.md`](../compliance/filing-walkthrough-2026-10.md).
 
 4. Apply for IRS EIN (free, instant): https://www.irs.gov/businesses/small-businesses-self-employed/apply-for-an-employer-identification-number-ein-online — **not applied for (2026-10-21)**
-5. File Statement of Information (Form LLC-12, $20) within 90 days of approval — **due 2026-09-16; NOT FILED, past due (2026-10-21)**
+5. File Statement of Information (Form LLC-12, $20) within 90 days of the filing — **due 2026-08-04; NOT FILED, past due (2026-10-21; re-checked on bizfile 2026-11-06)**. The approval letter says "within 90 days of the initial filing"; this line said 2026-09-16, counted from approval, until 2026-11-06.
 6. Pay $800 California Franchise Tax to FTB by August 15, 2026 (15th day of 4th month after formation) — **NOT PAID, past due (2026-10-21)**
 7. Open business bank account in LLC name
 8. Update AWS Marketplace seller record (Support case with stamped Articles + EIN attached)

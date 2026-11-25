@@ -5,14 +5,30 @@ Moved here from the root `CLAUDE.md` on 2026-10-23 (TRINC reorg Phase 6). The gl
 (a signed-in or identity action, a multi-step navigation, a state change or form submit, or a finding
 worth recalling) prepends one entry here, newest at top, in this format:
 
-`- YYYY-MM-DD · Claude-Browser · <task in a phrase> · <outcome / gotcha>`
+`- YYYY-MM-DD · <Claude-Browser|Claude-in-Chrome> · <task in a phrase> · <outcome / gotcha>`
 
-The only browser surface is the **Claude Browser pane** (`mcp__Claude_Browser__*`, `cb` gate scope).
-Entries before 2026-09-18 may name `claude-in-chrome`, a lane that no longer exists. Security-console
-sessions log in `~/Security Everything/docs/browser-session-history/` instead.
+The browser surfaces are the **Claude Browser pane** (`mcp__Claude_Browser__*`, `cb` gate scope) and, permanently
+since 2026-11-18, **Claude in Chrome** (`mcp__claude-in-chrome__*`, `cic` gate scope, Chrome Profile 2 only, one site per arm).
+Entries before 2026-09-18 may name `claude-in-chrome`, the tag from the lane's first period; new entries use `Claude-in-Chrome`.
+Security-console sessions log in `~/Security Everything/docs/browser-session-history/` instead.
 
 ---
 
+- 2026-11-06 · Claude-Browser · LLC standing and agency-mail check for master checklist item 3 (bizfile public
+  search, then the operator's own bizfile sign-in; read-only Gmail searches in `trevorrobeyinc@gmail.com`; one `cb`
+  arm, ~22:31–22:55 PST) · **DONE, read-only, nothing submitted** — B20260217250 Active, Standing SOS/FTB/Agent/VCFCF
+  all Good, Statement of Info Due Date 08/04/2026 (the repo had 09-16); the login (the operator's personal Gmail) has
+  User Access, so no PIN; history = the Initial Filing only; work queue empty; zero SOS/FTB/IRS mail (a control search
+  returned results). GOTCHAS: (1) **bizfile is behind Imperva**: a fresh pane gets "Additional security check is
+  required", whose text says the computer "may have been infected by malware". That is boilerplate on every challenge,
+  not a scan result. Claude may not pass it; the operator ticks the checkbox in the pane, then the app loads. (2) With
+  the pane hidden, the bizfile app rendered an empty body; ask the operator to show the pane first. (3) Sign-in goes to
+  `idm.sos.ca.gov` (the Secretary of State's Okta) and returns to bizfile. (4) The access test is the record's detail
+  drawer: the public view shows "Request Access"; a login with access shows "File Statement of Information" and
+  "Manage User Access". (5) Gmail's search box ignored `cmd+a`, so the next query was spliced into the old one;
+  navigate to `#inbox` to clear the box before typing. (6) `deliveredto:<address>` presence checks over date windows
+  show when a forwarding rule began without opening any message. The pane was left signed in to bizfile and
+  `trevorrobeyinc@gmail.com`; `cb` was left to idle out.
 - 2026-09-18 · Claude-Browser · add Varo Bank (`com.varomoney.bank`) to the managed Google Play work
   store as **Force install** (logged-in admin.google.com, operator's named instruction; overrides the
   S24 plan's §3.3 KEEP-personal knowingly) · **DONE** — Apps (32) → (33), saved settings read back as

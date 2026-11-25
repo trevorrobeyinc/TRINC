@@ -152,7 +152,9 @@ in the transport lint's forbidden list, as does `:11434`.
 - **Raycast has no door (retired 2026-11-21, operator decision).** The adapter's `raycast` profile,
   `raycast-launch.sh` and Command Center's Raycast dispatch are gone, and both video workflows run from the
   Copilot agent: the `copilot-video-download` skill downloads a link, then `video_pipeline_run` takes the
-  file or folder. Do not add a Raycast door, a video tool on the adapter or a deeplink dispatch back.
+  file or folder. Since 2026-11-22 (operator decision) it also takes a link on Command Center's compiled-in
+  list and hands it to Downie, the one app address Command Center opens. Do not add a Raycast door, a video
+  tool on the adapter or any other deeplink dispatch back.
   **Copilot** calls `:8798`, `:8799` and `:8800` itself, and its agent mode reaches the bridges through
   `bridges/openclaw-stdio-proxy`. That is its door, not Claude's. The adapter's `claude` profile was
   retired 2026-10-23; the profile variable is required, and `openclaw` is its only value.
@@ -307,8 +309,9 @@ pair, fix env propagation or paths); the code must throw a useful error and refu
 - **Guards:** `npm run lint:transport` in `Copilot-Everything/bridges/obsidian-copilot-bridge` and
   `Claude/obsidian-command-center` before committing a bridge change; `bash scripts/lint-transport-monorepo.sh
   --strict` across the repo.
-- **The only plaintext carve-out** is the Claude Browser pane (`mcp__Claude_Browser__*`, `cb` gate), the
-  only browser surface on this machine, which talks to its own local browser over loopback. Computer-use is
+- **The only plaintext carve-out** is the Claude Browser pane (`mcp__Claude_Browser__*`, `cb` gate), which
+  talks to its own local browser over loopback. Claude in Chrome, the second browser surface since 2026-11-18
+  (Chrome Profile 2 only, one site per `cic` arm), gets none. Computer-use is
   disabled; if it is ever re-enabled, add it here in the same change.
 - **Third-party loopback services** are wrapped by single-file proxies in `Copilot-Everything/scripts/`
   (`miyo-`, `qdrant-`, `searxng-tls-proxy.mjs`; Ollama and its `:11435` proxy were removed 2026-11-12, as were
@@ -345,5 +348,5 @@ in the 2026-10 reorganization, with its restore command, is in
 
 Entries live in [`docs/history/browser-sessions.md`](docs/history/browser-sessions.md) (newest at top,
 format and rules at its head). Per the global `~/.claude/CLAUDE.md` rule, a session that uses the Claude
-Browser pane non-trivially prepends one entry there. Security-console sessions log in
+Browser pane or Claude in Chrome non-trivially prepends one entry there. Security-console sessions log in
 `~/Security Everything/docs/browser-session-history/`.
