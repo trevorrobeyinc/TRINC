@@ -1,4 +1,5 @@
 import { Socket } from "node:net";
+import type { Duplex } from "node:stream";
 import { randomUUID } from "node:crypto";
 
 interface PendingRequest {
@@ -11,46 +12,80 @@ interface JsonRpcResponse {
   jsonrpc?: "2.0";
   id?: string;
   result?: unknown;
-  error?: { code?: number; message: string };
+  error?: { code?: number; message: string; reason?: string };
+}
+
+/**
+ * A failed launcher call. `reason` is the launcher's when it refused (obsidian-bridge-launcher src/vaultIpc.ts:
+ * invalid_params, path_refused, not_found, already_exists, command_refused, unavailable), or this client's
+ * own: "timeout" (no answer in time) or "closed" (the pipe is gone).
+ */
+export class LauncherIpcError extends Error {
+  readonly reason: string | undefined;
+
+  constructor(message: string, reason?: string) {
+    super(message);
+    this.name = "LauncherIpcError";
+    this.reason = reason;
+  }
 }
 
 export class LauncherIpcClient {
-  private readonly socket: Socket;
+  private readonly socket: Duplex;
   private readonly pending = new Map<string, PendingRequest>();
-  private buffer = "";
+  private pieces: string[] = [];
   private closed = false;
 
-  constructor(fd: number) {
-    this.socket = new Socket({ fd, readable: true, writable: true });
+  /** `channel` is the fd the launcher gave this process (BRIDGE_IPC_FD) or, in tests, a stream standing in for it. */
+  constructor(channel: number | Duplex) {
+    this.socket = typeof channel === "number" ? new Socket({ fd: channel, readable: true, writable: true }) : channel;
+    // A stream with an encoding decodes through one StringDecoder, so a character split across reads stays whole.
     this.socket.setEncoding("utf8");
     this.socket.on("data", (chunk: string) => this.handleData(chunk));
-    this.socket.on("error", (e) => this.failAll(new Error(`launcher IPC socket error: ${e.message}`)));
-    this.socket.on("close", () => this.failAll(new Error("launcher IPC socket closed")));
+    this.socket.on("error", (e) => this.failAll(new LauncherIpcError(`launcher IPC socket error: ${e.message}`, "closed")));
+    // Once the launcher's side has ended no answer can arrive, so pending calls fail now rather than time out.
+    // (A net.Socket closes after 'end'; a stream that allows half-open use would only end.)
+    this.socket.on("end", () => this.failAll(new LauncherIpcError("launcher IPC socket ended", "closed")));
+    this.socket.on("close", () => this.failAll(new LauncherIpcError("launcher IPC socket closed", "closed")));
   }
 
+  /**
+   * Each read is searched for newlines only in its own text, and a frame's pieces are joined once: read_note
+   * answers carry whole notes now, and rescanning the whole buffer on every read costs time in the square of a
+   * frame's length.
+   */
   private handleData(chunk: string): void {
-    this.buffer += chunk;
-    let nl: number;
-    while ((nl = this.buffer.indexOf("\n")) >= 0) {
-      const line = this.buffer.slice(0, nl);
-      this.buffer = this.buffer.slice(nl + 1);
-      if (!line.trim()) continue;
-      let msg: JsonRpcResponse;
-      try {
-        msg = JSON.parse(line) as JsonRpcResponse;
-      } catch {
-        continue;
-      }
-      if (!msg.id) continue;
-      const pending = this.pending.get(msg.id);
-      if (!pending) continue;
-      this.pending.delete(msg.id);
-      clearTimeout(pending.timer);
-      if (msg.error) {
-        pending.reject(new Error(msg.error.message));
-      } else {
-        pending.resolve(msg.result);
-      }
+    let start = 0;
+    let nl = chunk.indexOf("\n", start);
+    while (nl >= 0) {
+      this.pieces.push(chunk.slice(start, nl));
+      start = nl + 1;
+      const line = this.pieces.join("");
+      this.pieces = [];
+      this.handleLine(line);
+      nl = chunk.indexOf("\n", start);
+    }
+    if (start < chunk.length) this.pieces.push(chunk.slice(start));
+  }
+
+  private handleLine(line: string): void {
+    if (!line.trim()) return;
+    let msg: JsonRpcResponse;
+    try {
+      msg = JSON.parse(line) as JsonRpcResponse;
+    } catch {
+      return;
+    }
+    if (!msg.id) return;
+    const pending = this.pending.get(msg.id);
+    if (!pending) return;
+    this.pending.delete(msg.id);
+    clearTimeout(pending.timer);
+    if (msg.error) {
+      const reason = typeof msg.error.reason === "string" ? msg.error.reason : undefined;
+      pending.reject(new LauncherIpcError(msg.error.message, reason));
+    } else {
+      pending.resolve(msg.result);
     }
   }
 
@@ -66,13 +101,13 @@ export class LauncherIpcClient {
   request<T = unknown>(method: string, params: unknown, timeoutMs = 5000): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       if (this.closed) {
-        reject(new Error("launcher IPC channel is closed"));
+        reject(new LauncherIpcError("launcher IPC channel is closed", "closed"));
         return;
       }
       const id = randomUUID();
       const timer = setTimeout(() => {
         this.pending.delete(id);
-        reject(new Error(`launcher IPC timeout: method=${method} timeoutMs=${timeoutMs}`));
+        reject(new LauncherIpcError(`launcher IPC timeout: method=${method} timeoutMs=${timeoutMs}`, "timeout"));
       }, timeoutMs);
       timer.unref();
       this.pending.set(id, {
@@ -84,6 +119,15 @@ export class LauncherIpcClient {
       this.socket.write(frame + "\n");
     });
   }
+}
+
+/** Why createLauncherIpcClient() has no channel to give, in words obsidian_health can show. */
+export function launcherIpcMissingReason(): string {
+  const fdEnv = process.env.BRIDGE_IPC_FD;
+  if (!fdEnv) return "BRIDGE_IPC_FD is not set";
+  const fd = parseInt(fdEnv, 10);
+  if (!Number.isInteger(fd) || fd < 3) return `BRIDGE_IPC_FD (${JSON.stringify(fdEnv.slice(0, 16))}) is not a usable fd`;
+  return `fd ${fd} from BRIDGE_IPC_FD could not be opened`;
 }
 
 export function createLauncherIpcClient(): LauncherIpcClient | null {

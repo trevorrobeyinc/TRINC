@@ -27,7 +27,8 @@ const requestSchema = z.object({
     .enum(["open_vault", "create_note", "append_note", "read_note", "search_notes", "execute_command"])
     .optional(),
   input: z.unknown().optional(),
-  backendHint: z.literal("restApi").optional(),
+  // No client sends a hint (checked 2026-11-25: the Copilot fork, the engine, the proxies and the adapter).
+  backendHint: z.literal("launcherIpc").optional(),
   epochId: z.number().int().optional(),
 });
 

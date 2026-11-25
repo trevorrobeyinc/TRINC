@@ -3,10 +3,11 @@ import type { RuntimeContext } from "../context";
 import type { BackendId, ToolResult } from "../../types";
 import { executeBackendOperation } from "./common";
 import { guardVaultRelativePath } from "../../fs/pathGuard";
+import { MAX_VAULT_PATH_CHARS } from "../../backends/launcherIpcBackend";
 
 const schema = z.object({
   vault: z.string().min(1),
-  path: z.string().optional(),
+  path: z.string().max(MAX_VAULT_PATH_CHARS).optional(),
   paneType: z.enum(["tab", "split", "window"]).optional(),
 });
 

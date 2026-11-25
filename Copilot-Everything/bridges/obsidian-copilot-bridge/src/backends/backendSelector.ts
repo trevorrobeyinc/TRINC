@@ -23,14 +23,13 @@ export interface RoutingSnapshot {
 
 export interface BackendSelectorOptions {
   refreshIntervalMs?: number;
-  // Order in which backends are tried for each operation. As of 2026-05-09 the
-  // daemon is REST-only — `["restApi"]` is the only sensible value. The option
-  // is preserved for forward compatibility (e.g., adding a new backend type later)
-  // and for tests that want to exercise the priority-chain mechanism.
+  // Order in which backends are tried for each operation. Since 2026-11-25 the daemon has one backend, the
+  // launcher's fd-3 pipe (from 2026-05-09 it was the Local REST API), so `["launcherIpc"]` is the only sensible
+  // value. The option is kept for forward compatibility and for tests of the priority-chain mechanism.
   preferredOrder?: BackendId[];
 }
 
-const DEFAULT_PREFERRED_ORDER: BackendId[] = ["restApi"];
+const DEFAULT_PREFERRED_ORDER: BackendId[] = ["launcherIpc"];
 
 export class BackendSelector {
   private readonly backends: Partial<Record<BackendId, Backend>>;
@@ -42,8 +41,8 @@ export class BackendSelector {
     backends: Partial<Record<BackendId, Backend>>,
     optionsOrRefreshInterval: BackendSelectorOptions | number = 60_000
   ) {
-    if (!backends.restApi) {
-      throw new Error("BackendSelector: restApi backend is required (REST-only since 2026-05-09)");
+    if (!backends.launcherIpc) {
+      throw new Error("BackendSelector: launcherIpc backend is required (the only backend since 2026-11-25)");
     }
     this.backends = backends;
     const opts: BackendSelectorOptions =
@@ -72,7 +71,7 @@ export class BackendSelector {
         execute_command: "uninitialized",
       },
       capabilities: {
-        restApi: { backend: "restApi", available: false, supportedOps: [], reliabilityScore: 0, p95MsByOp: {}, constraints: [] },
+        launcherIpc: { backend: "launcherIpc", available: false, supportedOps: [], reliabilityScore: 0, p95MsByOp: {}, constraints: [] },
       },
     };
   }
@@ -90,9 +89,9 @@ export class BackendSelector {
         capsByBackend[id] = await backend.probe();
       }
     }
-    // Always probe restApi even if it's not first in priority — required by constructor invariant.
-    if (!capsByBackend.restApi) {
-      capsByBackend.restApi = await this.backends.restApi!.probe();
+    // Always probe launcherIpc even if it's not first in priority — required by constructor invariant.
+    if (!capsByBackend.launcherIpc) {
+      capsByBackend.launcherIpc = await this.backends.launcherIpc!.probe();
     }
 
     const operationMap = { ...this.snapshot.operationMap };
@@ -136,19 +135,21 @@ export class BackendSelector {
 
     const routedBackendId = snapshot.operationMap[operation];
     if (!routedBackendId) {
-      const restApiCap = snapshot.capabilities.restApi;
+      const launcherCap = snapshot.capabilities.launcherIpc;
+      // Retrying helps only when the probe may succeed later in this process (a launcher that did not answer
+      // in time); a missing or closed pipe, an old launcher or another vault does not change until a restart.
       throw new AppError(
         ERROR_CODES.NO_CAPABLE_BACKEND,
-        `Cannot serve operation '${operation}': REST API backend unavailable. Call obsidian_health for a structured diagnostic.`,
-        true,
+        `Cannot serve operation '${operation}': the launcher IPC backend is unavailable. Call obsidian_health for a structured diagnostic.`,
+        launcherCap?.permanent !== true,
         {
           operation,
           requestId: randomUUID(),
-          backend: "restApi",
-          available: restApiCap?.available ?? false,
-          reason: restApiCap?.constraints ?? ["unknown"],
-          lastErrorAt: restApiCap?.lastErrorAt,
-          probeDiagnostics: restApiCap?.diagnostics ?? null,
+          backend: "launcherIpc",
+          available: launcherCap?.available ?? false,
+          reason: launcherCap?.constraints ?? ["unknown"],
+          lastErrorAt: launcherCap?.lastErrorAt,
+          probeDiagnostics: launcherCap?.diagnostics ?? null,
         }
       );
     }

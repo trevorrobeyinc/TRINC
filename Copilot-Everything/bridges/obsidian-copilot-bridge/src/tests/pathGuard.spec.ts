@@ -35,4 +35,25 @@ describe("pathGuard", () => {
 
     expect(() => guardVaultRelativePath(root, "escape/note.md")).toThrow();
   });
+
+  // Windows may refuse to create links without a privilege; there the test is reported as skipped, never as a
+  // silent pass. Everywhere else a failed symlinkSync fails the test.
+  it.skipIf(process.platform === "win32")(
+    "rejects a link inside the vault that points into one of its hidden folders, such as .obsidian",
+    () => {
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), "cpbh-path-"));
+      try {
+        fs.mkdirSync(path.join(root, ".obsidian", "plugins"), { recursive: true });
+        fs.mkdirSync(path.join(root, "Notes"));
+        fs.symlinkSync(path.join(root, ".obsidian"), path.join(root, "settings"), "dir");
+        fs.symlinkSync(path.join(root, "Notes"), path.join(root, "notes-link"), "dir");
+        expect(() => guardVaultRelativePath(root, "settings/plugins/evil/main.js")).toThrow(/hidden folder/);
+        expect(() => guardVaultRelativePath(root, "settings")).toThrow(/hidden folder/);
+        // A link to an ordinary folder inside the vault still works.
+        expect(guardVaultRelativePath(root, "notes-link/today.md").relativePath).toBe("notes-link/today.md");
+      } finally {
+        fs.rmSync(root, { recursive: true, force: true });
+      }
+    }
+  );
 });

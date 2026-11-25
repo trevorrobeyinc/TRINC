@@ -1,6 +1,7 @@
-// As of 2026-05-09 the daemon is REST-only. CliBackend was removed entirely;
-// failures surface via the obsidian_health diagnostic tool instead of silent fallback.
-export type BackendId = "restApi";
+// One backend: since 2026-11-25 the launcher's fd-3 pipe (LauncherIpcBackend), which replaced the Local REST
+// API plugin on :27124 (REST-only from 2026-05-09, when CliBackend was removed). There is no silent fallback:
+// failures surface through the obsidian_health diagnostic tool.
+export type BackendId = "launcherIpc";
 
 export type Operation =
   | "open_vault"

@@ -5,20 +5,19 @@ import type { ToolResult } from "../../types";
 /**
  * obsidian_health — diagnostic tool.
  *
- * Forces a fresh probe of the REST API backend and returns a structured
- * report. When REST API is unavailable, the report contains a triaged
- * failure mode and concrete suggested fixes so the underlying issue can
- * be debugged. There is no silent CLI fallback — this is the canonical
- * place to look when Obsidian operations start failing.
+ * Forces a fresh probe of the launcher IPC backend (the fd-3 pipe to obsidian-bridge-launcher, the only
+ * backend since 2026-11-25) and returns a structured report. When the backend is unavailable, the report
+ * holds a triaged failure mode and concrete suggested fixes. There is no silent fallback — this is the
+ * canonical place to look when Obsidian operations start failing.
  *
- * Returned shape (always ok=true so the structured body always reaches
- * the caller; the body's `status` field is "healthy" | "degraded" | "down"):
+ * Returned shape (always ok=true so the structured body always reaches the caller; the body's `status`
+ * field is "healthy" | "degraded" | "down"):
  *
  *   {
  *     status: "healthy" | "degraded" | "down",
- *     restApi: { available, endpoint, supportedOps, p95MsByOp, lastErrorAt, constraints },
+ *     launcherIpc: { available, channel, supportedOps, p95MsByOp, lastErrorAt, constraints, diagnostics },
  *     diagnosis?: {                    // present when status != "healthy"
- *       category: "config" | "auth" | "connectivity" | "plugin" | "unknown",
+ *       category: "config" | "connectivity" | "plugin" | "unknown",
  *       summary: string,
  *       suggestedFixes: string[],
  *       rawConstraints: string[],
@@ -33,16 +32,16 @@ export async function obsidianHealthTool(
   requestId: string
 ): Promise<ToolResult<Record<string, unknown>>> {
   const snapshot = await runtime.selector.refresh(true);
-  const restApi = snapshot.capabilities.restApi;
+  const launcherIpc = snapshot.capabilities.launcherIpc;
 
-  const status = computeStatus(restApi);
-  const diagnosis = status === "healthy" ? undefined : diagnose(restApi);
+  const status = computeStatus(launcherIpc);
+  const diagnosis = status === "healthy" ? undefined : diagnose(launcherIpc);
 
   return {
     ok: true,
     data: {
       status,
-      restApi: summarizeBackend(restApi),
+      launcherIpc: summarizeBackend(launcherIpc),
       ...(diagnosis ? { diagnosis } : {}),
       security: {
         // The transport actually serving: "uds" (vault-bridge.sock) on macOS/Linux, "pipe" on
@@ -82,12 +81,12 @@ function summarizeBackend(cap: BackendCapabilities | undefined): Record<string, 
   if (!cap) {
     return {
       available: false,
-      reason: "restApi backend not registered",
+      reason: "launcherIpc backend not registered",
     };
   }
   return {
     available: cap.available,
-    endpoint: process.env.OBSIDIAN_REST_API_BASE ?? "https://127.0.0.1:27124",
+    channel: "fd-3 pipe to obsidian-bridge-launcher (no TCP port)",
     supportedOps: cap.supportedOps,
     reliabilityScore: cap.reliabilityScore,
     p95MsByOp: cap.p95MsByOp,
@@ -98,107 +97,74 @@ function summarizeBackend(cap: BackendCapabilities | undefined): Record<string, 
 }
 
 interface Diagnosis {
-  category: "config" | "auth" | "connectivity" | "plugin" | "unknown";
+  category: "config" | "connectivity" | "plugin" | "unknown";
   summary: string;
   suggestedFixes: string[];
   rawConstraints: string[];
 }
 
+const RESTART_BRIDGE = "In Obsidian, run the Bridge Launcher's 'Restart bridge' command.";
+const RELAUNCH_OBSIDIAN = "If that does not help, quit Obsidian and open it again from the Dock or Finder.";
+
 function diagnose(cap: BackendCapabilities | undefined): Diagnosis {
-  const constraints = cap?.constraints ?? ["restApi backend not registered"];
+  const constraints = cap?.constraints ?? ["launcherIpc backend not registered"];
   const joined = constraints.join(" | ");
 
-  // Config errors — env vars not set.
-  if (/config_invalid/i.test(joined)) {
-    if (/OBSIDIAN_REST_API_KEY/i.test(joined)) {
-      return {
-        category: "config",
-        summary: "OBSIDIAN_REST_API_KEY is not set in the daemon environment.",
-        suggestedFixes: [
-          "Confirm bridges/obsidian-copilot-bridge/.env.local contains OBSIDIAN_REST_API_KEY=<your-key> (mode 0600).",
-          "If the daemon is spawned by the obsidian-bridge-launcher Obsidian plugin, ensure the plugin loads .env.local from the bridge directory before spawn.",
-          "Restart Obsidian to respawn the daemon with the loaded env.",
-        ],
-        rawConstraints: constraints,
-      };
-    }
-    if (/OBSIDIAN_REST_API_CERT_PATH/i.test(joined)) {
-      return {
-        category: "config",
-        summary: "REST API certificate path is missing or unreadable.",
-        suggestedFixes: [
-          "Confirm bridges/obsidian-copilot-bridge/config/obsidian-local-rest-api.crt exists and is mode 0644.",
-          "If the cert was rotated, re-export it from the Local REST API plugin's settings tab and replace the file.",
-          "Update OBSIDIAN_REST_API_CERT_PATH in .env.local if the cert lives elsewhere.",
-        ],
-        rawConstraints: constraints,
-      };
-    }
+  // No usable launcher pipe. Most often the bridge was started outside Obsidian (bridge-start.sh): the launcher
+  // replaces such a bridge once its parent has gone (one bridge-restart.sh started), but refuses one whose
+  // terminal is still open, so that one has to be stopped first. A pipe that is set but unusable needs a restart.
+  if (/launcher_ipc_missing/i.test(joined)) {
+    const outside = /BRIDGE_IPC_FD is not set/.test(joined);
     return {
       category: "config",
-      summary: "Daemon REST API config is invalid (key, cert, or base URL).",
-      suggestedFixes: [
-        "Inspect bridges/obsidian-copilot-bridge/.env.local for missing variables.",
-      ],
+      summary: outside
+        ? "This bridge was not started by obsidian-bridge-launcher, so it has no fd-3 pipe (BRIDGE_IPC_FD is not set)."
+        : "This bridge's fd-3 pipe from obsidian-bridge-launcher cannot be used (BRIDGE_IPC_FD is set but unusable).",
+      suggestedFixes: outside
+        ? [
+            `If this bridge (pid ${process.pid}) runs in a terminal (bridge-start.sh), stop it there first with Ctrl-C: the launcher refuses to replace a bridge whose terminal is still open. One that bridge-restart.sh started is replaced by 'Restart bridge' directly.`,
+            RESTART_BRIDGE,
+          ]
+        : [RESTART_BRIDGE, RELAUNCH_OBSIDIAN],
       rawConstraints: constraints,
     };
   }
 
-  // Connection refused / network error.
-  if (/ECONNREFUSED|ETIMEDOUT|ENOTFOUND|request timeout/i.test(joined)) {
-    return {
-      category: "connectivity",
-      summary: "Cannot reach the Local REST API plugin at https://127.0.0.1:27124.",
-      suggestedFixes: [
-        "Open Obsidian.app — the Local REST API plugin only runs while Obsidian is running.",
-        "Settings → Community plugins → confirm 'Local REST API' is enabled.",
-        "Settings → Community plugins → Local REST API → confirm HTTPS server is enabled on port 27124.",
-        "Try: curl -k https://127.0.0.1:27124/ — non-zero exit means the listener is down.",
-      ],
-      rawConstraints: constraints,
-    };
-  }
-
-  // Auth failure (401/403 or authenticated:false).
-  if (/probe_status:(401|403)|authenticated:false/i.test(joined)) {
-    return {
-      category: "auth",
-      summary: "REST API plugin rejected the API key.",
-      suggestedFixes: [
-        "Open Obsidian → Settings → Community plugins → Local REST API → API Key — copy the current key.",
-        "Update OBSIDIAN_REST_API_KEY in bridges/obsidian-copilot-bridge/.env.local with the copied value.",
-        "Restart Obsidian (and therefore the bridge daemon) to reload the env.",
-      ],
-      rawConstraints: constraints,
-    };
-  }
-
-  // Other non-2xx HTTP statuses.
-  const statusMatch = joined.match(/probe_status:(\d{3})/i);
-  if (statusMatch) {
+  // A launcher older than 0.2.0 serves the console methods but not the vault methods. The fix is the
+  // operator's to make (a deploy changes a protected plugin), so it is worded for them, naming no command
+  // for whichever agent reads this report.
+  if (/launcher_too_old/i.test(joined)) {
     return {
       category: "plugin",
-      summary: `REST API plugin returned HTTP ${statusMatch[1]} on the probe endpoint.`,
+      summary: "obsidian-bridge-launcher predates the vault operations, so it cannot serve them.",
       suggestedFixes: [
-        "Check Obsidian's developer console (Cmd+Opt+I) for plugin errors.",
-        "Settings → Community plugins → toggle Local REST API off then on to reset its listener.",
-        "If the issue persists, update the plugin to the latest version.",
+        "Operator step: deploy obsidian-bridge-launcher 0.2.0 or later and re-bless it in obsidianwatch, as the vault-ipc decision record (2026-11-25) describes.",
+        "Then quit Obsidian and open it again from the Dock, so the new launcher spawns the bridge.",
       ],
       rawConstraints: constraints,
     };
   }
 
-  // Self-signed cert mismatch (NODE_EXTRA_CA_CERTS not set or cert rotated).
-  if (/self.signed|UNABLE_TO_VERIFY|CERT_/i.test(joined)) {
+  // The launcher answering this bridge's pipe runs in a different vault from the one this bridge guards, or
+  // did not say which vault it serves.
+  if (/vault_mismatch|vault_unverified/i.test(joined)) {
     return {
       category: "config",
-      summary: "TLS handshake failed — the daemon does not trust the REST API plugin's self-signed cert.",
+      summary: "obsidian-bridge-launcher serves a different vault from this bridge's allowedVaultRoots[0], or did not name its vault.",
       suggestedFixes: [
-        "Re-export the cert from the Local REST API plugin's settings tab.",
-        "Replace bridges/obsidian-copilot-bridge/config/obsidian-local-rest-api.crt with the new file.",
-        "Confirm OBSIDIAN_REST_API_CERT_PATH in .env.local points at the file.",
-        "Restart Obsidian to respawn the daemon with the new cert.",
+        "Enable obsidian-bridge-launcher only in the vault named in the bridge config's allowedVaultRoots, or correct that config.",
+        RESTART_BRIDGE,
       ],
+      rawConstraints: constraints,
+    };
+  }
+
+  // The pipe exists but the launcher did not answer, or the pipe closed.
+  if (/probe_failed|timeout|closed/i.test(joined)) {
+    return {
+      category: "connectivity",
+      summary: "The launcher did not answer on the fd-3 pipe.",
+      suggestedFixes: [RESTART_BRIDGE, RELAUNCH_OBSIDIAN],
       rawConstraints: constraints,
     };
   }
@@ -206,11 +172,11 @@ function diagnose(cap: BackendCapabilities | undefined): Diagnosis {
   // Unknown failure mode — surface raw constraints.
   return {
     category: "unknown",
-    summary: "REST API backend is unavailable for an unrecognized reason.",
+    summary: "The launcher IPC backend is unavailable for an unrecognized reason.",
     suggestedFixes: [
       "Inspect rawConstraints for the underlying error.",
       "Check the bridge daemon log for context — see config.logging.file in obsidian-cli-mcp.local.json.",
-      "Quit and reopen Obsidian to respawn the daemon.",
+      RELAUNCH_OBSIDIAN,
     ],
     rawConstraints: constraints,
   };

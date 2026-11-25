@@ -37,7 +37,11 @@ export interface ServerConfig {
     nonceTtlSeconds: number;
     rateLimitPerMinute: number;
     globalRateLimitPerMinute: number;
-    /** Empty = denylist mode (DENIED_COMMAND_PATTERNS). Non-empty = strict allowlist. */
+    /**
+     * Optional narrowing of the launcher's command allow-list (obsidian-bridge-launcher src/commandPolicy.ts,
+     * the authority since 2026-11-25). Empty = the launcher's list as is. Non-empty = only these ids; an id the
+     * launcher refuses still never runs.
+     */
     executeCommandAllowlist: string[];
   };
   logging: {

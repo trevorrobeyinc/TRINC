@@ -7,14 +7,30 @@ import { guardVaultRelativePath, revalidateGuardedPath } from "../../fs/pathGuar
 import { buildAppendMarker, markerRegexForKey } from "../../idempotency/marker";
 import { executeBackendOperation } from "./common";
 import { assertExpectedRevision } from "../../consistency/model";
+import {
+  APPEND_CONFIRM_TAIL_CHARS,
+  assertBodyFits,
+  MAX_NOTE_BYTES,
+  MAX_VAULT_PATH_CHARS,
+} from "../../backends/launcherIpcBackend";
+
+/** The longest idempotency key: the marker written after the content carries it whole. */
+const MAX_IDEMPOTENCY_KEY_CHARS = 256;
+/**
+ * Room kept under the launcher's body limit for the marker that follows the content: a newline, about 141
+ * characters of fixed text, and the key (at most 256 UTF-16 units, so at most 768 bytes of UTF-8).
+ */
+const APPEND_MARKER_ROOM_BYTES = 4096;
+const MAX_APPEND_BYTES = MAX_NOTE_BYTES - APPEND_MARKER_ROOM_BYTES;
 
 const schema = z.object({
   vault: z.string().min(1),
   vaultRoot: z.string().min(1),
-  path: z.string().min(1),
+  path: z.string().min(1).max(MAX_VAULT_PATH_CHARS),
+  // Its size is checked right after parsing (assertBodyFits), so an oversized body is PAYLOAD_TOO_LARGE.
   content: z.string().min(1),
   inline: z.boolean().optional(),
-  idempotencyKey: z.string().min(1).optional(),
+  idempotencyKey: z.string().min(1).max(MAX_IDEMPOTENCY_KEY_CHARS).optional(),
   expectedRevision: z.string().optional(),
 });
 
@@ -48,6 +64,9 @@ async function reconcileAppendMarker(
         vault: payload.vault,
         vaultRoot: payload.vaultRoot,
         path: payload.path,
+        // Only the end of the note is needed (the marker is the last thing appended), and a tail read is not
+        // capped by note size, so an append to a note that has grown large is still confirmed.
+        tailChars: APPEND_CONFIRM_TAIL_CHARS,
       },
     },
     (stdout) => stdout,
@@ -72,7 +91,7 @@ async function reconcileAppendMarker(
     );
   }
 
-  return markerRegexForKey(key).test(readResult.data.slice(-16_384));
+  return markerRegexForKey(key).test(readResult.data.slice(-APPEND_CONFIRM_TAIL_CHARS));
 }
 
 /**
@@ -150,13 +169,19 @@ export async function appendNoteTool(
     throw new AppError(ERROR_CODES.NO_CAPABLE_BACKEND, "Server is in read-only mode.");
   }
 
-  const payload = schema.parse(input);
-  if (!runtime.config.allowedVaultRoots.includes(payload.vaultRoot)) {
+  const parsed = schema.parse(input);
+  // Before the ledger starts the key: a refused body leaves no STARTED entry behind.
+  assertBodyFits(parsed.content, MAX_APPEND_BYTES);
+  if (!runtime.config.allowedVaultRoots.includes(parsed.vaultRoot)) {
     throw new AppError(ERROR_CODES.PATH_OUTSIDE_VAULT, "vaultRoot is not in allowedVaultRoots.");
   }
   // Security (audit VW-2): pin the guard root to the server-configured vault.
-  const guarded = guardVaultRelativePath(runtime.config.allowedVaultRoots[0], payload.path);
-  assertExpectedRevision(guarded.absolutePath, payload.expectedRevision);
+  const guarded = guardVaultRelativePath(runtime.config.allowedVaultRoots[0], parsed.path);
+  assertExpectedRevision(guarded.absolutePath, parsed.expectedRevision);
+  // The append and its reconciliation reads send the path the guard checked (NFC, '/' separators, trimmed), as
+  // create_note and read_note do, never the client's raw text: the launcher re-checks what it is sent, and the
+  // write lock and read pins are keyed on it.
+  const payload = { ...parsed, path: guarded.relativePath };
 
   if (!payload.idempotencyKey) {
     throw new AppError(
@@ -258,7 +283,8 @@ export async function appendNoteTool(
     if (
       result.error.code === ERROR_CODES.CLI_TIMEOUT ||
       result.error.code === ERROR_CODES.CLI_EXIT_NONZERO ||
-      result.error.code === ERROR_CODES.QUEUE_TIMEOUT
+      result.error.code === ERROR_CODES.QUEUE_TIMEOUT ||
+      result.error.code === ERROR_CODES.LAUNCHER_IPC_TIMEOUT
     ) {
       runtime.ledger.ambiguous("append_note", key, result.error.message);
     }

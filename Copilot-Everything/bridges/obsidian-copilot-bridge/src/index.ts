@@ -1,22 +1,19 @@
-// Load .env.local (e.g., OBSIDIAN_REST_API_KEY) BEFORE any module that reads
-// process.env at load time. The obsidian-bridge-launcher Obsidian plugin spawns
-// this daemon as a child process and does not auto-source .env.local.
-import { loadEnvLocal } from "./config/envLocal";
-const envResult = loadEnvLocal();
-
+// No .env.local is loaded since 2026-11-25: it held only the Local REST API's key, base URL and certificate
+// path, and the bridge no longer talks to that plugin. The file stays on disk as the rollback's credentials
+// until the plugin is uninstalled (ops/security/vault-ipc-2026-11-25.md, Rollback): do not delete it before then.
 import path from "node:path";
 import { loadConfig } from "./config/loader";
 import { StructuredLogger } from "./observability/logger";
 import { Metrics } from "./observability/metrics";
 import { IdempotencyLedger } from "./idempotency/ledger";
 import { BoundedScheduler } from "./server/queue";
-import { RestApiBackend } from "./backends/restApiBackend";
+import { LauncherIpcBackend } from "./backends/launcherIpcBackend";
 import { BackendSelector } from "./backends/backendSelector";
 import { createWriteLocker, ReadAfterWritePins, type RuntimeContext } from "./server/context";
 import { EventBus } from "./server/eventBus";
 import { startUdsTransport } from "./server/udsTransport";
 import { startWindowsPipeTransport } from "./server/windowsPipeTransport";
-import { createLauncherIpcClient } from "./server/launcherIpc";
+import { createLauncherIpcClient, launcherIpcMissingReason } from "./server/launcherIpc";
 
 /**
  * On SIGTERM/SIGINT, in-flight tool calls get this long after the listener closed, then the ledger closes. With the
@@ -34,14 +31,28 @@ async function main(): Promise<void> {
   const scheduler = new BoundedScheduler(config.queue.capacity, config.queue.workerConcurrency);
   const ledger = new IdempotencyLedger(path.resolve(process.cwd(), "state/idempotency.sqlite"));
 
-  // Local REST API plugin backend is the SOLE backend. When Obsidian.app is
-  // closed, the plugin is disabled, or auth fails, operations error with a
-  // structured diagnostic. The obsidian_health tool returns a rich error report
-  // including the probe failure mode and suggested fixes. There is no silent
-  // CLI fallback — failures surface clearly so they can be debugged.
-  const restApiBackend = new RestApiBackend();
+  // The launcher's fd-3 pipe carries the dev-console tools and, since 2026-11-25, all six vault operations:
+  // LauncherIpcBackend is the SOLE backend (it replaced the Local REST API plugin on :27124). When Obsidian is
+  // closed or the launcher predates its vault methods, operations fail with a structured diagnostic, and
+  // obsidian_health reports the probe's failure mode with suggested fixes. There is no silent fallback.
+  const launcherIpc = createLauncherIpcClient();
+  const missingReason = launcherIpc ? undefined : launcherIpcMissingReason();
+  if (launcherIpc) {
+    logger.info("launcher_ipc_attached", { fd: process.env.BRIDGE_IPC_FD });
+  } else {
+    // No usable pipe (most often a start outside Obsidian: bridge-start.sh, a terminal): /healthz still answers,
+    // but no vault operation can run. Said on stderr too, because that is where a terminal start looks.
+    logger.warn("launcher_ipc_missing", { reason: missingReason });
+    process.stderr.write(
+      `[vault-bridge] no launcher pipe (${missingReason}): the six vault tools will fail; obsidian_health says why. ` +
+        "Start the bridge from Obsidian instead.\n"
+    );
+  }
   const selector = new BackendSelector({
-    restApi: restApiBackend,
+    launcherIpc: new LauncherIpcBackend(launcherIpc, {
+      vaultRoot: config.allowedVaultRoots[0],
+      missingReason,
+    }),
   });
 
   await selector.refresh(true);
@@ -52,11 +63,6 @@ async function main(): Promise<void> {
   }, 20_000);
   // setInterval keeps the event loop alive; unref so it doesn't block shutdown.
   heartbeatTimer.unref();
-
-  const launcherIpc = createLauncherIpcClient();
-  if (launcherIpc) {
-    logger.info("launcher_ipc_attached", { fd: process.env.BRIDGE_IPC_FD });
-  }
 
   const runtime: RuntimeContext = {
     config,
@@ -76,7 +82,7 @@ async function main(): Promise<void> {
     configPath,
     transport: config.transport.mode,
     tokenEntropyBits,
-    envLocal: { loaded: envResult.loaded, path: envResult.path, count: envResult.count },
+    backend: "launcherIpc",
   });
 
   let closeTransport: () => Promise<void>;

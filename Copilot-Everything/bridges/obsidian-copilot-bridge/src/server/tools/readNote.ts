@@ -6,11 +6,12 @@ import { executeBackendOperation } from "./common";
 import { readRevision } from "../../consistency/model";
 import { AppError } from "../errors";
 import { ERROR_CODES } from "../errorCodes";
+import { MAX_VAULT_PATH_CHARS } from "../../backends/launcherIpcBackend";
 
 const schema = z.object({
   vault: z.string().min(1),
   vaultRoot: z.string().min(1),
-  path: z.string().min(1),
+  path: z.string().min(1).max(MAX_VAULT_PATH_CHARS),
 });
 
 export async function readNoteTool(

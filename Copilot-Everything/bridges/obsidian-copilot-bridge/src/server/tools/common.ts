@@ -101,7 +101,7 @@ export async function executeBackendOperation<T>(
     };
   } catch (error) {
     const appError = error instanceof AppError ? error : new AppError(ERROR_CODES.INTERNAL_ERROR, String(error));
-    runtime.metrics.recordFailure(selectedBackend ?? request.backendHint ?? "restApi", request.operation, appError.code);
+    runtime.metrics.recordFailure(selectedBackend ?? request.backendHint ?? "launcherIpc", request.operation, appError.code);
     return buildFailure(appError, {
       requestId: request.requestId,
       durationMs: Date.now() - started,

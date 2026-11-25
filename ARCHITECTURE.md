@@ -52,7 +52,7 @@ their rows show the socket.
 ```
 Obsidian — owns four bridges (three on Unix sockets, the Security Bridge on HTTPS); all of them die when Obsidian quits
 ├── obsidian-bridge-launcher ─spawns─> canonical vault bridge    vault-bridge.sock    (node child process)
-│       Local REST API plugin underneath                              :27124 (the vault engine)
+│       vault engine: the launcher's fd-3 pipe into app.vault         no TCP port (since the 2026-11-25 deploy; :27124 before)
 │       routes /healthz /metrics /mcp/events POST /mcp/tool; bearer token + replay guard
 ├── command-center ──────────────────> Command Center bridge     command-center.sock  32 tools
 │       7 vault + 16 obsidian_openclaw_* + 7 zk_* + 2 video_pipeline_*; 0600 token file
@@ -234,7 +234,7 @@ and the folders under `.obsidian/plugins/` all key on them. Display names are fr
 
 | Plugin | Source | Role |
 |---|---|---|
-| `obsidian-bridge-launcher` | `Claude/obsidian-bridge-launcher` | spawns the canonical vault bridge (`dist/index.js --transport=uds`, socket `vault-bridge.sock`); owns the fd-3 IPC used for console capture and the gated eval tool (off by default) |
+| `obsidian-bridge-launcher` | `Claude/obsidian-bridge-launcher` | spawns the canonical vault bridge (`dist/index.js --transport=uds`, socket `vault-bridge.sock`); owns the fd-3 IPC: console capture and, since 2026-11-25, the bridge's six vault operations (`src/vaultIpc.ts`; commands only from `src/commandPolicy.ts`'s exact ids); `console.eval` is a denied, audited stub |
 | `command-center` | `Claude/obsidian-command-center` | dispatches runs, owns `command-center.sock`, runs the post-run enrichment |
 | `trinc-viz-studio` | `Claude/obsidian-viz-studio` | owns `viz-studio.sock`; diagrams, charts, canvases, explainer cards, stat tiles, mockups, interactive HTML |
 | `vault-zettelkasten` | `Claude/obsidian-vault-zettelkasten` | in-process Zettelkasten analyses on hosted `copilot-plus-flash` |
@@ -326,6 +326,7 @@ node /Users/myhome/TRINC/ops/tr-suite/bridge-guard-live-check.mjs             # 
 
 | Thing | Status |
 |---|---|
+| **The vault bridge's Local REST API backend** (`RestApiBackend`, `src/config/envLocal.ts` and the bridge's `.env.local` loading; its calls to `https://127.0.0.1:27124`) | Retired 2026-11-25 by operator decision (decision record `ops/security/vault-ipc-2026-11-25.md`). The six vault operations run in Obsidian's renderer behind obsidian-bridge-launcher 0.2.0's private fd-3 pipe (`src/vaultIpc.ts`), and commands run only from the launcher's exact-id list (`src/commandPolicy.ts`). The plugin stays installed, then disabled, as the rollback until its uninstall after the soak. Back out only through the record's Rollback while that window is open; outside it, never route vault operations back through a TCP plugin, and never add a silent fallback to one. |
 | **TCP and mkcert TLS for the three bridges** (`:8798`, `:8799`, `:8800`; `httpTransport.ts`, `start:https` and `--transport=https`, the bridges' TLS env, the `bridgePort` settings, the clients' CA trust, `official-plugin-direct-mcp-cutover.sh` and `official-plugin-enable-write-mcp.sh`) | Retired 2026-11-24 (bridges-uds; decision record `ops/security/bridges-uds-2026-11-24.md`). The bridges serve the same routes on Unix sockets in `~/.local/state/trinc/run/`. Never re-add a TCP listener or a TCP fallback for them: a client that dials the freed ports hands its token to whatever holds them. The two official-plugin scripts refuse to run: they overwrote Copilot's MCP config with one `http://` server and printed the token. Back out only through the record's cold rollback, never piecemeal. |
 | **Ollama model warmer** (`Copilot-Everything/scripts/ollama-preload.sh`, launchd label `com.trevorrobey.ollama-preload`) | Removed 2026-11-04 by operator decision: no plist was installed, nothing called it, and its model is not installed. The `:11435` TLS proxy is separate and stays. |
 | **Claude → opencode delegation worker** (`opencode-mcp`, `_opencode-bridge/`, the repo `AGENTS.md` mirrors) | Retired 2026-10-23. `~/.config/opencode/` stays: it is the Copilot agent's opencode configuration. |

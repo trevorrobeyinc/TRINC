@@ -7,6 +7,11 @@ reviews, ten implementation units) on branch `claude/bridges-uds`, worktree `/Us
 cut from TRINC main `577f8f4`. The design's working files lived in a session scratch folder, which is emptied when a
 session reloads, so everything a later session needs is written here.
 
+**Superseded in part on 2026-11-25:** wherever this record shows the Local REST API `:27124` as the vault bridge's
+engine (the *Unchanged on purpose* list, the after-state diagrams and the quoted CLAUDE.md text), read
+obsidian-bridge-launcher's private fd-3 pipe instead, from that decision's deploy on (decision record
+`ops/security/vault-ipc-2026-11-25.md`). The rest of this record stands as written.
+
 ## The decision
 
 The canonical vault bridge (TCP `:8798` until now), the Command Center bridge (`:8799`) and the Viz Studio bridge

@@ -68,12 +68,13 @@ const schema = z.object({
     nonceTtlSeconds: z.number().int().min(10).max(600).default(120),
     rateLimitPerMinute: z.number().int().min(1).default(600),
     globalRateLimitPerMinute: z.number().int().min(1).default(2400),
-    // Strict allowlist for obsidian_execute_command. EMPTY (the default) means
-    // "denylist mode" — see DENIED_COMMAND_PATTERNS in server/tools/executeCommand.ts.
+    // Narrows obsidian_execute_command further. Since 2026-11-25 the authoritative list is
+    // the launcher's (obsidian-bridge-launcher src/commandPolicy.ts, exact ids): EMPTY (the
+    // default) means that list applies unchanged, and a non-empty list can only narrow it.
     // This key MUST be declared here: zod's `z.object()` STRIPS unknown keys on parse,
     // so before it existed an operator could add `executeCommandAllowlist` to the config
-    // JSON, get no error, and silently receive no allowlist at all — a false sense of
-    // lockdown, which is worse than knowingly running the denylist.
+    // JSON, get no error, and silently receive no narrowing at all — a false sense of
+    // lockdown.
     executeCommandAllowlist: z.array(z.string()).default([]),
   }),
   logging: z

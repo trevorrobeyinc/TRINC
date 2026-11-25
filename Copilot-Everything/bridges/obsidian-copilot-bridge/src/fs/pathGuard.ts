@@ -61,6 +61,20 @@ function assertInsideVault(rootReal: string, candidate: string): void {
   }
 }
 
+/**
+ * safeRelative refuses a dot segment in the text, but a link inside the vault can point into one of the vault's
+ * own hidden folders (".obsidian", ".git", ".trash"), and the escape check allows that, because the target is
+ * still inside the vault. So the resolved path gets the same check, relative to the vault root (2026-11-25).
+ */
+function assertNoHiddenSegment(rootReal: string, canonical: string): void {
+  const root = normalizeForCompare(rootReal);
+  const target = normalizeForCompare(canonical);
+  const rel = target === root ? "" : target.slice(root.length + 1);
+  if (rel.split("/").some((segment) => segment.startsWith("."))) {
+    throw new AppError(ERROR_CODES.PATH_INVALID, "Path resolves through a link into a hidden folder such as .obsidian.");
+  }
+}
+
 function canonicalizeCandidate(rootReal: string, candidate: string): string {
   const rel = path.relative(rootReal, candidate);
   const segments = rel.split(path.sep).filter(Boolean);
@@ -112,6 +126,7 @@ export function guardVaultRelativePath(vaultRoot: string, relativePath: string):
       resolved: canonical,
     });
   }
+  assertNoHiddenSegment(rootReal, canonical);
 
   return {
     vaultRoot: rootReal,

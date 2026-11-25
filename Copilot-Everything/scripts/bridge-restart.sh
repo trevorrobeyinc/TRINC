@@ -12,6 +12,12 @@
 #   2. SIGTERM, then a wait for the process to exit (the bridge closes its socket and drains first).
 #   3. bridge-start.sh in the background, then ops/tr-suite/uds-health.mjs until the bridge answers /healthz.
 # A stale socket left by a killed bridge needs nothing: the bridge's next start replaces it.
+#
+# Since 2026-11-25 the bridge this script starts serves NO vault operation (see bridge-start.sh): its only
+# backend is the launcher's fd-3 pipe. A healthy /healthz here therefore means the socket answers, not that the
+# note tools work. To restart the production bridge, use the launcher's 'Restart bridge' command in Obsidian.
+# It runs bridge-start.sh, which first rebuilds the main checkout's dist/, the build the launcher spawns: do not
+# run it while a rollback to a saved dist/ is in place (ops/security/vault-ipc-2026-11-25.md, Rollback).
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -124,10 +130,11 @@ BRIDGE_PID=$!
 
 for _attempt in {1..40}; do
   if bridge_healthy; then
-    echo "Shared MCP bridge restarted."
+    echo "Shared MCP bridge restarted (development: no launcher pipe, so the six vault tools fail)."
     echo "  pid:             $BRIDGE_PID"
     echo "  socket:          $RUN_DIR/$SOCKET_NAME"
     echo "  log:             $LOG_FILE"
+    echo "  production:      in Obsidian, the Bridge Launcher's 'Restart bridge' command"
     exit 0
   fi
   # bridge-start.sh execs the bridge, so this pid is the bridge; a refused start (for example ALREADY_SERVED)

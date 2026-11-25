@@ -8,11 +8,13 @@ import { executeBackendOperation } from "./common";
 import { AppError } from "../errors";
 import { ERROR_CODES } from "../errorCodes";
 import { assertExpectedRevision } from "../../consistency/model";
+import { assertBodyFits, MAX_NOTE_BYTES, MAX_VAULT_PATH_CHARS } from "../../backends/launcherIpcBackend";
 
 const schema = z.object({
   vault: z.string().min(1),
   vaultRoot: z.string().min(1),
-  path: z.string().min(1),
+  path: z.string().min(1).max(MAX_VAULT_PATH_CHARS),
+  // Its size is checked right after parsing (assertBodyFits), so an oversized body is PAYLOAD_TOO_LARGE.
   content: z.string().default(""),
   overwrite: z.boolean().optional(),
   open: z.boolean().optional(),
@@ -32,6 +34,8 @@ export async function createNoteTool(
   }
 
   const payload = schema.parse(input);
+  // Before the folder is made on disk: a refused body leaves nothing behind.
+  assertBodyFits(payload.content, MAX_NOTE_BYTES);
   if (!runtime.config.allowedVaultRoots.includes(payload.vaultRoot)) {
     throw new AppError(ERROR_CODES.PATH_OUTSIDE_VAULT, "vaultRoot is not in allowedVaultRoots.");
   }

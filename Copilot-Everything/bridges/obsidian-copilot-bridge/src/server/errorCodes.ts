@@ -25,6 +25,10 @@ export const ERROR_CODES = {
   IDEMPOTENCY_KEY_REQUIRED_FOR_RETRY: "IDEMPOTENCY_KEY_REQUIRED_FOR_RETRY",
   INTERNAL_ERROR: "INTERNAL_ERROR",
   LAUNCHER_IPC_UNAVAILABLE: "LAUNCHER_IPC_UNAVAILABLE",
+  /** The launcher did not answer in time: a write may or may not have happened (append_note marks it ambiguous). */
+  LAUNCHER_IPC_TIMEOUT: "LAUNCHER_IPC_TIMEOUT",
+  /** A note body or a file over the launcher's limits (a body over 16 MiB of UTF-8, a whole read of a larger file). */
+  PAYLOAD_TOO_LARGE: "PAYLOAD_TOO_LARGE",
   DEV_CONSOLE_EVAL_DISABLED: "DEV_CONSOLE_EVAL_DISABLED",
   COMMAND_NOT_ALLOWED: "COMMAND_NOT_ALLOWED",
 } as const;
