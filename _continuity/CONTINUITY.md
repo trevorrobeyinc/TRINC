@@ -299,6 +299,17 @@ stays first.
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
 
+### 2026-11-25T06:20Z · Desktop Claude Code (bridges-uds main session) · **Backups at `ab130c4` (bundle, Drive snapshot, restore notes, `f669985`); NotebookLM refreshed in place for the changes through `ab130c4`**
+- **SCOPE NOTE:** backup infra and the training manual, so this is one brief entry; Current focus is unchanged.
+- **Backups:** `TRINC-FULL-backup-20261124-1942.bundle` was cut at `ab130c4` (80,155,024 bytes, 33 refs, byte-identical in `~/Documents` and on ExtraCurricular); the 11-23 pair and the flag day's `577f8f4` rollback pair are in the Trash. Drive: a `git archive` of `ab130c4` was copied into a new folder and compared with the commit in both places (3,285 of 3,285 entries, 0 differences). All 3,280 files were accepted by Google, with DriveFS's queue empty, before the `c2fb138` snapshot went to the Trash with one `mv` and the new folder was renamed `Monorepo/`. The four restore notes (`Backups/` and `Skills-Integrations/`) were rewritten as new files, each with a new Google item id; `shasum -c` passes for the bundle in both places and for the 33 skills files. `Skills-Integrations/trinc-local/` was refreshed for trinc-engineering 2.1.9 (five files overwritten in place, uploads proven).
+- **Committed:** `f669985` (signed `G`; the first PIN dialog was cancelled after 3 s, and the operator retried at the key) updates the root `CLAUDE.md` "Current" paragraph; it reached GitHub with `4603b47` in the 04:49Z push.
+- **NotebookLM (operator's ask):** 11 of 13 files were overwritten in place (same inodes, so each keeps its Drive item and the notebook's source binding):
+  - the `ARCHITECTURE`, `HOW-IT-WORKS`, `STATUS` and `SYSTEM-REALITY` copies, re-exported at `ab130c4` (the converter first rebuilt all four old copies with identical text);
+  - chapters 00 to 06: 70 paragraph edits (the bridges on sockets, the 11-24 bundle, the LLC-12 date, Claude in Chrome, two role-call details from `c2fb138`, moved code lines), proposed and adversarially verified by a 10-agent workflow and applied with a paragraph-level Word editor.
+  - Each upload is proven: DriveFS shows the new size at 05:37:25Z, and `fileproviderd` logged `ul:uploaded` with an empty `stillPending`. `OFFERINGS` and `ENGINE-CODEBASE-MAP` were unchanged since `c4db018` and were left alone.
+- **Next (operator):** if NotebookLM shows an old copy, use "Click to sync with Google Drive"; push `main` for this entry when ready. `4603b47` (searxng-search 1.1.0, another session) landed after the snapshot: the next backup refresh covers it, and it changed none of the NotebookLM sources.
+- **For whoever's next:** the NotebookLM kit (the paragraph editor with its round-trip self-test, the build with repro and the in-place write, the 13 pre-change Word files and the review of every edit) is in `~/.local/share/trinc-rollback/nlm-refresh-20261124/`, with a README; the snapshot scripts are in `~/.local/share/trinc-rollback/snapshot-ab130c4/`.
+
 ### 2026-11-25T03:40Z · Desktop Claude Code (bridges-uds main session) · **The three bridges moved from loopback TCP and mkcert TLS to Unix sockets (bridges-uds, `5cbb627`)**
 - **SCOPE NOTE:** repo infra (bridge transport), so this is one brief entry; Current focus is unchanged.
 - **Decision (operator, 2026-11-25):** approved the bridges-uds record `ops/security/bridges-uds-2026-11-24.md`, rows (a) to (i).
