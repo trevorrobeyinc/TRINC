@@ -3,7 +3,8 @@
 /**
  * SearXNG Search MCP Server — stdio entry point.
  * Exposes Tavily-style web-search tools (search / extract / map) backed by a
- * local, Docker-free SearXNG instance. Consumed by Claude Desktop and Claude Code.
+ * local, Docker-free SearXNG instance, plus docs_search (vendor documentation without
+ * a search engine) and search_health (relevance canary). Consumed by Claude Desktop and Claude Code.
  *
  * @module server
  */
@@ -23,7 +24,7 @@ const { TOOLS, dispatch } = require("./tools.js");
  */
 function createMcpServer() {
   const server = new Server(
-    { name: "searxng-search", version: "1.0.0" },
+    { name: "searxng-search", version: "1.1.0" },
     { capabilities: { tools: {} } }
   );
 

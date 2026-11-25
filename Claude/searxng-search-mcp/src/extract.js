@@ -11,7 +11,7 @@ const { JSDOM, VirtualConsole } = require("jsdom");
 const { Readability } = require("@mozilla/readability");
 const TurndownService = require("turndown");
 const { CONFIG } = require("./config.js");
-const { hostOf } = require("./searxng.js");
+const { hostOf } = require("./url-util.js");
 const { assertUrlAllowed, MAX_REDIRECTS } = require("./ssrf.js");
 
 const turndown = new TurndownService({
@@ -23,14 +23,43 @@ const turndown = new TurndownService({
 turndown.remove(["script", "style", "noscript", "iframe", "svg", "form"]);
 
 /**
- * Fetch a URL with a timeout + browser-like UA. Returns { ok, status, contentType, text }.
+ * Read a response body into a Buffer, refusing one larger than `maxBytes` (checked against
+ * Content-Length first, then while streaming, so an oversized body is never held in memory whole).
+ */
+async function readBody(res, maxBytes) {
+  const cap = Number(maxBytes) > 0 ? Number(maxBytes) : Infinity;
+  const declared = Number(res.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > cap) {
+    await res.body?.cancel().catch(() => {});
+    throw new Error(`response is ${declared} bytes, over the ${cap}-byte cap`);
+  }
+  if (!res.body) return Buffer.alloc(0);
+  const chunks = [];
+  let total = 0;
+  for await (const chunk of res.body) {
+    total += chunk.byteLength;
+    // Throwing inside for-await cancels the stream (the iterator's return() runs).
+    if (total > cap) throw new Error(`response exceeds the ${cap}-byte cap`);
+    chunks.push(Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks);
+}
+
+/**
+ * Fetch a URL with a timeout + browser-like UA. Returns { ok, status, contentType, text, url }, where
+ * `url` is the final address after redirects. With `opts.binary` the body comes back as `bytes` (a
+ * Buffer, e.g. a gzipped sitemap) and `text` is null; with `opts.maxBytes` the body is capped.
  *
  * Every hop is SSRF-checked (see src/ssrf.js): redirects are followed MANUALLY so that a public url
- * cannot 302 into loopback. The timeout spans the whole redirect chain, not each hop. Throws on a
- * blocked target — callers record that in `failed_results` / `errors`, so a refusal is visible
- * rather than silent.
+ * cannot 302 into loopback. The timeout spans the whole redirect chain and the body read, not each
+ * hop. Throws on a blocked target — callers record that in `failed_results` / `errors`, so a refusal
+ * is visible rather than silent.
+ *
+ * @param {string} url
+ * @param {{binary?: boolean, maxBytes?: number, accept?: string}} [opts]
  */
-async function fetchUrl(url) {
+async function fetchUrl(url, opts = {}) {
+  const { binary = false, maxBytes, accept } = opts;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), CONFIG.fetchTimeoutMs);
   try {
@@ -41,7 +70,7 @@ async function fetchUrl(url) {
         redirect: "manual",
         headers: {
           "User-Agent": CONFIG.userAgent,
-          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          Accept: accept || "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         },
         signal: controller.signal,
       });
@@ -49,8 +78,12 @@ async function fetchUrl(url) {
       const location = res.status >= 300 && res.status < 400 ? res.headers.get("location") : null;
       if (!location) {
         const contentType = res.headers.get("content-type") || "";
+        if (binary || maxBytes) {
+          const bytes = await readBody(res, maxBytes);
+          return { ok: res.ok, status: res.status, contentType, text: binary ? null : bytes.toString("utf8"), bytes, url: current };
+        }
         const text = await res.text();
-        return { ok: res.ok, status: res.status, contentType, text };
+        return { ok: res.ok, status: res.status, contentType, text, url: current };
       }
       // Release the socket; we never read a redirect body.
       await res.body?.cancel().catch(() => {});
@@ -212,4 +245,4 @@ async function sameHostLinks(pageUrl) {
   return [...seen];
 }
 
-module.exports = { extract, extractOne, sameHostLinks };
+module.exports = { extract, extractOne, sameHostLinks, fetchUrl, readBody, mapPool };

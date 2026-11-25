@@ -4,13 +4,15 @@ A free, self-hosted, **Tavily-style AI web-search connector** for Claude Desktop
 Claude Code. It pairs a private, **Docker-free** [SearXNG](https://docs.searxng.org)
 metasearch instance (bound to `127.0.0.1:8890`, reached over HTTPS via the in-monorepo
 TLS proxy at `127.0.0.1:8891`) with a small stdio MCP server that
-exposes three Tavily-compatible tools:
+exposes three Tavily-compatible tools, plus two added on 2026-11-24 for the research engine:
 
 | Tool | What it does |
 |------|--------------|
-| `search`  | Web search → ranked results (title, url, snippet, score, engine). Each result additively carries a `citations[]` array of `{type,id}` ids (pmid/doi/nct/pmcid/chembl/drugbank/uniprot) harvested from its text. Pass `topic:"science"` for the tuned scholarly engines. Cache + transient-retry + cross-engine dedup are built in. Optional `include_raw_content` fetches + cleans each page; optional `rerank` reorders via a local model. Tavily-shaped output. |
+| `search`  | Web search → ranked results (title, url, snippet, score, engine). Each result additively carries a `citations[]` array of `{type,id}` ids (pmid/doi/nct/pmcid/chembl/drugbank/uniprot) harvested from its text. Pass `topic:"science"` for the tuned scholarly engines. Cache + transient-retry + cross-engine dedup are built in. Optional `include_raw_content` fetches + cleans each page; optional `rerank` reorders via a local model. Tavily-shaped output. **Since 1.1.0 every answer is judged** (`quality`, `relevance` per row): on `general`/`news`, off-topic rows go to `off_topic_results`, and a degraded answer falls back to `docs_search` and other engines (`engines_tried`). |
 | `extract` | Fetch URL(s) → clean markdown/text via Mozilla Readability. Returns `results[]` + `failed_results[]`. |
-| `map`     | Enumerate a site's URLs (same-domain link scrape, optionally augmented by a site-scoped search). |
+| `map`     | Enumerate a site's URLs: the page's own same-domain links, then the site's sitemaps (robots.txt, `/sitemap.xml`, or the docs registry's sources), kept under the given url's directory. `query` ranks them locally (no search engine) and adds `ranked[]` with titles. |
+| `docs_search` | **Vendor documentation without a search engine.** Searches the registry in [`src/doc-sites.js`](src/doc-sites.js) (Aruba TechDocs and Developer Hub, CrowdStrike Developer Center, Firewalla Help Center and MSP docs, Samsung Knox docs) from each site's sitemaps, llms.txt, crawl seeds or Zendesk search API; ranks locally (BM25), reads the best pages through `extract`'s SSRF guard, returns the best passage per page. |
+| `search_health` | **Relevance canary.** Asks each engine, by name, a common and a niche known-answer query and reports ok / weak / junk / silent_zero / blocked per engine, plus a one-line `summary`. |
 
 **Why this exists:** a no-cost replacement for Tavily. No API key, no per-call billing,
 no rate limits, no data leaving your machine except the actual web fetches. SearXNG
@@ -49,12 +51,20 @@ Claude Code       ───┘                                    └─[direct 
 ```
 searxng-search-mcp/
 ├── src/
-│   ├── server.js     stdio MCP entry point
-│   ├── tools.js      3 tool defs (JSON Schema) + zod-guarded dispatch
-│   ├── searxng.js    SearXNG JSON-API client → Tavily-shaped results
-│   ├── extract.js    fetch → jsdom → Readability → Turndown
-│   └── config.js     env-driven config (SEARXNG_BASE_URL, timeouts, UA)
-├── test/smoke.mjs    end-to-end self-test (needs SearXNG up)
+│   ├── server.js       stdio MCP entry point
+│   ├── tools.js        5 tool defs (JSON Schema) + zod-guarded dispatch
+│   ├── searxng.js      SearXNG JSON-API client → Tavily-shaped results, relevance guard, fallback
+│   ├── relevance.js    per-row relevance, answer verdict (ok/thin/degraded/empty), junk kinds
+│   ├── rank.js         tokenizer + light stemmer, BM25, best-passage selection (dependency-free)
+│   ├── doc-sites.js    the docs_search registry (sources checked live 2026-11-24)
+│   ├── sitemap.js      robots.txt / sitemap / llms.txt / anchor parsers, bounded sitemap walker
+│   ├── docs-search.js  inventory → stage-1 url ranking → stage-2 read + judge
+│   ├── health.js       search_health canary
+│   ├── extract.js      fetch → jsdom → Readability → Turndown (SSRF-guarded fetchUrl)
+│   ├── url-util.js     hostOf / hostMatchesDomain
+│   └── config.js       env-driven config (SEARXNG_BASE_URL, timeouts, UA)
+├── test/smoke.mjs      end-to-end self-test (needs SearXNG up)
+├── test/docs-smoke.mjs live docs_search / map / guard / canary check (`npm run smoke:docs`)
 ├── install-connector.sh  stages the connector to the internal volume (see "TCC / staging")
 └── searxng/
     ├── settings.example.yml              settings.yml template (real one is ~/.config/searxng/)
@@ -175,6 +185,13 @@ curl -s --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" \
 | `SEARXNG_RERANK_ENDPOINT` | `https://127.0.0.1:11435/api/chat` | **HTTPS proxy** for the local model (Ollama `:11435` / LM Studio `:1235`) |
 | `SEARXNG_RERANK_MODEL` | `qwen2.5:7b-instruct` | Local rerank model id |
 | `SEARXNG_RERANK_TIMEOUT_MS` | `4000` | Hard timeout; on expiry native `score` ordering is kept |
+| `SEARXNG_FALLBACK` | on | `0`/`false` turns the degraded-answer fallback off (a call naming `engines` never falls back) |
+| `SEARXNG_FALLBACK_ENGINES` | `seznam,yandex,mwmbl` | Engines asked one at a time after `docs_search`, skipping any the instance already queries by default |
+| `SEARXNG_HEALTH_CACHE_TTL_MS` | `600000` | How long `search_health` reuses a run (`0` always probes) |
+| `SEARXNG_DOCS_INVENTORY_TTL_MS` | `86400000` | How long a doc site's url inventory is reused |
+| `SEARXNG_DOCS_MAX_SITEMAPS` / `SEARXNG_DOCS_MAX_URLS` | `25` / `20000` | Per-site caps on sitemaps followed and urls kept |
+| `SEARXNG_DOCS_MAX_BYTES` | `15000000` | Cap per fetched sitemap or crawl-seed page (streamed, refused beyond) |
+| `SEARXNG_DOCS_READ_PAGES` | `6` | Candidate pages `docs_search` reads per call (the `read_pages` default) |
 
 ## Enhancements (citation-traceable biomedical tuning)
 
@@ -230,6 +247,24 @@ the live end-to-end (SearXNG must be up).
 
 ## Known limitations
 
+- **General web search is weak, and why (measured 2026-11-24).** Bing does NOT read only the first
+  word of a query: sent exactly what SearXNG's `bing.py` builds, Bing's own search box and page title
+  echo the full query, yet the results are for one word of it ("AOS 10 WIDS containment tarpit" → ASOS,
+  the American Orchid Society) or for nothing in it (the same words reversed → Lady Gaga, then
+  Stanford University), and the response sets Akamai Bot Manager cookies. That is Bing degrading its
+  answers to an automated client; popular queries still come back right. Every other scraped engine
+  walls this client: Google (JavaScript redirect) and Mojeek (a "Captcha" page) return zero with NO
+  error, DuckDuckGo and Startpage CAPTCHA, Brave 429, Qwant "access denied", Presearch/Yahoo/Yep
+  errors. No SearXNG update fixes a bot wall, and evading one is off the table. Seznam and Yandex
+  answer honestly and were enabled on 2026-11-24 (operator's choice; Yandex is Russian-operated), but
+  both are thin on niche vendor queries. So: every answer now carries `quality`, decoys go to
+  `off_topic_results`, vendor documentation goes through `docs_search`, and `search_health` shows the
+  engines' state. The legitimate fix for general web is a keyed API (Brave Search API: an account and a
+  card, the operator's purchase; SearXNG ships a `braveapi` engine for it).
+- **`docs_search` knows only its registry.** Add a site to `src/doc-sites.js` after checking what it
+  publishes (robots.txt `Sitemap:` lines, `/sitemap.xml`, `/llms.txt`, a Zendesk Help Center), and add
+  its fixture to `test/doc-sites.test.mjs`. A page the site does not list and no seed page links to is
+  invisible to it.
 - **`answer` is not LLM-synthesized.** SearXNG has no LLM, so `search.answer` is the best
   available instant-answer / infobox text (or `null`), not a Tavily-style generated paragraph.
   Let Claude synthesize from `results[]` instead.
@@ -246,6 +281,10 @@ the live end-to-end (SearXNG must be up).
 ## Test
 
 ```bash
+# Offline unit tests (no network, no SearXNG):
+npm run test:unit
 # SearXNG must be running first.
 npm run smoke
+# Live docs_search / map / guard / canary check (network + SearXNG; NODE_EXTRA_CA_CERTS set):
+npm run smoke:docs
 ```

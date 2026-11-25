@@ -110,6 +110,38 @@ const CONFIG = Object.freeze({
 
   /** Hard timeout (ms) for a rerank call; on expiry we keep native ordering. */
   rerankTimeoutMs: numEnv(process.env.SEARXNG_RERANK_TIMEOUT_MS, 4000),
+
+  /* -------- Relevance guard + engine fallback (2026-11-24) -------- */
+
+  /**
+   * When a general/news answer is not "ok" (see src/relevance.js), retry: first `docs_search` on any
+   * registered doc site the query or include_domains names, then these engines one at a time (skipping
+   * any the instance already queries by default). Off with SEARXNG_FALLBACK=0; a call that names its
+   * own `engines` never falls back.
+   */
+  fallbackEnabled: !/^(0|false|no|off)$/i.test(String(process.env.SEARXNG_FALLBACK ?? "")),
+  fallbackEngines: Object.freeze(
+    String(process.env.SEARXNG_FALLBACK_ENGINES || "seznam,yandex,mwmbl")
+      .split(",")
+      .map((e) => e.trim())
+      .filter(Boolean)
+  ),
+
+  /** How long `search_health` reuses its last probe run (ms); 0 always probes afresh. */
+  healthCacheTtlMs: numEnv(process.env.SEARXNG_HEALTH_CACHE_TTL_MS, 600000, { allowZero: true }),
+
+  /* -------- docs_search / sitemap-aware map (2026-11-24) -------- */
+
+  /** How long a site's url inventory (sitemaps, llms.txt, crawl seeds) is reused (ms). */
+  docsInventoryTtlMs: numEnv(process.env.SEARXNG_DOCS_INVENTORY_TTL_MS, 86400000, { allowZero: true }),
+
+  /** Caps per site: sitemaps followed, page urls kept, bytes per fetched sitemap / seed page. */
+  docsMaxSitemaps: numEnv(process.env.SEARXNG_DOCS_MAX_SITEMAPS, 25),
+  docsMaxUrls: numEnv(process.env.SEARXNG_DOCS_MAX_URLS, 20000),
+  docsMaxBytes: numEnv(process.env.SEARXNG_DOCS_MAX_BYTES, 15000000),
+
+  /** Candidate pages `docs_search` fetches and reads per call (the expensive step). */
+  docsReadPages: numEnv(process.env.SEARXNG_DOCS_READ_PAGES, 6),
 });
 
 module.exports = { CONFIG, numEnv };

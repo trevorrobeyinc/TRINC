@@ -14,7 +14,11 @@ const ok = (label, cond, detail = "") => {
 };
 
 console.log("=== tool registration ===");
-ok("exposes 3 tools", TOOLS.length === 3, TOOLS.map((t) => t.name).join(", "));
+ok(
+  "exposes 5 tools (search, extract, map, docs_search, search_health)",
+  TOOLS.map((t) => t.name).join(",") === "search,extract,map,docs_search,search_health",
+  TOOLS.map((t) => t.name).join(", ")
+);
 for (const t of TOOLS) {
   ok(`${t.name} has schema`, !!t.inputSchema && t.inputSchema.type === "object");
 }

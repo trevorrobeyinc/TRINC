@@ -122,3 +122,16 @@ engines:
     disabled: true        # "CAPTCHA" 2026-09-19 — zero results, poisons the general merge
   - name: startpage
     disabled: true        # "Suspended: CAPTCHA" 2026-09-19 — same
+
+# --- Honest general-web engines (operator's choice, 2026-11-24) ------------------
+# Asked by name on 2026-11-24, both return real results to this client (control query coverage
+# 0.73 seznam / 0.93 yandex), unlike Bing (decoy results for rare queries), Google and Mojeek (silent
+# JavaScript and CAPTCHA walls), DuckDuckGo and Startpage (CAPTCHA), Brave (429) and Qwant (denied).
+# Both are weak on niche vendor queries: the connector's relevance guard and docs_search cover that.
+# Yandex is operated from Russia, so queries sent to it leave the EU/US (accepted by the operator).
+  - name: seznam
+    disabled: false
+    timeout: 6.0
+  - name: yandex
+    disabled: false
+    timeout: 6.0

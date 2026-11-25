@@ -1,7 +1,7 @@
 {
   "name": "searxng-search-mcp",
-  "version": "1.0.0",
-  "description": "Tavily-style AI web-search MCP connector backed by a local, Docker-free SearXNG instance. Exposes search / extract / map over stdio for Claude Desktop and Claude Code.",
+  "version": "1.1.0",
+  "description": "Tavily-style AI web-search MCP connector backed by a local, Docker-free SearXNG instance. Exposes search / extract / map, plus docs_search (vendor documentation without a search engine) and search_health (relevance canary), over stdio for Claude Desktop and Claude Code.",
   "main": "src/server.js",
   "engines": {
     "node": ">=22.13.1"
@@ -9,8 +9,9 @@
   "scripts": {
     "start": "node src/server.js",
     "test": "node test/smoke.mjs",
-    "test:unit": "node --test test/citation-grammar.test.mjs test/citation-grammar.drift.test.mjs test/robust.test.mjs test/rerank.test.mjs test/metadata-doi.test.mjs test/ssrf.test.mjs test/config.test.mjs",
-    "smoke": "node test/smoke.mjs"
+    "test:unit": "node --test test/citation-grammar.test.mjs test/citation-grammar.drift.test.mjs test/robust.test.mjs test/rerank.test.mjs test/metadata-doi.test.mjs test/ssrf.test.mjs test/config.test.mjs test/rank.test.mjs test/relevance.test.mjs test/sitemap.test.mjs test/doc-sites.test.mjs test/docs-search.test.mjs test/search-guard.test.mjs test/health.test.mjs test/map.test.mjs",
+    "smoke": "node test/smoke.mjs",
+    "smoke:docs": "node test/docs-smoke.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

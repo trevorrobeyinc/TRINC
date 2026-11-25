@@ -2,7 +2,8 @@
 
 /**
  * Tool definitions + dispatch for the SearXNG search connector.
- * Three Tavily-style tools: `search`, `extract`, `map`.
+ * Five tools: `search`, `extract`, `map` (Tavily-style), plus `docs_search` (vendor documentation
+ * without a search engine) and `search_health` (relevance canary), added 2026-11-24.
  *
  * @module tools
  */
@@ -10,7 +11,12 @@
 const { z } = require("zod");
 const { search } = require("./searxng.js");
 const { extract, sameHostLinks } = require("./extract.js");
-const { hostOf } = require("./searxng.js");
+const { defaultDocsSearch, rankEntries, canonical } = require("./docs-search.js");
+const { searchHealth } = require("./health.js");
+const { queryTerms } = require("./rank.js");
+const { REGISTRY } = require("./doc-sites.js");
+
+const SITE_IDS = REGISTRY.map((s) => s.id).join(", ");
 
 /* ----------------------------- Tool schemas ----------------------------- */
 
@@ -28,7 +34,14 @@ const TOOLS = [
       "(page-identity, high confidence), 'text' (from title/snippet), or 'metadata' (a DOI the " +
       "scholarly engine returned as a structured field), and preprint DOIs carry " +
       "subtype:'preprint'. Set min_citations>=1 to keep only results that carry a citation id. " +
-      "Set include_raw_content:true to also fetch and clean the full page text of each hit.",
+      "Set include_raw_content:true to also fetch and clean the full page text of each hit. " +
+      "Every answer is judged against the query: `quality.status` is ok, thin, degraded (rows came " +
+      "back but none is about the query, e.g. results for only its first word) or empty, and on the " +
+      "general and news topics off-topic rows are moved to `off_topic_results` instead of being " +
+      "returned as answers. A degraded answer falls back to docs_search when the query names a " +
+      "registered documentation site (Aruba, CrowdStrike, Firewalla, Samsung Knox), then to other " +
+      "engines; `engines_tried` records each step. General web results are weak for niche technical " +
+      "queries: prefer docs_search for vendor documentation.",
     inputSchema: {
       type: "object",
       properties: {
@@ -77,7 +90,9 @@ const TOOLS = [
         },
         engines: {
           type: "string",
-          description: "Advanced: comma-separated SearXNG engine names (e.g. 'google,bing,duckduckgo').",
+          description:
+            "Advanced: comma-separated SearXNG engine names (e.g. 'bing,seznam'). Naming engines turns " +
+            "the fallback off.",
         },
         rerank: {
           type: "boolean",
@@ -93,6 +108,13 @@ const TOOLS = [
           description:
             "Keep only results carrying at least this many citation ids (0 = off). Use 1 for a " +
             "connector-level 'every result sourced' gate.",
+        },
+        fallback: {
+          type: "boolean",
+          default: true,
+          description:
+            "When the answer is not about the query, retry through docs_search and other engines " +
+            "(default true). false returns the first answer as judged.",
         },
       },
       required: ["query"],
@@ -135,10 +157,12 @@ const TOOLS = [
   {
     name: "map",
     description:
-      "Discover URLs within a single website. Fetches the given page, collects same-domain " +
-      "links, and (optionally, with `query`) augments them via a site-scoped SearXNG search. " +
-      "Use to enumerate a site's pages before extracting the relevant ones. Only public http(s) " +
-      "targets are fetched: loopback/private/link-local destinations are refused.",
+      "Discover URLs within a single website. Reads the site's own page list (robots.txt and " +
+      "sitemap.xml, or the docs_search registry's sources for a registered site), adds the same-domain " +
+      "links on the given page, and keeps urls under the given page's directory. With `query`, ranks " +
+      "them locally against it (no search engine) and returns the best first, with titles in " +
+      "`ranked`. Use to enumerate a site's pages before extracting the relevant ones. Only public " +
+      "http(s) targets are fetched: loopback/private/link-local destinations are refused.",
     inputSchema: {
       type: "object",
       properties: {
@@ -148,7 +172,7 @@ const TOOLS = [
         },
         query: {
           type: "string",
-          description: "Optional: also run a site-scoped search for these terms on the same domain.",
+          description: "Optional: rank the site's urls against these words, best first.",
         },
         max_results: {
           type: "integer",
@@ -159,6 +183,70 @@ const TOOLS = [
         },
       },
       required: ["url"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "docs_search",
+    description:
+      "Search vendor documentation sites directly, without any web search engine (general web " +
+      "search is unreliable for niche technical queries). Registered sites: HPE Aruba Networking " +
+      "TechDocs (AOS 10, Wi-Fi design and deploy, new Central, VSG), the Aruba Developer Hub (Central " +
+      "APIs), the CrowdStrike Developer Center (Falcon APIs, Falcon MCP, Foundry), the Firewalla Help " +
+      "Center and MSP API docs, and Samsung Knox docs. Each site's page list comes from its sitemaps, " +
+      "llms.txt, crawl seeds or Zendesk search API (cached 24 h); pages are ranked locally, the best " +
+      "are read through the SSRF-guarded extractor, and each result is the most relevant passage of " +
+      "its page, with off-topic pages in off_topic_results. Sites are inferred from the query " +
+      `('aruba', 'aos 10', 'crowdstrike', 'falcon api', 'firewalla', 'knox') or named in sites (ids: ${SITE_IDS}); ` +
+      "with neither, all sites are searched. list_sites:true returns the registry. Follow up with " +
+      "extract for a whole page.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "What to look for, e.g. 'AOS 10 WIDS containment tarpit'." },
+        sites: {
+          type: "array",
+          items: { type: "string" },
+          description: "Registry ids or hostnames to search (default: inferred from the query, else all).",
+        },
+        max_results: { type: "integer", minimum: 1, maximum: 20, default: 5, description: "Results to return (1-20)." },
+        read_pages: {
+          type: "integer",
+          minimum: 1,
+          maximum: 12,
+          default: 6,
+          description: "How many top candidate pages to fetch and read (more is slower and more thorough).",
+        },
+        include_raw_content: {
+          type: "boolean",
+          default: false,
+          description: "Also return each result page's full extracted text.",
+        },
+        list_sites: { type: "boolean", default: false, description: "Return the registry instead of searching." },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "search_health",
+    description:
+      "Relevance canary for the SearXNG engines. Asks each engine, by name, two known-answer " +
+      "questions (a common technical query and a niche vendor-documentation one) and reports per " +
+      "engine: ok, weak (on-topic but not the expected site), junk (results not about the query, e.g. " +
+      "matching only its first word, or front pages), silent_zero (nothing and no error, usually a " +
+      "CAPTCHA wall), or blocked (CAPTCHA, rate limit, access denied). Use before trusting general web " +
+      "search or to explain bad results. Reuses its last run for 10 minutes unless refresh:true.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        engines: {
+          type: "string",
+          description:
+            "Comma-separated engine names to probe (default: the instance's enabled general web engines " +
+            "plus the fallback engines).",
+        },
+        refresh: { type: "boolean", default: false, description: "Probe afresh instead of reusing a recent run." },
+      },
       additionalProperties: false,
     },
   },
@@ -178,6 +266,7 @@ const searchArgs = z.object({
   engines: z.string().optional(),
   rerank: z.boolean().optional(),
   min_citations: z.number().int().min(0).optional(),
+  fallback: z.boolean().optional(),
 });
 
 const extractArgs = z.object({
@@ -195,6 +284,28 @@ const mapArgs = z.object({
   url: z.string().min(1),
   query: z.string().optional(),
   max_results: z.number().int().min(1).max(200).optional(),
+});
+
+const docsArgs = z
+  .object({
+    query: z.string().optional(),
+    // Accept "a,b" as well as ["a","b"], like extract accepts a lone url.
+    sites: z.preprocess(
+      (v) => (typeof v === "string" ? v.split(",").map((s) => s.trim()).filter(Boolean) : v),
+      z.array(z.string()).optional()
+    ),
+    max_results: z.number().int().min(1).max(20).optional(),
+    read_pages: z.number().int().min(1).max(12).optional(),
+    include_raw_content: z.boolean().optional(),
+    list_sites: z.boolean().optional(),
+  })
+  .refine((a) => a.list_sites || (typeof a.query === "string" && a.query.trim().length > 0), {
+    message: "`query` is required unless list_sites is true",
+  });
+
+const healthArgs = z.object({
+  engines: z.string().optional(),
+  refresh: z.boolean().optional(),
 });
 
 /* ----------------------------- Handlers --------------------------------- */
@@ -218,47 +329,82 @@ async function handleExtract(raw) {
   return await extract(args.urls, { format: args.format, maxChars: args.max_chars });
 }
 
-async function handleMap(raw) {
+async function handleMap(raw, deps = {}) {
   const args = mapArgs.parse(raw);
   const started = Date.now();
   const max = args.max_results || 40;
-  const found = new Set();
+  const docs = deps.docs || defaultDocsSearch();
+  const links = deps.sameHostLinks || sameHostLinks;
   const errors = [];
+  const found = new Map(); // canonical url -> { url, title }
+  const add = (url, title) => {
+    const key = canonical(url);
+    const cur = found.get(key);
+    if (!cur) found.set(key, { url, title: title || "" });
+    else if (title && !cur.title) cur.title = title;
+  };
 
-  // 1) Same-domain links scraped from the page itself.
+  // 1) Same-domain links on the page itself (first, so an un-queried map still leads with them).
   try {
-    for (const u of await sameHostLinks(args.url)) found.add(u);
+    for (const u of await links(args.url)) add(u, "");
   } catch (err) {
     errors.push({ step: "crawl", error: err.message || String(err) });
   }
 
-  // 2) Optional: augment with a site-scoped SearXNG search.
+  // 2) The site's own page list: robots.txt + sitemaps, or the docs registry's sources.
+  let inv = null;
+  try {
+    inv = await docs.mapInventory(args.url);
+    for (const e of inv.entries) add(e.url, e.title);
+  } catch (err) {
+    errors.push({ step: "sitemap", error: err.message || String(err) });
+  }
+
+  let list = [...found.values()];
+  let ranked = null;
   if (args.query) {
-    const host = hostOf(args.url);
-    try {
-      const res = await search({
-        query: args.query,
-        max_results: 40,
-        include_domains: host ? [host] : [],
-      });
-      for (const r of res.results) found.add(r.url);
-    } catch (err) {
-      errors.push({ step: "search", error: err.message || String(err) });
-    }
+    const terms = queryTerms(args.query);
+    const scores = rankEntries(list, terms);
+    const order = list.map((e, i) => ({ ...e, score: scores[i] }));
+    const hits = order.filter((e) => e.score > 0).sort((a, b) => b.score - a.score);
+    ranked = hits.slice(0, max).map((e) => ({ url: e.url, title: e.title, score: Math.round(e.score * 1000) / 1000 }));
+    list = [...hits, ...order.filter((e) => !(e.score > 0))];
   }
 
   return {
     base_url: args.url,
-    results: [...found].slice(0, max),
-    count: Math.min(found.size, max),
+    results: list.slice(0, max).map((e) => e.url),
+    count: Math.min(list.length, max),
+    total_found: list.length,
+    ...(ranked ? { ranked } : {}),
+    site: inv ? inv.site : null,
+    sources: inv ? inv.sources : [],
     errors,
     response_time: (Date.now() - started) / 1000,
   };
 }
 
+async function handleDocsSearch(raw, deps = {}) {
+  const args = docsArgs.parse(raw);
+  const docs = deps.docs || defaultDocsSearch();
+  if (args.list_sites) return { sites: docs.listSites() };
+  return await docs.search(args);
+}
+
+async function handleSearchHealth(raw) {
+  const args = healthArgs.parse(raw);
+  return await searchHealth(args);
+}
+
 /* ----------------------------- Dispatch --------------------------------- */
 
-const HANDLERS = { search: handleSearch, extract: handleExtract, map: handleMap };
+const HANDLERS = {
+  search: handleSearch,
+  extract: handleExtract,
+  map: handleMap,
+  docs_search: handleDocsSearch,
+  search_health: handleSearchHealth,
+};
 
 /**
  * Route an MCP tool call to its handler and wrap the result as MCP content.
@@ -284,4 +430,12 @@ async function dispatch(name, args) {
   }
 }
 
-module.exports = { TOOLS, dispatch, handleSearch, handleExtract, handleMap };
+module.exports = {
+  TOOLS,
+  dispatch,
+  handleSearch,
+  handleExtract,
+  handleMap,
+  handleDocsSearch,
+  handleSearchHealth,
+};
