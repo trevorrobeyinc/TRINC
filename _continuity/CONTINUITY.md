@@ -33,7 +33,7 @@
 
 > **Scope gate — business only:** write to this board **only when the work relates to the Trevor
 > Robey, INC. business** — the citation engine, offerings/revenue/brand/legal, or this repo's own
-> infra/topology (the `:8798` bridge, the vault, connectors, plugins). Unrelated work (home
+> infra/topology (the canonical vault bridge, the vault, connectors, plugins). Unrelated work (home
 > network, Security Everything, personal) belongs elsewhere, **not here.**
 
 ---
@@ -50,7 +50,7 @@
 | **opencode** (app + CLI; incl. the Claude→opencode delegation lane) | direct filesystem (built-in read/write; interactive sessions have full toolset, the delegated worker is guardrail-scoped) | global `~/.config/opencode/AGENTS.md` pointer (auto-loaded every session) |
 
 > Not the web version of Chat — the **Desktop** app, which has the Filesystem MCP connector.
-> `:8798` (Obsidian bridge → `My Digital Garden`) is an *additional* semantic path, **not**
+> The canonical vault bridge (Obsidian → `My Digital Garden`, a Unix socket since 2026-11-24) is an *additional* semantic path, **not**
 > Chat's only route to disk.
 
 ---
@@ -298,6 +298,14 @@ stays first.
 ## 📋 Log — newest first
 
 > Prepend new entries here. One entry per meaningful chunk of work or handoff.
+
+### 2026-11-25T03:40Z · Desktop Claude Code (bridges-uds main session) · **The three bridges moved from loopback TCP and mkcert TLS to Unix sockets (bridges-uds, `5cbb627`)**
+- **SCOPE NOTE:** repo infra (bridge transport), so this is one brief entry; Current focus is unchanged.
+- **Decision (operator, 2026-11-25):** approved the bridges-uds record `ops/security/bridges-uds-2026-11-24.md`, rows (a) to (i).
+- **Did:** the vault bridge, Command Center and Viz Studio serve the same routes on `vault-bridge.sock`, `command-center.sock` and `viz-studio.sock` in `~/.local/state/trinc/run/` (0700, sockets 0600). Every client moved in one flag day: the Copilot fork and its agent proxy, the stdio adapter, Command Center's `research_notify`, the engine's read-back, the dev scripts and the live checks. Nothing listens on 8798-8800, and no client can fall back to TCP.
+- **Verified:** `verify.sh` in main after the deploy 60 PASS, 0 FAIL; the transport lint `--strict` 0 unmarked violations; Command Center 273/273, Viz Studio 39/39, the vault bridge 91/91, the stdio adapter 62/62 offline and 70/70 live, the stdio proxy 13/13, the engine bridge tests 37/37, the Copilot fork `udsClient` 25/25, the ops suites 45/45 and 15/15; live: `uds-health.mjs`, `bridge-guard-live-check.mjs`, the adapter's live `test:profiles`, one `research_notify`.
+- **Next (operator):** obsidianwatch is re-blessed (baseline `4520ccdc1deb8c6c`, 2026-11-25); still open: the Security Everything follow-ups (landing in their own session) and the NotebookLM refresh in place.
+- **For whoever's next:** the health check is `node /Users/myhome/TRINC/ops/tr-suite/uds-health.mjs`; never put a socket path on a command line, and never add a TCP fallback.
 
 ### 2026-11-23T14:56Z · Desktop Claude Code (backup-legs side session) · **The Drive snapshot, the restore notes and the CLAUDE.md backup line match the 11-23 bundle (`577f8f4`); NotebookLM refreshed in place**
 - **SCOPE NOTE:** backup infra, so this is one brief entry; Current focus is unchanged.

@@ -11,8 +11,8 @@
 # TRINC learn-and-pitch pack: read this first
 
 > **For Claude** (Claude.ai chat, Claude Desktop Chat, or any Claude session). These are the instructions for
-> using this pack. Facts are as of **2026-10-23**. Written from the live TRINC repository at
-> `/Users/myhome/TRINC`; every fact carries its source.
+> using this pack. Facts are as of **2026-10-23** (parts `05`, `08` and `10` updated on 2026-11-24 for the
+> bridge sockets). Written from the live TRINC repository at `/Users/myhome/TRINC`; every fact carries its source.
 
 ## Who you are working for
 
@@ -541,8 +541,8 @@ run". **Do not sell the band.** [src: `ENGINE/OFFERINGS.md` → Bundle deliverab
 # 05 — The machine room
 
 > **Learning deck only.** Client pitches get at most one line from this file ("runs on a single,
-> hardware-key-approved research engine; every network service is HTTPS-only"). The port numbers, plugin
-> names and security layers below are for Trevor's understanding, not for buyers.
+> hardware-key-approved research engine; every network service is HTTPS-only"). The port and socket names,
+> plugin names and security layers below are for Trevor's understanding, not for buyers.
 
 ## One Mac, one engine, Obsidian as the console
 
@@ -555,15 +555,17 @@ run". **Do not sell the band.** [src: `ENGINE/OFFERINGS.md` → Bundle deliverab
 
 ## The bridges inside Obsidian
 
-A *bridge* is a small HTTPS server inside an Obsidian plugin that lets other software talk to that plugin. All
-of them stop when Obsidian quits.
+A *bridge* is a small server inside an Obsidian plugin that lets other software on the Mac talk to that plugin.
+Since 2026-11-24 the three TRINC bridges answer on private sockets, small files in a folder that only Trevor's
+account can open, instead of network ports, so no other account and no web page can reach them. The Security
+Bridge, owned by the security repo, is still an HTTPS port. All of them stop when Obsidian quits.
 
 ```mermaid
 flowchart TB
   subgraph OB["Obsidian (on Trevor's Mac)"]
-    VB[":8798 vault bridge<br/>Copilot's way into the notes"]
-    CC[":8799 Command Center<br/>starts runs, receives results"]
-    VZ[":8800 Viz Studio<br/>diagrams and charts"]
+    VB["vault bridge (vault-bridge.sock)<br/>Copilot's way into the notes"]
+    CC["Command Center (command-center.sock)<br/>starts runs, receives results"]
+    VZ["Viz Studio (viz-studio.sock)<br/>diagrams and charts"]
     SB[":8801 Security Bridge<br/>owned by the security repo"]
     CP["Copilot plugin<br/>chat + agent"]
   end
@@ -576,11 +578,11 @@ flowchart TB
   CP --> VZ
 ```
 
-| Port | What it does | Owner |
+| Socket or port | What it does | Owner |
 |---|---|---|
-| `:8798` | The vault bridge: reading and writing notes. Copilot uses it. | `obsidian-bridge-launcher` plugin |
-| `:8799` | Command Center: starts research runs, reports status, receives results (32 tools) | `command-center` plugin |
-| `:8800` | Viz Studio: diagrams, charts, canvases, explainer cards, stat tiles, mockups (12 tools); every render lands in `Visualizations/` | `trinc-viz-studio` plugin |
+| `vault-bridge.sock` | The vault bridge: reading and writing notes. Copilot uses it. | `obsidian-bridge-launcher` plugin |
+| `command-center.sock` | Command Center: starts research runs, reports status, receives results (32 tools) | `command-center` plugin |
+| `viz-studio.sock` | Viz Studio: diagrams, charts, canvases, explainer cards, stat tiles, mockups (12 tools); every render lands in `Visualizations/` | `trinc-viz-studio` plugin |
 | `:8801` | Security Bridge: a security control plane with no vault access | the separate Security Everything repo |
 
 [src: `ARCHITECTURE.md` §2, §4]
@@ -594,7 +596,7 @@ can:
 - search and read notes, **read-only**;
 - draw visuals, which can land **only** in `Visualizations/`.
 
-It **cannot** create or edit notes, run commands, or reach the `:8798` vault bridge. Six properties that
+It **cannot** create or edit notes, run commands, or reach the vault bridge. Six properties that
 could steer a render elsewhere are stripped and refused. Sub-agents are barred from the door entirely.
 [src: `ARCHITECTURE.md` §4, "Claude's door in detail"; §5]
 
@@ -624,8 +626,10 @@ agent mode runs on an opencode backend. Raycast, which once had a separate door 
 
 ## The security layers (they protect the business; they are not for sale)
 
-- **HTTPS-only.** Every network listener in the repo is HTTPS and refuses to start without its certificate; no
-  plaintext fallback exists.
+- **HTTPS-only, and no network port for the bridges.** Every network listener in the repo is HTTPS and refuses
+  to start without its certificate; no plaintext fallback exists. The three TRINC bridges listen on no network
+  port at all: they answer on private sockets in a folder only Trevor's account can open, and they refuse to
+  start rather than fall back to a port. [src: `CLAUDE.md` → Ports and sockets]
 - **YubiKey gates.** Real engine runs, privileged commands, the in-app browser and the gated tool servers all
   need a physical touch. The touch *is* the consent, and it is never removed.
 - **Secrets** live in the Keychain or owner-only files, never in plugin settings.
@@ -839,9 +843,10 @@ carrying it is blocked. That database is deliberately not named in this pack; ne
 | Term | Meaning |
 |---|---|
 | **Vault** | Trevor's Obsidian notes (`My Digital Garden`) |
-| **Bridge** | A small HTTPS server inside an Obsidian plugin |
-| **Command Center** | The plugin and bridge (`:8799`) that start runs and receive results |
-| **Viz Studio** | The plugin and bridge (`:8800`) that draw diagrams into `Visualizations/` |
+| **Bridge** | A small server inside an Obsidian plugin; the three TRINC bridges answer on private sockets, not network ports |
+| **Socket** | The private file a bridge answers on; only Trevor's account can open it, and no web page can reach it |
+| **Command Center** | The plugin and bridge (`command-center.sock`) that start runs and receive results |
+| **Viz Studio** | The plugin and bridge (`viz-studio.sock`) that draw diagrams into `Visualizations/` |
 | **The door** | `openclaw-obsidian`, Claude's single, limited way into Obsidian |
 | **Copilot** | The chat and agent plugin inside Obsidian |
 | **YubiKey touch** | The physical approval required for real runs and privileged actions |
@@ -1033,7 +1038,7 @@ here. **Length:** 26 slides. **Tone:** a patient teacher; plain words first, the
 | 18 | The business lane's limits | `WEB:` proves what was read, not truth; statistics re-resolve the series, not the value; paywalls skipped | `04` |
 | 19 | The machine room | One Mac; Obsidian as console; the four bridges | `05` |
 | 20 | Claude's one door | What it can and cannot do, and why there is only one | `05` |
-| 21 | The security layers | HTTPS-only, YubiKey gates, secrets, Falcon, posture | `05` |
+| 21 | The security layers | HTTPS-only, socket-only bridges, YubiKey gates, secrets, Falcon, posture | `05` |
 | 22 | The first product | Trial Graveyard Feed: what it is, coverage, caveats; not listed | `06` |
 | 23 | Built vs not built | The status table | `07` |
 | 24 | What "fully realised" looks like | The nine missing pieces, in order | `07` |
@@ -1121,7 +1126,7 @@ The last caption is mandatory (it is the claim's bound, `04`).
 
 | Time | Visual | On-screen text |
 |---|---|---|
-| 0–6 s | Obsidian drawn as a building with four rooms: Vault (:8798), Command Center (:8799), Viz Studio (:8800), Security (:8801) | "Obsidian is the console." |
+| 0–6 s | Obsidian drawn as a building with four rooms: Vault (vault-bridge.sock), Command Center (command-center.sock), Viz Studio (viz-studio.sock), Security (:8801) | "Obsidian is the console." |
 | 6–14 s | A Claude figure walks to a single door marked `openclaw-obsidian`; the door opens onto Command Center and Viz Studio only | "Claude has exactly one door." |
 | 14–22 s | Allowed actions light up: start a run, watch it, read notes, draw a diagram. Blocked actions bounce off: edit a note, run a command, enter the vault bridge | "Read, run, draw. Nothing else." |
 | 22–30 s | A diagram lands on a shelf labelled `Visualizations/`; other shelves stay locked | "Every drawing lands in one folder." |

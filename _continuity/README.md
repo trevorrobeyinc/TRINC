@@ -28,7 +28,7 @@ mirror.
 | **CLI Claude Code** | Native filesystem (working dir is the repo, or an absolute path). | Auto-reads repo `CLAUDE.md` (has a pointer) + the repo skill `continuity-board` triggers on session start / "handoff" language. |
 | **Desktop Claude Code** (Desktop Code tab) | Filesystem MCP / native file tools. | Same as CLI — repo `CLAUDE.md` pointer + `continuity-board` skill. |
 | **Cowork** | Filesystem (writes files in this repo directly). | repo `CLAUDE.md` board pointer (top of file). |
-| **Claude Chat (Desktop app)** | **Filesystem MCP connector**, allowed roots `/Users/myhome` + `/Volumes/ExtraCurricular`. Reads/writes the repo directly. | The user (or a prior note) points Chat at `_continuity/CONTINUITY.md`. Chat is **not** limited to the `:8798` Obsidian bridge. |
+| **Claude Chat (Desktop app)** | **Filesystem MCP connector**, allowed roots `/Users/myhome` + `/Volumes/ExtraCurricular`. Reads/writes the repo directly. | The user (or a prior note) points Chat at `_continuity/CONTINUITY.md`. Chat is **not** limited to the canonical vault bridge. |
 
 > **Important correction (2026-07-01):** the repo `CLAUDE.md` topology used to imply Chat could
 > only reach local notes via the `:8798` Obsidian bridge. That is stale. **Desktop Claude Chat
@@ -57,9 +57,9 @@ mirror.
 
 > **Scope gate — business only:** only write to the board when the work relates to the Trevor
 > Robey, INC. business — the engine, offerings/revenue/brand/legal, or this repo's own
-> infra/topology (the `:8798` bridge, vault, connectors, plugins). Unrelated work (home network,
+> infra/topology (the canonical vault bridge, vault, connectors, plugins). Unrelated work (home network,
 > Security Everything, personal) goes to `~/.claude/handoffs/`, memory, or its own repo — not here.
-> The business repo's *own infrastructure* counts as business-related (e.g. verifying the `:8798`
+> The business repo's *own infrastructure* counts as business-related (e.g. verifying the canonical vault
 > bridge is a valid Log entry).
 
 This is deliberately close to the `session-handoff` skill's format, generalized from a one-shot

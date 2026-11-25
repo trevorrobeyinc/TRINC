@@ -97,7 +97,7 @@ Moved to `~/.Trash/trinc-reorg-2026-10-23/<original path>`; the operator empties
 - `future openclaw research agents phases to be implemented.` — read by the phase23 gate.
 - `.clinerules`, `.npmrc`, `workspace/runtime/state.json`, `audit/evidence/`, `security/` (engine governance), all of `tests/`, `scripts/diag/searxng-section-gate-e2e.mjs` (live business-lane diagnostic).
 - `Copilot-Everything/configs/migration-log.tsv` — written by the live `lib.sh` logger.
-- `Copilot-Everything/scripts/{assert-registered-paths,inventory,bootstrap-workspace,ollama-preload,socket-audit,official-plugin-*}` — dev-lane tooling, maintained as recently as 07-31/08-12.
+- `Copilot-Everything/scripts/{assert-registered-paths,inventory,bootstrap-workspace,ollama-preload,socket-audit,official-plugin-*}` — dev-lane tooling, maintained as recently as 07-31/08-12. *(2026-11-24, bridges-uds: `official-plugin-direct-mcp-cutover.sh` and `official-plugin-enable-write-mcp.sh` now refuse to run, reversing this KEEP for those two, and `socket-audit.sh` audits the vault bridge's socket. Record: `ops/security/bridges-uds-2026-11-24.md`.)*
 - The three `.learnings/` folders — the learnings convention; consolidation is a doc-set (Phase 6) question.
 
 ## Phase 3 — moved out (done 2026-10-23)

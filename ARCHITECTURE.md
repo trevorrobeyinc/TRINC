@@ -45,29 +45,33 @@ flight, [`_continuity/CONTINUITY.md`](_continuity/CONTINUITY.md).
 
 ## 2. Live component map
 
-Ports and owners as read with `lsof` on 2026-10-23, with Obsidian open.
+Ports and owners as read with `lsof` on 2026-10-23, with Obsidian open. On 2026-11-24 (bridges-uds) the three
+bridges moved from loopback TCP to Unix sockets in `~/.local/state/trinc/run/` (directory 0700, sockets 0600);
+their rows show the socket.
 
 ```
-Obsidian — owns four HTTPS bridges; all of them die when Obsidian quits
-├── obsidian-bridge-launcher ─spawns─> canonical vault bridge        :8798  (node child process)
+Obsidian — owns four bridges (three on Unix sockets, the Security Bridge on HTTPS); all of them die when Obsidian quits
+├── obsidian-bridge-launcher ─spawns─> canonical vault bridge    vault-bridge.sock    (node child process)
 │       Local REST API plugin underneath                              :27124 (the vault engine)
 │       routes /healthz /metrics /mcp/events POST /mcp/tool; bearer token + replay guard
-├── command-center ──────────────────> Command Center bridge         :8799  32 tools
+├── command-center ──────────────────> Command Center bridge     command-center.sock  32 tools
 │       7 vault + 16 obsidian_openclaw_* + 7 zk_* + 2 video_pipeline_*; 0600 token file
 │       └─spawns─> node scripts/run-workflow.js   (the engine, on demand)
-├── trinc-viz-studio ────────────────> Viz Studio bridge             :8800  12 viz_* tools
+├── trinc-viz-studio ────────────────> Viz Studio bridge         viz-studio.sock      12 viz_* tools
 │       every render is written under Visualizations/
 ├── trinc-security-bridge ───────────> Security Bridge               :8801  (owned by ~/Security Everything)
 ├── copilot (vendored fork)
-│       chat: hosted copilot-plus-flash; MCP client for TOOLS only -> :8798, :8799, :8800
+│       chat: hosted copilot-plus-flash; MCP client for TOOLS only -> the three bridge sockets (src/mcp/udsClient.ts)
 │       agent mode: opencode backend (ACP); `opencode serve` on :4096 is password-locked;
-│       openclaw-stdio-proxy.mjs carries the agent's tool calls to :8799 and :8800
+│       openclaw-stdio-proxy.mjs carries the agent's tool calls to command-center.sock and viz-studio.sock
 ├── vault-zettelkasten ── in-process ZettelkastenService (LLM linking, scheduled vault scans)
 └── personal plugins (sources outside this repo, in ~/Code): origin-nest,
     contextual-wiki-definitions, claude-console-mirror
 
+Bridge sockets live in ~/.local/state/trinc/run/ (dir 0700, sockets 0600); nothing listens on TCP 8798-8800.
+
 Claude's one door (Claude Code, repo .mcp.json "openclaw-obsidian")
-└── stdio adapter, profile openclaw ──> :8799 and :8800   (its only profile; it holds no :8798 client)
+└── stdio adapter, profile openclaw ──> command-center.sock and viz-studio.sock   (its only profile; it holds no vault-bridge client)
 
 Third-party loopback services, each wrapped by an in-repo HTTPS proxy (launchd)
 ├── Miyo     :8743 -> :8742    semantic search over the vault
@@ -230,9 +234,9 @@ and the folders under `.obsidian/plugins/` all key on them. Display names are fr
 
 | Plugin | Source | Role |
 |---|---|---|
-| `obsidian-bridge-launcher` | `Claude/obsidian-bridge-launcher` | spawns the `:8798` bridge; owns the fd-3 IPC used for console capture and the gated eval tool (off by default) |
-| `command-center` | `Claude/obsidian-command-center` | dispatches runs, owns `:8799`, runs the post-run enrichment |
-| `trinc-viz-studio` | `Claude/obsidian-viz-studio` | owns `:8800`; diagrams, charts, canvases, explainer cards, stat tiles, mockups, interactive HTML |
+| `obsidian-bridge-launcher` | `Claude/obsidian-bridge-launcher` | spawns the canonical vault bridge (`dist/index.js --transport=uds`, socket `vault-bridge.sock`); owns the fd-3 IPC used for console capture and the gated eval tool (off by default) |
+| `command-center` | `Claude/obsidian-command-center` | dispatches runs, owns `command-center.sock`, runs the post-run enrichment |
+| `trinc-viz-studio` | `Claude/obsidian-viz-studio` | owns `viz-studio.sock`; diagrams, charts, canvases, explainer cards, stat tiles, mockups, interactive HTML |
 | `vault-zettelkasten` | `Claude/obsidian-vault-zettelkasten` | in-process Zettelkasten analyses on hosted `copilot-plus-flash` |
 | `copilot` | `Copilot-Everything/repos/obsidian-copilot-mcp-v4` | chat + agent mode; MCP client for tools only |
 | `trinc-security-bridge` | `~/Security Everything/obsidian-security-bridge` | owns `:8801`; security control plane, no vault access |
@@ -244,8 +248,8 @@ Production deploys go through `ops/tr-suite/deploy.sh` only (registry `ops/tr-su
 
 **Claude's door in detail** (`Copilot-Everything/bridges/obsidian-stdio-adapter/`, profile `openclaw`,
 v0.5.0, 27 tools): run dispatch, status, results, history, artifacts, cancel, citation integrity, delivery
-evidence, memory search, engine health and a restricted vault publish on `:8799`; read-only
-`obsidian_search_notes` / `obsidian_read_note`; the 12 `viz_*` renders on `:8800`, with `folder`,
+evidence, memory search, engine health and a restricted vault publish on Command Center's socket; read-only
+`obsidian_search_notes` / `obsidian_read_note`; the 12 `viz_*` renders on Viz Studio's socket, with `folder`,
 `targetNote`, `targetCanvas`, `useActiveTab`, `useActiveNote` and `overwrite` stripped and refused so
 renders land only in `Visualizations/`. No create, append or command execution. Regression guard:
 `npm run test:profiles` (61 checks with Obsidian open, 2026-11-18).
@@ -257,16 +261,28 @@ renders land only in `Visualizations/`. No create, append or command execution. 
 - **HTTPS-only.** Every TCP listener owned by repo code is HTTPS and refuses to start on a certificate
   failure; no plaintext fallback of any kind. `bash scripts/lint-transport-monorepo.sh --strict` enforces
   it. Plaintext `:11434` and `:1234` stay in the lint's forbidden list.
-- **Bridge auth.** `:8798` uses a bearer token plus replay protection (nonce, timestamp, body SHA-256);
-  `:8799` and `:8800` use 32-byte tokens in 0600 files outside the vault.
+- **No TCP for the three bridges (2026-11-24, bridges-uds).** The vault bridge, Command Center and Viz
+  Studio serve plain HTTP/1.1 on 0600 Unix sockets in the 0700 run directory `~/.local/state/trinc/run/`,
+  through one helper kept byte-identical in three files on the lint's `LEGITIMATE_NON_TCP` list. A looser
+  directory chain, a foreign or live socket at the name, or a path over 103 bytes is refused with a stable
+  `UdsListenerError` code; nothing falls back to TCP. Clients check the same chain and the socket mode before
+  sending a token, bind each server id to its socket name, and pin the connection to the path. Record:
+  `ops/security/bridges-uds-2026-11-24.md`.
+- **Bridge auth.** The vault bridge uses a bearer token plus replay protection (nonce, timestamp, body
+  SHA-256); Command Center and Viz Studio use 32-byte tokens in 0600 files outside the vault. The tokens stay
+  on the sockets as defence in depth against other processes of the same uid.
 - **Browser guard (2026-10-24).** Before any route and before auth, all four bridges refuse what a web page
-  could send: `:8798`, `:8799` and `:8800` answer 421 to a Host other than `127.0.0.1`/`localhost`/`[::1]`
-  on the arrival port, and 403 to any `Origin`, any `Referer`, or a `Sec-Fetch-Site` other than `none`
-  (`:8801` has its own, stricter version). They send no CORS headers. The helper is three byte-identical
-  copies (`browserGuard.ts` / `browser-guard.ts`), compared by `ops/tr-suite/verify.sh`. It deliberately
-  ignores `Sec-Fetch-Mode`/`-Dest`: Node's `fetch` sends `sec-fetch-mode: cors`, and Obsidian's `requestUrl`
-  (Copilot's transport) may send `Sec-Fetch-Site: none`. Live check after any bridge redeploy (Obsidian open):
-  `node ops/tr-suite/bridge-guard-live-check.mjs` (18 cases, read-only, `/healthz` only).
+  could send: 403 to any `Origin`, any `Referer`, or a `Sec-Fetch-Site` other than `none` (`:8801` has its
+  own, stricter version). On a TCP arrival the guard also answers 421 to a Host other than
+  `127.0.0.1`/`localhost`/`[::1]`; the three bridge sockets have no port, so it skips that check there (Node
+  sends `Host: localhost`, or `localhost:80` with a pinned connection), and no browser can dial a socket, so
+  the guard is defence in depth. They send no CORS headers. The helper is three byte-identical copies
+  (`browserGuard.ts` / `browser-guard.ts`), compared by `ops/tr-suite/verify.sh`. It deliberately ignores
+  `Sec-Fetch-Mode`/`-Dest`. Live check after any bridge redeploy (Obsidian open):
+  `node ops/tr-suite/bridge-guard-live-check.mjs` (read-only: on each socket `/healthz` 200, an
+  unauthenticated POST 401, `Origin`, `Referer` and cross-site `Sec-Fetch-Site` 403, `OPTIONS` 405, no
+  `Access-Control-*` header; then a TCP tripwire: nothing may accept a connection on 8798-8800 at `127.0.0.1`
+  or `[::1]`).
 - **YubiKey gates.** Real engine runs, privileged commands, the browser pane and the gated MCP servers all
   need a physical touch; the touch is the consent and must never be removed. The session-gate hook bars
   sub-agents from Claude's door entirely, and bars run/cancel/publish during Ralph loops.
@@ -284,8 +300,8 @@ bash /Users/myhome/TRINC/ops/tr-suite/verify.sh                               # 
 cd "/Users/myhome/TRINC/Trevor Robey Intelligence Network Citations" && npm test   # 1331/1331 on 2026-10-23
 cd "/Users/myhome/TRINC/Trevor Robey Intelligence Network Citations" && node scripts/audit-connector-coverage.js
 cd /Users/myhome/TRINC/Copilot-Everything/bridges/obsidian-stdio-adapter && npm run test:profiles   # 52 PASS with Obsidian open
-curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:8798/healthz
-curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:8800/healthz
+node /Users/myhome/TRINC/ops/tr-suite/uds-health.mjs                          # the three bridge sockets, Obsidian open
+node /Users/myhome/TRINC/ops/tr-suite/bridge-guard-live-check.mjs             # guard cases + TCP tripwire, Obsidian open
 ```
 
 ---
@@ -310,6 +326,7 @@ curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.
 
 | Thing | Status |
 |---|---|
+| **TCP and mkcert TLS for the three bridges** (`:8798`, `:8799`, `:8800`; `httpTransport.ts`, `start:https` and `--transport=https`, the bridges' TLS env, the `bridgePort` settings, the clients' CA trust, `official-plugin-direct-mcp-cutover.sh` and `official-plugin-enable-write-mcp.sh`) | Retired 2026-11-24 (bridges-uds; decision record `ops/security/bridges-uds-2026-11-24.md`). The bridges serve the same routes on Unix sockets in `~/.local/state/trinc/run/`. Never re-add a TCP listener or a TCP fallback for them: a client that dials the freed ports hands its token to whatever holds them. The two official-plugin scripts refuse to run: they overwrote Copilot's MCP config with one `http://` server and printed the token. Back out only through the record's cold rollback, never piecemeal. |
 | **Ollama model warmer** (`Copilot-Everything/scripts/ollama-preload.sh`, launchd label `com.trevorrobey.ollama-preload`) | Removed 2026-11-04 by operator decision: no plist was installed, nothing called it, and its model is not installed. The `:11435` TLS proxy is separate and stays. |
 | **Claude → opencode delegation worker** (`opencode-mcp`, `_opencode-bridge/`, the repo `AGENTS.md` mirrors) | Retired 2026-10-23. `~/.config/opencode/` stays: it is the Copilot agent's opencode configuration. |
 | **Stdio adapter `claude` profile** and `Copilot-Everything/.mcp.json` `obsidian-bridge` | Retired 2026-10-23 (unused; was an ungated write lane). |

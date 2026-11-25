@@ -61,9 +61,10 @@ carrying it is blocked. That database is deliberately not named in this pack; ne
 | Term | Meaning |
 |---|---|
 | **Vault** | Trevor's Obsidian notes (`My Digital Garden`) |
-| **Bridge** | A small HTTPS server inside an Obsidian plugin |
-| **Command Center** | The plugin and bridge (`:8799`) that start runs and receive results |
-| **Viz Studio** | The plugin and bridge (`:8800`) that draw diagrams into `Visualizations/` |
+| **Bridge** | A small server inside an Obsidian plugin; the three TRINC bridges answer on private sockets, not network ports |
+| **Socket** | The private file a bridge answers on; only Trevor's account can open it, and no web page can reach it |
+| **Command Center** | The plugin and bridge (`command-center.sock`) that start runs and receive results |
+| **Viz Studio** | The plugin and bridge (`viz-studio.sock`) that draw diagrams into `Visualizations/` |
 | **The door** | `openclaw-obsidian`, Claude's single, limited way into Obsidian |
 | **Copilot** | The chat and agent plugin inside Obsidian |
 | **YubiKey touch** | The physical approval required for real runs and privileged actions |

@@ -1,8 +1,8 @@
 # TRINC learn-and-pitch pack: read this first
 
 > **For Claude** (Claude.ai chat, Claude Desktop Chat, or any Claude session). These are the instructions for
-> using this pack. Facts are as of **2026-10-23**. Written from the live TRINC repository at
-> `/Users/myhome/TRINC`; every fact carries its source.
+> using this pack. Facts are as of **2026-10-23** (parts `05`, `08` and `10` updated on 2026-11-24 for the
+> bridge sockets). Written from the live TRINC repository at `/Users/myhome/TRINC`; every fact carries its source.
 
 ## Who you are working for
 

@@ -46,7 +46,7 @@ here. **Length:** 26 slides. **Tone:** a patient teacher; plain words first, the
 | 18 | The business lane's limits | `WEB:` proves what was read, not truth; statistics re-resolve the series, not the value; paywalls skipped | `04` |
 | 19 | The machine room | One Mac; Obsidian as console; the four bridges | `05` |
 | 20 | Claude's one door | What it can and cannot do, and why there is only one | `05` |
-| 21 | The security layers | HTTPS-only, YubiKey gates, secrets, Falcon, posture | `05` |
+| 21 | The security layers | HTTPS-only, socket-only bridges, YubiKey gates, secrets, Falcon, posture | `05` |
 | 22 | The first product | Trial Graveyard Feed: what it is, coverage, caveats; not listed | `06` |
 | 23 | Built vs not built | The status table | `07` |
 | 24 | What "fully realised" looks like | The nine missing pieces, in order | `07` |
@@ -134,7 +134,7 @@ The last caption is mandatory (it is the claim's bound, `04`).
 
 | Time | Visual | On-screen text |
 |---|---|---|
-| 0–6 s | Obsidian drawn as a building with four rooms: Vault (:8798), Command Center (:8799), Viz Studio (:8800), Security (:8801) | "Obsidian is the console." |
+| 0–6 s | Obsidian drawn as a building with four rooms: Vault (vault-bridge.sock), Command Center (command-center.sock), Viz Studio (viz-studio.sock), Security (:8801) | "Obsidian is the console." |
 | 6–14 s | A Claude figure walks to a single door marked `openclaw-obsidian`; the door opens onto Command Center and Viz Studio only | "Claude has exactly one door." |
 | 14–22 s | Allowed actions light up: start a run, watch it, read notes, draw a diagram. Blocked actions bounce off: edit a note, run a command, enter the vault bridge | "Read, run, draw. Nothing else." |
 | 22–30 s | A diagram lands on a shelf labelled `Visualizations/`; other shelves stay locked | "Every drawing lands in one folder." |

@@ -92,14 +92,14 @@ before asserting how the engine behaves.
 |---|---|---|
 | `Trevor Robey Intelligence Network Citations/` | The engine and the business canon, in one folder | its `CLAUDE.md` |
 | `Claude/` | Obsidian plugins and MCP servers built here | its `CLAUDE.md` |
-| `Copilot-Everything/` | Vendored Copilot fork, the `:8798` bridge, the stdio adapter, the TLS proxies | its `CLAUDE.md` |
+| `Copilot-Everything/` | Vendored Copilot fork, the canonical vault bridge (`vault-bridge.sock`), the stdio adapter, the TLS proxies | its `CLAUDE.md` |
 | `Xcode/` | Xcode project "Trevor Robey Intelligence Network Citations": the offline buyer app `TRINCReader` and its `TRINCKit` package (added 2026-11-05) | its `CLAUDE.md` |
-| `ops/` | `tr-suite/` (registry, `verify.sh`, `deploy.sh`), `xcode/` (the buyer app's Xcode decision record) and the 2026-10 reorg record | — |
+| `ops/` | `tr-suite/` (registry, `verify.sh`, `deploy.sh`, `uds-health.mjs`), `xcode/` (the buyer app's Xcode decision record), `security/` (dated security records, among them the bridges-uds decision record) and the 2026-10 reorg record | — |
 | `docs/history/` | Retired and dated documents | — |
 
-Each workspace's `CLAUDE.md` is authoritative for its own domain. **The `:8798` bridge is the canonical
-vault access point; do not create another vault bridge** (new client needs are met by an adapter profile,
-below). Session artifacts (exploration reports, scratch scripts, snapshots) go in a gitignored `.archive/`
+Each workspace's `CLAUDE.md` is authoritative for its own domain. **The canonical vault bridge
+(`vault-bridge.sock`, spawned by `obsidian-bridge-launcher`) is the canonical vault access point; do not
+create another vault bridge** (new client needs are met by an adapter profile, below). Session artifacts (exploration reports, scratch scripts, snapshots) go in a gitignored `.archive/`
 folder, never a workspace root. The vendored fork
 (`Copilot-Everything/repos/obsidian-copilot-mcp-v4/`, upstream 4.0.0 + the MCP module) pins its manifest to
 `99.4.0`, above any plausible upstream; a pin **equal** to upstream let Obsidian overwrite the fork on
@@ -111,16 +111,25 @@ tool ids and server ids, the 0600 token paths, cross-plugin api lookups and the 
 `.obsidian/plugins/` all key on them. Display names (the "TR-Obsidian Intelligence Network Citations"
 suite) may change.
 
-## Ports
+## Ports and sockets
 
-Coordinated here; do not reassign one without updating this table.
+Coordinated here; do not reassign a port or rename a socket without updating these tables.
+
+**The three bridges listen on Unix sockets, not ports** (2026-11-24, bridges-uds; record:
+[`ops/security/bridges-uds-2026-11-24.md`](ops/security/bridges-uds-2026-11-24.md)). Each socket is 0600 in the
+run directory `<home>/.local/state/trinc/run/` (`<home>` = `os.homedir()`), which is 0700 and owned by the
+operator's uid. No TCP listener, no TCP fallback and no client code path that can dial TCP remains for these
+links: ports 8798, 8799 and 8800 are retired, and a listener on one is a finding.
+
+| Socket | Service | Owner |
+|---|---|---|
+| `vault-bridge.sock` | Canonical vault bridge (bearer token + replay guard; pidfile `vault-bridge.pid` beside it) | `obsidian-bridge-launcher` plugin (child process, `dist/index.js --transport=uds`) |
+| `command-center.sock` | Command Center bridge | `command-center` plugin |
+| `viz-studio.sock` | Viz Studio bridge | `trinc-viz-studio` plugin |
 
 | Port | Service | Owner |
 |---|---|---|
-| 8798 | Canonical vault bridge (HTTPS) | `obsidian-bridge-launcher` plugin (child process) |
-| 27124 | Obsidian Local REST API (the vault engine under `:8798`) | Local REST API plugin |
-| 8799 | Command Center bridge (HTTPS) | `command-center` plugin |
-| 8800 | Viz Studio bridge (HTTPS) | `trinc-viz-studio` plugin |
+| 27124 | Obsidian Local REST API (the vault engine under the vault bridge) | Local REST API plugin |
 | 8801 | Security Bridge (HTTPS) | `trinc-security-bridge` plugin (source in `~/Security Everything`) |
 | 8743 → 8742 | Miyo semantic search: HTTPS proxy → plaintext upstream | launchd `com.trevorrobey.miyo-tls-proxy` / Miyo.app |
 | 6433 → 6333 | Qdrant: HTTPS proxy → plaintext upstream | launchd `com.trevorrobey.qdrant-tls-proxy` / Miyo's child |
@@ -128,20 +137,21 @@ Coordinated here; do not reassign one without updating this table.
 | 4096 | `opencode serve` of the Copilot agent (password-locked by the operator) | Copilot plugin |
 
 All four Obsidian bridges die when Obsidian quits, so vault tools answer "not running" while it is
-closed. Only the HTTPS proxy should ever reach a plaintext upstream. `:1234` (LM Studio) is gone and stays
+closed (a socket client sees `ENOENT`, or `ECONNREFUSED` for a stale socket a crash left behind, which the
+next start replaces). Only the HTTPS proxy should ever reach a plaintext upstream. `:1234` (LM Studio) is gone and stays
 in the transport lint's forbidden list, as does `:11434`.
 
 ## Claude's one door, and everyone else's
 
 - **Claude reaches Obsidian through one door**: the stdio adapter
   (`Copilot-Everything/bridges/obsidian-stdio-adapter/`) with profile `openclaw`, registered in
-  `.mcp.json` as **`openclaw-obsidian`** (v0.5.0, 27 tools). On `:8799`: run dispatch, status, results,
-  history, artifacts, cancel, citation integrity, delivery evidence, memory search, engine health, a
-  restricted publish, and read-only `obsidian_search_notes` / `obsidian_read_note`. On `:8800`: the 12
-  `viz_*` renders, with `folder`, `targetNote`, `targetCanvas`, `useActiveTab`, `useActiveNote` and
-  `overwrite` stripped and refused, so renders land only in `Visualizations/`. No create, append or command
-  execution. It never loads the `:8798` token. Runbook: the `openclaw-dispatch` skill. Regression guard:
-  `npm run test:profiles` in the adapter.
+  `.mcp.json` as **`openclaw-obsidian`** (v0.5.0, 27 tools). On Command Center's socket: run dispatch,
+  status, results, history, artifacts, cancel, citation integrity, delivery evidence, memory search, engine
+  health, a restricted publish, and read-only `obsidian_search_notes` / `obsidian_read_note`. On Viz Studio's
+  socket: the 12 `viz_*` renders, with `folder`, `targetNote`, `targetCanvas`, `useActiveTab`, `useActiveNote`
+  and `overwrite` stripped and refused, so renders land only in `Visualizations/`. No create, append or command
+  execution. It never loads the vault bridge's token and never names `vault-bridge.sock`. Runbook: the
+  `openclaw-dispatch` skill. Regression guard: `npm run test:profiles` in the adapter.
 - **Keep the server key `openclaw-obsidian`**: the Security Everything gate hook matches that prefix (it bars
   sub-agents from the whole door, and bars run/cancel/publish during Ralph loops). A new or renamed MCP
   server is ungated until the hook knows it, so wire the gate before registering anything new. A session
@@ -155,11 +165,13 @@ in the transport lint's forbidden list, as does `:11434`.
   file or folder. Since 2026-11-22 (operator decision) it also takes a link on Command Center's compiled-in
   list and hands it to Downie, the one app address Command Center opens. Do not add a Raycast door, a video
   tool on the adapter or any other deeplink dispatch back.
-  **Copilot** calls `:8798`, `:8799` and `:8800` itself, and its agent mode reaches the bridges through
-  `bridges/openclaw-stdio-proxy`. That is its door, not Claude's. The adapter's `claude` profile was
+  **Copilot** calls the three bridge sockets itself (Node `http` in the renderer, `src/mcp/udsClient.ts`),
+  and its agent mode reaches Command Center and Viz Studio through `bridges/openclaw-stdio-proxy`
+  (`OPENCLAW_BRIDGE_SOCKET`). That is its door, not Claude's. The adapter's `claude` profile was
   retired 2026-10-23; the profile variable is required, and `openclaw` is its only value.
 - **Aggregate at the client edge, never by merging daemons.** Each bridge stays owned by its own plugin,
-  with its own lifecycle, token and port. Merging them was declined on 2026-08-20 and again on 2026-10-23,
+  with its own lifecycle, token and socket (one socket per bridge: a shared socket, broker or multiplexer
+  re-proposes the declined merge). Merging them was declined on 2026-08-20 and again on 2026-10-23,
   as was "one plugin owns one port". Also declined, do not re-propose without new evidence: a TTL cache for
   the per-call token read, and a homegrown rotating log file in the adapter.
 - **Xcode (2026-11-05, `ops/xcode/README.md`).**
@@ -192,9 +204,9 @@ Which parts work with Obsidian **closed** (headless or terminal runs) and which 
 | Deliverables copied into the run folder | ✅ with the note write | engine | the sealed bundle |
 | `Graph Analysis.md` (deterministic) | ✅ in-process | engine | `Claude/Medical-Zettelkasten-MCP` |
 | Prior-research read-back (`obsidian_prior_research`) | ✅ via Miyo `:8743` | engine adapter | Miyo running; context only, never evidence |
-| Full-text read-back fallback | ❌ | `:8798` → `:27124` | Local REST API plugin |
+| Full-text read-back fallback | ❌ | vault bridge (`vault-bridge.sock`) → `:27124` | Local REST API plugin |
 | Research-memory ingest and priors | ✅ (`researchMemory.enabled`) | engine → pack store CLI | Qdrant `:6433`; embedder offline, a cache miss fails loudly |
-| Chat bubble (`research_notify`) | ❌ | Command Center | `:8798` |
+| Chat bubble (`research_notify`) | ❌ | Command Center | the vault bridge (`vault-bridge.sock`) |
 | Miyo indexing of new notes | ✅ | Miyo's own watcher | Miyo running |
 | Zettelkasten linking | ❌, with a catch-up sweep on load | Command Center + `vault-zettelkasten` | hosted `copilot-plus-flash` |
 | Backfill of runs finished while closed | ✅ `scripts/publish-workflow-to-vault.js --all` | engine CLI | idempotent on `workflow_id` |
@@ -274,12 +286,16 @@ coordinated unit and the offline docs at `~/Security Everything/crowdstrike-docs
 - Restricting the plaintext loopback upstreams to the proxy's UID is **closed as unbuildable** (everything
   runs as UID 501 and pf skips `lo0`); the compensating control is the Monitor-only Falcon group
   "Mac - Loopback Upstream Watch". Do not re-propose pf/UID vehicles.
-- **Bridges refuse browser traffic before auth** (2026-10-24; ARCHITECTURE.md §5 "Browser guard"). Never
-  add CORS headers back to `:8798`/`:8799`/`:8800`, and never make a bridge client a page-level `fetch`.
-  Never refuse on `Sec-Fetch-Mode`/`-Dest` either: Node's `fetch` sends `sec-fetch-mode: cors`, and
-  Obsidian's `requestUrl` (Copilot) may send `Sec-Fetch-Site: none`. The three guard copies must stay
-  byte-identical (`verify.sh` checks). Merging the bridges onto one port to "shrink the attack surface" was
-  assessed the same day and gains nothing: they are loopback-only and token-gated.
+- **Bridges refuse browser traffic before auth** (2026-10-24; ARCHITECTURE.md §5 "Browser guard"), kept
+  on the sockets as defence in depth: any `Origin`, any `Referer` and a `Sec-Fetch-Site` other than `none`
+  get 403. Never add CORS headers back to the three bridges. A bridge client is a program that can dial a
+  Unix socket (Node `http` with `socketPath` and a pinned `createConnection`), never a page-level `fetch`,
+  Obsidian's `requestUrl` or Node's global `fetch`, none of which can reach a socket. On a socket the guard
+  skips its Host check (there is no port; Node sends `Host: localhost`, or `localhost:80` with the pinned
+  connection), so never put a TCP-to-socket forwarder (`ssh -L`, `socat`) in front of a bridge. Never refuse
+  on `Sec-Fetch-Mode`/`-Dest` either. The three guard copies must stay byte-identical (`verify.sh` checks).
+  Merging the bridges onto one port or one socket to "shrink the attack surface" was assessed on 2026-10-24
+  and gains nothing: each is private and token-gated.
 
 ### Argv hygiene
 
@@ -303,12 +319,24 @@ pair, fix env propagation or paths); the code must throw a useful error and refu
 - **Forbidden shapes** (caught by `scripts/lint-transport-monorepo.sh`): `http.createServer(` binding a TCP
   host:port (Unix sockets and named pipes are exempt via its `LEGITIMATE_NON_TCP` list), any
   `*_TLS_DISABLE` check, TLS-or-plaintext ternaries, `if (!tls) return null`.
-- **Copy this pattern** for a new listener:
-  `Copilot-Everything/bridges/obsidian-copilot-bridge/src/server/httpTransport.ts` (throws without TLS,
-  reads the mkcert pair, asserts `instanceof https.Server`).
-- **Guards:** `npm run lint:transport` in `Copilot-Everything/bridges/obsidian-copilot-bridge` and
-  `Claude/obsidian-command-center` before committing a bridge change; `bash scripts/lint-transport-monorepo.sh
-  --strict` across the repo.
+- **Copy this pattern** for a new TCP listener: `Copilot-Everything/scripts/miyo-tls-proxy.mjs` (one file,
+  throws on a certificate failure, no plaintext path). `httpTransport.ts`, the old canonical pattern, was
+  deleted on 2026-11-24 with the bridges' TCP transport.
+- **Unix sockets are the other sanctioned transport, and the only one the three bridges use** (2026-11-24,
+  bridges-uds). They serve plain HTTP/1.1 on a 0600 socket in the 0700 run directory through one helper kept
+  byte-identical in three files (`Claude/obsidian-command-center/src/bridge/uds-listener.ts`,
+  `Claude/obsidian-viz-studio/src/bridge/uds-listener.ts`,
+  `Copilot-Everything/bridges/obsidian-copilot-bridge/src/server/udsListener.ts`; `verify.sh` compares them),
+  the only files in those packages that may call `http.createServer`; they are on `LEGITIMATE_NON_TCP`.
+  Clients go through one wrapper (the byte-identical `bridges-uds client v1` block in four files, or the
+  Copilot fork's `udsClient.ts`) that validates the exact path it sends and pins the connection with
+  `createConnection: () => net.connect({ path })`, never an `agent` option: Node turns an empty or undefined
+  `socketPath` into plaintext TCP to `localhost:80`. A bridge that cannot secure its directory chain or socket
+  throws a stable `UdsListenerError` code and refuses to listen; nothing falls back to TCP.
+- **Guards:** `npm run lint:transport` in `Copilot-Everything/bridges/obsidian-copilot-bridge`,
+  `Claude/obsidian-command-center` and `Claude/obsidian-viz-studio` before committing a bridge change;
+  `bash scripts/lint-transport-monorepo.sh --strict` across the repo; `bash ops/tr-suite/verify.sh` for the
+  byte-identity of the helper copies and the client block.
 - **The only plaintext carve-out** is the Claude Browser pane (`mcp__Claude_Browser__*`, `cb` gate), which
   talks to its own local browser over loopback. Claude in Chrome, the second browser surface since 2026-11-18
   (Chrome Profile 2 only, one site per `cic` arm), gets none. Computer-use is
@@ -324,18 +352,24 @@ pair, fix env propagation or paths); the code must throw a useful error and refu
 
 mkcert certificates at `~/.local/share/mkcert/localhost.pem` (valid for `localhost` and `127.0.0.1` until
 2028-07-07); the CA root is `~/Library/Application Support/mkcert/rootCA.pem`, trusted in the System
-Keychain. Every Node process needs `NODE_EXTRA_CA_CERTS` pointing at that root.
+Keychain. Every Node process that dials an HTTPS loopback service (the Miyo, Qdrant and SearXNG proxies,
+LLM Guard on `:8000`) needs `NODE_EXTRA_CA_CERTS` pointing at that root. A client of the three bridge sockets
+needs none: there is no TLS on a socket. Never delete the leaf pair: Security Everything's registry proxy on
+`:8893` loads it, and the vault bridge's own Miyo call trusts the root through the launcher's env.
 
 ## Health checks
 
 ```bash
-curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:8798/healthz
-curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:8800/healthz
+node /Users/myhome/TRINC/ops/tr-suite/uds-health.mjs     # GET /healthz over the three bridge sockets; one line each, never a token
 curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:8743/v0/health
 curl --cacert "$HOME/Library/Application Support/mkcert/rootCA.pem" https://127.0.0.1:6433/collections/miyo
 bash /Users/myhome/TRINC/ops/tr-suite/verify.sh
 cd "/Users/myhome/TRINC/Trevor Robey Intelligence Network Citations" && bash scripts/verify-phase29-policy.sh
 ```
+
+`uds-health.mjs` derives each socket path from the home directory, so a bridge check never puts a socket path (or
+`curl`) on a command line. With Obsidian open, `node /Users/myhome/TRINC/ops/tr-suite/bridge-guard-live-check.mjs`
+also proves the browser guard on each socket and that nothing listens on TCP 8798-8800.
 
 ## Retired
 

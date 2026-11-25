@@ -1,8 +1,8 @@
 # 05 — The machine room
 
 > **Learning deck only.** Client pitches get at most one line from this file ("runs on a single,
-> hardware-key-approved research engine; every network service is HTTPS-only"). The port numbers, plugin
-> names and security layers below are for Trevor's understanding, not for buyers.
+> hardware-key-approved research engine; every network service is HTTPS-only"). The port and socket names,
+> plugin names and security layers below are for Trevor's understanding, not for buyers.
 
 ## One Mac, one engine, Obsidian as the console
 
@@ -15,15 +15,17 @@
 
 ## The bridges inside Obsidian
 
-A *bridge* is a small HTTPS server inside an Obsidian plugin that lets other software talk to that plugin. All
-of them stop when Obsidian quits.
+A *bridge* is a small server inside an Obsidian plugin that lets other software on the Mac talk to that plugin.
+Since 2026-11-24 the three TRINC bridges answer on private sockets, small files in a folder that only Trevor's
+account can open, instead of network ports, so no other account and no web page can reach them. The Security
+Bridge, owned by the security repo, is still an HTTPS port. All of them stop when Obsidian quits.
 
 ```mermaid
 flowchart TB
   subgraph OB["Obsidian (on Trevor's Mac)"]
-    VB[":8798 vault bridge<br/>Copilot's way into the notes"]
-    CC[":8799 Command Center<br/>starts runs, receives results"]
-    VZ[":8800 Viz Studio<br/>diagrams and charts"]
+    VB["vault bridge (vault-bridge.sock)<br/>Copilot's way into the notes"]
+    CC["Command Center (command-center.sock)<br/>starts runs, receives results"]
+    VZ["Viz Studio (viz-studio.sock)<br/>diagrams and charts"]
     SB[":8801 Security Bridge<br/>owned by the security repo"]
     CP["Copilot plugin<br/>chat + agent"]
   end
@@ -36,11 +38,11 @@ flowchart TB
   CP --> VZ
 ```
 
-| Port | What it does | Owner |
+| Socket or port | What it does | Owner |
 |---|---|---|
-| `:8798` | The vault bridge: reading and writing notes. Copilot uses it. | `obsidian-bridge-launcher` plugin |
-| `:8799` | Command Center: starts research runs, reports status, receives results (32 tools) | `command-center` plugin |
-| `:8800` | Viz Studio: diagrams, charts, canvases, explainer cards, stat tiles, mockups (12 tools); every render lands in `Visualizations/` | `trinc-viz-studio` plugin |
+| `vault-bridge.sock` | The vault bridge: reading and writing notes. Copilot uses it. | `obsidian-bridge-launcher` plugin |
+| `command-center.sock` | Command Center: starts research runs, reports status, receives results (32 tools) | `command-center` plugin |
+| `viz-studio.sock` | Viz Studio: diagrams, charts, canvases, explainer cards, stat tiles, mockups (12 tools); every render lands in `Visualizations/` | `trinc-viz-studio` plugin |
 | `:8801` | Security Bridge: a security control plane with no vault access | the separate Security Everything repo |
 
 [src: `ARCHITECTURE.md` §2, §4]
@@ -54,7 +56,7 @@ can:
 - search and read notes, **read-only**;
 - draw visuals, which can land **only** in `Visualizations/`.
 
-It **cannot** create or edit notes, run commands, or reach the `:8798` vault bridge. Six properties that
+It **cannot** create or edit notes, run commands, or reach the vault bridge. Six properties that
 could steer a render elsewhere are stripped and refused. Sub-agents are barred from the door entirely.
 [src: `ARCHITECTURE.md` §4, "Claude's door in detail"; §5]
 
@@ -84,8 +86,10 @@ agent mode runs on an opencode backend. Raycast, which once had a separate door 
 
 ## The security layers (they protect the business; they are not for sale)
 
-- **HTTPS-only.** Every network listener in the repo is HTTPS and refuses to start without its certificate; no
-  plaintext fallback exists.
+- **HTTPS-only, and no network port for the bridges.** Every network listener in the repo is HTTPS and refuses
+  to start without its certificate; no plaintext fallback exists. The three TRINC bridges listen on no network
+  port at all: they answer on private sockets in a folder only Trevor's account can open, and they refuse to
+  start rather than fall back to a port. [src: `CLAUDE.md` → Ports and sockets]
 - **YubiKey gates.** Real engine runs, privileged commands, the in-app browser and the gated tool servers all
   need a physical touch. The touch *is* the consent, and it is never removed.
 - **Secrets** live in the Keychain or owner-only files, never in plugin settings.
