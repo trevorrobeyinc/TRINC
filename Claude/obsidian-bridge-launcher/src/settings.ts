@@ -17,7 +17,8 @@ export class BridgeLauncherSettingTab extends PluginSettingTab {
     containerEl.createEl("p", {
       text:
         "Spawns the canonical Obsidian MCP bridge as a child process tied to Obsidian's lifecycle. " +
-        "Bridge dies when Obsidian quits or when this plugin is disabled.",
+        "Bridge dies when Obsidian quits or when this plugin is disabled. It serves only on its " +
+        "private Unix socket.",
     });
 
     // --- Status ---
@@ -26,7 +27,7 @@ export class BridgeLauncherSettingTab extends PluginSettingTab {
     const refresh = () => {
       const uptime = this.plugin.uptimeMs();
       statusEl.setText(
-        `Status: ${this.plugin.status} · port :${this.plugin.settings.bridgePort}` +
+        `Status: ${this.plugin.status} · unix:${this.plugin.socketPath}` +
           (this.plugin.child?.pid ? ` · pid ${this.plugin.child.pid}` : "") +
           (uptime ? ` · uptime ${Math.round(uptime / 1000)}s` : "")
       );
@@ -77,7 +78,7 @@ export class BridgeLauncherSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("MCP config path")
-      .setDesc("Absolute path to obsidian-cli-mcp.local.json (must define transport.tls.{certPath,keyPath})")
+      .setDesc("Absolute path to obsidian-cli-mcp.local.json (the bridge's token, vault roots and limits; transport.udsPath and transport.tls are ignored)")
       .addText((text) =>
         text
           .setValue(this.plugin.settings.mcpConfigPath)
@@ -89,7 +90,7 @@ export class BridgeLauncherSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Extra CA cert path")
-      .setDesc("Passed to the bridge as NODE_EXTRA_CA_CERTS (mkcert root CA)")
+      .setDesc("Passed to the bridge as NODE_EXTRA_CA_CERTS (mkcert root CA) for its own outbound HTTPS calls, such as Miyo")
       .addText((text) =>
         text
           .setValue(this.plugin.settings.caCertPath)
@@ -103,19 +104,14 @@ export class BridgeLauncherSettingTab extends PluginSettingTab {
     containerEl.createEl("h3", { text: "Behavior" });
 
     new Setting(containerEl)
-      .setName("Bridge port")
-      .setDesc("Port the bridge listens on (used for stale-process detection)")
-      .addText((text) =>
-        text
-          .setValue(String(this.plugin.settings.bridgePort))
-          .onChange(async (value) => {
-            const n = parseInt(value, 10);
-            if (Number.isFinite(n) && n > 0 && n < 65536) {
-              this.plugin.settings.bridgePort = n;
-              await this.plugin.saveSettings();
-            }
-          })
-      );
+      .setName("Bridge socket")
+      .setDesc(
+        "Where the bridge serves (read-only): the private run directory under your home, mode 0700, " +
+          "socket 0600. Its pidfile vault-bridge.pid sits next to it."
+      )
+      .addText((text) => {
+        text.setValue(this.plugin.socketPath).setDisabled(true);
+      });
 
     new Setting(containerEl)
       .setName("Shutdown timeout (ms)")
@@ -134,7 +130,12 @@ export class BridgeLauncherSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Kill stale bridge on start")
-      .setDesc("If the bridge port is held when this plugin enables, kill the holder before spawning a fresh bridge.")
+      .setDesc(
+        "If vault-bridge.sock is still served when this plugin starts the bridge, kill the holder before " +
+          "spawning a fresh bridge, but only an orphaned bridge of this package: its pidfile, its socket, " +
+          "its working directory and a parent that is gone or this window. A bridge another Obsidian window " +
+          "owns is never killed."
+      )
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.staleProcessKillEnabled)

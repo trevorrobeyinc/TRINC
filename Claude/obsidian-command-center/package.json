@@ -7,7 +7,7 @@
     "dev": "node esbuild.config.mjs",
     "build": "node esbuild.config.mjs production",
     "test": "node --test --experimental-strip-types --no-warnings \"test/*.test.ts\"",
-    "lint:transport": "if grep -nE 'http\\.createServer\\(|OPENCLAW_BRIDGE_TLS_DISABLE\\s*={2,3}|tlsDisable\\s*\\?' src/bridge/mcp-bridge-server.ts; then echo 'lint:transport FAILED: forbidden plaintext pattern in Command Center bridge. The :8799 bridge MUST be HTTPS-only.'; exit 1; else echo 'lint:transport OK'; fi"
+    "lint:transport": "if [ ! -f src/bridge/uds-listener.ts ]; then echo 'lint:transport FAILED: src/bridge/uds-listener.ts is missing. It is the only file in src allowed to create or listen on a server, so there is nothing to check against.'; exit 1; fi; hits=$(grep -rnE 'createServer\\(|\\.listen\\(' src | grep -v '^src/bridge/uds-listener\\.ts:'); if [ -n \"$hits\" ]; then echo \"$hits\"; echo 'lint:transport FAILED: createServer( or .listen( outside src/bridge/uds-listener.ts. Since bridges-uds (2026-11-24) the Command Center bridge serves only a Unix socket in the private run directory, through that helper, and never TCP.'; exit 1; fi; echo 'lint:transport OK'"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

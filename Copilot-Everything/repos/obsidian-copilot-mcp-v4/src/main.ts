@@ -55,6 +55,7 @@ import {
 import { UserMemoryManager } from "@/memory/UserMemoryManager";
 import { McpEventBridge } from "@/mcp/McpEventBridge";
 import { McpToolProvider } from "@/mcp/McpToolProvider";
+import { migrateMcpServersToSockets } from "@/mcp/socketMigration";
 import { clearRecordedPromptPayload } from "@/LLMProviders/chainRunner/utils/promptPayloadRecorder";
 import {
   checkIsPaidUser,
@@ -257,7 +258,7 @@ export default class CopilotPlugin extends Plugin {
           syncPlus(next.isPaidUser, next.plusLicenseKey);
         }
         // Forked addition: re-sync MCP tool registrations on settings change,
-        // and restart the SSE bridge if endpoint/token/enable changed.
+        // and restart the SSE bridge if socket/token/enable changed.
         McpToolProvider.syncFromSettings(next.mcp);
         this.mcpEventBridge?.restart();
       })();
@@ -268,6 +269,10 @@ export default class CopilotPlugin extends Plugin {
     // when OpenCode first enumerates models. Awaited for deterministic ordering;
     // it's a fast, one-time, no-op for already-migrated/fresh vaults.
     await runSettingsMigrations(this.modelManagement);
+    // Forked addition (bridges-uds, 2026-11-24): move `mcp.servers` entries that named the TRINC
+    // bridges' retired TCP ports onto their Unix sockets. Not version-gated: it is idempotent, and
+    // the persist subscriber above saves a change like any other setting.
+    migrateMcpServersToSockets();
     const isLegacyUpgrade = getSettings().upgradedToV8FromLegacy;
     this.addSettingTab(new CopilotSettingTab(this.app, this));
 
@@ -646,6 +651,12 @@ export default class CopilotPlugin extends Plugin {
     // this vault free to write settings and issue DELETE/POST during an unload
     // that is never followed by a re-enable, or while another vault is opening.
     resetMiyoMutations();
+
+    // Forked addition: end the research SSE subscription before the first `await`, so a reload
+    // never leaves this instance's stream or reconnect timer on the vault bridge's socket. Clearing
+    // the field also turns the settings subscriber's restart() into a no-op until it unsubscribes.
+    this.mcpEventBridge?.stop();
+    this.mcpEventBridge = undefined;
 
     // Best-effort flush of pending keychain/data.json writes.
     // Reason: onunload() is void in Obsidian's type system, but awaiting here

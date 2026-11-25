@@ -1,10 +1,9 @@
 import * as http from "http";
-import * as https from "https";
 import * as os from "os";
 import * as path from "path";
 import { readFileSync, writeFileSync, mkdirSync, chmodSync } from "fs";
 import { createHash, timingSafeEqual, randomBytes } from "crypto";
-import { App, TFile, normalizePath } from "obsidian";
+import { App, Notice, TFile, normalizePath } from "obsidian";
 import type { OpenClawSettings } from "../types";
 import { getVaultZKApi, type VaultZKApi } from "../zettelkasten/linker";
 import {
@@ -18,6 +17,7 @@ import { compactWorkflowState } from "../workflow/status-compaction";
 import { resolveVideoPipelineSource, type VideoPipelineSource } from "./video-pipeline-source";
 import { summarizeVideoPipelineLog } from "./video-pipeline-status";
 import { refuseBrowserRequest } from "./browser-guard";
+import { listenHttpOnSocket, socketPathFor, SOCKET_NAMES, type UdsListener } from "./uds-listener";
 import { DOWNIE_GUIDED_STEPS } from "../video/downie";
 import {
   runInProgressMessage,
@@ -26,8 +26,6 @@ import {
   type VideoRunStartOptions,
 } from "../video/pipeline";
 import { defaultRunLogPath } from "../video/run-log";
-
-const HOST = "127.0.0.1";
 
 // Security (audit P0): obsidian_execute_command must NOT be an open dispatcher to
 // every enabled plugin's commands — that allows lateral pivot (e.g. to runjs =
@@ -175,7 +173,8 @@ function loadOrCreateBridgeToken(): string {
 /**
  * Constant-time bearer-token verification (added 2026-05-04 H2 hardening).
  * Routes that bypass auth: GET /, GET /health and GET /healthz (so health probes work;
- * /healthz matches the canonical :8798 bridge's path, which is what clients probe).
+ * /healthz matches the path the canonical vault bridge serves on vault-bridge.sock,
+ * which is what clients probe).
  * All other routes require either Authorization: Bearer <token>
  * or X-MCP-Token: <token>.
  */
@@ -196,36 +195,11 @@ function verifyToken(expected: string, provided: string | undefined): boolean {
   return timingSafeEqual(a, b);
 }
 
-// TLS is mandatory. The previous OPENCLAW_BRIDGE_TLS_DISABLE escape hatch and
-// silent fallback-to-http on cert read failure were removed (2026-04-30): a
-// stray env var or a missing cert file must not be able to demote this bridge
-// to plain HTTP. If the mkcert pair cannot be loaded, refuse to start.
-function resolveTlsConfig(): { key: Buffer; cert: Buffer } {
-  if (process.env.OPENCLAW_BRIDGE_TLS_DISABLE) {
-    throw new Error(
-      "OPENCLAW_BRIDGE_TLS_DISABLE is no longer honored. The Command Center bridge is HTTPS-only. " +
-      "Unset this variable and provide a valid mkcert cert/key pair."
-    );
-  }
-  const home = process.env.HOME || "";
-  const keyPath = process.env.OPENCLAW_BRIDGE_TLS_KEY
-    || `${home}/.local/share/mkcert/localhost-key.pem`;
-  const certPath = process.env.OPENCLAW_BRIDGE_TLS_CERT
-    || `${home}/.local/share/mkcert/localhost.pem`;
-  try {
-    return {
-      key: readFileSync(keyPath),
-      cert: readFileSync(certPath)
-    };
-  } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-    throw new Error(
-      `Command Center bridge cannot start: TLS key/cert load failed (${detail}). ` +
-      `Expected key at ${keyPath} and cert at ${certPath}. ` +
-      `Install mkcert and run \`mkcert -install && mkcert localhost 127.0.0.1\` if missing.`
-    );
-  }
-}
+// Transport (bridges-uds, 2026-11-24): the bridge serves plain HTTP/1.1 on command-center.sock in the private
+// run directory (<home>/.local/state/trinc/run, 0700; socket 0600), never on TCP. Only processes of this uid can
+// reach it and no browser can, so it carries no TLS (the mkcert key pair and its environment overrides are no
+// longer read); the bearer token and the browser guard stay. Every check on the directory chain and the socket
+// lives in ./uds-listener.ts, the one file in src that creates a server (npm run lint:transport).
 const MAX_BODY_BYTES = 1024 * 1024; // 1 MB
 const MCP_PROTOCOL_VERSION = "2024-11-05";
 const SERVER_INFO = { name: "obsidian-mcp-bridge", version: "2.0.0" };
@@ -280,6 +254,30 @@ export interface PluginActions {
 }
 
 /**
+ * What the bridge needs from the plugin that owns it (bridges-uds D3, 2026-11-24). Obsidian's unload is
+ * synchronous and never awaits, and a layout-ready callback can run after its plugin unloaded, so a start
+ * that lands after the unload must close what it opened, and the plugin's own unload must reach the
+ * listener even if onunload never gets that far.
+ */
+export interface BridgeOwner {
+  /** True from the first statement of the plugin's onunload on. */
+  isDisposed(): boolean;
+  /** The plugin's Component.register: Obsidian runs these callbacks on unload, before onunload. */
+  register(cb: () => void): void;
+}
+
+/**
+ * For a close() nothing awaits. It rejects when the published name cannot be moved aside (for example the run
+ * directory lost its owner's write bit under a live server); the server has stopped accepting by then. Log which
+ * close it was instead of leaving an unhandled rejection in the renderer.
+ */
+function warnCloseFailed(which: string): (err: unknown) => void {
+  return (err) => {
+    console.warn(`[OpenClaw] Bridge close failed (${which}): ${err instanceof Error ? err.message : String(err)}`);
+  };
+}
+
+/**
  * In-plugin MCP bridge HTTP server.
  *
  * Runs inside the Obsidian plugin process so it has direct access to the
@@ -288,28 +286,66 @@ export interface PluginActions {
  *
  * Replicates the exact HTTP contract of the standalone bridge at
  * openclaw-bridge/obsidian-mcp-bridge.js so the Copilot MCP config
- * works without changes.
+ * works without changes. Since bridges-uds (2026-11-24) it serves that
+ * contract on the Unix socket command-center.sock, never on TCP.
  */
 export class McpBridgeServer {
-  private server: http.Server | https.Server | null = null;
+  private listener: UdsListener | null = null;
+  /** The one start in flight (the layout-ready start and the settings Start button can race), or null. */
+  private starting: Promise<UdsListener | null> | null = null;
+  /** Set by stop(): a start still in flight closes its listener when it lands instead of serving. */
+  private stopRequested = false;
+  /** Counts stop() calls: a start() waiting behind a doomed start (see start()) runs only if no stop came after it. */
+  private stopCalls = 0;
   private startTime: number = Date.now();
 
   constructor(
     private app: App,
     private settings: OpenClawSettings,
-    private pluginActions?: PluginActions
+    private pluginActions?: PluginActions,
+    private owner?: BridgeOwner
   ) {}
 
   // Bearer token loaded from the 0600 ~/.config file (not from settings/data.json).
   private bridgeToken = "";
 
   get isRunning(): boolean {
-    return this.server !== null;
+    return this.listener !== null;
   }
 
-  async start(): Promise<void> {
-    if (this.server) return;
+  /** The published socket path while the bridge serves, else null. */
+  get socketPath(): string | null {
+    return this.listener?.socketPath ?? null;
+  }
 
+  /**
+   * Serve the bridge on command-center.sock. Concurrent calls share the start in flight, unless a stop()
+   * has doomed it: then the call waits for that start to settle and starts afresh, so the last of Start and
+   * Stop wins. Resolves to the listener, or to null when stop() or the owner's unload came first; rejects
+   * with the helper's UdsListenerError (its `code` says why) when the run directory, the path or a holder
+   * is not as it should be.
+   */
+  start(): Promise<UdsListener | null> {
+    if (this.starting && this.stopRequested) {
+      // Joining the doomed start would resolve null and leave the bridge stopped although this call came last.
+      // Its .finally clears this.starting before it settles, so the start() below begins afresh and resets
+      // stopRequested. A stop() after this call cancels it (it resolves null): Start, Stop, Start, Stop ends
+      // stopped. This check comes before the listener's: a start that served but has not settled yet, with a
+      // stop() after it, hands its listener to that stop() to close.
+      const stopCalls = this.stopCalls;
+      const again = (): Promise<UdsListener | null> | null => (this.stopCalls === stopCalls ? this.start() : null);
+      return this.starting.then(again, again);
+    }
+    if (this.listener) return Promise.resolve(this.listener);
+    if (this.starting) return this.starting;
+    this.stopRequested = false;
+    this.starting = this.openListener().finally(() => {
+      this.starting = null;
+    });
+    return this.starting;
+  }
+
+  private async openListener(): Promise<UdsListener | null> {
     this.startTime = Date.now();
 
     // Load (or create) the bearer token from a 0600 file outside Obsidian's
@@ -317,61 +353,60 @@ export class McpBridgeServer {
     // world-readably and auto-backups — leaking the credential (audit P0).
     this.bridgeToken = loadOrCreateBridgeToken();
 
-    return new Promise((resolve, reject) => {
-      let tls: { key: Buffer; cert: Buffer };
-      try {
-        tls = resolveTlsConfig();
-      } catch (err) {
-        reject(err instanceof Error ? err : new Error(String(err)));
-        return;
-      }
-      const handler = (req: http.IncomingMessage, res: http.ServerResponse) => {
-        this.handleRequest(req, res);
-      };
-      const server: https.Server = https.createServer(tls, handler);
-      // Encrypted-by-default invariant: this bridge MUST be an https.Server.
-      if (!(server instanceof https.Server)) {
-        reject(new Error("Command Center bridge constructed a non-HTTPS server; refusing to listen."));
-        return;
-      }
-
-      server.on("error", (err: NodeJS.ErrnoException) => {
-        if (err.code === "EADDRINUSE") {
-          console.warn(
-            `[OpenClaw] Bridge port ${this.settings.bridgePort} is already in use — is the standalone bridge running?`
-          );
-          reject(new Error(`Port ${this.settings.bridgePort} already in use`));
-        } else {
-          console.error(`[OpenClaw] Bridge server error: ${err.message}`);
-          reject(err);
-        }
-      });
-
-      server.listen(this.settings.bridgePort, HOST, () => {
-        this.server = server;
-        console.log(
-          `[OpenClaw] MCP bridge started on https://${HOST}:${this.settings.bridgePort}`
-        );
-        console.log(
-          `[OpenClaw] Vault: ${this.app.vault.getName()} | Tools: ${(this.handleHealth().tools as string[]).length}`
-        );
-        resolve();
-      });
+    const listener = await listenHttpOnSocket((req, res) => this.handleRequest(req, res), {
+      socketPath: socketPathFor(SOCKET_NAMES.commandCenter),
+      onLost: (reason) => this.onSocketLost(reason),
     });
+    if (this.stopRequested || this.owner?.isDisposed()) {
+      void listener.close().catch(warnCloseFailed("a start that landed after a stop or the unload"));
+      return null;
+    }
+    this.listener = listener;
+    this.owner?.register(() => void listener.close().catch(warnCloseFailed("on the plugin's unload")));
+    listener.server.on("error", (err: Error) => {
+      console.error(`[OpenClaw] Bridge server error: ${err.message}`);
+    });
+    // Log listener.socketPath: the server's own address is the hidden name the helper bound first (the kernel keeps it).
+    console.log(`[OpenClaw] MCP bridge started on unix:${listener.socketPath}`);
+    console.log(
+      `[OpenClaw] Vault: ${this.app.vault.getName()} | Tools: ${(this.handleHealth().tools as string[]).length}`
+    );
+    return listener;
   }
 
+  /**
+   * Stop serving. A start still in flight closes its listener when it lands, and a start() waiting behind
+   * it never begins; otherwise the listener's close() is called at once, with nothing awaited before it
+   * (Obsidian never awaits onunload).
+   */
   async stop(): Promise<void> {
-    return new Promise((resolve) => {
-      if (!this.server) {
-        resolve();
-        return;
-      }
-      this.server.close(() => {
-        console.log("[OpenClaw] MCP bridge stopped");
-        this.server = null;
-        resolve();
-      });
-    });
+    this.stopRequested = true;
+    this.stopCalls += 1;
+    const starting = this.starting;
+    if (starting) {
+      await starting.then(
+        (l) => {
+          if (l !== null && this.listener === l) this.listener = null;
+          return l?.close();
+        },
+        () => undefined
+      );
+      return;
+    }
+    const l = this.listener;
+    this.listener = null;
+    if (!l) return;
+    await l.close();
+    console.log("[OpenClaw] MCP bridge stopped");
+  }
+
+  /** The published name was removed or replaced (another process took it): close this server and say so. */
+  private onSocketLost(reason: string): void {
+    const l = this.listener;
+    this.listener = null;
+    void l?.close().catch(warnCloseFailed("after its socket name was lost"));
+    console.warn(`[OpenClaw] MCP bridge stopped: ${reason}`);
+    new Notice(`Bridge stopped: ${reason}`);
   }
 
   // ─── Request Router ──────────────────────────────────────────
@@ -404,18 +439,17 @@ export class McpBridgeServer {
       return;
     }
 
-    const url = new URL(
-      req.url || "/",
-      `http://${HOST}:${this.settings.bridgePort}`
-    );
+    // Only the path is read; on the socket there is no host or port to build the base from.
+    const url = new URL(req.url || "/", "http://localhost");
 
     // GET /health, /healthz or / — health probes are open by design (no auth required).
     // `/healthz` is an alias, not a new surface: same handler, already reachable
-    // unauthenticated at `/` and `/health`. It exists because the canonical bridge on
-    // :8798 serves `/healthz`, so every client in this monorepo probes that path —
-    // including the Copilot fork's MCP diagnostics panel, which sends no auth header
-    // and therefore hit the Bearer gate below and reported a misleading HTTP 401
-    // against a bridge whose token was correct all along (diagnosed 2026-07-31).
+    // unauthenticated at `/` and `/health`. It exists because the canonical vault bridge
+    // (vault-bridge.sock; TCP :8798 until 2026-11-24) serves `/healthz`, so every client
+    // in this monorepo probes that path — including the Copilot fork's MCP diagnostics
+    // panel, which sends no auth header and therefore hit the Bearer gate below and
+    // reported a misleading HTTP 401 against a bridge whose token was correct all along
+    // (diagnosed 2026-07-31).
     if (
       req.method === "GET" &&
       (url.pathname === "/" || url.pathname === "/health" || url.pathname === "/healthz")

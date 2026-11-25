@@ -1,8 +1,12 @@
 import "web-streams-polyfill/dist/polyfill.min.js";
 import { TextEncoder, TextDecoder } from "util";
 
-window.TextEncoder = TextEncoder;
-window.TextDecoder = TextDecoder;
+// Suites that need real Unix sockets run under `@jest-environment node`, which has no `window`;
+// the window-only shims below are skipped there.
+if (typeof window !== "undefined") {
+  window.TextEncoder = TextEncoder;
+  window.TextDecoder = TextDecoder;
+}
 
 // Polyfill Obsidian's Node.doc / Node.win augmentation so plugin code that
 // reads `element.doc` / `element.win` works under jsdom.
@@ -39,9 +43,9 @@ if (typeof HTMLElement !== "undefined" && typeof HTMLElement.prototype.setCssPro
 // alias them onto `window` (the jsdom global object) — plugin code that portals
 // into `activeDocument.body` (e.g. the Radix tooltip) would otherwise throw
 // `activeDocument is not defined`.
-if (typeof window.activeDocument === "undefined") {
+if (typeof window !== "undefined" && typeof window.activeDocument === "undefined") {
   window.activeDocument = window.document;
 }
-if (typeof window.activeWindow === "undefined") {
+if (typeof window !== "undefined" && typeof window.activeWindow === "undefined") {
   window.activeWindow = window;
 }

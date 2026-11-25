@@ -3,7 +3,7 @@
   "name": "TR-Obsidian Intelligence Network Citations — Bridge Launcher",
   "version": "0.1.1",
   "minAppVersion": "1.4.0",
-  "description": "Spawns the canonical :8798 MCP bridge tied to Obsidian's lifecycle; owns the fd-3 IPC channel for console capture and gated eval. Plugin ID is intentionally FROZEN — Copilot MCP tool ids, other plugins' api lookups and the bridge-token path all key on it; only the display name is suite-branded.",
+  "description": "Spawns the canonical vault MCP bridge (served only on its private Unix socket, vault-bridge.sock) tied to Obsidian's lifecycle; owns the fd-3 IPC channel for console capture and gated eval. Plugin ID is intentionally FROZEN — Copilot MCP tool ids, other plugins' api lookups and the bridge-token path all key on it; only the display name is suite-branded.",
   "author": "Trevor Robey",
   "authorUrl": "https://trevorrobey.com",
   "isDesktopOnly": true

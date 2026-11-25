@@ -83,6 +83,24 @@ export class BoundedScheduler {
     });
   }
 
+  /**
+   * Bounded drain for shutdown: resolves true once no task is running or queued, or false when
+   * timeoutMs passes first. Queued tasks keep running meanwhile; nothing is cancelled. Never rejects.
+   */
+  async waitForIdle(timeoutMs: number, pollMs = 25): Promise<boolean> {
+    const deadline = Date.now() + timeoutMs;
+    while (this.activeWorkers > 0 || this.depth() > 0) {
+      const left = deadline - Date.now();
+      if (left <= 0) {
+        return false;
+      }
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, Math.min(pollMs, left));
+      });
+    }
+    return true;
+  }
+
   private evictStaleLowPriority(): boolean {
     const now = Date.now();
     const mutateIndex = this.findOldestStaleIndex(this.mutating, now);

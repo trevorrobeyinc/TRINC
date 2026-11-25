@@ -21,7 +21,12 @@ export type AuditEventType =
   | "ALLOWLIST_DENY"
   | "AUTH_FAIL"
   | "REPLAY_REJECT"
-  | "BROWSER_REJECT";
+  | "BROWSER_REJECT"
+  // bridges-uds (2026-11-24): the daemon's socket. SOCKET_LOST: the published vault-bridge.sock was
+  // removed or replaced while the daemon served it (it then exits 1). SOCKET_REFUSED: the listener
+  // refused to start; errorCode is the UdsListenerError code (ALREADY_SERVED, RUN_DIR_MODE, ...).
+  | "SOCKET_LOST"
+  | "SOCKET_REFUSED";
 
 export interface AuditEvent {
   eventType: AuditEventType;

@@ -10,7 +10,7 @@ An Obsidian plugin that turns your vault into the command center for **trevor-ro
 - **Auto-generate vault notes** -- each completed workflow produces 6 interlinked notes (Overview, Scout, Analyst, Synthesizer, Quality Audit, Dataset Card) with full YAML frontmatter for Dataview queries.
 - **Zettelkasten graph analysis** -- automatically discovers cross-domain connections, blind spots, semantic relationships, and orphan rescue proposals via the Medical Zettelkasten MCP server.
 - **Miyo semantic search** -- finds related vault notes by meaning (not just keywords) using a local Qdrant-backed vector search backend.
-- **In-plugin MCP bridge** -- runs an HTTP bridge server inside the plugin process so Copilot and other MCP clients can read/write vault notes and execute commands without a standalone bridge process.
+- **In-plugin MCP bridge** -- runs an HTTP bridge server inside the plugin process, on a private Unix socket (no TCP port), so Copilot and other MCP clients can read/write vault notes and execute commands without a standalone bridge process.
 - **Start/Stop bridge controls** -- manual Start and Stop buttons in settings with a live status indicator, plus an "Enable on startup" toggle for auto-start.
 
 ## Requirements
@@ -76,9 +76,9 @@ An Obsidian plugin that turns your vault into the command center for **trevor-ro
 
 ### Copilot Bridge
 
-- **Bridge status** -- live indicator ("Running on port 8799" / "Stopped") with Start and Stop buttons
+- **Bridge status** -- live indicator ("Running on unix:" and the socket path, or "Stopped") with Start and Stop buttons
 - **Enable on startup** -- auto-start the bridge when Obsidian loads (default: on)
-- **Bridge port** -- HTTPS port for the MCP bridge (default: `8799`)
+- **Bridge socket** -- read-only: the Unix socket the bridge serves, `~/.local/state/trinc/run/command-center.sock`. There is no port to set (the former "Bridge port" field is gone; a `bridgePort` left in `data.json` is ignored)
 
 ### Advanced
 
@@ -87,16 +87,17 @@ An Obsidian plugin that turns your vault into the command center for **trevor-ro
 
 ## MCP Bridge
 
-The plugin runs an HTTP bridge server inside the Obsidian process. This replaces the standalone `obsidian-mcp-bridge.js` -- no separate terminal process needed.
+The plugin runs an HTTP bridge server inside the Obsidian process. This replaces the standalone `obsidian-mcp-bridge.js` -- no separate terminal process needed. It listens only on the Unix socket `~/.local/state/trinc/run/command-center.sock` (see "Transport" below). Every route except the health probes needs the bearer token from `~/.config/openclaw-command-center/bridge-token`, sent as `Authorization: Bearer <token>` or `X-MCP-Token: <token>`.
 
 ### Endpoints
 
 | Route | Method | Description |
 |-------|--------|-------------|
-| `/health` | GET | Health check with vault name, uptime, tool list |
-| `/mcp/sse` | GET | SSE transport for MCP clients |
+| `/`, `/health`, `/healthz` | GET | Health check with vault name, uptime, tool list (no token needed) |
+| `/mcp/sse`, `/sse`, `/mcp/events` | GET | SSE stub: an `endpoint` event, then keepalives only |
 | `/mcp/tool` | POST | Tool call: `{tool, operation, input}` |
 | Any path | POST | JSON-RPC 2.0: `initialize`, `tools/list`, `tools/call` |
+| Any path | OPTIONS | `405`: CORS preflight is disabled |
 
 ### Tools
 
@@ -112,22 +113,21 @@ The plugin runs an HTTP bridge server inside the Obsidian process. This replaces
 
 Plus the **engine suite** (2026-08-20): `obsidian_openclaw_{run_workflow, status, results,
 templates, cancel, history, artifacts, engine_health, research_task, research_tasks_list,
-research_output, delivery_evidence, citation_integrity, feed_stats}`, the seven `zk_*`
-Zettelkasten tools, and `video_pipeline_{run,status}` — 30 tools total (see
-`src/bridge/mcp-bridge-server.ts` for the contract of record).
+research_output, delivery_evidence, citation_integrity, feed_stats}` (and, since 2026-09-22,
+`publish_vault` and `research_memory_search`), the seven `zk_*` Zettelkasten tools, and
+`video_pipeline_{run,status}` — 32 tools total (see `src/bridge/mcp-bridge-server.ts` for the
+contract of record).
 
 The `obsidian_*` tools use the Obsidian API directly -- no filesystem access or Advanced URI subprocess calls.
 
 ### Copilot Integration
 
-The bridge works with the Copilot plugin's MCP configuration. Add this to your Copilot MCP config:
+The bridge works with the Copilot plugin's MCP configuration: the server `command-center` with transport `uds`. Its socket path is resolved at run time (leave it empty), and its token is the one in `~/.config/openclaw-command-center/bridge-token`. Copilot converts an old `https://127.0.0.1:8799` entry by itself when it loads. Claude Code reaches the bridge through the `openclaw-obsidian` stdio adapter (`Copilot-Everything/bridges/obsidian-stdio-adapter`), and the Copilot agent through its stdio proxy; neither needs a URL or a CA any more.
 
-```json
-{
-  "command-center": {
-    "url": "https://127.0.0.1:8799"
-  }
-}
+To check that the bridges answer, run the documented health check (it prints one status line per bridge and never a token):
+
+```bash
+node /Users/myhome/TRINC/ops/tr-suite/uds-health.mjs
 ```
 
 Create a system prompt at `copilot/system-prompts/openclaw.md` with `copilot-mcp-system-prompt-default: true` in the frontmatter to auto-load OpenClaw commands into every chat.
@@ -181,9 +181,11 @@ src/
   constants.ts               -- defaults, view types, step labels
   settings.ts                -- settings tab UI
   bridge/
-    mcp-bridge-server.ts     -- in-plugin HTTP bridge (7 tools)
+    mcp-bridge-server.ts     -- in-plugin HTTP bridge on command-center.sock (32 tools)
+    uds-listener.ts          -- Unix-socket listener + client rules (byte-identical in 3 packages)
   subprocess/
     openclaw-runner.ts       -- spawns run-workflow.js
+    research-notify.ts       -- research_notify to the vault bridge over vault-bridge.sock
     zettelkasten-client.ts   -- MCP JSON-RPC 2.0 client
   workflow/
     workflow-modal.ts        -- template picker + input form
@@ -206,16 +208,14 @@ scripts/
   generate-test-notes.js     -- generate vault notes from existing workflow data
 ```
 
-## Encrypted-by-default invariant (2026-04-30)
+## Transport: a private Unix socket, never TCP (bridges-uds, 2026-11-24)
 
-The in-plugin MCP bridge (`src/bridge/mcp-bridge-server.ts`, port 8799) is **HTTPS-only**. It will refuse to start if the mkcert key/cert pair cannot be loaded; the previous `OPENCLAW_BRIDGE_TLS_DISABLE=1` escape hatch and the silent fallback-to-HTTP on missing certs were both removed. Default cert paths:
+The in-plugin MCP bridge (`src/bridge/mcp-bridge-server.ts`) serves plain HTTP/1.1 on one Unix socket, `~/.local/state/trinc/run/command-center.sock`, and on nothing else: there is no TCP listener, no TCP fallback and no client path that dials TCP. From 2026-04-30 until this change it was HTTPS-only on `127.0.0.1:8799` with the mkcert pair; the bridge no longer reads that pair or its `OPENCLAW_BRIDGE_TLS_*` overrides. (The Miyo client still uses HTTPS on `:8743` with the mkcert root CA.)
 
-- key: `~/.local/share/mkcert/localhost-key.pem`
-- cert: `~/.local/share/mkcert/localhost.pem`
-
-Override via `OPENCLAW_BRIDGE_TLS_KEY` / `OPENCLAW_BRIDGE_TLS_CERT` if your install is non-default. If mkcert is not yet set up: `mkcert -install && mkcert localhost 127.0.0.1`.
-
-A regression guard (`npm run lint:transport`) rejects any future addition of `http.createServer`, `OPENCLAW_BRIDGE_TLS_DISABLE` equality checks, `tlsDisable` ternaries, or bare `ws://` literals inside the bridge source. Run it as part of pre-commit or CI.
+- **Who can reach it.** The run directory is `0700` and the socket `0600`, so only processes of your own account can connect, and no browser can. The bearer token stays as defence in depth against other programs of your account, and the browser guard still refuses any request with an Origin, a Referer or a cross-site `Sec-Fetch-Site`. Its Host check applies to TCP only.
+- **Refuses rather than repairs.** The bridge does not start (the console logs the reason and its code) when a level of `~/.local/state/trinc/run` is a symlink, not yours or writable by others, when the run directory is not `0700` (`RUN_DIR_MODE`: check who changed it, then `chmod 700` it), when something other than a socket sits at the path, or when a live server already holds it (`ALREADY_SERVED`, for example this plugin in a second vault window). A stale socket left by a crash is replaced.
+- **One helper.** `src/bridge/uds-listener.ts` does all of this. It is byte-identical with the Viz Studio and vault-bridge copies (`ops/tr-suite/verify.sh` compares them), so change all three together or none.
+- **Guard.** `npm run lint:transport` fails on any `createServer(` or `.listen(` in `src` outside `src/bridge/uds-listener.ts`, and fails if that file is missing. Run it as part of pre-commit or CI.
 
 ## License
 

@@ -1,13 +1,27 @@
 import { Notice, Plugin } from "obsidian";
-import { spawn, type ChildProcess, execFileSync } from "child_process";
+import { spawn, type ChildProcess } from "child_process";
 import { existsSync, mkdirSync, appendFileSync } from "fs";
 import { homedir } from "os";
 import { join, resolve, dirname } from "path";
-import { BRIDGE_IPC_FD, DEFAULT_SETTINGS, PLUGIN_ID } from "./constants";
+import { BRIDGE_IPC_FD, DEFAULT_SETTINGS, HEALTHZ_TIMEOUT_MS, PLUGIN_ID } from "./constants";
 import type { BridgeLauncherSettings, BridgeStatus } from "./types";
 import { BridgeLauncherSettingTab } from "./settings";
 import { ConsoleCapture } from "./consoleCapture";
 import { attachLauncherIpcServer } from "./launcherIpcServer";
+import { clearStaleHolder, getHealthz } from "./bridgeSocket";
+
+/**
+ * bridges-uds (2026-11-24): the bridge serves only on <home>/.local/state/trinc/run/vault-bridge.sock
+ * (run directory 0700, socket 0600), never on TCP. The path comes from os.homedir(), never from "~" or
+ * XDG variables; the bridge's pidfile sits next to it.
+ */
+const RUN_DIR = join(homedir(), ".local", "state", "trinc", "run");
+const BRIDGE_SOCKET_NAME = "vault-bridge.sock";
+const BRIDGE_SOCKET_PATH = join(RUN_DIR, BRIDGE_SOCKET_NAME);
+const BRIDGE_PIDFILE_PATH = join(RUN_DIR, "vault-bridge.pid");
+
+/** After SIGKILL, how long stopBridge still waits for the child's "exit" event. */
+const KILL_WAIT_MS = 3_000;
 
 /**
  * Append a security-audit event to the shared internal-disk JSONL sink
@@ -28,20 +42,52 @@ function emitLauncherAudit(event: Record<string, unknown>): void {
   }
 }
 
+/** Not yet exited. child.killed is no use here: it turns true as soon as a signal is sent. */
+function isAlive(child: ChildProcess): boolean {
+  return child.exitCode === null && child.signalCode === null;
+}
+
+/** Resolve true on the child's "exit" event (at once if it already exited), false after ms. */
+function waitForExit(child: ChildProcess, ms: number): Promise<boolean> {
+  if (!isAlive(child)) return Promise.resolve(true);
+  return new Promise((done) => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const onExit = (): void => {
+      if (timer !== null) clearTimeout(timer);
+      done(true);
+    };
+    timer = setTimeout(() => {
+      child.off("exit", onExit);
+      done(false);
+    }, ms);
+    child.once("exit", onExit);
+  });
+}
+
 export default class BridgeLauncherPlugin extends Plugin {
   settings!: BridgeLauncherSettings;
   child: ChildProcess | null = null;
   status: BridgeStatus = "stopped";
   capture: ConsoleCapture | null = null;
+  /** Shown by the settings tab; the bridge always serves here. */
+  readonly socketPath = BRIDGE_SOCKET_PATH;
   private detachIpcServer: (() => void) | null = null;
   private statusBarEl: HTMLElement | null = null;
   private startedAt: number | null = null;
+  /** Set first in onunload: nothing spawns or signals after that. */
+  private disposed = false;
+  /** One spawn at a time: onload, the Restart command and the settings button can overlap. */
+  private spawning = false;
+  /** The child stopBridge is stopping, so its exit is not reported as unexpected. */
+  private stopping: ChildProcess | null = null;
   private syncCleanup = (): void => {
     // Synchronous SIGKILL — runs from process exit handlers / window beforeunload
-    // where we have no time to await anything. Safe to call repeatedly.
-    if (this.child && this.child.pid && !this.child.killed) {
+    // where we have no time to await anything. Safe to call repeatedly. A child that
+    // was already sent SIGTERM still counts until it has actually exited.
+    const child = this.child;
+    if (child && child.pid && child.exitCode === null && child.signalCode === null) {
       try {
-        process.kill(this.child.pid, "SIGKILL");
+        process.kill(child.pid, "SIGKILL");
       } catch {
         // already dead
       }
@@ -84,10 +130,11 @@ export default class BridgeLauncherPlugin extends Plugin {
   }
 
   async onunload(): Promise<void> {
+    this.disposed = true;
     // Synchronous SIGKILL first — guarantees signal delivery before the
     // renderer exits, even if Obsidian doesn't await this onunload promise.
-    // The bridge is stateless (HTTPS server with no flushable buffers), so
-    // graceful SIGTERM gains us nothing here.
+    // It leaves vault-bridge.sock behind as a stale socket; the next bridge
+    // start replaces it (startup stale recovery is the real guarantee).
     this.syncCleanup();
     process.removeListener("exit", this.syncCleanup);
     if (this.beforeUnloadHandler) {
@@ -106,28 +153,9 @@ export default class BridgeLauncherPlugin extends Plugin {
   }
 
   async loadSettings(): Promise<void> {
+    // A port setting left in data.json from the TCP era is ignored (kept as an unknown key, not
+    // scrubbed): data.json is operator-owned, and the bridge has no port since bridges-uds.
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-
-    // data.json is operator-owned but unvalidated on read — the settings tab's range
-    // check only runs when the tab is open, which is never on the onload path. Coerce
-    // here so a hand-edited or tampered value can't reach a subprocess argument at all.
-    // Fall back rather than refuse to start: the bridge port is not security-critical
-    // now that isPortInUse/getPortListenerPid use execFileSync, and a dead bridge is a
-    // worse failure than a wrong port. The fallback is emitted to the audit sink so it
-    // is observable instead of silent.
-    const rawPort: unknown = this.settings.bridgePort;
-    const port = typeof rawPort === "number" ? rawPort : Number(rawPort);
-    if (!Number.isInteger(port) || port < 1 || port > 65535) {
-      emitLauncherAudit({
-        eventType: "SETTINGS_COERCED",
-        field: "bridgePort",
-        rejected: String(rawPort),
-        fellBackTo: DEFAULT_SETTINGS.bridgePort,
-      });
-      this.settings.bridgePort = DEFAULT_SETTINGS.bridgePort;
-    } else {
-      this.settings.bridgePort = port;
-    }
   }
 
   async saveSettings(): Promise<void> {
@@ -153,98 +181,84 @@ export default class BridgeLauncherPlugin extends Plugin {
     span.title = detail ?? `Bridge: ${status}`;
   }
 
-  private isPortInUse(port: number): boolean {
-    try {
-      // execFileSync, not execSync: no /bin/sh, so `port` can never be shell-interpreted
-      // even if data.json is tampered with. See loadSettings() for the matching coercion.
-      const out = execFileSync("lsof", ["-nP", `-iTCP:${port}`, "-sTCP:LISTEN", "-t"], {
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "ignore"],
-      }).trim();
-      return out.length > 0;
-    } catch {
-      return false;
-    }
-  }
-
-  private getPortListenerPid(port: number): number | null {
-    try {
-      // execFileSync, not execSync: no /bin/sh, so `port` can never be shell-interpreted
-      // even if data.json is tampered with. See loadSettings() for the matching coercion.
-      const out = execFileSync("lsof", ["-nP", `-iTCP:${port}`, "-sTCP:LISTEN", "-t"], {
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "ignore"],
-      }).trim();
-      const lines = out.split("\n").filter((l) => l.length);
-      if (lines.length === 0) return null;
-      const pid = parseInt(lines[0], 10);
-      return Number.isFinite(pid) ? pid : null;
-    } catch {
-      return null;
-    }
-  }
-
   async startBridge(): Promise<void> {
-    if (this.child && !this.child.killed) {
+    if (this.child && isAlive(this.child)) {
       new Notice("Bridge already running");
       return;
     }
-
-    const distEntry = `${this.settings.bridgePackagePath}/dist/index.js`;
-    if (!existsSync(distEntry)) {
-      const msg = `Bridge dist not found: ${distEntry}\nRun \`npm run build\` in the bridge package first.`;
-      new Notice(msg, 8000);
-      this.setStatus("error", msg);
+    if (this.spawning) {
+      new Notice("Bridge start already in progress");
       return;
+    }
+    this.spawning = true;
+    let child: ChildProcess | null = null;
+    try {
+      child = await this.spawnBridge();
+    } finally {
+      this.spawning = false;
+    }
+    if (child) {
+      await this.confirmStarted(child);
+    }
+  }
+
+  private fail(msg: string): null {
+    new Notice(msg, 8000);
+    this.setStatus("error", msg);
+    return null;
+  }
+
+  /** Checks, the stale-holder procedure, then the spawn. Returns the child, or null when it did not spawn. */
+  private async spawnBridge(): Promise<ChildProcess | null> {
+    const pkg = this.settings.bridgePackagePath;
+    const distEntry = `${pkg}/dist/index.js`;
+    if (!existsSync(distEntry)) {
+      return this.fail(`Bridge dist not found: ${distEntry}\nRun \`npm run build\` in the bridge package first.`);
+    }
+    // tsc never deletes outputs: a dist built before bridges-uds keeps its TCP listener
+    // (server/httpTransport.js) and lacks the socket helper (server/udsListener.js).
+    if (!existsSync(`${pkg}/dist/server/udsListener.js`) || existsSync(`${pkg}/dist/server/httpTransport.js`)) {
+      return this.fail(`bridge dist predates bridges-uds: run \`rm -rf dist && npm run build\` in ${pkg}`);
     }
     if (!existsSync(this.settings.mcpConfigPath)) {
-      const msg = `MCP config not found: ${this.settings.mcpConfigPath}`;
-      new Notice(msg, 8000);
-      this.setStatus("error", msg);
-      return;
+      return this.fail(`MCP config not found: ${this.settings.mcpConfigPath}`);
     }
     if (!existsSync(this.settings.nodePath)) {
-      const msg = `Node binary not found: ${this.settings.nodePath}`;
-      new Notice(msg, 8000);
-      this.setStatus("error", msg);
-      return;
+      return this.fail(`Node binary not found: ${this.settings.nodePath}`);
     }
 
-    if (this.isPortInUse(this.settings.bridgePort)) {
-      const stalePid = this.getPortListenerPid(this.settings.bridgePort);
-      if (this.settings.staleProcessKillEnabled && stalePid) {
-        try {
-          process.kill(stalePid, "SIGTERM");
-          await this.wait(1500);
-          if (this.isPortInUse(this.settings.bridgePort)) {
-            process.kill(stalePid, "SIGKILL");
-            await this.wait(500);
-          }
-          new Notice(`Killed stale bridge on :${this.settings.bridgePort} (pid ${stalePid})`);
-        } catch (err) {
-          const msg = `Port :${this.settings.bridgePort} is held by pid ${stalePid} and could not be killed: ${(err as Error).message}`;
-          new Notice(msg, 8000);
-          this.setStatus("error", msg);
-          return;
-        }
-      } else {
-        const msg = `Port :${this.settings.bridgePort} already in use; refusing to start.`;
-        new Notice(msg, 8000);
-        this.setStatus("error", msg);
-        return;
-      }
+    // No live child of ours here (startBridge returned early otherwise). A socket that still answers
+    // is an orphaned bridge only if its identity checks out; anything else is refused, never killed.
+    const holder = await clearStaleHolder({
+      socketPath: BRIDGE_SOCKET_PATH,
+      runDir: RUN_DIR,
+      socketName: BRIDGE_SOCKET_NAME,
+      pidfilePath: BRIDGE_PIDFILE_PATH,
+      bridgePackagePath: pkg,
+      killEnabled: this.settings.staleProcessKillEnabled,
+      cancelled: () => this.disposed,
+    });
+    if (this.disposed) return null; // unloaded meanwhile: never spawn after onunload
+    if (holder.action === "refused") {
+      return this.fail(`Bridge not started: ${holder.reason}`);
+    }
+    if (holder.action === "killed") {
+      new Notice(`Killed stale bridge on ${BRIDGE_SOCKET_NAME} (pid ${holder.pid})`);
     }
 
     this.setStatus("starting");
+    let child: ChildProcess;
     try {
-      this.child = spawn(
+      child = spawn(
         this.settings.nodePath,
-        ["dist/index.js", "--transport=https"],
+        // Keep the --transport= flag: Falcon Custom-IOA rule 176 matches the bridge's command line on it.
+        ["dist/index.js", "--transport=uds"],
         {
-          cwd: this.settings.bridgePackagePath,
+          cwd: pkg,
           env: {
             ...process.env,
             NODE_ENV: "production",
+            // Still needed after bridges-uds: the bridge's own outbound HTTPS (Miyo) trusts mkcert through it.
             NODE_EXTRA_CA_CERTS: this.settings.caCertPath,
             OBSIDIAN_MCP_CONFIG: this.settings.mcpConfigPath,
             BRIDGE_IPC_FD: String(BRIDGE_IPC_FD),
@@ -255,92 +269,118 @@ export default class BridgeLauncherPlugin extends Plugin {
         }
       );
     } catch (err) {
-      const msg = `Failed to spawn bridge: ${(err as Error).message}`;
-      new Notice(msg, 8000);
-      this.setStatus("error", msg);
-      return;
+      return this.fail(`Failed to spawn bridge: ${(err as Error).message}`);
     }
 
+    this.child = child;
     this.startedAt = Date.now();
-    const pid = this.child.pid;
+    const pid = child.pid;
     emitLauncherAudit({
       eventType: "EXEC_START",
       pid,
-      command: `${this.settings.nodePath} dist/index.js --transport=https`,
-      port: this.settings.bridgePort,
+      command: `${this.settings.nodePath} dist/index.js --transport=uds`,
+      socketPath: BRIDGE_SOCKET_PATH,
     });
 
     if (this.capture) {
-      this.detachIpcServer = attachLauncherIpcServer(this.child, {
+      this.detachIpcServer = attachLauncherIpcServer(child, {
         capture: this.capture,
         audit: emitLauncherAudit,
       });
     }
 
-    this.child.stdout?.on("data", (chunk) => {
+    child.stdout?.on("data", (chunk) => {
       console.log(`[bridge-launcher] ${chunk.toString().trimEnd()}`);
     });
-    this.child.stderr?.on("data", (chunk) => {
+    child.stderr?.on("data", (chunk) => {
       console.warn(`[bridge-launcher] ${chunk.toString().trimEnd()}`);
     });
-    this.child.on("exit", (code, signal) => {
+    child.on("exit", (code, signal) => {
       const detail = `exit code=${code} signal=${signal ?? ""}`;
       emitLauncherAudit({ eventType: "EXEC_EXIT", pid, code, signal });
       console.log(`[bridge-launcher] bridge exited: ${detail}`);
+      // Only the current child touches the plugin's state. An older child that exits late (after a
+      // bounded stop gave up on it) must not detach the new IPC channel, clear this.child or rewrite
+      // the status.
+      if (this.child !== child) return;
       if (this.detachIpcServer) {
         this.detachIpcServer();
         this.detachIpcServer = null;
       }
-      if (this.status === "running") {
+      // A bridge that refuses its socket exits 1 while still "starting": that is unexpected too.
+      if ((this.status === "running" || this.status === "starting") && this.stopping !== child) {
         new Notice(`Bridge exited unexpectedly (${detail})`, 8000);
         this.setStatus("exited", detail);
       }
       this.child = null;
     });
+    return child;
+  }
 
+  /**
+   * Readiness: GET /healthz over the socket at 800 ms, then at layout-ready and 4 s later if needed. Only the 4 s
+   * probe may set "error". The layout-ready probe can only promote the status to running: on a plugin reload the
+   * layout is already ready, so it runs at once, while the new bridge may still be confirming that the socket the
+   * old one left is stale.
+   */
+  private async confirmStarted(child: ChildProcess): Promise<void> {
     await this.wait(800);
-    if (this.isPortInUse(this.settings.bridgePort)) {
-      this.setStatus("running", `pid ${pid} :${this.settings.bridgePort}`);
-      new Notice(`Bridge started on :${this.settings.bridgePort}`);
+    if (this.disposed || this.child !== child || !isAlive(child)) return;
+    const status = await getHealthz(BRIDGE_SOCKET_PATH, HEALTHZ_TIMEOUT_MS);
+    if (this.disposed || this.child !== child || !isAlive(child)) return;
+    if (status === 200) {
+      this.setStatus("running", `pid ${child.pid} · unix:${BRIDGE_SOCKET_PATH}`);
+      new Notice(`Bridge started on unix:${BRIDGE_SOCKET_PATH}`);
     } else {
-      this.setStatus("starting", `pid ${pid} (waiting on :${this.settings.bridgePort})`);
-      this.app.workspace.onLayoutReady(() => this.confirmRunning());
-      setTimeout(() => this.confirmRunning(), 4000);
+      this.setStatus("starting", `pid ${child.pid} (waiting for /healthz on ${BRIDGE_SOCKET_NAME})`);
+      this.app.workspace.onLayoutReady(() => void this.confirmRunning(child, false));
+      setTimeout(() => void this.confirmRunning(child, true), 4000);
     }
   }
 
-  private confirmRunning(): void {
-    if (!this.child || this.child.killed) return;
-    if (this.isPortInUse(this.settings.bridgePort)) {
-      this.setStatus("running", `pid ${this.child.pid} :${this.settings.bridgePort}`);
-    } else if (this.status !== "exited" && this.status !== "error") {
-      this.setStatus("error", `bridge spawned (pid ${this.child.pid}) but :${this.settings.bridgePort} not bound after 4s`);
+  /** A later readiness probe. An answer sets "running"; a miss sets "error" only when `final` (the 4 s probe). */
+  private async confirmRunning(child: ChildProcess, final: boolean): Promise<void> {
+    if (this.disposed || this.child !== child || !isAlive(child)) return;
+    const status = await getHealthz(BRIDGE_SOCKET_PATH, HEALTHZ_TIMEOUT_MS);
+    if (this.disposed || this.child !== child || !isAlive(child)) return;
+    if (status === 200) {
+      this.setStatus("running", `pid ${child.pid} · unix:${BRIDGE_SOCKET_PATH}`);
+    } else if (final && this.status !== "exited" && this.status !== "error") {
+      this.setStatus("error", `bridge spawned (pid ${child.pid}) but ${BRIDGE_SOCKET_NAME} did not answer /healthz after 4s`);
     }
   }
 
+  /** SIGTERM, then SIGKILL after shutdownTimeoutMs, waiting for the child's "exit" event each time. */
   async stopBridge(): Promise<void> {
     const child = this.child;
-    if (!child || child.killed) {
-      this.setStatus("stopped");
-      return;
-    }
-    try {
-      child.kill("SIGTERM");
-    } catch {
-      // already dead
-    }
-    const deadline = Date.now() + this.settings.shutdownTimeoutMs;
-    while (Date.now() < deadline && !child.killed) {
-      await this.wait(100);
-    }
-    if (!child.killed) {
+    if (child && isAlive(child)) {
+      this.stopping = child;
       try {
-        child.kill("SIGKILL");
-      } catch {
-        // already dead
+        try {
+          child.kill("SIGTERM");
+        } catch {
+          // already dead
+        }
+        if (!(await waitForExit(child, this.settings.shutdownTimeoutMs))) {
+          try {
+            child.kill("SIGKILL");
+          } catch {
+            // already dead
+          }
+          await waitForExit(child, KILL_WAIT_MS);
+        }
+      } finally {
+        if (this.stopping === child) this.stopping = null;
       }
     }
-    this.child = null;
+    if (child && this.child === child) {
+      // Its exit handler did not run (a spawn that failed, or the bounded wait ran out): forget it here.
+      if (this.detachIpcServer) {
+        this.detachIpcServer();
+        this.detachIpcServer = null;
+      }
+      this.child = null;
+    }
     this.startedAt = null;
     this.setStatus("stopped");
   }

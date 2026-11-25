@@ -3,7 +3,6 @@ export interface BridgeLauncherSettings {
   nodePath: string;
   mcpConfigPath: string;
   caCertPath: string;
-  bridgePort: number;
   shutdownTimeoutMs: number;
   staleProcessKillEnabled: boolean;
   /** Maximum log entries kept in the in-renderer ring buffer for console.logs. */

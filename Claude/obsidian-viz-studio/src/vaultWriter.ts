@@ -2,7 +2,7 @@ import { App, TFile, normalizePath } from "obsidian";
 
 /**
  * Reject vault-escaping paths before any write.
- * Same gate as the Command Center :8799 bridge (its only path-safety check).
+ * Same gate as the Command Center bridge on command-center.sock (its only path-safety check).
  */
 export function safePath(raw: string): string {
   const normalized = normalizePath(raw);

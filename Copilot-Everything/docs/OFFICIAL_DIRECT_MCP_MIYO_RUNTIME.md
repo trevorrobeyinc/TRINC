@@ -8,12 +8,14 @@ The official Obsidian `copilot` plugin in `My Digital Garden` now targets this r
 
 - hosted/Copilot model for chat and agent behavior
 - `direct_plugin_mcp` inside the official plugin
-- shared HTTP MCP server at `https://127.0.0.1:8798` for tool execution
+- the shared MCP server, the canonical vault bridge, for tool execution: plain HTTP/1.1 over its Unix socket `~/.local/state/trinc/run/vault-bridge.sock` (since 2026-11-24, bridges-uds; it was TCP port 8798 with mkcert TLS before)
 - native Miyo via HTTPS proxy at `https://127.0.0.1:8743` (upstream `http://127.0.0.1:8742`) for semantic retrieval
 
 The emulator is not part of the intended runtime architecture for the official plugin. If it remains installed locally, treat it as rollback-only.
 
 ## Operational Commands
+
+*(2026-11-24, bridges-uds: the cutover and the write-enable scripts below now refuse to run. Both overwrote Copilot's MCP configuration with a single `http://` server and printed the bridge token; the fork's own settings migration now converts the bridge entries to their sockets on load. Record: `ops/security/bridges-uds-2026-11-24.md` in the monorepo.)*
 
 Apply the official-plugin cutover:
 
@@ -42,10 +44,14 @@ Probe `miyo mcp` from the terminal:
 Validate the official plugin direct path:
 
 ```bash
-/Users/trevorrobey/THE\ Copilot\ in\ Obsidian\ Everything/scripts/official-plugin-miyo-check.sh
+/Users/myhome/TRINC/Copilot-Everything/scripts/official-plugin-miyo-check.sh
 ```
 
-Validate a hosted `copilot_plus` turn that calls the shared HTTP MCP server with no emulator route:
+*(2026-11-24, bridges-uds review: the check no longer copies the MCP server tokens out of Copilot's `data.json`. Of the `mcp` block it keeps only `mcp.enabled` and `mcp.confirmationPolicy`, the two fields it checks, and it writes `Copilot-Everything/configs/validation/official-plugin-miyo-runtime.json` 0600.)*
+
+*(Known, pre-existing: the check does not run on this Mac as written. It uses `${SAMPLE_PDF_PATH@Q}`, which needs bash 4.4 or later, and `/usr/bin/env bash` finds only macOS's `/bin/bash` 3.2, which stops with "bad substitution" before the first `obsidian eval`. Its autonomous-agent check also expects the tool ids of the server `shared-obsidian-mcp`, which only the retired cutover script created. See "Open for the operator" in `ops/security/bridges-uds-2026-11-24.md`.)*
+
+Validate a hosted `copilot_plus` turn that calls the shared MCP server (the vault bridge's socket) with no emulator route:
 
 ```bash
 /Users/trevorrobey/THE\ Copilot\ in\ Obsidian\ Everything/scripts/official-plugin-direct-chat-check.sh

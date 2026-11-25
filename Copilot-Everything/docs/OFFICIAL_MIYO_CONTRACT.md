@@ -4,7 +4,7 @@ Date: 2026-03-19
 
 ## Current Runtime Note
 
-The current target runtime for the official `copilot` plugin uses native Miyo via HTTPS proxy at `https://127.0.0.1:8743` (upstream `http://127.0.0.1:8742`) together with `direct_plugin_mcp` and the shared HTTPS MCP server at `https://127.0.0.1:8798`.
+The current target runtime for the official `copilot` plugin uses native Miyo via HTTPS proxy at `https://127.0.0.1:8743` (upstream `http://127.0.0.1:8742`) together with `direct_plugin_mcp` and the shared MCP server, the canonical vault bridge, reached over its Unix socket `~/.local/state/trinc/run/vault-bridge.sock` (plain HTTP/1.1 with no TLS, since 2026-11-24; the old TCP port 8798 is retired).
 
 Any emulator references in this document should be read as historical compatibility or rollback detail, not as the normal runtime path for the official plugin.
 

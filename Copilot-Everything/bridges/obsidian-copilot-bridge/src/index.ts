@@ -14,38 +14,21 @@ import { RestApiBackend } from "./backends/restApiBackend";
 import { BackendSelector } from "./backends/backendSelector";
 import { createWriteLocker, ReadAfterWritePins, type RuntimeContext } from "./server/context";
 import { EventBus } from "./server/eventBus";
-import { startHttpTransport } from "./server/httpTransport";
 import { startUdsTransport } from "./server/udsTransport";
 import { startWindowsPipeTransport } from "./server/windowsPipeTransport";
 import { createLauncherIpcClient } from "./server/launcherIpc";
 
-function parseTransportOverride(): "http" | "uds" | "pipe" | null {
-  const arg = process.argv.find((value) => value.startsWith("--transport="));
-  if (!arg) {
-    return null;
-  }
-  const mode = arg.slice("--transport=".length);
-  // "https" is accepted as a synonym for "http" — the http transport-mode
-  // is HTTPS-only at the implementation layer (see src/server/httpTransport.ts
-  // and the monorepo-wide HTTPS-only invariant in CLAUDE.md). The internal
-  // mode field stays "http" so the dispatcher and config schema are
-  // unchanged; the alias only exists so callers don't have to think the
-  // word "http" means plaintext.
-  if (mode === "http" || mode === "https") {
-    return "http";
-  }
-  if (mode === "uds" || mode === "pipe") {
-    return mode;
-  }
-  return null;
-}
+/**
+ * On SIGTERM/SIGINT, in-flight tool calls get this long after the listener closed, then the ledger closes. With the
+ * transport's DAEMON_CLOSE_GRACE_MS the whole shutdown takes at most 4 s, under the launcher's 5 s SIGKILL window.
+ */
+const SHUTDOWN_DRAIN_MS = 2_000;
 
 async function main(): Promise<void> {
-  const { config, tokenEntropyBits, configPath } = loadConfig();
-  const transportOverride = parseTransportOverride();
-  if (transportOverride) {
-    config.transport.mode = transportOverride;
-  }
+  // --transport=<mode> (the launcher passes --transport=uds) overrides transport.mode from the config
+  // file. The TCP transport was removed on 2026-11-24 (bridges-uds): the loader refuses "http" and
+  // "https" as the effective mode, and the daemon serves only on its Unix socket (a pipe on Windows).
+  const { config, tokenEntropyBits, configPath } = loadConfig({ argv: process.argv });
   const logger = new StructuredLogger(config.logging.level, config.logging.file);
   const metrics = new Metrics();
   const scheduler = new BoundedScheduler(config.queue.capacity, config.queue.workerConcurrency);
@@ -96,20 +79,38 @@ async function main(): Promise<void> {
     envLocal: { loaded: envResult.loaded, path: envResult.path, count: envResult.count },
   });
 
-  const server =
-    config.transport.mode === "uds"
-      ? await startUdsTransport(runtime)
-      : config.transport.mode === "pipe"
-        ? await startWindowsPipeTransport(runtime)
-        : await startHttpTransport(runtime);
+  let closeTransport: () => Promise<void>;
+  if (config.transport.mode === "pipe") {
+    const server = await startWindowsPipeTransport(runtime);
+    closeTransport = () =>
+      new Promise<void>((resolve) => {
+        server.close(() => resolve());
+      });
+  } else {
+    // A UdsListenerError (socket refused) rejects here and exits 1 below, after SOCKET_REFUSED is audited.
+    const listener = await startUdsTransport(runtime);
+    closeTransport = () => listener.close();
+  }
 
+  // Order: stop accepting and close the socket (open connections get the 2 s grace), let in-flight
+  // tool calls finish for at most SHUTDOWN_DRAIN_MS, then close the ledger they write to, then exit 0.
+  let shuttingDown = false;
   const shutdown = async (signal: string): Promise<void> => {
+    if (shuttingDown) {
+      return;
+    }
+    shuttingDown = true;
     logger.info("mcp_server_shutdown", { signal });
     clearInterval(heartbeatTimer);
     eventBus.closeAll();
-    await new Promise<void>((resolve) => {
-      server.close(() => resolve());
-    });
+    try {
+      await closeTransport();
+    } catch (error) {
+      logger.warn("mcp_server_shutdown_close_failed", { error: (error as Error).message });
+    }
+    if (!(await scheduler.waitForIdle(SHUTDOWN_DRAIN_MS))) {
+      logger.warn("mcp_server_shutdown_drain_timeout", { queue: scheduler.snapshot() });
+    }
     try {
       ledger.close();
     } catch {

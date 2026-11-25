@@ -1,10 +1,11 @@
 # Viz Studio (`trinc-viz-studio`)
 
 Obsidian plugin that renders visualizations **locally** into the vault and exposes them to
-agents over an additive HTTPS MCP bridge on **`https://127.0.0.1:8800`**. No external APIs,
-no network egress, no new keys — mermaid via Obsidian's bundled `loadMermaid()`, charts and
-graph snapshots as hand-rolled deterministic SVG, boards as JSONCanvas files, PNG via
-Electron-canvas rasterization.
+agents over an additive MCP bridge on an owner-only Unix socket,
+**`~/.local/state/trinc/run/viz-studio.sock`** (HTTP/1.1 plus a bearer token; no TCP port since
+bridges-uds, 2026-11-24). No external APIs, no network egress, no new keys — mermaid via
+Obsidian's bundled `loadMermaid()`, charts and graph snapshots as hand-rolled deterministic SVG,
+boards as JSONCanvas files, PNG via Electron-canvas rasterization.
 
 Suite: **TR-Obsidian Intelligence Network Citations — Viz Studio**. Both ids are **FROZEN**:
 
@@ -142,16 +143,30 @@ created with a heading if missing), `overwrite?` (default false → `-2`/`-3` su
 (`data.series[1].values[3] is not a finite number`) and mermaid returns the parser message
 verbatim, so calling agents can self-correct.
 
-## Wire contract (clone of the Command Center `:8799` bridge)
+## Wire contract (clone of the Command Center bridge)
 
-- **TLS**: mkcert pair at `~/.local/share/mkcert/localhost{-key,}.pem`
-  (`VIZ_BRIDGE_TLS_KEY`/`VIZ_BRIDGE_TLS_CERT` overrides). **Throws and refuses to start** on
-  any load failure; `VIZ_BRIDGE_TLS_DISABLE` is rejected. HTTPS-only, per the monorepo
-  invariant. `npm run lint:transport` guards the forbidden patterns.
+- **Transport** (bridges-uds, 2026-11-24; HTTPS on `127.0.0.1:8800` until then): plain HTTP/1.1
+  on the Unix socket `~/.local/state/trinc/run/viz-studio.sock`, the home taken from
+  `os.homedir()`. The run directory is 0700 and the socket 0600, so only processes of this user
+  can connect and no browser can: there is no TCP listener, no TLS and no mkcert pair, and no
+  client falls back to TCP (a client that cannot reach the socket reports the bridge as not
+  running). All socket work is `src/bridge/uds-listener.ts`, byte-identical with the Command
+  Center and vault bridge copies (`ops/tr-suite/verify.sh` compares them). A start is refused,
+  with a stable error code, when the run directory is loose, symlinked or not this user's, when
+  something other than our socket sits at the path, or when another process serves the socket
+  (the plugin in a second Obsidian window); only a stale socket left by a crash is replaced. A
+  plugin reload hands the socket to the new instance. If the socket name is removed or replaced
+  while the bridge runs, the bridge closes and shows "Bridge stopped: …".
+  `npm run lint:transport` fails on any `createServer(` or `.listen(` in `src/` outside that file.
+- **Browser guard**: Origin, Referer and a cross-site Sec-Fetch-Site are refused with 403 before
+  auth and before any route. The Host check (421) applies only to a TCP arrival port, so it is
+  skipped on the socket, where Node clients send `Host: localhost` (`localhost:80` with the
+  socket-pinned request the bridges-uds clients make).
 - **Auth**: `Authorization: Bearer <token>` or `X-MCP-Token: <token>`; token auto-created
   0600 at `~/.config/trinc-viz-studio/bridge-token` (never in `data.json` — Obsidian
   persists that world-readable with `.bak` copies). `GET /`, `/health`, `/healthz` are
-  auth-exempt probes.
+  auth-exempt probes. The token is still required on the socket: it is the defence against
+  other processes of the same user.
 - **Three POST shapes**, all → the same dispatcher:
   1. `/mcp/tool` `{tool, operation?, input}` → flattened `{ok: true, ...result}` (Lane A /
      engine adapter shape; `operation` is ignored — the dispatcher keys on `tool`)
@@ -159,23 +174,31 @@ verbatim, so calling agents can self-correct.
   3. JSON-RPC 2.0 `initialize` / `tools/list` / `tools/call` (what the ACP stdio proxy
      speaks; `tools/call` wraps the result as MCP text content)
 - 1 MB body cap; no SSE (nothing consumes it).
+- **Health**: the probes answer `viz_health`, whose `socket` field (the socket's basename,
+  `viz-studio.sock`) replaced `port` on 2026-11-24. Check all three bridges with
+  `node /Users/myhome/TRINC/ops/tr-suite/uds-health.mjs`, which prints one status line per bridge
+  and never a token.
 
 ## Consumers and how each is wired
 
 1. **Copilot Agent Mode (opencode/codex, ACP)** — dynamic discovery. The fork's
    `acpMcpServers.ts` allow-set contains `viz-studio`; per session the generic
    `openclaw-stdio-proxy.mjs` (deployed with the copilot plugin) is spawned with
-   `OPENCLAW_BRIDGE_URL=https://127.0.0.1:8800` + the token. **Future tools added here
-   appear in Agent Mode with zero fork changes.** Note the proxy's 8 s per-request timeout —
-   tools must answer inside it (rasterization is capped accordingly).
+   `OPENCLAW_BRIDGE_SOCKET` (the resolved socket path, whose name must be `viz-studio.sock`) and
+   `OPENCLAW_BRIDGE_TOKEN`. **Future tools added here appear in Agent Mode with zero fork
+   changes.** Note the proxy's 8 s per-request timeout — tools must answer inside it
+   (rasterization is capped accordingly).
 2. **Classic chat-pane autonomous agent (Lane A)** — static catalog entries in the fork's
-   `catalog.ts` (no `operation` field — the `:8798` strict enum must never see one) +
-   `data.json`: the `viz-studio` entry in `mcp.servers[]` and the twelve
-   `mcp_viz-studio_*` ids in `autonomousAgentEnabledToolIds`.
+   `catalog.ts` (no `operation` field — the vault bridge's strict enum must never see one) +
+   `data.json`: the `viz-studio` entry in `mcp.servers[]` (transport `uds`) and the twelve
+   `mcp_viz-studio_*` ids in `autonomousAgentEnabledToolIds`. Obsidian's `requestUrl` cannot
+   reach a Unix socket, so the fork calls the bridge with Node `http` over the socket
+   (`src/mcp/udsClient.ts`).
 3. **Claude (since 2026-10-23)** — the stdio adapter's `openclaw` profile, registered as
    `openclaw-obsidian` in the monorepo `.mcp.json`: all twelve tools, schemas taken live from
    `tools/list`, with `folder`, `targetNote`, `targetCanvas`, `useActiveTab`/`useActiveNote` and
-   `overwrite` stripped and refused, so Claude's renders land only in `Visualizations/`.
+   `overwrite` stripped and refused, so Claude's renders land only in `Visualizations/`. It
+   reaches `viz-studio.sock` under its own `os.homedir()`; there is no URL override any more.
 4. ~~**Research engine**~~ — the `viz-bridge-mcp` adapter (`researchRuntime.vizBridge`) was
    never called by any deliverable and was **retired 2026-10-23**; its registry entry
    `viz-bridge` is a tombstone with the restore command.
@@ -187,8 +210,8 @@ verbatim, so calling agents can self-correct.
   "id": "viz-studio",
   "displayName": "Viz Studio",
   "enabled": true,
-  "transport": "http",
-  "httpEndpoint": "https://127.0.0.1:8800",
+  "transport": "uds",
+  "socketPath": "",
   "authToken": "<contents of ~/.config/trinc-viz-studio/bridge-token>",
   "timeoutMs": 30000,
   "vaultName": "My Digital Garden",
@@ -196,6 +219,11 @@ verbatim, so calling agents can self-correct.
   "enabledToolNames": ["viz_health", "viz_mermaid", "viz_chart", "viz_render_svg", "viz_canvas", "viz_graph_snapshot", "viz_guided", "viz_perceptual_map", "viz_diagram", "viz_stat_tiles", "viz_mockup", "viz_interactive"]
 }
 ```
+
+`"socketPath": ""` lets the fork resolve `~/.local/state/trinc/run/viz-studio.sock` from the id
+at run time. An entry still in the old form (`"transport": "http"`, `"httpEndpoint":
+"https://127.0.0.1:8800"`) is converted by the fork itself when it loads, which keeps
+`httpEndpoint` as a record; an unconverted http entry is listed in Diagnostics and never dialled.
 
 Edit with Obsidian **closed** (the plugin persists settings and will clobber concurrent
 edits), keep the file 0600, and remember `enabledToolNames` gates only Lane A — Agent Mode
@@ -207,14 +235,16 @@ ignores it and reads `tools/list` live.
 npm install
 npm run check          # tsc -noEmit
 npm run build          # → main.js
-npm run lint:transport # HTTPS-only guard
+npm test               # node --test: browser guard + socket helper (test/uds-listener.test.ts)
+npm run lint:transport # fails on createServer( or .listen( outside src/bridge/uds-listener.ts
 ```
 
 Install = copy `main.js` + `manifest.json` + `styles.css` into
 `<vault>/.obsidian/plugins/trinc-viz-studio/`, merge the id into
 `community-plugins.json`, then Obsidian CLI `app:reload` (a "socket hang up" response is
-success). Settings tab: bridge status/start/stop, port, output folders, PNG scale, chart
-background.
+success). Settings tab: bridge status/start/stop, the socket path (read-only), output
+folders, PNG scale, chart background. A `bridgePort` left in the plugin's `data.json` by an
+older build is ignored and kept as it is.
 
 ## Security posture
 

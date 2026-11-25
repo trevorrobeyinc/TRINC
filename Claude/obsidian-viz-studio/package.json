@@ -2,13 +2,13 @@
   "name": "obsidian-viz-studio",
   "version": "0.1.0",
   "private": true,
-  "description": "Viz Studio: local diagram/chart/canvas/graph generation for Obsidian, exposed to agent chat over the additive :8800 MCP bridge",
+  "description": "Viz Studio: local diagram/chart/canvas/graph generation for Obsidian, exposed to agent chat over the additive MCP bridge on its owner-only Unix socket (viz-studio.sock)",
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "build": "node esbuild.config.mjs production",
     "check": "tsc -noEmit",
     "test": "node --test --experimental-strip-types --no-warnings \"test/*.test.ts\"",
-    "lint:transport": "if grep -nE 'http\\.createServer\\(|VIZ_BRIDGE_TLS_DISABLE\\s*={2,3}|tlsDisable\\s*\\?' src/bridge/bridge-server.ts; then echo 'lint:transport FAILED: forbidden plaintext pattern in Viz Studio bridge. The :8800 bridge MUST be HTTPS-only.'; exit 1; else echo 'lint:transport OK'; fi"
+    "lint:transport": "if [ ! -f src/bridge/uds-listener.ts ]; then echo 'lint:transport FAILED: src/bridge/uds-listener.ts is missing. It is the one file allowed to create the bridge server and listen, on its Unix socket.'; exit 1; fi; if grep -rnE 'createServer\\(|\\.listen\\(' src | grep -v '^src/bridge/uds-listener\\.ts:'; then echo 'lint:transport FAILED: createServer( or .listen( outside src/bridge/uds-listener.ts. The Viz Studio bridge serves only its Unix socket, through that helper, and no TCP listener may exist.'; exit 1; else echo 'lint:transport OK'; fi"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

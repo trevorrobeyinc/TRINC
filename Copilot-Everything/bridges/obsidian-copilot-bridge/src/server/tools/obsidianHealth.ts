@@ -45,12 +45,9 @@ export async function obsidianHealthTool(
       restApi: summarizeBackend(restApi),
       ...(diagnosis ? { diagnosis } : {}),
       security: {
-        // Reports the actual wire protocol (TLS-derived), not the raw
-        // config.transport.mode string. Under the HTTPS-only invariant
-        // tls is always set; "http" here means the invariant has been
-        // broken (httpTransport.ts throws in that case, so this should
-        // never render in practice).
-        transportMode: runtime.config.transport.tls ? "https" : "http",
+        // The transport actually serving: "uds" (vault-bridge.sock) on macOS/Linux, "pipe" on
+        // Windows. The loader refuses the removed TCP transport, so nothing else can render here.
+        transportMode: runtime.config.transport.mode,
         corsDisabled: true,
         replayGuardEnabled: true,
         tokenEntropyBits: runtime.tokenEntropyBits,

@@ -170,10 +170,11 @@ export const MCP_TOOL_CATALOG: Record<string, McpCatalogEntry> = {
     }),
   },
   // ── OpenClaw research-engine control surface ──────────────────────
-  // Served by the Command Center bridge (:8799), which spawns run-workflow.js.
-  // Completed-run output is pushed back into chat via the :8798 bridge's
-  // `research` SSE stream (see McpEventBridge), so these tools drive the engine
-  // while results arrive asynchronously as chat bubbles.
+  // Served by the Command Center bridge (command-center.sock), which spawns
+  // run-workflow.js. Completed-run output is pushed back into chat via the vault
+  // bridge's `research` SSE stream (vault-bridge.sock; see McpEventBridge), so
+  // these tools drive the engine while results arrive asynchronously as chat
+  // bubbles.
   obsidian_openclaw_run_workflow: {
     toolName: "obsidian_openclaw_run_workflow",
     displayName: "Run OpenClaw Research Workflow",
@@ -225,7 +226,7 @@ export const MCP_TOOL_CATALOG: Record<string, McpCatalogEntry> = {
   },
   // ── OpenClaw engine suite (added 2026-08-20) ──────────────────────
   // Extends the workflow lane to the engine's full agent-safe surface via the
-  // same :8799 Command Center bridge. Contract of record:
+  // same Command Center bridge (command-center.sock). Contract of record:
   // Claude/obsidian-command-center/src/bridge/mcp-bridge-server.ts (keep in
   // sync — the bridge does server-side validation; these schemas mirror it).
   // NO `operation` field on any of these. Deliberately NOT exposed anywhere:
@@ -423,11 +424,11 @@ export const MCP_TOOL_CATALOG: Record<string, McpCatalogEntry> = {
       limit: args.limit,
     }),
   },
-  // ── Viz Studio (:8800, trinc-viz-studio plugin) ─────────────────────────
+  // ── Viz Studio (viz-studio.sock, trinc-viz-studio plugin) ───────────────
   // Added 2026-08-16. Schemas mirror the bridge's own tools/list declarations
   // in Claude/obsidian-viz-studio/src/bridge/toolSchemas.ts (the contract of
   // record — keep in sync). Like miyo_search_context: NO `operation` field
-  // (the :8798 strict enum does not apply here, and the Viz Studio dispatcher
+  // (the vault bridge's strict enum does not apply here, and the Viz Studio dispatcher
   // keys on the full tool name), and args pass through unchanged — the bridge
   // owns vault context. Tool results are text/JSON only: every tool writes
   // into the vault and returns {path, embed} for the model to insert into a
@@ -1072,17 +1073,17 @@ export const MCP_TOOL_CATALOG: Record<string, McpCatalogEntry> = {
     }),
     buildInput: (args) => ({ ...args }),
   },
-  // ── Vault Zettelkasten (:8799 Command Center bridge → in-process
+  // ── Vault Zettelkasten (Command Center bridge on command-center.sock → in-process
   // vault-zettelkasten plugin api) ─────────────────────────────────────
   // Added 2026-08-20. The Command Center bridge dispatches by full tool name
   // to app.plugins["vault-zettelkasten"].api — the contract of record is
   // Claude/obsidian-command-center/src/bridge/mcp-bridge-server.ts (keep in
-  // sync). Like miyo_search_context / viz_*: NO `operation` field (the :8798
-  // strict enum does not apply here, and sending one 400s); args pass through
+  // sync). Like miyo_search_context / viz_*: NO `operation` field (the vault
+  // bridge's strict enum does not apply here, and sending one 400s); args pass through
   // with vault context added. Analyses run synchronously against the local
   // Miyo/Qdrant services plus the model gateway: single analyses take seconds
-  // to ~a minute, zk_full_pipeline can take minutes — set the :8799 server's
-  // timeoutMs accordingly. Results come back as JSON; NOTHING is written to
+  // to ~a minute, zk_full_pipeline can take minutes — set the command-center.sock
+  // server's timeoutMs accordingly. Results come back as JSON; NOTHING is written to
   // the vault (save results explicitly with obsidian_create_note).
   zk_serendipity: {
     toolName: "zk_serendipity",
@@ -1180,7 +1181,7 @@ export const MCP_TOOL_CATALOG: Record<string, McpCatalogEntry> = {
     }),
     buildInput: (args, server) => ({ vault: server.vaultName, ...args }),
   },
-  // ── Video pipeline (:8799 Command Center bridge, built-in since 2026-11-19) ────
+  // ── Video pipeline (Command Center bridge, built-in since 2026-11-19) ──────────
   // Added 2026-08-20, completing the Command Center surface for agent chat:
   // the bridge has served these tools for a while (and the stdio adapter
   // proxies them for its raycast profile), but without catalog entries

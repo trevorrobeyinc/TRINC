@@ -45,23 +45,36 @@ Everything else is stock upstream. The MCP delta is:
 
 | Path | Notes |
 |---|---|
-| `src/mcp/McpToolProvider.ts` | registers catalog tools against `ToolRegistry` |
-| `src/mcp/McpEventClient.ts` | SSE client for the bridge `research` stream |
-| `src/mcp/McpEventBridge.ts` | wires SSE events → chat bubble / tab open |
+| `src/mcp/McpToolProvider.ts` | registers catalog tools against `ToolRegistry`. **bridges-uds (2026-11-24)**: Unix-socket only; no `requestUrl` and no HTTP path for any server (an `http` entry gets no tools and is reported, never dialled); same body bytes and X-MCP-Token/Nonce/Timestamp/Body-Sha256 headers plus explicit Content-Type and Content-Length; `/healthz` over the socket |
+| `src/mcp/McpEventClient.ts` | SSE client for the bridge `research` stream. **bridges-uds**: over the vault bridge's socket via `udsOpenStream`, no mkcert CA loader, same 1 s to 30 s backoff, 60 s idle timeout |
+| `src/mcp/McpEventBridge.ts` | wires SSE events → chat bubble / tab open. **bridges-uds**: `pickActiveServer` follows the vault bridge only (id `local-obsidian-mcp`, else a socket entry resolving to `vault-bridge.sock`) |
 | `src/mcp/catalog.ts` | **modified**: Zod v4 fix + `miyo_search_context` added |
-| `src/mcp/types.ts` | `McpSettings` / `McpServerConfig` |
-| `src/mcp/McpToolProvider.test.ts` | unit test |
-| `src/settings/v2/components/McpSettings.tsx` | settings panel |
+| `src/mcp/types.ts` | `McpSettings` / `McpServerConfig`. **bridges-uds**: `socketPath?`; `httpEndpoint` optional, kept only as a record |
+| `src/mcp/McpToolProvider.test.ts` | unit test. **bridges-uds**: transport stubbed at `udsRequest`; asserts zero `requestUrl`/http calls for an `http` entry |
+| `src/settings/v2/components/McpSettings.tsx` | settings panel. **bridges-uds**: cards show transport and the resolved socket path (token still masked); Diagnostics lists the entries the socket migration moved and left |
 | `src/commands/customCommandHeadless.ts` | **fork addition, ported 2026-08-12.** Headless "→ New Note" runner: executes a custom command with no modal and writes the result to `customCommandNoteFolder`. Adapted for 4.0.0 — model now resolved via `resolveChatBackendModel` (3.3.3 used the legacy `settings.activeModels`), and `app` is threaded in rather than read from the global |
 
-**Modified upstream files** (5). Note `src/mcp/McpToolProvider.test.ts` was additionally adapted to
+**Added by bridges-uds (2026-11-24)** — the bridges left loopback TCP + mkcert TLS for Unix sockets in
+`~/.local/state/trinc/run`:
+
+| Path | Notes |
+|---|---|
+| `src/mcp/udsClient.ts` | the socket client: `resolveBridgeSocket` (each known id bound to its own socket name, other ids to the name their legacy endpoint's port gives), `assertSocketTrust`, `udsRequest`, `udsOpenStream`. Same rules as the "bridges-uds client v1" block (exact path sent is checked; whole directory chain; ENOENT without connecting; socket mode; ACL allow check memoized per process; `createConnection` pin; no agent). Node only through a run-time `globalThis.require`; unavailable on mobile; `setUdsClientDepsForTests` is the jest seam |
+| `src/mcp/socketMigration.ts` | on every load, idempotent: `http` entries of the three bridges become `uds` (`socketPath` `""` for the known ids, `~/.local/state/trinc/run/<name>` for others), token and every other field kept; a known id whose port disagrees is left and reported; persisted by the normal settings save; never logs a token or an endpoint |
+| `src/mcp/udsClient.test.ts`, `src/mcp/McpEventClient.test.ts` | real-socket suites (`@jest-environment node`, `/tmp/uds-*` homes) |
+| `src/mcp/socketMigration.test.ts`, `src/mcp/McpEventBridge.test.ts` | unit tests |
+| `src/agentMode/acp/acpMcpServers.ts` (+ `.test.ts`) | fork addition of 2026-08-14 (called from `AcpBackendProcess.mcpServersField`), missing from this table until now. **bridges-uds**: routes enabled `uds` entries of `command-center` / `viz-studio` whose socket resolves; the proxy env is `OPENCLAW_BRIDGE_SOCKET` (resolved absolute path), `OPENCLAW_BRIDGE_TOKEN` and `PATH` only (no `OPENCLAW_BRIDGE_URL`, no `NODE_EXTRA_CA_CERTS`) |
+
+**Modified upstream files** (8). Note `src/mcp/McpToolProvider.test.ts` was additionally adapted to
 upstream's obsidian mock API — see bug 3 below; `__mocks__/obsidian.js` itself is left stock:
 
 | Path | Change |
 |---|---|
-| `src/main.ts` | imports; `mcpEventBridge?` field; `McpToolProvider.syncFromSettings(next.mcp)` + `mcpEventBridge?.restart()` inside the `subscribeToSettingsChange` callback; initial sync after `initializeBuiltinTools(this.app)`; `McpEventBridge` construction after `initWebSelectionWatcher()` |
+| `src/main.ts` | imports; `mcpEventBridge?` field; `McpToolProvider.syncFromSettings(next.mcp)` + `mcpEventBridge?.restart()` inside the `subscribeToSettingsChange` callback; initial sync after `initializeBuiltinTools(this.app)`; `McpEventBridge` construction after `initWebSelectionWatcher()`. **bridges-uds**: `migrateMcpServersToSockets()` right after `runSettingsMigrations`; `onunload` stops the `McpEventBridge` (and clears the field) before its first `await` |
 | `src/settings/model.ts` | `import type { McpSettings }`; `mcp: McpSettings` on `CopilotSettings` |
-| `src/constants.ts` | `mcp` block in `DEFAULT_SETTINGS` (servers default to `https://127.0.0.1:8798`) |
+| `src/constants.ts` | `mcp` block in `DEFAULT_SETTINGS`. **bridges-uds**: the one default server, `local-obsidian-mcp`, is `transport: "uds"` with `socketPath: ""` and no endpoint (was `https://127.0.0.1:8798`) |
+| `jest.setup.js` | **bridges-uds**: the `window`-only shims are guarded so `@jest-environment node` suites can load |
+| `manifest.json` | fork `name`, `version` (see "Versioning") and `upstreamBase`; the description names the fork's delta. **bridges-uds**: it names the bridges' sockets instead of their old ports |
 | `src/settings/v2/SettingsMainV2.tsx` | `Plug` icon import; `McpSettings` import; `"mcp"` in `TAB_IDS`; icon / component / label entries |
 | `src/tools/ToolRegistry.ts` | `providerId?` on `ToolMetadata`; `removeByProvider()`; `replaceByProvider()` |
 | `src/commands/customCommandRegister.ts` | `getToNoteCommandId()` + a second `addCommand` registering `${commandId}-to-note` per custom command |
@@ -147,13 +160,21 @@ npm run build            # tsc -noEmit -skipLibCheck && esbuild production
 
 Deploy to the vault slot (`.obsidian/plugins/copilot/`): copy `main.js`, `manifest.json`,
 `styles.css`. **Never copy `data.json`** — the live one holds real bridge auth tokens and the
-BYOK provider registry.
+BYOK provider registry. The production path is `ops/tr-suite/deploy.sh`, which also places
+`openclaw-stdio-proxy.mjs`; opencode executes that file directly, so it must stay 0755. The first
+load of a bridges-uds build rewrites the `mcp` block of `data.json` itself (`http` → `uds`, see
+`src/mcp/socketMigration.ts`); `deploy.sh` keeps a copy of the previous `data.json` for a rollback.
 
 To re-baseline on a newer upstream: clone the new tag, re-apply the delta table above, bump the
 fork manifest to `99.<new-minor>.0`, update `upstreamBase`, then `rm -rf .git`.
 
 ## Verification
 
-`tsc -noEmit -skipLibCheck` → 0 · `npm run build` → 0. Runtime proof that the MCP layer is live:
-`GET https://127.0.0.1:8798/healthz` reports `"sse_subscribers_total{stream=research}": 1`, which
-is this plugin's `McpEventBridge` holding an SSE connection.
+`tsc -noEmit -skipLibCheck` → 0 · `npm run build` → 0 · `npm run test:mobile-load` → passes.
+Runtime proof that the MCP layer is live goes through the sockets, never a port:
+`node /Users/myhome/TRINC/ops/tr-suite/uds-health.mjs` prints one status line per bridge from its
+`/healthz` over `~/.local/state/trinc/run/<name>.sock` (no token is sent or printed), and Settings →
+MCP → Diagnostics shows "Server responded to /healthz on unix:…/vault-bridge.sock" for
+`local-obsidian-mcp`. This plugin's `McpEventBridge` subscription is counted as
+`sse_subscribers_total{stream=research}` in the vault bridge's token-protected `/metrics` (subscriptions
+since the bridge started); it was never part of `/healthz`, as this section used to say.

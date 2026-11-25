@@ -8,12 +8,20 @@
 // This adapter closes that gap, read-first.
 //
 // TRANSPORT — the one non-negotiable design constraint
-// Root CLAUDE.md: ":8798 is the canonical vault access point. Do not create alternative vault
-// bridges." So this adapter is a THIN CLIENT of the existing bridge on https://127.0.0.1:8798.
-// It opens no listener, spawns nothing, and never touches the Local REST API on :27124.
-// connector-registry.json's `obsidian-bridge` entry says the same thing in its
-// suggested_adapter_path: "would proxy to the canonical bridge on :8798 — DO NOT create a
-// parallel vault listener".
+// Root CLAUDE.md: the canonical vault bridge is the vault access point; do not create alternative
+// vault bridges. So this adapter is a THIN CLIENT of that existing bridge. It opens no listener,
+// spawns nothing, and never touches the Local REST API on :27124. connector-registry.json's
+// `obsidian-bridge` entry says the same thing in its suggested_adapter_path: proxy to the
+// canonical bridge, DO NOT create a parallel vault listener.
+//
+// Since bridges-uds (2026-11-24) the bridge serves the same routes over a private Unix socket,
+// <home>/.local/state/trinc/run/vault-bridge.sock (run directory 0700, socket 0600), instead of
+// loopback TCP with mkcert TLS on :8798. Every bridge call goes through bridgeSocketRequest in
+// ../base-mcp.js, which is local IPC rather than egress (its comment there says why it lives in
+// that file): it derives the path from os.homedir(), never from config; refuses a missing or
+// untrusted socket before the token is written; and pins the connection to the socket. There is no
+// TCP path and no TCP fallback: a refused or missing socket gets the same fail-soft "no vault" as
+// any other failure, never a retry over another transport.
 //
 // AUTH — identical to every other caller of the bridge (see scripts/publish-to-vault.js):
 //   Authorization: Bearer <token> + x-mcp-token + x-mcp-timestamp + x-mcp-nonce
@@ -40,7 +48,7 @@
 // MIYO-DIRECT SEMANTIC READ-BACK (2026-09-22, Obsidian re-integration plan D4). Miyo indexes the
 // vault folder itself and answers with Obsidian CLOSED (Qdrant is Miyo's child process), so the
 // first semantic hop now goes straight to the in-monorepo HTTPS proxy on :8743 — the endpoint the
-// vault-zettelkasten plugin and Command Center already call directly — and the :8798 bridge is the
+// vault-zettelkasten plugin and Command Center already call directly — and the vault bridge is the
 // fallback for when Obsidian is open. This is NOT a vault bridge: no listener, a third-party service
 // already wrapped in mkcert TLS. Never Miyo's plaintext upstream port — the proxy only. Headless
 // runs therefore get prior-vault context for the first time.
@@ -57,8 +65,9 @@ const path = require("node:path");
 
 const { nowMs } = require("../../core/time-provider.js");
 const { randomUuid } = require("../../core/entropy-provider.js");
+// The only way this adapter reaches the vault bridge: local IPC over its Unix socket (see header).
+const { bridgeSocketRequest, VAULT_BRIDGE_SOCKET_NAME } = require("../base-mcp.js");
 
-const DEFAULT_BRIDGE = "https://127.0.0.1:8798";
 const DEFAULT_BRIDGE_CONFIG = path.join(
   "/Users/myhome/TRINC",
   "Copilot-Everything/bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json"
@@ -99,6 +108,52 @@ async function defaultMiyoRequest(url, body, { timeoutMs, fetchImpl }) {
   }
 }
 
+/**
+ * The bridge lane's default transport: one request to the vault bridge over its Unix socket, opened
+ * by base-mcp's bridgeSocketRequest (local IPC, outside the egress policy). `request` is
+ * { method, path, headers, body, signal }; there is deliberately no url, host or port field.
+ * Resolves { status, json } (json is null when the body is not JSON). Rejects with the socket
+ * refusal, thrown before any connection (err.code ENOENT, SOCKET_UNTRUSTED or SOCKET_PATH_TOO_LONG),
+ * a connect error such as ECONNREFUSED, a response cut short, or the caller's abort signal.
+ */
+function defaultBridgeTransport({ method, path: requestPath, headers, body, signal }) {
+  return new Promise((resolve, reject) => {
+    const payload = Buffer.from(String(body), "utf8");
+    const req = bridgeSocketRequest({
+      method,
+      path: requestPath,
+      signal,
+      headers: { ...headers, "Content-Length": String(payload.length) },
+    });
+    req.on("error", reject);
+    req.on("response", (res) => {
+      const chunks = [];
+      res.on("data", (chunk) => chunks.push(chunk));
+      res.on("error", reject);
+      res.on("close", () => {
+        if (!res.complete) reject(new Error("bridge response ended before it was complete"));
+      });
+      res.on("end", () => {
+        let json = null;
+        try {
+          json = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+        } catch {
+          json = null;
+        }
+        resolve({ status: res.statusCode || 0, json });
+      });
+    });
+    req.end(payload);
+  });
+}
+
+// A socket the trust check refused fails soft like an outage, but its error says it was refused:
+// "bridge unavailable" means not running (ENOENT, ECONNREFUSED), these mean not trusted.
+const SOCKET_REFUSALS = Object.freeze({
+  SOCKET_UNTRUSTED: "bridge socket untrusted",
+  SOCKET_PATH_TOO_LONG: "bridge socket path too long",
+});
+
 // Tool → operation. The bridge validates `operation` against a 6-value enum, so tools that are
 // not themselves operations (obsidian_health, miyo_search_context) still have to send a VALID
 // enum member; the dispatcher short-circuits on the tool name before the operation is used.
@@ -120,8 +175,12 @@ function createObsidianBridgeMcp(options = {}) {
       ? options.logger
       : { info() {}, warn() {}, error() {} };
 
+  // Miyo-direct only: since bridges-uds the bridge lane never uses fetch.
   const fetchImpl = options.fetchImpl || (typeof fetch === "function" ? fetch : null);
-  const bridgeUrl = String(options.bridgeUrl || DEFAULT_BRIDGE).replace(/\/+$/, "");
+  // The bridge lane: the vault bridge's Unix socket. Injectable so tests never open a socket they
+  // did not create. There is no URL, host or port option (a stale `bridgeUrl` is ignored): the
+  // socket path comes from base-mcp's bridgeSocketRequest and nowhere else.
+  const bridgeTransport = typeof options.bridgeTransport === "function" ? options.bridgeTransport : defaultBridgeTransport;
   const bridgeConfigPath = options.bridgeConfigPath || DEFAULT_BRIDGE_CONFIG;
   const vault = options.vault || DEFAULT_VAULT;
   const timeoutMs = Number(options.timeoutMs) || 15_000;
@@ -162,14 +221,11 @@ function createObsidianBridgeMcp(options = {}) {
   }
 
   /**
-   * One authenticated POST to the bridge's /mcp/tool endpoint.
+   * One authenticated POST to the bridge's /mcp/tool endpoint, over the vault bridge's socket.
    * Returns { ok, data?, error?, status? } and NEVER throws — every caller below is on a
    * research hot path where an unreachable vault must degrade, not abort.
    */
   async function callTool(tool, operation, input) {
-    if (typeof fetchImpl !== "function") {
-      return { ok: false, error: "no fetch implementation available" };
-    }
     const token = readToken();
     if (!token) return { ok: false, error: "bridge auth token unavailable" };
 
@@ -179,8 +235,9 @@ function createObsidianBridgeMcp(options = {}) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const res = await fetchImpl(`${bridgeUrl}/mcp/tool`, {
+      const res = await bridgeTransport({
         method: "POST",
+        path: "/mcp/tool",
         signal: controller.signal,
         headers: {
           "Content-Type": "application/json",
@@ -192,14 +249,23 @@ function createObsidianBridgeMcp(options = {}) {
         },
         body,
       });
-      const json = await res.json().catch(() => null);
-      if (!res.ok || !json || json.ok !== true) {
-        const message =
-          (json && json.error && json.error.message) || `HTTP ${res ? res.status : "no-response"}`;
-        return { ok: false, error: message, status: res ? res.status : 0 };
+      const status = res && Number(res.status) > 0 ? Number(res.status) : 0;
+      const json = res ? res.json : null;
+      if (status < 200 || status >= 300 || !json || json.ok !== true) {
+        const message = (json && json.error && json.error.message) || `HTTP ${status || "no-response"}`;
+        return { ok: false, error: message, status };
       }
       return { ok: true, data: json.data };
     } catch (err) {
+      const code = err && typeof err.code === "string" ? err.code : "";
+      if (Object.prototype.hasOwnProperty.call(SOCKET_REFUSALS, code)) {
+        // Say why once per refusal: the message names the path and the failed check, never the token.
+        logger.warn(`[obsidian-bridge-mcp] refused the bridge socket (${code}): ${err.message}`);
+        return { ok: false, error: SOCKET_REFUSALS[code] };
+      }
+      if (code === "ENOENT" || code === "ECONNREFUSED") {
+        return { ok: false, error: `bridge unavailable (${code})` };
+      }
       return { ok: false, error: err && err.message ? err.message : String(err) };
     } finally {
       clearTimeout(timer);
@@ -299,7 +365,8 @@ function createObsidianBridgeMcp(options = {}) {
       res = await miyoRequest(`${miyoUrl}/v0/search`, { query: query.trim(), limit: Math.max(limit * 3, limit) }, {
         caPath: miyoCaPath,
         timeoutMs: miyoTimeoutMs,
-        // The bridge's own fetch (injectable in tests) serves Miyo too — one transport, one policy.
+        // Miyo's own fetch seam (miyoFetchImpl, else fetchImpl, else global fetch), HTTPS through the
+        // :8743 proxy and unchanged by bridges-uds. The bridge lane has its own transport.
         fetchImpl: options.miyoFetchImpl || fetchImpl,
       });
     } catch (err) {
@@ -378,7 +445,7 @@ function createObsidianBridgeMcp(options = {}) {
     createNote,
     appendNote,
     // exposed for tests / diagnostics
-    _spec: { bridgeUrl, vault, allowWrites, miyoUrl, miyoPathPrefixes, READ_TOOLS, WRITE_TOOLS },
+    _spec: { bridgeSocket: VAULT_BRIDGE_SOCKET_NAME, vault, allowWrites, miyoUrl, miyoPathPrefixes, READ_TOOLS, WRITE_TOOLS },
   };
 }
 

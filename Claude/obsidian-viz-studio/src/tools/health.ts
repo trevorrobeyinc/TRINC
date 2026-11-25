@@ -11,7 +11,7 @@ export function createHealthTool(ctx: ToolContext): ToolHandler {
       service: "trinc-viz-studio-bridge",
       vault: ctx.app.vault.getName(),
       inPlugin: true,
-      port: ctx.settings.bridgePort,
+      socket: ctx.bridgeSocketName?.() ?? null,
       uptime: (Date.now() - started) / 1000,
       tools: [...TOOL_NAMES],
       mermaid,

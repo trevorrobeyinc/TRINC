@@ -1,0 +1,5 @@
+{
+  "//": "Node 22's test runner loads a directory argument as one entry module, so `node --test test/` resolves this folder through main. Not deployed: only ../index.mjs ships.",
+  "private": true,
+  "main": "proxy.test.mjs"
+}

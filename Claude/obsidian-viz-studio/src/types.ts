@@ -2,7 +2,8 @@ import type { App } from "obsidian";
 
 export interface VizStudioSettings {
   enableBridge: boolean;
-  bridgePort: number;
+  // No bridgePort since bridges-uds (2026-11-24): the bridge serves a fixed Unix socket. A bridgePort
+  // an older build saved in data.json is carried along untouched and read by nothing.
   /** Vault-relative folder for generated SVG/PNG attachments. */
   assetFolder: string;
   /** Vault-relative folder for generated .canvas files. */
@@ -17,11 +18,13 @@ export interface VizStudioSettings {
 
 /**
  * Everything a tool handler needs. The bridge itself is transport-only
- * (TLS, auth, routing) and never touches the vault; handlers own all writes.
+ * (socket, auth, routing) and never touches the vault; handlers own all writes.
  */
 export interface ToolContext {
   app: App;
   settings: VizStudioSettings;
+  /** Basename of the socket the bridge serves (viz_health's `socket`), or null while it is not listening. */
+  bridgeSocketName?: () => string | null;
 }
 
 export type ToolHandler = (

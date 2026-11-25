@@ -210,7 +210,8 @@ thin client of the pack store's CLI over `:6433`; switch `researchMemory.enabled
 2026-09-22**). Every automated spawn runs the store offline (`EMBED_ALLOW_REMOTE=0`; a cache miss is a
 loud `EMBED_MODEL_NOT_CACHED`, never a download) — only the operator's `scripts/research-memory.js
 ingest --allow-remote-model` may pull the embedding model. Vault read-back (`obsidian_prior_research`,
-Miyo-direct over `:8743`, `:8798` fallback) and memory priors (`research_memory_priors`) are
+Miyo-direct over `:8743`, then the canonical vault bridge's Unix socket `vault-bridge.sock` as the fallback:
+local IPC through `openclaw-bridge/mcp/base-mcp.js`, never TCP, since 2026-11-24) and memory priors (`research_memory_priors`) are
 **context-only**: rendered with identifiers withheld (since T2-18, 2026-11-16, every form the extractor reads,
 then every remaining run of 5 to 10 digits) and excluded from `fetched_citation_ids`
 (`tool-prefetch.js` / `agent-engine.js` `collectEvidenceContent`); `npm run audit:connectors` reports

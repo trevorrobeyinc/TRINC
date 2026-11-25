@@ -17,7 +17,7 @@
 // enrichment stages from it instead of writing a second time. The dormant `Research-Output/`
 // scheme (bridge `research_publish`, scripts/publish-to-vault.js) is tombstoned, not used.
 //
-// TRANSPORT. A guarded direct filesystem write — the same mechanism the :8798 bridge's own
+// TRANSPORT. A guarded direct filesystem write — the same mechanism the vault bridge's own
 // researchPublish.ts uses (path guard + allow-listed vault root). No listener, no bridge, never the
 // Local REST API on :27124. Root CLAUDE.md's "no alternative vault bridges" rule is about bridges;
 // this opens none. Reading confirmed by the operator 2026-09-22 (plan decision D1).

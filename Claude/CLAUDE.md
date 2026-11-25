@@ -1,8 +1,8 @@
 # Claude Hub
 
 The Obsidian plugins and MCP servers built for the business. Current facts only (slimmed 2026-10-23; the
-previous text is `git show 2077e79:Claude/CLAUDE.md`). Ports, topology and the repo-wide invariants are in
-the root [`../CLAUDE.md`](../CLAUDE.md); read the shared board,
+previous text is `git show 2077e79:Claude/CLAUDE.md`). Ports, the bridge sockets, topology and the repo-wide
+invariants are in the root [`../CLAUDE.md`](../CLAUDE.md); read the shared board,
 [`../_continuity/CONTINUITY.md`](../_continuity/CONTINUITY.md), at session start.
 
 ## Why this folder exists (vs `Copilot-Everything/`)
@@ -15,9 +15,9 @@ it, kept separate so the fork stays cleanly re-syncable with upstream.
 
 | Project | Path | Role |
 |---|---|---|
-| Command Center | `obsidian-command-center/` | Obsidian plugin (id `command-center`). Dispatches research runs, rehydrates the engine's vault notes and runs the post-run enrichment (chat bubble, Miyo indexing, Zettelkasten linking, research-memory ingest). Owns the `:8799` bridge: 32 tools (7 vault, 16 `obsidian_openclaw_*`, 7 `zk_*`, 2 `video_pipeline_*`). `run_workflow` takes `dry_run`; `status` carries a per-stage `post_run` ledger and `post_run_done`; a gate refusal has its own code (not armed, expired, token mismatch). Details in its own `CLAUDE.md`. |
-| Bridge Launcher | `obsidian-bridge-launcher/` | Obsidian plugin (id `obsidian-bridge-launcher`). Spawns the canonical `:8798` bridge (code in `Copilot-Everything/bridges/obsidian-copilot-bridge/`) as a child tied to Obsidian's lifecycle, and owns the fd-3 IPC used for renderer console capture and the eval tool, which is off by default. |
-| Viz Studio | `obsidian-viz-studio/` | Obsidian plugin (id `trinc-viz-studio`). Owns the `:8800` bridge: 12 `viz_*` tools for Mermaid diagrams, SVG charts, canvases, link-graph snapshots, guided explainer cards, perceptual maps, card diagrams, stat tiles, UI mockups and interactive HTML. Every render is written under `Visualizations/` and returns an embed string. Token at `~/.config/trinc-viz-studio/bridge-token`. Callers: both Copilot agent lanes, and Claude through the `openclaw-obsidian` door, which strips every write-elsewhere option. `src/bridge/toolSchemas.ts` is the contract of record. |
+| Command Center | `obsidian-command-center/` | Obsidian plugin (id `command-center`). Dispatches research runs, rehydrates the engine's vault notes and runs the post-run enrichment (chat bubble, Miyo indexing, Zettelkasten linking, research-memory ingest). Owns the Command Center bridge, served on its Unix socket `command-center.sock`: 32 tools (7 vault, 16 `obsidian_openclaw_*`, 7 `zk_*`, 2 `video_pipeline_*`). `run_workflow` takes `dry_run`; `status` carries a per-stage `post_run` ledger and `post_run_done`; a gate refusal has its own code (not armed, expired, token mismatch). Details in its own `CLAUDE.md`. |
+| Bridge Launcher | `obsidian-bridge-launcher/` | Obsidian plugin (id `obsidian-bridge-launcher`). Spawns the canonical vault bridge (code in `Copilot-Everything/bridges/obsidian-copilot-bridge/`, run as `dist/index.js --transport=uds`, served on `vault-bridge.sock`) as a child tied to Obsidian's lifecycle, and owns the fd-3 IPC used for renderer console capture and the eval tool, which is off by default. |
+| Viz Studio | `obsidian-viz-studio/` | Obsidian plugin (id `trinc-viz-studio`). Owns the Viz Studio bridge, served on its Unix socket `viz-studio.sock`: 12 `viz_*` tools for Mermaid diagrams, SVG charts, canvases, link-graph snapshots, guided explainer cards, perceptual maps, card diagrams, stat tiles, UI mockups and interactive HTML. Every render is written under `Visualizations/` and returns an embed string. Token at `~/.config/trinc-viz-studio/bridge-token`. Callers: both Copilot agent lanes, and Claude through the `openclaw-obsidian` door, which strips every write-elsewhere option. `src/bridge/toolSchemas.ts` is the contract of record. |
 | Vault Zettelkasten | `obsidian-vault-zettelkasten/` | Obsidian plugin (id `vault-zettelkasten`). The in-process, LLM-driven `ZettelkastenService` (serendipity, cross-domain, echo chamber, semantic linker, orphan rescue, vault health) on hosted `copilot-plus-flash`, reading Miyo via `:8743` and Qdrant via `:6433`; its scheduler writes reports to `Zettelkasten/Reports/` while Obsidian is open. |
 | Medical Zettelkasten MCP | `Medical-Zettelkasten-MCP/` | The deterministic graph engine (no LLM). The research engine calls it in-process to write each run's `Graph Analysis.md`. |
 | Research Memory MCP | `trevorobeyinc-research-memory-mcp/` | Pack storage in Qdrant (`trevorobeyinc-packs`, via `:6433`). The engine ingests every finished run through `dist/cli.js`, idempotent on content hash (`config/vault-publish.json` `researchMemory.enabled`). The embedder is **offline by default**: only the operator's one-time `scripts/research-memory.js ingest --allow-remote-model` may download the model; a cache miss fails loudly with `EMBED_MODEL_NOT_CACHED`. |
@@ -41,8 +41,17 @@ repos under `~/Code` on 2026-10-23; the deployed vault copies keep working, and
   the operator (Obsidian must be open).
 - **MCP servers run from their staged copies**: re-run the server's `install-connector.sh` after editing
   its `src/`, or `verify.sh` reports drift.
-- **HTTPS-only** for every bridge here: run `npm run lint:transport` in `obsidian-command-center` before
-  committing a bridge change.
+- **No TCP for the bridges here** (2026-11-24, bridges-uds; record:
+  [`../ops/security/bridges-uds-2026-11-24.md`](../ops/security/bridges-uds-2026-11-24.md)). Command Center,
+  Viz Studio and the vault bridge the launcher spawns listen only on 0600 Unix sockets in the 0700 run
+  directory `~/.local/state/trinc/run/`, through one helper kept byte-identical in three packages
+  (`obsidian-command-center/src/bridge/uds-listener.ts`, `obsidian-viz-studio/src/bridge/uds-listener.ts`,
+  `Copilot-Everything/bridges/obsidian-copilot-bridge/src/server/udsListener.ts`; `ops/tr-suite/verify.sh`
+  compares them, so change all three together). There is no TCP listener, no TCP fallback and no client path
+  that can dial TCP, and a bridge that cannot secure its socket refuses to start. **HTTPS-only still applies to
+  any TCP listener** (root `CLAUDE.md`). Run `npm run lint:transport` in `obsidian-command-center` and
+  `obsidian-viz-studio` before committing a bridge change: each fails on a `createServer(` or `.listen(`
+  anywhere in `src` outside `src/bridge/uds-listener.ts`.
 - Session artifacts (exploration reports, scratch scripts, snapshots) go in a gitignored `.archive/`
   folder, never at a project root.
 

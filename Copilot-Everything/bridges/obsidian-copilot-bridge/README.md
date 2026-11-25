@@ -25,10 +25,10 @@ npm --prefix mcp-server ci
 
 ```bash
 npm --prefix mcp-server run build
-npm --prefix mcp-server run start:https
+npm --prefix mcp-server run start:uds
 ```
 
-Default secure transport is UDS on macOS/Linux and named pipe on Windows when `transport.mode` is omitted.
+The bridge serves only on its private Unix socket on macOS/Linux (a named pipe on Windows); see *Transports*. In production the obsidian-bridge-launcher Obsidian plugin spawns it with `--transport=uds`; nothing listens on TCP.
 Set `security.globalRateLimitPerMinute` in `mcp-server/config/obsidian-cli-mcp.local.json` to enforce a global cap in addition to per-client limits.
 
 > **CLI-era sections (historical).** *CLI Stability Controls*, *Raw Direct CLI Track*, and
@@ -71,9 +71,10 @@ The bridge-backed lane remains the current stable note/command execution contrac
 
 ## Transports
 
-- HTTPS: `--transport=https` (preferred; `--transport=http` accepted as a legacy alias — the network transport is HTTPS-only either way, see `src/server/httpTransport.ts`)
-- Unix domain socket: `--transport=uds`
-- Windows named pipe: `--transport=pipe`
+- Unix domain socket (macOS/Linux, the only transport there): `--transport=uds`. The socket is always `<home>/.local/state/trinc/run/vault-bridge.sock` (home from `os.homedir()`); a configured `transport.udsPath` or `transport.tls` is ignored with one stderr note each.
+- Windows named pipe: `--transport=pipe` (unchanged).
+- TCP was removed on 2026-11-24 (bridges-uds): `--transport=https`, `--transport=http` or a config `transport.mode: "http"` as the effective mode stops the bridge at startup with "TCP transport was removed on 2026-11-24 (bridges-uds); start with --transport=uds". `--transport=uds` on the command line wins over a config that still says `"http"`.
+- Health check: `node /Users/myhome/TRINC/ops/tr-suite/uds-health.mjs` (GET `/healthz` over the bridges' sockets).
 
 ## CLI Baseline
 
@@ -88,6 +89,10 @@ The server probes `obsidian version` with `--version` fallback and enforces `>=1
 - launch and readiness status
 
 ## Live Communication + CLI Validation Mode
+
+> **Historical (2026-11-24).** The validator's `dist/tests/live/` entry point no longer exists, and its
+> HTTPS endpoint option went away with the TCP transport (bridges-uds). Only the UDS and pipe endpoints below
+> describe a bridge that can still run.
 
 `live:communication:cli` is a standalone runtime validator (not Vitest, not CI) that cross-validates direct Obsidian CLI behavior against MCP transport behavior for IDE-style and Raycast-style clients.
 
@@ -107,7 +112,6 @@ Required environment variables:
 - `OBSIDIAN_LIVE_CLI_BIN=<obsidian-cli-binary>`
 - `OBSIDIAN_LIVE_MCP_TOKEN=<mcp-token>`
 - Exactly one endpoint:
-  - `OBSIDIAN_LIVE_MCP_HTTP_URL=https://127.0.0.1:8798`
   - `OBSIDIAN_LIVE_MCP_UDS_PATH=/absolute/path/to/socket.sock`
   - `OBSIDIAN_LIVE_MCP_PIPE_NAME=obsidian-mcp-bridge` (Windows)
 
@@ -123,7 +127,7 @@ OBSIDIAN_LIVE_TEST=1 \
 OBSIDIAN_LIVE_VAULT_PATH="/absolute/path/to/vault" \
 OBSIDIAN_LIVE_CLI_BIN="obsidian" \
 OBSIDIAN_LIVE_MCP_TOKEN="<mcp-token>" \
-OBSIDIAN_LIVE_MCP_HTTP_URL="https://127.0.0.1:8798" \
+OBSIDIAN_LIVE_MCP_UDS_PATH="/absolute/path/to/socket.sock" \
 npm --prefix mcp-server run live:communication:cli
 ```
 
@@ -157,10 +161,14 @@ OBSIDIAN_CLI_STABILITY_FORCE_COLD_LAUNCH=1 \
 
 Use the cold-launch flag only when you intentionally want the gate to quit and relaunch Obsidian to prove launch-from-not-running behavior.
 
-## Encrypted-by-default invariant (2026-04-30)
+## No-TCP invariant (bridges-uds, 2026-11-24)
 
-The network HTTP transport (`src/server/httpTransport.ts`, port 8798) is **HTTPS-only**. It will refuse to start without a valid mkcert key/cert pair configured in `transport.tls`. Plain HTTP fallback is not permitted; there is no `OPENCLAW_BRIDGE_TLS_DISABLE`-style escape hatch on this transport.
+The bridge has **no TCP listener**. The HTTPS transport on port 8798 (`src/server/httpTransport.ts`, the 2026-04-30 encrypted-by-default invariant) was deleted on 2026-11-24, with every client moved to the socket; there is no TCP fallback in the bridge or in any client.
 
-WebSocket upgrades, if ever introduced, MUST attach to the existing `https.createServer` instance (yielding `wss://`). The unix-socket and Windows-pipe transports (`udsTransport.ts`, `windowsPipeTransport.ts`) legitimately use plain HTTP because they bind to filesystem socket paths, not TCP ports — they cannot leak data over the network.
+- `src/server/udsTransport.ts` serves the unchanged routes, bodies and auth (token, replay guard, browser guard) over plain HTTP/1.1 on `<home>/.local/state/trinc/run/vault-bridge.sock` through `src/server/udsListener.ts`, the shared helper that is byte-identical in the Command Center and Viz Studio packages (never edit one copy alone; `ops/tr-suite/verify.sh` compares them).
+- The helper creates and checks the directory chain (every level a real directory of this uid that others cannot write, the run directory 0700, no ACL allow entry), publishes the socket 0600, replaces a stale socket left by a SIGKILL, refuses a live, foreign or non-socket file at the path, and watches the published name. A refusal is audited as `SOCKET_REFUSED` (with the helper's error code) and the daemon exits 1; a lost or replaced name is audited as `SOCKET_LOST` and the daemon exits 1.
+- `vault-bridge.pid` in the same directory holds `<pid>\n`. It is rewritten atomically on every start and never deleted; the launcher validates it before it signals a stale holder.
+- SIGTERM/SIGINT: the listener stops accepting and the published socket name goes at once, open connections get 2 s (`DAEMON_CLOSE_GRACE_MS`), in-flight tool calls get at most 2 s more (`SHUTDOWN_DRAIN_MS`), then the idempotency ledger closes and the daemon exits 0: 4 s in all, under the launcher's 5 s `shutdownTimeoutMs`.
+- TLS is not used on the socket: only processes of this uid can reach it and no browser can; the bearer token stays as defence in depth. `NODE_EXTRA_CA_CERTS` is still passed by the launcher for the bridge's own outbound HTTPS calls (Miyo).
 
-A regression guard (`npm run lint:transport`) rejects any future addition of `http.createServer`, `OPENCLAW_BRIDGE_TLS_DISABLE === "1"` checks, or bare `ws://` literals inside `httpTransport.ts`. Run it as part of pre-commit or CI.
+A regression guard (`npm run lint:transport`) fails on any `createServer(` (plain, `http.`, `https.`, `http2.`, `net.`, `tls.`) or `.listen(` in `src/**/*.ts` outside `src/server/udsListener.ts` and `src/server/windowsPipeTransport.ts`, and fails if either of those files is missing. Child-process test fixtures therefore live outside `src/` (`test/fixtures/`).

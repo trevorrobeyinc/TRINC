@@ -46,7 +46,6 @@
       ],
       "env": {
         "OBSIDIAN_STDIO_PROFILE": "openclaw",
-        "NODE_EXTRA_CA_CERTS": "/Users/myhome/Library/Application Support/mkcert/rootCA.pem",
         "NODE_OPTIONS": "--require /Users/myhome/.claude/mcp/loopback-listen.cjs"
       }
     }

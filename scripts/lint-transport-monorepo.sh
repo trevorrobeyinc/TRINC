@@ -4,10 +4,10 @@
 # Repo-wide regression guard for the "HTTPS-only or nothing" invariant.
 #
 # Greps every TypeScript / JavaScript source file across all three workspaces
-# (Claude/, Copilot-Everything/, "Trevor Robey Intelligence Network Citations/") for foot-gun shapes
-# that historically introduced unencrypted TCP listeners, env-gated plaintext
-# fallbacks, or plaintext outbound calls. v2.0.0 of Principle I expanded the
-# scope from inbound listeners only to listeners AND outbound connections.
+# (Claude/, Copilot-Everything/, "Trevor Robey Intelligence Network Citations/") and the
+# monorepo's ops/ tooling for foot-gun shapes that historically introduced unencrypted TCP
+# listeners, env-gated plaintext fallbacks, or plaintext outbound calls. v2.0.0 of Principle I
+# expanded the scope from inbound listeners only to listeners AND outbound connections.
 #
 # Three violation buckets are reported separately:
 #
@@ -86,9 +86,10 @@ fi
 # listed explicitly because the dot-exclusion would otherwise skip them.
 #
 # NOT added on purpose: a `from 'node:http'` import trigger. At least 11 live non-test files
-# import node:http legitimately — including httpTransport.ts, the file CLAUDE.md names as the
-# canonical HTTPS pattern, plus type-only importers — so it would be ~11 false positives and
-# still miss the bare-specifier form (`import * as http from "http"`) already in the stack.
+# import node:http legitimately — including Copilot-Everything/scripts/miyo-tls-proxy.mjs (the
+# canonical HTTPS listener pattern), the bridges' shared Unix-socket helper and their socket
+# clients, plus type-only importers — so it would be ~11 false positives and still miss the
+# bare-specifier form (`import * as http from "http"`) already in the stack.
 LISTENER_PATTERNS='http\.createServer\(|(^|[^A-Za-z0-9_.])createServer\(|net\.createServer\(|http2\.createServer\(|OPENCLAW_BRIDGE_TLS_DISABLE\s*={2,3}|tlsDisable\s*\?'
 
 # Bucket 2 — outbound foot-gun shapes. URL-form patterns are deliberately
@@ -122,7 +123,17 @@ CARVE_OUT_MARKER='lint-transport:[[:space:]]*outbound-carve-out'
 # filesystem path (UDS / Windows pipe), not a TCP host:port. Adding a new
 # entry here requires explicit security review.
 LEGITIMATE_NON_TCP=(
-  "Copilot-Everything/bridges/obsidian-copilot-bridge/src/server/udsTransport.ts"
+  # bridges-uds (security review 2026-11-24; operator approved 2026-11-25; decision
+  # record: ops/security/bridges-uds-2026-11-24.md): the shared Unix-socket
+  # helper of the three TRINC bridges, kept as three byte-identical copies
+  # (ops/tr-suite/verify.sh compares them). It is the only file in each bridge
+  # package that calls http.createServer, and it only ever listens on a socket
+  # path inside <home>/.local/state/trinc/run, never on TCP.
+  # udsTransport.ts left this list the same day: it serves through the helper
+  # and no longer creates a server itself.
+  "Claude/obsidian-command-center/src/bridge/uds-listener.ts"
+  "Claude/obsidian-viz-studio/src/bridge/uds-listener.ts"
+  "Copilot-Everything/bridges/obsidian-copilot-bridge/src/server/udsListener.ts"
   "Copilot-Everything/bridges/obsidian-copilot-bridge/src/server/windowsPipeTransport.ts"
 )
 
@@ -145,7 +156,9 @@ LEGITIMATE_OUTBOUND_PLAINTEXT=(
 
 cd "$ROOT" || { echo "cannot cd to $ROOT" >&2; exit 2; }
 
-# Walk Claude/, Copilot-Everything/, "Trevor Robey Intelligence Network Citations/" source files.
+# Walk Claude/, Copilot-Everything/, "Trevor Robey Intelligence Network Citations/" and ops/
+# source files. ops/ joined 2026-11-24 (bridges-uds): ops/tr-suite holds bridge clients of its own
+# (uds-health.mjs, bridge-guard-live-check.mjs) that no package lint covers.
 # Skip node_modules, dist, build, vendor, archive, audit/evidence, workspace
 # runtime state, test directories, and test files by filename suffix.
 # bash 3.2 compatible (macOS ships bash 3.2).
@@ -153,7 +166,7 @@ CANDIDATES=()
 while IFS= read -r line; do
   [ -n "$line" ] && CANDIDATES+=("$line")
 done < <(find \
-    Claude/ Copilot-Everything/ "Trevor Robey Intelligence Network Citations/" \
+    Claude/ Copilot-Everything/ "Trevor Robey Intelligence Network Citations/" ops/ \
     -type f \
     \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.mjs' -o -name '*.cjs' \) \
     -not -path '*/node_modules/*' \
@@ -254,7 +267,10 @@ scan_bucket() {
   ${file}:${match}"
         ;;
     esac
-  done < <(grep -nE "$pattern" "$file" 2>/dev/null || true)
+  # The pattern reaches grep through a file descriptor (-f), never as an argument: the OUTBOUND
+  # pattern names a download tool, and Falcon Custom-IOA rules on the operator's Mac match process
+  # command lines and kill a process whose argv carries that vocabulary (argv hygiene, 2026-11-24).
+  done < <(grep -nE -f <(printf '%s\n' "$pattern") "$file" 2>/dev/null || true)
 }
 
 for f in "${SCAN_FILES[@]}"; do
@@ -315,10 +331,15 @@ echo
 cat <<'EOF'
 What to do (read this — do NOT downgrade to HTTP):
 
-  1. LISTENER violations: the file MUST construct https.createServer with a
-     valid mkcert key/cert pair and refuse to start when the certs cannot be
-     loaded. See Copilot-Everything/bridges/obsidian-copilot-bridge/src/server/httpTransport.ts
-     for the canonical pattern.
+  1. LISTENER violations: a TCP listener MUST construct https.createServer
+     with a valid mkcert key/cert pair and refuse to start when the certs
+     cannot be loaded. See Copilot-Everything/scripts/miyo-tls-proxy.mjs for
+     the canonical pattern.
+     A TRINC bridge (vault bridge, Command Center, Viz Studio) serves on a
+     Unix socket instead: call listenHttpOnSocket from the shared helper
+     (Claude/obsidian-command-center/src/bridge/uds-listener.ts and its two
+     byte-identical copies, all on LEGITIMATE_NON_TCP), never http.createServer
+     anywhere else, and never with a TCP fallback (bridges-uds, 2026-11-24).
 
   2. OUTBOUND violations: replace the http:// URL with https://; if the target
      service only speaks plaintext, choose one of the three sanctioned paths

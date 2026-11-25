@@ -18,7 +18,7 @@ cd /Users/myhome/TRINC/Claude/obsidian-command-center   # path corrected 2026-10
 npm run build
 npm run dev
 npm test              # unit tests for the pure modules (node --test, strip-types); no Obsidian needed
-npm run lint:transport
+npm run lint:transport  # fails on createServer( or .listen( anywhere in src except src/bridge/uds-listener.ts
 ```
 
 Plugin output goes to `main.js` in the project root (gitignored). Obsidian loads the copy in
@@ -30,9 +30,26 @@ build is unaffected); a change that adds a fifth is yours.
 
 ## Architecture
 
-### MCP Bridge (port 8799)
+### MCP Bridge (Unix socket `command-center.sock`)
 
-The plugin runs an in-process HTTPS bridge providing **32 tools** (7 `obsidian_*` + 16 `obsidian_openclaw_*` + 7 `zk_*` + 2 `video_pipeline_*`; engine suite added 2026-08-20; `obsidian_openclaw_publish_vault` + `obsidian_openclaw_research_memory_search` added 2026-09-22 — both spawn engine CLIs, no gate, no model spend; the memory search honours the engine's `researchMemory.enabled` switch). Default port is **8799** to avoid collision with the canonical copilot-everything bridge at **8798**.
+The plugin runs an in-process HTTP bridge providing **32 tools** (7 `obsidian_*` + 16 `obsidian_openclaw_*` + 7 `zk_*` + 2 `video_pipeline_*`; engine suite added 2026-08-20; `obsidian_openclaw_publish_vault` + `obsidian_openclaw_research_memory_search` added 2026-09-22 — both spawn engine CLIs, no gate, no model spend; the memory search honours the engine's `researchMemory.enabled` switch). Since **bridges-uds (2026-11-24)** it serves only the Unix socket `~/.local/state/trinc/run/command-center.sock` (run directory 0700, socket 0600; it was HTTPS on TCP :8799 before), and the canonical copilot-everything vault bridge (once :8798) serves `vault-bridge.sock` in the same directory. There is no TCP listener, no TCP fallback and no TLS on either link; the bearer token (`~/.config/openclaw-command-center/bridge-token`) and the browser guard stay. Health check: `node /Users/myhome/TRINC/ops/tr-suite/uds-health.mjs` (never type a socket path on a command line).
+
+- **`src/bridge/uds-listener.ts` is byte-identical** with Viz Studio's copy and the vault bridge's `udsListener.ts`
+  (`ops/tr-suite/verify.sh` compares them). Never edit one copy: change all three together. It is the only file in
+  src that creates a server (`npm run lint:transport`). It refuses, never repairs: a run directory that is not 0700,
+  a symlinked or group/other-writable level, a non-socket or a live socket at the path (`ALREADY_SERVED`, e.g. this
+  plugin in a second vault window). A stale socket (a crash) is replaced. Logs name `listener.socketPath`; the
+  server's own address is the hidden bind name.
+- **Lifecycle (D3).** One `McpBridgeServer` per plugin instance, so the layout-ready start and the settings Start
+  button share one start in flight. `onunload` sets `disposed` first, then stops the bridge before the runner, the
+  tracker and the video run; a start that lands after a stop or the unload closes what it opened; a successful start
+  registers its close with `this.register`. A plugin reload in the same window supersedes the old listener. If the
+  socket's name is removed or taken over, the bridge closes itself with a "Bridge stopped" Notice; Start it again.
+- **Settings.** The status reads "Running on unix:<path>" / "Stopped"; a read-only "Bridge socket" row replaced the
+  port field. A `bridgePort` left in data.json is ignored, not scrubbed.
+- **research_notify** (the post-run chat bubble) goes to `vault-bridge.sock` through `src/subprocess/research-notify.ts`
+  (`requestOverSocket`, 10 s timeout, no CA). A missing socket (ENOENT: bridge not running) or a trust refusal is a
+  logged `notify` failure in the post-run ledger, never a TCP retry.
 
 **Run dispatch contract (2026-10-07).** This is the door a Claude Code session uses to start OpenClaw runs
 (through the stdio adapter's `openclaw` profile, `Copilot-Everything/bridges/obsidian-stdio-adapter/`), so
@@ -168,7 +185,7 @@ Queries Miyo semantic search via TLS proxy at `https://127.0.0.1:8743` (upstream
 | System | Transport | URL/Port | Purpose |
 |--------|-----------|----------|---------|
 | OpenClaw Agents | subprocess | child_process.spawn() | Workflow execution |
-| Obsidian MCP Bridge (canonical) | HTTPS | :8798 | Vault operations |
+| Obsidian MCP Bridge (canonical vault bridge) | HTTP over a Unix socket (since 2026-11-24) | `vault-bridge.sock` | research_notify chat bubble |
 | vault-zettelkasten plugin | in-process api | N/A | Graph analysis |
 | Miyo (via TLS proxy) | HTTPS | :8743 → upstream :8742 | Semantic search |
 
@@ -182,7 +199,7 @@ the official registry **by id only** — it has no concept of "this install didn
 repo." With our version below theirs, Obsidian's Community Plugins pane showed a false "Update"
 pill; clicking it attempted to download `scrunchds/Command-Center`'s release assets over
 `.obsidian/plugins/command-center/`, which would have silently replaced this plugin (workflow
-dispatch + the `:8799` MCP bridge) with their unrelated dashboard plugin. It failed on this
+dispatch + the MCP bridge, then on `:8799`) with their unrelated dashboard plugin. It failed on this
 machine (their `minAppVersion` isn't met here), which is what surfaced the collision rather than
 silently overwriting files.
 
@@ -201,7 +218,9 @@ vault plugin directory manually (see repo `README.md` → Installation).
 | File | Purpose |
 |------|---------|
 | `src/main.ts` | Plugin bootstrap, command registration, lifecycle |
-| `src/bridge/mcp-bridge-server.ts` | In-plugin HTTP bridge (port 8799) |
+| `src/bridge/mcp-bridge-server.ts` | In-plugin HTTP bridge on `command-center.sock` (no TCP port) |
+| `src/bridge/uds-listener.ts` | The Unix-socket listener and client rules (byte-identical in three packages; never edit one copy) |
+| `src/subprocess/research-notify.ts` | research_notify to the vault bridge over `vault-bridge.sock` |
 | `src/video/pipeline.ts` | Built-in video pipeline: one video, folder mode, the run's start and end, the one-run controller |
 | `src/video/obsidian-host.ts` | The pipeline's only `obsidian` import: vault writes, the active note, the Copilot command |
 | `src/subprocess/openclaw-runner.ts` | OpenClaw subprocess spawner |

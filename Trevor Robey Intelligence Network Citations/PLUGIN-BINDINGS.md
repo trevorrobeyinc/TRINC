@@ -127,7 +127,7 @@ uses the named fallback. That is the configuration.
 | `~~drug targets` | Open Targets (`open-targets-graphql`, shipped `134a5ad`) | research |
 | `~~competitive intelligence` | searxng-search + ClinicalTrials.gov sponsor queries | research |
 | `~~patent` | **PatSnap Patent & Literature Search** (OAuth 2026-07-30) — see the caveat below | research |
-| `~~knowledge base` | Obsidian vault `My Digital Garden` via the `:8798` bridge | vault |
+| `~~knowledge base` | Obsidian vault `My Digital Garden` via the canonical vault bridge (Unix socket `vault-bridge.sock`) | vault |
 | `~~email` | Gmail — `trevor@trevorobeyinc.com` | business |
 | `~~calendar` · `~~office suite` | Google Calendar · Google Workspace | business |
 | `~~data enrichment` | vpai (vibe-prospecting) — the only enrichment surface | business |
@@ -480,8 +480,9 @@ Figma. Applies to the landing page and the four Obsidian plugin UIs.
 
 **Guardrails**
 - Visual direction only — it does not override the brand canon.
-- Any UI it produces that talks to a local service uses the HTTPS proxies (`:8798`, `:8743`, `:6433`,
-  `:8891`), never a plaintext port.
+- Any UI it produces that talks to a local service uses the HTTPS proxies (`:8743`, `:6433`, `:8891`),
+  never a plaintext port. It never talks to the Obsidian bridges: they answer only on Unix sockets, which no
+  page can dial.
 
 ---
 

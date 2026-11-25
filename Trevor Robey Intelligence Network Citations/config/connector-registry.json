@@ -748,7 +748,7 @@
     "obsidian-bridge": {
       "tool_prefix": "mcp__obsidian-bridge__",
       "execution_surface": "subprocess-mcp",
-      "auth": "Miyo HTTPS proxy at https://127.0.0.1:8743 (mkcert-signed; semantic, works with Obsidian closed) first, then the canonical bridge at https://127.0.0.1:8798 (mkcert-signed; fallback while Obsidian is open)",
+      "auth": "Miyo HTTPS proxy at https://127.0.0.1:8743 (mkcert-signed; semantic, works with Obsidian closed) first, then the canonical vault bridge over its Unix socket ~/.local/state/trinc/run/vault-bridge.sock (plain HTTP/1.1, no TLS and no CA; run dir 0700, socket 0600; bearer token plus replay headers; fallback while Obsidian is open). Since 2026-11-24 (bridges-uds) the bridge has no TCP port; the engine reaches the socket through openclaw-bridge/mcp/base-mcp.js, local IPC outside the egress policy.",
       "tools": [
         "obsidian_prior_research",
         "obsidian_search_notes",
@@ -758,7 +758,7 @@
         "obsidian_create_note",
         "obsidian_append_note"
       ],
-      "purpose": "Vault READ-BACK during a run, CONTEXT ONLY: lets a role consult prior research already in the vault (Miyo semantic straight over :8743, headless-capable; :8798 bridge full-text as fallback), exposed to prefetch as `obsidian_prior_research`. Every record is context_only - rendered under a NOT-evidence banner with identifiers withheld and excluded from fetched_citation_ids - so a prior-run identifier can never ground a citation without a live fetch (fixed 2026-09-22). Writes stay opt-in (allowWrites=false): the ENGINE's own post-run publisher (openclaw-bridge/vault/workflow-vault-publisher.js) owns vault writes, one folder scheme, rehydrated by Command Center.",
+      "purpose": "Vault READ-BACK during a run, CONTEXT ONLY: lets a role consult prior research already in the vault (Miyo semantic straight over :8743, headless-capable; the vault bridge's socket vault-bridge.sock full-text as fallback), exposed to prefetch as `obsidian_prior_research`. Every record is context_only - rendered under a NOT-evidence banner with identifiers withheld and excluded from fetched_citation_ids - so a prior-run identifier can never ground a citation without a live fetch (fixed 2026-09-22). Writes stay opt-in (allowWrites=false): the ENGINE's own post-run publisher (openclaw-bridge/vault/workflow-vault-publisher.js) owns vault writes, one folder scheme, rehydrated by Command Center.",
       "prefetch_mode": "context-only",
       "bound_roles": [
         "analyst",
@@ -796,14 +796,14 @@
       "business_value": "high",
       "adapter_status": "wired",
       "adapter_priority": "medium",
-      "suggested_adapter_path": "openclaw-bridge/mcp/obsidian-bridge-mcp/index.js (thin client of the canonical bridge on :8798 \u2014 opens NO listener; see HTTPS-only invariant)",
+      "suggested_adapter_path": "openclaw-bridge/mcp/obsidian-bridge-mcp/index.js (thin client of the canonical vault bridge's Unix socket vault-bridge.sock through base-mcp.js; no TCP and no TLS since 2026-11-24\u2014 opens NO listener; see HTTPS-only invariant)",
       "health_check": "obsidian_health returns ok",
       "lane": "vault"
     },
     "viz-bridge": {
       "tool_prefix": "mcp__viz-bridge__",
       "execution_surface": "subprocess-mcp",
-      "auth": "Viz Studio bridge at https://127.0.0.1:8800 (mkcert-signed); bearer token from ~/.config/trinc-viz-studio/bridge-token (0600, plugin-owned)",
+      "auth": "Was, while this adapter existed: the Viz Studio bridge on TCP :8800 with mkcert TLS; bearer token from ~/.config/trinc-viz-studio/bridge-token (0600, plugin-owned). Since 2026-11-24 (bridges-uds) Viz Studio answers only on its Unix socket ~/.local/state/trinc/run/viz-studio.sock, with the same token file.",
       "tools": [
         "viz_health",
         "viz_mermaid",
@@ -813,7 +813,7 @@
         "viz_graph_snapshot",
         "viz_guided"
       ],
-      "purpose": "RETIRED 2026-10-23 (TRINC reorg Phase 5). The engine-side adapter openclaw-bridge/mcp/viz-bridge-mcp/ was built 2026-08-16 for deliverable charts but NOTHING ever called researchRuntime.vizBridge (verified 2026-10-07), so no run produced visuals. Viz Studio itself stays: Claude reaches it through the openclaw-obsidian door (stdio adapter openclaw profile -> :8800, writes only into Visualizations/), Copilot through its own lane. If deliverables ever need charts, restore the adapter from git and keep its original rules: deterministic post-gate code only, never prefetch (viz text in prompts could inflate the citation gate's grounded-id extraction), SVG never PNG (deliverable-packager.js hashes shipped files as UTF-8 text).",
+      "purpose": "RETIRED 2026-10-23 (TRINC reorg Phase 5). The engine-side adapter openclaw-bridge/mcp/viz-bridge-mcp/ was built 2026-08-16 for deliverable charts but NOTHING ever called researchRuntime.vizBridge (verified 2026-10-07), so no run produced visuals. Viz Studio itself stays: Claude reaches it through the openclaw-obsidian door (stdio adapter openclaw profile -> the Viz Studio socket viz-studio.sock, writes only into Visualizations/), Copilot through its own lane. If deliverables ever need charts, restore the adapter from git and keep its original rules: deterministic post-gate code only, never prefetch (viz text in prompts could inflate the citation gate's grounded-id extraction), SVG never PNG (deliverable-packager.js hashes shipped files as UTF-8 text).",
       "bound_roles": [],
       "bound_workflow_steps": [],
       "business_value": "superseded",
@@ -1906,7 +1906,7 @@
   },
   "lanes": {
     "research": "Biomedical / citation connectors. The ONLY lane permitted into config/tool-prefetch-map.json. Everything here is subject to the Phase-30 citation-grounding gate. Since 2026-10-21 there are TWO prefetch maps: config/tool-prefetch-map.json (biomedical profile) and config/tool-prefetch-map.business.json (the business RESEARCH profile, chosen by a template's research_profile: business); entries serving the second carry research_profile: business. NAMING TRAP: the engine's 'business research lane' is a RESEARCH-lane profile, not this registry's `business` lane; never move its sources to lane business, and never put a lane-business surface in either map.",
-    "vault": "Obsidian + memory surfaces reached through the canonical :8798 bridge and the Qdrant TLS proxy :6433. Read-only from the engine; Command Center owns vault writes. (Corrected 2026-10-21: since 2026-09-22 the ENGINE writes each gate-PASS run's notes itself, openclaw-bridge/vault/workflow-vault-publisher.js; Command Center only rehydrates its enrichment stages. Read-back into a run stays context-only.)",
+    "vault": "Obsidian + memory surfaces reached through the canonical vault bridge (its Unix socket vault-bridge.sock; no TCP port since 2026-11-24) and the Qdrant TLS proxy :6433. Read-only from the engine; Command Center owns vault writes. (Corrected 2026-10-21: since 2026-09-22 the ENGINE writes each gate-PASS run's notes itself, openclaw-bridge/vault/workflow-vault-publisher.js; Command Center only rehydrates its enrichment stages. Read-back into a run stays context-only.)",
     "business": "Mail, publishing, notes, repo. Chat-supervisory and Command Center only. NEVER injected into research prefetch \u2014 these return non-citable payloads that would dilute the grounded-citation ratio and inflate a token budget already at ~300K/template. Not the engine's business RESEARCH profile (2026-10-21), whose citable WEB/SEC/WB/DOI sources are lane research; this lane stays out of BOTH prefetch maps.",
     "security": "Falcon / Firewalla / sudo-gate / term-bridge. Governed by the security-orchestration skill under strict propose-only. Never reachable from the engine. (term-bridge RETIRED 2026-07-28; the local falcon MCP RETIRED 2026-10-09: Falcon is reached only from the Security Everything repo, through its Falcon-Strike lane.)",
     "infra": "Session, scheduling, filesystem, and docs plumbing. Not a product data source."
@@ -2016,7 +2016,7 @@
         "id": "openclaw-obsidian",
         "lane": "infra",
         "auth": "none of its own; the session-gate hook bars sub-agents and Ralph loops (prefix mcp__openclaw-obsidian__, no session scope); every REAL run still needs the operator's armed one-shot operator-approve token",
-        "purpose": "Claude Code's dispatch lane into the Command Center bridge :8799, registered in the repo .mcp.json 2026-10-07 (stdio adapter Copilot-Everything/bridges/obsidian-stdio-adapter, profile `openclaw`: a closed 13-tool allowlist proxied only to :8799). Starts and watches OpenClaw runs so the plugin's post-run chain fires; status.post_run_done is the reliable 'chain finished' signal. It DISPATCHES the engine and is never an evidence source: it must never enter a prefetch map. Dies with Obsidian (the tools answer obsidian_not_running)."
+        "purpose": "Claude Code's dispatch lane into the Command Center bridge (its Unix socket command-center.sock since 2026-11-24; TCP :8799 is retired), registered in the repo .mcp.json 2026-10-07 (stdio adapter Copilot-Everything/bridges/obsidian-stdio-adapter, profile `openclaw`: a closed 13-tool allowlist proxied only to the Command Center bridge). Starts and watches OpenClaw runs so the plugin's post-run chain fires; status.post_run_done is the reliable 'chain finished' signal. It DISPATCHES the engine and is never an evidence source: it must never enter a prefetch map. Dies with Obsidian (the tools answer obsidian_not_running)."
       },
       {
         "id": "opencode",

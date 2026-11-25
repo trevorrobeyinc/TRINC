@@ -3,12 +3,22 @@ import path from "node:path";
 import { z } from "zod";
 import { AppError } from "../server/errors";
 import { ERROR_CODES } from "../server/errorCodes";
-import type { ServerConfig } from "./types";
+import { SOCKET_NAMES, socketPathFor } from "../server/udsListener";
+import type { ServerConfig, TransportMode } from "./types";
+
+/** Startup error when "http" or "https" is the effective transport mode (bridges-uds, D4). */
+export const TCP_TRANSPORT_REMOVED = "TCP transport was removed on 2026-11-24 (bridges-uds); start with --transport=uds";
 
 // zod 4: a missing section uses `.prefault({})`, which parses `{}` through the section's
 // schema so its inner defaults (port 8798, the timeouts, the queue sizes, ...) still apply.
 // `.default({})` would return the bare `{}` and drop every one of them; it is what zod 3's
 // `.default({})` meant. Pinned by src/tests/configLoader.spec.ts.
+//
+// transport.udsPath and transport.tls are no longer schema keys (zod strips unknown keys): the
+// socket path is always socketPathFor("vault-bridge.sock") and the socket carries no TLS.
+// loadConfig() writes one stderr note for each when a config file still sets it. mode still
+// accepts "http" so an old config parses; loadConfig() then refuses it as the effective mode
+// unless --transport=uds overrides it.
 const schema = z.object({
   transport: z
     .object({
@@ -28,12 +38,7 @@ const schema = z.object({
           }
         ),
       port: z.number().int().min(1).max(65535).default(8798),
-      udsPath: z.string().default("/tmp/obsidian-mcp-bridge.sock"),
       pipeName: z.string().default("obsidian-mcp-bridge"),
-      tls: z.object({
-        certPath: z.string(),
-        keyPath: z.string(),
-      }).optional(),
     })
     .prefault({}),
   cliStability: z
@@ -137,7 +142,79 @@ function defaultTransportMode(): "uds" | "pipe" {
   return process.platform === "win32" ? "pipe" : "uds";
 }
 
-export function loadConfig(): { config: ServerConfig; tokenEntropyBits: number; configPath: string } {
+/**
+ * The mode a --transport=<mode> argument asks for: "uds" or "pipe", and "http" for both "http" and
+ * "https" (the removed TCP transport, which loadConfig refuses). Any other value is ignored.
+ */
+export function parseTransportArg(argv: readonly string[]): "http" | "uds" | "pipe" | null {
+  const arg = argv.find((value) => value.startsWith("--transport="));
+  if (!arg) {
+    return null;
+  }
+  const mode = arg.slice("--transport=".length);
+  if (mode === "http" || mode === "https") {
+    return "http";
+  }
+  if (mode === "uds" || mode === "pipe") {
+    return mode;
+  }
+  return null;
+}
+
+/**
+ * The command line wins over the config file (the launcher passes --transport=uds, and a config
+ * that still says "http" must not stop it). The effective mode must be "uds" on macOS and Linux;
+ * Windows keeps its named pipe. TCP is refused everywhere.
+ */
+function effectiveTransportMode(configured: "http" | "uds" | "pipe" | undefined, argv: readonly string[]): TransportMode {
+  const mode = parseTransportArg(argv) ?? configured ?? defaultTransportMode();
+  if (mode === "http") {
+    throw new AppError(ERROR_CODES.INTERNAL_ERROR, TCP_TRANSPORT_REMOVED);
+  }
+  if (mode === "pipe" && process.platform !== "win32") {
+    throw new AppError(
+      ERROR_CODES.INTERNAL_ERROR,
+      `transport mode "pipe" is Windows-only; on ${process.platform} the bridge serves only on its Unix socket (start with --transport=uds)`
+    );
+  }
+  return mode;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** One note per transport key the config file still sets but the bridge no longer reads. */
+function noteIgnoredTransportKeys(parsed: unknown, socketPath: string, note: (line: string) => void): void {
+  const transport = isRecord(parsed) && isRecord(parsed.transport) ? parsed.transport : {};
+  if (transport.udsPath !== undefined && transport.udsPath !== socketPath) {
+    note(
+      `obsidian-copilot-bridge: config transport.udsPath (${JSON.stringify(transport.udsPath)}) is ignored; ` +
+        `the bridge always serves on ${socketPath} (bridges-uds, 2026-11-24)`
+    );
+  }
+  if (transport.tls !== undefined) {
+    note(
+      "obsidian-copilot-bridge: config transport.tls is ignored; the bridge has no TCP listener and serves " +
+        "plain HTTP/1.1 only on its private Unix socket (bridges-uds, 2026-11-24)"
+    );
+  }
+}
+
+function noteToStderr(line: string): void {
+  process.stderr.write(`${line}\n`);
+}
+
+export interface LoadConfigOptions {
+  /** Command-line arguments; a --transport=<mode> argument overrides transport.mode from the config file. */
+  argv?: readonly string[];
+  /** Receives each one-line note about an ignored config key (default: stderr). */
+  note?: (line: string) => void;
+}
+
+export function loadConfig(
+  options: LoadConfigOptions = {}
+): { config: ServerConfig; tokenEntropyBits: number; configPath: string } {
   const configPath = resolveConfigPath();
   if (!fs.existsSync(configPath)) {
     throw new AppError(
@@ -154,10 +231,11 @@ export function loadConfig(): { config: ServerConfig; tokenEntropyBits: number; 
     throw new AppError(ERROR_CODES.INTERNAL_ERROR, `Invalid JSON config at ${configPath}: ${String(error)}`);
   }
 
-  const cfg = schema.parse(parsed) as ServerConfig;
-  if (!cfg.transport.mode) {
-    cfg.transport.mode = defaultTransportMode();
-  }
+  const parsedConfig = schema.parse(parsed);
+  const udsPath = socketPathFor(SOCKET_NAMES.vaultBridge);
+  noteIgnoredTransportKeys(parsed, udsPath, options.note ?? noteToStderr);
+  const mode = effectiveTransportMode(parsedConfig.transport.mode, options.argv ?? []);
+  const cfg = { ...parsedConfig, transport: { ...parsedConfig.transport, mode, udsPath } } as ServerConfig;
   const tokenEntropyBits = ensureStrongToken(cfg.security.authToken);
 
   return {

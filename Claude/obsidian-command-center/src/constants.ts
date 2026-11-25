@@ -27,7 +27,7 @@ export const DEFAULT_SETTINGS: OpenClawSettings = {
   miyoIndexPollIntervalMs: 1000,
   miyoSearchRetries: 3,
   enableCopilotBridge: true,
-  bridgePort: 8799,
+  // (No bridgePort since bridges-uds, 2026-11-24: the bridge serves a Unix socket; see types.ts.)
   // Trevorobeyinc Research Memory MCP — auto-ingest hook (added 2026-04-26).
   autoIngestToResearchMemory: true,
   researchMemoryCliPath:

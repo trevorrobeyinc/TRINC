@@ -55,7 +55,7 @@
         "tool_name": "obsidian_prior_research",
         "optional": true,
         "context_only": true,
-        "_comment": "Vault read-back, CONTEXT ONLY (never citation evidence). Semantic search goes straight to Miyo over the HTTPS proxy :8743 (works headless; Qdrant is Miyo's child), then falls back to the canonical :8798 bridge when Obsidian is open. Records render under a NOT-evidence banner with identifiers withheld and are excluded from fetched_citation_ids. optional+fail-soft: with Miyo and Obsidian both down this yields nothing and the run proceeds. READ-ONLY: the engine's own post-run publisher owns vault writes (2026-09-22).",
+        "_comment": "Vault read-back, CONTEXT ONLY (never citation evidence). Semantic search goes straight to Miyo over the HTTPS proxy :8743 (works headless; Qdrant is Miyo's child), then falls back to the canonical vault bridge (its Unix socket vault-bridge.sock, never TCP) when Obsidian is open. Records render under a NOT-evidence banner with identifiers withheld and are excluded from fetched_citation_ids. optional+fail-soft: with Miyo and Obsidian both down this yields nothing and the run proceeds. READ-ONLY: the engine's own post-run publisher owns vault writes (2026-09-22).",
         "arguments": {
           "topic": "{{therapeutic_area}} {{indication}} {{compound_name}}",
           "limit": 5
@@ -155,7 +155,7 @@
         "tool_name": "obsidian_prior_research",
         "optional": true,
         "context_only": true,
-        "_comment": "Vault read-back, CONTEXT ONLY (never citation evidence). Semantic search goes straight to Miyo over the HTTPS proxy :8743 (works headless; Qdrant is Miyo's child), then falls back to the canonical :8798 bridge when Obsidian is open. Records render under a NOT-evidence banner with identifiers withheld and are excluded from fetched_citation_ids. optional+fail-soft: with Miyo and Obsidian both down this yields nothing and the run proceeds. READ-ONLY: the engine's own post-run publisher owns vault writes (2026-09-22).",
+        "_comment": "Vault read-back, CONTEXT ONLY (never citation evidence). Semantic search goes straight to Miyo over the HTTPS proxy :8743 (works headless; Qdrant is Miyo's child), then falls back to the canonical vault bridge (its Unix socket vault-bridge.sock, never TCP) when Obsidian is open. Records render under a NOT-evidence banner with identifiers withheld and are excluded from fetched_citation_ids. optional+fail-soft: with Miyo and Obsidian both down this yields nothing and the run proceeds. READ-ONLY: the engine's own post-run publisher owns vault writes (2026-09-22).",
         "arguments": {
           "topic": "{{compound_name}} {{indication}} mechanism",
           "limit": 5
@@ -335,7 +335,7 @@
         "tool_name": "obsidian_prior_research",
         "optional": true,
         "context_only": true,
-        "_comment": "Vault read-back, CONTEXT ONLY (never citation evidence). Semantic search goes straight to Miyo over the HTTPS proxy :8743 (works headless; Qdrant is Miyo's child), then falls back to the canonical :8798 bridge when Obsidian is open. Records render under a NOT-evidence banner with identifiers withheld and are excluded from fetched_citation_ids. optional+fail-soft: with Miyo and Obsidian both down this yields nothing and the run proceeds. READ-ONLY: the engine's own post-run publisher owns vault writes (2026-09-22).",
+        "_comment": "Vault read-back, CONTEXT ONLY (never citation evidence). Semantic search goes straight to Miyo over the HTTPS proxy :8743 (works headless; Qdrant is Miyo's child), then falls back to the canonical vault bridge (its Unix socket vault-bridge.sock, never TCP) when Obsidian is open. Records render under a NOT-evidence banner with identifiers withheld and are excluded from fetched_citation_ids. optional+fail-soft: with Miyo and Obsidian both down this yields nothing and the run proceeds. READ-ONLY: the engine's own post-run publisher owns vault writes (2026-09-22).",
         "arguments": {
           "topic": "{{indication}} {{drug_class}} {{compound_name}}",
           "limit": 5
@@ -443,7 +443,7 @@
         "tool_name": "obsidian_prior_research",
         "optional": true,
         "context_only": true,
-        "_comment": "Vault read-back, CONTEXT ONLY (never citation evidence). Semantic search goes straight to Miyo over the HTTPS proxy :8743 (works headless; Qdrant is Miyo's child), then falls back to the canonical :8798 bridge when Obsidian is open. Records render under a NOT-evidence banner with identifiers withheld and are excluded from fetched_citation_ids. optional+fail-soft: with Miyo and Obsidian both down this yields nothing and the run proceeds. READ-ONLY: the engine's own post-run publisher owns vault writes (2026-09-22).",
+        "_comment": "Vault read-back, CONTEXT ONLY (never citation evidence). Semantic search goes straight to Miyo over the HTTPS proxy :8743 (works headless; Qdrant is Miyo's child), then falls back to the canonical vault bridge (its Unix socket vault-bridge.sock, never TCP) when Obsidian is open. Records render under a NOT-evidence banner with identifiers withheld and are excluded from fetched_citation_ids. optional+fail-soft: with Miyo and Obsidian both down this yields nothing and the run proceeds. READ-ONLY: the engine's own post-run publisher owns vault writes (2026-09-22).",
         "arguments": {
           "topic": "{{indication}} {{drug_class}} competitive landscape",
           "limit": 5

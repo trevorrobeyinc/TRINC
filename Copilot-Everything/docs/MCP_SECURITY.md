@@ -27,13 +27,24 @@ Defaults from `/Users/trevorrobey/THE Copilot in Obsidian Everything/repos/obsid
 - `mcp.denylist = []`
 - Default example server is disabled
 
-## Current MVP Limits
+## Current Limits (2026-11-24, bridges-uds)
 
-Current plugin MVP only executes HTTP transport MCP servers.
+The plugin executes **Unix-socket (`uds`) MCP servers only**: the three TRINC bridges, each on its own socket in `~/.local/state/trinc/run/` (directory 0700, sockets 0600, resolved from the home directory at run time). Each known server id is bound to one socket name and any other name is refused, so an edited or synced `data.json` cannot send one bridge's token to another bridge's socket:
+- `local-obsidian-mcp` → `vault-bridge.sock`
+- `command-center` → `command-center.sock`
+- `viz-studio` → `viz-studio.sock`
 
-Configured but unsupported transports are surfaced in diagnostics with a clear message rather than silently falling back:
-- `uds`
+Configured but unsupported transports are surfaced in diagnostics with a clear message and are never dialled, rather than silently falling back:
+- `http` (an entry the settings migration could not convert; no server has a `requestUrl` or TCP path)
 - `pipe`
+
+Transport rules (`src/mcp/udsClient.ts`; desktop only, and on mobile the client reports that Unix-socket bridges are unavailable):
+- Node's `http` module is loaded at call time through `globalThis.require`, never through a static `node:` import.
+- Before any token is written, the client validates the exact path it sends (absolute, inside the run directory, the server's own socket name), checks every directory from home down (a real directory owned by the uid that group and others cannot write), requires a 0600 socket owned by the uid, and checks for a macOS ACL allow entry once per process. A missing directory or socket is refused as `ENOENT` without connecting.
+- The connection is pinned with `createConnection` and never uses an `agent` option: Node turns an empty `socketPath` into plaintext TCP to `localhost:80`.
+- The body bytes and the `X-MCP-Token` / `X-MCP-Nonce` / `X-MCP-Timestamp` / `X-MCP-Body-Sha256` headers are unchanged; health is `GET /healthz` over the socket.
+
+Settings migration (on load, idempotent, saved with the normal settings save, never logging a token): a server whose id is one of the three known ids, or whose endpoint (any scheme, host `127.0.0.1`, `localhost` or `::1`) names port 8798, 8799 or 8800, becomes transport `uds`. The three known ids get socketPath `""` (resolved at run time); the token and every other field are kept. An entry whose id and port disagree is left unconverted and reported. Diagnostics lists every migrated entry. Record: [`../../ops/security/bridges-uds-2026-11-24.md`](../../ops/security/bridges-uds-2026-11-24.md).
 
 ## Mutating Tool Policy
 
@@ -60,4 +71,4 @@ Recommended before enabling any server broadly:
 
 ## Current Local Assumption
 
-Bootstrap should confirm the active MCP transport and preserve compatibility with it. The plugin is currently HTTP-first only because the local bridge examples and default settings point to `https://127.0.0.1:8798`, but non-HTTP compatibility remains future work.
+The plugin's MCP client reaches only the three local bridges, over their Unix sockets. The default settings carry `local-obsidian-mcp` as a `uds` server with socketPath `""`, which resolves at run time to `~/.local/state/trinc/run/vault-bridge.sock`. There is no HTTP compatibility path and no TCP fallback: the bridges stopped listening on loopback TCP on 2026-11-24, and a client that dialled the old ports would hand its token to whatever process holds them.

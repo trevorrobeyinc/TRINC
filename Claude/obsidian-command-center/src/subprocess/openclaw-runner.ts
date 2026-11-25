@@ -1,11 +1,15 @@
 import { spawn, ChildProcess } from "child_process";
-import { request as httpsRequest } from "https";
-import { createHash, randomUUID } from "crypto";
 import { join } from "path";
 import { existsSync, readdirSync, readFileSync, statSync } from "fs";
 import type { WorkflowResult, WorkflowState, StderrEvent, OpenClawSettings } from "../types";
 import { buildEngineEnv, resolveNodeBin } from "../util/engine-spawn";
 import { classifyGateDenial, gateDenialAction } from "./gate-denial";
+import {
+  postResearchNotify,
+  researchNotifyBody,
+  researchNotifyHeaders,
+  type ResearchNotifyInput,
+} from "./research-notify";
 
 export interface RunWorkflowOptions {
   template: string;
@@ -432,43 +436,29 @@ export class OpenClawRunner {
 
 // ── Auto-bubble: notify the Copilot chat that a research run finished ──────────
 
-const DEFAULT_BRIDGE = "https://127.0.0.1:8798";
 const DEFAULT_BRIDGE_CONFIG =
   "/Users/myhome/TRINC/Copilot-Everything/bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json";
 
-export interface NotifyResearchArrivedOptions {
-  /** Identifier for the event (a label; e.g. the workflow_id). */
-  taskId: string;
-  /** Human-readable bubble title. */
-  title: string;
-  /** Run outcome (added 2026-08-20 — failures now notify too, not just successes). */
-  status?: "success" | "failure";
-  /** Short error description when status is "failure". */
-  error?: string;
-  /** Vault-relative path to the note the chat bubble should link to (optional). */
-  mainNotePath?: string;
-  /** Vault display name (optional). */
-  vault?: string;
-  bridge?: string;
+export interface NotifyResearchArrivedOptions extends ResearchNotifyInput {
   bridgeConfigPath?: string;
-  caCertPath?: string;
 }
 
 /**
- * Fire the emit-only `research_notify` tool on the obsidian-copilot-bridge (:8798)
+ * Fire the emit-only `research_notify` tool on the vault bridge (obsidian-copilot-bridge)
  * so the Copilot plugin renders a `research_arrived` chat bubble linking to the
  * note Command Center already generated. Emit-only — it NEVER writes to the vault,
  * so it can't duplicate the workflow output (unlike research_publish). Fail-soft:
  * the caller wraps this in try/catch; a failure never blocks note delivery.
  *
  * Auth mirrors publish-to-vault.js: reads the bridge's own authToken from its
- * 0600 config file and sends the full replay-guard header set, trusting the
- * mkcert root CA explicitly (Electron's Node may not inherit NODE_EXTRA_CA_CERTS).
+ * 0600 config file and sends the full replay-guard header set. Since bridges-uds
+ * (2026-11-24) the request goes over vault-bridge.sock (./research-notify.ts):
+ * a 10 s timeout, no CA and no TCP. A trust refusal or a missing socket (ENOENT:
+ * the bridge is not running) is a failure the caller logs, never a TCP retry.
  */
 export async function notifyResearchArrived(
   opts: NotifyResearchArrivedOptions
 ): Promise<void> {
-  const bridge = opts.bridge || DEFAULT_BRIDGE;
   const configPath = opts.bridgeConfigPath || DEFAULT_BRIDGE_CONFIG;
   if (!existsSync(configPath)) {
     throw new Error(`bridge config not found: ${configPath}`);
@@ -478,68 +468,6 @@ export async function notifyResearchArrived(
     throw new Error("bridge config missing security.authToken");
   }
 
-  const body = JSON.stringify({
-    tool: "research_notify",
-    input: {
-      taskId: opts.taskId,
-      title: opts.title,
-      ...(opts.status ? { status: opts.status } : {}),
-      ...(opts.error ? { error: opts.error.slice(0, 300) } : {}),
-      ...(opts.mainNotePath ? { mainNotePath: opts.mainNotePath } : {}),
-      ...(opts.vault ? { vault: opts.vault } : {}),
-    },
-  });
-
-  const caPath =
-    opts.caCertPath ||
-    `${process.env.HOME || ""}/Library/Application Support/mkcert/rootCA.pem`;
-  const ca = existsSync(caPath) ? readFileSync(caPath) : undefined;
-  const url = new URL(`${bridge.replace(/\/+$/, "")}/mcp/tool`);
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    "Content-Length": String(Buffer.byteLength(body)),
-    Authorization: `Bearer ${token}`,
-    "x-mcp-token": token,
-    "x-mcp-timestamp": String(Date.now()),
-    "x-mcp-nonce": randomUUID(),
-    "x-mcp-body-sha256": createHash("sha256").update(body, "utf8").digest("hex"),
-  };
-
-  await new Promise<void>((resolve, reject) => {
-    const req = httpsRequest(
-      {
-        hostname: url.hostname,
-        port: url.port || 443,
-        path: url.pathname,
-        method: "POST",
-        headers,
-        ...(ca ? { ca } : {}),
-      },
-      (res) => {
-        const chunks: Buffer[] = [];
-        res.on("data", (c: Buffer) => chunks.push(c));
-        res.on("end", () => {
-          const text = Buffer.concat(chunks).toString("utf8");
-          let json: { ok?: boolean } | null = null;
-          try {
-            json = JSON.parse(text);
-          } catch {
-            json = null;
-          }
-          if ((res.statusCode || 0) === 200 && json?.ok === true) {
-            resolve();
-          } else {
-            reject(
-              new Error(
-                `research_notify failed (HTTP ${res.statusCode}): ${text.slice(0, 200)}`
-              )
-            );
-          }
-        });
-      }
-    );
-    req.on("error", reject);
-    req.write(body);
-    req.end();
-  });
+  const body = researchNotifyBody(opts);
+  await postResearchNotify(body, researchNotifyHeaders(body, token));
 }

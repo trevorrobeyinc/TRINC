@@ -102,12 +102,12 @@ lets tests target a fixture.
 - **Layer A, in the monorepo:** the same four channels exist as phase21 publisher adapters
   (`openclaw-bridge/monetization/adapters/`), producing deterministic submission packs inside a
   release bundle. That is the engine-side lane; this is the authoring lane.
-- **Visuals:** the `trinc-viz-studio` Obsidian plugin on `:8800` already renders on-brand charts,
-  diagrams and stat tiles. `content_draft` emits a **`viz_stat_tiles` spec**, ready to hand to
-  that tool — it does not render, and it deliberately does **not proxy the bridge**. Proxying
-  would put one renderer behind two doors and make this server depend on Obsidian being open,
-  for no new capability; it is the same reasoning that declined merging the `:8798` and `:8799`
-  bridges. The tiles are built only from claims the draft actually used, so the image is bound
+- **Visuals:** the `trinc-viz-studio` Obsidian plugin (its bridge answers on the Unix socket
+  `viz-studio.sock`) already renders on-brand charts, diagrams and stat tiles. `content_draft`
+  emits a **`viz_stat_tiles` spec**, ready to hand to that tool — it does not render, and it
+  deliberately does **not proxy the bridge**. Proxying would put one renderer behind two doors and
+  make this server depend on Obsidian being open, for no new capability; it is the same reasoning
+  that declined merging the vault bridge and the Command Center bridge. The tiles are built only from claims the draft actually used, so the image is bound
   by the same evidence as the words — a thumbnail is where an invented number is most tempting
   and least checkable.
 - **Skills:** `trinc-business:brand-check`, `trinc-marketing:collateral-audit` and

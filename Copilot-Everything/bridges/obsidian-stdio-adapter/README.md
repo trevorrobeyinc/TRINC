@@ -1,39 +1,55 @@
 # obsidian-bridge-adapter
 
 Stdio MCP adapter that gives **Claude one door into Obsidian**. It proxies a closed set of tools over
-HTTPS to two Obsidian plugin bridges, the Command Center bridge on `:8799` and the Viz Studio bridge on
-`:8800`, so a Claude Code session starts and watches research runs through the same plugin the Copilot
-agent uses.
+Unix sockets to two Obsidian plugin bridges, the Command Center bridge (`command-center.sock`) and the
+Viz Studio bridge (`viz-studio.sock`), so a Claude Code session starts and watches research runs
+through the same plugin the Copilot agent uses.
 
+> **Unix sockets since 2026-11-24 (bridges-uds).** Both bridges stopped listening on TCP (`:8799`,
+> `:8800`) and dropped mkcert TLS. They serve the same routes, bodies and bearer tokens over sockets in
+> a private run directory, and the adapter has no TCP, TLS or CA code left.
+>
 > **One profile since 2026-11-21.** The `raycast` profile was retired by operator decision (Raycast is
 > removed, and the Copilot agent runs the video pipeline itself). The client for the canonical vault
-> bridge on `:8798`, unreachable since 2026-11-18, was deleted with it. The `claude` profile was retired
-> on 2026-10-23. Both refuse to start.
+> bridge (then on `:8798`), unreachable since 2026-11-18, was deleted with it. The `claude` profile was
+> retired on 2026-10-23. Both refuse to start.
 
 ## What it talks to
 
 ```
-Claude Code ──stdio──► obsidian-bridge-adapter ──HTTPS + bearer token──► Command Center bridge (:8799)
-                                               └─HTTPS + bearer token──► Viz Studio bridge     (:8800)
+Claude Code ──stdio──► obsidian-bridge-adapter ──HTTP/1.1 on a Unix socket + bearer token──► Command Center bridge (command-center.sock)
+                                               └─HTTP/1.1 on a Unix socket + bearer token──► Viz Studio bridge     (viz-studio.sock)
 ```
 
 Each bridge is a separate daemon owned by its own Obsidian plugin, and both stop when Obsidian quits.
-The adapter reads each bridge's `0600` bearer token at call time
-(`~/.config/openclaw-command-center/bridge-token`, `~/.config/trinc-viz-studio/bridge-token`), so a token
-rotation never needs a restart. It reads no other secret and no config file.
+Both sockets live in the run directory `<home>/.local/state/trinc/run`, where `<home>` is
+`os.homedir()` (so `HOME` decides it). The run directory is `0700` and each socket `0600`.
+
+- **One request path.** Every request goes through `bridgesUdsRequest`, the byte-identical
+  "bridges-uds client v1" block in `index.mjs` (`ops/tr-suite/verify.sh` compares it with the other
+  three copies). Before it connects it checks the exact path, then every level from home down to the
+  run directory (each a real directory owned by this uid that group and others cannot write, the run
+  directory granting them nothing, no ACL allow entry), then the socket itself (a socket of this uid,
+  mode `0600`). The connection is pinned to that socket, and no code path can dial TCP.
+- **Tokens.** The adapter reads each bridge's `0600` bearer token at call time
+  (`~/.config/openclaw-command-center/bridge-token`, `~/.config/trinc-viz-studio/bridge-token`), so a
+  token rotation never needs a restart. It sends it only as `Authorization: Bearer`, never as
+  `X-MCP-Token`, and reads no other secret and no config file.
+- **Health check.** `node /Users/myhome/TRINC/ops/tr-suite/uds-health.mjs` prints one status line per
+  bridge socket and never a token. There is no TCP port to probe any more.
 
 ## Required environment
 
 - `OBSIDIAN_STDIO_PROFILE=openclaw`. Required: there is no default.
-- `NODE_EXTRA_CA_CERTS`, pointing at the local CA root. The mkcert root CA on macOS is at
-  `~/Library/Application Support/mkcert/rootCA.pem`, which is also the fallback. HTTPS only: nothing
-  falls back to plaintext.
+- Nothing else. No CA is needed: `NODE_EXTRA_CA_CERTS` is not read. The old upstream overrides
+  `OBSIDIAN_STDIO_COMMAND_CENTER_URL` and `OBSIDIAN_STDIO_VIZ_URL` went with TCP: if either one is set,
+  the adapter refuses to start and says so.
 
 ## Profiles
 
 | Profile | Tools | Upstream |
 |---|---|---|
-| `openclaw` | **Claude's one door**, 27 tools: `obsidian_health`, 12 `obsidian_openclaw_*` tools (start/watch/cancel a research run, read results, history, artifacts, citation integrity, memory search, engine health, delivery evidence, a restricted `publish_vault`), read-only `obsidian_search_notes` + `obsidian_read_note`, and the 12 `viz_*` renders | `:8799` Command Center bridge and `:8800` Viz Studio bridge (`Authorization: Bearer`, each token read per-call). |
+| `openclaw` | **Claude's one door**, 27 tools: `obsidian_health`, 12 `obsidian_openclaw_*` tools (start/watch/cancel a research run, read results, history, artifacts, citation integrity, memory search, engine health, delivery evidence, a restricted `publish_vault`), read-only `obsidian_search_notes` + `obsidian_read_note`, and the 12 `viz_*` renders | Command Center bridge (`command-center.sock`) and Viz Studio bridge (`viz-studio.sock`) (`Authorization: Bearer`, each token read per-call). |
 
 Retired, and refused at startup:
 
@@ -44,7 +60,8 @@ Retired, and refused at startup:
 
 Never add a vault-write tool, a video tool or another client's surface here without an operator
 decision. `npm run test:profiles` asserts the surface exactly, that both retired profiles refuse to
-start, that the video tools are unknown on this door, and that the source holds no `:8798` client.
+start, that the video tools are unknown on this door, and that the source holds no vault-bridge
+client (see "Tests" below).
 
 ### The `openclaw` profile — Claude's one door into Obsidian
 
@@ -64,26 +81,34 @@ call sequence: the `openclaw-dispatch` skill (see the monorepo `CLAUDE.md`).
   `publish_vault` takes only `workflow_id` + `dry_run` (`force` and `all` are refused);
   no-argument tools reject stray arguments.
 - **Structured failures.** A closed Obsidian returns `obsidian_not_running` (nothing was
-  sent). A timeout or dropped connection during `run_workflow` returns
+  sent): a missing token file, a missing run directory or socket (`ENOENT`, which is what a
+  bridge that closed cleanly leaves), or a socket file nobody serves (`ECONNREFUSED`, left
+  behind by a crash). A timeout or dropped connection during `run_workflow` returns
   `bridge_timeout_outcome_unknown` / `bridge_connection_lost_outcome_unknown` with the
   instruction to call `obsidian_openclaw_status` and **never re-send**. The adapter never
   retries.
+- **Refused sockets.** A socket that fails the client block's checks (`SOCKET_UNTRUSTED`,
+  `SOCKET_PATH_TOO_LONG`) or that the system refuses (`EACCES`, `EPERM`, `ENOTSOCK`) is
+  refused before anything is sent. All of them go through one function,
+  `socketRefusalCode(err)`, which reports `adapter_error` (the operator's decision, approval (i)
+  in the bridges-uds decision record, 2026-11-25) and writes one `socket_refused code=<code> <message>` line to
+  stderr. Without TLS there is no `tls_trust_failed` any more.
 - **Per-tool timeouts** match the daemon's own spawn timeouts (engine health, publish,
   memory search and delivery evidence run for minutes); everything else keeps the shared 30 s.
 - **Read-only vault (2026-10-23, decision D5):** `obsidian_search_notes` and
-  `obsidian_read_note` on `:8799`, which serves them through Obsidian's own file index (it
-  never contains the `.obsidian/` config). Paths must be vault-relative with no `..`
+  `obsidian_read_note` on Command Center, which serves them through Obsidian's own file index
+  (it never contains the `.obsidian/` config). Paths must be vault-relative with no `..`
   segment; `search_notes` takes `limit` 1–100.
 - **Viz Studio renders (2026-10-23, decisions D4 + D5)** write **only into
   `Visualizations/`**. The 12 names are a closed allowlist in `VIZ_TOOL_NAMES`; their schemas
-  come live from `:8800`'s `tools/list` (Viz Studio's `src/bridge/toolSchemas.ts` is the
+  come live from Viz Studio's `tools/list` (Viz Studio's `src/bridge/toolSchemas.ts` is the
   contract of record, ~900 lines, so they are not mirrored by hand). Six properties that would
   write elsewhere are stripped from every advertised schema and refused on every call:
   `folder`, `targetNote`, `targetCanvas`, `useActiveTab`, `useActiveNote` and `overwrite`.
-  `fileName` must be a plain base name. With `:8800` down at listing time, each Viz tool is
-  listed as a stub that says to open Obsidian and start a new session. `test:profiles`
-  fails if Viz Studio ever adds a `target*`/`folder`/`useActive*`/`overwrite` property
-  that is not on the block list.
+  `fileName` must be a plain base name. With Viz Studio down (or silent for 3 s) at listing
+  time, each Viz tool is listed as a stub that says to open Obsidian and start a new session.
+  `test:profiles` fails if Viz Studio ever adds a `target*`/`folder`/`useActive*`/`overwrite`
+  property that is not on the block list.
 - **Deliberately absent:** `execute_command`, `create_note`, `append_note`, `open_vault`, the
   dev-console tools, `research_task`, `zk_*`, `video_pipeline_*`, and `publish_vault`
   `force`/`all`. The reasons are in the comment block above `OPENCLAW_SPECS` in `index.mjs`.
@@ -97,18 +122,19 @@ call sequence: the `openclaw-dispatch` skill (see the monorepo `CLAUDE.md`).
   `.mcp.json` entry before the Security Everything gate wiring is in. (Done in that order on 2026-10-07; the server key is
   `openclaw-obsidian`, so its tools are `mcp__openclaw-obsidian__*`.)
 
-Failure isolation: the `:8799` and `:8800` proxies are per-call — if one bridge is
-down, its tools return a clean MCP `isError` result (`obsidian_not_running` on the
-`openclaw` profile) and the other upstreams keep working.
-`OBSIDIAN_STDIO_COMMAND_CENTER_URL` and `OBSIDIAN_STDIO_VIZ_URL` (both https-only) exist
-solely so tests can point a proxy at a dead port.
+Failure isolation: the Command Center and Viz Studio proxies are per-call — if one bridge
+is down, its tools return a clean MCP `isError` result (`obsidian_not_running` on the
+`openclaw` profile) and the other upstream keeps working. There is no socket or URL
+override: the socket paths always come from `os.homedir()`, and the tests point `HOME` at a
+temporary directory instead.
 
 ### Adding a tool
 
 1. Add its spec to `OPENCLAW_SPECS` in `index.mjs` (mirror the upstream daemon's schema verbatim, with a
    provenance comment and a `validate` function), or its name to `VIZ_TOOL_NAMES` for a Viz Studio tool.
 2. `handleOpenclawCall` routes every spec through `callBridgeTool(COMMAND_CENTER | VIZ_STUDIO, …)`
-   (`:8799` / `:8800` MCP tools/call). A new upstream is one more descriptor object like `VIZ_STUDIO`.
+   (an MCP tools/call over that bridge's socket). A new upstream is one more descriptor object like
+   `VIZ_STUDIO`, with its socket name.
 3. Update the table above and extend `scripts/test-profiles.mjs`'s expected set. The test fails on any
    surface drift, which is the point.
 
@@ -128,11 +154,35 @@ build its tool list beside `OPENCLAW_TOOLS`, and add an expected-set assertion i
 `scripts/test-profiles.mjs`. Never touch the daemons, and never merge them to widen a client's tool
 list: aggregate per client here.
 
+## Tests
+
+`npm run test:profiles` (`scripts/test-profiles.mjs`, plain node). Every offline case runs the adapter
+with `HOME` set to its own temporary `/tmp/uds-*` directory holding test tokens, so it never reads the
+real tokens or reaches a real bridge:
+
+- the exact 27-tool surface, the client-edge rejects, and the retired profiles and URL overrides
+  refusing to start;
+- `obsidian_not_running` for a missing token, a missing run directory or socket, and a stale socket;
+  a run directory that grants group or others access is refused before anything is sent;
+- a fake bridge (`test/fake-bridge.mjs`, spawned by the test; `test/` is outside the monorepo
+  transport lint) on both sockets: `POST /mcp` with that bridge's Bearer token and no `X-MCP-*`
+  header, `GET /healthz` without a token, replies passed through, live Viz schemas stripped, and a
+  hung Viz Studio falling back to stubs after 3 s;
+- static checks: no vault-bridge client, no `https`/`tls` import, no CA, no TCP endpoint, and every
+  request inside the client block.
+
+The live checks use the real `HOME` and run against Obsidian's bridges after a deploy.
+`TEST_PROFILES_SKIP_LIVE=1` skips them, for a checkout whose bridges are newer than the build Obsidian
+runs.
+
 ## Rollback
 
-The adapter lives entirely in this package. To restore an earlier version:
-`git -C /Users/myhome/TRINC revert <that commit>`, then start a new Claude Code session so the host
-respawns the adapter. Nothing daemon-side needs rolling back: the daemons were never modified.
+The adapter and both bridges moved to Unix sockets together on 2026-11-24 (bridges-uds), and nothing
+here dials TCP any more: reverting this package alone leaves an old TCP adapter in front of socket
+bridges, and every tool answers `obsidian_not_running`. Follow the cold rollback in the bridges-uds
+decision record instead: with Obsidian quit, revert the bridges-uds commits, rebuild the vault bridge,
+redeploy the four plugins and restore Copilot's MCP settings, then relaunch Obsidian and start a new
+Claude Code session so the host respawns the adapter.
 
 ## MCP host configurations
 
@@ -147,12 +197,16 @@ respawns the adapter. Nothing daemon-side needs rolling back: the daemons were n
       "args": ["/Users/myhome/TRINC/Copilot-Everything/bridges/obsidian-stdio-adapter/index.mjs"],
       "env": {
         "OBSIDIAN_STDIO_PROFILE": "openclaw",
-        "NODE_EXTRA_CA_CERTS": "/Users/myhome/Library/Application Support/mkcert/rootCA.pem"
+        "NODE_OPTIONS": "--require /Users/myhome/.claude/mcp/loopback-listen.cjs"
       }
     }
   }
 }
 ```
+
+`NODE_OPTIONS` loads the loopback-listen preload (keep `--require` as its first token); the preload
+never touches the adapter's outbound socket connections. The adapter needs no CA, so the entry carries
+no `NODE_EXTRA_CA_CERTS`.
 
 Keep the server key `openclaw-obsidian`: the Security Everything gate hook matches that
 prefix. A session sees new tools only after it restarts. Claude Desktop is not wired to

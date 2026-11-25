@@ -282,10 +282,9 @@ export class OpenClawSettingTab extends PluginSettingTab {
 
     const updateBridgeStatus = () => {
       const running = this.plugin.isBridgeRunning;
-      const port = this.plugin.settings.bridgePort;
       statusEl.empty();
       if (running) {
-        statusEl.setText(`Running on port ${port}`);
+        statusEl.setText(`Running on unix:${this.plugin.bridgeSocketPath}`);
         statusEl.className = "oc-bridge-status oc-bridge-running";
       } else {
         statusEl.setText("Stopped");
@@ -340,37 +339,15 @@ export class OpenClawSettingTab extends PluginSettingTab {
           })
       );
 
-    new Setting(containerEl)
-      .setName("Bridge port")
+    // Read-only since bridges-uds (2026-11-24): the bridge serves only this Unix socket, never a TCP port, and the
+    // path is fixed (derived from the home directory). It replaced the "Bridge port" field; a bridgePort still
+    // stored in data.json is ignored and left as it is (code does not rewrite operator-owned settings for this).
+    const socketSetting = new Setting(containerEl)
+      .setName("Bridge socket")
       .setDesc(
-        "Port for the HTTPS MCP bridge (default 8799 — coordinated in the monorepo port map). If the bridge is running, changing this restarts it on the new port."
-      )
-      .addText((text) =>
-        text
-          .setPlaceholder("8799")
-          .setValue(String(this.plugin.settings.bridgePort))
-          .onChange(async (value) => {
-            const n = parseInt(value, 10);
-            if (!isNaN(n) && n > 0 && n < 65536) {
-              this.plugin.settings.bridgePort = n;
-              await this.plugin.saveSettings();
-              // Rebind: the server captures the port at listen time, so a port
-              // change on a running bridge silently kept the old socket before.
-              if (this.plugin.isBridgeRunning) {
-                try {
-                  await this.plugin.stopBridge();
-                  await this.plugin.startBridge();
-                } catch (err: unknown) {
-                  console.error(
-                    "[OpenClaw] Bridge rebind failed:",
-                    err instanceof Error ? err.message : String(err)
-                  );
-                }
-                updateBridgeStatus();
-              }
-            }
-          })
+        "The MCP bridge listens only on this Unix socket, never on a TCP port. Its directory is private (0700) and the socket is 0600, so only programs running as you can reach it. "
       );
+    socketSetting.descEl.createEl("code", { text: this.plugin.bridgeSocketPath });
 
     // --- Video pipeline (2026-11-19; the only pipeline since phase 4, 2026-11-20) ---
     this.displayVideoPipelineSettings(containerEl);

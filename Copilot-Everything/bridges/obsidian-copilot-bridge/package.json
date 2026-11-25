@@ -10,13 +10,12 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "probe:miyo": "node dist/cli/miyoMcpProbe.js",
-    "start:https": "node dist/index.js --transport=https",
     "start:uds": "node dist/index.js --transport=uds",
     "start:pipe": "node dist/index.js --transport=pipe",
     "dev": "tsc -w -p tsconfig.json",
     "test": "vitest run",
     "live:communication:cli": "node dist/tests/live/communication.cli.validation.js",
-    "lint:transport": "if grep -nE 'http\\.createServer\\(|OPENCLAW_BRIDGE_TLS_DISABLE\\s*={2,3}|tlsDisable\\s*\\?' src/server/httpTransport.ts; then echo 'lint:transport FAILED: forbidden plaintext pattern in network transport. The :8798 bridge MUST be HTTPS-only.'; exit 1; else echo 'lint:transport OK'; fi"
+    "lint:transport": "for f in src/server/udsListener.ts src/server/windowsPipeTransport.ts; do if [ ! -f \"$f\" ]; then echo \"lint:transport FAILED: $f is missing, so the check below would pass vacuously.\"; exit 1; fi; done; hits=$(grep -rnE '(https?|http2|net|tls)\\.createServer\\(|(^|[^A-Za-z0-9_.])createServer\\(|\\.listen\\(' src --include='*.ts' | grep -vE '^src/server/(udsListener|windowsPipeTransport)\\.ts:'); if [ -n \"$hits\" ]; then echo \"$hits\"; echo 'lint:transport FAILED: a server constructor or .listen( outside src/server/udsListener.ts (the shared Unix-socket helper) and src/server/windowsPipeTransport.ts. The vault bridge has no TCP listener since 2026-11-24 (bridges-uds): serve through listenHttpOnSocket.'; exit 1; fi; echo 'lint:transport OK'"
   },
   "dependencies": {
     "zod": "^4.6.7"

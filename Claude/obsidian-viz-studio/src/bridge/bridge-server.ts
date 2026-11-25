@@ -1,14 +1,14 @@
 import type * as http from "http";
-import * as https from "https";
 import * as os from "os";
 import * as path from "path";
 import { readFileSync, writeFileSync, mkdirSync, chmodSync } from "fs";
 import { createHash, timingSafeEqual, randomBytes } from "crypto";
-import type { ToolHandlers, VizStudioSettings } from "../types";
+import type { ToolHandlers } from "../types";
 import { TOOL_DECLARATIONS } from "./toolSchemas";
 import { refuseBrowserRequest } from "./browser-guard";
+import { listenHttpOnSocket, socketPathFor, SOCKET_NAMES } from "./uds-listener";
+import type { UdsListener } from "./uds-listener";
 
-const HOST = "127.0.0.1";
 const MAX_BODY_BYTES = 1024 * 1024; // 1 MB
 const MCP_PROTOCOL_VERSION = "2024-11-05";
 const SERVER_INFO = { name: "trinc-viz-studio-bridge", version: "1.0.0" };
@@ -16,7 +16,7 @@ const SERVER_INFO = { name: "trinc-viz-studio-bridge", version: "1.0.0" };
 // Security: the bridge bearer token must NOT live in Obsidian's data.json —
 // Obsidian persists it world-readably and auto-creates .bak copies (this
 // leaked the Command Center token once, audit P0). Dedicated 0600 file under
-// ~/.config instead, same pattern as the :8799 bridge.
+// ~/.config instead, same pattern as the Command Center bridge.
 function bridgeTokenFilePath(): string {
   return path.join(os.homedir(), ".config", "trinc-viz-studio", "bridge-token");
 }
@@ -57,108 +57,135 @@ function verifyToken(expected: string, provided: string | undefined): boolean {
   return timingSafeEqual(a, b);
 }
 
-// TLS is mandatory (monorepo HTTPS-only invariant). No disable flag, no
-// silent fallback: a missing mkcert pair refuses to start, loudly.
-function resolveTlsConfig(): { key: Buffer; cert: Buffer } {
-  if (process.env.VIZ_BRIDGE_TLS_DISABLE) {
-    throw new Error(
-      "VIZ_BRIDGE_TLS_DISABLE is not honored. The Viz Studio bridge is HTTPS-only. " +
-        "Unset this variable and provide a valid mkcert cert/key pair."
-    );
-  }
-  // Obsidian's plugin host does not always inherit HOME — fall back to os.homedir().
-  const home = process.env.HOME || os.homedir() || "";
-  const keyPath =
-    process.env.VIZ_BRIDGE_TLS_KEY || `${home}/.local/share/mkcert/localhost-key.pem`;
-  const certPath =
-    process.env.VIZ_BRIDGE_TLS_CERT || `${home}/.local/share/mkcert/localhost.pem`;
-  try {
-    return { key: readFileSync(keyPath), cert: readFileSync(certPath) };
-  } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-    throw new Error(
-      `Viz Studio bridge cannot start: TLS key/cert load failed (${detail}). ` +
-        `Expected key at ${keyPath} and cert at ${certPath}. ` +
-        `Install mkcert and run \`mkcert -install && mkcert localhost 127.0.0.1\` if missing.`
-    );
-  }
+/** Where the bridge listens: <home>/.local/state/trinc/run/viz-studio.sock. Fixed; there is no setting for it. */
+export function vizBridgeSocketPath(): string {
+  return socketPathFor(SOCKET_NAMES.vizStudio);
+}
+
+/** For closes nobody awaits: a failure is logged, never left as an unhandled rejection. */
+function logCloseFailure(err: unknown): void {
+  console.warn(`[VizStudio] Bridge close failed: ${err instanceof Error ? err.message : String(err)}`);
+}
+
+/** What the owning plugin tells the bridge, and hears back from it (bridges-uds DESIGN D3). */
+export interface VizBridgeHooks {
+  /** True once the plugin instance that owns this bridge has unloaded: a start that finishes later closes at once. */
+  isDisposed?: () => boolean;
+  /** The published socket name was removed or replaced while the bridge ran; the bridge has already closed itself. */
+  onLost?: (reason: string) => void;
 }
 
 /**
- * Transport-only HTTPS bridge on 127.0.0.1:<port>. Speaks the same three POST
- * shapes as the Command Center :8799 bridge (Copilot /mcp/tool, bare
- * {name,arguments}, MCP JSON-RPC initialize/tools/list/tools/call) so both
- * Copilot chat lanes and the research-engine adapter reuse their existing
- * client code. All vault access lives in the injected tool handlers.
+ * Transport-only MCP bridge: plain HTTP/1.1 on the Unix socket
+ * <home>/.local/state/trinc/run/viz-studio.sock (bridges-uds, 2026-11-24; it was
+ * HTTPS on 127.0.0.1:8800 until then). The run directory is 0700 and the socket
+ * 0600, so only this uid's processes can connect and no browser can; that is why
+ * the link has no TLS, and the bearer token stays as the defence against other
+ * same-uid processes. uds-listener.ts does all socket work and never opens TCP.
+ * Speaks the same three POST shapes as the Command Center bridge (Copilot
+ * /mcp/tool, bare {name,arguments}, MCP JSON-RPC initialize/tools/list/tools/call)
+ * so both Copilot chat lanes and Claude's door reuse their existing client code.
+ * All vault access lives in the injected tool handlers.
  */
 export class VizBridgeServer {
-  private server: https.Server | null = null;
+  private listener: UdsListener | null = null;
+  private startPromise: Promise<UdsListener | null> | null = null;
+  private stopRequested = false;
   private startTime = Date.now();
   private bridgeToken = "";
 
   constructor(
-    private settings: VizStudioSettings,
-    private handlers: ToolHandlers
+    private handlers: ToolHandlers,
+    private hooks: VizBridgeHooks = {}
   ) {}
 
   get isRunning(): boolean {
-    return this.server !== null;
+    return this.listener !== null;
   }
 
-  async start(): Promise<void> {
-    if (this.server) return;
+  /** The published socket path while listening. Never server.address(): that is the hidden name the socket was bound to. */
+  get socketPath(): string | null {
+    return this.listener?.socketPath ?? null;
+  }
+
+  /** viz_health's `socket` field: the published socket's basename, or null while not listening. */
+  get socketName(): string | null {
+    return this.listener ? path.basename(this.listener.socketPath) : null;
+  }
+
+  /**
+   * Start serving. A call while a start is in flight gets that start's promise. Resolves with the
+   * listener, or with null when a stop came in (or the plugin unloaded) while the socket was being
+   * set up, in which case that listener is closed at once. Rejects with the helper's
+   * UdsListenerError (a stable `code`) when the run directory, the socket path or a file already at
+   * the path is not what it must be: a live socket held by another process (this plugin in a second
+   * Obsidian window) is ALREADY_SERVED, and only a stale socket left by a crash is replaced.
+   */
+  start(): Promise<UdsListener | null> {
+    if (this.listener) return Promise.resolve(this.listener);
+    if (this.startPromise) return this.startPromise;
+    this.stopRequested = false;
+    const starting = this.openListener().finally(() => {
+      if (this.startPromise === starting) this.startPromise = null;
+    });
+    this.startPromise = starting;
+    return starting;
+  }
+
+  private async openListener(): Promise<UdsListener | null> {
     this.startTime = Date.now();
     this.bridgeToken = loadOrCreateBridgeToken();
-
-    return new Promise((resolve, reject) => {
-      let tls: { key: Buffer; cert: Buffer };
-      try {
-        tls = resolveTlsConfig();
-      } catch (err) {
-        reject(err instanceof Error ? err : new Error(String(err)));
-        return;
-      }
-      const server: https.Server = https.createServer(tls, (req, res) => {
-        this.handleRequest(req, res);
-      });
-      // Encrypted-by-default invariant: this bridge MUST be an https.Server.
-      if (!(server instanceof https.Server)) {
-        reject(new Error("Viz Studio bridge constructed a non-HTTPS server; refusing to listen."));
-        return;
-      }
-
-      server.on("error", (err: NodeJS.ErrnoException) => {
-        if (err.code === "EADDRINUSE") {
-          console.warn(`[VizStudio] Bridge port ${this.settings.bridgePort} is already in use`);
-          reject(new Error(`Port ${this.settings.bridgePort} already in use`));
-        } else {
-          console.error(`[VizStudio] Bridge server error: ${err.message}`);
-          reject(err);
-        }
-      });
-
-      server.listen(this.settings.bridgePort, HOST, () => {
-        this.server = server;
-        console.log(
-          `[VizStudio] MCP bridge started on https://${HOST}:${this.settings.bridgePort} | Tools: ${TOOL_DECLARATIONS.length} viz_*`
-        );
-        resolve();
-      });
+    const listener = await listenHttpOnSocket((req, res) => this.handleRequest(req, res), {
+      socketPath: vizBridgeSocketPath(),
+      onLost: (reason) => this.handleLost(reason),
     });
+    if (this.stopRequested || this.hooks.isDisposed?.() === true) {
+      void listener.close().catch(logCloseFailure);
+      return null;
+    }
+    this.listener = listener;
+    // The helper removes its own "error" listener once the server listens; without this one, an accept() error
+    // (EMFILE, ENOBUFS) would be an uncaught exception in Obsidian's renderer.
+    listener.server.on("error", (err: Error) => {
+      console.error(`[VizStudio] Bridge server error: ${err.message}`);
+    });
+    console.log(
+      `[VizStudio] MCP bridge started on unix:${listener.socketPath} | Tools: ${TOOL_DECLARATIONS.length} viz_*`
+    );
+    return listener;
   }
 
+  /**
+   * Stop serving. A start still in flight is chained: whatever it opens is closed. Otherwise
+   * listener.close() is called before anything is awaited: it stops accepting at once, ends idle
+   * connections, ends the rest after the helper's grace period, and removes the published socket
+   * only while it is still this bridge's.
+   */
   async stop(): Promise<void> {
-    return new Promise((resolve) => {
-      if (!this.server) {
-        resolve();
-        return;
-      }
-      this.server.close(() => {
-        console.log("[VizStudio] MCP bridge stopped");
-        this.server = null;
-        resolve();
-      });
-    });
+    this.stopRequested = true;
+    const listener = this.listener;
+    this.listener = null;
+    if (listener !== null) {
+      await listener.close();
+      console.log("[VizStudio] MCP bridge stopped");
+      return;
+    }
+    const starting = this.startPromise;
+    if (starting !== null) {
+      await starting.then(
+        (l) => l?.close(),
+        () => undefined // the start's own caller reports why it failed
+      );
+    }
+  }
+
+  /** The published name was removed or replaced (another server took it): close, then tell the plugin. */
+  private handleLost(reason: string): void {
+    const l = this.listener;
+    this.listener = null;
+    void l?.close().catch(logCloseFailure); // removes nothing: the name is no longer this bridge's
+    console.warn(`[VizStudio] MCP bridge stopped: ${reason}`);
+    this.hooks.onLost?.(reason);
   }
 
   // ─── Request Router ──────────────────────────────────────────
@@ -167,6 +194,8 @@ export class VizBridgeServer {
     // Browser guard first (2026-10-24): a request a web page could have caused is refused before
     // any route, the open health probes included, and before auth (see browser-guard.ts). Every
     // legitimate client is a program, so the bridge sends no CORS headers and answers no preflight.
+    // On the Unix socket localPort is undefined, so the guard skips its Host check (no browser can
+    // reach the socket) and still refuses any Origin, Referer or cross-site Sec-Fetch-Site.
     const refusal = refuseBrowserRequest(req.headers, req.socket.localPort);
     if (refusal) {
       console.warn(`[VizStudio] Bridge refused a ${refusal.code} request (${refusal.reason})`);
@@ -188,10 +217,11 @@ export class VizBridgeServer {
       return;
     }
 
-    const url = new URL(req.url || "/", `http://${HOST}:${this.settings.bridgePort}`);
+    // Only the path matters; over the Unix socket clients send Host: localhost (or localhost:80).
+    const url = new URL(req.url || "/", "http://localhost");
 
     // Health probes are open by design; /healthz matches what every client in
-    // this monorepo probes (the canonical :8798 bridge's path).
+    // this monorepo probes (the canonical vault bridge's path).
     if (
       req.method === "GET" &&
       (url.pathname === "/" || url.pathname === "/health" || url.pathname === "/healthz")
@@ -233,7 +263,7 @@ export class VizBridgeServer {
     this.sendJson(res, 404, { error: "Not found" });
   }
 
-  // ─── POST Router (three request shapes, same contract as :8799) ───
+  // ─── POST Router (three request shapes, same contract as the Command Center bridge) ───
 
   private async routePost(
     pathname: string,

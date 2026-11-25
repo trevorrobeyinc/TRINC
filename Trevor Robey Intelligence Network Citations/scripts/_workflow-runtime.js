@@ -106,8 +106,10 @@ async function buildWorkflowRuntime(options = {}) {
     // Vault read-back: lets a role consult PRIOR RESEARCH already in the Obsidian vault
     // (`obsidian_prior_research`) through the same local-fetcher seam. Read-only by default —
     // `allowWrites` stays false so this can never double-write against Command Center's
-    // autoGenerateNotes. Routed through the CANONICAL :8798 bridge, never a parallel listener
-    // (root CLAUDE.md: ":8798 is the canonical vault access point").
+    // autoGenerateNotes. Routed through the CANONICAL vault bridge, never a parallel listener
+    // (root CLAUDE.md: the canonical bridge is the one vault access point). Since bridges-uds
+    // (2026-11-24) the adapter reaches it over the bridge's private Unix socket, with no TCP and no
+    // fallback; it derives the socket path itself, so nothing here passes a socket, URL or port.
     //
     // Fail-soft by construction: if Obsidian (and therefore the bridge) is closed — which is
     // normal when run-workflow.js is launched standalone from a terminal — every method returns
@@ -125,9 +127,10 @@ async function buildWorkflowRuntime(options = {}) {
     const { createResearchMemory } = require("../openclaw-bridge/mcp/research-memory-mcp/index.js");
     const researchMemory = createResearchMemory({ rootDir, logger });
     researchRuntime.researchMemory = researchMemory;
-    // Viz Studio (:8800) is not an engine dependency: the researchRuntime.vizBridge adapter was built
-    // 2026-08-16 but never called, and was retired 2026-10-23 (connector-registry "viz-bridge"). Claude
-    // reaches Viz Studio through the openclaw-obsidian door instead.
+    // Viz Studio's bridge (a Unix socket since bridges-uds; :8800 before) is not an engine
+    // dependency: the researchRuntime.vizBridge adapter was built 2026-08-16 but never called, and
+    // was retired 2026-10-23 (connector-registry "viz-bridge"). Claude reaches Viz Studio through the
+    // openclaw-obsidian door instead.
     // Open Targets Platform (GraphQL). Closes the registry's only HIGH-priority adapter gap —
     // it was claude-host-mcp only, therefore unreachable from this subprocess. Both entry
     // points return records carrying `chemblId` / `pmid`, so their evidence lands in

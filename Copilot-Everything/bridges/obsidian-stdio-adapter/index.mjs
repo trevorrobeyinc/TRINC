@@ -1,20 +1,27 @@
 #!/usr/bin/env node
 // obsidian-stdio-adapter
 // Stdio MCP adapter for ONE client, Claude. It proxies a closed set of tools to two Obsidian plugin
-// bridges over HTTPS: the Command Center bridge (https://127.0.0.1:8799) and the Viz Studio bridge
-// (https://127.0.0.1:8800). It holds no client for the canonical vault bridge on :8798.
+// bridges over their Unix sockets (bridges-uds, 2026-11-24): the Command Center bridge
+// (command-center.sock) and the Viz Studio bridge (viz-studio.sock), both in the run directory
+// <home>/.local/state/trinc/run. It holds no client for the canonical vault bridge.
+//
+// Transport: plain HTTP/1.1 on those sockets, with each bridge's bearer token. There is no TCP, TLS or
+// CA here and no code path that can dial TCP: every request goes through bridgesUdsRequest (the
+// bridges-uds client block below), which checks the exact path, the whole directory chain and the
+// socket before it connects, and pins the connection to that socket. Tests set HOME to a temporary
+// directory; there is no socket or URL override.
 //
 // Profile (OBSIDIAN_STDIO_PROFILE env, required — there is no default):
 //   "openclaw"          — Claude's one door into Obsidian (dispatch lane added 2026-10-07,
 //                         widened 2026-10-23 per TRINC reorg decision D5): run dispatch,
-//                         status and results plus read-only vault search/read on :8799,
-//                         and the Viz Studio renders on :8800, writing only into
+//                         status and results plus read-only vault search/read on Command Center,
+//                         and the Viz Studio renders, writing only into
 //                         Visualizations/. See the "openclaw" section below.
 // Retired profiles, which refuse to start:
 //   "raycast"  (2026-11-21, operator decision: Raycast is removed). Its last two tools, the video
 //              pipeline's, belong to the Copilot agent, which downloads a link with its own skill
 //              and calls Command Center's built-in pipeline itself. Its 7 vault tools and
-//              raycast_daily_open had gone on 2026-11-18, and the :8798 client went with it.
+//              raycast_daily_open had gone on 2026-11-18, and the vault-bridge client went with it.
 //   "claude"   (2026-10-23): no Claude surface had registered it since 2026-10-07, and its last
 //              entry (Copilot-Everything/.mcp.json "obsidian-bridge") was an ungated write lane
 //              into the vault.
@@ -25,10 +32,14 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
+import { Buffer } from "node:buffer";
+import * as childProcess from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
-import * as nodeHttps from "node:https";
-import { resolve } from "node:path";
+import * as fs from "node:fs";
+import * as http from "node:http";
+import * as net from "node:net";
+import * as os from "node:os";
+import * as path from "node:path";
 
 const PROFILE = process.env.OBSIDIAN_STDIO_PROFILE;
 if (PROFILE !== "openclaw") {
@@ -39,55 +50,165 @@ if (PROFILE !== "openclaw") {
   );
 }
 
-// The trust anchor for both bridges is the mkcert root CA. HTTPS only: nothing here falls back to
-// plaintext.
-const caPath = process.env.NODE_EXTRA_CA_CERTS
-  || `${process.env.HOME}/Library/Application Support/mkcert/rootCA.pem`;
-if (!existsSync(caPath)) {
-  throw new Error(`obsidian-stdio-adapter could not locate trust anchor at ${caPath}`);
+// The upstream URL overrides went with TCP on 2026-11-24 (bridges-uds): the bridges are reached only
+// over their sockets, and tests set HOME to a temporary directory instead. A leftover override is
+// refused, not ignored, so nobody believes it still redirects the adapter.
+for (const retired of ["OBSIDIAN_STDIO_COMMAND_CENTER_URL", "OBSIDIAN_STDIO_VIZ_URL"]) {
+  if (process.env[retired] !== undefined) {
+    throw new Error(
+      `obsidian-stdio-adapter: ${retired} is no longer supported (removed 2026-11-24, bridges-uds). The ` +
+        "adapter reaches the Command Center and Viz Studio bridges only over their Unix sockets, " +
+        "command-center.sock and viz-studio.sock in <home>/.local/state/trinc/run. Remove the variable " +
+        "from this MCP server's env.",
+    );
+  }
 }
-const BRIDGE_TLS_AGENT = new nodeHttps.Agent({ ca: readFileSync(caPath) });
+
+// BEGIN bridges-uds client v1
+// Byte-identical in four files; ops/tr-suite/verify.sh compares the text between the BEGIN and END lines:
+//   Copilot-Everything/bridges/openclaw-stdio-proxy/index.mjs
+//   Copilot-Everything/bridges/obsidian-stdio-adapter/index.mjs
+//   Trevor Robey Intelligence Network Citations/openclaw-bridge/mcp/base-mcp.js
+//   Copilot-Everything/scripts/mcp-health-check.js
+// Same rules as assertSocketTrust/requestOverSocket in the bridges' uds-listener.ts. The socket must be exactly
+// <home>/.local/state/trinc/run/<expectedName>. Every level from home down is a real directory owned by this uid that
+// group and others cannot write, the run directory and the socket grant them nothing, and no level carries an ACL
+// allow entry (an ls that fails is a refusal too). A missing home, directory or socket is refused with code ENOENT,
+// without connecting. Requests are pinned to the socket with createConnection and never use an agent: Node turns an
+// empty socketPath into TCP to localhost:80, and agent:false ignores a createConnection pin. Node calls the pin with
+// the request's options, timeout included, but the pin connects to the checked path on its own, so it passes the
+// timeout on itself (a pin that dropped it left the timeout option unarmed; with no timeout set, the connect options
+// are exactly { path }); the 'timeout' event only reports, and the caller destroys. No globals besides JavaScript
+// built-ins: every Node module comes in through deps = { fs, path, os, http, net, childProcess, Buffer }.
+const BRIDGES_UDS_MAX_PATH_BYTES = 103;
+const BRIDGES_UDS_HIDDEN_NAME_EXTRA_BYTES = 22;
+const BRIDGES_UDS_ACL_SEEN = new Set();
+
+function bridgesUdsError(code, message) {
+  const err = new Error(message);
+  err.code = code;
+  return err;
+}
+
+function bridgesUdsRunDir(deps) {
+  return deps.path.join(deps.os.homedir(), ".local", "state", "trinc", "run");
+}
+
+function bridgesUdsSocketPath(deps, name) {
+  return deps.path.join(bridgesUdsRunDir(deps), name);
+}
+
+function bridgesUdsAssertNoAllowAcl(deps, p, key) {
+  if (deps.os.platform() !== "darwin" || BRIDGES_UDS_ACL_SEEN.has(key)) return;
+  let out;
+  try {
+    out = deps.childProcess.execFileSync("/bin/ls", ["-lde", p], { encoding: "utf8", timeout: 2000 });
+  } catch (err) {
+    const why = err && err.code ? err.code : `ls exit ${String(err && err.status)}`;
+    throw bridgesUdsError("SOCKET_UNTRUSTED", `could not read the ACL of ${p} (${why}); refusing`);
+  }
+  if (out.split("\n").slice(1).some((line) => / allow /.test(line))) {
+    throw bridgesUdsError("SOCKET_UNTRUSTED", `${p} carries an ACL entry that grants access`);
+  }
+  BRIDGES_UDS_ACL_SEEN.add(key);
+}
+
+function bridgesUdsAssertTrust(deps, socketPath, expectedName) {
+  const { fs, path, os } = deps;
+  const uid = os.userInfo().uid;
+  const home = os.homedir();
+  const dir = bridgesUdsRunDir(deps);
+  if (typeof socketPath !== "string" || socketPath === "" || !path.isAbsolute(socketPath) || path.resolve(socketPath) !== socketPath) {
+    throw bridgesUdsError("SOCKET_UNTRUSTED", `socket path must be absolute and normalized: ${String(socketPath)}`);
+  }
+  if (path.dirname(socketPath) !== dir || path.basename(socketPath) !== expectedName) {
+    throw bridgesUdsError("SOCKET_UNTRUSTED", `socket must be ${path.join(dir, String(expectedName))}: ${socketPath}`);
+  }
+  const hiddenBytes = deps.Buffer.byteLength(dir) + 1 + deps.Buffer.byteLength(expectedName) + BRIDGES_UDS_HIDDEN_NAME_EXTRA_BYTES;
+  if (Math.max(deps.Buffer.byteLength(socketPath), hiddenBytes) > BRIDGES_UDS_MAX_PATH_BYTES) {
+    throw bridgesUdsError("SOCKET_PATH_TOO_LONG", `socket path is too long for macOS: ${socketPath}`);
+  }
+  const levels = [home];
+  for (const part of [".local", "state", "trinc", "run"]) levels.push(path.join(levels[levels.length - 1], part));
+  for (let i = 0; i < levels.length; i++) {
+    const p = levels[i];
+    let st;
+    try {
+      st = fs.lstatSync(p);
+    } catch (err) {
+      if (err && err.code === "ENOENT") throw bridgesUdsError("ENOENT", `${p} does not exist (bridge not running)`);
+      throw err;
+    }
+    if (st.isSymbolicLink() || !st.isDirectory() || st.uid !== uid) {
+      throw bridgesUdsError("SOCKET_UNTRUSTED", `${p} is not a real directory owned by uid ${uid}`);
+    }
+    const forbidden = i === levels.length - 1 ? 0o077 : 0o022;
+    if ((st.mode & forbidden) !== 0) {
+      throw bridgesUdsError("SOCKET_UNTRUSTED", `${p} has mode ${(st.mode & 0o7777).toString(8)}`);
+    }
+    bridgesUdsAssertNoAllowAcl(deps, p, `${st.dev}:${st.ino}`);
+  }
+  let sock;
+  try {
+    sock = fs.lstatSync(socketPath);
+  } catch (err) {
+    if (err && err.code === "ENOENT") throw bridgesUdsError("ENOENT", `${socketPath} does not exist (bridge not running)`);
+    throw err;
+  }
+  if (!sock.isSocket() || sock.uid !== uid || (sock.mode & 0o077) !== 0) {
+    throw bridgesUdsError("SOCKET_UNTRUSTED", `${socketPath} is not a private socket owned by uid ${uid}`);
+  }
+  bridgesUdsAssertNoAllowAcl(deps, socketPath, `${sock.dev}:${sock.ino}`);
+}
+
+function bridgesUdsRequest(deps, socketPath, expectedName, options) {
+  bridgesUdsAssertTrust(deps, socketPath, expectedName);
+  const opts = Object.assign({}, options);
+  delete opts.agent;
+  delete opts.host;
+  delete opts.hostname;
+  delete opts.port;
+  delete opts.createConnection;
+  delete opts.socketPath;
+  const timeout = opts.timeout;
+  const connectOptions = () => (timeout === undefined ? { path: socketPath } : { path: socketPath, timeout });
+  return deps.http.request(Object.assign(opts, { socketPath, createConnection: () => deps.net.connect(connectOptions()) }));
+}
+// END bridges-uds client v1
+
+const deps = { fs, path, os, http, net, childProcess, Buffer };
 
 // ---------------------------------------------------------------------------
-// Command Center bridge (:8799): the openclaw profile's main upstream. It is a
+// Command Center bridge (command-center.sock): the openclaw profile's main upstream. It is a
 // SEPARATE daemon owned by the command-center Obsidian plugin, and this adapter
 // proxies a closed set of its tools. The daemon itself is not modified.
 // ---------------------------------------------------------------------------
 
-// Env override exists for failure-isolation testing only (point it at a dead
-// port to exercise the degraded path). HTTPS-only, like every endpoint here.
-const COMMAND_CENTER_BASE_URL =
-  process.env.OBSIDIAN_STDIO_COMMAND_CENTER_URL || "https://127.0.0.1:8799";
-if (!COMMAND_CENTER_BASE_URL.startsWith("https://")) {
-  throw new Error(
-    "OBSIDIAN_STDIO_COMMAND_CENTER_URL must be an https:// URL — plaintext endpoints are not supported.",
-  );
-}
-const COMMAND_CENTER_TOKEN_PATH = resolve(
+const COMMAND_CENTER_TOKEN_PATH = path.resolve(
   process.env.HOME || "",
   ".config/openclaw-command-center/bridge-token",
 );
-// Default per-call timeout on :8799; a tool's spec may set its own.
+// Default per-call timeout for Command Center; a tool's spec may set its own.
 const COMMAND_CENTER_TIMEOUT_MS = 30_000;
+// socketName is the file name the client block's trust check expects; socketPath always comes from
+// os.homedir() (bridgesUdsSocketPath), never from the environment or a config file.
 const COMMAND_CENTER = {
   name: "Command Center",
   pluginId: "command-center",
-  baseUrl: COMMAND_CENTER_BASE_URL,
+  socketName: "command-center.sock",
+  socketPath: bridgesUdsSocketPath(deps, "command-center.sock"),
   tokenPath: COMMAND_CENTER_TOKEN_PATH,
 };
 
-// Viz Studio bridge (:8800), the openclaw profile's second upstream (2026-10-23). Same JSON-RPC over
-// HTTPS shape as :8799, with its own 0600 bearer token written by the trinc-viz-studio plugin. The env
-// override exists for failure-isolation testing only, like the Command Center one.
-const VIZ_STUDIO_BASE_URL = process.env.OBSIDIAN_STDIO_VIZ_URL || "https://127.0.0.1:8800";
-if (!VIZ_STUDIO_BASE_URL.startsWith("https://")) {
-  throw new Error("OBSIDIAN_STDIO_VIZ_URL must be an https:// URL — plaintext endpoints are not supported.");
-}
+// Viz Studio bridge (viz-studio.sock), the openclaw profile's second upstream (2026-10-23). Same
+// JSON-RPC over HTTP shape as Command Center, with its own 0600 bearer token written by the
+// trinc-viz-studio plugin.
 const VIZ_STUDIO = {
   name: "Viz Studio",
   pluginId: "trinc-viz-studio",
-  baseUrl: VIZ_STUDIO_BASE_URL,
-  tokenPath: resolve(process.env.HOME || "", ".config/trinc-viz-studio/bridge-token"),
+  socketName: "viz-studio.sock",
+  socketPath: bridgesUdsSocketPath(deps, "viz-studio.sock"),
+  tokenPath: path.resolve(process.env.HOME || "", ".config/trinc-viz-studio/bridge-token"),
 };
 
 // Hard cap on serialized tools/call arguments — rejects runaway or buggy client
@@ -95,47 +216,48 @@ const VIZ_STUDIO = {
 const MAX_ARGS_BYTES = 1_048_576; // 1 MB
 
 function loadBridgeToken(upstream) {
-  if (!existsSync(upstream.tokenPath)) {
+  if (!fs.existsSync(upstream.tokenPath)) {
     throw new Error(
       `${upstream.name} bridge token not found at ${upstream.tokenPath} — ` +
         `the ${upstream.pluginId} Obsidian plugin writes it on startup (is Obsidian open?).`,
     );
   }
-  return readFileSync(upstream.tokenPath, "utf8").trim();
+  return fs.readFileSync(upstream.tokenPath, "utf8").trim();
 }
 
-/** One JSON-RPC request to an additive bridge's /mcp endpoint (:8799 or :8800); resolves to the parsed reply. */
+/** One JSON-RPC request to a bridge's /mcp endpoint (Command Center or Viz Studio, over its socket); resolves to the parsed reply. */
 async function postJsonRpc(upstream, method, params, timeoutMs) {
   // Token is read at call time so a rotation never requires an adapter restart.
   const token = loadBridgeToken(upstream);
   const body = JSON.stringify({ jsonrpc: "2.0", id: randomUUID(), method, params });
 
   return await new Promise((resolvePromise, rejectPromise) => {
-    const url = new URL(`${upstream.baseUrl}/mcp`);
-    const req = nodeHttps.request(
-      {
-        hostname: url.hostname,
-        port: url.port,
-        path: url.pathname,
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-          "Content-Length": Buffer.byteLength(body),
-        },
-        agent: BRIDGE_TLS_AGENT,
-        timeout: timeoutMs,
+    // bridgesUdsRequest checks the exact socket path, the directory chain and the socket before it
+    // connects, and throws (rejecting this promise, with nothing sent) when one of them is wrong: code
+    // ENOENT when the run directory or the socket is missing, SOCKET_UNTRUSTED or SOCKET_PATH_TOO_LONG
+    // when the socket must not be used.
+    const req = bridgesUdsRequest(deps, upstream.socketPath, upstream.socketName, {
+      method: "POST",
+      path: "/mcp",
+      timeout: timeoutMs,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        "Content-Length": Buffer.byteLength(body),
       },
-      (res) => {
-        const chunks = [];
-        res.on("data", (chunk) => chunks.push(chunk));
-        res.on("end", () => {
-          const text = Buffer.concat(chunks).toString("utf8");
-          try { resolvePromise(JSON.parse(text)); }
-          catch { rejectPromise(new Error(`${upstream.pluginId} non-JSON response: ${text.slice(0, 200)}`)); }
-        });
-      }
-    );
+    });
+    // The block passes the `timeout` option to the socket it connects, which arms the idle timer; this
+    // req.setTimeout re-arms the same socket timer, belt and braces.
+    req.setTimeout(timeoutMs);
+    req.on("response", (res) => {
+      const chunks = [];
+      res.on("data", (chunk) => chunks.push(chunk));
+      res.on("end", () => {
+        const text = Buffer.concat(chunks).toString("utf8");
+        try { resolvePromise(JSON.parse(text)); }
+        catch { rejectPromise(new Error(`${upstream.pluginId} non-JSON response: ${text.slice(0, 200)}`)); }
+      });
+    });
     req.on("error", rejectPromise);
     req.on("timeout", () => { req.destroy(new Error(`${upstream.pluginId} request timed out`)); });
     req.write(body);
@@ -156,17 +278,17 @@ async function callBridgeTool(upstream, toolName, args, timeoutMs) {
 }
 
 // ---------------------------------------------------------------------------
-// "openclaw" profile — Claude Code -> Command Center bridge (:8799)  (2026-10-07)
+// "openclaw" profile — Claude Code -> Command Center bridge  (2026-10-07)
 // ---------------------------------------------------------------------------
 //
 // Lets a Claude Code session start and watch OpenClaw research runs through the SAME door the Copilot
 // agent already uses, so a run is plugin-dispatched and the plugin's post-run chain (chat bubble,
 // Miyo index, Zettelkasten linking, research-memory ingest) fires without anyone operating Obsidian.
-// Client-edge aggregation, not a daemon merge: the :8799 daemon is unmodified apart from the
+// Client-edge aggregation, not a daemon merge: the Command Center daemon is unmodified apart from the
 // additive status fields and dry_run (see Claude/obsidian-command-center, 2026-10-07).
 //
 // Since 2026-10-23 this is Claude's ONE door into Obsidian (TRINC reorg, decisions D4 and D5): the
-// dispatch tools below, read-only vault search/read on :8799, and the Viz Studio renders on :8800
+// dispatch tools below, read-only vault search/read on Command Center, and the Viz Studio renders
 // (see the "Viz Studio" section after OPENCLAW_SPECS). Copilot keeps its own door.
 //
 // This is a NARROW ALLOWLIST. Deliberately NOT exposed here, and why:
@@ -178,8 +300,8 @@ async function callBridgeTool(upstream, toolName, args, timeoutMs) {
 //                                     skill and then starts the run
 //   obsidian_{open_vault,create_note,append_note,execute_command} and the
 //   dev-console tools                 write/exec surface. obsidian_read_note and obsidian_search_notes
-//                                     ARE exposed (read-only, D5): :8799 serves both through Obsidian's
-//                                     own file index, which never contains the .obsidian/ config
+//                                     ARE exposed (read-only, D5): Command Center serves both through
+//                                     Obsidian's own file index, which never contains the .obsidian/ config
 //   publish_vault `force` and `all`   rewriting existing notes (including an appended Zettelkasten
 //                                     section) and bulk backfills are operator decisions
 // The operator's YubiKey touch is NOT replaced by anything here: obsidian_openclaw_run_workflow still
@@ -187,9 +309,9 @@ async function callBridgeTool(upstream, toolName, args, timeoutMs) {
 //
 // Schemas below are mirrored BY HAND from Claude/obsidian-command-center/src/bridge/mcp-bridge-server.ts
 // (handleToolsList). scripts/test-profiles.mjs checks that every
-// mirrored name and property still exists in the live :8799 tools/list whenever it is reachable.
+// mirrored name still exists in that source.
 
-// Mirrors the :8799 daemon's ID_RE, which it applies to template ids, input keys and workflow ids.
+// Mirrors the Command Center daemon's ID_RE, which it applies to template ids, input keys and workflow ids.
 const OPENCLAW_ID_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
 const OPENCLAW_MAX_INPUT_FIELDS = 20;
 // The daemon's cleanText() cap for an input value.
@@ -300,7 +422,7 @@ const OPENCLAW_SPECS = [
     tool: {
       name: "obsidian_health",
       description:
-        "Command Center bridge (:8799) liveness. A reply means Obsidian is running and the command-center plugin's bridge is up.",
+        "Command Center bridge (Command Center socket) liveness. A reply means Obsidian is running and the command-center plugin's bridge is up.",
       inputSchema: { type: "object", properties: {} },
     },
     validate: noArgs("obsidian_health"),
@@ -522,12 +644,13 @@ const OPENCLAW_TOOLS = OPENCLAW_SPECS.map((s) => s.tool);
 const OPENCLAW_SPEC_BY_NAME = new Map(OPENCLAW_SPECS.map((s) => [s.tool.name, s]));
 
 // ---------------------------------------------------------------------------
-// Viz Studio (:8800) on the openclaw profile  (2026-10-23, decisions D4 + D5)
+// Viz Studio on the openclaw profile  (2026-10-23, decisions D4 + D5)
 // ---------------------------------------------------------------------------
 //
-// A closed allowlist of the 12 viz_* tools. Their schemas are NOT mirrored by hand like the :8799 tools
-// above: Viz Studio's src/bridge/toolSchemas.ts is their contract of record and runs ~900 lines, so the
-// adapter takes the live declarations from :8800's tools/list and removes what this door must not offer.
+// A closed allowlist of the 12 viz_* tools. Their schemas are NOT mirrored by hand like the Command
+// Center tools above: Viz Studio's src/bridge/toolSchemas.ts is their contract of record and runs ~900
+// lines, so the adapter takes the live declarations from Viz Studio's tools/list and removes what this
+// door must not offer.
 // A tool the daemon adds later stays hidden until it is added to VIZ_TOOL_NAMES.
 //
 // D5 says renders write ONLY into Visualizations/. These properties write somewhere else, so they are
@@ -546,13 +669,13 @@ const VIZ_BLOCKED_PROPS = ["folder", "targetNote", "targetCanvas", "useActiveTab
 const VIZ_DOOR_NOTE =
   "On this door the output is written only into Visualizations/: folder, targetNote, targetCanvas, " +
   "useActiveTab/useActiveNote and overwrite are not available.";
-// tools/list asks :8800 for its declarations, and a closed Obsidian must not stall session start.
+// tools/list asks Viz Studio for its declarations, and a closed Obsidian must not stall session start.
 const VIZ_LIST_TIMEOUT_MS = 3000;
 // PNG export and graph snapshots of a large vault are the slow renders.
 const VIZ_CALL_TIMEOUT_MS = 120_000;
 
-// The stripped live schemas from the last tools/list, used to check call arguments. Empty when :8800 did
-// not answer at listing time: calls then get only the blocked-property and fileName checks, and the
+// The stripped live schemas from the last tools/list, used to check call arguments. Empty when Viz Studio
+// did not answer at listing time: calls then get only the blocked-property and fileName checks, and the
 // daemon validates the rest.
 const vizSchemas = new Map();
 
@@ -584,7 +707,7 @@ async function listVizTools() {
       return {
         name,
         description:
-          "Viz Studio tool. Its input schema comes from the Viz Studio bridge (:8800), which did not answer when " +
+          "Viz Studio tool. Its input schema comes from the Viz Studio bridge (Viz Studio socket), which did not answer when " +
           `this session listed tools: open Obsidian and start a new session to see it. ${VIZ_DOOR_NOTE}`,
         inputSchema: { type: "object", properties: {} },
       };
@@ -617,6 +740,30 @@ function openclawFailure(code, message, action) {
   return { content: [{ type: "text", text: JSON.stringify(body, null, 2) }], isError: true };
 }
 
+// A socket that is refused rather than absent: the path, the directory chain or the socket failed the
+// client block's trust check (SOCKET_UNTRUSTED), the path is too long for macOS (SOCKET_PATH_TOO_LONG),
+// or the system refused a lookup on the chain or the connect itself (EACCES, EPERM, ENOTSOCK). Nothing
+// was sent in any of these cases.
+const SOCKET_REFUSAL_CODES = new Set(["SOCKET_UNTRUSTED", "SOCKET_PATH_TOO_LONG", "EACCES", "EPERM", "ENOTSOCK"]);
+
+/**
+ * The ONE place that decides which error code a refused bridge socket is reported as. The operator decided
+ * (approval (i) under "Approvals needed" in ops/security/bridges-uds-2026-11-24.md, approved 2026-11-25) to
+ * keep adapter_error, the code a refusal had before the sockets, so no agent-facing output changes. Every
+ * refusal also writes one socket_refused line to stderr, so it never hides among ordinary adapter errors in
+ * the host's log.
+ *
+ * @param err - The refusal: err.code is one of SOCKET_REFUSAL_CODES; err.message names the path and the reason.
+ * @returns The `error` field of the tool result the agent sees.
+ */
+function socketRefusalCode(err) {
+  const detail = String(err?.message ?? err).replace(/\s+/g, " ");
+  process.stderr.write(`[obsidian-stdio-adapter:${PROFILE}] socket_refused code=${err?.code ?? "unknown"} ${detail}\n`);
+  // Approval (i), 2026-11-25: every refusal code answers "adapter_error", and scripts/test-profiles.mjs pins
+  // that value. A distinct code would change the tool output agents see, so it needs its own approval.
+  return "adapter_error";
+}
+
 /**
  * Turn a transport failure into a structured, actionable result. The point is that an agent can tell
  * "Obsidian is not running" (safe to retry after it starts) from "the connection dropped mid-call"
@@ -634,13 +781,24 @@ function classifyBridgeError(toolName, err, upstream = COMMAND_CENTER) {
         ? "The render may or may not have been written; look in Visualizations/ before repeating it."
         : "The call may or may not have taken effect; check state with obsidian_openclaw_status before repeating it.";
 
-  if (/bridge token not found/.test(msg) || code === "ECONNREFUSED" || code === "EHOSTUNREACH") {
+  // Not running: no token file yet, no run directory or socket (ENOENT, from the client block's check or
+  // the connect: what a closed Obsidian looks like), or a socket file nobody serves (ECONNREFUSED, left
+  // behind by a crash).
+  if (/bridge token not found/.test(msg) || code === "ENOENT" || code === "ECONNREFUSED" || code === "EHOSTUNREACH") {
     return openclawFailure(
       "obsidian_not_running",
-      `The ${upstream.name} bridge (:${new URL(upstream.baseUrl).port}) is not reachable: Obsidian is closed, or the ` +
+      `The ${upstream.name} bridge (${upstream.socketName}) is not reachable: Obsidian is closed, or the ` +
         `${upstream.pluginId} plugin is not loaded. Nothing was sent.`,
       `Ask the operator to open Obsidian (the bridge starts with the plugin), then call ${isViz ? "viz_health" : "obsidian_health"}. ` +
         (isViz ? "Nothing was rendered." : "No run was started."),
+    );
+  }
+  // An unreadable token file (EACCES on open) is not a socket refusal: it stays adapter_error, as before.
+  if (SOCKET_REFUSAL_CODES.has(code) && err?.path !== upstream.tokenPath) {
+    return openclawFailure(
+      socketRefusalCode(err),
+      `The ${upstream.name} bridge socket (${upstream.socketName}) was refused before anything was sent: ${msg}`,
+      "Nothing was sent. Ask the operator to check the bridge socket and its directory; do not retry until they have.",
     );
   }
   if (/timed out/.test(msg) || code === "ETIMEDOUT") {
@@ -655,13 +813,6 @@ function classifyBridgeError(toolName, err, upstream = COMMAND_CENTER) {
       "bridge_connection_lost_outcome_unknown",
       `The connection to the ${upstream.name} bridge dropped during ${toolName}: ${msg}`,
       outcomeUnknownAction,
-    );
-  }
-  if (/certificate|CERT_|UNABLE_TO_VERIFY|SELF_SIGNED/i.test(`${code ?? ""} ${msg}`)) {
-    return openclawFailure(
-      "tls_trust_failed",
-      `TLS verification of the ${upstream.name} bridge failed: ${msg}`,
-      "Check that NODE_EXTRA_CA_CERTS points at the mkcert root CA in this MCP server's env. Do not disable verification.",
     );
   }
   return openclawFailure("adapter_error", msg);
@@ -697,29 +848,43 @@ const TOOLS = OPENCLAW_TOOLS;
 // ---------------------------------------------------------------------------
 
 async function checkCommandCenterHealth() {
-  // The openclaw profile's main upstream (Viz Studio on :8800 is probed lazily by tools/list). Uses the
-  // pinned mkcert agent, not global fetch.
+  // The openclaw profile's main upstream (Viz Studio is probed lazily by tools/list). GET /healthz needs
+  // no token; it still goes through bridgesUdsRequest, like every request here.
+  const where = `unix:${COMMAND_CENTER.socketPath}`;
   await new Promise((done) => {
-    const req = nodeHttps.get(
-      `${COMMAND_CENTER_BASE_URL}/healthz`,
-      { agent: BRIDGE_TLS_AGENT, timeout: 3000 },
-      (res) => {
-        res.resume();
-        process.stderr.write(
-          res.statusCode === 200
-            ? `[obsidian-stdio-adapter:${PROFILE}] Command Center healthy at ${COMMAND_CENTER_BASE_URL}\n`
-            : `[obsidian-stdio-adapter:${PROFILE}] Command Center answered HTTP ${res.statusCode}\n`,
-        );
-        done();
-      },
-    );
-    req.on("error", (err) => {
+    const warn = (err) => {
       process.stderr.write(
-        `[obsidian-stdio-adapter:${PROFILE}] Warning: Command Center not reachable at ${COMMAND_CENTER_BASE_URL} — ${err.message} (is Obsidian open?)\n`,
+        SOCKET_REFUSAL_CODES.has(err?.code)
+          ? `[obsidian-stdio-adapter:${PROFILE}] Warning: the Command Center socket was refused (${err.code}): ${err.message}\n`
+          : `[obsidian-stdio-adapter:${PROFILE}] Warning: Command Center not reachable at ${where} — ${err.message} (is Obsidian open?)\n`,
+      );
+      done();
+    };
+    let req;
+    try {
+      // Throws, without connecting, when the run directory or the socket is missing or refused.
+      req = bridgesUdsRequest(deps, COMMAND_CENTER.socketPath, COMMAND_CENTER.socketName, {
+        method: "GET",
+        path: "/healthz",
+        timeout: 3000,
+      });
+    } catch (err) {
+      warn(err);
+      return;
+    }
+    req.setTimeout(3000); // re-arms the socket timer the block set from `timeout`; belt and braces
+    req.on("response", (res) => {
+      res.resume();
+      process.stderr.write(
+        res.statusCode === 200
+          ? `[obsidian-stdio-adapter:${PROFILE}] Command Center healthy at ${where}\n`
+          : `[obsidian-stdio-adapter:${PROFILE}] Command Center answered HTTP ${res.statusCode}\n`,
       );
       done();
     });
+    req.on("error", warn);
     req.on("timeout", () => req.destroy(new Error("health check timed out")));
+    req.end();
   });
 }
 
@@ -728,7 +893,7 @@ async function checkCommandCenterHealth() {
 // ---------------------------------------------------------------------------
 
 const server = new Server(
-  { name: "obsidian-stdio-adapter", version: "0.6.0" },
+  { name: "obsidian-stdio-adapter", version: "0.7.0" },
   { capabilities: { tools: {} } }
 );
 
@@ -742,7 +907,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const result = await handleToolCall(name, args);
   // One structured line per call for post-hoc debugging — MCP hosts capture a
   // server's stderr into their own managed logs. Never log argument values.
-  const upstream = VIZ_TOOL_SET.has(name) ? 8800 : 8799;
+  const upstream = VIZ_TOOL_SET.has(name) ? "viz-studio" : "command-center";
   process.stderr.write(
     `[obsidian-stdio-adapter:${PROFILE}] call tool=${name} upstream=${upstream} ` +
       `status=${result.isError ? "error" : "ok"} latency_ms=${Date.now() - startedAt}\n`,

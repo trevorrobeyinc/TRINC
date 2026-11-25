@@ -21,7 +21,7 @@ export class VizStudioSettingTab extends PluginSettingTab {
       const running = this.plugin.isBridgeRunning;
       statusEl.empty();
       if (running) {
-        statusEl.setText(`Running on https://127.0.0.1:${this.plugin.settings.bridgePort}`);
+        statusEl.setText(`Running on unix:${this.plugin.bridgeSocketPath}`);
         statusEl.className = "vz-bridge-status vz-bridge-running";
       } else {
         statusEl.setText("Stopped");
@@ -71,21 +71,16 @@ export class VizStudioSettingTab extends PluginSettingTab {
         })
       );
 
+    // Read-only: the bridge has no TCP port since bridges-uds (2026-11-24), and its socket path is fixed.
     new Setting(containerEl)
-      .setName("Bridge port")
-      .setDesc("Port for the HTTPS MCP bridge (restart the bridge to apply)")
-      .addText((text) =>
-        text
-          .setPlaceholder("8800")
-          .setValue(String(this.plugin.settings.bridgePort))
-          .onChange(async (value) => {
-            const n = parseInt(value, 10);
-            if (!isNaN(n) && n > 0 && n < 65536) {
-              this.plugin.settings.bridgePort = n;
-              await this.plugin.saveSettings();
-            }
-          })
-      );
+      .setName("Socket path")
+      .setDesc(
+        "The MCP bridge listens only on this Unix socket (run directory 0700, socket 0600): programs running as your user account can reach it, a browser cannot. It is fixed and cannot be changed."
+      )
+      .addText((text) => {
+        text.setValue(this.plugin.bridgeSocketPath);
+        text.inputEl.readOnly = true;
+      });
 
     containerEl.createEl("h3", { text: "Output" });
 

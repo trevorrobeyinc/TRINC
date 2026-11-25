@@ -24,6 +24,15 @@ search_quiet() {
   grep -Eq -- "$pattern" "$file_path"
 }
 
+# base-mcp.js is exempt by basename (the two globs below): it is the governed egress wrapper, the
+# one file under openclaw-bridge/mcp allowed a direct network call (policyValidatedGet runs
+# validateEgressPolicy, preparePinnedEgressTarget and logOutboundAttempt). Since bridges-uds
+# (2026-11-24) it also holds bridgeSocketRequest, which is LOCAL IPC ONLY and outside the egress
+# policy: one HTTP/1.1 request over the vault bridge's Unix socket (vault-bridge.sock in the run
+# directory under the home directory; path derived in code, trust-checked, connection pinned to the
+# socket; no host, port or TLS). The obsidian-bridge-mcp adapter reaches the bridge only through it.
+# Letting this exemption cover a non-egress transport is an operator-approval item recorded in the
+# bridges-uds decision record (ops/security/bridges-uds-2026-11-24.md).
 search_fixed_js_tree() {
   local signature="$1"
   local root_dir="$2"

@@ -1,7 +1,13 @@
 "use strict";
 
+const childProcess = require("node:child_process");
 const crypto = require("node:crypto");
+const fs = require("node:fs");
+const http = require("node:http");
 const https = require("node:https");
+const net = require("node:net");
+const os = require("node:os");
+const path = require("node:path");
 const tls = require("node:tls");
 
 const { z } = require("zod");
@@ -513,6 +519,163 @@ class BaseMcp {
   }
 }
 
+// ── Local IPC to the canonical vault bridge (bridges-uds, 2026-11-24) ──────────────────────────
+//
+// LOCAL IPC ONLY, OUTSIDE THE EGRESS POLICY. Everything above is the governed egress wrapper:
+// policyValidatedGet runs validateEgressPolicy, preparePinnedEgressTarget and logOutboundAttempt,
+// and run() commits through the governance transaction. bridgeSocketRequest below does none of that,
+// on purpose: it is one HTTP/1.1 request over a Unix domain socket to the vault bridge that the
+// obsidian-bridge-launcher plugin runs, at <home>/.local/state/trinc/run/vault-bridge.sock (run
+// directory 0700, socket 0600). There is no host, port, DNS or TLS, and nothing leaves the machine,
+// so there is no egress to police. It sits in this file because scripts/verify-mcp-policy.sh lets
+// only base-mcp.js hold a direct network call under openclaw-bridge/mcp; keeping it here keeps that
+// gate whole instead of carving an exception into an adapter. A non-egress transport inside the
+// egress wrapper is an operator-approval item in the bridges-uds decision record
+// (ops/security/bridges-uds-2026-11-24.md).
+//
+// The block derives the path from os.homedir() at call time (never from config, a socket-path
+// variable or the caller), checks the whole directory chain and the socket before any byte is
+// written, and pins the connection to the socket, so no option a caller passes can turn the request
+// into TCP. The caller builds the headers: the adapter's replay timestamp and nonce still come from
+// core/time-provider and core/entropy-provider.
+//
+// Never edit the block below in this file alone: its first lines say why.
+
+// BEGIN bridges-uds client v1
+// Byte-identical in four files; ops/tr-suite/verify.sh compares the text between the BEGIN and END lines:
+//   Copilot-Everything/bridges/openclaw-stdio-proxy/index.mjs
+//   Copilot-Everything/bridges/obsidian-stdio-adapter/index.mjs
+//   Trevor Robey Intelligence Network Citations/openclaw-bridge/mcp/base-mcp.js
+//   Copilot-Everything/scripts/mcp-health-check.js
+// Same rules as assertSocketTrust/requestOverSocket in the bridges' uds-listener.ts. The socket must be exactly
+// <home>/.local/state/trinc/run/<expectedName>. Every level from home down is a real directory owned by this uid that
+// group and others cannot write, the run directory and the socket grant them nothing, and no level carries an ACL
+// allow entry (an ls that fails is a refusal too). A missing home, directory or socket is refused with code ENOENT,
+// without connecting. Requests are pinned to the socket with createConnection and never use an agent: Node turns an
+// empty socketPath into TCP to localhost:80, and agent:false ignores a createConnection pin. Node calls the pin with
+// the request's options, timeout included, but the pin connects to the checked path on its own, so it passes the
+// timeout on itself (a pin that dropped it left the timeout option unarmed; with no timeout set, the connect options
+// are exactly { path }); the 'timeout' event only reports, and the caller destroys. No globals besides JavaScript
+// built-ins: every Node module comes in through deps = { fs, path, os, http, net, childProcess, Buffer }.
+const BRIDGES_UDS_MAX_PATH_BYTES = 103;
+const BRIDGES_UDS_HIDDEN_NAME_EXTRA_BYTES = 22;
+const BRIDGES_UDS_ACL_SEEN = new Set();
+
+function bridgesUdsError(code, message) {
+  const err = new Error(message);
+  err.code = code;
+  return err;
+}
+
+function bridgesUdsRunDir(deps) {
+  return deps.path.join(deps.os.homedir(), ".local", "state", "trinc", "run");
+}
+
+function bridgesUdsSocketPath(deps, name) {
+  return deps.path.join(bridgesUdsRunDir(deps), name);
+}
+
+function bridgesUdsAssertNoAllowAcl(deps, p, key) {
+  if (deps.os.platform() !== "darwin" || BRIDGES_UDS_ACL_SEEN.has(key)) return;
+  let out;
+  try {
+    out = deps.childProcess.execFileSync("/bin/ls", ["-lde", p], { encoding: "utf8", timeout: 2000 });
+  } catch (err) {
+    const why = err && err.code ? err.code : `ls exit ${String(err && err.status)}`;
+    throw bridgesUdsError("SOCKET_UNTRUSTED", `could not read the ACL of ${p} (${why}); refusing`);
+  }
+  if (out.split("\n").slice(1).some((line) => / allow /.test(line))) {
+    throw bridgesUdsError("SOCKET_UNTRUSTED", `${p} carries an ACL entry that grants access`);
+  }
+  BRIDGES_UDS_ACL_SEEN.add(key);
+}
+
+function bridgesUdsAssertTrust(deps, socketPath, expectedName) {
+  const { fs, path, os } = deps;
+  const uid = os.userInfo().uid;
+  const home = os.homedir();
+  const dir = bridgesUdsRunDir(deps);
+  if (typeof socketPath !== "string" || socketPath === "" || !path.isAbsolute(socketPath) || path.resolve(socketPath) !== socketPath) {
+    throw bridgesUdsError("SOCKET_UNTRUSTED", `socket path must be absolute and normalized: ${String(socketPath)}`);
+  }
+  if (path.dirname(socketPath) !== dir || path.basename(socketPath) !== expectedName) {
+    throw bridgesUdsError("SOCKET_UNTRUSTED", `socket must be ${path.join(dir, String(expectedName))}: ${socketPath}`);
+  }
+  const hiddenBytes = deps.Buffer.byteLength(dir) + 1 + deps.Buffer.byteLength(expectedName) + BRIDGES_UDS_HIDDEN_NAME_EXTRA_BYTES;
+  if (Math.max(deps.Buffer.byteLength(socketPath), hiddenBytes) > BRIDGES_UDS_MAX_PATH_BYTES) {
+    throw bridgesUdsError("SOCKET_PATH_TOO_LONG", `socket path is too long for macOS: ${socketPath}`);
+  }
+  const levels = [home];
+  for (const part of [".local", "state", "trinc", "run"]) levels.push(path.join(levels[levels.length - 1], part));
+  for (let i = 0; i < levels.length; i++) {
+    const p = levels[i];
+    let st;
+    try {
+      st = fs.lstatSync(p);
+    } catch (err) {
+      if (err && err.code === "ENOENT") throw bridgesUdsError("ENOENT", `${p} does not exist (bridge not running)`);
+      throw err;
+    }
+    if (st.isSymbolicLink() || !st.isDirectory() || st.uid !== uid) {
+      throw bridgesUdsError("SOCKET_UNTRUSTED", `${p} is not a real directory owned by uid ${uid}`);
+    }
+    const forbidden = i === levels.length - 1 ? 0o077 : 0o022;
+    if ((st.mode & forbidden) !== 0) {
+      throw bridgesUdsError("SOCKET_UNTRUSTED", `${p} has mode ${(st.mode & 0o7777).toString(8)}`);
+    }
+    bridgesUdsAssertNoAllowAcl(deps, p, `${st.dev}:${st.ino}`);
+  }
+  let sock;
+  try {
+    sock = fs.lstatSync(socketPath);
+  } catch (err) {
+    if (err && err.code === "ENOENT") throw bridgesUdsError("ENOENT", `${socketPath} does not exist (bridge not running)`);
+    throw err;
+  }
+  if (!sock.isSocket() || sock.uid !== uid || (sock.mode & 0o077) !== 0) {
+    throw bridgesUdsError("SOCKET_UNTRUSTED", `${socketPath} is not a private socket owned by uid ${uid}`);
+  }
+  bridgesUdsAssertNoAllowAcl(deps, socketPath, `${sock.dev}:${sock.ino}`);
+}
+
+function bridgesUdsRequest(deps, socketPath, expectedName, options) {
+  bridgesUdsAssertTrust(deps, socketPath, expectedName);
+  const opts = Object.assign({}, options);
+  delete opts.agent;
+  delete opts.host;
+  delete opts.hostname;
+  delete opts.port;
+  delete opts.createConnection;
+  delete opts.socketPath;
+  const timeout = opts.timeout;
+  const connectOptions = () => (timeout === undefined ? { path: socketPath } : { path: socketPath, timeout });
+  return deps.http.request(Object.assign(opts, { socketPath, createConnection: () => deps.net.connect(connectOptions()) }));
+}
+// END bridges-uds client v1
+
+// Node built-ins handed to the block; nothing else reaches the socket.
+const BRIDGES_UDS_DEPS = Object.freeze({ fs, path, os, http, net, childProcess, Buffer });
+
+// The one socket the engine may reach. Command Center and Viz Studio are not engine dependencies,
+// so this module has no way to address their sockets.
+const VAULT_BRIDGE_SOCKET_NAME = "vault-bridge.sock";
+
+/** Absolute path of the vault bridge's socket, derived from os.homedir() at call time. */
+function bridgeSocketPath() {
+  return bridgesUdsSocketPath(BRIDGES_UDS_DEPS, VAULT_BRIDGE_SOCKET_NAME);
+}
+
+/**
+ * Open one request to the vault bridge over its Unix socket and return the http.ClientRequest; the
+ * caller writes the body and reads the response. Throws before any connection is attempted when the
+ * socket or its directory is missing (err.code "ENOENT") or fails the trust check
+ * ("SOCKET_UNTRUSTED", "SOCKET_PATH_TOO_LONG"). Any agent, host, hostname, port, socketPath or
+ * createConnection in `options` is dropped.
+ */
+function bridgeSocketRequest(options) {
+  return bridgesUdsRequest(BRIDGES_UDS_DEPS, bridgeSocketPath(), VAULT_BRIDGE_SOCKET_NAME, options);
+}
+
 module.exports = {
   BaseMcp,
   MCP_ERROR_CODES,
@@ -522,5 +685,9 @@ module.exports = {
   normalizeText,
   stripHtml,
   verifyResearchRecordHash,
-  computeResearchRecordHash
+  computeResearchRecordHash,
+  // Local IPC to the vault bridge (see the bridges-uds section above); not an egress path.
+  VAULT_BRIDGE_SOCKET_NAME,
+  bridgeSocketPath,
+  bridgeSocketRequest
 };

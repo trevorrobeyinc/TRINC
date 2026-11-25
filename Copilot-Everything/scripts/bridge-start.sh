@@ -20,4 +20,8 @@ export OBSIDIAN_MCP_CONFIG="$MCP_CONFIG_PATH"
 
 cd "$BRIDGE_REPO"
 npm run build >/dev/null
-exec node dist/index.js --transport=https
+# bridges-uds (2026-11-24): the bridge serves only on <home>/.local/state/trinc/run/vault-bridge.sock; TCP is gone
+# and --transport=https is a startup error. Keep the --transport= flag itself: Falcon Custom-IOA rule 176 matches
+# the bridge as a parent by "dist/index.js ... --transport". A live socket (the launcher's bridge) makes this start
+# refuse with ALREADY_SERVED instead of taking the socket.
+exec node dist/index.js --transport=uds

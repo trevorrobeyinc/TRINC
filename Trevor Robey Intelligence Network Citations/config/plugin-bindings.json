@@ -117,7 +117,7 @@
     },
     "~~knowledge base": {
       "bound": true,
-      "resolves_to": "Obsidian vault '/Users/myhome/My Digital Garden' via the canonical MCP bridge on :8798",
+      "resolves_to": "Obsidian vault '/Users/myhome/My Digital Garden' via the canonical vault bridge (Unix socket ~/.local/state/trinc/run/vault-bridge.sock; no TCP port since 2026-11-24)",
       "lane": "vault",
       "note": "NOT Notion, NOT Confluence. Read-only from the engine; Command Center owns vault writes. Requires Obsidian to be running (bridge dies with the app)."
     },
@@ -474,7 +474,7 @@
       "business_binding": "Resolves ~~design / ~~design tool for the design and marketing plugins, since there is no Figma. Applies to the landing page in workspace/collateral/landing-page/ and the four Obsidian plugin UIs.",
       "guardrails": [
         "Visual direction only — it does not override the brand canon in REVENUE_PLAYBOOK.md / OFFERINGS.md.",
-        "Any UI it produces that talks to a local service uses the HTTPS proxies (:8798, :8743, :6433, :8891), never a plaintext port."
+        "Any UI it produces that talks to a local service uses the HTTPS proxies (:8743, :6433, :8891), never a plaintext port. It never talks to the Obsidian bridges: they answer only on Unix sockets, which no page can dial."
       ]
     },
     "ralph-loop": {

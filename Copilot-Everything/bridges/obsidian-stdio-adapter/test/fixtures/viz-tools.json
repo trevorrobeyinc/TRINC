@@ -1,0 +1,45 @@
+[
+  {
+    "name": "viz_health",
+    "description": "Fixture: Viz Studio health.",
+    "inputSchema": { "type": "object", "properties": {} }
+  },
+  {
+    "name": "viz_mermaid",
+    "description": "Fixture: render a Mermaid diagram.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "source": { "type": "string", "description": "Mermaid source" },
+        "title": { "type": "string" },
+        "fileName": { "type": "string" },
+        "folder": { "type": "string" },
+        "targetNote": { "type": "string" },
+        "overwrite": { "type": "boolean" }
+      },
+      "required": ["source", "folder"]
+    }
+  },
+  {
+    "name": "viz_canvas",
+    "inputSchema": {
+      "properties": {
+        "title": { "type": "string" },
+        "cards": {
+          "type": "array",
+          "items": { "type": "object", "properties": { "text": { "type": "string" } } }
+        },
+        "targetCanvas": { "type": "string" },
+        "useActiveTab": { "type": "boolean" },
+        "useActiveNote": { "type": "boolean" }
+      },
+      "required": ["targetCanvas"],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "viz_not_on_the_allowlist",
+    "description": "Fixture: a tool this door must never list.",
+    "inputSchema": { "type": "object", "properties": { "folder": { "type": "string" } } }
+  }
+]

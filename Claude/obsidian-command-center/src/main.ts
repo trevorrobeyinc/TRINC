@@ -31,6 +31,7 @@ import { runVaultZKLinking, getVaultZKApi } from "./zettelkasten/linker";
 import { MiyoClient } from "./copilot-integration/miyo-client";
 import { McpBridgeServer } from "./bridge/mcp-bridge-server";
 import type { PluginActions } from "./bridge/mcp-bridge-server";
+import { socketPathFor, SOCKET_NAMES } from "./bridge/uds-listener";
 import {
   previewVideoRun,
   VideoPipelineController,
@@ -57,8 +58,13 @@ export default class OpenClawPlugin extends Plugin {
   settings: OpenClawSettings = DEFAULT_SETTINGS;
   runner: OpenClawRunner = new OpenClawRunner();
   private tracker: WorkflowTracker | null = null;
+  /** One bridge object per plugin instance, so every start shares the one in flight (bridges-uds D3). */
   private bridgeServer: McpBridgeServer | null = null;
-  private bridgeStarting = false;
+  /**
+   * Set as the FIRST statement of onunload (bridges-uds D3, 2026-11-24). Obsidian runs a queued layout-ready
+   * callback without checking that its plugin is still loaded, and a bridge start can land after the unload.
+   */
+  private disposed = false;
   private statusBarItem: HTMLElement | null = null;
   private lastWorkflowResult: WorkflowResult | null = null;
   private lastWorkflowId: string | null = null;
@@ -143,6 +149,7 @@ export default class OpenClawPlugin extends Plugin {
 
     // MCP bridge for Copilot integration — wait for layout to be ready
     this.app.workspace.onLayoutReady(() => {
+      if (this.disposed) return;
       // Migrate (audit P0): the bridge token lives in a 0600 file outside
       // data.json. Scrub any legacy `bridgeToken` key out of stored settings so
       // it stops leaking via data.json (and Obsidian's auto-generated .bak
@@ -159,12 +166,7 @@ export default class OpenClawPlugin extends Plugin {
         void this.saveSettings();
       }
       if (this.settings.enableCopilotBridge) {
-        this.bridgeServer = new McpBridgeServer(
-          this.app,
-          this.settings,
-          this.createPluginActions()
-        );
-        this.bridgeServer.start().catch((err) => {
+        this.startBridge().catch((err) => {
           console.error("[OpenClaw] Bridge failed to start:", err.message);
         });
       }
@@ -211,37 +213,38 @@ export default class OpenClawPlugin extends Plugin {
     return this.bridgeServer?.isRunning ?? false;
   }
 
+  /** The bridge's Unix socket: the running listener's path, else the path a start would serve. */
+  get bridgeSocketPath(): string {
+    return this.bridgeServer?.socketPath ?? socketPathFor(SOCKET_NAMES.commandCenter);
+  }
+
+  /**
+   * Start the bridge. The layout-ready start and the settings Start button both come here, and the one
+   * bridge object makes them share the start in flight. A failed start leaves nothing behind, so the next
+   * Start simply tries again.
+   */
   async startBridge(): Promise<void> {
-    if (this.bridgeStarting || this.bridgeServer?.isRunning) return;
-    this.bridgeStarting = true;
-    try {
-      // Clean up any zombie from a previous failed start
-      this.bridgeServer = null;
-      this.bridgeServer = new McpBridgeServer(
-        this.app,
-        this.settings,
-        this.createPluginActions()
-      );
-      await this.bridgeServer.start();
-    } catch (err) {
-      // start() failed — null out the zombie so next Start attempt works
-      this.bridgeServer = null;
-      throw err;
-    } finally {
-      this.bridgeStarting = false;
+    if (this.disposed) return;
+    if (!this.bridgeServer) {
+      this.bridgeServer = new McpBridgeServer(this.app, this.settings, this.createPluginActions(), {
+        isDisposed: () => this.disposed,
+        register: (cb) => this.register(cb),
+      });
     }
+    await this.bridgeServer.start();
   }
 
   async stopBridge(): Promise<void> {
-    if (!this.bridgeServer) return;
-    try {
-      await this.bridgeServer.stop();
-    } finally {
-      this.bridgeServer = null;
-    }
+    await this.bridgeServer?.stop();
   }
 
   onunload(): void {
+    this.disposed = true;
+    // The bridge closes first (bridges-uds D3), before the runner, the tracker and the video run are torn
+    // down: stop() calls the listener's close() at once, or makes a start still in flight close it. The
+    // close the start registered with this.register has already run (Obsidian runs those before onunload).
+    this.bridgeServer?.stop().catch(() => {});
+    this.bridgeServer = null;
     this.runner.cancel();
     this.tracker?.stop();
     // A run's timers and promises outlive the plugin unless stopped: without this, a reloaded plugin
@@ -249,8 +252,6 @@ export default class OpenClawPlugin extends Plugin {
     this.videoPipeline.abort(
       "Command Center was unloaded (a plugin reload, or Obsidian quitting) while the run was going"
     );
-    this.bridgeServer?.stop().catch(() => {});
-    this.bridgeServer = null;
   }
 
   /** The built-in video pipeline's settings, from this plugin's own. */
@@ -522,7 +523,7 @@ export default class OpenClawPlugin extends Plugin {
       markStage(ledger, "notes", "skipped", "autoGenerateNotes disabled");
     }
 
-    // ── Stage 2: chat bubble (always — emit-only research_notify → :8798) ──
+    // ── Stage 2: chat bubble (always — emit-only research_notify → the vault bridge, vault-bridge.sock) ──
     markStage(ledger, "notify", "running");
     try {
       await notifyResearchArrived({

@@ -115,13 +115,17 @@ notes, draw diagrams, and search the vault.
 
 ```
 Obsidian
-├── Command Center (:8799)   starts research runs, receives results
-├── Viz Studio     (:8800)   draws diagrams and charts into Visualizations/
-├── vault bridge   (:8798)   the Copilot plugin's way into the notes
-└── Copilot                  chat and an agent inside Obsidian
+├── Command Center (command-center.sock)   starts research runs, receives results
+├── Viz Studio     (viz-studio.sock)       draws diagrams and charts into Visualizations/
+├── vault bridge   (vault-bridge.sock)     the Copilot plugin's way into the notes
+└── Copilot                                chat and an agent inside Obsidian
 
 Claude (in Claude Code) ── one door: "openclaw-obsidian" ──> Command Center + Viz Studio
 ```
+
+The names in brackets are private sockets: small files in a folder that only the operator's own account can
+open. Since 2026-11-24 the three bridges answer there and on no network port, so nothing on the network, and
+no web page, can reach them.
 
 - **Claude has exactly one door** into Obsidian. Through it Claude can start and watch runs, read and
   search notes (read-only), and draw visuals, which land only in `Visualizations/`. It cannot create,
@@ -129,8 +133,9 @@ Claude (in Claude Code) ── one door: "openclaw-obsidian" ──> Command Cen
 - **Copilot keeps its own door.** Copilot chat runs on hosted `copilot-plus-flash`; its
   agent mode runs on an opencode backend. *(Raycast had a door of its own until 2026-11-21, when it was removed from
   the Mac. The two video workflows it carried run from the Copilot agent now.)*
-- **Security is layered on top**: every network service on the Mac is HTTPS-only, real runs and
-  privileged actions need a YubiKey touch, and CrowdStrike Falcon watches the machine. The security stack
+- **Security is layered on top**: every network service on the Mac is HTTPS-only, the Obsidian bridges
+  take no network connections at all, real runs and privileged actions need a YubiKey touch, and
+  CrowdStrike Falcon watches the machine. The security stack
   protects the business; it is not something the business sells.
 
 ## 7. The first product: Trial Graveyard Feed
@@ -168,7 +173,7 @@ are the operator's and are deferred. Details:
 | **Bundle** | The sealed ZIP a customer receives |
 | **Engine** | The research software in `Trevor Robey Intelligence Network Citations/` |
 | **Vault** | The operator's Obsidian notes (`My Digital Garden`) |
-| **Bridge** | A small HTTPS server inside Obsidian that lets software talk to a plugin |
+| **Bridge** | A small server inside Obsidian that lets software on the Mac talk to a plugin. It answers on a private socket (a file only the operator's account can open), not on a network port |
 | **The door** | `openclaw-obsidian`, Claude's single, limited way into Obsidian |
 | **YubiKey touch** | The physical approval required for real runs and privileged actions |
 | **OpenClaw** | The open-source agent framework the engine is built on (not a brand the business owns) |

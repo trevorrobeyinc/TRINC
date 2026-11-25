@@ -53,8 +53,8 @@ If the Log is long (> ~30 entries), archive the older tail into `_continuity/log
 ## Don't
 
 - **Don't log work unrelated to the business.** The board is **business-scoped**: the citation
-  engine, offerings/revenue/brand/legal, or this repo's own infra/topology (the `:8798` bridge,
-  vault, connectors, plugins). Home-network / Security Everything / personal work goes to
+  engine, offerings/revenue/brand/legal, or this repo's own infra/topology (the canonical vault
+  bridge, vault, connectors, plugins). Home-network / Security Everything / personal work goes to
   `~/.claude/handoffs/`, memory, or its own repo — not here. (Repo infra *does* count.)
 - Don't duplicate business canon here — point to `CLAUDE.md`, `SYSTEM-REALITY.md`,
   `HOW-IT-WORKS.md`, `ARCHITECTURE.md`.

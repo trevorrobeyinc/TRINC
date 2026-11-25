@@ -1,108 +1,26 @@
 import { logInfo, logWarn } from "@/logger";
+import {
+  udsOpenStream,
+  type BridgeSocket,
+  type ClientRequestT,
+  type IncomingMessageT,
+} from "./udsClient";
 
 /**
- * Long-lived Server-Sent Events (SSE) subscriber for the obsidian-copilot-bridge
- * `/mcp/events` endpoint. The bridge holds the connection open and pushes
- * `data: <json>\n\n` frames when an event occurs (for example
- * `research_arrived` after the agents pipeline finishes a workflow).
+ * Long-lived Server-Sent Events (SSE) subscriber for the vault bridge's (obsidian-copilot-bridge)
+ * `/mcp/events` endpoint, reached over its Unix socket. The bridge holds the connection open and
+ * pushes `data: <json>\n\n` frames when an event occurs (for example `research_arrived` after the
+ * agents pipeline finishes a workflow), plus a `: ping` comment every 20 s.
  *
- * Why Node's `https` module and not `fetch` / `EventSource`?
- *   - `EventSource` cannot send custom headers — and the bridge only accepts
- *     the auth token via `Authorization: Bearer ...` or `x-mcp-token`.
- *   - Electron renderer `fetch()` doesn't respect `NODE_EXTRA_CA_CERTS`, so it
- *     refuses the bridge's mkcert-issued cert with `Failed to fetch`.
- *   - Node's `https` module honors `NODE_EXTRA_CA_CERTS` and the system
- *     keychain, which Obsidian's own `requestUrl()` already proves works.
+ * Why Node's `http` over the socket and not `fetch` / `EventSource`? Neither they nor Obsidian's
+ * `requestUrl()` can dial a Unix socket, and `EventSource` cannot send the `Authorization: Bearer`
+ * header the bridge requires either.
  *
- * Reconnect strategy: exponential backoff with a hard cap so a downed bridge
- * does not produce a tight loop, but recovers quickly when the bridge comes
- * back. Each reconnect emits a single warn log so the developer can see it.
+ * Reconnect strategy: exponential backoff (1 s doubling to a 30 s cap) so a downed bridge does not
+ * produce a tight loop, but recovers quickly when the bridge comes back. A stream that sends nothing
+ * for 60 s (three missed pings) is treated as dead and reconnected. Each reconnect emits a single
+ * warn log so the developer can see it.
  */
-type HttpsModule = typeof import("https");
-type FsModule = typeof import("fs");
-type OsModule = typeof import("os");
-type PathModule = typeof import("path");
-type IncomingMessageT = import("http").IncomingMessage;
-type ClientRequestT = import("http").ClientRequest;
-
-function nodeRequire(): NodeRequire | null {
-  try {
-    return (globalThis as { require?: NodeRequire }).require ?? null;
-  } catch {
-    return null;
-  }
-}
-
-function getHttpsModule(): HttpsModule | null {
-  const req = nodeRequire();
-  if (!req) return null;
-  try {
-    return req("https") as HttpsModule;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Locate and read extra trust anchors so Node's https client accepts the
- * bridge's mkcert-issued certificate. Tries:
- *   1. process.env.NODE_EXTRA_CA_CERTS (Node's standard env hook).
- *   2. The mkcert default root paths for macOS / Linux / Windows.
- *
- * Returns the PEM bundle string, or undefined if no suitable file was found.
- * Cached after the first successful read.
- */
-let cachedExtraCa: string | null | undefined;
-function loadExtraCa(): string | undefined {
-  if (cachedExtraCa !== undefined) {
-    return cachedExtraCa ?? undefined;
-  }
-  const req = nodeRequire();
-  if (!req) {
-    cachedExtraCa = null;
-    return undefined;
-  }
-  let fs: FsModule;
-  let os: OsModule;
-  let path: PathModule;
-  try {
-    fs = req("fs") as FsModule;
-    os = req("os") as OsModule;
-    path = req("path") as PathModule;
-  } catch {
-    cachedExtraCa = null;
-    return undefined;
-  }
-
-  const candidates: string[] = [];
-  const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process
-    ?.env;
-  if (env?.NODE_EXTRA_CA_CERTS) {
-    candidates.push(env.NODE_EXTRA_CA_CERTS);
-  }
-  const home = os.homedir();
-  if (process.platform === "darwin") {
-    candidates.push(path.join(home, "Library/Application Support/mkcert/rootCA.pem"));
-  } else if (process.platform === "win32" && env?.LOCALAPPDATA) {
-    candidates.push(path.join(env.LOCALAPPDATA, "mkcert", "rootCA.pem"));
-  } else {
-    candidates.push(path.join(home, ".local/share/mkcert/rootCA.pem"));
-  }
-
-  for (const candidate of candidates) {
-    try {
-      if (fs.existsSync(candidate)) {
-        cachedExtraCa = fs.readFileSync(candidate, "utf8");
-        return cachedExtraCa;
-      }
-    } catch {
-      // try next
-    }
-  }
-
-  cachedExtraCa = null;
-  return undefined;
-}
 export interface McpEvent {
   type: string;
   stream: string;
@@ -112,8 +30,8 @@ export interface McpEvent {
 export type McpEventHandler = (event: McpEvent) => void;
 
 export interface McpEventClientOptions {
-  /** Bridge base URL, e.g. `https://127.0.0.1:8798`. */
-  endpoint: string;
+  /** The vault bridge's socket, from resolveBridgeSocket. */
+  socket: BridgeSocket;
   /** Bearer token shared with the bridge. */
   authToken: string;
   /** Stream channel to subscribe to (default: `research`). */
@@ -122,14 +40,22 @@ export interface McpEventClientOptions {
   initialBackoffMs?: number;
   /** Maximum backoff in milliseconds (default: 30000). */
   maxBackoffMs?: number;
+  /** A stream with no bytes for this long is dropped and reconnected (default: 60000). */
+  idleTimeoutMs?: number;
 }
 
+/**
+ * Holds at most one SSE subscription to the vault bridge's socket, parses its frames and hands the
+ * events to subscribers, reconnecting with backoff until stop(). Choosing which server to follow is
+ * McpEventBridge's job.
+ */
 export class McpEventClient {
-  private readonly endpoint: string;
+  private readonly socket: BridgeSocket;
   private readonly authToken: string;
   private readonly stream: string;
   private readonly initialBackoffMs: number;
   private readonly maxBackoffMs: number;
+  private readonly idleTimeoutMs: number;
 
   private handlers = new Set<McpEventHandler>();
   private currentRequest?: ClientRequestT;
@@ -139,11 +65,12 @@ export class McpEventClient {
   private stopped = false;
 
   constructor(options: McpEventClientOptions) {
-    this.endpoint = options.endpoint.replace(/\/+$/, "");
+    this.socket = options.socket;
     this.authToken = options.authToken;
     this.stream = options.stream ?? "research";
     this.initialBackoffMs = options.initialBackoffMs ?? 1000;
     this.maxBackoffMs = options.maxBackoffMs ?? 30000;
+    this.idleTimeoutMs = options.idleTimeoutMs ?? 60000;
     this.currentBackoffMs = this.initialBackoffMs;
   }
 
@@ -196,48 +123,41 @@ export class McpEventClient {
     if (this.stopped) {
       return;
     }
-    if (!this.endpoint || !this.authToken) {
-      logWarn("McpEventClient: endpoint or authToken missing; not connecting.");
+    if (!this.authToken) {
+      logWarn("McpEventClient: authToken missing; not connecting.");
       return;
     }
 
-    const https = getHttpsModule();
-    if (!https) {
-      logWarn("McpEventClient: Node 'https' module unavailable; cannot subscribe.");
-      return;
-    }
-
-    let parsed: URL;
+    const path = `/mcp/events?stream=${encodeURIComponent(this.stream)}`;
+    let req: ClientRequestT;
     try {
-      parsed = new URL(`${this.endpoint}/mcp/events?stream=${encodeURIComponent(this.stream)}`);
-    } catch (err) {
-      logWarn(
-        `McpEventClient: invalid endpoint '${this.endpoint}': ${err instanceof Error ? err.message : String(err)}`
+      req = udsOpenStream(
+        this.socket,
+        {
+          path,
+          headers: {
+            Authorization: `Bearer ${this.authToken}`,
+            Accept: "text/event-stream",
+            // Hint to upstream proxies that this is a long-lived stream.
+            "Cache-Control": "no-store",
+          },
+          idleTimeoutMs: this.idleTimeoutMs,
+        },
+        (res: IncomingMessageT) => this.onResponse(req, res)
       );
+    } catch (err) {
+      // Refused before connecting: ENOENT (the bridge is not up yet) or an untrusted socket.
+      logWarn(
+        `McpEventClient: ${err instanceof Error ? err.message : String(err)}; will retry in ${this.currentBackoffMs}ms`
+      );
+      this.scheduleReconnect();
       return;
     }
-
-    const extraCa = loadExtraCa();
-    const req = https.request(
-      {
-        protocol: parsed.protocol,
-        hostname: parsed.hostname,
-        port: parsed.port || (parsed.protocol === "https:" ? 443 : 80),
-        path: `${parsed.pathname}${parsed.search}`,
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${this.authToken}`,
-          Accept: "text/event-stream",
-          // Hint to upstream proxies that this is a long-lived stream.
-          "Cache-Control": "no-store",
-        },
-        // Add the mkcert root CA so we trust the bridge's TLS cert.
-        ...(extraCa ? { ca: extraCa } : {}),
-      },
-      (res: IncomingMessageT) => this.onResponse(res)
-    );
 
     req.on("error", (err: Error) => {
+      if (this.currentRequest !== req) {
+        return;
+      }
       this.currentRequest = undefined;
       this.currentResponse = undefined;
       if (this.stopped) {
@@ -250,10 +170,14 @@ export class McpEventClient {
     });
 
     this.currentRequest = req;
-    req.end();
   }
 
-  private onResponse(res: IncomingMessageT): void {
+  /** `req` is the request this response belongs to; events of a replaced request are ignored. */
+  private onResponse(req: ClientRequestT, res: IncomingMessageT): void {
+    if (this.currentRequest !== req) {
+      res.resume();
+      return;
+    }
     this.currentResponse = res;
     if (res.statusCode && (res.statusCode < 200 || res.statusCode >= 300)) {
       logWarn(
@@ -268,7 +192,9 @@ export class McpEventClient {
       return;
     }
 
-    logInfo(`McpEventClient: connected to ${this.endpoint}/mcp/events?stream=${this.stream}`);
+    logInfo(
+      `McpEventClient: connected to unix:${this.socket.socketPath} /mcp/events?stream=${this.stream}`
+    );
     // Reset backoff on successful connect.
     this.currentBackoffMs = this.initialBackoffMs;
 
@@ -285,6 +211,9 @@ export class McpEventClient {
       }
     });
     res.on("end", () => {
+      if (this.currentRequest !== req) {
+        return;
+      }
       this.currentRequest = undefined;
       this.currentResponse = undefined;
       if (this.stopped) {
@@ -294,6 +223,9 @@ export class McpEventClient {
       this.scheduleReconnect();
     });
     res.on("error", (err: Error) => {
+      if (this.currentRequest !== req) {
+        return;
+      }
       this.currentRequest = undefined;
       this.currentResponse = undefined;
       if (this.stopped) {
@@ -343,7 +275,8 @@ export class McpEventClient {
   }
 
   private scheduleReconnect(): void {
-    if (this.stopped) {
+    // A request and its response can both report one failure; keep a single pending retry.
+    if (this.stopped || this.reconnectTimer) {
       return;
     }
     const delay = this.currentBackoffMs;

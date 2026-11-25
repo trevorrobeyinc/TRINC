@@ -3,6 +3,9 @@ import { Button } from "@/components/ui/button";
 import { SettingItem } from "@/components/ui/setting-item";
 import { Textarea } from "@/components/ui/textarea";
 import { McpToolProvider, type McpServerHealth } from "@/mcp/McpToolProvider";
+import { getMcpSocketMigrationReport } from "@/mcp/socketMigration";
+import type { McpServerConfig } from "@/mcp/types";
+import { resolveBridgeSocket } from "@/mcp/udsClient";
 import { updateSetting, useSettingsValue } from "@/settings/model";
 import React from "react";
 
@@ -29,8 +32,21 @@ function maskValue(value: string, start = 10, end = 6): string {
   return `${value.slice(0, start)}...${value.slice(-end)}`;
 }
 
+/** The socket a server card shows: the resolved path, or why there is none. */
+function describeSocket(server: McpServerConfig): string {
+  if (server.transport !== "uds") {
+    return "None: not a socket entry, never dialled (see Diagnostics)";
+  }
+  try {
+    return resolveBridgeSocket(server).socketPath;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+}
+
 export const McpSettings: React.FC = () => {
   const settings = useSettingsValue();
+  const migration = getMcpSocketMigrationReport();
   const [serversJson, setServersJson] = React.useState(
     JSON.stringify(settings.mcp.servers, null, 2)
   );
@@ -177,7 +193,8 @@ export const McpSettings: React.FC = () => {
                   </Badge>
                 </div>
                 <div className="tw-mt-2 tw-grid tw-gap-1 tw-text-xs tw-text-muted">
-                  <div>Endpoint: {maskValue(server.httpEndpoint, 18, 10)}</div>
+                  <div>Transport: {String(server.transport)}</div>
+                  <div>Socket: {describeSocket(server)}</div>
                   <div>Vault: {maskValue(server.vaultRoot, 18, 10)}</div>
                   <div>Token: {maskValue(server.authToken)}</div>
                   <div>Tools: {server.enabledToolNames.length}</div>
@@ -229,6 +246,28 @@ export const McpSettings: React.FC = () => {
         description="Current health and compatibility status for configured MCP servers."
       >
         <div className="tw-flex tw-w-full tw-flex-col tw-gap-2">
+          {migration.migrated.length > 0 ? (
+            <div className="tw-text-xs tw-text-muted">
+              Moved to Unix sockets on this load:{" "}
+              {migration.migrated
+                .map((entry) => `${entry.displayName || entry.serverId} → ${entry.socketName}`)
+                .join(", ")}
+            </div>
+          ) : null}
+          {migration.unconverted.map((entry) => (
+            <div
+              key={`unconverted-${entry.serverId}`}
+              className="tw-rounded-md tw-border tw-border-solid tw-border-border tw-p-3"
+            >
+              <div className="tw-flex tw-items-center tw-justify-between tw-gap-2">
+                <div className="tw-font-medium">{entry.displayName || entry.serverId}</div>
+                <Badge variant="secondary" className="tw-text-warning">
+                  Not converted
+                </Badge>
+              </div>
+              <div className="tw-mt-1 tw-text-xs tw-text-muted">{entry.reason}</div>
+            </div>
+          ))}
           {healthStatuses.length === 0 ? (
             <div className="tw-text-xs tw-text-muted">
               {settings.mcp.enabled

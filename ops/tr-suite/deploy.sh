@@ -16,8 +16,10 @@
 #   1. refuses a target that holds a .git (a dev repo is not a deploy target)
 #   2. backs the live deploy files up to ~/.claude/backups/tr-suite/<UTC stamp>/<id>/
 #   3. a target that is a SYMLINK is replaced by a real folder (its data.json carried over)
-#   4. copies only the registry's deploy files — data.json (plugin settings) is never written
-#   5. re-reads every copied file and checks its sha256 against the source
+#   4. copies only the registry's deploy files — data.json (plugin settings) is never written.
+#      A copy is 0755 when its source is executable, else 0644 (opencode execs the deployed
+#      openclaw-stdio-proxy.mjs directly; until bridges-uds, 2026-11-24, every copy was 0644)
+#   5. re-reads every copied file and checks its sha256 and executable bit against the source
 #
 # Every protected plugin (copilot, command-center, trinc-viz-studio, obsidian-bridge-launcher,
 # vault-zettelkasten, contextual-wiki-definitions, ...) raises a CRITICAL obsidianwatch
@@ -49,6 +51,9 @@ plugins_dir = os.path.join(vault, ".obsidian/plugins")
 def sha(p):
     with open(p, "rb") as f:
         return hashlib.sha256(f.read()).hexdigest()
+
+def executable(p):
+    return bool(os.stat(p).st_mode & 0o111)
 
 def deployable(p):
     return "external" not in p and p.get("deployed") is not False
@@ -96,13 +101,16 @@ for pid in ids:
     if os.path.isdir(os.path.join(dep, ".git")):
         print(f"[FAIL] {pid}: target holds a dev .git — move it out first; history belongs in the monorepo"); errors += 1; continue
     is_link = os.path.islink(dep)
-    todo = [(a, rel) for a, rel in pairs if is_link or not os.path.isfile(os.path.join(dep, rel)) or sha(a) != sha(os.path.join(dep, rel))]
+    # A file is out of date when its bytes differ or its executable bit does (same bytes, wrong mode).
+    todo = [(a, rel) for a, rel in pairs if is_link or not os.path.isfile(os.path.join(dep, rel))
+            or sha(a) != sha(os.path.join(dep, rel)) or executable(a) != executable(os.path.join(dep, rel))]
     if is_link:
         print(f"   target is a SYMLINK to {os.path.realpath(dep)} — will become a real folder")
     if not todo:
         print(f"[PASS] {pid}: already identical to source"); continue
     for a, rel in todo:
-        print(f"   {'copy' if apply else 'would copy'} {rel}  ({os.path.getsize(a):,} bytes, sha {sha(a)[:12]})")
+        mode_note = ", mode 0755" if executable(a) else ""
+        print(f"   {'copy' if apply else 'would copy'} {rel}  ({os.path.getsize(a):,} bytes, sha {sha(a)[:12]}{mode_note})")
     if not apply:
         changed.append(pid); continue
 
@@ -130,11 +138,11 @@ for pid in ids:
     for a, rel in todo:
         out = os.path.join(dep, rel)
         shutil.copyfile(a, out)
-        os.chmod(out, 0o644)
-        if sha(out) != sha(a):
+        os.chmod(out, 0o755 if executable(a) else 0o644)
+        if sha(out) != sha(a) or executable(out) != executable(a):
             bad.append(rel)
     if bad:
-        print(f"[FAIL] {pid}: sha256 mismatch after copy: {bad} — backup at {bdir}"); errors += 1
+        print(f"[FAIL] {pid}: sha256 or mode mismatch after copy: {bad} — backup at {bdir}"); errors += 1
     else:
         print(f"[DONE] {pid}: {len(todo)} file(s) deployed and verified; backup at {bdir}")
         changed.append(pid)

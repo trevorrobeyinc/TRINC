@@ -268,7 +268,10 @@ export interface OpenClawSettings {
   miyoIndexPollIntervalMs: number;
   miyoSearchRetries: number;
   enableCopilotBridge: boolean;
-  bridgePort: number;
+  // (bridgePort removed 2026-11-24, bridges-uds: the bridge serves the Unix socket
+  // ~/.local/state/trinc/run/command-center.sock and never a TCP port. A value still
+  // stored in data.json is ignored and NOT scrubbed: code does not rewrite
+  // operator-owned settings for this.)
   // (bridgeToken removed 2026-08-20: the bearer token lives ONLY in the 0600
   // file ~/.config/openclaw-command-center/bridge-token — it must never return
   // to data.json, which Obsidian persists world-readably with .bak copies.

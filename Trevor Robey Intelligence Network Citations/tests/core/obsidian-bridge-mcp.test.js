@@ -10,21 +10,29 @@ function quietLogger() {
   return { warns, info() {}, warn(m) { warns.push(String(m)); }, error() {} };
 }
 
-/** A fetch stub for the :8798 bridge: answers health + the two read tools. */
-function bridgeFetch({ up = true, semantic = [], fullText = [] } = {}) {
+/**
+ * A fake for the adapter's bridge transport (by default the vault bridge's Unix socket): answers
+ * health + the two read tools. `up: false` fails the way a missing socket does with Obsidian closed.
+ */
+function fakeBridge({ up = true, semantic = [], fullText = [] } = {}) {
   const calls = [];
-  const impl = async (url, init) => {
-    const body = JSON.parse(init.body);
+  const transport = async (request) => {
+    const body = JSON.parse(request.body);
     calls.push(body.tool);
-    if (!up) throw new Error("ECONNREFUSED 127.0.0.1:8798");
-    const respond = (data) => ({ ok: true, status: 200, json: async () => ({ ok: true, data }) });
+    if (!up) {
+      throw Object.assign(
+        new Error("/tmp/uds-test/.local/state/trinc/run/vault-bridge.sock does not exist (bridge not running)"),
+        { code: "ENOENT" }
+      );
+    }
+    const respond = (data) => ({ status: 200, json: { ok: true, data } });
     if (body.tool === "obsidian_health") return respond({ ok: true });
     if (body.tool === "miyo_search_context") return respond({ results: semantic });
     if (body.tool === "obsidian_search_notes") return respond({ matches: fullText });
-    return { ok: false, status: 404, json: async () => ({ ok: false, error: { message: "unknown" } }) };
+    return { status: 404, json: { ok: false, error: { message: "unknown" } } };
   };
-  impl.calls = calls;
-  return impl;
+  transport.calls = calls;
+  return transport;
 }
 
 const MIYO_RESULTS = [
@@ -36,10 +44,10 @@ const MIYO_RESULTS = [
 
 describe("obsidian-bridge-mcp — Miyo-direct read-back", () => {
   it("answers from Miyo with Obsidian closed, filtered to research markdown, every record context_only", async () => {
-    const fetchImpl = bridgeFetch({ up: false });
+    const bridgeTransport = fakeBridge({ up: false });
     const mcp = createObsidianBridgeMcp({
       logger: quietLogger(),
-      fetchImpl,
+      bridgeTransport,
       authToken: "t",
       miyoRequest: async (url, body) => {
         assert.equal(url, "https://127.0.0.1:8743/v0/search");
@@ -58,15 +66,15 @@ describe("obsidian-bridge-mcp — Miyo-direct read-back", () => {
     }
     assert.equal(records[0].text, "prior run text PMID: 25176015");
     assert.equal(records[0].score, 0.7);
-    assert.deepEqual(fetchImpl.calls, [], "the bridge was never consulted");
+    assert.deepEqual(bridgeTransport.calls, [], "the bridge was never consulted");
   });
 
-  it("falls back to the :8798 bridge when Miyo is unreachable, still context_only", async () => {
-    const fetchImpl = bridgeFetch({ up: true, semantic: [{ path: "OpenClaw/x/Analyst.md", chunk_text: "bridge semantic hit", score: 0.5 }] });
+  it("falls back to the vault bridge when Miyo is unreachable, still context_only", async () => {
+    const bridgeTransport = fakeBridge({ up: true, semantic: [{ path: "OpenClaw/x/Analyst.md", chunk_text: "bridge semantic hit", score: 0.5 }] });
     const logger = quietLogger();
     const mcp = createObsidianBridgeMcp({
       logger,
-      fetchImpl,
+      bridgeTransport,
       authToken: "t",
       miyoRequest: async () => { throw new Error("ECONNREFUSED 127.0.0.1:8743"); }
     });
@@ -74,15 +82,15 @@ describe("obsidian-bridge-mcp — Miyo-direct read-back", () => {
     assert.equal(records.length, 1);
     assert.equal(records[0].path, "OpenClaw/x/Analyst.md");
     assert.equal(records[0].context_only, true);
-    assert.deepEqual(fetchImpl.calls, ["obsidian_health", "miyo_search_context"]);
+    assert.deepEqual(bridgeTransport.calls, ["obsidian_health", "miyo_search_context"]);
     assert.ok(logger.warns.some((w) => /miyo-direct unavailable/.test(w)));
   });
 
   it("falls through semantic → full-text on the bridge, and returns [] when everything is down", async () => {
-    const fetchImpl = bridgeFetch({ up: true, semantic: [], fullText: [{ path: "OpenClaw/y/Scout.md", text: "full-text hit" }] });
+    const bridgeTransport = fakeBridge({ up: true, semantic: [], fullText: [{ path: "OpenClaw/y/Scout.md", text: "full-text hit" }] });
     const mcp = createObsidianBridgeMcp({
       logger: quietLogger(),
-      fetchImpl,
+      bridgeTransport,
       authToken: "t",
       miyoRequest: async () => ({ status: 200, json: { results: [] } })
     });
@@ -93,7 +101,7 @@ describe("obsidian-bridge-mcp — Miyo-direct read-back", () => {
 
     const dark = createObsidianBridgeMcp({
       logger: quietLogger(),
-      fetchImpl: bridgeFetch({ up: false }),
+      bridgeTransport: fakeBridge({ up: false }),
       authToken: "t",
       miyoRequest: async () => { throw new Error("down"); }
     });
@@ -104,7 +112,7 @@ describe("obsidian-bridge-mcp — Miyo-direct read-back", () => {
   it("ignores non-200 / malformed Miyo answers and refuses a plaintext Miyo url", async () => {
     const mcp = createObsidianBridgeMcp({
       logger: quietLogger(),
-      fetchImpl: bridgeFetch({ up: false }),
+      bridgeTransport: fakeBridge({ up: false }),
       authToken: "t",
       miyoRequest: async () => ({ status: 500, json: null })
     });
@@ -112,7 +120,7 @@ describe("obsidian-bridge-mcp — Miyo-direct read-back", () => {
 
     const plaintext = createObsidianBridgeMcp({
       logger: quietLogger(),
-      fetchImpl: bridgeFetch({ up: false }),
+      bridgeTransport: fakeBridge({ up: false }),
       authToken: "t",
       miyoUrl: "http://127.0.0.1:8742"
     });
@@ -121,12 +129,15 @@ describe("obsidian-bridge-mcp — Miyo-direct read-back", () => {
   });
 
   it("writes stay opt-in (allowWrites=false by default)", async () => {
-    const mcp = createObsidianBridgeMcp({ logger: quietLogger(), fetchImpl: bridgeFetch({ up: true }), authToken: "t" });
+    const mcp = createObsidianBridgeMcp({ logger: quietLogger(), bridgeTransport: fakeBridge({ up: true }), authToken: "t" });
     const r = await mcp.createNote({ notePath: "OpenClaw/x.md", content: "y" });
     assert.equal(r.ok, false);
     assert.match(r.error, /writes disabled/);
     assert.equal(mcp._spec.allowWrites, false);
     assert.equal(mcp._spec.miyoUrl, "https://127.0.0.1:8743");
     assert.deepEqual([...mcp._spec.miyoPathPrefixes], ["OpenClaw/", "Research-Output/"]);
+    // The bridge is named by its socket, never by a URL (bridges-uds, 2026-11-24).
+    assert.equal(mcp._spec.bridgeSocket, "vault-bridge.sock");
+    assert.equal("bridgeUrl" in mcp._spec, false);
   });
 });

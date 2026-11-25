@@ -2,7 +2,10 @@
 #
 # verify.sh — checks that every TR-suite component in ops/tr-suite/manifest.json
 # is wired to this monorepo: source present, deployed build == source build,
-# MCP registrations resolve, no nested repos, no secrets tracked.
+# MCP registrations resolve, no nested repos, no secrets tracked, and the three
+# bridges' Unix-socket pieces in step (bridges-uds, 2026-11-24): helper and
+# client-block copies identical, one socket path rule in every client, a
+# bridges-uds build of the vault bridge, an executable deployed stdio proxy.
 #
 # Read-only. Safe to run any time, from any directory:
 #   bash /Users/myhome/TRINC/ops/tr-suite/verify.sh
@@ -108,8 +111,9 @@ for b in m["bridges"]:
         say("PASS" if r.returncode == 0 else "FAIL", f"{b['id']}: {lo} is git-ignored")
 
 print("== Bridge browser guard")
-# The :8798, :8799 and :8800 bridges refuse browser-originated requests before auth with one helper,
-# kept as three byte-identical copies (each bridge is its own deployable). Added 2026-10-24.
+# The three bridges (vault-bridge.sock, command-center.sock, viz-studio.sock) refuse browser-originated
+# requests before auth with one helper, kept as three byte-identical copies (each bridge is its own
+# deployable). Added 2026-10-24; the messages named :8798/:8799/:8800 until bridges-uds (2026-11-24).
 guards = [
     "Copilot-Everything/bridges/obsidian-copilot-bridge/src/server/browserGuard.ts",
     "Claude/obsidian-command-center/src/bridge/browser-guard.ts",
@@ -122,15 +126,147 @@ if not missing:
     same = len({sha(os.path.join(repo, g)) for g in guards}) == 1
     say("PASS" if same else "FAIL",
         "browser guard copies are byte-identical" if same else "browser guard copies DIFFER — keep the three in step")
-for path_, port in [
-    ("Copilot-Everything/bridges/obsidian-copilot-bridge/src/server/httpCommon.ts", ":8798"),
-    ("Claude/obsidian-command-center/src/bridge/mcp-bridge-server.ts", ":8799"),
-    ("Claude/obsidian-viz-studio/src/bridge/bridge-server.ts", ":8800"),
+for path_, label in [
+    ("Copilot-Everything/bridges/obsidian-copilot-bridge/src/server/httpCommon.ts", "vault bridge (vault-bridge.sock)"),
+    ("Claude/obsidian-command-center/src/bridge/mcp-bridge-server.ts", "Command Center bridge (command-center.sock)"),
+    ("Claude/obsidian-viz-studio/src/bridge/bridge-server.ts", "Viz Studio bridge (viz-studio.sock)"),
 ]:
     full = os.path.join(repo, path_)
     text = open(full).read() if os.path.isfile(full) else ""
     wired = "refuseBrowserRequest(req.headers" in text and "Access-Control-Allow-Origin" not in text
-    say("PASS" if wired else "FAIL", f"{port} bridge runs the browser guard and sends no CORS headers")
+    say("PASS" if wired else "FAIL", f"{label} runs the browser guard and sends no CORS headers")
+
+print("== Bridge sockets (bridges-uds)")
+# Since 2026-11-24 the three bridges serve plain HTTP/1.1 on Unix sockets in <home>/.local/state/trinc/run and
+# listen on no TCP port. The pieces below must stay in step; nothing here reads the run directory.
+# (a) The server helper: one file, three byte-identical copies (the same pattern as the browser guard).
+helpers = [
+    "Claude/obsidian-command-center/src/bridge/uds-listener.ts",
+    "Claude/obsidian-viz-studio/src/bridge/uds-listener.ts",
+    "Copilot-Everything/bridges/obsidian-copilot-bridge/src/server/udsListener.ts",
+]
+missing = [h for h in helpers if not os.path.isfile(os.path.join(repo, h))]
+for h in missing:
+    say("FAIL", f"socket helper missing: {h}")
+if not missing:
+    same = len({sha(os.path.join(repo, h)) for h in helpers}) == 1
+    say("PASS" if same else "FAIL",
+        "socket helper copies are byte-identical" if same else "socket helper copies DIFFER — keep the three in step")
+
+# (b) The JavaScript clients carry one block, "bridges-uds client v1": the text between its BEGIN and END lines
+# must be byte-identical in all four files. A file without the block is named.
+BLOCK_BEGIN, BLOCK_END = b"// BEGIN bridges-uds client v1", b"// END bridges-uds client v1"
+block_files = [
+    "Copilot-Everything/bridges/openclaw-stdio-proxy/index.mjs",
+    "Copilot-Everything/bridges/obsidian-stdio-adapter/index.mjs",
+    "Trevor Robey Intelligence Network Citations/openclaw-bridge/mcp/base-mcp.js",
+    "Copilot-Everything/scripts/mcp-health-check.js",
+]
+blocks = {}
+for rel in block_files:
+    full = os.path.join(repo, rel)
+    if not os.path.isfile(full):
+        say("FAIL", f"client v1 block: {rel} is missing"); continue
+    lines = open(full, "rb").read().split(b"\n")
+    begins = [i for i, line in enumerate(lines) if line == BLOCK_BEGIN]
+    ends = [i for i, line in enumerate(lines) if line == BLOCK_END]
+    if not begins and not ends:
+        say("FAIL", f"client v1 block: {rel} lacks the block (paste it verbatim between its BEGIN and END lines)")
+    elif len(begins) != 1 or len(ends) != 1 or ends[0] < begins[0]:
+        say("FAIL", f"client v1 block: {rel} has {len(begins)} BEGIN and {len(ends)} END line(s); want one of each, BEGIN first")
+    else:
+        blocks[rel] = b"\n".join(lines[begins[0] + 1:ends[0]])
+if len(blocks) > 1:
+    digests = {rel: hashlib.sha256(text).hexdigest()[:12] for rel, text in blocks.items()}
+    same = len(set(digests.values())) == 1
+    say("PASS" if same else "FAIL",
+        f"client v1 block is byte-identical in the {len(blocks)} files that carry it" if same
+        else "client v1 block DIFFERS (" + ", ".join(f"{rel} {d}" for rel, d in digests.items()) + ") — paste it verbatim")
+
+# (c) One socket path rule in every client: <home>/.local/state/trinc/run/<name>. Each client spells the four
+# path segments and its socket names as string literals; the adapter (Claude's door to Command Center and Viz
+# Studio) must not name the vault bridge's socket at all. The engine's name may sit in base-mcp.js or in its
+# caller obsidian-bridge-mcp/index.js; the launcher's in any of its src/ files.
+SEGMENTS = [".local", "state", "trinc", "run"]
+def literal(text, word):
+    return re.search(r"([\"'])" + re.escape(word) + r"\1", text) is not None
+launcher_src = "Claude/obsidian-bridge-launcher/src"
+launcher_files = sorted(
+    os.path.relpath(os.path.join(d, fn), repo)
+    for d, _, files in os.walk(os.path.join(repo, launcher_src))
+    for fn in files
+    if fn.endswith(".ts") and not fn.endswith((".test.ts", ".spec.ts"))
+)
+engine_mcp = "Trevor Robey Intelligence Network Citations/openclaw-bridge/mcp"
+path_rule = [
+    ("stdio adapter", ["Copilot-Everything/bridges/obsidian-stdio-adapter/index.mjs"],
+     ["command-center.sock", "viz-studio.sock"], ["vault-bridge.sock"]),
+    ("stdio proxy", ["Copilot-Everything/bridges/openclaw-stdio-proxy/index.mjs"],
+     ["command-center.sock", "viz-studio.sock"], []),
+    ("Copilot fork udsClient.ts", ["Copilot-Everything/repos/obsidian-copilot-mcp-v4/src/mcp/udsClient.ts"],
+     ["vault-bridge.sock", "command-center.sock", "viz-studio.sock"], []),
+    ("engine base-mcp.js", [f"{engine_mcp}/base-mcp.js", f"{engine_mcp}/obsidian-bridge-mcp/index.js"],
+     ["vault-bridge.sock"], []),
+    (f"bridge launcher ({launcher_src})", launcher_files, ["vault-bridge.sock"], []),
+]
+for label, rels, names, forbidden in path_rule:
+    present = [r for r in rels if os.path.isfile(os.path.join(repo, r))]
+    if not present:
+        say("FAIL", f"socket path rule: {label}: source missing"); continue
+    text = "\n".join(open(os.path.join(repo, r), encoding="utf-8", errors="replace").read() for r in present)
+    problems = []
+    lacking = [w for w in SEGMENTS + names if not literal(text, w)]
+    if lacking:
+        problems.append("lacks the literal(s) " + ", ".join(f'"{w}"' for w in lacking))
+    named = [w for w in forbidden if w in text]
+    if named:
+        problems.append("names " + ", ".join(named) + ", which it must never reach")
+    say("FAIL" if problems else "PASS",
+        f"socket path rule: {label}: " + ("; ".join(problems) if problems else "run-dir segments and " + ", ".join(names)))
+
+# (d) The vault bridge runs from its dist, built in place in its package (deploy.sh does not deploy it). A dist
+# from before bridges-uds still carries the TCP listener and the old socket path: the launcher refuses it.
+vb = next((b for b in m["bridges"] if b["id"] == "obsidian-copilot-bridge"), None)
+if vb is None:
+    say("FAIL", "manifest.json has no obsidian-copilot-bridge bridge entry")
+else:
+    pkg = os.path.join(repo, vb["source"])
+    dist = os.path.join(pkg, "dist")
+    problems = []
+    if not os.path.isfile(os.path.join(dist, "server", "udsListener.js")):
+        problems.append("dist lacks server/udsListener.js")
+    if os.path.lexists(os.path.join(dist, "server", "httpTransport.js")):
+        problems.append("dist still holds server/httpTransport.js (the removed TCP listener)")
+    built, src_index = os.path.join(dist, "index.js"), os.path.join(pkg, "src", "index.ts")
+    if not os.path.isfile(built):
+        problems.append("dist has no index.js")
+    elif os.path.isfile(src_index) and os.path.getmtime(built) < os.path.getmtime(src_index):
+        problems.append("dist/index.js is older than src/index.ts")
+    say("FAIL" if problems else "PASS", "obsidian-copilot-bridge: " + (
+        "; ".join(problems) + f" — run `rm -rf dist && npm run build` in {vb['source']}" if problems
+        else "dist is a bridges-uds build (server/udsListener.js, no server/httpTransport.js, index.js newer than src/index.ts)"))
+
+# (e) opencode execs the deployed stdio proxy directly, so it must stay executable. deploy.sh keeps a source's
+# executable bit since bridges-uds; before that it wrote every file 0644.
+PROXY_SRC = "Copilot-Everything/bridges/openclaw-stdio-proxy/index.mjs"
+cp = next((p for p in m["obsidian_plugins"] if p["id"] == "copilot"), {})
+xd = next((x for x in cp.get("extra_deploy", []) if x["from"] == PROXY_SRC), None)
+if xd is None:
+    say("FAIL", f"manifest.json: copilot has no extra_deploy entry for {PROXY_SRC}")
+elif not vault_ok:
+    say("SKIP", "deployed stdio proxy not checked (vault plugins dir not reachable)")
+else:
+    live = os.path.join(plugins_dir, cp["id"], xd["to"])
+    if not os.path.isfile(live):
+        say("WARN", f"copilot: {xd['to']} is not deployed")
+    else:
+        mode = os.stat(live).st_mode & 0o777
+        src = os.path.join(repo, PROXY_SRC)
+        src_mode = f"{os.stat(src).st_mode & 0o777:04o}" if os.path.isfile(src) else "missing"
+        ok = bool(mode & 0o100)
+        say("PASS" if ok else "FAIL", f"copilot: deployed {xd['to']} " + (
+            f"is executable ({mode:04o})" if ok
+            else f"is NOT executable ({mode:04o}; source {src_mode}): opencode execs it directly — redeploy with deploy.sh, which keeps the source's executable bit"))
 
 print("== MCP registrations")
 for cfg in [".mcp.json", "Copilot-Everything/.mcp.json"]:

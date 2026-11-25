@@ -15,6 +15,7 @@
 
 import type { McpServer } from "@agentclientprotocol/sdk";
 import type { McpServerConfig, McpSettings } from "@/mcp/types";
+import { resolveBridgeSocket, type BridgeSocket } from "@/mcp/udsClient";
 
 /** See AGENTS.md → "Referential stability". */
 const EMPTY_ACP_MCP_SERVERS: readonly McpServer[] = Object.freeze([]);
@@ -23,13 +24,13 @@ const EMPTY_ACP_MCP_SERVERS: readonly McpServer[] = Object.freeze([]);
  * Bridges that implement MCP JSON-RPC (`initialize` / `tools/list` / `tools/call`) over HTTP and
  * can therefore complete an agent's MCP handshake.
  *
- * The Command Center bridge (:8799) does, and its catalog already covers both the OpenClaw
- * workflow tools and the standard `obsidian_*` vault tools. The Viz Studio bridge (:8800,
- * trinc-viz-studio plugin) does too — 6 `viz_*` visualization tools, JSON-RPC verified live
- * 2026-08-16. The canonical bridge (:8798) does NOT — it serves a custom REST surface
- * (`/mcp/tool`, `/mcp/events`, `/healthz`) with no JSON-RPC handler, so declaring it would hand
- * the agent an endpoint whose handshake fails. Add an id here only after confirming that
- * endpoint answers `tools/list`.
+ * The Command Center bridge (command-center.sock) does, and its catalog already covers both the
+ * OpenClaw workflow tools and the standard `obsidian_*` vault tools. The Viz Studio bridge
+ * (viz-studio.sock, trinc-viz-studio plugin) does too — 6 `viz_*` visualization tools, JSON-RPC
+ * verified live 2026-08-16. The vault bridge (vault-bridge.sock) does NOT — it serves a custom REST
+ * surface (`/mcp/tool`, `/mcp/events`, `/healthz`) with no JSON-RPC handler, so declaring it would
+ * hand the agent an endpoint whose handshake fails. Add an id here only after confirming that
+ * bridge answers `tools/list`.
  */
 const ACP_MCP_CAPABLE_SERVER_IDS: ReadonlySet<string> = new Set(["command-center", "viz-studio"]);
 
@@ -45,14 +46,20 @@ const OPENCLAW_STDIO_PROXY_FILE = "openclaw-stdio-proxy.mjs";
  */
 const NODE_PATH_CANDIDATES = ["/opt/homebrew/bin", "/usr/local/bin"];
 
-/** `true` when this configured server can serve an agent's MCP handshake over HTTP. */
-function isAcpRoutable(server: McpServerConfig): boolean {
-  return (
-    server.enabled &&
-    server.transport === "http" &&
-    ACP_MCP_CAPABLE_SERVER_IDS.has(server.id) &&
-    server.httpEndpoint.trim().length > 0
-  );
+/**
+ * The bridge socket of a configured server that can serve an agent's MCP handshake: an enabled
+ * "uds" entry of a JSON-RPC bridge whose socket resolves. Null otherwise; an "http" entry is never
+ * routed.
+ */
+function acpRoutableSocket(server: McpServerConfig): BridgeSocket | null {
+  if (!server.enabled || server.transport !== "uds" || !ACP_MCP_CAPABLE_SERVER_IDS.has(server.id)) {
+    return null;
+  }
+  try {
+    return resolveBridgeSocket(server);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -60,7 +67,7 @@ function isAcpRoutable(server: McpServerConfig): boolean {
  *
  * @param mcp - Persisted MCP settings; when MCP is disabled the result is empty.
  * @param pluginDir - Absolute path of this plugin's directory, where the stdio proxy is deployed.
- * @returns One stdio entry per routable bridge, carrying its endpoint and bearer token in env.
+ * @returns One stdio entry per routable bridge, carrying its socket path and bearer token in env.
  */
 export function acpMcpServersFromSettings(
   mcp: McpSettings | undefined,
@@ -70,22 +77,21 @@ export function acpMcpServersFromSettings(
 
   const servers: McpServer[] = [];
   for (const server of mcp.servers ?? []) {
-    if (!isAcpRoutable(server)) continue;
+    const socket = acpRoutableSocket(server);
+    if (!socket) continue;
     // Stdio, not http: the bridge answers JSON-RPC with `application/json`, while opencode's
     // remote-MCP client speaks HTTP+SSE and rejects that ("Invalid content type, expected
     // text/event-stream"). Stdio is the baseline transport every MCP client supports, so the
-    // proxy sidesteps transport negotiation entirely and forwards frames verbatim.
+    // proxy sidesteps transport negotiation entirely and forwards frames verbatim. The proxy
+    // checks the socket itself before it sends the token (bridges-uds client v1).
     const env = [
-      { name: "OPENCLAW_BRIDGE_URL", value: server.httpEndpoint.trim() },
+      { name: "OPENCLAW_BRIDGE_SOCKET", value: socket.socketPath },
       { name: "OPENCLAW_BRIDGE_TOKEN", value: server.authToken },
       {
         name: "PATH",
         value: [...NODE_PATH_CANDIDATES, process.env.PATH ?? ""].filter(Boolean).join(":"),
       },
     ];
-    if (process.env.NODE_EXTRA_CA_CERTS) {
-      env.push({ name: "NODE_EXTRA_CA_CERTS", value: process.env.NODE_EXTRA_CA_CERTS });
-    }
     servers.push({
       name: server.id,
       command: `${pluginDir}/${OPENCLAW_STDIO_PROXY_FILE}`,

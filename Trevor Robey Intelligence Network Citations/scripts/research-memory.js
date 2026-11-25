@@ -6,12 +6,12 @@
  * (openclaw-bridge/mcp/research-memory-mcp/index.js), which is a thin client of the pack store's
  * own CLI (Claude/trevorobeyinc-research-memory-mcp/dist/cli.js) over the :6433 HTTPS proxy.
  *
- * WHY THIS EXISTS. The Command Center bridge (:8799) exposes research-memory search to Copilot
- * agent chat by spawning THIS script, not the pack store's CLI directly, so the one gate that
- * decides whether the store may be touched — `config/vault-publish.json` → `researchMemory.enabled`
- * — is honoured from every surface. While it is false, `search` reports `enabled:false` with the
- * operator's action instead of embedding the query (which would download the store's embedding
- * model from huggingface.co on first use).
+ * WHY THIS EXISTS. The Command Center bridge (command-center.sock) exposes research-memory search
+ * to Copilot agent chat by spawning THIS script, not the pack store's CLI directly, so the one
+ * gate that decides whether the store may be touched — `config/vault-publish.json` →
+ * `researchMemory.enabled` — is honoured from every surface. While it is false, `search` reports
+ * `enabled:false` with the operator's action instead of embedding the query (which would download
+ * the store's embedding model from huggingface.co on first use).
  *
  * Usage:
  *   node scripts/research-memory.js search --query "<text>" [--limit N] [--json]

@@ -10,7 +10,6 @@ export const DEFAULT_SETTINGS: BridgeLauncherSettings = {
     "/Users/myhome/TRINC/Copilot-Everything/bridges/obsidian-copilot-bridge/config/obsidian-cli-mcp.local.json",
   caCertPath:
     "/Users/myhome/Library/Application Support/mkcert/rootCA.pem",
-  bridgePort: 8798,
   shutdownTimeoutMs: 5000,
   staleProcessKillEnabled: true,
   consoleBufferSize: 500,
@@ -19,4 +18,5 @@ export const DEFAULT_SETTINGS: BridgeLauncherSettings = {
 
 export const BRIDGE_IPC_FD = 3;
 
-export const HEALTHZ_TIMEOUT_MS = 4000;
+/** Timeout of each readiness request (GET /healthz over vault-bridge.sock). */
+export const HEALTHZ_TIMEOUT_MS = 2000;

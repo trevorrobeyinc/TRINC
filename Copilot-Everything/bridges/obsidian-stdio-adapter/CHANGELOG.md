@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.7.0 — 2026-11-24 — the bridges move to Unix sockets (bridges-uds)
+
+Command Center and Viz Studio stopped listening on TCP (`:8799`, `:8800`) and dropped mkcert TLS. They
+serve the same routes, bodies and bearer tokens as plain HTTP/1.1 on `command-center.sock` and
+`viz-studio.sock` in `<home>/.local/state/trinc/run` (run directory 0700, sockets 0600). Tool names and
+input schemas are byte-identical; the `openclaw` surface is unchanged (27 tools).
+
+- **Changed:** every request goes through the byte-identical "bridges-uds client v1" block. It checks the
+  exact socket path, the directory chain from home down and the socket before it connects, pins the
+  connection to the socket, and leaves no code path that can dial TCP. The socket paths come from
+  `os.homedir()`. The block passes each request's `timeout` option to the socket it connects, so the
+  option arms the idle timer by itself; the `req.setTimeout` each request also calls re-arms the same
+  timer, belt and braces.
+- **Removed:** the mkcert CA requirement (`NODE_EXTRA_CA_CERTS` is no longer read), the https agent and the
+  `tls_trust_failed` code.
+- **Removed:** the test-only `OBSIDIAN_STDIO_COMMAND_CENTER_URL` and `OBSIDIAN_STDIO_VIZ_URL` overrides. If
+  either one is set, the adapter now refuses to start.
+- **Changed:** `obsidian_not_running` also covers a missing run directory or socket (`ENOENT`), which is
+  what a closed Obsidian looks like now; a stale socket left by a crash (`ECONNREFUSED`) and a missing
+  token still map there, and the message names the socket instead of a port. A refused socket
+  (`SOCKET_UNTRUSTED`, `SOCKET_PATH_TOO_LONG`, `EACCES`, `EPERM`, `ENOTSOCK`) goes through
+  `socketRefusalCode`, which answers `adapter_error` (the operator's decision, approval (i), 2026-11-25) and writes one
+  `socket_refused` line to stderr.
+- **Changed (listing):** two descriptions only. `obsidian_health` says "(Command Center socket)" instead of
+  "(:8799)", and the Viz stubs say "(Viz Studio socket)" instead of "(:8800)".
+- **Changed:** the per-call stderr label is `upstream=command-center|viz-studio` (was `8799|8800`), and the
+  startup health probe logs `unix:<socket path>`.
+- **Tests:** the offline cases run on temporary `/tmp/uds-*` homes. A missing token, run directory or
+  socket and a stale socket give `obsidian_not_running`; a 0755 run directory is refused; a fake bridge
+  (`test/fake-bridge.mjs`) checks the request heads, the pass-through, the live Viz stripping and a hung
+  Viz `tools/list`; static checks ban an https or tls import, a CA, a TCP endpoint, and the vault bridge's
+  socket name and lower-case headers. 62 offline checks; the live checks run after the deploy.
+
 ## 0.6.0 — 2026-11-21 — the `raycast` profile is retired; one profile, one client
 
 Operator decision, 2026-11-21: Raycast is removed, and the video workflows run from the Copilot

@@ -1,18 +1,20 @@
 import type { Operation } from "../types";
 
-export type TransportMode = "http" | "uds" | "pipe";
+/**
+ * The transports the bridge serves on: its Unix socket on macOS/Linux, a named pipe on Windows.
+ * The TCP transport ("http", alias "https") was removed on 2026-11-24 (bridges-uds); the loader
+ * refuses it as the effective mode.
+ */
+export type TransportMode = "uds" | "pipe";
 
 export interface ServerConfig {
   transport: {
     mode: TransportMode;
     host: string;
     port: number;
+    /** Always socketPathFor("vault-bridge.sock"), set by the loader; a configured value is ignored. */
     udsPath: string;
     pipeName: string;
-    tls?: {
-      certPath: string;
-      keyPath: string;
-    };
   };
   cliStability: {
     requiredVaultNames: string[];

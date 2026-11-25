@@ -69,6 +69,9 @@ fi
 obsidian "vault=$TARGET_VAULT_NAME" dev:debug on >/dev/null 2>&1 || true
 obsidian "vault=$TARGET_VAULT_NAME" dev:console clear >/dev/null 2>&1 || true
 
+# The runtime object copies only the plugin settings the checks below read. Of the mcp block that is mcp.enabled and
+# mcp.confirmationPolicy: mcp.servers[] holds every bridge's bearer token (authToken), so the block is never copied
+# whole (bridges-uds review, 2026-11-24). No // comments inside the code: START_CODE is joined into one line below.
 START_CODE="$(cat <<EOF
 (() => {
   const plugin = app.plugins.plugins["$OFFICIAL_PLUGIN_ID"];
@@ -118,7 +121,12 @@ START_CODE="$(cat <<EOF
         miyoVaultName: rawData.miyoVaultName ?? null,
         miyoServerUrl: rawData.miyoServerUrl ?? null,
         autonomousAgentEnabledToolIds: rawData.autonomousAgentEnabledToolIds ?? [],
-        mcp: rawData.mcp ?? null,
+        mcp: rawData.mcp
+          ? {
+              enabled: rawData.mcp.enabled ?? null,
+              confirmationPolicy: rawData.mcp.confirmationPolicy ?? null,
+            }
+          : null,
         baseUrl,
         sourceId,
         headerProbe: {
@@ -153,7 +161,15 @@ START_CODE="${START_CODE//$'\n'/ }"
 obsidian "vault=$TARGET_VAULT_NAME" eval "code=$START_CODE" >/dev/null
 
 for _attempt in {1..30}; do
-  obsidian "vault=$TARGET_VAULT_NAME" eval 'code=(() => window.__officialPluginMiyoRun || null)()' | sed '1s/^=> //' >"$RUNTIME_FILE"
+  # RUNTIME_FILE comes out 0600 even when an older copy has a wider mode: a redirect into an existing file keeps
+  # that file's mode, so the old file goes first and the new one is created under umask 077 (noclobber makes the
+  # write fail rather than reuse a file something recreated in between).
+  (
+    umask 077
+    set -o noclobber
+    rm -f "$RUNTIME_FILE"
+    obsidian "vault=$TARGET_VAULT_NAME" eval 'code=(() => window.__officialPluginMiyoRun || null)()' | sed '1s/^=> //' >"$RUNTIME_FILE"
+  )
   if jq -e '.status == "completed"' "$RUNTIME_FILE" >/dev/null 2>&1; then
     break
   fi

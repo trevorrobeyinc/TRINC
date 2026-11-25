@@ -5,8 +5,16 @@ export interface McpServerConfig {
   id: string;
   displayName: string;
   enabled: boolean;
+  /** Only "uds" is dialled. "http" entries are reported in Diagnostics; "pipe" is not implemented. */
   transport: McpTransport;
-  httpEndpoint: string;
+  /**
+   * The bridge socket. "" (or absent) means the socket bound to this server's id, resolved at run
+   * time; otherwise `~/.local/state/trinc/run/<name>` or that path spelled absolutely. See
+   * resolveBridgeSocket in ./udsClient.
+   */
+  socketPath?: string;
+  /** Legacy loopback TCP endpoint, kept only as a record after the socket migration; never dialled. */
+  httpEndpoint?: string;
   authToken: string;
   timeoutMs: number;
   vaultName: string;
