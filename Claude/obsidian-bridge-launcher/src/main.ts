@@ -1,4 +1,4 @@
-import { Notice, Plugin } from "obsidian";
+import { Notice, Plugin, TFile, TFolder, normalizePath, prepareSimpleSearch } from "obsidian";
 import { spawn, type ChildProcess } from "child_process";
 import { existsSync, mkdirSync, appendFileSync } from "fs";
 import { homedir } from "os";
@@ -9,6 +9,15 @@ import { BridgeLauncherSettingTab } from "./settings";
 import { ConsoleCapture } from "./consoleCapture";
 import { attachLauncherIpcServer } from "./launcherIpcServer";
 import { clearStaleHolder, getHealthz } from "./bridgeSocket";
+import type { ObsidianRuntime } from "./vaultIpc";
+
+/** The 'obsidian' functions the vault operations call. vaultIpc.ts takes them as a dependency, for its tests. */
+const OBSIDIAN_RUNTIME: ObsidianRuntime = {
+  normalizePath,
+  prepareSimpleSearch,
+  isNote: (entry): entry is TFile => entry instanceof TFile,
+  isFolder: (entry): entry is TFolder => entry instanceof TFolder,
+};
 
 /**
  * bridges-uds (2026-11-24): the bridge serves only on <home>/.local/state/trinc/run/vault-bridge.sock
@@ -220,6 +229,18 @@ export default class BridgeLauncherPlugin extends Plugin {
     if (!existsSync(`${pkg}/dist/server/udsListener.js`) || existsSync(`${pkg}/dist/server/httpTransport.js`)) {
       return this.fail(`bridge dist predates bridges-uds: run \`rm -rf dist && npm run build\` in ${pkg}`);
     }
+    // A dist built before 2026-11-25 still sends its vault operations to the Local REST API plugin. It is
+    // warned about, not refused: deploying this launcher first and rebuilding the bridge second is the safe
+    // order, and the old bridge keeps working in between, while that plugin is still enabled.
+    if (!existsSync(`${pkg}/dist/backends/launcherIpcBackend.js`)) {
+      new Notice(
+        `The bridge build predates the launcher pipe backend, so it still uses the Local REST API. ` +
+          `Expected between deploying this launcher and rebuilding the bridge, and while rolled back. ` +
+          `Otherwise follow ops/security/vault-ipc-2026-11-25.md in TRINC (save the current dist first).`,
+        12000
+      );
+      console.warn("[bridge-launcher] bridge dist predates LauncherIpcBackend (2026-11-25)");
+    }
     if (!existsSync(this.settings.mcpConfigPath)) {
       return this.fail(`MCP config not found: ${this.settings.mcpConfigPath}`);
     }
@@ -286,6 +307,9 @@ export default class BridgeLauncherPlugin extends Plugin {
       this.detachIpcServer = attachLauncherIpcServer(child, {
         capture: this.capture,
         audit: emitLauncherAudit,
+        app: this.app,
+        obsidian: OBSIDIAN_RUNTIME,
+        version: this.manifest.version,
       });
     }
 

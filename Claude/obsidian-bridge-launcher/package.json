@@ -1,11 +1,13 @@
 {
   "name": "obsidian-bridge-launcher",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Spawns the canonical Obsidian MCP bridge as a child process tied to Obsidian's lifecycle",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "build": "node esbuild.config.mjs production",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types --no-warnings \"test/*.test.ts\"",
     "lint:transport": "bash ../../scripts/lint-transport-monorepo.sh --strict"
   },
   "devDependencies": {

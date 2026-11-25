@@ -11,6 +11,12 @@
     "importHelpers": true,
     "isolatedModules": true,
     "strictNullChecks": true,
+    // vaultIpc.ts, commandPolicy.ts and launcherIpcServer.ts import each other as "./x.ts" so that
+    // `node --test --experimental-strip-types` can load them (type stripping never resolves an extensionless
+    // specifier), as Command Center's src/video/ modules do. esbuild builds main.js and tsc only typechecks,
+    // so noEmit costs nothing (2026-11-25).
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
     "lib": ["DOM", "ES2021"]
   },
   "include": ["src/**/*.ts"]
