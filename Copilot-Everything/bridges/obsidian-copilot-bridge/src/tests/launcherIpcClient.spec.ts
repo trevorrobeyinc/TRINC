@@ -116,4 +116,22 @@ describe("LauncherIpcClient", () => {
     expect(((await pending.catch((e: unknown) => e)) as LauncherIpcError).reason).toBe("closed");
     expect(((await client.request("vault.info", {}).catch((e: unknown) => e)) as LauncherIpcError).reason).toBe("closed");
   });
+
+  it("says whether a failed call was sent: a call made after the close never was, one in flight was", async () => {
+    const { client, channel, requests } = pipePair();
+    const inFlight = client.request("vault.append", { path: "A.md", content: "x" }, 5_000);
+    await until(() => requests.length === 1);
+    channel.destroy();
+    const failedInFlight = (await inFlight.catch((e: unknown) => e)) as LauncherIpcError;
+    const afterClose = (await client.request("vault.append", { path: "A.md", content: "x" }).catch((e: unknown) => e)) as LauncherIpcError;
+    expect([failedInFlight.reason, failedInFlight.sent]).toEqual(["closed", true]);
+    expect([afterClose.reason, afterClose.sent]).toEqual(["closed", false]);
+    expect(requests).toHaveLength(1);
+  });
+
+  it("counts a timed-out call as sent", async () => {
+    const { client } = pipePair();
+    const error = (await client.request("vault.append", { path: "A.md", content: "x" }, 20).catch((e: unknown) => e)) as LauncherIpcError;
+    expect([error.reason, error.sent]).toEqual(["timeout", true]);
+  });
 });

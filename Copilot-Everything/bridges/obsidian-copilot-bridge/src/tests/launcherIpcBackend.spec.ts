@@ -249,6 +249,37 @@ describe("LauncherIpcBackend execute", () => {
     }
   });
 
+  it("says requestSent false only for a request that never left the bridge (append_note frees its key on it)", async () => {
+    const failing = (error: LauncherIpcError) =>
+      new LauncherIpcBackend(
+        fakeIpc({
+          "vault.append": () => {
+            throw error;
+          },
+        })
+      ).execute("append_note", { path: "A.md", content: "x" }, ctx);
+    const diagnosticsOf = async (run: Promise<unknown>) => {
+      const error = await run.then(
+        () => new Error("expected a rejection"),
+        (e: unknown) => e
+      );
+      expect(error).toBeInstanceOf(AppError);
+      return (error as AppError).diagnostics;
+    };
+    expect(await diagnosticsOf(failing(new LauncherIpcError("launcher IPC channel is closed", "closed", false)))).toEqual({
+      launcherMethod: "vault.append",
+      launcherReason: "closed",
+      requestSent: false,
+    });
+    expect(await diagnosticsOf(failing(new LauncherIpcError("launcher IPC socket closed", "closed")))).toEqual({
+      launcherMethod: "vault.append",
+      launcherReason: "closed",
+    });
+    expect(await diagnosticsOf(new LauncherIpcBackend(null).execute("append_note", { path: "A.md", content: "x" }, ctx))).toEqual({
+      requestSent: false,
+    });
+  });
+
   it("calls a timeout retryable only where repeating is safe: reads, searches, opens and appends", async () => {
     const timingOut = (operation: Operation, method: string, input: Record<string, unknown>) =>
       new LauncherIpcBackend(

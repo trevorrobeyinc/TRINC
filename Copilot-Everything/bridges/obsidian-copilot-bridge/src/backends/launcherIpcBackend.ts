@@ -153,6 +153,11 @@ function unavailable(constraints: string[], diagnostics?: Record<string, unknown
 /** The reason launcherIpcMissingReason() gives when the bridge was simply started without the launcher. */
 const FD_NOT_SET = "BRIDGE_IPC_FD is not set";
 
+/**
+ * `requestSent: false` appears only when the request never left this process (the pipe was already closed), so
+ * the launcher did nothing; append_note then frees its idempotency key instead of holding it as a write that may
+ * have landed. Without it, a failed call may have reached the launcher.
+ */
 function toAppError(operation: Operation, method: string, error: unknown): AppError {
   if (error instanceof AppError) return error;
   const message = error instanceof Error ? error.message : String(error);
@@ -161,6 +166,7 @@ function toAppError(operation: Operation, method: string, error: unknown): AppEr
   return new AppError(code, message, isRetryable(reason, operation), {
     launcherMethod: method,
     ...(reason ? { launcherReason: reason } : {}),
+    ...(error instanceof LauncherIpcError && !error.sent ? { requestSent: false } : {}),
   });
 }
 
@@ -292,7 +298,8 @@ export class LauncherIpcBackend implements Backend {
       throw new AppError(
         ERROR_CODES.LAUNCHER_IPC_UNAVAILABLE,
         "No launcher IPC channel: the bridge was not spawned by obsidian-bridge-launcher.",
-        false
+        false,
+        { requestSent: false }
       );
     }
     const ipc = this.ipc;

@@ -16,6 +16,13 @@ What changed for clients on 2026-11-25. Every tool except `obsidian_health` keep
 - `obsidian_health` reports a `launcherIpc` block instead of `restApi`: its `endpoint` field is now `channel`, its diagnostics carry `vault` and `launcherVersion`, and the `auth` diagnosis category is gone. It diagnoses `vault_mismatch`, or `vault_unverified`, when the launcher serves a different vault from `allowedVaultRoots[0]` or does not name its vault. `meta.backendUsed` and the routing maps say `launcherIpc`, and `backendHint` accepts only `"launcherIpc"`.
 - A bridge not spawned by the launcher (`scripts/bridge-start.sh`, a terminal) serves no vault operation: the six tools fail with `NO_CAPABLE_BACKEND`. `/healthz`, `obsidian_health`, `miyo_search_context` and `research_notify` still answer. The launcher's 'Restart bridge' replaces such a bridge once its terminal is gone (one `scripts/bridge-restart.sh` started), but refuses one whose terminal is still open: stop that one first with Ctrl-C.
 
+What changed for `obsidian_append_note` on 2026-11-27 (its durable idempotency ledger; record: `ops/security/vault-ipc-2026-11-25.md`, last section):
+
+- A first attempt that provably wrote nothing frees its `idempotencyKey`, so a retry with the same key writes. That is a refusal before any backend ran (`NO_CAPABLE_BACKEND`, the cold-start window included, and `BACKEND_SELECTION_STALE`), a request that never left the bridge (`LAUNCHER_IPC_UNAVAILABLE` with `diagnostics.requestSent: false`), and a launcher refusal with reason `path_refused`, `invalid_params` or `too_large`, which its `vault.append` raises only before writing. Such a key used to stay STARTED, and every later call with it ended `AMBIGUOUS_WRITE_REQUIRES_DECISION`.
+- Every other failure records the key as ambiguous, and a retry reconciles it instead of appending again: a timeout, a pipe that closed with the request in flight, an error from the write itself and an answer the bridge could not read may all come after the note was written.
+- A reconcile read that finds no such note answers like one that read the note and found no marker (`AMBIGUOUS_WRITE_REQUIRES_DECISION`, retryable false). It used to say retryable true, which for a note that did not exist yet never changed. A read that fails still answers retryable true.
+- A key stranded before this change stays stranded: only a new key gets past it.
+
 Workspace source-of-truth:
 
 - Parent Raycast package: `../package.json` (`obsidian-bridge-fork`)

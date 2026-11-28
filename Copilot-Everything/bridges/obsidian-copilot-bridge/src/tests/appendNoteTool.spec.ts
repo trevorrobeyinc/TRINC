@@ -30,6 +30,7 @@ function freshLedger() {
     get: () => null,
     start: () => ({ state: "STARTED" }),
     ambiguous: vi.fn(),
+    forgetUnwritten: vi.fn(),
     commit: vi.fn(),
     reconcile: vi.fn(),
   };
@@ -96,6 +97,102 @@ describe("appendNoteTool", () => {
     });
     expect(result.ok).toBe(false);
     expect(ledger.ambiguous).toHaveBeenCalledWith("append_note", "key-2", "launcher IPC timeout");
+  });
+
+  // What becomes of the key when the append itself fails (2026-11-27). Forgotten only when the failure proves the
+  // note untouched; the rest stay ambiguous, so a same-key retry reconciles instead of appending a second time.
+  async function keyAfter(error: { code: string; diagnostics?: Record<string, unknown> }) {
+    executeBackendOperationMock.mockResolvedValue({
+      ok: false,
+      error: { message: `failed: ${error.code}`, retryable: false, ...error },
+      meta: { requestId: "req-k", durationMs: 0 },
+    });
+    const ledger = freshLedger();
+    const result = await appendNoteTool(runtimeWith(ledger), "req-k", 1, undefined, {
+      vault: "V",
+      vaultRoot: root,
+      path: "log.md",
+      content: "x",
+      idempotencyKey: "key-k",
+    });
+    expect(result.ok).toBe(false);
+    const forgotten = ledger.forgetUnwritten.mock.calls;
+    const ambiguous = ledger.ambiguous.mock.calls;
+    if (forgotten.length === 1 && ambiguous.length === 0) {
+      expect(forgotten[0]).toEqual(["append_note", "key-k"]);
+      return "forgotten";
+    }
+    if (ambiguous.length === 1 && forgotten.length === 0) {
+      expect(ambiguous[0]).toEqual(["append_note", "key-k", `failed: ${error.code}`]);
+      return "ambiguous";
+    }
+    return `forgotten ${forgotten.length}, ambiguous ${ambiguous.length}`;
+  }
+
+  it("forgets the key when the selector refused before any backend ran", async () => {
+    expect(await keyAfter({ code: ERROR_CODES.NO_CAPABLE_BACKEND })).toBe("forgotten");
+    expect(await keyAfter({ code: ERROR_CODES.BACKEND_SELECTION_STALE })).toBe("forgotten");
+  });
+
+  it("forgets the key when the request never left the bridge, and only then for an unavailable pipe", async () => {
+    expect(await keyAfter({ code: ERROR_CODES.LAUNCHER_IPC_UNAVAILABLE, diagnostics: { requestSent: false } })).toBe("forgotten");
+    expect(
+      await keyAfter({
+        code: ERROR_CODES.LAUNCHER_IPC_UNAVAILABLE,
+        diagnostics: { launcherMethod: "vault.append", launcherReason: "closed" },
+      })
+    ).toBe("ambiguous");
+    expect(await keyAfter({ code: ERROR_CODES.LAUNCHER_IPC_UNAVAILABLE, diagnostics: { requestSent: true } })).toBe("ambiguous");
+  });
+
+  it("keeps the four timeout codes ambiguous", async () => {
+    for (const code of [
+      ERROR_CODES.CLI_TIMEOUT,
+      ERROR_CODES.CLI_EXIT_NONZERO,
+      ERROR_CODES.QUEUE_TIMEOUT,
+      ERROR_CODES.LAUNCHER_IPC_TIMEOUT,
+    ]) {
+      expect(await keyAfter({ code, diagnostics: { launcherMethod: "vault.append", launcherReason: "timeout" } }), code).toBe(
+        "ambiguous"
+      );
+    }
+  });
+
+  it("forgets the key when the launcher refused with a reason its append raises only before writing", async () => {
+    const refusals: Array<[string, string]> = [
+      [ERROR_CODES.PATH_INVALID, "path_refused"],
+      [ERROR_CODES.INTERNAL_ERROR, "invalid_params"],
+      [ERROR_CODES.PAYLOAD_TOO_LARGE, "too_large"],
+    ];
+    for (const [code, launcherReason] of refusals) {
+      expect(await keyAfter({ code, diagnostics: { launcherMethod: "vault.append", launcherReason } }), launcherReason).toBe(
+        "forgotten"
+      );
+    }
+  });
+
+  it("keeps the key ambiguous for any other launcher reason, including one it has never seen", async () => {
+    const others: Array<[string, unknown]> = [
+      [ERROR_CODES.LAUNCHER_IPC_UNAVAILABLE, "closed"],
+      [ERROR_CODES.LAUNCHER_IPC_UNAVAILABLE, "unavailable"],
+      [ERROR_CODES.NOTE_NOT_FOUND, "not_found"],
+      [ERROR_CODES.ALREADY_EXISTS, "already_exists"],
+      [ERROR_CODES.COMMAND_NOT_ALLOWED, "command_refused"],
+      [ERROR_CODES.INTERNAL_ERROR, "disk_full"],
+      [ERROR_CODES.INTERNAL_ERROR, ""],
+    ];
+    for (const [code, launcherReason] of others) {
+      expect(
+        await keyAfter({ code, diagnostics: { launcherMethod: "vault.append", launcherReason } }),
+        String(launcherReason)
+      ).toBe("ambiguous");
+    }
+  });
+
+  it("keeps the key ambiguous for a failure that may have come after the write", async () => {
+    // A write that threw in the renderer (no launcher reason), an unreadable answer, anything unexpected.
+    expect(await keyAfter({ code: ERROR_CODES.INTERNAL_ERROR, diagnostics: { launcherMethod: "vault.append" } })).toBe("ambiguous");
+    expect(await keyAfter({ code: ERROR_CODES.INTERNAL_ERROR })).toBe("ambiguous");
   });
 
   it("refuses a body over the byte limit (under the character limit) as PAYLOAD_TOO_LARGE, before the key is started or anything sent", async () => {

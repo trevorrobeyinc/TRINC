@@ -19,14 +19,20 @@ interface JsonRpcResponse {
  * A failed launcher call. `reason` is the launcher's when it refused (obsidian-bridge-launcher src/vaultIpc.ts:
  * invalid_params, path_refused, not_found, already_exists, command_refused, unavailable), or this client's
  * own: "timeout" (no answer in time) or "closed" (the pipe is gone).
+ *
+ * `sent` is false only when the request never left this process (the pipe was already closed), so the launcher
+ * cannot have acted on it. Everything else defaults to true: a pipe that closes while a request is in flight
+ * fails it as "closed" too, but the launcher may already have run it.
  */
 export class LauncherIpcError extends Error {
   readonly reason: string | undefined;
+  readonly sent: boolean;
 
-  constructor(message: string, reason?: string) {
+  constructor(message: string, reason?: string, sent = true) {
     super(message);
     this.name = "LauncherIpcError";
     this.reason = reason;
+    this.sent = sent;
   }
 }
 
@@ -101,7 +107,7 @@ export class LauncherIpcClient {
   request<T = unknown>(method: string, params: unknown, timeoutMs = 5000): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       if (this.closed) {
-        reject(new LauncherIpcError("launcher IPC channel is closed", "closed"));
+        reject(new LauncherIpcError("launcher IPC channel is closed", "closed", false));
         return;
       }
       const id = randomUUID();

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { RuntimeContext } from "../context";
-import type { BackendId, ToolResult } from "../../types";
+import type { BackendId, ToolError, ToolResult } from "../../types";
 import { AppError } from "../errors";
 import { ERROR_CODES } from "../errorCodes";
 import { guardVaultRelativePath, revalidateGuardedPath } from "../../fs/pathGuard";
@@ -45,6 +45,41 @@ function isStaleSelectionError(error: unknown): error is AppError {
   return error instanceof AppError && error.code === ERROR_CODES.BACKEND_SELECTION_STALE;
 }
 
+/**
+ * The launcher's refusals that vault.append raises only before it writes (obsidian-bridge-launcher
+ * src/vaultIpc.ts). Its checks (guardPath, requireString, verifyContent, refuseTooLargeToWrite, locateNote,
+ * ensureParentFolders) run before any note write on their path, and the pipe server refuses a frame that is not
+ * JSON (invalid_params) or is too large (too_large) before dispatching it. A failure in the write itself is
+ * Obsidian's own error and carries no reason. launcherContract.spec.ts holds the launcher to this. A reason not
+ * named here, now or later, keeps the key ambiguous; "timeout" and "closed" are this bridge's own and come back on
+ * requests that were sent.
+ */
+export const PRE_WRITE_LAUNCHER_REASONS: ReadonlySet<string> = new Set(["invalid_params", "path_refused", "too_large"]);
+
+/**
+ * Whether a failed append provably left the note untouched, so that its key can be forgotten and a retry with it
+ * writes as a first attempt. Whatever is not shown to be unwritten is held as AMBIGUOUS and reconciled on retry:
+ * a timeout (CLI_TIMEOUT, CLI_EXIT_NONZERO, QUEUE_TIMEOUT, LAUNCHER_IPC_TIMEOUT), a pipe that closed with the
+ * request in flight, an error from the write itself (it carries no launcher reason) and an answer this bridge
+ * could not read may all come after the launcher touched the note, and freeing the key there would append the
+ * text twice.
+ */
+function failedBeforeWriting(error: ToolError): boolean {
+  // The selector refuses before any backend runs: no capable backend (the cold-start window, no pipe, an old
+  // launcher, another vault) or a stale routing epoch.
+  if (error.code === ERROR_CODES.NO_CAPABLE_BACKEND || error.code === ERROR_CODES.BACKEND_SELECTION_STALE) {
+    return true;
+  }
+  // The request never left this process: no launcher pipe, or one already closed (launcherIpcBackend.ts).
+  if (error.diagnostics?.requestSent === false) {
+    return true;
+  }
+  // The launcher refused it with a reason its append raises only before writing. Some clear on a retry (a file in
+  // another letter case that Obsidian has not indexed yet, a body the pipe damaged), so the key must not be held.
+  const reason = error.diagnostics?.launcherReason;
+  return typeof reason === "string" && PRE_WRITE_LAUNCHER_REASONS.has(reason);
+}
+
 async function reconcileAppendMarker(
   runtime: RuntimeContext,
   payload: z.infer<typeof schema>,
@@ -81,6 +116,13 @@ async function reconcileAppendMarker(
         readResult.error.retryable,
         readResult.error.diagnostics
       );
+    }
+
+    // The launcher looked and there is no such note, so there is no marker in it either: an answer, not a failed
+    // read (the REST backend read a missing note as empty, with the same outcome). As a failed read it answered
+    // retryable true, which for a note that does not exist yet stays true for good.
+    if (readResult.error.code === ERROR_CODES.NOTE_NOT_FOUND) {
+      return false;
     }
 
     throw new AppError(
@@ -280,12 +322,12 @@ export async function appendNoteTool(
   );
 
   if (!result.ok) {
-    if (
-      result.error.code === ERROR_CODES.CLI_TIMEOUT ||
-      result.error.code === ERROR_CODES.CLI_EXIT_NONZERO ||
-      result.error.code === ERROR_CODES.QUEUE_TIMEOUT ||
-      result.error.code === ERROR_CODES.LAUNCHER_IPC_TIMEOUT
-    ) {
+    if (failedBeforeWriting(result.error)) {
+      // Nothing reached the note, so the key is free again. Kept as STARTED (until 2026-11-27) it sent every later
+      // call with this key to reconciliation, which looks for a marker that can never appear and answers
+      // AMBIGUOUS_WRITE_REQUIRES_DECISION, retryable false, for good: the ledger is durable.
+      runtime.ledger.forgetUnwritten("append_note", key);
+    } else {
       runtime.ledger.ambiguous("append_note", key, result.error.message);
     }
     return result;

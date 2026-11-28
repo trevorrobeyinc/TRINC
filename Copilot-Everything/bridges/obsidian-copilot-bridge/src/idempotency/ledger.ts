@@ -105,6 +105,19 @@ export class IdempotencyLedger {
       .run("AMBIGUOUS", lastError ?? null, updatedAt, operation, key);
   }
 
+  /**
+   * Forgets a key whose attempt provably wrote nothing, so the next call with it runs as a first attempt. A key
+   * this ledger has seen is otherwise only ever reconciled, and reconciling a write that never happened finds no
+   * marker, for good. Only STARTED and AMBIGUOUS go: a COMMITTED or RECONCILED key has a confirmed write. (A
+   * concurrent same-key call can move the row to AMBIGUOUS when its own reconcile read fails; the attempt that
+   * started the key is still the only one that writes with it.)
+   */
+  forgetUnwritten(operation: string, key: string): void {
+    this.db
+      .prepare("DELETE FROM idempotency_ledger WHERE operation=? AND key=? AND state IN ('STARTED', 'AMBIGUOUS')")
+      .run(operation, key);
+  }
+
   private update(operation: string, key: string, state: IdempotencyState, responseJson?: string): void {
     const updatedAt = new Date().toISOString();
     this.db
